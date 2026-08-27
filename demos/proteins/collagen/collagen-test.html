@@ -16,7 +16,7 @@
      the question this bench is for is which of those two ends a lesson
      can be built on, and whether anything crosses between them.
 
-     Seven depositions in one camera, as themselves. Nothing is
+     Six depositions in one camera, as themselves. Nothing is
      interpolated, fitted or rebuilt. Coordinates come off the files
      through tools/prep.js, and secondary structure comes off each
      file's own records — which for collagen is a finding in itself, see
@@ -25,18 +25,23 @@
      WHAT IT IS FOR SETTLING:
 
        the helix      is the braid legible as a picture at all, or does
-                      it need a diagram (1K6F, and 1BKV for a real
-                      sequence with a proline-free stretch in it).
+                      it need a diagram (1K6F).
+       the hydroxyls  1K6F against 3B0S is the one CONTROLLED pair on
+                      the bench: same repeat, same length, one oxygen
+                      per triplet apart. It is what a scurvy lesson
+                      would open on, and 1K6F — unhydroxylated, full
+                      atoms at 1.3 Å — is what the enzyme sees.
        the disease    1CAG is one glycine replaced by one alanine, which
                       is the osteogenesis imperfecta mutation. Whether
                       the consequence is VISIBLE at ribbon width is the
                       question, and the answer may well be no.
-       what holds on  1Q7D is the site a cell grips (GFOGER) with
-                      nothing holding it, and 1DZI is the same 21-mer
-                      with the integrin domain on it — the pair is one
-                      peptide with and without its partner. 4AU3 is the
-                      chaperone that stops the helix falling apart
-                      before it leaves the cell.
+       what holds on  1DZI is the site a cell grips (GFOGER) with the
+                      integrin domain on it, and the grip drawn: one
+                      metal ion, one collagen glutamate reaching in.
+                      4AU3 is the chaperone that stops the helix falling
+                      apart before it leaves the cell. The bare peptide
+                      (1Q7D, the same 21-mer alone) was here and was
+                      dropped — see prep.js's `grip` entry.
        the scale      3HR2 is one whole molecule, 3016 Å of it. Nothing
                       else in this repo is that shape, and it is the one
                       view that could carry the fibril.
@@ -49,10 +54,12 @@
      here. A fibril view would have to be BUILT from the unit cell, and
      that is a decision for a lesson, not a bake.
 
-     THE COLLECTION DOES NOT HOLD COLLAGEN YET. These seven are
-     candidates: tools/prep.js's CANDIDATES table is the source, and
-     data/candidates.json is what this page reads. Nothing is in
-     proteins/proteins.js until the review says which survived.
+     REVIEWED AND REGISTERED. Seven structures went in front of a human
+     and six came out; collagen is in proteins/proteins.js now, and that
+     is what this page and its baker both read. The one that did not
+     survive was 1BKV, the only natural short sequence here — the
+     comment beside the registry's variants says why, and it is a
+     measurement rather than a preference.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -74,6 +81,39 @@
   .strands span{display:flex;align-items:center;gap:0.35rem;
     font-size:0.78rem;color:var(--h-muted)}
   .strands i{width:0.7rem;height:0.7rem;border-radius:2px;display:block}
+
+  /* A CAPTION UNDER ONE BUTTON, for a candidate that has already been claimed
+     by a lesson. Not in protein-test.css: every other bench's buttons are a
+     flat list of structures, and being spoken for is a REVIEW state — it says
+     what happens to this entry next, which is a thing only a protein still
+     under review has. It moves to the shared sheet the day a second bench
+     wants it, and off the page entirely once the lesson exists. */
+  /* WHERE ON THE MOLECULE, in the stage's lower left. On the stage rather than
+     in the panel because it is a fact about the thing being LOOKED AT and the
+     panel is already a column of figures; a reader who has just turned a
+     peptide should be told what it is a piece of without moving their eyes off
+     it. Quiet enough to ignore: this is a caption, not a control. */
+  .where{position:absolute;left:var(--space-4);bottom:var(--space-4);
+    max-width:min(30rem,55%);pointer-events:none;
+    font-family:var(--h-ui);font-size:0.78rem;line-height:1.45;
+    color:var(--h-muted)}
+  .where b{display:block;font-size:0.7rem;letter-spacing:0.14em;
+    text-transform:uppercase;font-weight:600;color:var(--h-ink);
+    margin-bottom:0.2rem}
+  .where em{font-style:normal;color:var(--h-spark)}
+  /* The matched stretch is a sequence, so it is set as one. */
+  .where code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:0.95em;color:var(--h-ink)}
+
+  .earmark{margin:-1px 0 var(--space-3);padding:6px 12px 0;
+    font-size:0.75rem;line-height:1.4;color:var(--h-muted);
+    border-left:2px solid var(--h-spark)}
+  .earmark b{color:var(--h-spark);font-weight:600}
+  /* The same caption geometry without the claim. Rust says a lesson has
+     spoken for this entry; plain says here is what it is for, which is a
+     different thing and must not borrow the signal. */
+  .earmark.plain{border-left-color:var(--h-line)}
+  .earmark.plain b{color:var(--h-ink)}
 
   /* TWO WAYS TO READ ONE PROTEIN, on tabs rather than stacked, because they
      are not the same length or the same register: what the FILES do to this
@@ -102,30 +142,39 @@
 </head>
 <body>
 <div id="app">
-  <div id="stage"></div>
+  <div id="stage"><p class="where" id="d-where"></p></div>
   <div class="panel">
     <h1>Collagen</h1>
     <p class="deck">Three chains wound into a rope, Gly-X-Y over and over, a
-      third of the protein in you. Seven depositions, one camera &mdash; none
-      of them registered yet.</p>
+      third of the protein in you. Six depositions, one camera.</p>
 
     <h2>the helix</h2>
+    <!-- THE TWO CHIPS HERE ARE FILLED FROM THE BAKE, not typed: this pair
+         exists to be a hydroxyl count, and a count typed into markup is a
+         claim a re-bake falsifies silently. `data-chip="hyp"` is what asks. -->
     <button class="mode" id="v-ppg10" aria-pressed="true">
-      <span class="who">(Pro-Pro-Gly)&#8321;&#8320; &middot; 1K6F</span><span class="chip">1.3 &Aring;</span></button>
-    <button class="mode" id="v-natural" aria-pressed="false">
-      <span class="who">a real sequence &middot; 1BKV</span><span class="chip">type III</span></button>
+      <span class="who">(Pro-Pro-Gly)&#8321;&#8320; &middot; 1K6F</span><span class="chip" data-chip="hyp">&mdash;</span></button>
+    <button class="mode" id="v-pog9" aria-pressed="false">
+      <span class="who">(Gly-Pro-Hyp)&#8329; &middot; 3B0S</span><span class="chip" data-chip="hyp">&mdash;</span></button>
+    <p class="earmark"><b>For the scurvy lesson.</b> 3B0S is the hydroxylated
+      control; 1K6F above it is the unhydroxylated one, and 1K6F is also what
+      the enzyme actually sees &mdash; prolyl 4-hydroxylase works on a single
+      unfolded chain, before any of this is wound.</p>
 
     <h2>one wrong residue</h2>
     <button class="mode" id="v-oi" aria-pressed="false">
       <span class="who">Gly &rarr; Ala &middot; 1CAG</span><span class="chip">brittle bone</span></button>
 
     <h2>what holds on to it</h2>
-    <button class="mode" id="v-integrin" aria-pressed="false">
-      <span class="who">the GFOGER grip &middot; 1Q7D</span><span class="chip">cell</span></button>
     <button class="mode" id="v-grip" aria-pressed="false">
       <span class="who">integrin holding it &middot; 1DZI</span><span class="chip">4 chains</span></button>
     <button class="mode" id="v-chaperone" aria-pressed="false">
       <span class="who">Hsp47 &middot; 4AU3</span><span class="chip">5 chains</span></button>
+
+    <p class="earmark plain"><b>4AU3 &mdash; collagen being made.</b> Every other
+      entry is finished material or a fragment of it; this is the only one
+      inside a cell. Hsp47 binds the completed triple helix in the ER and lets
+      go in the Golgi as the pH drops.</p>
 
     <h2>the whole thing</h2>
     <button class="mode" id="v-molecule" aria-pressed="false">
@@ -145,7 +194,7 @@
       <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
       <tr><td>ss records</td><td id="d-ssfrom">&mdash;</td></tr>
       <tr><td>bound</td><td id="d-lig">&mdash;</td></tr>
-      <tr><td>metal site</td><td id="d-site">&mdash;</td></tr>
+      <tr><td>drawn close up</td><td id="d-site">&mdash;</td></tr>
       <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
       <tr><td>view</td><td id="d-view">&mdash;</td></tr>
     </table>
@@ -163,9 +212,9 @@
     <div class="tab-panel" id="p-science" role="tabpanel" aria-labelledby="t-science">
       <p class="note"><strong>The helix nobody records.</strong> A PDB says
         helix or sheet, and the collagen helix is neither &mdash; it is
-        polyproline II, three of them coiled together. Four of these seven
-        files therefore carry no secondary structure at all and bake as pure
-        coil, which is honest and is why the strands are told apart by colour
+        polyproline II, three of them coiled together. Half of these six files
+        therefore carry no secondary structure at all and bake as pure coil,
+        which is honest and is why the strands are told apart by colour
         instead. Two of the three that do carry records are describing their
         PARTNER &mdash; the integrin domain and Hsp47 are ordinary proteins
         with real helices and sheets in them, and the collagen beside them is
@@ -268,18 +317,41 @@ const box = Proteinbox.create({
    why on a click. */
 notes = Annot.create(THREE, stage, box.camera, { mode: 'on' });
 
-/* WHICH STRUCTURES, AND WHAT EACH IS FOR, ARE THE BAKER'S — written to
-   data/candidates.json from the CANDIDATES table at the top of tools/prep.js,
-   which is where a protein under review keeps them. Not proteins/proteins.js:
-   everything in that file is a decision, and the review has not made one.
-   Fetched rather than typed so a button and the bake behind it cannot describe
-   two different things. */
-const ORDER = ['ppg10', 'natural', 'oi', 'integrin', 'grip', 'chaperone', 'molecule'];
-const OPEN = 'ppg10';
+/* WHICH STRUCTURES, AND WHAT EACH IS FOR, ARE proteins/proteins.js's — the
+   registry every protein in the repo is described in, and the same file the
+   baker read to write these bakes. Collagen was registered when its review
+   ended, so nothing about the six is typed here and a variant cannot be
+   described one way in the panel and baked another.
+
+   Panel order is the page's business: the helix first, then the substitution,
+   then what holds on to it, then the whole thing. */
+const ME = ProteinLib.byKey('collagen');
+const ORDER = ['ppg10', 'pog9', 'oi', 'grip', 'chaperone', 'molecule'];
+/* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id: which structure
+   a protein opens on is a decision and it belongs with the other decisions
+   about it. */
+const OPEN = ProteinLib.defaultOf(ME).id;
 
 /* THE PAGE'S OWN COPY. What a structure IS is the baker's; what this bench
    SAYS about it under this stage is page copy and belongs here. Keyed by
    candidate id, so a button and its paragraph cannot come apart. */
+/* WHY A CANDIDATE HAS NO POSITION, which the baker cannot know. It reports
+   only that nothing matched; whether that is because the sequence was designed
+   or because it belongs to a different gene is knowledge about the entry, and
+   knowledge about an entry is page copy. */
+const NOWHERE = {
+  ppg10: 'a designed repeat. (Pro-Pro-Gly)₁₀ occurs in no collagen gene, so '
+       + 'its 1–29 numbering is construct-local and means nothing outside '
+       + 'this file.',
+  pog9: 'a designed repeat, like (Pro-Pro-Gly)₁₀ — real collagen is never '
+      + 'this regular for this long.',
+  oi: 'a designed host with one substitution. Real osteogenesis imperfecta '
+    + 'alleles are quoted in helix numbering — Gly349Ser and the like — and '
+    + 'this is a model of that class of mutation, not any patient’s.',
+  chaperone: 'a (Pro-Pro-Gly)-based model peptide. Hsp47 binds the repeat '
+           + 'itself, so the construct did not need to come from anywhere.',
+};
+
 const SAYS = {
   ppg10: {
     claim: 'The collagen triple helix with nothing else going on: '
@@ -288,13 +360,16 @@ const SAYS = {
         + 'third residue is glycine and it is always on the inside — the '
         + 'three chains pack so close to the axis that nothing with a side '
         + 'chain fits there. That single constraint is most of collagen.' },
-  natural: {
-    claim: 'A real type III collagen sequence, not a synthetic repeat.',
-    prov: 'The middle of this peptide is ITGARGLA: no proline, no '
-        + 'hydroxyproline. Collagen is not uniform, and the imino-poor '
-        + 'stretches are where it bends, where enzymes cut it, and where '
-        + 'things bind. The ends are (Pro-Hyp-Gly) to hold the helix '
-        + 'together while the middle is looked at.' },
+  pog9: {
+    claim: 'The same helix with the hydroxyls on: (Gly-Pro-Hyp)₉, and the '
+         + 'controlled half of the only controlled pair here.',
+    prov: 'X-ray at 1.45 Å. Against (Pro-Pro-Gly)₁₀ next door this is the same '
+        + 'repeat at the same length — compare the extents rows — differing by '
+        + 'one oxygen per triplet and nothing else. The two melt about twenty '
+        + 'degrees apart, and the hydroxylated one is the side that survives '
+        + 'body temperature. That difference is a temperature, though, not a '
+        + 'shape: both of these crystals are folded, and neither picture shows '
+        + 'the melting.' },
   oi: {
     claim: 'One glycine swapped for one alanine — the osteogenesis '
          + 'imperfecta substitution, built into a peptide on purpose.',
@@ -304,20 +379,12 @@ const SAYS = {
         + 'person, one such substitution in one copy of one collagen gene '
         + 'gives brittle bone, because the wrong chain poisons every '
         + 'triple helix it joins.' },
-  integrin: {
-    claim: 'The GFOGER site: the six residues a cell holds on by.',
-    prov: 'X-ray at 1.8 Å, and the peptide is ALONE — nothing is holding it. '
-        + 'Integrin α2β1 grips this sequence, which is how a cell knows it '
-        + 'is standing on collagen and not floating, but the partner is in '
-        + '1DZI next door and not in this file. The peptide is capped at '
-        + 'both ends (ACE, NH2) so it cannot fray, and the site itself is '
-        + 'one turn of an otherwise ordinary helix.' },
   grip: {
-    claim: 'The same peptide with the integrin actually holding it: the α2 I '
+    claim: 'The GFOGER site with the integrin actually holding it: the α2 I '
          + 'domain, and the metal ion the grip is made of.',
-    prov: 'X-ray at 2.1 Å. Chains B, C and D are the identical 21-mer 1Q7D '
-        + 'deposits on its own, so the pair is one peptide with and without '
-        + 'its partner. The contact is not a handshake between surfaces: a '
+    prov: 'X-ray at 2.1 Å. GFOGER is the six residues a cell holds on by, and '
+        + 'chains B, C and D are a 21-mer built around them. The contact is '
+        + 'not a handshake between surfaces: a '
         + 'glutamate in the GFOGER reaches in and completes the coordination '
         + 'of a metal ion held by the integrin, deposited here as cobalt '
         + 'standing in for magnesium. That is one residue of collagen doing '
@@ -341,21 +408,13 @@ const SAYS = {
         + 'that says what collagen actually is.' },
 };
 
-/* THE COLOUR IS THE ONE CLAIM THIS PAGE MAKES ON ITS OWN, so it is made once
-   here and read twice — the ribbon and the legend beside it. Keyed by the
-   STRAND NAME the baker gave the chain, not by chain id, so a homotrimer's
-   three interchangeable chains get three colours and 3HR2's two α1 chains get
-   the same one. That is the difference between a braid and a heterotrimer,
-   and it is a claim about the molecule rather than about the file. */
-const STRAND = {
-  'chain 1': 0x1f5f4f,      // deep green, the house accent
-  'chain 2': 0xe2643a,      // rust
-  'chain 3': 0x2f6f9f,      // blue
-  'α1(I)':   0x1f5f4f,
-  'α2(I)':   0xe2643a,
-  'Hsp47':   0x9aa0a6,      // grey: not collagen, and not the subject
-  'integrin α2 I': 0x9aa0a6,
-};
+/* THE STRAND COLOURS ARE THE REGISTRY'S, not this page's. They were here
+   first, and moved the day the gallery card had to draw the same molecule:
+   a colour kept on one page is a card and a bench showing one protein two
+   ways. `colorsOf` maps this variant's chain names through the protein's
+   strand table, so a homotrimer's three chains get three colours and 3HR2's
+   two α1 chains get the same one. */
+const STRAND = ME.draw.byStrand;
 const hex = n => '#' + n.toString(16).padStart(6, '0');
 
 const views = {};                        // id -> baked trace
@@ -366,16 +425,31 @@ const $ = id => document.getElementById(id);
 /* A bench is a thing you poke at from the console. */
 window.bench = { views, cand, box, get view() { return view; } };
 
-fetch('data/candidates.json').then(r => r.json()).then(list => {
-  list.forEach(c => { cand[c.id] = c; });
-  ORDER.forEach(id => {
-    fetch(`data/${cand[id].read.baked}`).then(r => r.json()).then(t => {
-      views[id] = t;
-      if (view === id) show(id);         // clicked before the fetch landed
-    });
+ORDER.forEach(id => { cand[id] = ProteinLib.variantOf(ME, id); });
+ORDER.forEach(id => {
+  fetch(`data/${cand[id].read.baked}`).then(r => r.json()).then(t => {
+    views[id] = t;
+    chip(id);
+    if (view === id) show(id);           // clicked before the fetch landed
   });
-  show(OPEN);
 });
+show(OPEN);
+
+/* The pressed button comes from the same answer as the stage, so the
+   highlight and what is drawn cannot disagree. */
+ORDER.forEach(id => $('v-' + id).setAttribute('aria-pressed', String(id === OPEN)));
+
+/* A CHIP THAT IS A NUMBER READS IT OFF THE BAKE. The two helix buttons are a
+   hydroxyl count and nothing else, and the contrast has to be visible in the
+   list before anyone clicks — 1.3 Å against type III said nothing about the
+   thing that separates them. Zero is spelled out rather than printed as 0:
+   "no Hyp" is the claim, and a 0 beside a 27 reads as a missing measurement. */
+function chip(id) {
+  const el = $('v-' + id).querySelector('[data-chip="hyp"]');
+  if (!el) return;
+  const t = views[id];
+  el.textContent = t.pocket ? `${t.pocket.bonds.length} Hyp` : 'no Hyp';
+}
 
 /* WHAT COUNTS AS QUATERNARY STRUCTURE, said per view rather than in a legend.
    A collagen molecule is three chains ALWAYS — a single chain is not a smaller
@@ -441,21 +515,48 @@ function stats(t, c) {
   };
 }
 
-/* THE SITE IN WORDS, counted off the baked pocket rather than typed. Says how
-   many vertices the metal has and how many of them the COLLAGEN supplies,
-   which is the claim the picture makes and the one worth checking against it.
-   Waters are named separately: they are two of the six and a reader who is not
-   told will read them as protein. */
+/* WHAT IS DRAWN INSIDE THE RIBBON, in words, counted off the baked pocket
+   rather than typed. Two kinds, and the empty case is the interesting one:
+   (Pro-Pro-Gly)10 ASKED for hydroxyls and has none, which is a measurement
+   and not a baker that was never told to look. */
 function siteRow(t, c) {
-  if (!t.pocket) return 'none';
+  if (!t.pocket) {
+    return c.pocket && c.pocket.hydroxyl
+      ? 'no hydroxyls — this peptide has no hydroxyproline in it'
+      : 'nothing';
+  }
+  if (t.pocket.kind === 'hydroxyl')
+    return `${t.pocket.bonds.length} hydroxyls · the O on every Hyp, and the ` +
+           `ring carbon it hangs off`;
+
   const spine = new Set((c.helix || c.chains).split(','));
   const v = t.pocket.atoms.slice(1);             // [0] is the metal itself
   const water = v.filter(a => a.of.res === 'HOH').length;
-  const mine = v.filter(a => spine.has(a.of.chain)).length;
-  const from = v.filter(a => spine.has(a.of.chain))
-    .map(a => `${a.of.res[0] + a.of.res.slice(1).toLowerCase()}${a.of.num}`);
+  const mine = v.filter(a => spine.has(a.of.chain));
+  const from = mine.map(a => `${a.of.res[0] + a.of.res.slice(1).toLowerCase()}${a.of.num}`);
   return `${t.pocket.atoms[0].el} · ${v.length} contacts · ` +
-    `${mine} from the collagen (${from.join(', ')}) · ${water} water`;
+    `${mine.length} from the collagen (${from.join(', ')}) · ${water} water`;
+}
+
+/* THE ONE FRAGMENT THAT IS A PIECE OF THE MOLECULE, and the five that are not.
+   Every number here is the baker's, matched by sequence against 3HR2 rather
+   than typed — including the offset, which is the trap: collagen positions are
+   quoted from the start of the triple-helical domain, and 3HR2 numbers from
+   its telopeptide instead. Printing only the file's number would be quietly
+   wrong by that offset forever, so both are shown. */
+function whereHTML(t, id) {
+  const p = t.place;
+  if (p && p.ruler)
+    return `<b>where on the molecule</b>This is the ruler — ${p.chains.join(' + ')}, ` +
+      `the whole thing. Helix residue 1 is <em>Gly${p.start}</em> in this file, ` +
+      `because the first ${p.offset} residues are the telopeptide: every ` +
+      `position quoted below is this file's number minus ${p.offset}.`;
+  if (p)
+    return `<b>where on the molecule</b><em>${p.of} ${p.helix[0]}–${p.helix[1]}</em> · ` +
+      `matched on <code>${p.seq}</code>, which occurs once in 3HR2 · ` +
+      `file residues ${p.from}–${p.to} there` +
+      (p.whole ? '' : ' · the rest of this peptide is scaffolding');
+  return `<b>where on the molecule</b>Nowhere: ${NOWHERE[id] || 'nothing matched.'}`;
 }
 
 function show(id) {
@@ -484,6 +585,7 @@ function show(id) {
   $('d-site').textContent = s.site;
   $('d-ext').textContent = s.ext;
   $('d-view').textContent = t.frame;
+  $('d-where').innerHTML = whereHTML(t, id);
   $('d-prov').textContent = SAYS[id].prov;
 
   /* The legend is built from the same table the ribbon is coloured from, so a
@@ -501,14 +603,11 @@ function show(id) {
   $('d-raw').href = u.file;
   $('d-baked').href = `data/${r.baked}`;
 
-  /* BY CHAIN, and this is the page saying something with colour. The repo's
-     default is the ss palette and it would draw every view on this bench in
-     one green, because no collagen file records a polyproline II helix. What
-     a reader has to be able to tell apart here is which strand, not what it
-     is folded into. */
-  const byChain = {};
-  t.order.forEach(k => { byChain[k] = STRAND[c.strands[k]]; });
-  box.setData(t, { colors: { byChain } });
+  /* BY CHAIN, because no collagen file records a polyproline II helix and the
+     repo's ss palette would draw every view on this bench in one green. What a
+     reader has to tell apart here is which STRAND, not what it is folded into.
+     The mapping is the registry's, so the gallery card says the same thing. */
+  box.setData(t, { colors: ProteinLib.colorsOf(ME, c) });
   /* THE SITE IS DRAWN, not just tabulated. A ribbon can show that two things
      touch and cannot show what the contact IS, and here the contact is one
      atom: a metal the integrin holds, with collagen supplying one of its six
@@ -517,29 +616,56 @@ function show(id) {
   notes.clear();
   if (t.pocket) {
     const site = box.setPocket(t.pocket);
-    /* THE ANCHOR IS THE MESH, never the baked coordinate. The pocket group
-       carries the presentation frame and the box re-centres on what is drawn,
-       so a point copied out of the bake is right until the first setData and
-       silently wrong after it. atoms[0] is the metal and is added first, which
-       is what makes children[0] it. */
-    const metal = site.group.children[0];
-    const v = new THREE.Vector3();
-    /* The ONE residue of collagen that does the job, named off the bake so the
-       label cannot outlive a re-bake that moves it. */
-    const reach = t.pocket.atoms.slice(1)
-      .find(a => (c.helix || c.chains).split(',').includes(a.of.chain));
-    const res = reach.of.res[0] + reach.of.res.slice(1).toLowerCase() + reach.of.num;
-    notes.add({
-      text: 'Mg²⁺ site · cobalt here',
-      tone: 'cobalt',
-      card: `The integrin holds a magnesium here with its coordination one `
-          + `position short, and collagen's ${res} reaches in and fills it. `
-          + `That is the entire grip; the crystal was grown with cobalt `
-          + `standing in for the magnesium.`,
-      at: () => metal.getWorldPosition(v),
-      offset: [34, -26],
-    });
+    if (t.pocket.kind === 'hydroxyl') hydroxylNote(t, site);
+    else metalNote(t, c, site);
   }
+}
+
+/* ONE CALLOUT ON ONE OXYGEN, in the middle of the rope, standing for all of
+   them. Naming every hydroxyl would be 30 labels and no claim; naming one
+   with the count in it is the claim. */
+function hydroxylNote(t, site) {
+  /* The middle O of the run, so the leader does not fly off an end. Atoms go
+     in as O, C, O, C…, so the even indices are the oxygens and the mesh order
+     is the same — spheres are added before any stick. */
+  const oxygens = t.pocket.atoms.map((a, i) => i).filter(i => i % 2 === 0);
+  const mesh = site.group.children[oxygens[oxygens.length >> 1]];
+  const v = new THREE.Vector3();
+  notes.add({
+    text: `${t.pocket.bonds.length} hydroxyls`,
+    tone: 'oxygen',
+    card: 'Every one of these was a plain proline until an enzyme put the '
+        + 'oxygen on, and that enzyme needs vitamin C to keep working. '
+        + 'Without them the rope melts below body temperature — which is '
+        + 'scurvy, and which is why (Pro-Pro-Gly)₁₀ next door has none.',
+    at: () => mesh.getWorldPosition(v),
+    offset: [34, -26],
+  });
+}
+
+function metalNote(t, c, site) {
+  /* THE ANCHOR IS THE MESH, never the baked coordinate. The pocket group
+     carries the presentation frame and the box re-centres on what is drawn,
+     so a point copied out of the bake is right until the first setData and
+     silently wrong after it. atoms[0] is the metal and is added first, which
+     is what makes children[0] it. */
+  const metal = site.group.children[0];
+  const v = new THREE.Vector3();
+  /* The ONE residue of collagen that does the job, named off the bake so the
+     label cannot outlive a re-bake that moves it. */
+  const reach = t.pocket.atoms.slice(1)
+    .find(a => (c.helix || c.chains).split(',').includes(a.of.chain));
+  const res = reach.of.res[0] + reach.of.res.slice(1).toLowerCase() + reach.of.num;
+  notes.add({
+    text: 'Mg²⁺ site · cobalt here',
+    tone: 'cobalt',
+    card: `The integrin holds a magnesium here with its coordination one `
+        + `position short, and collagen's ${res} reaches in and fills it. `
+        + `That is the entire grip; the crystal was grown with cobalt `
+        + `standing in for the magnesium.`,
+    at: () => metal.getWorldPosition(v),
+    offset: [34, -26],
+  });
 }
 
 /* A view basis read off the camera and inverted: the camera says where the

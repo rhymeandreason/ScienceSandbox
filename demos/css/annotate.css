@@ -130,6 +130,16 @@
    color: var(--atom-Co)
 }
 
+/* Oxygen, the same way: a callout naming hydroxyls carries the ink of the
+    atoms it is pointing at. */
+.annot-oxygen .annot-dot {
+   border-color: var(--atom-O)
+}
+
+.annot-oxygen .annot-label {
+   color: var(--atom-O)
+}
+
 /* Cards. The label says what, the card says why, and the label has to say
     "there is a why" while nobody is pointing at it — a hover-only tell is
     invisible to the student who has not already found the label.

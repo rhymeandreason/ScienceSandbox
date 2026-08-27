@@ -389,6 +389,14 @@ function open(key, mount) {
          how they get down the grid, and a card that swallows it traps the
          scroll under the pointer. Dragging still turns the molecule. */
       stage: { ortho: false, turn: 'trackball', zoom: false },
+      /* PER-CHAIN COLOUR WHERE THE PROTEIN ASKS FOR IT, null everywhere else —
+         which keeps the default, and the default is that every protein in the
+         repo is drawn the same way. Collagen is the case: its files record no
+         secondary structure at all, so the ss palette draws a triple helix as
+         one green rope and the braid, which is the whole subject, is invisible
+         on the card that indexes it. Read from the registry so this card and
+         the bench cannot colour the same molecule two ways. */
+      colors: ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
       data: t,
     }));
     /* THE POCKET, where a protein has one. Myoglobin without its heme is the

@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /* =====================================================================
- *  prep.js — seven collagen depositions down to what the bench draws, plus
+ *  prep.js — six collagen depositions down to what the bench draws, plus
  *  the handful of facts its panel prints.
  *
  *  Run:  node proteins/collagen/tools/prep.js   (offline, no dependencies)
  *
- *  UNDER REVIEW. The candidates are the table below and NOT
- *  proteins/proteins.js, because everything in that file is a decision
- *  and none has been made yet — AddingAProtein.md step 4 is a human
- *  clicking through the bench and saying which of these earn a place.
- *  What survives moves into the registry's `variants` and this table
- *  becomes a `require` of it, the way rnase's did.
+ *  REVIEWED AND REGISTERED. The candidates were a table at the top of this
+ *  file while a human clicked through the bench; six of the seven survived
+ *  and now live in proteins/proteins.js like every other protein's, which
+ *  this file reads. The seventh, 1BKV, is named in the comment beside them
+ *  — a bench records what was kept, and the one reason worth keeping is
+ *  the one that was not obvious.
  *
  *  WHAT A VIEW IS. One JSON per structure, in bake-trace.js's shape —
  *  {order, chains:{first, nums, CA, ss, helices, strands}} — so
@@ -32,7 +32,7 @@
  *  says so in `ssFrom`. The bench colours BY CHAIN for exactly that
  *  reason — with the ss palette the braid is one green rope.
  *
- *  NOT SUPERPOSED. These are seven different molecules — two synthetic
+ *  NOT SUPERPOSED. These are six different molecules — three synthetic
  *  homotrimers, a natural sequence, a whole type I heterotrimer and a
  *  chaperone complex — not six states of one thing, so there is nothing
  *  a fit would mean. Each opens on its own solved long axis instead, laid
@@ -43,7 +43,7 @@
  *  SOURCES, for a re-run from scratch. data/src/ is 2.9 MB against the
  *  bakes it writes, and is gitignored:
  *
- *    for id in 1K6F 1BKV 1CAG 1Q7D 1DZI 3HR2 4AU3; do
+ *    for id in 1K6F 3B0S 1CAG 1DZI 3HR2 4AU3; do
  *      curl -o proteins/collagen/data/src/$id.pdb \
  *        https://files.rcsb.org/download/$id.pdb
  *    done
@@ -64,64 +64,28 @@ const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
 const DATA = path.join(HERE, 'data');
 
-/* THE CANDIDATES, and what each is meant to show. `chains` is what gets
-   drawn; `strands` names them for the panel and decides the colour, which
-   is a claim about which chains are the same molecule and which are not.
-   Bake generously — a candidate that turns out to say nothing is what the
-   review is for, and it is cheaper to look at one than to argue about it. */
-const CANDIDATES = [
-  { id: 'ppg10', source: { kind: 'rcsb', id: '1K6F' }, chains: 'A,B,C',
-    purpose: 'the triple helix by itself, at 1.3 Å',
-    /* Two triple helices in the asymmetric unit, A-C and D-F. One is the
-       subject; the second would read as a second molecule in the picture. */
-    strands: { A: 'chain 1', B: 'chain 2', C: 'chain 3' } },
+/* THE RULER, read once and lazily — on first use rather than at load, because
+   the tables it reads are consts further down the file. Null when 3HR2 is not
+   in data/src, and then every candidate reports no placement rather than a
+   wrong one. */
+let RULER;
+const rulerOnce = () => RULER === undefined ? (RULER = ruler(SRC)) : RULER;
 
-  { id: 'natural', source: { kind: 'rcsb', id: '1BKV' }, chains: 'A,B,C',
-    purpose: 'a real collagen sequence, with a stretch that has no proline',
-    strands: { A: 'chain 1', B: 'chain 2', C: 'chain 3' } },
+/* THE VIEW TABLE IS proteins/proteins.js. Collagen was registered at the end
+   of its review, so what each entry is, which chains are drawn, which of them
+   are the COLLAGEN, and what each strand is called all live there with every
+   other protein's; this file turns that into files under data/ and writes the
+   counted half back. `said` is the human's and is read here; `read` is this
+   script's and is written at the end of main().
 
-  { id: 'oi', source: { kind: 'rcsb', id: '1CAG' }, chains: 'A,B,C',
-    purpose: 'one glycine replaced by alanine — the osteogenesis imperfecta '
-           + 'substitution',
-    strands: { A: 'chain 1', B: 'chain 2', C: 'chain 3' } },
-
-  { id: 'integrin', source: { kind: 'rcsb', id: '1Q7D' }, chains: 'A,B,C',
-    purpose: 'the GFOGER site, which is where a cell holds on',
-    strands: { A: 'chain 1', B: 'chain 2', C: 'chain 3' } },
-
-  { id: 'molecule', source: { kind: 'rcsb', id: '3HR2' }, chains: 'A,B,C',
-    purpose: 'one whole type I molecule, 300 nm of it, as it sits in a fibril',
-    /* A and C are α1(I), B is α2(I): two copies of one gene product and one
-       of another, which is what a heterotrimer means and what the colour
-       says here. The three synthetic peptides above are homotrimers and get
-       three colours instead, because there the subject is the braid. */
-    strands: { A: 'α1(I)', B: 'α2(I)', C: 'α1(I)' } },
-
-  { id: 'grip', source: { kind: 'rcsb', id: '1DZI' }, chains: 'A,B,C,D',
-    purpose: 'the same GFOGER peptide with the integrin actually holding it',
-    /* THE PAIR WITH 1Q7D IS THE POINT: chains B, C, D here are the same
-       21-mer construct 1Q7D deposits on its own, so the two entries are one
-       peptide with and without the thing that grips it. The metal ion at the
-       contact is deposited as cobalt standing in for the magnesium — it shows
-       in the ligands row and it is where the collagen glutamate reaches. */
-    helix: 'B,C,D',
-    /* THE SITE IS THE MECHANISM, so it is drawn and not just counted in the
-       ligands row. The ion is what the two proteins actually share: read its
-       coordination off the file's own LINK records, never a distance cutoff —
-       a cutoff wide enough for a 2.4 Å metal-oxygen contact also picks up
-       every second-shell atom leaning that way. */
-    pocket: { metal: 'CO' },
-    strands: { A: 'integrin α2 I', B: 'chain 1', C: 'chain 2', D: 'chain 3' } },
-
-  { id: 'chaperone', source: { kind: 'rcsb', id: '4AU3' }, chains: 'A,B,E,F,G',
-    purpose: 'Hsp47, the chaperone that holds a finished helix together',
-    /* Two Hsp47 (A, B) on one triple helix (E, F, G); the deposition holds a
-       second copy of the same assembly on chains C, D and H-J. Counted off
-       the CA distances rather than guessed: A and B are the two that touch
-       this helix. */
-    helix: 'E,F,G',
-    strands: { A: 'Hsp47', B: 'Hsp47', E: 'chain 1', F: 'chain 2', G: 'chain 3' } },
-];
+   1BKV IS NOT IN THE LIST, and the comment beside the registry's variants is
+   why: it was the only natural short sequence on the bench and it was dropped
+   in review, because the width that was supposed to show its imino-poor middle
+   splaying measured out as one frayed chain terminus. */
+const REG = require('../../proteins.js');
+const IO = require('../../tools/registry-io.js');
+const ME = REG.byKey('collagen');
+const CANDIDATES = ME.variants;
 
 /* ---- baking one candidate ------------------------------------------
  *
@@ -202,10 +166,31 @@ function bake(v) {
      so the row and the picture are the same box. frameOf's own extents are in
      its own basis, which for a complex is no longer the one on screen. */
   out.extents = extentsIn(basis, all);
-  out.frame = v.helix ? 'helix axis across, solved on the helix'
-                      : 'helix axis across';
+  /* The longer name only where it is a DISTINCTION: every variant names its
+     helix chains now, and saying "solved on the helix" about a view whose
+     every chain is helix would be noise. It earns the words when the file
+     holds something that is not collagen. */
+  out.frame = v.helix && v.helix !== v.chains
+    ? 'helix axis across, solved on the helix' : 'helix axis across';
 
-  if (v.pocket) out.pocket = site(text, v.pocket.metal, T.centre);
+  /* AT MOST ONE POCKET PER VIEW, and that is a decision rather than a limit of
+     the box: a pocket is what the view is ABOUT up close, and two of them is
+     two subjects. The grip draws its metal, the peptides draw their
+     hydroxyls, and 1DZI has 18 hydroxyprolines that it deliberately does not
+     draw — on that view they are not the point. */
+  /* THE RULER DOES NOT LOCATE ITSELF. Matching 3HR2 against 3HR2 finds the
+     whole chain and then has to pick which of its own two chains "won", which
+     is an arbitrary answer to a question nobody asked. It reports what it IS
+     instead, including where helix numbering starts in it — the offset every
+     other placement is quoted through. */
+  const rule = rulerOnce();
+  out.place = v.source.id === '3HR2'
+    ? (rule ? { ruler: true, offset: rule[0].offset, start: rule[0].offset + 1,
+                chains: rule.map(x => x.name) } : null)
+    : placeOn(text, out.order, rule);
+
+  if (v.pocket && v.pocket.metal) out.pocket = site(text, v.pocket.metal, T.centre);
+  else if (v.pocket && v.pocket.hydroxyl) out.pocket = hydroxyls(text, only, T.centre);
 
   const decl = Bake.declared(text);
   out.meta = {
@@ -231,6 +216,143 @@ function bake(v) {
     baked: `col-${v.id}.json`,
   };
   return out;
+}
+
+/* ---- WHERE A FRAGMENT SITS ON THE WHOLE MOLECULE ----
+ *
+ *  Six of the seven entries here are short peptides, and a reader looking at
+ *  seven collagen structures will reasonably assume they are seven pieces of
+ *  one thing. Most of them are not pieces of anything: `(Pro-Pro-Gly)10`
+ *  occurs in no collagen gene, and a designed peptide's 1-30 numbering is
+ *  construct-local and means nothing outside its own file.
+ *
+ *  So each candidate is SEQUENCE-MATCHED against 3HR2, the one entry here that
+ *  is a whole molecule, and either lands somewhere or does not. Matched, never
+ *  typed: a position typed into a page is a claim nothing checks, and this one
+ *  is checkable by construction.
+ *
+ *  THE NUMBERING TRAP, and it is the reason this is worth doing at all.
+ *  Collagen positions are quoted from the start of the TRIPLE-HELICAL DOMAIN —
+ *  every Gly349Ser in the osteogenesis imperfecta literature is in that frame.
+ *  3HR2 numbers from its N-TELOPEPTIDE instead (Gln1 Met2 Ser3 Tyr4), so its
+ *  own residue numbers run ahead of every number in a paper. The offset is
+ *  found here rather than assumed, by looking for where Gly-X-Y actually
+ *  starts, and both numbers are reported: a page that printed only the file's
+ *  would be quietly off by that much forever.
+ *
+ *  GFOGER is the check. It comes out at helix 502-507, which is where the
+ *  literature puts it in α1(I), and the file residues are 518-523.
+ */
+const ONE = { ALA:'A', ARG:'R', ASN:'N', ASP:'D', CYS:'C', GLN:'Q', GLU:'E',
+  GLY:'G', HIS:'H', ILE:'I', LEU:'L', LYS:'K', MET:'M', PHE:'F', PRO:'P',
+  SER:'S', THR:'T', TRP:'W', TYR:'Y', VAL:'V', HYP:'O', LYZ:'K' };
+
+/* Modelled residues of one chain, as letters plus the numbers they were
+   modelled under — so a match can be reported in the file's own frame. */
+function chainSeq(text, ch) {
+  const seq = [], nums = [];
+  for (const l of text.split('\n')) {
+    if (!l.startsWith('ATOM') && !l.startsWith('HETATM')) continue;
+    if (l.slice(12, 16).trim() !== 'CA') continue;
+    const alt = l[16];
+    if (alt !== ' ' && alt !== 'A') continue;
+    if (l[21] !== ch) continue;
+    seq.push(ONE[l.slice(17, 20).trim()] || 'x');
+    nums.push(parseInt(l.slice(22, 26), 10));
+  }
+  return { seq: seq.join(''), nums };
+}
+
+/* WHERE Gly-X-Y STARTS, found rather than assumed: the first position with ten
+   consecutive triplets whose first residue is glycine. A telopeptide has no
+   such run, so this lands on the helix and nowhere else. Returns the index, or
+   -1 where there is no helical domain to find. */
+function helixStart(seq) {
+  for (let i = 0; i + 30 <= seq.length; i++) {
+    let ok = true;
+    for (let k = 0; k < 10 && ok; k++) if (seq[i + k * 3] !== 'G') ok = false;
+    if (ok) return i;
+  }
+  return -1;
+}
+
+/* The ruler: 3HR2's two chain kinds, read once. Null when that file is not in
+   data/src — placement is then unavailable rather than wrong, and every
+   candidate reports `null` for it. */
+function ruler(srcDir) {
+  const f = path.join(srcDir, '3HR2.pdb');
+  if (!fs.existsSync(f)) return null;
+  const text = fs.readFileSync(f, 'utf8');
+  /* A and C are α1(I) and B is α2(I) — read off the COMPND block rather than
+     assumed, since which chain is which is the entry's statement. */
+  const out = [];
+  for (const [ch, name] of [['A', 'α1(I)'], ['B', 'α2(I)']]) {
+    const c = chainSeq(text, ch);
+    const h = helixStart(c.seq);
+    out.push({ ch, name, seq: c.seq, nums: c.nums,
+               /* Helix residue 1 is the first Gly of the helical domain, so a
+                  file number maps to helix number by subtracting everything
+                  before it. */
+               offset: h < 0 ? null : c.nums[h] - 1 });
+  }
+  return out;
+}
+
+/* Where a candidate's chains land on the ruler, or null.
+ *
+ *  THE LONGEST STRETCH THAT OCCURS EXACTLY ONCE, not the whole chain. Whole-
+ *  chain matching finds only 3HR2 itself: 1DZI's peptide is
+ *  GPOGPOGFOGERGPOGPOGPO, a construct built AROUND a real site with synthetic
+ *  scaffolding either side, and that whole string is in no gene. What is in a
+ *  gene is the core, and the core is what a reader wants located.
+ *
+ *  UNIQUENESS IS NOT ENOUGH, and collagen is the worst case for finding that
+ *  out. It is a repeat, so a long run of (Pro-Hyp-Gly) can happen to occur
+ *  exactly once and still locate nothing — `(Gly-Pro-Hyp)9` matched fourteen
+ *  residues of the C-terminal repeat and reported a position that is pure
+ *  coincidence. Worse, LONGEST loses to a coincidence too: matching 1DZI on
+ *  length picked a nine-residue `OGERGPOGP` in a different site over the six
+ *  of `GFOGER`, and put the integrin's grip 440 residues from where it is.
+ *
+ *  SO THE SCORE IS INFORMATIVE RESIDUES, not length. Gly, Pro, Hyp and Ala are
+ *  the repeat's own alphabet and locate nothing; everything else is what makes
+ *  one stretch of collagen different from another. A match needs two of them,
+ *  and among candidates the most informative wins with length only breaking
+ *  ties. `GFOGER` carries three — F, E, R — and lands on 518, where it is.
+ *  A designed repeat carries none and correctly comes back null.
+ */
+const REPEAT = new Set(['G', 'P', 'O', 'A']);
+const informative = sub => [...sub].filter(c => !REPEAT.has(c)).length;
+function placeOn(text, chains, R) {
+  if (!R) return null;
+  let best = null;
+  const better = (a, b) => !b || a.info > b.info ||
+                           (a.info === b.info && a.matched > b.matched);
+  for (const ch of chains) {
+    const c = chainSeq(text, ch);
+    for (const ref of R) {
+      for (let L = c.seq.length; L >= 6; L--) {
+        for (let a = 0; a + L <= c.seq.length; a++) {
+          const sub = c.seq.slice(a, a + L);
+          const info = informative(sub);
+          if (info < 2) continue;
+          const i = ref.seq.indexOf(sub);
+          if (i < 0 || ref.seq.indexOf(sub, i + 1) >= 0) continue;
+          const from = ref.nums[i], to = ref.nums[i + L - 1];
+          const hit = { on: '3HR2', chain: ref.ch, of: ref.name, from, to,
+                        helix: ref.offset === null ? null
+                             : [from - ref.offset, to - ref.offset],
+                        offset: ref.offset, matched: L, info, seq: sub,
+                        /* Whether the WHOLE drawn chain landed or only a core
+                           of it — the difference between a fragment of
+                           collagen and a construct built around one. */
+                        whole: L === c.seq.length };
+          if (better(hit, best)) best = hit;
+        }
+      }
+    }
+  }
+  return best;
 }
 
 /* ---- THE METAL SITE, off LINK records ----
@@ -295,7 +417,74 @@ function site(text, metal, centre) {
     const j = add(which[1]);
     if (hub >= 0 && j >= 0) bonds.push([hub, j]);
   }
-  return atoms.length ? { atoms, bonds } : null;
+  return atoms.length ? { kind: 'metal', atoms, bonds } : null;
+}
+
+/* ---- THE 4-HYDROXYLS, off HYP and CONECT ----
+ *
+ *  Every hydroxyproline's OD1 — the oxygen prolyl 4-hydroxylase puts there —
+ *  with the ring carbon it hangs off, so it reads as attached rather than
+ *  floating beside the ribbon.
+ *
+ *  WHY THIS IS WORTH DRAWING. It is one atom per residue and it is the whole
+ *  of the vitamin C story: the enzyme that adds it needs an iron that
+ *  ascorbate keeps reduced, and without the oxygen the helix melts below body
+ *  temperature. A `hydroxylated` row can print 30 and a reader still has no
+ *  idea where they are. Beside (Pro-Pro-Gly)10, which has none, the two
+ *  pictures make the claim by themselves.
+ *
+ *  THE BOND COMES OFF CONECT, not a cutoff — the same rule the metal site
+ *  follows. A modified residue's connectivity is stated in the file, and
+ *  measuring it again here would be this script deciding what a bond is.
+ *
+ *  Returns null where there are none, which is the honest answer for a
+ *  synthetic (Pro-Pro-Gly) peptide and not a failure to find any.
+ */
+function hydroxyls(text, only, centre) {
+  const lines = text.split('\n');
+  const bySerial = new Map();
+  for (const l of lines)
+    if (l.startsWith('ATOM') || l.startsWith('HETATM'))
+      bySerial.set(parseInt(l.slice(6, 11), 10), l);
+
+  /* serial -> the serials CONECT says it is bonded to. */
+  const conect = new Map();
+  for (const l of lines) {
+    if (!l.startsWith('CONECT')) continue;
+    const a = parseInt(l.slice(6, 11), 10);
+    const rest = [];
+    for (let i = 11; i + 5 <= l.length; i += 5) {
+      const n = parseInt(l.slice(i, i + 5), 10);
+      if (!isNaN(n)) rest.push(n);
+    }
+    if (!conect.has(a)) conect.set(a, []);
+    conect.get(a).push(...rest);
+  }
+
+  const res = l => l.slice(17, 20).trim() + '|' + l[21] + '|' + l.slice(22, 27);
+  const atoms = [], bonds = [];
+  for (const [serial, l] of bySerial) {
+    if (l.slice(17, 20).trim() !== 'HYP') continue;
+    if (l.slice(12, 16).trim() !== 'OD1') continue;
+    if (only && !only.has(l[21])) continue;
+    const alt = l[16];
+    if (alt !== ' ' && alt !== 'A') continue;
+
+    /* The ring carbon, named by the file rather than by this script: whatever
+       CONECT bonds this oxygen to WITHIN THE SAME RESIDUE. */
+    const mine = res(l);
+    const partner = (conect.get(serial) || [])
+      .map(n => bySerial.get(n))
+      .find(x => x && res(x) === mine);
+    if (!partner) continue;
+
+    const i = atoms.length;
+    for (const line of [l, partner])
+      atoms.push({ el: (line.slice(76, 78).trim() || line.slice(12, 14).trim()),
+                   p: Bake.xyz(line).map((c, k) => Bake.r2(c - centre[k])) });
+    bonds.push([i, i + 1]);
+  }
+  return atoms.length ? { kind: 'hydroxyl', atoms, bonds } : null;
 }
 
 /* Half-extents doubled: the size of the drawn structure along each axis of a
@@ -331,20 +520,13 @@ function modCounts(text, only, mod) {
 }
 
 function main() {
-  const index = [];
+  const blocks = {};
   for (const v of CANDIDATES) {
     const out = bake(v);
     const file = out.read.baked;
     const { read, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, file), JSON.stringify(bakeOut));
-    /* THE BENCH'S COPY OF THE CANDIDATE TABLE, written rather than typed
-       twice. A page cannot require() this file, and the registry has no
-       collagen entry yet to read it from — so the table above is the one
-       source and this is its published form. It goes away at registration,
-       when the bench reads ProteinLib like every other. */
-    index.push({ id: v.id, purpose: v.purpose, source: v.source,
-                 chains: v.chains, helix: v.helix || v.chains,
-                 strands: v.strands, read });
+    blocks[v.id] = read;
     const kb = (fs.statSync(path.join(DATA, file)).size / 1024).toFixed(0);
     console.log(`${v.id.padEnd(10)} ${out.order.length} chain(s), ` +
       `${read.residues} residues` +
@@ -352,11 +534,14 @@ function main() {
       `, ss ${out.ssFrom}, ${out.extents.join(' × ')} Å, ` +
       `modified [${out.meta.modified.map(m => m.name + ' ×' + m.n).join(' ')}], ` +
       `ligands [${out.meta.ligands.join(' ')}], view ${out.frame}` +
-      (out.pocket ? `, site ${out.pocket.atoms.length} atoms / ` +
-                    `${out.pocket.bonds.length} links` : '') + `, ${kb} KB`);
+      (out.pocket ? `, ${out.pocket.kind} ${out.pocket.atoms.length} atoms / ` +
+                    `${out.pocket.bonds.length} bonds`
+                  : v.pocket ? ', no pocket found' : '') + `, ${kb} KB`);
   }
-  fs.writeFileSync(path.join(DATA, 'candidates.json'), JSON.stringify(index, null, 1));
-  console.log(`candidates.json  ${index.length} under review, nothing registered`);
+  /* The counted half goes back into proteins.js, where the bench and the
+     gallery card read it. The said half of that file is untouched. */
+  const touched = IO.write('collagen', blocks);
+  console.log(`registry  proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();

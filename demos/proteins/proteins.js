@@ -330,6 +330,140 @@
         baked: "rnase-1DFJ.json" } },
   ];
 
+
+  /* COLLAGEN'S SIX, AND MOST OF THEM ARE NOT PIECES OF EACH OTHER. Three are
+     designed peptides that occur in no gene, one is a construct built around a
+     real site, one is a complex with a chaperone, and one is a whole molecule.
+     `proteins/collagen/collagen-test.html`'s lower-left readout is where that
+     is said to a reader; here it is why the list looks heterogeneous.
+
+     HUMAN ONLY. The bench carried 1BKV — the T3-785 peptide, a real type III
+     sequence with a proline-free guest — through review and it was not
+     selected. It was the only NATURAL short sequence here, which sounds like a
+     reason to keep it, and the measurement is what sank it: the wide extents
+     that were supposed to show its imino-poor middle splaying turned out to be
+     one frayed chain terminus, and with the ends trimmed it says nothing 1CAG
+     does not say better. It is also type III, so the type I ruler cannot even
+     place it. If a lesson ever wants "collagen is not a uniform rope", it
+     wants that claim measured first, not this entry back. */
+  const COLLAGEN_VARIANTS = [
+    { id: 'ppg10', default: true,
+      /* THE DEFAULT IS A SECTION, NOT THE MOLECULE, and every reader of this
+         file should know it before they trust the card. A collagen molecule is
+         3016 Å of three chains; this is 86 Å of designed repeat, about a
+         thirty-fifth of one, and it is the default because it is the clearest
+         picture of what the repeat DOES — not because it is representative of
+         the size. `molecule` is the whole thing and looks like a hair.
+
+         It is also the unhydroxylated half of the one controlled pair here,
+         and the state prolyl 4-hydroxylase actually acts on. */
+      purpose: 'the triple helix by itself, at 1.3 Å — a section, not the molecule',
+      species: 'synthetic',
+      source: { kind: 'rcsb', id: '1K6F' },
+      chains: 'A,B,C',
+      helix: 'A,B,C',
+      pocket: { hydroxyl: true },
+      strands: { A: 'chain 1', B: 'chain 2', C: 'chain 3' },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 6,
+        residues: 87,
+        declared: 90,
+        ec: null,
+        baked: "col-ppg10.json" } },
+
+    { id: 'pog9',
+      purpose: 'the same helix with the hydroxyls on — the matched control',
+      species: 'synthetic',
+      source: { kind: 'rcsb', id: '3B0S' },
+      /* Chains A-C, not D-F: the file holds two triple helices and chain E
+         models seventeen hydroxyls where every other chain models nine. */
+      chains: 'A,B,C',
+      helix: 'A,B,C',
+      pocket: { hydroxyl: true },
+      strands: { A: 'chain 1', B: 'chain 2', C: 'chain 3' },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 6,
+        residues: 81,
+        declared: 81,
+        ec: null,
+        baked: "col-pog9.json" } },
+
+    { id: 'oi',
+      purpose: 'one glycine replaced by alanine — the brittle-bone substitution',
+      species: 'synthetic',
+      source: { kind: 'rcsb', id: '1CAG' },
+      chains: 'A,B,C',
+      helix: 'A,B,C',
+      pocket: { hydroxyl: true },
+      strands: { A: 'chain 1', B: 'chain 2', C: 'chain 3' },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 3,
+        residues: 88,
+        declared: 90,
+        ec: null,
+        baked: "col-oi.json" } },
+
+    { id: 'grip',
+      purpose: 'the GFOGER site with the integrin holding it',
+      species: 'human peptide, human integrin',
+      source: { kind: 'rcsb', id: '1DZI' },
+      chains: 'A,B,C,D',
+      /* The frame is solved on the COLLAGEN, not on everything drawn: the
+         I-domain's own longest axis is longer, and a frame over all four
+         chains stands the helix at an angle to the screen. */
+      helix: 'B,C,D',
+      pocket: { metal: 'CO' },
+      strands: { A: 'integrin α2 I', B: 'chain 1', C: 'chain 2', D: 'chain 3' },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 4,
+        residues: 248,
+        declared: 251,
+        ec: null,
+        baked: "col-grip.json" } },
+
+    { id: 'chaperone',
+      purpose: 'Hsp47 holding a finished helix — collagen before it leaves the cell',
+      species: 'human',
+      source: { kind: 'rcsb', id: '4AU3' },
+      /* Two Hsp47 on one triple helix; the file holds a second copy of the
+         same assembly on C, D and H-J. Which two touch this helix was counted
+         off the Cα distances, not guessed. */
+      chains: 'A,B,E,F,G',
+      helix: 'E,F,G',
+      strands: { A: 'Hsp47', B: 'Hsp47', E: 'chain 1', F: 'chain 2', G: 'chain 3' },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 10,
+        residues: 777,
+        declared: 844,
+        ec: null,
+        baked: "col-chaperone.json" } },
+
+    { id: 'molecule',
+      purpose: 'one whole type I molecule, 3016 Å, as it sits in a fibril',
+      species: 'rat tail tendon',
+      source: { kind: 'rcsb', id: '3HR2' },
+      /* A and C are α1(I), B is α2(I) — two of one gene product and one of
+         another, which is what the colour says. It is also THE RULER: every
+         other variant's position on the molecule is a sequence match against
+         this entry, and its own numbering starts at the telopeptide, sixteen
+         residues before helix residue 1. */
+      chains: 'A,B,C',
+      helix: 'A,B,C',
+      strands: { A: 'α1(I)', B: 'α2(I)', C: 'α1(I)' },
+      read: {
+        method: "fiber diffraction",
+        chainsInFile: 3,
+        residues: 3134,
+        declared: 3140,
+        ec: null,
+        baked: "col-molecule.json" } },
+  ];
+
   const PROTEINS = [
     {
       key: 'napump', name: 'Na⁺/K⁺-ATPase', dir: 'proteins/napump',
@@ -563,6 +697,71 @@
       ],
     },
     {
+      key: 'collagen', name: 'Collagen', dir: 'proteins/collagen',
+      blurb: 'Three chains wound into a rope, Gly-X-Y over and over, a third '
+           + 'of the protein in you. Every third residue is glycine because '
+           + 'nothing with a side chain fits where the chains meet.',
+      /* IT HOLDS. The first entry here that catalyses nothing and carries
+         nothing: collagen is material, and what it does is not chemistry. */
+      does: 'structural',
+      pipeline: 'trace',
+      /* Not superposed, and not a near miss: these are six different
+         molecules, not six states of one. Three designed peptides, a
+         construct built around a real site, a chaperone complex and a whole
+         molecule — there is no correspondence for a fit to use. */
+      fit: null,
+      fitWhy: 'six different molecules rather than six states of one; three of '
+            + 'them occur in no gene, so there is nothing to fit onto what',
+      view: { by: 'measured', shared: false,
+              why: 'a collagen figure is drawn along the helix, the way a '
+                 + 'fibril is drawn on its axis — the baker solves that axis '
+                 + 'off the SUBJECT\'s chains rather than off everything '
+                 + 'drawn, or a complex is framed on its partner instead' },
+      surface: { bake: false,
+                 why: 'a fold claim, and the most extreme one here: the whole '
+                    + 'subject is three strands winding around each other, '
+                    + 'and a skin over them is a smooth rod' },
+      /* NO COLLAGEN FILE RECORDS ITS OWN HELIX, and the escape is claimed here
+         rather than left to look like a broken read. A PDB says helix or
+         sheet; polyproline II is neither, so these bake as pure coil and
+         `check-proteins.js` would otherwise fail every one of them for drawing
+         a worm. `some: true` because three of the six DO carry records — for
+         their partner proteins, and for 1CAG's depositors annotating the
+         triple helix as a class-10 coiled coil, which is the collection
+         holding both answers about one shape. */
+      /* HOW ITS CHAINS ARE TOLD APART, and it is here rather than on the bench
+         because the bench is not the only thing that draws this protein — the
+         gallery card does too, and a colour decision kept on one page means
+         the card and the bench show the same molecule two ways.
+
+         KEYED BY STRAND NAME, not by chain id, so it says something about the
+         MOLECULE: a homotrimer's three interchangeable chains get three
+         colours because the subject is the braid, and 3HR2's two α1 chains get
+         the same one because they are two copies of one gene product. A chain
+         id would only have said "the third one".
+
+         NOT palette.js's business. That file owns what an ATOM is coloured,
+         which is a fact about chemistry every page must agree on; this is a
+         page distinguishing three identical polymers, which is a fact about
+         nothing but legibility. It is the house green and rust from
+         protein-test.css with a blue to complete the set, and grey for a chain
+         that is not collagen at all. */
+      draw: { byStrand: {
+        'chain 1': 0x1f5f4f,          // deep green, the house accent
+        'chain 2': 0xe2643a,          // rust
+        'chain 3': 0x2f6f9f,          // blue
+        'α1(I)':   0x1f5f4f,
+        'α2(I)':   0xe2643a,
+        'Hsp47':   0x9aa0a6,          // grey: present, and not the subject
+        'integrin α2 I': 0x9aa0a6,
+      } },
+      ss: { deposited: false, some: true,
+            why: 'polyproline II is neither of the two things a HELIX or SHEET '
+               + 'record describes, so all-coil is the correct read and the '
+               + 'bench tells the strands apart by colour instead' },
+      variants: COLLAGEN_VARIANTS,
+    },
+    {
       key: 'rnase', name: 'Ribonuclease A', dir: 'proteins/rnase',
       blurb: '124 residues that cut RNA, and the most-studied enzyme of the '
            + 'twentieth century. The protein Anfinsen unfolded and watched '
@@ -651,6 +850,25 @@
     ['translocase', 'moving something across a membrane']];
   const variantOf = (p, id) => p.variants.find(v => v.id === id) || null;
 
+  /* THE `colors` A BOX NEEDS FOR ONE VARIANT, built from the protein's strand
+     table and that variant's chain names — or null, which is every protein
+     that has no reason to colour its chains apart and should therefore be
+     drawn the repo's one way.
+
+     A FUNCTION RATHER THAN A FIELD PER VARIANT, because the mapping is
+     mechanical and the two halves have different owners: which strand a chain
+     IS belongs to the variant, what a strand is coloured belongs to the
+     protein. Every consumer calling this is what stops a bench and a gallery
+     card becoming two opinions about the same molecule. */
+  function colorsOf(p, v) {
+    const map = p.draw && p.draw.byStrand;
+    if (!map || !v || !v.strands) return null;
+    const byChain = {};
+    for (const [ch, strand] of Object.entries(v.strands))
+      if (map[strand] != null) byChain[ch] = map[strand];
+    return Object.keys(byChain).length ? { byChain } : null;
+  }
+
   /* Both URLs a bench shows, derived from `source` so an id and its links
      cannot disagree. A `repo` source has no remote entry of its own — it is a
      chain lifted out of a file another page already holds — so it points at
@@ -668,8 +886,14 @@
     };
   }
 
+  /* `fiber diffraction` is spelled the way EXPDTA spells it, like every other
+     entry here: the baker lower-cases what the file says, and a registry that
+     Anglicised it would fail its own checker against the deposition. It is a
+     MEASURED method and a coarse one — 3HR2 is a 5.2 Å molecular envelope,
+     which its own bake records; this list only says which KIND of claim it
+     is. */
   const MEASURED = ['x-ray diffraction', 'solution nmr', 'electron microscopy',
-                    'neutron diffraction'];
+                    'neutron diffraction', 'fiber diffraction'];
   const METHODS = MEASURED.concat(['predicted']);
 
   /* WHAT THE PROTEIN DOES, in one word the collection can be sorted on. A
@@ -679,12 +903,17 @@
 
      `unknown` is a real answer and not a gap to fill in later. PrP is the
      case — what its healthy form is FOR has been argued for forty years —
-     and a collection that guessed would be teaching one side of that. */
-  const DOES = ['enzyme', 'oxygen carrier', 'unknown'];
+     and a collection that guessed would be teaching one side of that.
+
+     `structural` is the answer for a protein whose job is to HOLD, and it is
+     not a synonym for 'no function': collagen does one thing, mechanically,
+     and does it as material rather than as chemistry. It is the first entry
+     here that catalyses nothing and carries nothing. */
+  const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural'];
 
   global.ProteinLib = { PROTEINS, METHODS, MEASURED, DOES, EC_CLASS,
                         byKey, defaultOf, ecOf,
-                        variantOf, urls };
+                        variantOf, colorsOf, urls };
   if (typeof module === 'object' && module.exports)
     module.exports = global.ProteinLib;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -177,9 +177,20 @@ for (const p of lib.PROTEINS) {
 
       /* 5. SECONDARY STRUCTURE READ, NOT DETECTED — and a file that had no
             records to read bakes as all coil. That is honest and it is also
-            a worm on screen, so it must never pass silently. */
-      if (t.ssFrom !== 'deposited')
+            a worm on screen, so it must never pass silently.
+
+            UNLESS THE PROTEIN SAYS SO FIRST. Collagen is the case the escape
+            exists for: the polyproline II helix is neither of the two things a
+            HELIX or SHEET record describes, so no collagen file carries one
+            and all-coil is the correct read rather than a failed one. A
+            protein claims that once, in `ss.deposited:false`, with a reason —
+            which turns a silent worm into a stated fact and still fails any
+            variant of a protein that did NOT claim it. */
+      const noSS = p.ss && p.ss.deposited === false;
+      if (t.ssFrom !== 'deposited' && !noSS)
         say(`${at}: ss is '${t.ssFrom}' — the bench draws a coil worm, not a fold`);
+      if (t.ssFrom === 'deposited' && noSS && !p.ss.some)
+        say(`${at}: ss is deposited, but ${p.key} claims its files carry none`);
 
       /* 6. A SHARED VIEW IS ONLY LEGAL ON A SUPERPOSED SET, and if it is
             declared then every bake has to be carrying it. Half the views
@@ -244,7 +255,14 @@ if (bad.length) {
   console.error('proteins:\n  ' + bad.join('\n  '));
   process.exit(1);
 }
+/* NAMED, not glossed over. "deposited everywhere" was true until a protein
+   whose files record no secondary structure at all joined the collection, and
+   a pass line that kept saying it would be the checker lying about the one
+   thing it just made an exception for. */
+const noSSKeys = lib.PROTEINS.filter(p => p.ss && p.ss.deposited === false)
+                             .map(p => p.key);
 console.log(`PASS: ${lib.PROTEINS.length} proteins, ${n} variants — every variant has ` +
   'its bake, every bake a variant; entries, chains and residue counts agree with ' +
-  'what was baked; secondary structure is deposited everywhere; every declared ' +
-  'fit and shared view is the one the bakes carry');
+  'what was baked; secondary structure is deposited everywhere' +
+  (noSSKeys.length ? ` except ${noSSKeys.join(', ')}, which says so` : '') +
+  '; every declared fit and shared view is the one the bakes carry');
