@@ -4,7 +4,7 @@
 
 From "let's look at X" to a bench the human can click through, and from there to a protein the repo holds. No lesson, no page copy, no roadmap. The report at the end of each step is the deliverable, not the code.
 
-**The bench comes before the database.** `proteins/proteins.js` is what we have SELECTED, and selecting is a human looking at structures on a bench and saying which ones earn a place. So a new protein is not registered when it is pulled; it is registered in step 4, after step 3 has thrown some of it away. The prion bench carried a Syrian hamster pair through review and lost it there, which is the shape of a normal pass, not a failure of one.
+**The bench comes before the database.** `proteins/proteins.js` is what we have SELECTED, and selecting is a human looking at structures on a bench and saying which ones earn a place. So a new protein is not registered when it is pulled; it is registered in step 5, after step 4 has thrown some of it away. The prion bench carried a Syrian hamster pair through review and lost it there, which is the shape of a normal pass, not a failure of one.
 
 **The rule the whole file serves: look before you decide, and measure before you render.** A protein arrives as an argument about what it will show, and the argument is usually wrong. This repo has paid for that twice, and both receipts are in here.
 
@@ -61,37 +61,7 @@ Three invariants on that side. Each is a bug that ships looking fine.
 
 **Every number in the panel is counted off the parsed file**, not typed. Residues, segments, chains, record counts. A typed number is a claim nothing checks, and a re-bake falsifies it silently.
 
-## 3. Review, and select
-
-**Hand the bench over and stop.** The human clicks through, and the output of this step is a decision about each candidate: kept, or not. That decision is not one an agent can make from the data, because it is a question about what a lesson will be about — the hamster prion pair was structurally fine and was dropped because two species is a comparison no lesson had asked for.
-
-What to put in front of them, per candidate: what it shows that the others do not, and what it costs (bytes, and a button on a bench that is already long). Where two candidates say the same thing, say so — that is the pair most likely to be cut.
-
-## 4. Register what survived
-
-**Now the protein goes into `proteins/proteins.js`**, selected set only. Move the `CANDIDATES` table out of the baker and into the registry's `variants`, and switch the baker to reading it — a few lines, and the diff is the record of what review decided. From here the registry is the single source: which entries, which chains, which variant is the default, what each is for, and the prose the bench prints, so a variant cannot be described one way in a panel and baked another.
-
-The baker writes the `read` block back on every run — method, resolution, counts, ligands, whatever that protein measures. **A human never types a number into that file.** `node proteins/<name>/tools/prep.js` writes them, `proteins/tools/registry-io.js` splices only that block so the prose and the comments survive, and `proteins/check-proteins.js` fails a commit where the two disagree. `Modules.md` has the field list.
-
-* **`purpose` is the field that makes the collection worth having.** One short phrase saying what this variant is FOR — "the site with nothing in it", "cut in two and still working". A file with no purpose is a file nobody can decide about later.
-* **A trap gets a comment, not a list.** No register of rejected entries: the bench records what was kept, and the reasons are cheap to re-derive. The exception is where the OBVIOUS choice is wrong — 7RSA is the most-cited RNase A structure and carries no SSBOND records at all, so a bench built on it prints "no disulfides" for the protein whose disulfides are the whole story. One line, beside the entry it explains.
-* **What a cut variant took with it goes in a comment too**, when it was the only one carrying something. Dropping prion's 7LNA dropped the only brain-derived structure on that bench, and the registry says so — along with the fact that a lesson needing that distinction wants a human brain-derived fibril, not the hamster back.
-
-## 5. Say whether a surface is worth baking
-
-Recommend SES only against a criterion, never a feeling:
-
-**Bake it when the claim is about a surface.** A pocket, an interface, what fits into what, complementarity. `sickle/fibre-test` bakes one because the lesson is a contact between two tetramers.
-
-**Skip it when the claim is about the fold.** A ribbon is strictly better there, because a surface buries the secondary structure that *is* the point. Prion is a fold claim, which is why the stack reads at all as a ribbon and would read as a lump of dough as a surface.
-
-It is expensive and it is a bake, not a render: `rendering-modules.md` owns the how, including the rule that a surface's frame is read from the trace file rather than re-derived.
-
-## 6. Downloads and files
-
-**Raw downloads are a separate question.** A deposition can be much larger than anything the bench reads (1QLZ is 2.7 MB of 20 models; the bake is 169 KB). Bake small, commit the bake, and ask before committing the raw file. The baker's header carries the source URLs so a re-run is possible without it.
-
-## 7. Summary
+## 3. Summary
 
 Write a short editorial style summary to capture the significance for a lesson. Example written for prion:
 
@@ -112,3 +82,35 @@ Data Notes:
 PrP^C for cellular, the healthy helical form. That's 1QLZ and 1B10.
 
 PrP^Sc for scrapie, the misfolded stacking form. That's 6LNI and 7LNA. The Sc is from sheep scrapie for historical reasons and gets used generically now, even for human disease, which trips people up.
+
+## 4. Review, and select
+
+**Hand the bench over and stop.** The human clicks through, and the output of this step is a decision about each candidate: kept, or not. That decision is not one an agent can make from the data, because it is a question about what a lesson will be about — the hamster prion pair was structurally fine and was dropped because two species is a comparison no lesson had asked for.
+
+What to put in front of them, per candidate: what it shows that the others do not, and what it costs (bytes, and a button on a bench that is already long). Where two candidates say the same thing, say so — that is the pair most likely to be cut.
+
+## 5. Register what survived
+
+**Now the protein goes into `proteins/proteins.js`**, selected set only. Move the `CANDIDATES` table out of the baker and into the registry's `variants`, and switch the baker to reading it — a few lines, and the diff is the record of what review decided. From here the registry is the single source: which entries, which chains, which variant is the default, what each is for, and the prose the bench prints, so a variant cannot be described one way in a panel and baked another.
+
+The baker writes the `read` block back on every run — method, resolution, counts, ligands, whatever that protein measures. **A human never types a number into that file.** `node proteins/<name>/tools/prep.js` writes them, `proteins/tools/registry-io.js` splices only that block so the prose and the comments survive, and `proteins/check-proteins.js` fails a commit where the two disagree. `Modules.md` has the field list.
+
+* **`purpose` is the field that makes the collection worth having.** One short phrase saying what this variant is FOR — "the site with nothing in it", "cut in two and still working". A file with no purpose is a file nobody can decide about later.
+* **A trap gets a comment, not a list.** No register of rejected entries: the bench records what was kept, and the reasons are cheap to re-derive. The exception is where the OBVIOUS choice is wrong — 7RSA is the most-cited RNase A structure and carries no SSBOND records at all, so a bench built on it prints "no disulfides" for the protein whose disulfides are the whole story. One line, beside the entry it explains.
+* **What a cut variant took with it goes in a comment too**, when it was the only one carrying something. Dropping prion's 7LNA dropped the only brain-derived structure on that bench, and the registry says so — along with the fact that a lesson needing that distinction wants a human brain-derived fibril, not the hamster back.
+
+## 6. Say whether a surface is worth baking
+
+Recommend SES only against a criterion, never a feeling:
+
+**Bake it when the claim is about a surface.** A pocket, an interface, what fits into what, complementarity. `sickle/fibre-test` bakes one because the lesson is a contact between two tetramers.
+
+**Skip it when the claim is about the fold.** A ribbon is strictly better there, because a surface buries the secondary structure that *is* the point. Prion is a fold claim, which is why the stack reads at all as a ribbon and would read as a lump of dough as a surface.
+
+It is expensive and it is a bake, not a render: `rendering-modules.md` owns the how, including the rule that a surface's frame is read from the trace file rather than re-derived.
+
+## 7. Downloads and files
+
+**Raw downloads are a separate question.** A deposition can be much larger than anything the bench reads (1QLZ is 2.7 MB of 20 models; the bake is 169 KB). Bake small, commit the bake, and ask before committing the raw file. The baker's header carries the source URLs so a re-run is possible without it.
+
+
