@@ -271,9 +271,29 @@ BROKEN: 1 bad reference(s) in lib/mapcontent.js
 
 It checks question rows, `VIEWS` keys and each module's `door` against the ids that actually exist, and notes modules with no questions without failing on them — a planned card waiting for questions is a normal thing to commit. It fails `--check` and only warns a bake, because the page reads `mapcontent.js` live and never reads the `mods` the bake writes: a broken reference does not corrupt a vector, it breaks the map.
 
+### SPECIMENS — a protein is an object, not a concept
+
+`SPECIMENS` in `lib/mapcontent.js` names a protein by its `key` in `proteins/proteins.js` and the modules it sits under, with a rank on each. Nothing about the protein is restated: the registry says what we hold, the map says where it belongs. Only the default variant's baked trace is resolved, because a card draws one structure and the registry already says which.
+
+**A module reaches a specimen directly, with no question between**, and that is the one place the map is no longer bipartite. It survives because **a specimen is a LEAF**: it hangs off modules and off questions and never off another specimen, so the graph stays layered and the fan, the bands and the relax are untouched. `expand`'s tail already only re-expands questions, so a specimen never drags a second neighbourhood in.
+
+**Rank means what it means everywhere else** — 1 shows the specimen when the card opens, 2 is one step in. Reusing it rather than inventing a rule is what lets a specimen be authored like everything else here.
+
+A question reaches one by naming it in its own row, namespaced so a key can never collide with a module id:
+
+```js
+['Why do proteins bury their greasy parts?', { hydrophob:1, folding:2, 'p:myoglobin':2 }]
+```
+
+**The card is a module card wearing the spark**, because the map HOLDS a specimen rather than claiming it. It draws through `kit/proteinbox.js` like any protein view; `viewFor()` is the one place that decides what a node draws, and a specimen carries its own view rather than needing a `VIEWS` entry — which would be a second source for a fact the registry already owns.
+
+**`--check` covers the new keys**: a protein renamed in `proteins/proteins.js` drops its edges exactly the way a renamed module id did, and the checker names it. It loads `proteins/proteins.js` softly, so a checkout without `proteins/` still gets its questions checked.
+
+**What the kind actually cost.** Less than the warning below implied, because a leaf is cheap: a `paintNode` branch, `viewFor()`, one widened filter in `openAsk`, one in `openFrom`, and `moduleNamed()` becoming `cardNamed()` over both kinds. `band()`, `STEP` and the rank-promotion loop needed nothing — a specimen card is a module card and steps like one, and the promotion loop already skipped non-questions.
+
 ### A new KIND of node is a page change
 
-`DOORS` / `MODULES` / `QUESTIONS` / `VIEWS` are data, and a fifth table is not. The map is bipartite and the page says so in a dozen places: `paintNode`'s three branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, and the composer's `QNODES`. A new kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js`.
+`DOORS` / `MODULES` / `QUESTIONS` / `SPECIMENS` / `VIEWS` are data, and a sixth table is not. The page says what a kind is in several places: `paintNode`'s branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, and the composer's `QNODES` and `CARDS`. A kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js` — cheap for a leaf, as `SPECIMENS` turned out to be, and not cheap for anything that questions must cross THROUGH.
 
 **Gated on `lib/mapcontent.js`, not on the page.** `question-composer.html` is still test status, and the usual reason a test page skips a gate is that it has no audience — which stops holding the moment the link is shared. What the hook protects is the MAP: a question with no vector is an unreachable card, and a renamed module id drops every edge pointing at it, which bites `door-map` just as hard and has nothing to do with embeddings.
 

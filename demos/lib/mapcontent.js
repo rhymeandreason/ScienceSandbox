@@ -196,6 +196,36 @@
     ['Why can’t a neuron let its signal diffuse?',              { diffusion:2 }],
   ];
 
+  /* ---------------------------------------------------------------------
+   *  SPECIMENS — a protein from proteins/proteins.js, and the modules it sits
+   *  under. `key` is that file's key and nothing here restates what the
+   *  protein IS: the registry says what we hold, this says where it belongs.
+   *  A specimen is a LEAF — it hangs off modules and questions and never off
+   *  another specimen, which is what keeps the map layered.
+   *
+   *  RANK MEANS WHAT IT MEANS EVERYWHERE ELSE: 1 shows the specimen when the
+   *  card opens, 2 is one step in. Reusing it rather than inventing a rule is
+   *  what lets a specimen be authored like everything else on this map.
+   *
+   *  A question reaches one by naming it in its own row, namespaced so a key
+   *  can never collide with a module id:
+   *
+   *      ['Why do proteins bury their greasy parts?',
+   *       { hydrophob:1, folding:2, 'p:myoglobin':2 }]
+   *
+   *  PLACEHOLDER CONTENT. Which specimen belongs under which concept, and at
+   *  what rank, is the same editorial judgement as every other rank here.
+   *  These six are a starting guess, not a decision.
+   * ------------------------------------------------------------------- */
+  const SPECIMENS = [
+    ['hemoglobin', { cooperat: 1, levels: 1, folding: 2 }],
+    ['myoglobin',  { binding: 1,  folding: 1 }],
+    ['napump',     { pumps: 1,    osmosis: 2 }],
+    ['amylase',    { enzyme: 1,   polymers: 1 }],
+    ['rnase',      { denature: 1, folding: 1 }],   // Anfinsen: it refolds itself
+    ['prion',      { folding: 1,  denature: 2, levels: 2 }],
+  ];
+
   const VIEWS = {
   hbond:     { kind:'water', waters:16,
                frame:{ showHbonds:true, tempEnabled:true, temperature:22 } },
@@ -256,5 +286,5 @@
   glycolysis:{ kind:'molbox', spec:'glucose' },
 };
 
-  global.MapContent = { DOORS, MODULES, QUESTIONS, VIEWS };
+  global.MapContent = { DOORS, MODULES, QUESTIONS, SPECIMENS, VIEWS };
 })(this);

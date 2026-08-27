@@ -76,14 +76,34 @@ const sha = s => crypto.createHash('sha256').update(s, 'utf8').digest('hex').sli
  * question is still drawn, and the crossing between them is simply gone. That is
  * the one thing the map exists to do, and nothing was checking it. */
 function integrity() {
-  const { DOORS, MODULES, QUESTIONS, VIEWS } = require(SRC).MapContent;
+  const { DOORS, MODULES, QUESTIONS, SPECIMENS, VIEWS } = require(SRC).MapContent;
   const ids = new Set(MODULES.map(m => m.id));
   const doors = new Set(DOORS.map(d => d.id));
   const bad = [];
 
+  /* The specimens are the OTHER registry's, and a protein renamed there drops
+     its edges here exactly the way a renamed module id did. Loaded softly: a
+     checkout without proteins/ still gets its questions checked. */
+  let keys = null;
+  try {
+    const lib = require(path.join(ROOT, 'proteins/proteins.js'));
+    keys = new Set((lib.PROTEINS || lib.ProteinLib.PROTEINS).map(p => p.key));
+  } catch (e) {
+    console.log('note  proteins/proteins.js did not load; specimen keys unchecked');
+  }
+  const known = id => id.startsWith('p:')
+    ? (keys ? keys.has(id.slice(2)) : true)
+    : ids.has(id);
+
+  for (const [key, mods] of (SPECIMENS || [])) {
+    if (keys && !keys.has(key)) bad.push(`SPECIMENS names no such protein \`${key}\``);
+    for (const id of Object.keys(mods))
+      if (!ids.has(id)) bad.push(`specimen \`${key}\` sits under no such module \`${id}\``);
+  }
+
   for (const [text, mods] of QUESTIONS)
     for (const id of Object.keys(mods))
-      if (!ids.has(id)) bad.push(`question names no such module \`${id}\`: ${text}`);
+      if (!known(id)) bad.push(`question names no such ${id.startsWith('p:') ? 'protein' : 'module'} \`${id}\`: ${text}`);
 
   for (const id of Object.keys(VIEWS || {}))
     if (!ids.has(id)) bad.push(`VIEWS names no such module \`${id}\``);

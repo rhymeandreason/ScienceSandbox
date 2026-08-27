@@ -410,6 +410,11 @@
   .hits li.miss { cursor: default; color: var(--muted); font-style: italic; }
   .hits li.miss:hover { background: var(--card); }
 
+  /* A specimen wears the spark rather than a door's tint: the map holds it,
+     the map does not claim it. */
+  .node.module.specimen { --dot: var(--spark); }
+  .node.module.specimen .name { color: var(--spark); }
+
   /* ---- the reader's own words ----------------------------------------
      The root card carries what was TYPED; the authored question it resolved to
      is printed under it, because the map is wired through that one and the
@@ -515,6 +520,7 @@
 <script src="../lib/covalent-drag.js"></script>
 <script src="../lib/ionic-drag.js"></script>
 <script src="../water/watersim.js"></script>
+<script src="../proteins/proteins.js"></script>   <!-- SPECIMENS resolve their keys here -->
 <script src="../lib/mapcontent.js"></script>   <!-- DOORS, MODULES, QUESTIONS, VIEWS -->
 <script src="../kit/modal.js"></script>
 <script src="../kit/card-stage.js"></script>
@@ -538,7 +544,7 @@
    text appeared once per module and a re-wording in one of them split that node
    in two. `mapcontent.js`'s header has the argument. */
 
-const { DOORS, MODULES, QUESTIONS, VIEWS } = MapContent;
+const { DOORS, MODULES, QUESTIONS, SPECIMENS, VIEWS } = MapContent;
 const DOOR = DOORS.find(d => d.open) || DOORS[0];
 
 /* ---- graph ------------------------------------------------------------
@@ -563,6 +569,37 @@ for (const m of MODULES) {
   byId[m.id] = n;
   nodes.push(n);
   if (m.door === DOOR.id) links.push({ a: door, b: n, rank: m.rank });
+}
+
+/* SPECIMENS — a protein is a LEAF: it hangs off modules and off questions and
+   never off another specimen, which is what keeps the map layered even though
+   a module may now reach one directly, with no question between.
+
+   What it IS comes from proteins/proteins.js and is never restated here; only
+   the default variant's baked trace is resolved, because a card draws one
+   structure and the registry already says which. A key that does not resolve
+   is SKIPPED rather than drawn empty — `--check` is what says so out loud. */
+const SPEC = (window.ProteinLib && window.ProteinLib.PROTEINS) || [];
+for (const [key, mods] of (SPECIMENS || [])) {
+  const p = SPEC.find(x => x.key === key);
+  if (!p) continue;
+  const v = p.variants.find(x => x.default) || p.variants[0];
+  const baked = v && v.read && v.read.baked;
+  if (!baked) continue;
+  const n = {
+    id: 'p:' + key, kind: 'protein', deg: 0,
+    name: p.name, claim: p.blurb, does: p.does,
+    trace: (p.dir || p.key) + '/data/' + baked,
+    purpose: v.purpose, method: v.read.method, species: v.species,
+  };
+  byId[n.id] = n;
+  nodes.push(n);
+  for (const [mid, rank] of Object.entries(mods)) {
+    const m = byId[mid];
+    if (!m) continue;
+    links.push({ a: m, b: n, rank });
+    n.deg++; m.deg++;
+  }
 }
 
 /* One node per question, however many modules name it — which is what makes a
@@ -748,7 +785,7 @@ const liveQueue = [];   // cards waiting for a quiet frame to start in
 let opening = true;     // until the load's own cards are up — see drain()
 let liveDraining = false;
 function goLiveSoon(n) {
-  const v = VIEWS[n.id];
+  const v = viewFor(n);
   if (!v) return;                        // nothing to start, so nothing to wait for
   /* The bytes can be in flight while the card waits its turn: a fetch costs no
      main thread, and the trace is what the first frame needs. Nothing reads the
@@ -792,8 +829,16 @@ function goLiveSoon(n) {
 
 // The click that opens a card is the click that starts it. A card asked twice
 // for its picture is a card the reader never sees move.
+/* What a node draws. A module names its view in mapcontent.js; a SPECIMEN
+   carries its own, because the file it draws is the registry's answer and
+   restating it in VIEWS would be a second source for the same fact. */
+function viewFor(n) {
+  if (n.kind === 'protein') return { kind: 'protein', trace: n.trace };
+  return VIEWS[n.id];
+}
+
 function goLive(n) {
-  const view = VIEWS[n.id];
+  const view = viewFor(n);
   if (!view || !n.el) return;
   const thumb = n.el.querySelector('.thumb');
   if (!thumb) return;
@@ -944,6 +989,7 @@ function expand(n, keep, next = top1) {
      6.6rem), a question card 58. So the module step is the card plus a gap, and
      the question step is generous because a question is mostly air — it is
      spacing the ROW, not clearing the box. */
+  // A specimen card is a module card, so it steps like one.
   const STEP = m0 => m0 === 'question' ? 215 : 345;   // gap down the fan
   wave.forEach((m, i) => {
     const t = wave.length === 1 ? 0 : (i / (wave.length - 1)) * 2 - 1;   // -1 … +1
@@ -993,6 +1039,16 @@ function paintNode(n) {
     el.className = 'node module ' + n.state + (n.away ? ' away' : '');
     const tint = (DOORS.find(d => d.id === n.door) || {}).tint;
     if (tint) el.style.setProperty('--dot', tint);
+    el.innerHTML = '<div class="name">' + n.name + '</div>' +
+                   '<div class="claim">' + n.claim + '</div>' +
+                   '<div class="thumb"><span class="ph">image</span></div>' +
+                   '<div class="meta"></div>';
+  } else if (n.kind === 'protein') {
+    /* A specimen, not a claim. Same card frame so it sits in the fan, and its
+       own dot colour so a reader can see at a glance that this one is a THING
+       we hold rather than something the map asserts. The meta line is the
+       registry's own words — method and species — never typed here. */
+    el.className = 'node module specimen';
     el.innerHTML = '<div class="name">' + n.name + '</div>' +
                    '<div class="claim">' + n.claim + '</div>' +
                    '<div class="thumb"><span class="ph">image</span></div>' +
@@ -1571,7 +1627,7 @@ function openFrom(q) {
      them deal the same one, stacked. start() never sees it because the door is
      already visible by the time anything expands. The composer's root is the
      typed question; the door is not part of the shape it opens. */
-  for (const m of mods) expand(m, (n, x) => x.kind === 'question', onward);
+  for (const m of mods) expand(m, (n, x) => x.kind === 'question' || x.kind === 'protein', onward);
   for (const m of live) refreshMeta(m);
   follow = null;
   touched = false;
@@ -1637,7 +1693,8 @@ function openAsk(text, best, near) {
   for (let i = links.length - 1; i >= 0; i--)
     if (links[i].a === ASKED || links[i].b === ASKED) links.splice(i, 1);
 
-  const inherited = best ? neighbours(best).filter(m => m.kind === 'module') : [];
+  // A question may name a specimen, and inheriting it is the point of saying so.
+  const inherited = best ? neighbours(best).filter(m => m.kind === 'module' || m.kind === 'protein') : [];
   for (const m of inherited) links.push({ a: m, b: ASKED, rank: rankFrom(best, m) });
   for (const { m } of near) links.push({ a: m, b: ASKED, rank: 1, near: true });
 
@@ -1804,7 +1861,11 @@ const norm = t => t.toLowerCase().normalize('NFKD')
   .replace(/^the /, '')
   .split(' ').map(w => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w)).join(' ');
 
-const NAMED = MODNODES.map(m => ({ m, key: norm(m.name), id: norm(m.id) }));
+/* Modules AND specimens: "hemoglobin" is a card that exists, and refusing it
+   because it is not a concept is the same failure `polarity` had. A specimen's
+   id is namespaced (`p:hemoglobin`), so the bare key is what gets matched. */
+const CARDS = nodes.filter(n => n.kind === 'module' || n.kind === 'protein');
+const NAMED = CARDS.map(m => ({ m, key: norm(m.name), id: norm(m.id.replace(/^p:/, '')) }));
 
 /* The typed text holds the name as WHOLE WORDS: "protein folding" reaches
    Folding, "lipid bilayer" reaches The bilayer. Never a substring — `run` inside
@@ -1816,7 +1877,7 @@ const holds = (hay, needle) => (' ' + hay + ' ').includes(' ' + needle + ' ');
    Levels of structure. A tail word is not a name. The cost is that `density`
    no longer reaches Ice & density, which is the right trade — being asked to
    type the head of a name is normal, being answered from its tail is a surprise. */
-function moduleNamed(text) {
+function cardNamed(text) {
   const k = norm(text);
   if (k.length < 3) return null;
   const hit = NAMED.find(x => x.key === k || x.id === k)
@@ -1824,11 +1885,11 @@ function moduleNamed(text) {
   return hit ? hit.m : null;
 }
 
-/* What clicking that card would have done, composed from cold: the module, its
-   best band of questions, and the module each of those leads to. Same shape
+/* What clicking that card would have done, composed from cold: the card, its
+   best band of neighbours, and the module each question leads to. Same shape
    start() and openAsk() use, so a keyword lands on a map that reads like every
    other one. */
-function openModule(m) {
+function openCard(m) {
   clearFocus();
   stages.clear();
   for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
@@ -1871,7 +1932,7 @@ function drawHits() {
      drawing it as a suggestion was offering the reader the thing they had
      already typed. `cursor` at -1 means nothing is highlighted and Enter takes
      that default; arrowing down starts at the first row here. */
-  const card = moduleNamed(text);
+  const card = cardNamed(text);
   order = (card ? [-1] : []).concat(hits.map((_, i) => i + 1));
   const sel = cursor < 0 ? null : order[cursor];
 
@@ -1918,10 +1979,10 @@ function drawHits() {
 function choose(i) {
   const text = askEl.value.trim();
   if (i === -1) {
-    const card = moduleNamed(text);
+    const card = cardNamed(text);
     if (!card) return;
     hitsEl.replaceChildren(); askEl.blur();
-    openModule(card);
+    openCard(card);
     hits = []; near = []; cursor = -1;
     return;
   }
