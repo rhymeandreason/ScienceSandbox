@@ -311,7 +311,11 @@ The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is
 
 ### A new KIND of node is a page change
 
-`DOORS` / `MODULES` / `QUESTIONS` / `SPECIMENS` / `VIEWS` are data, and a sixth table is not. The page says what a kind is in several places: `paintNode`'s branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, and the composer's `QNODES` and `CARDS`. A kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js` — cheap for a leaf, as `SPECIMENS` turned out to be, and not cheap for anything that questions must cross THROUGH.
+`DOORS` / `MODULES` / `QUESTIONS` / `SPECIMENS` / `VIEWS` are data, and a sixth table is not. The page says what a kind is in several places: `paintNode`'s branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, `markNear()`, and the composer's `QNODES` and `CARDS`.
+
+**`markNear()` is the one that hides.** It skipped anything that was not `kind === 'module'`, so a specimen never took `.near` at any zoom and its surface toggle sat at opacity 0 forever — present in the DOM, queryable, invisible. Nothing throws and nothing is missing from the page; the control is simply always faded. A kind check that GATES A CLASS fails this way rather than loudly, which is why it is worth listing separately from the ones that draw.
+
+**A named card is focused**, the way a clicked one is. `openCard()` calls `focus()`, so the card takes `.hub` and its 34rem width — otherwise the root is a default 17.5rem card at apparent 0.85, just under `CONTROLS_AT`, and the toggle is hidden for that reason as well. Naming a card is asking to work on it. A kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js` — cheap for a leaf, as `SPECIMENS` turned out to be, and not cheap for anything that questions must cross THROUGH.
 
 **Gated on `lib/mapcontent.js`, not on the page.** `question-composer.html` is still test status, and the usual reason a test page skips a gate is that it has no audience — which stops holding the moment the link is shared. What the hook protects is the MAP: a question with no vector is an unreachable card, and a renamed module id drops every edge pointing at it, which bites `door-map` just as hard and has nothing to do with embeddings.
 

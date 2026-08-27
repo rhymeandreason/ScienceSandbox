@@ -1369,7 +1369,9 @@ const HUB_RATIO = 34 / 17.5;
 const CONTROLS_AT = 0.95;
 function markNear() {
   for (const n of live) {
-    if (!n.el || n.kind !== 'module') continue;
+    // Specimens too: the card is a module card, wears the same controls, and
+    // skipping it left a surface toggle sitting at opacity 0 forever.
+    if (!n.el || (n.kind !== 'module' && n.kind !== 'protein')) continue;
     const f = n.el.classList.contains('hub') ? HUB_RATIO : 1;
     n.el.classList.toggle('near', view.k * f >= CONTROLS_AT);
   }
@@ -1998,7 +2000,12 @@ function openCard(m) {
   show(m, 0, 0);
   expand(m, null, band((q, x) => x.door === DOOR.id));
   for (const n of live) refreshMeta(n);
-  follow = null;
+  /* FOCUSED, like a click. Naming a card is asking to work on it, and a card
+     that is merely the root is still a default 17.5rem one — measured, apparent
+     size 0.85 at the opening zoom, just under CONTROLS_AT — so its surface
+     toggle sits there at opacity 0 and the card looks like it has none. `.hub`
+     is what the width and the controls threshold both key off. */
+  focus(m);
   touched = false;
   centre();
   alpha = 1;
