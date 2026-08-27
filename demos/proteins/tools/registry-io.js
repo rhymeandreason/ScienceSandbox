@@ -66,6 +66,13 @@ function validate(lib) {
     if (!p.key || !p.name || !p.dir) bad.push(`${at}: needs key, name and dir`);
     if (keys.has(p.key)) bad.push(`${at}: duplicate key`);
     keys.add(p.key);
+    /* One word from the vocabulary, and every protein has one — `unknown` is
+       an answer, so a missing `does` is a question nobody asked rather than a
+       function nobody knows. */
+    if (!p.does) bad.push(`${at}: no does — say what it is for, or 'unknown'`);
+    else if (!lib.DOES.includes(p.does))
+      bad.push(`${at}: does '${p.does}' is not one of ${lib.DOES.join(', ')}`);
+
     if (!Array.isArray(p.variants) || !p.variants.length)
       { bad.push(`${at}: no variants`); continue; }
 

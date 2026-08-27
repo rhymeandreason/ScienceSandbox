@@ -318,6 +318,12 @@
       key: 'prion', name: 'Prion protein', dir: 'proteins/prion',
       blurb: 'One sequence, two shapes: the healthy human fold and the disease '
            + 'fold, as deposited. The stack is the reason it spreads.',
+      /* NOT A HEDGE. PrP-C's normal job is genuinely unsettled — copper
+         binding, signalling, myelin maintenance are all proposed and none
+         settled — and a collection that guessed would be teaching one of
+         them. What it does when it misfolds is the whole lesson, and that is
+         not a function. */
+      does: 'unknown',
       pipeline: 'trace',
       /* What else lives in data/ and is not a variant. Prion COMMITS its
          sources (they are small once cut to model 1) and its baker writes
@@ -356,6 +362,8 @@
       blurb: 'The enzyme in your saliva that starts on starch before you have '
            + 'swallowed. One long trough, four subsites, and a drug sitting in '
            + 'it that the enzyme cannot cut.',
+      /* EC 3.2.1.1, in the file's own COMPND record. */
+      does: 'enzyme',
       /* Its own pipeline: `amylase/tools/` bakes the site measurements, the
          surface and the docking control that `amylase-test.html` reads, and
          `check-amylase.js` / `check-fit.js` audit them. Nothing here reaches
@@ -399,6 +407,7 @@
       blurb: 'Four myoglobins that learned to talk to each other. One oxygen '
            + 'binding pulls the whole tetramer into the shape that binds the '
            + 'next three more easily.',
+      does: 'oxygen carrier',
       /* NOT THIS REGISTRY'S PIPELINE, and that is the whole of the entry. Its
          bakes feed hemoglobin-lab's folding trajectory and are made by
          `hemoglobin/tools/`, on their own schedule and in their own formats —
@@ -488,6 +497,8 @@
       blurb: '124 residues that cut RNA, and the most-studied enzyme of the '
            + 'twentieth century. The protein Anfinsen unfolded and watched '
            + 'come back.',
+      /* EC 3.1.27.5, in the file's own COMPND record. */
+      does: 'enzyme',
       pipeline: 'trace',
       /* Not superposed, and this is the interesting case: these are not states
          of one thing. 1DFJ's subject is the assembly and the dimers' is the
@@ -510,6 +521,7 @@
       blurb: 'One iron atom, wrapped in 153 residues. The first protein '
            + 'structure ever solved, and still the clearest binding site '
            + 'there is.',
+      does: 'oxygen carrier',
       pipeline: 'trace',
       /* THE DEFAULT AND THE REFERENCE ARE DIFFERENT VARIANTS HERE, and that is
          not an oversight: they answer different questions. The default is what
@@ -566,7 +578,17 @@
                     'neutron diffraction'];
   const METHODS = MEASURED.concat(['predicted']);
 
-  global.ProteinLib = { PROTEINS, METHODS, MEASURED, byKey, defaultOf,
+  /* WHAT THE PROTEIN DOES, in one word the collection can be sorted on. A
+     vocabulary rather than free text for the same reason `method` is one:
+     'enzyme' and 'an enzyme' would split the group in two on a filter and
+     nobody would see it happen.
+
+     `unknown` is a real answer and not a gap to fill in later. PrP is the
+     case — what its healthy form is FOR has been argued for forty years —
+     and a collection that guessed would be teaching one side of that. */
+  const DOES = ['enzyme', 'oxygen carrier', 'unknown'];
+
+  global.ProteinLib = { PROTEINS, METHODS, MEASURED, DOES, byKey, defaultOf,
                         variantOf, urls };
   if (typeof module === 'object' && module.exports)
     module.exports = global.ProteinLib;
