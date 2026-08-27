@@ -6,110 +6,144 @@
  *  different would read as two opinions about what a protein bench IS, so the
  *  layout lives here and a page adds only what its own subject needs.
  *
- *  Every size, weight and colour below is a main.css token, with two literal
- *  exceptions that say why at the rule. Load after main.css and sandbox.css,
- *  before kit/proteinbox.css.
+ *  THE HOUSE STYLE IS THE SITE'S FRONT DOOR, not a bench's own. The root
+ *  `index.html` and `proteins/index.html` set it — Futura for names and
+ *  nothing else, system-ui for everything that is read, warm paper, deep green
+ *  for the live control and rust for its hover — and a reader arriving from the
+ *  gallery should not cross a style boundary to look at one protein. The
+ *  palette is declared here under `--h-*` rather than by shadowing main.css's
+ *  tokens, because `kit/proteinbox.css` and the stage draw from those and a
+ *  bench must not repaint the molecule to repaint its panel.
+ *
+ *  Spacing, radius and timing still come from main.css. Load after main.css
+ *  and sandbox.css, before kit/proteinbox.css.
  *
  *  WHAT A PAGE STILL OWNS. Anything that carries its own claim: prion adds a
  *  `.disease` variant to the button and the chip because its whole subject is
  *  two states of one sequence. A page that colours something is saying
  *  something with the colour, and that belongs beside the page's own reasoning.
  *
- *  Consumers: proteins/prion/prion-test.html, proteins/rnase/rnase-test.html.
+ *  Consumers: one bench per protein folder, listed in AddingAProtein.md.
  * ============================================================================= */
+
+:root{
+  /* Futura is the display face and nothing else — the panel's title. Jost is
+     the geometric stand-in where Futura is not installed; the pages link it. */
+  --h-display:'Futura','Futura PT','Jost',-apple-system,'Segoe UI',sans-serif;
+  --h-ui:system-ui,-apple-system,'Segoe UI',sans-serif;
+
+  --h-paper:#faf8f4;
+  --h-ink:#14161a;
+  --h-muted:#6d6f76;
+  --h-line:#e4e0d7;
+  --h-card:#ffffff;
+  --h-accent:#1f5f4f;   /* deep green — the pressed control */
+  --h-spark:#e2643a;    /* warm counterpoint — hover, and the marked figure */
+}
 
 /* The panel is a reading column, not a control strip, so the hierarchy is
    carried by size and colour rather than by rules and boxes. */
 #app{display:grid;grid-template-columns:1fr 340px;height:100vh}
-#stage{position:relative;background:var(--paper)}
+#stage{position:relative;background:var(--h-paper)}
 
 .panel{padding:var(--space-5) var(--space-4);overflow-y:auto;
-  font-family:var(--font-sans);font-size:var(--text-sm);
-  line-height:var(--leading-body);
-  background:var(--surface-card);color:var(--ink);
-  border-left:1.5px solid var(--hair)}
+  font-family:var(--h-ui);font-size:0.875rem;line-height:1.55;
+  background:var(--h-card);color:var(--h-ink);
+  border-left:1px solid var(--h-line)}
 
-/* Title: editorial, the one place the panel raises its voice. */
-.panel h1{font-family:var(--font-editorial);font-size:var(--text-2xl);
-  font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);
-  line-height:var(--leading-tight);margin:0}
-.panel .deck{font-family:var(--font-editorial);font-size:var(--text-md);
-  font-weight:var(--weight-regular);color:var(--muted);
-  line-height:var(--leading-snug);margin:2px 0 var(--space-5)}
+/* Title: the one place the panel raises its voice, and the only Futura on it.
+   Lowercase like the mastheads it was set beside. */
+.panel h1{font-family:var(--h-display);font-size:1.7rem;font-weight:500;
+  letter-spacing:-0.035em;line-height:1;margin:0;text-transform:lowercase}
+.panel .deck{font-size:0.9rem;color:var(--h-muted);line-height:1.4;
+  margin:0.45rem 0 var(--space-5);padding-bottom:var(--space-4);
+  border-bottom:2px solid var(--h-ink)}
 
 /* Section labels: the quietest thing on the page, and the only uppercase. */
-.panel h2{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-  text-transform:uppercase;color:var(--muted);
-  font-weight:var(--weight-semibold);margin:var(--space-5) 0 var(--space-2)}
+.panel h2{font-size:0.7rem;letter-spacing:0.16em;text-transform:uppercase;
+  color:var(--h-muted);font-weight:600;margin:var(--space-5) 0 var(--space-2)}
 
 button.mode{display:flex;align-items:center;gap:var(--space-2);
-  width:100%;text-align:left;margin:3px 0;padding:8px 10px;
-  border:1.5px solid var(--hair);background:transparent;
+  width:100%;text-align:left;margin:4px 0;padding:9px 12px;
+  border:1px solid var(--h-line);background:transparent;
   border-radius:var(--radius-sm);cursor:pointer;
-  font:inherit;font-size:var(--text-sm);color:var(--ink);
-  transition:background var(--dur-fast) var(--ease-out)}
-button.mode:hover{background:rgba(0,0,0,.035)}
+  font:inherit;font-family:var(--h-ui);font-size:0.85rem;color:var(--h-ink);
+  transition:background var(--dur-fast) var(--ease-out),
+             border-color var(--dur-fast) var(--ease-out),
+             color var(--dur-fast) var(--ease-out)}
+button.mode:hover{border-color:var(--h-accent);color:var(--h-accent)}
 button.mode .who{flex:1}
-button.mode[aria-pressed=true]{background:#3f7abd;border-color:#3f7abd;color:#fff}
+button.mode[aria-pressed=true]{background:var(--h-accent);
+  border-color:var(--h-accent);color:#faf8f4}
 
 /* The chip is the first thing the eye lands on inside a row, and it is always
    a WORD: colour alone would not survive the pressed state, where the row's
    own background takes over. What the word says is the page's business. */
-.chip{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-  text-transform:uppercase;font-weight:var(--weight-semibold);
-  padding:2px 6px;border-radius:var(--radius-pill);
-  background:rgba(63,122,189,.14);color:#2c5b91}
+.chip{font-size:0.66rem;letter-spacing:0.1em;text-transform:uppercase;
+  font-weight:600;padding:2px 7px;border-radius:var(--radius-pill);
+  background:rgba(31,95,79,.12);color:var(--h-accent)}
 button.mode[aria-pressed=true] .chip{background:rgba(255,255,255,.22);color:#fff}
 
-/* The readout. One claim in editorial at the top, then the measurements. */
-.claim{font-family:var(--font-editorial);font-size:var(--text-md);
-  line-height:var(--leading-snug);margin:0 0 var(--space-1)}
-.meta{font-size:var(--text-xs);color:var(--muted);margin:0 0 var(--space-3)}
+/* The readout. One claim at the top, then the measurements. */
+.claim{font-size:0.95rem;line-height:1.4;margin:0 0 var(--space-1);
+  color:var(--h-ink)}
+.meta{font-size:0.78rem;color:var(--h-muted);margin:0 0 var(--space-3)}
 
 table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
-  font-size:var(--text-xs)}
-td{padding:3px 0;vertical-align:baseline;border-bottom:1px solid var(--hair)}
+  font-size:0.78rem}
+td{padding:4px 0;vertical-align:baseline;border-bottom:1px solid var(--h-line)}
 tr:last-child td{border-bottom:0}
-td:first-child{color:var(--muted)}
-td:last-child{text-align:right;font-weight:var(--weight-semibold);
-  font-size:var(--text-sm);color:var(--ink)}
-td.flag:last-child{color:#b3300c}
+td:first-child{color:var(--h-muted)}
+td:last-child{text-align:right;font-weight:600;font-size:0.85rem;
+  color:var(--h-ink)}
+td.flag:last-child{color:var(--h-spark)}
 
-.frag{font-family:var(--font-mono);font-size:var(--text-xs);
-  color:var(--muted);margin:var(--space-3) 0 0}
-.prov,.note{font-size:var(--text-xs);line-height:var(--leading-body);
-  color:var(--muted);margin:var(--space-2) 0 0}
+.frag{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.75rem;
+  color:var(--h-muted);margin:var(--space-3) 0 0}
+.prov,.note{font-size:0.78rem;line-height:1.6;color:var(--h-muted);
+  margin:var(--space-2) 0 0}
 
-/* Where the coordinates came from, on the view they belong to. Three links
+/* WHERE THE COORDINATES CAME FROM, on the view they belong to. Three links
    because they are three different things: the entry a reader would cite, the
    file it downloads, and the reduced copy the page actually parses — and the
-   third is the one that would otherwise be invisible. */
-.src{display:flex;flex-wrap:wrap;gap:var(--space-3);
-  margin:var(--space-3) 0 var(--space-6);
-  font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
-  text-transform:uppercase;font-weight:var(--weight-semibold)}
+   third is the one that would otherwise be invisible.
+
+   PILLS, NOT FOOTNOTES. This is the row that answers "says who?", and set as
+   quiet underlined text at the foot of a scrolling column it read as small
+   print under the figures rather than as the provenance of every number above
+   it. Same pill the gallery's cards end on, so the two pages agree about what
+   a link out of the collection looks like. */
+.src{display:flex;flex-wrap:wrap;gap:var(--space-2);
+  margin:var(--space-4) 0 var(--space-6);padding-top:var(--space-4);
+  border-top:1px solid var(--h-line);
+  font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;
+  font-weight:600}
 /* The icon marks the links that LEAVE the page, so it is on both remote ones
    and not on the local file. Drawn rather than fetched: an icon font for one
    glyph is a webfont the rest of the page does not need. */
-.src a{color:var(--muted);text-decoration:none;
-  border-bottom:1px solid var(--hair);padding-bottom:1px;
-  display:inline-flex;align-items:center;gap:4px}
-.src a:hover{color:var(--ink);border-bottom-color:currentColor}
-.ext{width:9px;height:9px;fill:none;stroke:currentColor;stroke-width:1.6;
-  stroke-linecap:round;stroke-linejoin:round;flex:none}
+.src a{display:inline-flex;align-items:center;gap:6px;
+  padding:7px 13px;border:1px solid var(--h-line);border-radius:var(--radius-pill);
+  color:var(--h-ink);text-decoration:none;
+  transition:background var(--dur-fast) var(--ease-out),
+             border-color var(--dur-fast) var(--ease-out),
+             color var(--dur-fast) var(--ease-out)}
+.src a:hover{background:var(--h-accent);border-color:var(--h-accent);
+  color:#faf8f4}
+.ext{width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;flex:none;opacity:.65}
+.src a:hover .ext{opacity:1}
 
 /* Completeness is the row a reader is most likely to mis-read as "the whole
-   protein", so it is the one row that is marked. A highlighter stripe, and
-   nothing else: the text keeps the colour and size every other row has,
-   because the figures here are scanned against each other and a bigger or
-   recoloured number reads as a different KIND of value rather than as a more
-   important row.
+   protein", so it is the one row that is marked. A stripe, and nothing else:
+   the text keeps the colour and size every other row has, because the figures
+   here are scanned against each other and a bigger or recoloured number reads
+   as a different KIND of value rather than as a more important row.
 
-   The yellow is literal rather than a token. A bench spends main.css's accents
-   on its subject — a state, a mutation, which molecule this is — so borrowing
-   one for UI emphasis would put a subject colour on a row that has no
-   subject. */
-tr.hi td{background:#ffe94a;border-bottom:0}
+   The house spark carries it now. It is a UI colour on both mastheads and on
+   no molecule, which is what the old literal yellow was bought for — a bench
+   spends main.css's accents on its subject, so borrowing one here would put a
+   subject colour on a row that has no subject. */
+tr.hi td{background:rgba(226,100,58,.16);border-bottom:0}
 tr.hi td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm);
   padding-left:6px}
 tr.hi td:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0;
