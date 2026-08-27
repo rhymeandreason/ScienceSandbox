@@ -103,6 +103,7 @@
       read: {
         method: "solution nmr",
         chainsInFile: 1,
+        ec: null,
         residues: 104,
         declared: 210,
         baked: "prp-1QLZ.json" } },
@@ -115,6 +116,7 @@
       read: {
         method: "electron microscopy",
         chainsInFile: 10,
+        ec: null,
         residues: 60,
         declared: 210,
         baked: "prp-6LNI.json" } },
@@ -127,6 +129,7 @@
       read: {
         method: "electron microscopy",
         chainsInFile: 10,
+        ec: null,
         residues: 600,
         declared: 2100,
         baked: "prp-stack.json" } },
@@ -145,6 +148,7 @@
         chainsInFile: 1,
         residues: 153,
         declared: 153,
+        ec: null,
         baked: "mb-1MBN.json" } },
     { id: '1BZP',
       purpose: 'the site with nothing in it',
@@ -158,6 +162,7 @@
         chainsInFile: 1,
         residues: 153,
         declared: 153,
+        ec: null,
         baked: "mb-1BZP.json" } },
     { id: '1A6M',
       purpose: 'oxygen bound',
@@ -171,6 +176,7 @@
         chainsInFile: 1,
         residues: 151,
         declared: 151,
+        ec: null,
         baked: "mb-1A6M.json" } },
     { id: '1MBC',
       purpose: 'carbon monoxide in the same place',
@@ -184,6 +190,7 @@
         chainsInFile: 1,
         residues: 153,
         declared: 153,
+        ec: null,
         baked: "mb-1MBC.json" } },
     { id: '1ABS',
       purpose: 'the CO cut loose by light, frozen mid-escape',
@@ -197,6 +204,7 @@
         chainsInFile: 1,
         residues: 154,
         declared: 154,
+        ec: null,
         baked: "mb-1ABS.json" } },
     { id: '1YMB',
       purpose: 'another animal, the same answer',
@@ -210,6 +218,7 @@
         chainsInFile: 1,
         residues: 153,
         declared: 153,
+        ec: null,
         baked: "mb-1YMB.json" } },
     { id: '2HHB-B',
       purpose: 'the same fold, doing a job a monomer cannot',
@@ -223,6 +232,7 @@
         chainsInFile: 4,
         residues: 146,
         declared: 146,
+        ec: null,
         baked: "mb-2HHB-B.json" } },
   ];
 
@@ -237,6 +247,7 @@
         chainsInFile: 1,
         residues: 124,
         declared: 124,
+        ec: "3.1.27.5",
         baked: "rnase-1FS3.json" } },
     { id: '2AAS',
       purpose: 'the same fold in solution',
@@ -249,6 +260,7 @@
         chainsInFile: 1,
         residues: 124,
         declared: 124,
+        ec: "3.1.27.5",
         baked: "rnase-2AAS.json" } },
     { id: '1RUV',
       purpose: 'the transition state, held still',
@@ -260,6 +272,7 @@
         chainsInFile: 1,
         residues: 124,
         declared: 124,
+        ec: "3.1.27.5",
         baked: "rnase-1RUV.json" } },
     { id: '1RNU',
       kind: 'cut',
@@ -272,6 +285,7 @@
         chainsInFile: 1,
         residues: 116,
         declared: 124,
+        ec: "3.1.27.5",
         baked: "rnase-1RNU.json" } },
     { id: '1A2W',
       kind: 'swap',
@@ -285,6 +299,7 @@
         chainsInFile: 2,
         residues: 248,
         declared: 248,
+        ec: "3.1.27.5",
         baked: "rnase-1A2W.json" } },
     { id: '1F0V',
       kind: 'swap',
@@ -298,6 +313,7 @@
         chainsInFile: 8,
         residues: 248,
         declared: 248,
+        ec: "3.1.27.5",
         baked: "rnase-1F0V.json" } },
     { id: '1DFJ',
       kind: 'bound',
@@ -310,6 +326,7 @@
         chainsInFile: 2,
         residues: 580,
         declared: 581,
+        ec: "3.1.27.5",
         baked: "rnase-1DFJ.json" } },
   ];
 
@@ -399,6 +416,7 @@
             chainsInFile: 1,
             residues: 495,
             declared: 496,
+            ec: "3.2.1.1",
             baked: "1OSE.trace.json" } },
       ],
     },
@@ -470,6 +488,7 @@
             chainsInFile: 4,
             residues: 574,
             declared: 574,
+            ec: null,
             baked: "2HHB.trace.json" } },
         { id: '2HBS',
           purpose: 'sickle haemoglobin, one mutation away',
@@ -489,6 +508,7 @@
             chainsInFile: 8,
             residues: 574,
             declared: 574,
+            ec: null,
             baked: "2HBS-T1-quaternary.json" } },
       ],
     },
@@ -555,6 +575,30 @@
      protein with none, and the fix is to mark one — the first entry, if
      nothing else earns it. */
   const defaultOf = p => p.variants.find(v => v.default) || null;
+
+  /* THE PROTEIN'S EC NUMBER, agreed across its variants. Read per variant off
+     each deposition, because that is where it is written, and asked for per
+     PROTEIN because that is what it describes — every entry of ribonuclease A
+     says 3.1.27.5, and one that said something else would mean a variant is
+     filed under the wrong protein. `check-proteins.js` fails that disagreement
+     rather than letting this pick a winner.
+
+     Null is an answer: haemoglobin carries oxygen and catalyses nothing. */
+  function ecOf(p) {
+    const seen = [...new Set(p.variants.map(v => v.read && v.read.ec).filter(Boolean))];
+    return seen.length === 1 ? seen[0] : null;
+  }
+
+  /* What the first digit of an EC number means, for a page that wants to say
+     it in words. The same table bake-lib.js keeps for Node. */
+  const EC_CLASS = [null,
+    ['oxidoreductase', 'moving electrons'],
+    ['transferase', 'moving a group from one molecule to another'],
+    ['hydrolase', 'cutting a bond with water'],
+    ['lyase', 'cutting without water, or adding across a double bond'],
+    ['isomerase', 'rearranging one molecule'],
+    ['ligase', 'joining two, paying with ATP'],
+    ['translocase', 'moving something across a membrane']];
   const variantOf = (p, id) => p.variants.find(v => v.id === id) || null;
 
   /* Both URLs a bench shows, derived from `source` so an id and its links
@@ -588,7 +632,8 @@
      and a collection that guessed would be teaching one side of that. */
   const DOES = ['enzyme', 'oxygen carrier', 'unknown'];
 
-  global.ProteinLib = { PROTEINS, METHODS, MEASURED, DOES, byKey, defaultOf,
+  global.ProteinLib = { PROTEINS, METHODS, MEASURED, DOES, EC_CLASS,
+                        byKey, defaultOf, ecOf,
                         variantOf, urls };
   if (typeof module === 'object' && module.exports)
     module.exports = global.ProteinLib;

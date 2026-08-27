@@ -340,6 +340,9 @@ function bake(v, ref) {
     chainsInFile: Bake.chainCount(text),
     residues: out.meta.counts[0].modelled,
     declared: out.meta.counts[0].declared,
+    /* Null for every myoglobin view: it carries oxygen and catalyses nothing,
+       which is a fact worth having in the index rather than an absence. */
+    ec: Bake.ecNumbers(text)[0] || null,
     baked: `mb-${v.id}.json`,
   };
   return out;

@@ -185,6 +185,45 @@ function chainsDeclared(text) {
   return ids.size;
 }
 
+/* EC NUMBERS off the entry's own COMPND records, in file order and without
+   duplicates — the classification of the REACTION, which is the fact that says
+   an entry is an enzyme at all.
+
+   A LIST, because a COMPND block describes every molecule in the entry and
+   more than one of them can be an enzyme: 1DFJ is ribonuclease A held by an
+   inhibitor, and only one half of it has a number. A single field would have
+   to pick, and picking is a decision this reader has no business making.
+
+   IT CLASSIFIES THE REACTION, NOT THE PROTEIN. Two enzymes with no shared
+   ancestry and no shared fold carry the same number if they do the same
+   chemistry, so it answers "what reaction is this" and is never evidence
+   about a structure. */
+function ecNumbers(text) {
+  const out = [];
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('COMPND')) continue;
+    const m = line.match(/\bEC:\s*([\d.\-,\s]+?);?\s*$/);
+    if (!m) continue;
+    for (const ec of m[1].split(',')) {
+      const v = ec.trim();
+      if (v && !out.includes(v)) out.push(v);
+    }
+  }
+  return out;
+}
+
+/* The seven top-level classes, for a page that wants to say what a number
+   means. Here rather than in a page because it is a fact about the EC scheme
+   and every reader of it would otherwise keep a copy. */
+const EC_CLASS = [null,
+  ['oxidoreductase', 'moving electrons'],
+  ['transferase', 'moving a group from one molecule to another'],
+  ['hydrolase', 'cutting a bond with water'],
+  ['lyase', 'cutting without water, or adding across a double bond'],
+  ['isomerase', 'rearranging one molecule'],
+  ['ligase', 'joining two, paying with ATP'],
+  ['translocase', 'moving something across a membrane']];
+
 /* The provenance lines a reduced file has to carry to stay self-describing:
    what experiment produced it, how sharp it is, and which chains the entry
    has. Without them a cut-down PDB cannot answer the questions the registry
@@ -275,5 +314,6 @@ const breaks = trace => trace.order.reduce((k, id) => k + trace.chains[id].nums
 module.exports = {
   r2, xyz, modelOne, caTrace, ssRanges, ssFrom, declared, disulfides, ligands,
   line1, method, models, resolution, chainCount, chainsDeclared, provenance,
+  ecNumbers, EC_CLASS,
   assemble, frameOf, breaks,
 };

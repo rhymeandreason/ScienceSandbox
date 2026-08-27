@@ -106,10 +106,10 @@ for (const p of lib.PROTEINS) {
       const declared = [...chains.keys()].every(c => decl[c] != null)
         ? [...chains.keys()].reduce((k, c) => k + decl[c], 0) : null;
       const from = { method: Bake.method(text), chainsInFile: Bake.chainCount(text),
-                     residues, declared };
+                     residues, declared, ec: Bake.ecNumbers(text)[0] || null };
       for (const k of Object.keys(from))
-        if (r[k] != null && from[k] !== r[k])
-          say(`${at}: registry says ${k} ${JSON.stringify(r[k])}, ` +
+        if (from[k] !== (r[k] === undefined ? null : r[k]))
+          say(`${at}: registry says ${k} ${JSON.stringify(r[k] ?? null)}, ` +
               `${src} says ${JSON.stringify(from[k])} — re-run read-own.js`);
       continue;
     }
@@ -120,6 +120,7 @@ for (const p of lib.PROTEINS) {
         method: (text.split('\n').find(l => l.startsWith('EXPDTA')) || '')
           .slice(10).trim().toLowerCase() || null,
         chainsInFile: chainsDeclared(text),
+        ec: Bake.ecNumbers(text)[0] || null,
         residues: text.split('\n')
           .filter(l => l.startsWith('ATOM') && l.slice(12, 16).trim() === 'CA').length,
         declared: declaredOf(text),
@@ -148,6 +149,13 @@ for (const p of lib.PROTEINS) {
       if (r.chainsInFile != null && meta.chainsInFile != null &&
           meta.chainsInFile !== r.chainsInFile)
         say(`${at}: registry says ${r.chainsInFile} chains in file, bake says ${meta.chainsInFile}`);
+      /* The EC is answerable by the bake only where the baker carried it, so
+         it is checked against the registry's own agreement instead: every
+         variant that has one has the same one, which registry-io asserts. What
+         this catches is a bake whose meta says a different reaction. */
+      if (meta.ec !== undefined && r.ec != null && meta.ec !== r.ec)
+        say(`${at}: registry says EC ${r.ec}, bake says ${meta.ec}`);
+
       if (r.declared != null && Array.isArray(meta.counts)) {
         const declared = meta.counts.every(c => c.declared !== null)
           ? meta.counts.reduce((k, c) => k + c.declared, 0) : null;

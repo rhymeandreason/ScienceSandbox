@@ -120,6 +120,19 @@ function validate(lib) {
        choice falls to whichever variant the list starts with, so re-ordering
        the list re-aims the bench and the card without anyone touching a
        decision. Mark the first entry if nothing else earns it. */
+    /* AN ENZYME HAS AN EC NUMBER, and every variant that carries one has to
+       carry the SAME one: they are meant to be entries of one protein, and
+       two numbers means one of them is filed under the wrong key. The other
+       direction is legitimate — an entry can classify nothing and still be an
+       enzyme's structure — so only disagreement fails. */
+    const ecs = [...new Set(p.variants.map(v => v.read && v.read.ec).filter(Boolean))];
+    if (ecs.length > 1)
+      bad.push(`${at}: variants disagree about the EC number (${ecs.join(', ')})`);
+    if (p.does === 'enzyme' && !ecs.length)
+      bad.push(`${at}: does 'enzyme' and no variant carries an EC number`);
+    if (p.does !== 'enzyme' && ecs.length)
+      bad.push(`${at}: carries EC ${ecs[0]} but does is '${p.does}'`);
+
     if (defaults === 0)
       bad.push(`${at}: no variant marked default — mark one, the first if nothing else`);
     if (defaults > 1) bad.push(`${at}: ${defaults} variants marked default`);

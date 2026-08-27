@@ -136,6 +136,11 @@ function bake(v) {
     residues: out.meta.counts.reduce((k, c) => k + c.modelled, 0),
     declared: out.meta.counts.every(c => c.declared !== null)
       ? out.meta.counts.reduce((k, c) => k + c.declared, 0) : null,
+    /* WHICH REACTION, off the entry's own COMPND. It is in the index rather
+       than only in the bake because whether a protein is an enzyme is the
+       first thing a collection is asked, and a production page reads the
+       registry, never a PDB. Null where the entry classifies nothing. */
+    ec: Bake.ecNumbers(text)[0] || null,
     baked: `rnase-${v.id}.json`,
   };
   return out;

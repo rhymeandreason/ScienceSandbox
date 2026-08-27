@@ -267,7 +267,14 @@ function card(p) {
      what is known instead. */
   const does = el.querySelector('.does');
   if (p.does && p.does !== 'unknown') {
-    does.textContent = p.does;
+    /* An enzyme says WHICH REACTION beside the word, because "enzyme" is a
+       category and the EC number is the thing a reader can look up. The class
+       name — hydrolase, transferase — is the half of it that means something
+       without a lookup, so it goes in the title where a hover reaches it. */
+    const ec = ProteinLib.ecOf(p);
+    const cls = ec && ProteinLib.EC_CLASS[+ec[0]];
+    does.textContent = p.does + (ec ? ` · EC ${ec}` : '');
+    if (cls) does.title = `${cls[0]} — ${cls[1]}`;
     does.classList.add(p.does === 'enzyme' ? 'enzyme' : 'carrier');
   } else does.remove();
   el.querySelector('.blurb').textContent = p.blurb;

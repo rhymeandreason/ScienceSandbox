@@ -341,6 +341,7 @@ function main() {
        chain, off the bake's own counts, because a rung is what a reader is
        looking at. */
     blocks[id] = { method: t.meta.method, chainsInFile: t.meta.chainsInFile,
+                   ec: Bake.ecNumbers(text)[0] || null,
                    residues: t.meta.counts.reduce((k, c) => k + c.modelled, 0),
                    declared: t.meta.counts.reduce((k, c) => k + c.declared, 0),
                    baked: file };

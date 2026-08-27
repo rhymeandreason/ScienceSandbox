@@ -70,7 +70,12 @@ function main() {
       blocks[v.id] = {
         method: Bake.method(text),
         chainsInFile: Bake.chainCount(text),
-        residues, declared, baked,
+        residues, declared,
+        /* The entry's own EC, where it has one. Amylase does, haemoglobin
+           does not, and both facts belong in the index a production page
+           reads — it never sees a PDB. */
+        ec: Bake.ecNumbers(text)[0] || null,
+        baked,
       };
       const kb = Object.values(bakes).reduce((k, f) =>
         k + fs.statSync(path.join(ROOT, p.dir, 'data', f)).size, 0) / 1024;

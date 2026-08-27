@@ -115,6 +115,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../proteins/proteins.js"></script>
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
@@ -348,22 +349,12 @@ function buildCatalytic() {
 function readout() {
   const t = J.trough;
   const ion = e => J.ionDistances.find(i => i.el === e);
-  /* The class name comes from the first digit of the EC number, which is a
-     fact about the EC scheme rather than about this file — hence a table here
-     and not a string in the data. */
-  const EC_CLASS = [null,
-    ['oxidoreductase', 'moving electrons'],
-    ['transferase', 'moving a group from one molecule to another'],
-    ['hydrolase', 'cutting a bond with water'],
-    ['lyase', 'cutting without water, or adding across a double bond'],
-    ['isomerase', 'rearranging one molecule'],
-    ['ligase', 'joining two, paying with ATP'],
-    ['translocase', 'moving something across a membrane']];
-
   document.getElementById('nums').textContent = [
     `structure     ${J.source}  ·  ${J.residues} residues`,
+    /* The class table is proteins/proteins.js's, so this bench and a gallery
+       card gloss a number the same way. */
     EC ? `reaction      EC ${EC}  ·  ` +
-         (EC_CLASS[+EC[0]] || ['unclassified', '']).join(', ') : null,
+         (ProteinLib.EC_CLASS[+EC[0]] || ['unclassified', '']).join(', ') : null,
     `skin          ${S.nTri.toLocaleString()} tris at ${S.head.spacing} Å`,
     `              ${S.head.area.toFixed(0)} Å²  ${S.head.volume.toFixed(0)} Å³`,
     `ligand        ${J.ligand.residues.map(r => r.name + r.num).join('–')}`,
