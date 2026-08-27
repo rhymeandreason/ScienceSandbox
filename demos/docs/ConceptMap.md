@@ -273,7 +273,7 @@ It checks question rows, `VIEWS` keys and each module's `door` against the ids t
 
 ### SPECIMENS — a protein is an object, not a concept
 
-`SPECIMENS` in `lib/mapcontent.js` names a protein by its `key` in `proteins/proteins.js` and the modules it sits under, with a rank on each. Nothing about the protein is restated: the registry says what we hold, the map says where it belongs. Only the default variant's baked trace is resolved, because a card draws one structure and the registry already says which.
+`SPECIMENS` in `lib/mapcontent.js` names a protein by its `key` in `proteins/proteins.js`, the modules it sits under with a rank on each, and optionally which variant to draw. That is everything it stores: no path, no filename, no restatement of what the protein is. The registry says what we hold; the map says where it belongs and which deposition it means.
 
 **A module reaches a specimen directly, with no question between**, and that is the one place the map is no longer bipartite. It survives because **a specimen is a LEAF**: it hangs off modules and off questions and never off another specimen, so the graph stays layered and the fan, the bands and the relax are untouched. `expand`'s tail already only re-expands questions, so a specimen never drags a second neighbourhood in.
 
@@ -299,15 +299,19 @@ Which deposition a card shows is the map's decision — 2HHB or sickle 2HBS is a
 
 **Two conventions for finding the ribbon, and the registry means both.** A protein on its own pipeline carries a `bake` block naming every artefact by role, and that block is authoritative: hemoglobin's 2HBS has no `trace` in it because the entry is deposited for a SURFACE — a contact between tetramers is a claim about skin — so no ribbon exists and the box says so instead of drawing an empty frame. A protein on the shared `trace` pipeline has no `bake` block at all and `read.baked` IS its trace, which is four of the six. Reading `read.baked` unconditionally hands 2HBS's quaternary json to a ribbon drawer; both files apply the same rule, and 21 of the 22 variants resolve to a file that exists.
 
-The toggle then follows the registry's judgement for free: four of the six have no `card` role because a skin teaches nothing about them, and for the pump it hides the site that is the whole point of the E1/E2 pair. Amylase's card surface was baked and RECORDED as a role, since a file in `data/` the registry does not name is exactly what `check-proteins.js` exists to catch.
+The toggle then follows the registry's judgement for free: four of the six have no `card` role because a skin teaches nothing about them, and for the pump it hides the site that is the whole point of the E1/E2 pair. Amylase's card surface was baked and RECORDED as a role, since a file in `data/` the registry does not name is exactly what `proteins/check-proteins.js` exists to catch.
+
+**`viewFor()` is the one place that decides what a node draws.** A module hands over the paths its `VIEWS` entry names; a specimen hands over `{protein, variant}` and lets the box resolve. Two callers, one box, and no third place where a filename could be wrong.
 
 **`refreshMeta` knows two nouns now.** A specimen's hidden neighbours are the concepts that hold it, and the card said "+1 question" over two modules.
 
-The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is Futura and Futura is a DISPLAY face here: it carries the logo, the buttons and the uppercase letterspaced labels, and it is unreadable as running text at 11px. Prose set in sans takes `--ui`; a label keeps `--sans`. This is the composer's own `:root`, so door-map is unchanged and a rebase carries it across with the rest of the CSS block. It draws through `kit/proteinbox.js` like any protein view; `viewFor()` is the one place that decides what a node draws, and a specimen carries its own view rather than needing a `VIEWS` entry — which would be a second source for a fact the registry already owns.
+The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is Futura and Futura is a DISPLAY face here: it carries the logo, the buttons and the uppercase letterspaced labels, and it is unreadable as running text at 11px. Prose set in sans takes `--ui`; a label keeps `--sans`. This is the composer's own `:root`, so door-map is unchanged and a rebase carries it across with the rest of the CSS block.
 
 **`--check` covers the new keys**: a protein renamed in `proteins/proteins.js` drops its edges exactly the way a renamed module id did, and the checker names it. It loads `proteins/proteins.js` softly, so a checkout without `proteins/` still gets its questions checked.
 
-**What the kind actually cost.** Less than the warning below implied, because a leaf is cheap: a `paintNode` branch, `viewFor()`, one widened filter in `openAsk`, one in `openFrom`, and `moduleNamed()` becoming `cardNamed()` over both kinds. `band()`, `STEP` and the rank-promotion loop needed nothing — a specimen card is a module card and steps like one, and the promotion loop already skipped non-questions.
+**What the kind actually cost.** The drawing half was cheap, because a leaf is cheap: a `paintNode` branch, `viewFor()`, one widened filter in `openAsk`, one in `openFrom`, and `moduleNamed()` becoming `cardNamed()` over both kinds. `band()`, `STEP` and the rank-promotion loop needed nothing — a specimen card is a module card and steps like one, and the promotion loop already skipped non-questions.
+
+**The half that bit was the checks that GATE rather than draw.** `markNear()` skipped a non-module and the surface toggle was invisible at every zoom, and `openCard()` not focusing what it opened left the root under `CONTROLS_AT` for a second reason. Neither threw, neither logged, and both survived a DOM query that found the buttons and reported them working. **The lesson is the test, not the count**: `querySelectorAll` finds a control that `opacity: 0` has hidden, so a kind change is verified with computed style or it is not verified. A cheap kind is still a kind.
 
 ### A new KIND of node is a page change
 
