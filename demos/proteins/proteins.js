@@ -133,7 +133,7 @@
   ];
 
   const MYOGLOBIN_VARIANTS = [
-    { id: '1MBN',
+    { id: '1MBN', default: true,
       purpose: 'the first protein structure ever solved',
       species: 'sperm whale',
       section: 'where it came from', label: 'Kendrew, 1960', chip: 'first',
@@ -146,7 +146,7 @@
         residues: 153,
         declared: 153,
         baked: "mb-1MBN.json" } },
-    { id: '1BZP', default: true,
+    { id: '1BZP',
       purpose: 'the site with nothing in it',
       species: 'sperm whale',
       section: 'the site, four states', label: 'empty · deoxy', chip: '1.15 Å',
@@ -377,9 +377,14 @@
            + 'structure ever solved, and still the clearest binding site '
            + 'there is.',
       pipeline: 'trace',
-      /* Four states of one site, so they share a frame — fitted on the HEME by
-         atom name, which also matches a whale's myoglobin to a beta chain of
-         haemoglobin, where residue numbering does not correspond at all. */
+      /* THE DEFAULT AND THE REFERENCE ARE DIFFERENT VARIANTS HERE, and that is
+         not an oversight: they answer different questions. The default is what
+         the collection opens on and what a card shows — 1MBN, because the
+         first protein structure anyone ever saw is what myoglobin is FOR in
+         this repo. The reference is what everything is superposed onto, and
+         that has to be deoxy: the empty site is the state every other view is
+         a change FROM, and fitting onto an occupied one would put that file's
+         ligand at the origin of the comparison it is one side of. */
       fit: { on: '1BZP', by: 'heme' },
       fitWhy: 'states of one site; the heme matches by atom name across files '
             + 'whose residue numbering does not correspond',
