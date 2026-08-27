@@ -368,10 +368,15 @@
          protein would read as broken, and because "what do we hold" is a
          question about the repo and not about which script wrote a file. */
       pipeline: 'own',
-      /* No bench: this protein's page is a finished LESSON, and it is where a
-         reader should land from the gallery. Everything else derives its
-         review bench from the key. */
-      page: 'hemoglobin-lab.html',
+      /* Its bench is not at the derived path, so it is named. `surface-test`
+         is where these two variants get reviewed against each other — it
+         toggles 2HHB against 2HBS with both SES surfaces — which is the same
+         job every other protein's `<key>-test.html` does. */
+      page: 'hemoglobin/surface-test.html',
+      /* The only protein here that already has a LESSON. A card links it
+         second, because the gallery is about what we hold and the lesson is
+         what one of them became. */
+      lesson: 'hemoglobin-lab.html',
       /* Two crystals of the same protein, one mutation apart. Not states of
          one thing in a frame sense — 2HBS is two tetramers in the asymmetric
          unit and the fibre contact is what it is deposited for — so nothing is

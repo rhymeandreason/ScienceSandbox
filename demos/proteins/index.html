@@ -104,12 +104,20 @@
   .vars li.def .id{color:#3f7abd}
   .vars li.def{font-weight:var(--weight-semibold)}
 
-  .open{margin-top:auto;display:inline-flex;align-items:center;gap:6px;
-    align-self:flex-start;padding:7px 12px;border-radius:var(--radius-sm);
+  /* The links sit at the bottom of every card whatever the list above them
+     is worth, so a row of cards ends on a line rather than a ragged edge. */
+  .links{margin-top:auto;display:flex;flex-wrap:wrap;gap:var(--space-2)}
+  .open{display:inline-flex;align-items:center;gap:6px;
+    padding:7px 12px;border-radius:var(--radius-sm);
     border:1.5px solid var(--hair);background:transparent;color:var(--ink);
     font-size:var(--text-sm);text-decoration:none;
     transition:background var(--dur-fast) var(--ease-out)}
   .open:hover{background:rgba(0,0,0,.035)}
+  /* The lesson is the louder of the two where it exists: a finished page is
+     what a reader most likely wants, and the bench behind it is for whoever is
+     deciding what the collection should hold. */
+  .open.lesson{background:#3f7abd;border-color:#3f7abd;color:#fff}
+  .open.lesson:hover{background:#356ba8}
 
   .note{font-size:var(--text-xs);color:var(--muted);margin:var(--space-6) 0 0;
     max-width:60ch;line-height:var(--leading-body)}
@@ -150,14 +158,13 @@
 
 const $ = id => document.getElementById(id);
 
-/* WHERE A CARD LEADS. Derived — `<dir>/<key>-test.html` — because a second
-   copy of a filename is a second thing to rename, with `page` as the override
-   for a protein that has something better to open than a review bench:
-   haemoglobin's is a finished lesson, and sending a reader to a bench it does
-   not have would be worse than sending them nowhere. Paths are relative to
-   `demos/`, which is one level up from this page. */
-const pageOf = p => '../' + (p.page || `${p.dir}/${p.key}-test.html`);
-const label = p => p.page ? 'open the lesson' : 'open the bench';
+/* WHERE A CARD LEADS. The bench, derived as `<dir>/<key>-test.html` — a second
+   copy of a filename is a second thing to rename — with `page` naming it for a
+   protein whose bench is somewhere else. `lesson` is the optional second link,
+   for the one protein here that has already become one. Paths are relative to
+   `demos/`, one level up from this page. */
+const benchOf = p => '../' + (p.page || `${p.dir}/${p.key}-test.html`);
+const lessonOf = p => p.lesson ? '../' + p.lesson : null;
 
 /* Every protein's data sits under its own `dir`, which is not always beside
    this page — haemoglobin lives outside `proteins/` because its bakes belong
@@ -222,7 +229,10 @@ function card(p) {
       <div class="facts"></div>
       <h2>${p.variants.length} structure${p.variants.length === 1 ? '' : 's'}</h2>
       <ul class="vars"></ul>
-      <a class="open" href="${pageOf(p)}">${label(p)} &rarr;</a>
+      <div class="links">
+        <a class="open" href="${benchOf(p)}">open the bench &rarr;</a>
+        ${lessonOf(p) ? `<a class="open lesson" href="${lessonOf(p)}">the lesson &rarr;</a>` : ''}
+      </div>
     </div>`;
 
   el.querySelector('.name').textContent = p.name;
