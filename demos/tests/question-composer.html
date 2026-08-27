@@ -459,6 +459,41 @@
   }
   .node.module.specimen.hub .claim { font-size: 0.85rem; margin-top: 0.7rem; }
 
+  /* ---- the title card -------------------------------------------------
+     Only for `?q=`. The question is known before any fetch, so the second the
+     corpus and the embedding take can be spent READING it rather than looking
+     at an empty canvas. It leaves on the later of "the graph is composed" and
+     a beat long enough to finish the sentence. */
+  #ponder {
+    position: fixed; inset: 0; z-index: 20; background: var(--paper);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2rem; text-align: center;
+    transition: opacity .55s ease;
+  }
+  #ponder[hidden] { display: none; }
+  #ponder.gone { opacity: 0; pointer-events: none; }
+  #ponder .q {
+    font-family: var(--serif); font-weight: 400;
+    font-size: clamp(1.7rem, 4.4vw, 3.3rem); line-height: 1.14;
+    letter-spacing: -0.02em; color: var(--ink);
+    max-width: 18ch; margin: 0;
+  }
+  #ponder .say {
+    margin: 1.7rem 0 0;
+    font-family: var(--sans); font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--spark);
+  }
+  #ponder .say i { font-style: normal; animation: ponderdot 1.25s infinite; opacity: 0.15; }
+  #ponder .say i:nth-child(2) { animation-delay: 0.18s; }
+  #ponder .say i:nth-child(3) { animation-delay: 0.36s; }
+  @keyframes ponderdot { 0%, 65%, 100% { opacity: 0.15; } 25% { opacity: 1; } }
+  /* A reader who has asked for less motion still gets the beat, just not the
+     blinking: the dots are decoration, the pause is the point. */
+  @media (prefers-reduced-motion: reduce) {
+    #ponder .say i { animation: none; opacity: 1; }
+    #ponder { transition-duration: .01s; }
+  }
+
   /* ---- the reader's own words ----------------------------------------
      The root card carries what was TYPED; the authored question it resolved to
      is printed under it, because the map is wired through that one and the
@@ -502,6 +537,22 @@
          placeholder="Why does ice float?">
   <ul class="hits" id="hits"></ul>
 </div>
+
+<div id="ponder" hidden>
+  <p class="q"></p>
+  <p class="say">pondering<i>.</i><i>.</i><i>.</i></p>
+</div>
+<script>
+  /* Inline and immediate, because an overlay raised by the main script would
+     flash the empty canvas first — which is the thing it exists to cover. */
+  (function () {
+    var q = new URLSearchParams(location.search).get('q');
+    if (!q) return;
+    var el = document.getElementById('ponder');
+    el.querySelector('.q').textContent = q;
+    el.hidden = false;
+  })();
+</script>
 
 <div id="canvas">
   <div id="world"><svg id="edges"></svg></div>
@@ -1908,7 +1959,9 @@ const VISITOR = (() => {
 
   try {
     const file = await filePromise;
-    if (!file) return;
+    // Not `return`: the title card is dismissed at the bottom of this function,
+    // and a corpus that would not load is exactly when it must still come down.
+    if (!file) throw new Error('no corpus');
     // Baked rows carry their text; the map's nodes are the things we return.
     const byText = new Map(QNODES.map(n => [n.text, n]));
     VEC.by = file.rows.map(r => ({ n: byText.get(r.text), v: r.v })).filter(x => x.n);
@@ -1940,6 +1993,25 @@ const VISITOR = (() => {
      Run here rather than at load because it needs the vectors: before they
      land, the same query goes through the lexical fallback and opens something
      worse, which would be judging the idea on the wrong scorer. */
+  /* The title card leaves on the LATER of two things: the graph being composed,
+     and a beat long enough to read the question. Whichever is slower is the one
+     that matters — a fast load should not flash the sentence away, and a slow
+     one should not add a wait on top of a wait. */
+  const PONDER_MIN = 1150, PONDER_FADE = 560;
+  const ponderEl = document.getElementById('ponder');
+  const ponderFrom = performance.now();
+  function unponder() {
+    if (!ponderEl || ponderEl.hidden) return;
+    const left = Math.max(0, PONDER_MIN - (performance.now() - ponderFrom));
+    setTimeout(() => {
+      ponderEl.classList.add('gone');
+      setTimeout(() => { ponderEl.hidden = true; }, PONDER_FADE);
+    }, left);
+  }
+
+  // Belt and braces: any path that never reaches the query still lowers it.
+  if (!ASKED_URL) unponder();
+
   const asked = ASKED_URL;
   if (asked) {
     /* Start over goes back to the QUERY, not to the water door. Arriving on a
@@ -1951,12 +2023,18 @@ const VISITOR = (() => {
     reset.removeEventListener('click', start);
     reset.addEventListener('click', () => { location.href = location.href; });
 
-    const found = await search(asked, await qPromise);
-    hits = found.hits; near = found.near;
-    const card = cardNamed(asked);
-    if (card) openCard(card);
-    else if (hits.length || near.length) openAsk(asked, hits.length ? hits[0].q : null, near);
-    hits = []; near = []; cursor = -1;
+    try {
+      const found = await search(asked, await qPromise);
+      hits = found.hits; near = found.near;
+      const card = cardNamed(asked);
+      if (card) openCard(card);
+      else if (hits.length || near.length) openAsk(asked, hits.length ? hits[0].q : null, near);
+      hits = []; near = []; cursor = -1;
+    } finally {
+      // Every path, including the query that reaches nothing: a title card that
+      // stays up is worse than the empty map it was covering.
+      unponder();
+    }
   }
 })();
 
