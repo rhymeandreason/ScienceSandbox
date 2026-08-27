@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ribonuclease A — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS EXISTS. Before there is a ribonuclease lesson there is a
+     question the literature cannot answer for us: of everything RNase A
+     is famous for, which parts are things a student would SEE?
+
+     So the bench draws seven depositions in one camera, as themselves.
+     Nothing is interpolated, fitted or rebuilt. Coordinates come off the
+     files through tools/prep.js, and secondary structure comes off each
+     file's own HELIX and SHEET records — detecting it would invent the
+     claim a folding lesson makes.
+
+     WHAT IT IS FOR SETTLING:
+
+       the fold          crystal vs solution, and whether the difference
+                         is visible at all (1FS3 / 2AAS).
+       catalysis         1RUV has the transition state trapped in the
+                         active site and looks exactly like 1FS3. If the
+                         lesson is catalysis, the ribbon is the wrong
+                         representation and the bench should say so.
+       the cut           1RNU is the protein cut in half and still
+                         working. The drawn gap is 16-23, not 20-21.
+       the swap          two different dimers, two different halves
+                         traded (1A2W / 1F0V).
+       scale             1DFJ is the enzyme inside a 456-residue
+                         inhibitor. Nothing else here is about size.
+
+     WHAT THIS BENCH CANNOT TELL YOU. Anfinsen's experiment is the reason
+     most people meet this protein, and there is no structure of it. The
+     unfolded state is not a deposition and the refolding path was never
+     imaged: what exists is the folded end, drawn here, and a rate.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* Every size, weight and colour below is a main.css token. The panel is a
+     reading column, not a control strip, so the hierarchy is carried by size
+     and colour rather than by rules and boxes. Layout is prion-test.html's,
+     deliberately: two benches that look different read as two opinions about
+     what a protein bench is. */
+  #app{display:grid;grid-template-columns:1fr 340px;height:100vh}
+  #stage{position:relative;background:var(--paper)}
+
+  .panel{padding:var(--space-5) var(--space-4);overflow-y:auto;
+    font-family:var(--font-sans);font-size:var(--text-sm);
+    line-height:var(--leading-body);
+    background:var(--surface-card);color:var(--ink);
+    border-left:1.5px solid var(--hair)}
+
+  .panel h1{font-family:var(--font-editorial);font-size:var(--text-2xl);
+    font-weight:var(--weight-semibold);letter-spacing:var(--tracking-tight);
+    line-height:var(--leading-tight);margin:0}
+  .panel .deck{font-family:var(--font-editorial);font-size:var(--text-md);
+    font-weight:var(--weight-regular);color:var(--muted);
+    line-height:var(--leading-snug);margin:2px 0 var(--space-5)}
+
+  .panel h2{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;color:var(--muted);
+    font-weight:var(--weight-semibold);margin:var(--space-5) 0 var(--space-2)}
+
+  button.mode{display:flex;align-items:center;gap:var(--space-2);
+    width:100%;text-align:left;margin:3px 0;padding:8px 10px;
+    border:1.5px solid var(--hair);background:transparent;
+    border-radius:var(--radius-sm);cursor:pointer;
+    font:inherit;font-size:var(--text-sm);color:var(--ink);
+    transition:background var(--dur-fast) var(--ease-out)}
+  button.mode:hover{background:rgba(0,0,0,.035)}
+  button.mode .who{flex:1}
+  button.mode[aria-pressed=true]{background:#3f7abd;border-color:#3f7abd;color:#fff}
+
+  /* The chip says how many chains, because that is the one thing about
+     these seven that changes what KIND of object is on screen: one
+     molecule, a pair, or an enzyme inside something else. */
+  .chip{font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;font-weight:var(--weight-semibold);
+    padding:2px 6px;border-radius:var(--radius-pill);
+    background:rgba(63,122,189,.14);color:#2c5b91}
+  button.mode[aria-pressed=true] .chip{background:rgba(255,255,255,.22);color:#fff}
+
+  .claim{font-family:var(--font-editorial);font-size:var(--text-md);
+    line-height:var(--leading-snug);margin:0 0 var(--space-1)}
+  .meta{font-size:var(--text-xs);color:var(--muted);margin:0 0 var(--space-3)}
+
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
+    font-size:var(--text-xs)}
+  td{padding:3px 0;vertical-align:baseline;border-bottom:1px solid var(--hair)}
+  tr:last-child td{border-bottom:0}
+  td:first-child{color:var(--muted)}
+  td:last-child{text-align:right;font-weight:var(--weight-semibold);
+    font-size:var(--text-sm);color:var(--ink)}
+  td.flag:last-child{color:#b3300c}
+
+  .frag{font-family:var(--font-mono);font-size:var(--text-xs);
+    color:var(--muted);margin:var(--space-3) 0 0}
+  .prov,.note{font-size:var(--text-xs);line-height:var(--leading-body);
+    color:var(--muted);margin:var(--space-2) 0 0}
+
+  /* Three links because they are three different things: the entry a reader
+     would cite, the file it downloads, and the reduced copy this page
+     actually parses — the third being the one otherwise invisible. */
+  .src{display:flex;flex-wrap:wrap;gap:var(--space-3);
+    margin:var(--space-3) 0 var(--space-6);
+    font-size:var(--text-2xs);letter-spacing:var(--tracking-caps);
+    text-transform:uppercase;font-weight:var(--weight-semibold)}
+  .src a{color:var(--muted);text-decoration:none;
+    border-bottom:1px solid var(--hair);padding-bottom:1px;
+    display:inline-flex;align-items:center;gap:4px}
+  .src a:hover{color:var(--ink);border-bottom-color:currentColor}
+  .ext{width:9px;height:9px;fill:none;stroke:currentColor;stroke-width:1.6;
+    stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+  /* Completeness is the row most likely to be mis-read as "the whole
+     protein", so it is the one row marked. A highlighter stripe and nothing
+     else: these figures are scanned against each other, and a recoloured
+     number would read as a different KIND of value. */
+  tr.hi td{background:#ffe94a;border-bottom:0}
+  tr.hi td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm);
+    padding-left:6px}
+  tr.hi td:last-child{border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    padding-right:6px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Ribonuclease A</h1>
+    <p class="deck">124 residues that cut RNA, and the most-studied enzyme of the
+      twentieth century. Seven depositions, one camera.</p>
+
+    <h2>the fold</h2>
+    <button class="mode" id="v-1FS3" aria-pressed="true">
+      <span class="who">crystal &middot; 1FS3</span><span class="chip">1 chain</span></button>
+    <button class="mode" id="v-2AAS" aria-pressed="false">
+      <span class="who">solution, NMR &middot; 2AAS</span><span class="chip">1 chain</span></button>
+
+    <h2>working</h2>
+    <button class="mode" id="v-1RUV" aria-pressed="false">
+      <span class="who">transition state &middot; 1RUV</span><span class="chip">1 chain</span></button>
+    <button class="mode" id="v-1DFJ" aria-pressed="false">
+      <span class="who">held by its inhibitor &middot; 1DFJ</span><span class="chip">2 chains</span></button>
+
+    <h2>taken apart</h2>
+    <button class="mode" id="v-1RNU" aria-pressed="false">
+      <span class="who">cut in two &middot; RNase S &middot; 1RNU</span><span class="chip">1 chain</span></button>
+    <button class="mode" id="v-1A2W" aria-pressed="false">
+      <span class="who">C-terminal swap &middot; 1A2W</span><span class="chip">2 chains</span></button>
+    <button class="mode" id="v-1F0V" aria-pressed="false">
+      <span class="who">N-terminal swap &middot; 1F0V</span><span class="chip">2 chains</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>assembly</td><td id="d-quat">&mdash;</td></tr>
+      <tr><td>span</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>disulfides</td><td id="d-ss">&mdash;</td></tr>
+      <tr><td>bound</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">Colour is secondary structure, the repo default: helix, strand,
+      coil. Chains are not coloured apart, so on the two-chain views the second
+      molecule is told by its shape and not by its colour.</p>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Prints the basis
+      the structure would need to open facing this way, for a shape whose own
+      axes are too close together to solve — the view row says which.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../folding/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script>
+'use strict';
+
+/* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
+
+   Camera, framing, the turn and the WebGL context are the module's, so this
+   bench orbits and frames exactly like every protein in the repo. The chains
+   are tools/prep.js's — baked, in bake-trace.js's shape, so nothing here
+   parses a deposition. Parsing decides which altloc, which chain, and whether
+   secondary structure is read or detected, and those decisions live in the
+   baker where a re-run repeats them.
+
+   ONE BOX, RE-FED. setData() swaps the structure without replacing the box,
+   so a reader who turned the molecule keeps that view across the switch —
+   the whole point of comparing seven structures, and what a destroy-and-
+   recreate per click would throw away every time. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true,
+  /* Trackball, not turntable: a turntable clamps its pitch short of the poles,
+     about a hundred pixels of upward drag, which runs out exactly when someone
+     is trying to look at the top of the molecule. */
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  /* RibbonLib's own default. Proteinbox asks for 6 samples per residue because
+     a card is a thumbnail with a triangle budget; at full height 6 shows as
+     faceting wherever the chain turns hard, which is the spline showing rather
+     than the protein. */
+  sub: 10,
+});
+
+/* Order is the panel's, not the manifest's: the fold first, then the two views
+   of it working, then the three ways it comes apart. */
+const VIEWS = ['1FS3', '2AAS', '1RUV', '1DFJ', '1RNU', '1A2W', '1F0V'];
+
+/* A basis pasted from "copy this view", for a structure whose own axes are too
+   close together for the solver to choose between. Empty until a human turns
+   one and pastes — which is the only way a globular domain should get a frame,
+   since a solved one would flip between rebakes. */
+const CUSTOM = {};
+
+const views = {};                        // id -> baked trace + meta
+let view = null;
+const $ = id => document.getElementById(id);
+
+/* A bench is a thing you poke at from the console. Lessons do not do this;
+   this page exists to be interrogated. */
+window.bench = { views, box, get view() { return view; } };
+
+VIEWS.forEach(id => {
+  fetch(`data/rnase-${id}.json`).then(r => r.json()).then(t => {
+    if (CUSTOM[id]) { t.view = CUSTOM[id]; t.frame = 'custom view'; }
+    views[id] = t;
+    if (view === id) show(id);           // clicked before the fetch landed
+  });
+});
+
+/* WHAT COUNTS AS QUATERNARY STRUCTURE, said per view rather than in a legend.
+   RNase A is a monomer that works alone, which is what makes both dimers
+   interesting: they are the same chain doing something it does not normally
+   do. 1DFJ is a complex and not an oligomer — two different proteins — so it
+   gets its own phrasing rather than being counted as two chains. */
+function quaternary(t) {
+  const m = t.meta;
+  if (m.kind === 'bound') return 'complex: enzyme + inhibitor, two proteins';
+  /* RNase S is two polypeptides that the file numbers as one chain, and
+     calling it a monomer off the chain count would deny the cut the view
+     exists to show. The break is in the residue numbers, not the chain id. */
+  if (m.kind === 'cut') return 'two pieces, deposited under one chain id';
+  if (m.chainsDrawn <= 1) return 'monomer, works alone';
+  return `${m.chainsDrawn} chains of ${m.chainsInFile} in the file, one dimer`;
+}
+
+/* Every figure below is counted off the bake, which counted it off the file.
+   A typed number is a claim nothing checks, and a re-bake falsifies it
+   silently. */
+function stats(t) {
+  const ids = t.order;
+  const letters = ids.map(c => t.chains[c].ss).join('');
+  const n = letters.length;
+  const H = [...letters].filter(c => c === 'H').length;
+  const E = [...letters].filter(c => c === 'E').length;
+
+  /* Segments, counted off the residue numbers the box breaks the ribbon on.
+     Two readings of one gap that agree because both read the same numbers. */
+  const segs = ids.reduce((k, c) => k + 1 + t.chains[c].nums
+    .filter((v, i, a) => i && v !== a[i - 1] + 1).length, 0);
+
+  const c0 = t.chains[ids[0]], last = c0.nums[c0.nums.length - 1];
+  const counts = t.meta.counts;
+  const modelled = counts.reduce((k, c) => k + c.modelled, 0);
+  const declared = counts.every(c => c.declared !== null)
+    ? counts.reduce((k, c) => k + c.declared, 0) : null;
+
+  /* Completeness, with the fixed phrasing that goes with it. A percentage
+     alone rounds a hole away and a span alone hides one, so the segment count
+     rides along. */
+  const frag = declared === null ? 'no SEQRES records: completeness unknown'
+    : modelled >= declared ? `complete: ${modelled} of ${declared} deposited`
+    : `fragment: ${modelled} out of ${declared} deposited`;
+
+  return {
+    quat: quaternary(t),
+    span: ids.length > 1
+      ? ids.map(c => `${c} ${t.chains[c].first}–${t.chains[c].nums[t.chains[c].nums.length - 1]}`).join(', ')
+      : `${c0.first}–${last}`,
+    res: `${modelled} residues` + (segs > ids.length ? ` in ${segs} segments` : '') +
+         (ids.length > 1 ? ` × ${ids.length} chains` : ''),
+    /* Floored, not rounded: 580 of 581 rounds to 100% and then sits above a
+       line calling the same structure a fragment. A percentage may never say
+       whole about something that is not. */
+    pct: declared === null ? '—'
+      : `${modelled} of ${declared} · ${Math.floor(100 * modelled / declared)}%`,
+    frag,
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    ss: t.meta.ss.length ? `${t.meta.ss.length} · ${t.meta.ss.join(' ')}` : 'none in file',
+    lig: t.meta.ligands.length ? t.meta.ligands.join(', ') : 'nothing',
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;                        // fetch still in flight
+
+  const s = stats(t), m = t.meta;
+  $('d-claim').textContent = m.claim;
+  $('d-meta').textContent = `${m.entry} · ${m.method}` +
+    (m.models > 1 ? ` · model 1 of ${m.models}` : '');
+  $('d-quat').textContent = s.quat;
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  $('d-frac').textContent = s.frac;
+  $('d-ss').textContent = s.ss;
+  $('d-lig').textContent = s.lig;
+  $('d-ext').textContent = s.ext;
+  /* Named by WHERE THE FRAME CAME FROM, not by how it was arrived at. Nothing
+     in a PDB says which way a structure should face: what is deposited is the
+     experiment's frame, an artefact of collection. So `computed` is the
+     baker's work, `deposited` is the file left alone, and `custom view` is a
+     human's choice pasted into the page. */
+  $('d-view').textContent = t.frame;
+  $('d-prov').textContent = m.prov;
+
+  /* Built from the entry id in the bake, so a link cannot point at a
+     structure the panel is not describing. */
+  $('d-rcsb').href = `https://www.rcsb.org/structure/${m.entry}`;
+  $('d-rcsb-label').textContent = `RCSB ${m.entry}`;
+  $('d-raw').href = `https://files.rcsb.org/download/${m.entry}.pdb`;
+  $('d-baked').href = `data/${m.file}`;
+
+  box.setData(t);
+}
+
+/* THE PROTEIN'S molecule-viewer.html, in one button. A solved basis is right
+   for anything with distinguishable axes and wrong for a globular domain,
+   whose solved frame would flip between rebakes. Those need a human, and a
+   human needs a way to say what they chose.
+
+   Read off the CAMERA, then inverted: the camera's orientation says where the
+   reader is standing, and a view basis says how the structure should be turned
+   to be seen from there. Those are opposites. */
+$('pick').addEventListener('click', () => {
+  const q = box.camera.quaternion.clone().invert();
+  const m = new THREE.Matrix4().makeRotationFromQuaternion(q);
+  const e = m.elements, r2 = v => Math.round(v * 1e4) / 1e4;
+  /* three.js stores column-major; a basis here is rows, same as the bake. */
+  const R = [[e[0], e[4], e[8]], [e[1], e[5], e[9]], [e[2], e[6], e[10]]]
+    .map(row => row.map(r2));
+  const text = JSON.stringify(R);
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+VIEWS.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
+    show(id);
+  });
+});
+
+show('1FS3');
+</script>
+</body>
+</html>

@@ -1,0 +1,263 @@
+{
+ "1FS3": {
+  "file": "rnase-1FS3.json",
+  "frame": "computed",
+  "extents": [
+   38.74,
+   30.61,
+   25.6
+  ],
+  "entry": "1FS3",
+  "kind": "fold",
+  "claim": "Bovine pancreatic RNase A, wild type, nothing bound.",
+  "prov": "X-ray at 1.4 A. The reference fold: three helices over a long curled sheet, four disulfides.",
+  "title": "CRYSTAL STRUCTURE OF WILD-TYPE BOVINE PANCREATIC RIBONUCLEASE A",
+  "method": "x-ray diffraction",
+  "models": 0,
+  "chainsInFile": 1,
+  "chainsDrawn": 1,
+  "counts": [
+   {
+    "chain": "A",
+    "modelled": 124,
+    "declared": 124
+   }
+  ],
+  "ss": [
+   "26-84",
+   "40-95",
+   "58-110",
+   "65-72"
+  ],
+  "ligands": []
+ },
+ "2AAS": {
+  "file": "rnase-2AAS.json",
+  "frame": "deposited",
+  "extents": [
+   38.53,
+   30.22,
+   27.64
+  ],
+  "entry": "2AAS",
+  "kind": "fold",
+  "claim": "The same protein in solution, by NMR.",
+  "prov": "32 deposited models; this is model 1, and it is not more real than model 12. The crystal fold and the solution fold agree.",
+  "title": "HIGH-RESOLUTION THREE-DIMENSIONAL STRUCTURE OF RIBONUCLEASE A IN",
+  "method": "solution nmr",
+  "models": 32,
+  "chainsInFile": 1,
+  "chainsDrawn": 1,
+  "counts": [
+   {
+    "chain": "A",
+    "modelled": 124,
+    "declared": 124
+   }
+  ],
+  "ss": [
+   "26-84",
+   "40-95",
+   "58-110",
+   "65-72"
+  ],
+  "ligands": []
+ },
+ "1RUV": {
+  "file": "rnase-1RUV.json",
+  "frame": "computed",
+  "extents": [
+   38.76,
+   30.35,
+   25.68
+  ],
+  "entry": "1RUV",
+  "kind": "act",
+  "claim": "Uridine vanadate in the active site — the transition state, held still.",
+  "prov": "X-ray at 1.25 A. Vanadium fakes the five-coordinate phosphorus RNA passes through, so the enzyme cannot finish the reaction and will not let go.",
+  "title": "RIBONUCLEASE A-URIDINE VANADATE COMPLEX: HIGH RESOLUTION RESOLUTION X-",
+  "method": "x-ray diffraction",
+  "models": 0,
+  "chainsInFile": 1,
+  "chainsDrawn": 1,
+  "counts": [
+   {
+    "chain": "A",
+    "modelled": 124,
+    "declared": 124
+   }
+  ],
+  "ss": [
+   "26-84",
+   "40-95",
+   "58-110",
+   "65-72"
+  ],
+  "ligands": [
+   "UVC",
+   "TBU"
+  ]
+ },
+ "1RNU": {
+  "file": "rnase-1RNU.json",
+  "frame": "deposited",
+  "extents": [
+   39.48,
+   31.93,
+   27.48
+  ],
+  "entry": "1RNU",
+  "kind": "cut",
+  "claim": "RNase S: one backbone bond cut, and the protein still works.",
+  "prov": "Subtilisin cuts between residues 20 and 21. The 20-residue S-peptide stays bound to the S-protein and the pair is active. Residues 16-23 are unmodelled, so the gap drawn is wider than the cut.",
+  "title": "REFINEMENT OF THE CRYSTAL STRUCTURE OF RIBONUCLEASE S. COMPARISON WITH",
+  "method": "x-ray diffraction",
+  "models": 0,
+  "chainsInFile": 1,
+  "chainsDrawn": 1,
+  "counts": [
+   {
+    "chain": "A",
+    "modelled": 116,
+    "declared": 124
+   }
+  ],
+  "ss": [
+   "26-84",
+   "40-95",
+   "58-110",
+   "65-72"
+  ],
+  "ligands": [
+   "SO4"
+  ]
+ },
+ "1A2W": {
+  "file": "rnase-1A2W.json",
+  "frame": "computed",
+  "extents": [
+   70.24,
+   43.28,
+   30.77
+  ],
+  "entry": "1A2W",
+  "kind": "swap",
+  "claim": "Two molecules, each folded around the other’s C-terminal strand.",
+  "prov": "Domain swapping: the same contacts as the monomer, made between chains instead of within one. The hinge is the loop around 112-115.",
+  "title": "CRYSTAL STRUCTURE OF A 3D DOMAIN-SWAPPED DIMER OF BOVINE PANCREATIC",
+  "method": "x-ray diffraction",
+  "models": 0,
+  "chainsInFile": 2,
+  "chainsDrawn": 2,
+  "counts": [
+   {
+    "chain": "A",
+    "modelled": 124,
+    "declared": 124
+   },
+   {
+    "chain": "B",
+    "modelled": 124,
+    "declared": 124
+   }
+  ],
+  "ss": [
+   "26-84",
+   "40-95",
+   "58-110",
+   "65-72",
+   "26-84",
+   "40-95",
+   "58-110",
+   "65-72"
+  ],
+  "ligands": [
+   "CL ×2",
+   "SO4"
+  ]
+ },
+ "1F0V": {
+  "file": "rnase-1F0V.json",
+  "frame": "deposited",
+  "extents": [
+   80.28,
+   35.87,
+   35.21
+  ],
+  "entry": "1F0V",
+  "kind": "swap",
+  "claim": "The other swap: the N-terminal helix traded instead.",
+  "prov": "Chains A and B of a deposition holding two dimers, with a CpG dinucleotide bound on chains M-P, which the bench does not draw. One protein, two different ways to come apart and re-fold as a pair.",
+  "title": "CRYSTAL STRUCTURE OF AN RNASE A DIMER DISPLAYING A NEW TYPE OF 3D",
+  "method": "x-ray diffraction",
+  "models": 0,
+  "chainsInFile": 8,
+  "chainsDrawn": 2,
+  "counts": [
+   {
+    "chain": "A",
+    "modelled": 124,
+    "declared": 124
+   },
+   {
+    "chain": "B",
+    "modelled": 124,
+    "declared": 124
+   }
+  ],
+  "ss": [
+   "26-84",
+   "40-95",
+   "58-110",
+   "65-72",
+   "226-284",
+   "240-295",
+   "258-310",
+   "265-272"
+  ],
+  "ligands": [
+   "PO4 ×2",
+   "GOL ×15"
+  ]
+ },
+ "1DFJ": {
+  "file": "rnase-1DFJ.json",
+  "frame": "deposited",
+  "extents": [
+   65.34,
+   59.73,
+   43.17
+  ],
+  "entry": "1DFJ",
+  "kind": "bound",
+  "claim": "RNase A held by ribonuclease inhibitor, the protein that keeps it off your own RNA.",
+  "prov": "A 456-residue leucine-rich horseshoe closing on a 124-residue enzyme. One of the tightest protein-protein complexes known.",
+  "title": "RIBONUCLEASE INHIBITOR COMPLEXED WITH RIBONUCLEASE A",
+  "method": "x-ray diffraction",
+  "models": 0,
+  "chainsInFile": 2,
+  "chainsDrawn": 2,
+  "counts": [
+   {
+    "chain": "E",
+    "modelled": 124,
+    "declared": 124
+   },
+   {
+    "chain": "I",
+    "modelled": 456,
+    "declared": 457
+   }
+  ],
+  "ss": [
+   "26-84",
+   "40-95",
+   "58-110",
+   "65-72"
+  ],
+  "ligands": [
+   "ACE",
+   "SO4"
+  ]
+ }
+}
