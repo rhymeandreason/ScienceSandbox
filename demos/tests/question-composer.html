@@ -510,24 +510,46 @@
      is printed under it, because the map is wired through that one and the
      reader is the only person who can tell whether the two mean the same thing.
      Dashed and sparked so it never reads as a card someone wrote. */
+  /* ONE IDEA AT TWO SIZES. The title standing on the left through the intro and
+     the root card sitting in the graph are the same object: the reader's
+     question. So they share a treatment — serif, left aligned, no box, a small
+     spark label UNDER the sentence — and differ only in scale and in what the
+     label says (`pondering…` while it works, `you asked` once it has). Arriving
+     at the map should read as the sentence taking its place, not as a second
+     thing replacing it.
+
+     Paper rather than card, and no border: it is the reader's own words, not
+     something the map holds. The fill is only there to mask the edges that pass
+     behind it. */
   .node.question.asked {
+    background: var(--paper);
+    border: 0;
+    width: 20rem;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
     color: var(--ink);
-    background: var(--card);
-    border: 1px dashed var(--spark);
-    width: 16rem;
-    font-size: 1.1rem;
   }
-  .node.question.asked::before {
-    content: 'you asked';
-    display: block; margin-bottom: 0.3rem;
-    font-family: var(--sans); font-size: 0.58rem; font-weight: 500;
-    letter-spacing: 0.16em; text-transform: uppercase; color: var(--spark);
+  .node.question.asked > span:first-child {
+    display: block;
+    font-family: var(--serif); font-size: 1.32rem; line-height: 1.16;
+    letter-spacing: -0.015em;
   }
+  /* Under the sentence, like the title's `pondering…`. A real element rather
+     than `::after`, because the mapping line has to come after IT and generated
+     content always renders last. */
   .node.question.asked .said {
-    display: block; margin-top: 0.45rem;
-    font-size: 0.78rem; line-height: 1.3; color: var(--muted);
+    display: block; margin-top: 0.7rem;
+    font-family: var(--sans); font-size: 0.58rem; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--spark);
   }
-  .node.question.asked:hover { border-color: var(--spark); }
+  .node.question.asked .as {
+    display: block; margin-top: 0.5rem;
+    font-family: var(--ui); font-size: 0.72rem; line-height: 1.4; color: var(--muted);
+  }
+  .node.question.asked:hover { background: var(--paper); }
+  .node.question.asked.hub > span:first-child { font-size: 2rem; line-height: 1.14; }
+  .node.question.asked.hub .said { font-size: 0.64rem; }
+
   /* A discovered edge is dashed, and an authored one is not. Both come off the
      same card, so the line is the only thing saying which is which. */
   path.nearline { stroke-dasharray: 5 5; opacity: 0.5; }
@@ -1218,12 +1240,15 @@ function paintNode(n) {
     el.className = 'node question asked';
     const mine = document.createElement('span');
     mine.textContent = n.text;
-    el.append(mine);
+    const label = document.createElement('span');
+    label.className = 'said';
+    label.textContent = 'you asked';
+    el.append(mine, label);
     if (n.said) {
-      const said = document.createElement('span');
-      said.className = 'said';
-      said.textContent = 'the map words it as \u201c' + n.said + '\u201d';
-      el.append(said);
+      const as = document.createElement('span');
+      as.className = 'as';
+      as.textContent = 'the map words it as \u201c' + n.said + '\u201d';
+      el.append(as);
     }
   } else {
     el.className = 'node question';

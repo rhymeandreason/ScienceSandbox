@@ -257,7 +257,11 @@ Water lands on the same three cards `start()` composes, which is the result that
 
 **A title card covers the wait, and the reveal is a camera move.** `?q=` puts the question up large and LEFT, with `pondering…` under it, and `body.intro` hides the mast, the ask box, the legend and the readout — the intro is a state of the page, not of four widgets. It is raised by an inline script beside its own markup, because the main script raising it would flash the empty canvas first, which is the thing it exists to cover.
 
-**No `you asked` card is drawn during the intro.** The title standing on the left IS the reader's question for that second; drawing the card beside it says the same sentence twice. It arrives with the rest of the graph, off to the right, and the drift is what introduces it.
+**The title and the root card are ONE IDEA AT TWO SIZES.** Both are the reader's question, so both wear the same treatment: serif, left aligned, no box, a small spark label under the sentence. They differ in scale and in what the label says — `pondering…` while it works, `you asked` once it has. Arriving at the map reads as the sentence taking its place rather than as a second thing replacing it.
+
+The card sits on `--paper` with no border, because it is the reader's own words and not something the map holds; the fill is there only to mask the edges passing behind it. The label is a real element rather than `::after`, since the *"the map words it as …"* line has to come after it and generated content always renders last.
+
+**No card is drawn during the intro.** The title on the left IS the question for that second, and drawing the card beside it says the same sentence twice. It arrives with the rest of the graph, off to the right, and the drift is what introduces it.
 
 **The push happens the moment the graph exists, the glide after the beat.** `openAsk()` centres the camera on what it just composed, so a reveal that waited would show the finished map behind the title and then shove it away to slide it back. The camera is pushed off the right edge synchronously, and only the tween is deferred. What moves is the SCREEN and never the cards: the map was there the whole time, the reader was looking at the question. A drag or a wheel during the glide ends it — the drift is an offer, not a ride.
 
