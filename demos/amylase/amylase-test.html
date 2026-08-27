@@ -348,8 +348,22 @@ function buildCatalytic() {
 function readout() {
   const t = J.trough;
   const ion = e => J.ionDistances.find(i => i.el === e);
+  /* The class name comes from the first digit of the EC number, which is a
+     fact about the EC scheme rather than about this file — hence a table here
+     and not a string in the data. */
+  const EC_CLASS = [null,
+    ['oxidoreductase', 'moving electrons'],
+    ['transferase', 'moving a group from one molecule to another'],
+    ['hydrolase', 'cutting a bond with water'],
+    ['lyase', 'cutting without water, or adding across a double bond'],
+    ['isomerase', 'rearranging one molecule'],
+    ['ligase', 'joining two, paying with ATP'],
+    ['translocase', 'moving something across a membrane']];
+
   document.getElementById('nums').textContent = [
     `structure     ${J.source}  ·  ${J.residues} residues`,
+    EC ? `reaction      EC ${EC}  ·  ` +
+         (EC_CLASS[+EC[0]] || ['unclassified', '']).join(', ') : null,
     `skin          ${S.nTri.toLocaleString()} tris at ${S.head.spacing} Å`,
     `              ${S.head.area.toFixed(0)} Å²  ${S.head.volume.toFixed(0)} Å³`,
     `ligand        ${J.ligand.residues.map(r => r.name + r.num).join('–')}`,
@@ -358,7 +372,7 @@ function readout() {
     `adjacent      ${t.adjacentOverlap.map(s => `${s.both}/${s.of}`).join('   ')}  shared`,
     `Cl⁻           ${ion('CL').toLigand} Å from the sugar`,
     `Ca²⁺          ${ion('CA').toLigand} Å from the sugar`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   /* Distances are measured, and the roles are the one declared fact here —
      which residue attacks and which protonates is enzymology, not geometry.
@@ -557,6 +571,22 @@ for (const id of ['op', 'lig', 'ions']) document.getElementById(id).oninput = ap
 for (const id of ['paint', 'cat'])
   document.getElementById(id).oninput = () => { paintSkin(); apply(); };
 
+/* THE EC NUMBER, off 1OSE's own COMPND record — the file this page already
+   has in hand, so it is read at load like every other number in the panel
+   rather than typed into the markup.
+
+   IT CLASSIFIES THE REACTION, NOT THE PROTEIN, which is the thing to know
+   before reading anything into it: two enzymes with no shared ancestry and no
+   shared fold get the same number if they do the same chemistry, and one
+   protein that does two things gets two. It is a lookup key for "what reaction
+   is this", never evidence about the structure on screen. */
+let EC = null;
+function ecOf(pdb) {
+  const line = pdb.split('\n').find(l => l.startsWith('COMPND') && /\bEC:/.test(l));
+  if (!line) return null;
+  return line.split('EC:')[1].trim().replace(/;$/, '') || null;
+}
+
 async function main() {
   const [pdb, json, buf] = await Promise.all([
     fetch('data/1OSE.pdb').then(r => r.text()),
@@ -564,6 +594,7 @@ async function main() {
     fetch('data/1OSE.surf.bin').then(r => r.arrayBuffer()),
   ]);
   J = json;
+  EC = ecOf(pdb);
 
   /* --- ribbon, in the baker's frame --- */
   const bb = RibbonLib.parseBackbone(pdb);
