@@ -458,6 +458,7 @@
              its panel prints, and the docking control `check-fit.js` audits. */
           bake: { trace: '1OSE.trace.json',
                   surface: '1OSE.surf.bin',
+                  card: '1OSE.card.surf.bin',
                   site: 'amylase.json',
                   fit: 'fit.json' },
           read: {

@@ -637,16 +637,21 @@ for (const [key, mods] of (SPECIMENS || [])) {
   const cls = ec ? (ProteinLib.EC_CLASS || [])[Number(ec.split('.')[0])] : null;
   /* The CARD-tier surface, never the lesson's: hemoglobin's is 362 KB against
      1.5 MB for the same structure at 0.7 A, and a 280 px thumb cannot show the
-     difference. Offered only where the registry says a surface EARNS one —
-     `surface.bake` is a judgement about whether the skin teaches anything, and
-     for most of these it hides the site that is the point. */
+     difference. NAMED by the variant's `bake` block under the role `card`, not
+     derived from the trace's stem — the registry names every artefact by role
+     precisely because a filename does not prove which is which, and
+     check-proteins.js fails a name that is not on disk. Deriving it would be a
+     convention standing where a fact already is.
+
+     A variant with no `card` role has no toggle: for four of these six the
+     registry says in its own words that a skin hides the site that is the
+     point. */
   const dir = (p.dir || p.key) + '/data/';
-  const stem = baked.replace(/\.(trace\.)?json$/, '');
   const n = {
     id: 'p:' + key, kind: 'protein', deg: 0,
     name: p.name, claim: p.blurb, does: p.does,
     trace: dir + baked,
-    surface: p.surface && p.surface.bake ? dir + stem + '.card.surf.bin' : null,
+    surface: v.bake && v.bake.card ? dir + v.bake.card : null,
     purpose: v.purpose, species: v.species,
     method: v.read.method, residues: v.read.residues, declared: v.read.declared,
     ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
