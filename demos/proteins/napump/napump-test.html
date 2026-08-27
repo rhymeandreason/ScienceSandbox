@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Na⁺/K⁺-ATPase — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS EXISTS. Every other protein in the collection is soluble:
+     it tumbles in water and a bench can frame it any way that reads.
+     This one stands in a membrane, and half of what it is for is WHERE
+     it sits — which side the site opens to, and how far through the
+     bilayer the ions travel. A ribbon in an empty box cannot say that.
+
+     So the membrane is drawn, from the numbers OPM solved and the baker
+     carried across: two leaflet planes at ±15.3 Å around the middle.
+     Nothing here places them by eye.
+
+     WHAT IT IS FOR SETTLING:
+
+       the two states     E1 with sodium, E2 with potassium. Whether the
+                          door swapping sides is visible at ribbon width,
+                          or whether a lesson would need the site drawn.
+       the frame          both are in OPM's membrane frame, so flipping
+                          between them moves only what moved. Nothing is
+                          superposed and nothing should be.
+       what is modelled   the pump moves 3 Na⁺ out and 2 K⁺ in. The files
+                          model 4 sodiums and 3 potassiums, because a site
+                          can be occupied without being counted in the
+                          stoichiometry. The panel prints what is in the
+                          file, and the claim stays in the prose where it
+                          can be argued with.
+
+     WHAT THIS BENCH CANNOT TELL YOU. The cycle. Two states are two
+     photographs of a machine that turns; the path between them, the ATP
+     that pays for it and the order the gates open in are not here.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* The shared chrome is ../protein-test.css. What stays here is the one
+     thing this bench says with colour: the ion the state is named for. */
+  .chip.na{background:rgba(154,63,224,.14);color:#6f2bad}
+  .chip.k{background:rgba(0,84,192,.14);color:#0054C0}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Na⁺/K⁺-ATPase</h1>
+    <p class="deck">The pump that keeps every animal cell electrically alive,
+      caught at both ends of its cycle — in the membrane it was solved in.</p>
+
+    <h2>the two states</h2>
+    <button class="mode" id="v-E1" aria-pressed="true">
+      <span class="who">sodium in, door inward &middot; 7E1Z</span><span class="chip na">E1 · Na⁺</span></button>
+    <button class="mode" id="v-E2" aria-pressed="false">
+      <span class="who">potassium in, door outward &middot; 7E20</span><span class="chip k">E2 · K⁺</span></button>
+
+    <h2>the membrane</h2>
+    <button class="mode" id="mem" aria-pressed="true">
+      <span class="who">draw the bilayer</span><span class="chip" id="memchip">&plusmn;&mdash;</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>assembly</td><td id="d-quat">&mdash;</td></tr>
+      <tr><td>span</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>ions modelled</td><td id="d-ions">&mdash;</td></tr>
+      <tr><td>also bound</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>bilayer</td><td id="d-mem">&mdash;</td></tr>
+      <tr><td>in the membrane</td><td id="d-span-mem">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>frame</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">Ribbon colour is secondary structure, the repo default. The
+      bilayer is OPM's: it solves which way a membrane protein sits and
+      republishes the coordinates in that frame, so the planes are read from
+      the file rather than placed by eye.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../folding/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
+<script>
+'use strict';
+
+const ME = ProteinLib.byKey('napump');
+const VIEWS = ['E1', 'E2'];
+const said = id => ProteinLib.variantOf(ME, id);
+const $ = id => document.getElementById(id);
+
+/* THE PAGE'S OWN COPY. What a structure IS lives in the registry; what this
+   bench SAYS about it is page copy. */
+const SAYS = {
+  'E1': {
+    claim: 'E1: three sodiums loaded, and the door open to the inside.',
+    prov: 'Pig kidney, cryo-EM. The pump takes three Na⁺ from the cytoplasm '
+        + 'here, and ATP pays to close this door and open the other one. Four '
+        + 'sodiums are modelled — a site can be occupied without being one of '
+        + 'the three that cross.' },
+  'E2': {
+    claim: 'E2: two potassiums loaded, and the door open to the outside.',
+    prov: 'The other end of the same cycle, and the reason the pump is worth '
+        + 'the ATP: three charges leave and two come back, so every turn '
+        + 'leaves the inside of the cell more negative than it was.' },
+};
+
+const box = Proteinbox.create({
+  mount: $('stage'),
+  orbit: true,
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  sub: 10,
+});
+
+/* ---- the bilayer ----
+
+   TWO PLANES, FROM THE FILE'S OWN NUMBERS. OPM states the half-thickness it
+   solved in a REMARK and the baker carries it into `meta.membrane` along with
+   the middle, shifted by the same centring the trace got. So the planes land
+   where the membrane was solved rather than where a protein looks like it
+   should sit — which is the whole reason to draw them at all: a reader can
+   see which part of this thing is IN the bilayer instead of being told.
+
+   IN THE BOX'S CHAIN GROUP, so they wear the same frame as the ribbon. The
+   box clears that group on every setData, so they are rebuilt per structure. */
+const memGroup = new THREE.Group();
+let showMem = true;
+
+function drawMembrane(t) {
+  memGroup.clear();
+  box.group.add(memGroup);
+  const m = t.meta.membrane;
+  if (!m || !showMem) { box.draw(); return; }
+
+  /* Wide enough to read as a sheet the protein sits in, not a plate under it:
+     the pump is ~80 Å across and the planes go half again as far. */
+  const w = Math.max(t.radius * 1.5, 90);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xd8c9a8, transparent: true, opacity: 0.18, side: THREE.DoubleSide,
+    depthWrite: false });
+  const edge = new THREE.LineBasicMaterial({ color: 0xb9a67f, transparent: true,
+                                             opacity: 0.55 });
+  for (const side of [1, -1]) {
+    const geo = new THREE.PlaneGeometry(w, w);
+    const plane = new THREE.Mesh(geo, mat);
+    /* OPM puts the normal on Z, so the leaflets are planes of constant z —
+       which is what PlaneGeometry already is, with no rotation to get wrong. */
+    plane.position.z = m.mid + side * m.half;
+    memGroup.add(plane);
+    const ring = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edge);
+    ring.position.copy(plane.position);
+    memGroup.add(ring);
+  }
+  box.draw();
+}
+
+/* ---- the panel ------------------------------------------------------- */
+
+const views = {};
+let view = null;
+window.bench = { views, box, get view() { return view; } };
+
+VIEWS.forEach(id => {
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(t => {
+    views[id] = t;
+    if (view === id) show(id);
+  }).catch(e => console.warn(`napump: ${id} — ${e.message}`));
+});
+
+/* An ion is what this pair is about, so the ions get their own row and the
+   rest of what is bound gets another. Read off the bake's ligand list, which
+   the baker counted from the file — a lipid and three sugars ride along in
+   both states and are not the story. */
+const IONS = { NA: 'Na⁺', K: 'K⁺', MG: 'Mg²⁺', CL: 'Cl⁻' };
+const isIon = l => IONS[l.split(' ')[0]] !== undefined;
+const pretty = l => {
+  const [name, mult] = l.split(' ');
+  return (IONS[name] || name) + (mult ? ' ' + mult : '');
+};
+
+function stats(t) {
+  const ids = t.order;
+  const letters = ids.map(c => t.chains[c].ss).join('');
+  const n = letters.length;
+  const H = [...letters].filter(c => c === 'H').length;
+  const E = [...letters].filter(c => c === 'E').length;
+  const counts = t.meta.counts;
+  const modelled = counts.reduce((k, c) => k + c.modelled, 0);
+  const declared = counts.every(c => c.declared !== null)
+    ? counts.reduce((k, c) => k + c.declared, 0) : null;
+
+  /* HOW MUCH OF IT IS IN THE MEMBRANE, counted rather than guessed: every Cα
+     between the two leaflet planes. The number is the answer to the question
+     the bilayer was drawn for — this is a mostly-cytoplasmic protein with a
+     third of itself in the bilayer, and a ribbon alone reads as neither. */
+     const m = t.meta.membrane;
+  let inMem = null;
+  if (m) {
+    let k = 0;
+    for (const c of ids)
+      for (const p of t.chains[c].CA)
+        if (Math.abs(p[2] - m.mid) <= m.half) k++;
+    inMem = k;
+  }
+
+  return {
+    quat: `${ids.length} subunits — α catalytic, β, and a small γ`,
+    span: ids.map(c => `${c} ${t.chains[c].first}–${t.chains[c].nums[t.chains[c].nums.length - 1]}`).join(', '),
+    res: `${modelled} residues × ${ids.length} chains`,
+    pct: declared === null ? '—'
+      : `${modelled} of ${declared} · ${Math.floor(100 * modelled / declared)}%`,
+    frag: declared === null ? 'no SEQRES records: completeness unknown'
+      : modelled >= declared ? `complete: ${modelled} of ${declared} deposited`
+      : `fragment: ${modelled} out of ${declared} deposited`,
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    ions: t.meta.ligands.filter(isIon).map(pretty).join(', ') || 'none',
+    lig: t.meta.ligands.filter(l => !isIon(l)).map(pretty).join(', ') || 'nothing',
+    mem: m ? `±${m.half} Å, ${(m.half * 2).toFixed(1)} Å thick` : 'not oriented',
+    inMem: inMem === null ? '—'
+      : `${inMem} of ${modelled} residues · ${Math.round(100 * inMem / modelled)}%`,
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;
+  const v = said(id), r = v.read, s = stats(t), m = t.meta;
+
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-meta').textContent = `${v.source.id} · ${r.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
+  $('d-quat').textContent = s.quat;
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  $('d-frac').textContent = s.frac;
+  $('d-ions').textContent = s.ions;
+  $('d-lig').textContent = s.lig;
+  $('d-mem').textContent = s.mem;
+  $('d-span-mem').textContent = s.inMem;
+  $('d-ext').textContent = s.ext;
+  $('d-view').textContent = t.frame;
+  $('d-prov').textContent = SAYS[id].prov;
+  $('memchip').textContent = m.membrane ? `±${m.membrane.half} Å` : 'none';
+
+  const u = ProteinLib.urls(v);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${v.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${r.baked}`;
+
+  box.setData(t);
+  drawMembrane(t);
+}
+
+$('mem').addEventListener('click', () => {
+  showMem = !showMem;
+  $('mem').setAttribute('aria-pressed', String(showMem));
+  if (views[view]) drawMembrane(views[view]);
+});
+
+VIEWS.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
+    show(id);
+  });
+});
+
+const OPEN = ProteinLib.defaultOf(ME).id;
+VIEWS.forEach(id => $('v-' + id).setAttribute('aria-pressed', String(id === OPEN)));
+show(OPEN);
+</script>
+</body>
+</html>

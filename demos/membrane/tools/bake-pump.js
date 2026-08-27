@@ -105,8 +105,16 @@ const ActinLib = require('../../folding/actin.js');   // fit() — Kabsch, share
 const HERE = path.join(__dirname, '..');
 const DATA = path.join(HERE, 'data');
 
+/* THE PDBs MOVED. Both structures are the sodium pump, and the pump became a
+   protein the repo HOLDS rather than one this lesson borrowed: they live in
+   `proteins/napump/data/src/` now, indexed in `proteins/proteins.js` with a
+   bench of their own. This baker still reads them from there — same files,
+   same four names — and writes its surfaces here, because a surface cut for
+   this lesson's camera is this lesson's artefact and not the collection's. */
+const SRC = path.join(HERE, '..', 'proteins', 'napump', 'data', 'src');
+
 /* The OPM re-releases, not the deposited files: same atoms, rigidly
-   rotated so the bilayer normal is z. The deposited PDBs stay in data/
+   rotated so the bilayer normal is z. The deposited PDBs stay beside them
    as provenance and are what a re-download would check against. */
 const REF = '7E1Z';                 // E1.3Na — the frame everything lands in
 const MOV = '7E20';                 // E2.2K
@@ -127,7 +135,7 @@ const CARGO = new Set(['NA', 'K', 'MG']);
 /* ---- parsing ------------------------------------------------------- */
 
 function parse(id) {
-  const raw = fs.readFileSync(path.join(DATA, srcOf(id)), 'utf8');
+  const raw = fs.readFileSync(path.join(SRC, srcOf(id)), 'utf8');
   const atoms = [], residues = [], cargo = [], ca = new Map();
   const seen = new Map(), dropped = new Map();
   let half = null;
@@ -450,4 +458,8 @@ function main() {
     console.log(`      ${id}: ${ions[id].map(c => c.name).join(', ')}`);
 }
 
-main();
+/* Guarded, because this baker WRITES on run: two 5.8 MB surfaces, several
+   minutes of SES. An unguarded call fires on `require`, so anything that
+   imports this file for one of its readers — a checker, another baker —
+   pays for a full bake and leaves the output behind. */
+if (require.main === module) main();

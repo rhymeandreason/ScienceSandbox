@@ -332,6 +332,55 @@
 
   const PROTEINS = [
     {
+      key: 'napump', name: 'Na⁺/K⁺-ATPase', dir: 'proteins/napump',
+      blurb: 'The pump that keeps every animal cell electrically alive: three '
+           + 'sodiums out, two potassiums in, one ATP a turn, and about a '
+           + 'fifth of the energy you spend at rest.',
+      does: 'enzyme',
+      pipeline: 'trace',
+      /* NOT SUPERPOSED, AND IT MUST NOT BE. Both are baked from their OPM
+         copies, which are already in one frame — the bilayer normal upright,
+         the membrane centred on zero — so a fit would move them out of the
+         membrane and into each other, which is the one comparison this pair
+         is not about. Flipping between them works because they share the
+         MEMBRANE's frame rather than a fitted one. */
+      fit: null,
+      fitWhy: 'both are already in the membrane frame OPM solved; fitting one '
+            + 'onto the other would trade that for an arbitrary one',
+      view: { by: 'measured', shared: false,
+              why: 'the field draws a membrane protein on its bilayer normal, '
+                 + 'and OPM republishes the coordinates already in it — the '
+                 + 'frame is the file, not a basis this repo solved' },
+      surface: { bake: false,
+                 why: 'a claim about a CYCLE, not a surface: what changes '
+                    + 'between the two is which side the site opens to, and a '
+                    + 'skin hides the site along with the change' },
+      variants: [
+        { id: 'E1', default: true,
+          purpose: 'three sodiums bound, the door open to the inside',
+          species: 'pig',
+          source: { kind: 'rcsb', id: '7E1Z' },
+          read: {
+            method: "electron microscopy",
+            chainsInFile: 3,
+            residues: 1302,
+            declared: 1392,
+            ec: "7.2.2.13",
+            baked: "pump-E1.json" } },
+        { id: 'E2',
+          purpose: 'two potassiums bound, the door open to the outside',
+          species: 'pig',
+          source: { kind: 'rcsb', id: '7E20' },
+          read: {
+            method: "electron microscopy",
+            chainsInFile: 3,
+            residues: 1321,
+            declared: 1392,
+            ec: "7.2.2.13",
+            baked: "pump-E2.json" } },
+      ],
+    },
+    {
       key: 'prion', name: 'Prion protein', dir: 'proteins/prion',
       blurb: 'One sequence, two shapes: the healthy human fold and the disease '
            + 'fold, as deposited. The stack is the reason it spreads.',
