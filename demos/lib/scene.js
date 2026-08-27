@@ -494,6 +494,19 @@
       const r=Math.max(o.rMin,Math.min(o.rMax,cam.r*f));
       if(r===cam.r)return; cam.r=r; if(o.onZoom)o.onZoom(r); applyCam();
     }
+    /* THE ZOOM CLAMP IS RELATIVE TO WHAT IS ON SCREEN, and rMin/rMax at create
+       are only the default for a caller who knows its subject's size by then.
+       A caller that does not — a box fed a structure after the fact — retunes
+       here, because a clamp tighter than the framing distance is a trap the
+       reader falls into and cannot climb out of: 1DFJ frames at 63 against the
+       default rMax of 60, so the first wheel event snapped it CLOSER than it
+       opened and no amount of zooming out ever came back. */
+    function setZoomLimits(min,max){
+      if(isFinite(min)) o.rMin=min;
+      if(isFinite(max)) o.rMax=max;
+      const r=Math.max(o.rMin,Math.min(o.rMax,cam.r));
+      if(r!==cam.r){ cam.r=r; applyCam(); }
+    }
     if(o.zoom!==false){
       canvas.addEventListener('wheel',e=>{e.preventDefault();
         // A trackpad pinch arrives as a wheel event with ctrlKey set — the same
@@ -558,7 +571,7 @@
       camera.updateProjectionMatrix(); }
     new ResizeObserver(resize).observe(canvas);
     applyCam();
-    return {scene,camera,renderer,root,cam,applyCam,resize};
+    return {scene,camera,renderer,root,cam,applyCam,resize,setZoomLimits};
   }
 
   // Show/hide a spec's OPTIONAL hydrogens — the nonpolar C–H's listed in

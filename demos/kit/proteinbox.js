@@ -135,6 +135,15 @@
                          [{ x: 0, y: 0, rxz: radius, hy: radius }],
                          { pad: opts.pad || 1.12 });
       if (box.camera.isOrthographicCamera) box.cam.r = box.camera.top;
+      /* THE ZOOM CLAMP FOLLOWS THE FRAMING, because scene.js's default is a
+         fixed 5-60 and a protein's size is not: 1DFJ frames at 63 and every
+         wheel event then clamped it to 60, so the box opened at a distance the
+         reader could never get back to and read as stuck. Anchored to the
+         distance just solved — a fifth of it is inside the molecule, three
+         times it is the structure small in the frame — so a 124-residue
+         monomer and a 580-residue complex both zoom the same amount. */
+      if (box.stage.setZoomLimits)
+        box.stage.setZoomLimits(box.cam.r * 0.2, box.cam.r * 3);
       box.applyCam();
     };
 
