@@ -1,8 +1,10 @@
-<!-- KIND: recipe — load when bringing a NEW protein into the repo from deposited coordinates, before any lesson exists for it. Ends at a bench the human can look at. `rendering-modules.md` is what to draw it with; this is how to decide what is worth drawing. -->
+<!-- KIND: recipe — load when bringing a NEW protein into the repo from deposited coordinates, before any lesson exists for it. Ends at a reviewed protein in proteins/proteins.js, not at a bench. `rendering-modules.md` is what to draw it with; this is how to decide what is worth drawing. -->
 
 # Adding a protein
 
-From "let's look at X" to a bench the human can click through. No lesson, no page copy, no roadmap. Three steps, and the report at the end of each is the deliverable, not the code.
+From "let's look at X" to a bench the human can click through, and from there to a protein the repo holds. No lesson, no page copy, no roadmap. The report at the end of each step is the deliverable, not the code.
+
+**The bench comes before the database.** `proteins/proteins.js` is what we have SELECTED, and selecting is a human looking at structures on a bench and saying which ones earn a place. So a new protein is not registered when it is pulled; it is registered in step 4, after step 3 has thrown some of it away. The prion bench carried a Syrian hamster pair through review and lost it there, which is the shape of a normal pass, not a failure of one.
 
 **The rule the whole file serves: look before you decide, and measure before you render.** A protein arrives as an argument about what it will show, and the argument is usually wrong. This repo has paid for that twice, and both receipts are in here.
 
@@ -24,10 +26,7 @@ Two worked examples: `proteins/prion/prion-test.html` is one sequence in two sta
 
 **Bake, do not parse the deposition at runtime.** A baker beside the page cuts each source down to what the bench draws and writes it to `data/`. Two of them: `proteins/prion/tools/prep.js` writes reduced PDBs the page still parses, and `proteins/rnase/tools/prep.js` writes `bake-trace.js`-shaped JSON the box takes directly — **prefer the second**, because the page that parses nothing cannot decide an altloc differently from the baker that already decided it.
 
-**The protein goes in `proteins/proteins.js` first, and the baker reads it from there.** Which entries, which chains, which variant is the default, what each one is for, and the prose the bench prints — all of it lives in the registry with every other protein's, so a variant cannot be described one way in a panel and baked another. The baker adds the `read` block back: method, resolution, counts, ligands, whatever that protein measures. A human never types a number into that file; `node proteins/<name>/tools/prep.js` writes them, and `proteins/check-proteins.js` fails a commit where the two disagree. `Modules.md` has the field list.
-
-* **`purpose` is the field that makes the collection worth having.** One short phrase saying what this variant is FOR — "the site with nothing in it", "cut in two and still working". A file with no purpose is a file nobody can decide about later.
-* **A trap gets a comment, not a list.** We do not keep a register of rejected entries: the bench records what was kept and the reasons are cheap to re-derive. The exception is where the OBVIOUS choice is wrong — 7RSA is the most-cited RNase A structure and carries no SSBOND records at all, so a bench built on it prints "no disulfides" for the protein whose disulfides are the whole story. One line, beside the entry it explains.
+**While the protein is under review its candidates live in the baker**, as a `CANDIDATES` table at the top of `proteins/<name>/tools/prep.js`: id, chains, and one line saying what each is meant to show. Nothing goes into `proteins/proteins.js` yet, because everything in that file is a decision and none has been made. Bake generously here — a candidate that turns out to say nothing is what step 3 is for, and it is cheaper to look at one than to argue about it.
 
 **Reading the file is `proteins/bake-lib.js`, and a new baker does not re-implement it.** The altloc rule, secondary structure read rather than detected, ss indexed by residue number, `nums` beside `first`, the centring, the solved frame, SEQRES / SSBOND / HETATM — each carries the trap it exists to prevent, and three copies is where those start to drift. What a baker writes for itself is the VIEW table and whatever its protein is about. It composes its own output object from `assemble` and `frameOf` rather than handing off to a shared writer, because the bakes are committed artefacts and a shared writer reorders every one of them the day it changes its mind about a key. Along with the trace, that baker writes a `meta` block holding every figure the panel prints: the declared length off `SEQRES`, the disulfides off `SSBOND`, the ligands off `HETATM`, the model count. A number counted in the baker is re-counted on every re-bake; the same number typed into a panel is not. Chain A unless the assembly is the point, alt-locs blank or `A` only, and the file's own `HELIX` / `SHEET` records ride along. Secondary structure is **read, never detected**: for a lesson about folding, detecting it is inventing the claim.
 
@@ -62,7 +61,23 @@ Three invariants on that side. Each is a bug that ships looking fine.
 
 **Every number in the panel is counted off the parsed file**, not typed. Residues, segments, chains, record counts. A typed number is a claim nothing checks, and a re-bake falsifies it silently.
 
-## 3. Say whether a surface is worth baking
+## 3. Review, and select
+
+**Hand the bench over and stop.** The human clicks through, and the output of this step is a decision about each candidate: kept, or not. That decision is not one an agent can make from the data, because it is a question about what a lesson will be about — the hamster prion pair was structurally fine and was dropped because two species is a comparison no lesson had asked for.
+
+What to put in front of them, per candidate: what it shows that the others do not, and what it costs (bytes, and a button on a bench that is already long). Where two candidates say the same thing, say so — that is the pair most likely to be cut.
+
+## 4. Register what survived
+
+**Now the protein goes into `proteins/proteins.js`**, selected set only. Move the `CANDIDATES` table out of the baker and into the registry's `variants`, and switch the baker to reading it — a few lines, and the diff is the record of what review decided. From here the registry is the single source: which entries, which chains, which variant is the default, what each is for, and the prose the bench prints, so a variant cannot be described one way in a panel and baked another.
+
+The baker writes the `read` block back on every run — method, resolution, counts, ligands, whatever that protein measures. **A human never types a number into that file.** `node proteins/<name>/tools/prep.js` writes them, `proteins/tools/registry-io.js` splices only that block so the prose and the comments survive, and `proteins/check-proteins.js` fails a commit where the two disagree. `Modules.md` has the field list.
+
+* **`purpose` is the field that makes the collection worth having.** One short phrase saying what this variant is FOR — "the site with nothing in it", "cut in two and still working". A file with no purpose is a file nobody can decide about later.
+* **A trap gets a comment, not a list.** No register of rejected entries: the bench records what was kept, and the reasons are cheap to re-derive. The exception is where the OBVIOUS choice is wrong — 7RSA is the most-cited RNase A structure and carries no SSBOND records at all, so a bench built on it prints "no disulfides" for the protein whose disulfides are the whole story. One line, beside the entry it explains.
+* **What a cut variant took with it goes in a comment too**, when it was the only one carrying something. Dropping prion's 7LNA dropped the only brain-derived structure on that bench, and the registry says so — along with the fact that a lesson needing that distinction wants a human brain-derived fibril, not the hamster back.
+
+## 5. Say whether a surface is worth baking
 
 Recommend SES only against a criterion, never a feeling:
 
@@ -72,11 +87,11 @@ Recommend SES only against a criterion, never a feeling:
 
 It is expensive and it is a bake, not a render: `rendering-modules.md` owns the how, including the rule that a surface's frame is read from the trace file rather than re-derived.
 
-## 4. Downloads and files
+## 6. Downloads and files
 
 **Raw downloads are a separate question.** A deposition can be much larger than anything the bench reads (1QLZ is 2.7 MB of 20 models; the bake is 169 KB). Bake small, commit the bake, and ask before committing the raw file. The baker's header carries the source URLs so a re-run is possible without it.
 
-## 5. Summary
+## 7. Summary
 
 Write a short editorial style summary to capture the significance for a lesson. Example written for prion:
 
