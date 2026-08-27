@@ -113,7 +113,7 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
 13. **The asked card is a root and never a wave.** Its links make it a genuine neighbour of every module it reached, so `start()` will otherwise deal the reader's last question into the door's own map as though someone had authored it. Filtered in `expand()`, because every path that reveals a card goes through that one.
 
-14. **Declaration order inside the composer's own block bites too.** Invariant 14's dead-zone throw is not only about `start()` calling into the block from above: the block is ~500 lines and a `const` near its top touching one declared near its bottom is the same throw, with the same symptom — a blank page and one error, because the script aborts and nothing after the throwing line initializes. It has happened three times in this file (`ASKED`, `ASKED_URL`, and `expand()`'s filter). `document.getElementById` costs a lookup and has no dead zone.
+14. **Declaration order inside the composer's own block bites too.** Invariant 14's dead-zone throw is not only about `start()` calling into the block from above: the block is \~500 lines and a `const` near its top touching one declared near its bottom is the same throw, with the same symptom — a blank page and one error, because the script aborts and nothing after the throwing line initializes. It has happened three times in this file (`ASKED`, `ASKED_URL`, and `expand()`'s filter). `document.getElementById` costs a lookup and has no dead zone.
 
 15. **`expand()` runs before the page's own additions exist.** `start()` is called at the bottom of the map's script, so anything appended below it has NOT initialized yet. Invariant 13's filter tests a PROPERTY (`!m.ask`) and not the `ASKED` binding for exactly this reason: touching that `const` from `expand()` is a temporal-dead-zone throw during load, which aborts the whole script and leaves the page blank with one error. Same shape as the `draw()` collision in 12 — appending to a copy of door-map is when both happen.
 
@@ -132,7 +132,7 @@ A `VIEWS` entry picks the kind for a MODULE's card. A SPECIMEN is always `protei
 
 **A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. **Three things a protein card can show, and only the first is free.** Ribbon is the default and the only one fetched at reveal. The other two are gated the same way, and the gates are the design:
 
-| | bytes | control | gate |
+|  | bytes | control | gate |
 | --- | --- | --- | --- |
 | ribbon | 12 KB trace | — | drawn at reveal |
 | surface | 362 KB `*.card.surf.bin` | segment beside ribbon | `.near`, then the click |
@@ -162,7 +162,7 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 
 ## **question-composer: the map entered by typing**
 
-**It is a REBASE of `tests/door-map.html`, not a fork left to drift** — and it is the one to work in. The first copy was taken from a dirty working tree and was ~175 lines behind within the day: it missed `goLiveSoon()` (card startup queued for quiet frames instead of created mid-wave) and `cardsQuiet()` (sims paused during pan and zoom), and it still carried the protein card inline after `kit/proteinbox.js` had taken it out of door-map. Both pages now run the same engine. Re-do the rebase the same way rather than porting functions across: take door-map as it stands, then re-apply the composer's own code, which is **four insertions plus a set of edits inside the engine**.
+**It is a REBASE of `tests/door-map.html`, not a fork left to drift** — and it is the one to work in. The first copy was taken from a dirty working tree and was \~175 lines behind within the day: it missed `goLiveSoon()` (card startup queued for quiet frames instead of created mid-wave) and `cardsQuiet()` (sims paused during pan and zoom), and it still carried the protein card inline after `kit/proteinbox.js` had taken it out of door-map. Both pages now run the same engine. Re-do the rebase the same way rather than porting functions across: take door-map as it stands, then re-apply the composer's own code, which is **four insertions plus a set of edits inside the engine**.
 
 Insertions: the CSS block, the `.composer` markup, the `SPECIMENS` node loop (in the graph construction, after `MODULES` and before `QUESTIONS`), and everything after `start();`.
 
@@ -185,7 +185,7 @@ Edits, and this list grows every time the composer gains a kind or a control —
 
 **A miss is the artefact, not the failure.** Below the floor the box says nothing answers that yet rather than routing to the least-bad card, and the typed text is the only record of a door worth writing. Every search is now a row in `finds` (`api/_finds.js`), and `demos/ask/log.html`'s **Map** tab is where they are read — rolled up by repeated text, because one person asking about osmosis is a person and forty are a lesson that is missing.
 
-**25 of the 66 questions in `mapcontent.js` name one module.** Rooting on one of those opens 7 cards against ~16 — a thin door a student can type straight into. That is the "a question naming ONE module is a caption, not a crossing" gap `mapcontent.js`'s own header already flags; the composer is what makes it visible.
+**25 of the 66 questions in `mapcontent.js` name one module.** Rooting on one of those opens 7 cards against \~16 — a thin door a student can type straight into. That is the "a question naming ONE module is a caption, not a crossing" gap `mapcontent.js`'s own header already flags; the composer is what makes it visible.
 
 ### The reader's own words, and the edges off them
 
@@ -271,7 +271,7 @@ It fires on the LATER of the graph being composed and a beat long enough to read
 
 **Every path out lowers it**, including the query that reaches nothing and the corpus that will not load — a title card still up is worse than the empty map it was covering. That is why the corpus failure THROWS rather than returning: the dismissal is at the bottom of `bootVectors`, and an early return would walk past it.
 
-**The question is on screen before any fetch returns.** `?q=` carries it, so the title is raised at parse time: up at ~46ms against ~490ms for the query's own embedding. That is most of half a second of something rather than nothing, and it is why the title exists rather than a spinner — the one thing worth looking at during the wait is the sentence being answered.
+**The question is on screen before any fetch returns.** `?q=` carries it, so the title is raised at parse time: up at \~46ms against \~490ms for the query's own embedding. That is most of half a second of something rather than nothing, and it is why the title exists rather than a spinner — the one thing worth looking at during the wait is the sentence being answered.
 
 **The three requests go out together.** Corpus, endpoint config, and the query's embedding were serial, and none needs the one before it — the POST is fired before the GET has said the endpoint is even up, because a wasted POST on a keyless checkout costs nothing while waiting for permission to send it costs a round trip on every load that works. `search(text, pre)` takes a vector that is already in flight. Locally the corpus and config are 10ms and 4ms so the saving is small; over a real network they are not.
 
@@ -428,11 +428,9 @@ The check belongs in the hook rather than beside `tools/check-handedness.js` bec
 
 **What does not scale, in the order it will break:**
 
-* **Hand-authored rank.** 114 edges today. It does two jobs that separate under density — *what opens this card* stays editorial, *which four of two hundred questions* cannot be answered by hand. The plan is the `said` / `read` split this repo already runs on `proteins/proteins.js`: authored ranks are the human's half and are never overwritten, generated ranks are derived and regenerable, and `--check` fails a generated one sitting where an authored one was. The 114 edges become the eval set, and the **26 that carry a different rank on different cards** are the subset that matters, because they are the only evidence that rank belongs to the edge and not to the question.
+* **Hand-authored rank.** 114 edges today. It does two jobs that separate under density — *what opens this card* stays editorial, *which four of two hundred questions* cannot be answered by hand. Human curation will be in selecting the content to add. ranking will become an AI feature that is either live or baked, and right now the human is curating the examples. The plan is the `said` / `read` split this repo already runs on `proteins/proteins.js`: authored ranks are the human's half and are never overwritten, generated ranks are derived and regenerable, and `--check` fails a generated one sitting where an authored one was. The 114 edges become the eval set, and the **26 that carry a different rank on different cards** are the subset that matters, because they are the only evidence that rank belongs to the edge and not to the question. 
 * **The absolute floor.** `MATCH = 0.85` was calibrated against 66 questions. As the corpus densifies the nearest neighbour gets closer for EVERY query, off-map ones included, so the floor drifts without anything being wrong. It has to become relative, or be recalibrated at every significant growth. The fixture is what would catch that.
-* **The shipped corpus.** ~2 KB a question: comfortable to ~500, awkward past ~1500. Quantising to int8 buys 4x. Past that, search moves server-side — which is why `api/find.js` returns a VECTOR rather than results, so that flip is a change in one file.
+* **The shipped corpus.** \~2 KB a question: comfortable to \~500, awkward past \~1500. Quantising to int8 buys 4x. Past that, search moves server-side — which is why `api/find.js` returns a VECTOR rather than results, so that flip is a change in one file.
 * **Authoring throughput.** At which point generation into the CMS queue, human-approved and never drawn unapproved, stops being overkill. The miss log in `finds` is already collecting the evidence of what to write.
 
-**What to add, and as what.** More doors and modules are content and cost no mechanism. Tools and species are FACETS, not cards — `read.method` and `species` already connect every specimen, so "everything solved by cryo-EM" can highlight what exists rather than adding to it. Experiments earn a card, because an experiment has its own content and its own edge: the claim it settled. Images want a registry with licences before they want plumbing, on the model of `proteins/proteins.js` — bake the file in, record where it came from, and fail one with no licence.
-
-**The thing to protect through all of it: a question is the crossing.** Every kind added dilutes it, and under density it matters more rather than less, because it is the only thing separating this from a search results page with pictures. The test for anything new is whether it gives a reader a reason to move from one card to the next, or only puts more on the screen.
+**What to add, and as what.** More doors and modules are content and cost no mechanism. Tools and species are FACETS, not cards — `read.method` and `species` already connect every specimen, so "everything solved by cryo-EM" can highlight what exists rather than adding to it. Experiments earn a card, because an experiment has its own content and its own edge: the claim it settled. Images want a registry with licences before they want plumbing.
