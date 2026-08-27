@@ -352,6 +352,76 @@
       variants: PRION_VARIANTS,
     },
     {
+      key: 'hemoglobin', name: 'Haemoglobin', dir: 'hemoglobin',
+      blurb: 'Four myoglobins that learned to talk to each other. One oxygen '
+           + 'binding pulls the whole tetramer into the shape that binds the '
+           + 'next three more easily.',
+      /* NOT THIS REGISTRY'S PIPELINE, and that is the whole of the entry. Its
+         bakes feed hemoglobin-lab's folding trajectory and are made by
+         `hemoglobin/tools/`, on their own schedule and in their own formats —
+         a trace, a quaternary file with hemes and irons, a surface, an 830 KB
+         fold. `pipeline:'own'` says so: check-proteins.js verifies the `read`
+         block against the DEPOSITION each variant names rather than against a
+         bake it did not shape, and leaves that folder's files alone.
+
+         It is in here because a gallery that omitted the repo's most developed
+         protein would read as broken, and because "what do we hold" is a
+         question about the repo and not about which script wrote a file. */
+      pipeline: 'own',
+      /* No bench: this protein's page is a finished LESSON, and it is where a
+         reader should land from the gallery. Everything else derives its
+         review bench from the key. */
+      page: 'hemoglobin-lab.html',
+      /* Two crystals of the same protein, one mutation apart. Not states of
+         one thing in a frame sense — 2HBS is two tetramers in the asymmetric
+         unit and the fibre contact is what it is deposited for — so nothing is
+         superposed and each opens in its own frame. */
+      fit: null,
+      fitWhy: 'two entries, not two states of one; the sickle file is deposited '
+            + 'for a contact between tetramers, which a fit onto one of them '
+            + 'would move',
+      view: { by: 'deposited', shared: false,
+              why: 'a tetramer is round enough that a solved basis would flip '
+                 + 'between rebakes, and no human has picked one yet' },
+      surface: { bake: true,
+                 why: 'baked already, and the one case that earns it: the '
+                    + 'sickle lesson is a CONTACT between two tetramers, which '
+                    + 'is a claim about surfaces' },
+      variants: [
+        { id: '2HHB', default: true,
+          purpose: 'the tetramer, deoxy — what the lesson folds',
+          species: 'human',
+          source: { kind: 'repo', id: '2HHB', path: 'hemoglobin/data/2HHB.pdb' },
+          /* WHICH of that folder's bakes this entry points at. A protein whose
+             files another pipeline writes has several, in several shapes — a
+             trace, a quaternary file, a surface, a fold — and choosing the one
+             the registry means is a decision, so it is said here and copied
+             into `read.baked` where every consumer looks. */
+          bake: '2HHB.trace.json',
+          read: {
+            method: "x-ray diffraction",
+            chainsInFile: 4,
+            residues: 574,
+            declared: 574,
+            baked: "2HHB.trace.json" } },
+        { id: '2HBS',
+          purpose: 'sickle haemoglobin, one mutation away',
+          species: 'human',
+          chains: 'A,B,C,D',
+          source: { kind: 'repo', id: '2HBS', path: 'hemoglobin/data/2HBS.pdb' },
+          /* The first of the two tetramers in the asymmetric unit, with its
+             hemes and irons — sickle/fibre-test's shape, not a plain trace,
+             which is why nothing but that page draws it today. */
+          bake: '2HBS-T1-quaternary.json',
+          read: {
+            method: "x-ray diffraction",
+            chainsInFile: 8,
+            residues: 574,
+            declared: 574,
+            baked: "2HBS-T1-quaternary.json" } },
+      ],
+    },
+    {
       key: 'rnase', name: 'Ribonuclease A', dir: 'proteins/rnase',
       blurb: '124 residues that cut RNA, and the most-studied enzyme of the '
            + 'twentieth century. The protein Anfinsen unfolded and watched '

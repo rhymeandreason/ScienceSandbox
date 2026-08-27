@@ -150,10 +150,19 @@
 
 const $ = id => document.getElementById(id);
 
-/* THE BENCH PATH IS DERIVED, not stored: every protein's review page is
-   `<dir>/<key>-test.html` and the registry deliberately holds no path — a
-   second copy of a filename is a second thing to rename. */
-const benchOf = p => `${p.key}/${p.key}-test.html`;
+/* WHERE A CARD LEADS. Derived — `<dir>/<key>-test.html` — because a second
+   copy of a filename is a second thing to rename, with `page` as the override
+   for a protein that has something better to open than a review bench:
+   haemoglobin's is a finished lesson, and sending a reader to a bench it does
+   not have would be worse than sending them nowhere. Paths are relative to
+   `demos/`, which is one level up from this page. */
+const pageOf = p => '../' + (p.page || `${p.dir}/${p.key}-test.html`);
+const label = p => p.page ? 'open the lesson' : 'open the bench';
+
+/* Every protein's data sits under its own `dir`, which is not always beside
+   this page — haemoglobin lives outside `proteins/` because its bakes belong
+   to the folding pipeline. */
+const dataOf = (p, file) => `../${p.dir}/data/${file}`;
 
 /* CONTEXTS ARE RATIONED (ConceptMap.md invariant 1). Four live boxes cost
    about 4.5 ms a frame against the 16.7 ms a 60 fps budget allows; the tenth
@@ -186,7 +195,7 @@ function still(key, url) {
    parse and the solved view happened at load in two places. */
 function load(p) {
   const v = ProteinLib.defaultOf(p);
-  return fetch(`${p.key}/data/${v.read.baked}`).then(r => r.json());
+  return fetch(dataOf(p, v.read.baked)).then(r => r.json());
 }
 
 /* Everything printed below is counted or read, never typed here. */
@@ -213,7 +222,7 @@ function card(p) {
       <div class="facts"></div>
       <h2>${p.variants.length} structure${p.variants.length === 1 ? '' : 's'}</h2>
       <ul class="vars"></ul>
-      <a class="open" href="${benchOf(p)}">open the bench &rarr;</a>
+      <a class="open" href="${pageOf(p)}">${label(p)} &rarr;</a>
     </div>`;
 
   el.querySelector('.name').textContent = p.name;

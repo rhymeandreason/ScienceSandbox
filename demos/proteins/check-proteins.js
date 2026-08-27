@@ -23,7 +23,8 @@
 const fs = require('fs');
 const path = require('path');
 const IO = require('./tools/registry-io.js');
-const { chainsDeclared } = require('./bake-lib.js');
+const Bake = require('./bake-lib.js');
+const { chainsDeclared } = Bake;
 
 /* SEQRES for chain A — the only reader here that bake-lib does not already
    export, because a trace bake keeps the number and a reduced PDB keeps the
@@ -74,6 +75,35 @@ for (const p of lib.PROTEINS) {
           A `pipeline:'pdb'` bake answers in its own records, which is why the
           prion baker carries EXPDTA, REMARK 2 and the COMPND chain list into
           every reduced file it writes. */
+    /* A protein whose files another pipeline writes is verified against the
+       DEPOSITION it names, not against a bake this registry did not shape.
+       Haemoglobin is the case: `hemoglobin/tools/` writes a trace, a
+       quaternary file, a surface and an 830 KB fold for the folding lesson,
+       in formats with no `meta` block to cross-check and no reason to grow
+       one. The invariant survives — every read field is still answerable by a
+       committed file — it is just a different file. */
+    if (p.pipeline === 'own') {
+      const src = v.source && v.source.path;
+      if (!src) { say(`${at}: pipeline 'own' needs source.path`); continue; }
+      const full = path.join(HERE, '..', src);
+      if (!fs.existsSync(full)) { say(`${at}: ${src} is not there`); continue; }
+      const text = fs.readFileSync(full, 'utf8');
+      const only = v.chains ? new Set(v.chains.split(',')) : null;
+      const chains = Bake.caTrace(text, only);
+      const decl = Bake.declared(text);
+      let residues = 0;
+      for (const res of chains.values()) residues += res.length;
+      const declared = [...chains.keys()].every(c => decl[c] != null)
+        ? [...chains.keys()].reduce((k, c) => k + decl[c], 0) : null;
+      const from = { method: Bake.method(text), chainsInFile: Bake.chainCount(text),
+                     residues, declared };
+      for (const k of Object.keys(from))
+        if (r[k] != null && from[k] !== r[k])
+          say(`${at}: registry says ${k} ${JSON.stringify(r[k])}, ` +
+              `${src} says ${JSON.stringify(from[k])} — re-run read-own.js`);
+      continue;
+    }
+
     if (p.pipeline === 'pdb') {
       const text = fs.readFileSync(file, 'utf8');
       const from = {
@@ -153,13 +183,16 @@ for (const p of lib.PROTEINS) {
     }
   }
 
-  /* 8. Bakes nothing claims. `keeps` is the protein's own list of files that
+  /* 8. Bakes nothing claims — skipped for a folder this registry does not
+        write. `keeps` would have to list another pipeline's every artefact,
+        and the day it added one the failure would land here rather than
+        where it belongs. `keeps` is the protein's own list of files that
         are deliberately in data/ without being variants — committed sources,
         intermediates a baker slices views out of, a bake measured once and
         not shown. Anything outside both lists is a stale file, and a stale
         bake from a renamed view is one a bench goes on loading. */
   const keeps = new Set(p.keeps || []);
-  for (const f of onDisk) {
+  if (p.pipeline !== 'own') for (const f of onDisk) {
     if (f === 'src' || fs.statSync(path.join(data, f)).isDirectory()) continue;
     if (!claimed.has(f) && !keeps.has(f))
       say(`${p.key}: ${f} is in data/ and neither a variant nor in keeps`);
@@ -171,6 +204,11 @@ for (const p of lib.PROTEINS) {
         many times the size of what they bake down to — so the curl that
         fetches them back has to be in the baker's header, or a checkout
         holds bakes nobody can reproduce. */
+  /* A protein on its own pipeline has no prep.js of ours to check; its
+     sources are committed beside its bakes, which is what `source.path`
+     already asserted above. */
+  if (p.pipeline === 'own') continue;
+
   const prep = path.join(dir, 'tools', 'prep.js');
   if (!fs.existsSync(prep)) say(`${p.key}: no tools/prep.js`);
   else {
