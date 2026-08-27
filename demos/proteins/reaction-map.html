@@ -74,11 +74,19 @@
     border-radius:8px;padding:0.5rem}
   svg{display:block;width:100%;height:auto}
 
-  .axis-line{stroke:var(--h-ink);stroke-width:1.2}
+  /* `color` rather than `stroke` on the axis so the arrowhead marker, which
+     can only inherit `currentColor`, cannot drift from the line it caps. */
+  .axis-line{color:var(--h-ink);stroke:currentColor;stroke-width:1.2}
   .grid{stroke:var(--h-line);stroke-width:1}
-  .axis-label{font-family:var(--h-ui);font-size:13px;font-weight:600;
-    fill:var(--h-ink);letter-spacing:0.02em}
-  .tick{font-family:var(--h-ui);font-size:12px;fill:var(--h-muted)}
+  /* The name of an axis is a label, so it is set like one: small, tracked
+     wide, lowercase. Caps at 13px asked to be read as a heading and then had
+     nothing heading-sized to say. */
+  .axis-name{font-family:var(--h-ui);font-size:11px;font-weight:600;
+    fill:var(--h-muted);letter-spacing:0.19em;text-transform:uppercase}
+  /* What a position is actually read against, so it gets the reading size and
+     the full ink. */
+  .axis-end{font-family:var(--h-ui);font-size:13px;fill:var(--h-ink);
+    font-weight:400}
   .quad{font-family:var(--h-ui);font-size:12px;font-style:italic;
     fill:var(--h-muted)}
 
@@ -215,7 +223,7 @@ const NS = 'http://www.w3.org/2000/svg';
 /* A WIDE, SHALLOW BOX. Full width at 900x600 made a plot two thirds of a
  * laptop screen tall, so the top-left corner and the bottom-right one — the
  * two the map is an argument about — were never in view together. */
-const L = 122, R = 962, T = 44, B = 438;               // plot rectangle
+const L = 146, R = 958, T = 46, B = 436;               // plot rectangle
 const X = v => L + v * (R - L);
 const Y = v => B - v * (B - T);                        // 0 at the bottom
 
@@ -232,21 +240,51 @@ for (let i = 1; i < 4; i++) {
   add('line', {class:'grid', x1:X(i/4), x2:X(i/4), y1:T, y2:B});
   add('line', {class:'grid', x1:L, x2:R, y1:Y(i/4), y2:Y(i/4)});
 }
-add('line', {class:'axis-line', x1:L, x2:R, y1:B, y2:B});
-add('line', {class:'axis-line', x1:L, x2:L, y1:T, y2:B});
 
-add('text', {class:'axis-label', x:L, y:B+40}, 'WHAT HAPPENED TO THE BONDS →');
-add('text', {class:'tick', x:L, y:B+60}, 'none broken — shape, position, or a proton');
-add('text', {class:'tick', x:R, y:B+60, 'text-anchor':'end'}, 'made and broken between molecules');
+/* THE ARROW IS THE AXIS, not a glyph in the title. "WHO PAID ←" put the
+ * direction in the running text, where it had to be parsed, at the one size
+ * the whole label shared. Drawn on the line it belongs to, the direction is
+ * read before any of the words are. */
+const defs = add('defs', {});
+const mk = el('marker', {id:'arrow', viewBox:'0 0 8 8', refX:7, refY:4,
+  markerWidth:8, markerHeight:8, orient:'auto'});
+/* Filled from the token, not `currentColor`: marker content inherits from
+ * `defs`, never from the line that references it, so currentColor here would
+ * resolve against the wrong element and quietly paint the head another colour
+ * than its own axis. */
+mk.appendChild(el('path', {d:'M0,0.6 L7.4,4 L0,7.4 Z',
+  fill:getComputedStyle(document.documentElement).getPropertyValue('--h-ink').trim() || '#14161a'}));
+defs.appendChild(mk);
 
-const yl = add('text', {class:'axis-label', x:0, y:0,
-  transform:`translate(${L-46},${T}) rotate(-90)`}, '← WHO PAID');
-yl.setAttribute('text-anchor', 'end');
-const yt = add('text', {class:'tick', x:0, y:0,
-  transform:`translate(${L-30},${B}) rotate(-90)`}, 'runs downhill on its own');
-const yt2 = add('text', {class:'tick', x:0, y:0,
-  transform:`translate(${L-30},${T}) rotate(-90)`}, 'coupled — something is spent');
-yt2.setAttribute('text-anchor', 'end');
+add('line', {class:'axis-line', x1:L, x2:R + 12, y1:B, y2:B,
+  'marker-end':'url(#arrow)'});
+/* Drawn bottom-to-top so the head is a `marker-end` like the other one:
+ * `auto-start-reverse` is recent in Safari, and this needs neither. */
+add('line', {class:'axis-line', x1:L, x2:L, y1:B, y2:T - 12,
+  'marker-end':'url(#arrow)'});
+
+/* TWO TIERS, AND THE BIGGER ONE IS THE MEANING. The axis NAME was the largest
+ * text on the frame and the endpoint captions the smallest, which is backwards
+ * — "what happened to the bonds" is a heading nobody needs twice, and "none
+ * broken" is the thing a dot's position is read against. So the name shrinks
+ * to a tracked-out label and the captions grow into the reading size. */
+/* CAPTIONS INBOARD, NAME OUTBOARD — the same order as the y axis below, which
+ * this had reversed. A caption annotates one END of the line, so it has to sit
+ * near enough to the line to be read as belonging to it; the name belongs to
+ * the whole axis and can stand off. */
+add('text', {class:'axis-end', x:L, y:B + 24}, 'none broken — shape, position, or a proton');
+add('text', {class:'axis-end', x:R, y:B + 24, 'text-anchor':'end'},
+  'made and broken between molecules');
+add('text', {class:'axis-name', x:(L + R) / 2, y:B + 52, 'text-anchor':'middle'},
+  'what happened to the bonds');
+
+/* Rotated, the same two tiers become two columns. */
+add('text', {class:'axis-name', 'text-anchor':'middle',
+  transform:`translate(${L - 78},${(T + B) / 2}) rotate(-90)`}, 'who paid');
+add('text', {class:'axis-end',
+  transform:`translate(${L - 52},${B}) rotate(-90)`}, 'runs downhill on its own');
+add('text', {class:'axis-end', 'text-anchor':'end',
+  transform:`translate(${L - 52},${T}) rotate(-90)`}, 'coupled — something is spent');
 
 /* THE POINT OF THE WHOLE PLOT is that this corner has exactly one occupant,
    so the corner is labelled and the others are not. */
