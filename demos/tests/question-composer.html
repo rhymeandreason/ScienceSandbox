@@ -36,6 +36,11 @@
 <style>
   :root {
     --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    /* Futura is a DISPLAY face here: it carries the logo, the buttons and the
+       uppercase letterspaced labels, and it is unreadable as running text at
+       11px. Anything that is prose set in sans — a caption, a blurb — takes
+       this instead, which is whatever the reader's own system reads best. */
+    --ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
     --serif: 'Literata', Georgia, serif;
 
     --paper:  #faf8f4;
@@ -424,7 +429,7 @@
   }
   .node.module.specimen .name::before { display: none; }
   .node.module.specimen .claim {
-    font-family: var(--sans); font-size: 0.72rem; line-height: 1.35;
+    font-family: var(--ui); font-size: 0.72rem; line-height: 1.4;
     color: var(--muted); margin-top: 0.5rem; letter-spacing: 0;
     -webkit-line-clamp: 3;
   }
