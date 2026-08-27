@@ -16,8 +16,6 @@ Pull the data and see if it’s complete.
 
 For framents, check Alphafold and state the confidence score. If Alphafold score is low, also check for molecular dynamics papers that might have accessible data.
 
-**A predicted structure is a different KIND of claim from a measured one**, and the registry keeps them apart on purpose: `method: 'predicted'` rather than an experiment, and its confidence in the bake where a measured structure's resolution goes. A collection that lets the two read alike will eventually show a student a guess as a fact, so say which it is in step 1 and carry that through — a prediction is a legitimate thing to hold, and an unmarked one is not.
-
 ## 2. Build the bench
 
 One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can look, and so the conversation about what the protein is for happens against something real. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
@@ -87,8 +85,6 @@ PrP^C for cellular, the healthy helical form. That's 1QLZ.
 
 PrP^Sc for scrapie, the misfolded stacking form. That's 6LNI. The Sc is from sheep scrapie for historical reasons and gets used generically now, even for human disease, which trips people up.
 
-The Syrian hamster pair (1B10 native, 7LNA scrapie fibril) was on the bench for review and was not selected — which is what a summary is written against, and why this note says what we hold rather than what exists.
-
 ## 4. Review, and select
 
 **Hand the bench over and stop.** The human clicks through, and the output of this step is a decision about each candidate: kept, or not. That decision is not one an agent can make from the data, because it is a question about what a lesson will be about — the hamster prion pair was structurally fine and was dropped because two species is a comparison no lesson had asked for.
@@ -101,7 +97,7 @@ What to put in front of them, per candidate: what it shows that the others do no
 
 The baker writes the `read` block back on every run — method, chains in the file, residues modelled, residues declared, and the file it wrote. **A human never types a number into that file**, and **every one of those five is answerable by the bake itself**: they are convenience lines printed into an index so the collection can be listed and compared without opening seventeen files, never a fact the bake cannot produce. Everything else about one structure — resolution, ligands, extents, a fit residual — stays in that structure's own bake and a bench reads it from there. It is why the prion baker carries `EXPDTA`, `REMARK 2` and the `COMPND` chain list into every reduced PDB it writes: a cut-down file that cannot say what it is would make the index remember for it. `node proteins/<name>/tools/prep.js` writes them, `proteins/tools/registry-io.js` splices only that block so the prose and the comments survive, and `proteins/check-proteins.js` fails a commit where the two disagree. `Modules.md` has the field list.
 
-* **`purpose` is the field that makes the collection worth having.** One short phrase saying what this variant is FOR — "misfolded disease variant", "cut in two and still working". 
+* **`purpose` is the field that makes the collection worth having.** One short phrase saying what this variant is FOR — "misfolded disease variant", "cut in two and still working".
 * **One variant carries `default: true`, and it is required.** It is what the bench opens on and what a card shows, so it is a decision rather than a position — `defaultOf` reads the mark and never falls back to the first entry, because then re-ordering the list would silently re-aim every bench. It is not automatically the superposition reference: myoglobin opens on Kendrew's 1MBN and superposes onto deoxy 1BZP, and the registry says why.
 * **A trap gets a comment, not a list.** No register of rejected entries: the bench records what was kept, and the reasons are cheap to re-derive. The exception is where the OBVIOUS choice is wrong — 7RSA is the most-cited RNase A structure and carries no SSBOND records at all, so a bench built on it prints "no disulfides" for the protein whose disulfides are the whole story. One line, beside the entry it explains.
 
