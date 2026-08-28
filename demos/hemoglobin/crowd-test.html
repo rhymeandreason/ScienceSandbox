@@ -50,7 +50,7 @@
   box and jostle each other as hard spheres of the structure's own measured
   radius.
   Not a lesson — a frame-rate bench. The button (or <b>s</b>) switches
-  between this tube and the classic <code>folding/ribbon.js</code> band the
+  between this tube and the classic <code>kit/ribbon.js</code> band the
   lessons draw; both are built at load, so the switch measures drawing and
   not building.<br><br>
   <b>Read the breakdown, not fps.</b> The tube is only 27% cheaper in
@@ -106,7 +106,7 @@
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/scene.js"></script>
-<script src="../folding/ribbon.js"></script>
+<script src="../kit/ribbon.js"></script>
 <script src="tube.js"></script>
 <script>
 'use strict';
@@ -360,7 +360,7 @@ function tubeParts(CA, ss, color) {
     .map(p => Object.assign(p, { color }));
 }
 
-/* The CLASSIC ribbon, straight out of folding/ribbon.js — the same call
+/* The CLASSIC ribbon, straight out of kit/ribbon.js — the same call
    hemoglobin-lab and sickle-lab make, at the same subdivision, so what this
    page compares is the real lesson render against the abstraction and not a
    cheapened copy of it.

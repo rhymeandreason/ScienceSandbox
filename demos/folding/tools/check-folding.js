@@ -23,7 +23,7 @@ const path = require('path');
    inside blocks guarded on their data files existing. ribbon.js reads no
    data of its own and is now needed by both the villin section and the
    ribbon section. */
-const Ribbon = require('../ribbon.js');
+const Ribbon = require('../../kit/ribbon.js');
 
 const HERE = path.join(__dirname, '..');          // demos/folding
 const DATA = path.join(HERE, 'data');

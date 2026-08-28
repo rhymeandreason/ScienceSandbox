@@ -1,7 +1,7 @@
 /* =====================================================================
  *  tube.js — TubeLib: a Ca trace + secondary structure -> a smooth tube.
  *
- *  The abstracted cousin of folding/ribbon.js. Where the ribbon draws a flat
+ *  The abstracted cousin of kit/ribbon.js. Where the ribbon draws a flat
  *  band that shows a helix turning, this draws ONE continuous tube per chain,
  *  wide through helices and thin through loops, with the helix collapsed onto
  *  its own axis so there is no corkscrew. It is the representation for

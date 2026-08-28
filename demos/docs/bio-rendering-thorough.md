@@ -1,7 +1,7 @@
 <!-- KIND: argument — human only, and superseded in part. A decision record for how lessons are rendered, not instructions for rendering one. -->
 
 > **Superseded in part, 2026-08-02 — we draw proteins ourselves.**
-> The 3D-viewer question is closed: Three.js + `scene.js` + `folding/ribbon.js`,
+> The 3D-viewer question is closed: Three.js + `scene.js` + `kit/ribbon.js`,
 > no third-party molecular viewer, ChemDoodle dropped, Mol\* evaluated and not
 > adopted. `docs/rendering-modules.md` is the decision record and overrides
 > every viewer recommendation below; this file has been updated to match.
@@ -23,7 +23,7 @@
 | **B** | Instanced repeat — one subunit + a rule (`actin.js`) | any |
 | **C** | Baked static mesh | any, no motion |
 | **D** | Coarse-grained beads (~1/residue) | ~500k, keeps motion |
-| **R** | Our ribbon — `folding/ribbon.js` over a Cα trace + SS | ~600 res. measured, no hard ceiling |
+| **R** | Our ribbon — `kit/ribbon.js` over a Cα trace + SS | ~600 res. measured, no hard ceiling |
 | ~~**V**~~ | ~~Viewer library~~ — **not adopted**, kept only to read the old rows | — |
 
 **2D approaches**
@@ -87,7 +87,7 @@
 | Need | Recommendation | Licence | Why |
 |---|---|---|---|
 | Our own 3D (A/B/C/D) | **Three.js** — keep | MIT | Already the spine. Nothing displaces it |
-| Deposited structures | **ours** — `scene.js` + `folding/ribbon.js` | ours | **The decision.** ~19 KB gzipped marginal, one canvas, no defaults to fight |
+| Deposited structures | **ours** — `scene.js` + `kit/ribbon.js` | ours | **The decision.** ~19 KB gzipped marginal, one canvas, no defaults to fight |
 | ↳ ~~evaluated~~ | ~~Mol\*~~ | MIT | **Not adopted.** Best-in-class and still wrong here: second WebGL context, second camera |
 | ↳ ~~evaluated~~ | ~~NGL~~ · ~~Miew~~ | MIT | Not adopted — same structural objection, less capability |
 | ↳ ~~current~~ | ~~ChemDoodle~~ | **GPLv3** | **Dropped.** `protein-lab` rewrite pending; nothing unique survives |

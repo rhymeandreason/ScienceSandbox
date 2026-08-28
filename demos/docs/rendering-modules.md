@@ -34,7 +34,7 @@ Three things it can show, and only the first is free: the 12 KB trace on create,
 
 * **`orbit:false` by default** — a drag belongs to the page, not to the molecule; a canvas that spins under the pointer leaves no way back to the framing the card was composed with.
 
-* **It reads every library by its BARE name.** `folding/ribbon.js` publishes `const RibbonLib` at script top level, which is script scope and never a property of window, so `global.RibbonLib` is undefined — and only at the moment a card tries to draw. Load it after every library it reads.
+* **It reads every library by its BARE name.** `kit/ribbon.js` publishes `const RibbonLib` at script top level, which is script scope and never a property of window, so `global.RibbonLib` is undefined — and only at the moment a card tries to draw. Load it after every library it reads.
 
 * Look is `kit/proteinbox.css` (`.pbox-rep`, `.pbox-play`); the page decides WHEN they are reachable, because only the page knows how big its card is on screen.
 
@@ -50,7 +50,7 @@ Cα trace + secondary structure → a smooth tube: one continuous mesh per chain
 
 * Real ångströms in, plain `BufferGeometry` out. No materials. THREE passed in.
 
-**`folding/ribbon.js` — `RibbonLib`**
+**`kit/ribbon.js` — `RibbonLib`**
 
 Cα trace + secondary structure → a cartoon: helices as flat twisted bands, strands as arrows, coil as a round tube. The dense, literal style — one geometry per chain, but far more triangles than `TubeLib`, which is the abstract counterpart to reach for when a page needs many chains at once.
 

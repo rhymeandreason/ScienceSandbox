@@ -18,7 +18,7 @@
  *  into it, not copies — see the scratch block in at().
  *
  *  Real angstroms throughout — this page never sees MolLib.SCALE, the same
- *  arrangement folding/folding.js and folding/ribbon.js use.
+ *  arrangement folding/folding.js and kit/ribbon.js use.
  *
  *  WHY THE FILE HOLDS SO LITTLE. A backbone is four atoms per residue and a
  *  fold trajectory of all of them is 1.6 MB. This page draws a RIBBON, which

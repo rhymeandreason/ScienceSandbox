@@ -3,7 +3,7 @@
   viewer-compare.html — 3Dmol.js vs Mol*, same protein, same moment.
 
   SETTLED — neither was adopted. The verdict is in demos/docs/rendering-modules.md: we
-  draw proteins ourselves, with Three.js + scene.js + folding/ribbon.js. This
+  draw proteins ourselves, with Three.js + scene.js + kit/ribbon.js. This
   page is kept as the record of the comparison, not as an open question, and is
   deliberately NOT deleted: it is worth showing.
 
@@ -188,7 +188,7 @@
     <li><b>Colour by hydrophobicity</b> on 2HHB is the closest thing here to the sickle lesson's picture: greasy residues cluster inside, polar ones face the water. Compare it against by-element, which says nothing about the fold at all.</li>
     <li><b>Big structures.</b> 1AON is the honest test of whether either can carry a lesson on a school Chromebook — and the one where "gaussian surface" versus "molecular surface" stops being an aesthetic choice.</li>
     <li><b>Ligands.</b> 3CYT's heme and 1ATN's ATP — do they survive the cartoon representation, and are they coloured usefully? 2HHB has four haems, one per subunit, so it asks the same question four times over. Both viewers here need the ligand added as a separate component; neither does it for you.</li>
-    <li><b>Weight.</b> Beside each library's name is what this page actually downloaded for it — unpacked first, since that is the JavaScript the browser has to parse and keep, then the gzipped figure in brackets. Read it next to the <code>&lt;script&gt;</code> tag our own lessons carry: Three.js r128 minified is 603 KB and <code>scene.js</code> plus <code>folding/ribbon.js</code> are 70 KB together, so a viewer here is the largest single thing a lesson would ship.</li>
+    <li><b>Weight.</b> Beside each library's name is what this page actually downloaded for it — unpacked first, since that is the JavaScript the browser has to parse and keep, then the gzipped figure in brackets. Read it next to the <code>&lt;script&gt;</code> tag our own lessons carry: Three.js r128 minified is 603 KB and <code>scene.js</code> plus <code>kit/ribbon.js</code> are 70 KB together, so a viewer here is the largest single thing a lesson would ship.</li>
     <li><b>Licence.</b> 3Dmol.js is BSD-3 and Mol* is MIT, so either could have shipped. ChemDoodle Web, which used to be the third pane, is GPLv3 — the page loading it inherits GPL terms — and that is why it is gone from here. No page in this repo loads it any more; see <code>demos/docs/rendering-modules.md</code>.</li>
     <li><b>Why keep this page, given we adopted neither.</b> The decision was structural, not aesthetic: both viewers bring their own WebGL context and camera, so neither can draw into <code>scene.js</code>'s scene alongside our FX, raycasting and shared zoom ladder. What survives is this page as a <em>style reference</em> — when we build a representation ourselves, these two are the convention to measure it against. Read the Style menu as a spec, not as a shortlist.</li>
   </ul>

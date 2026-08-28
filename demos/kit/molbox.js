@@ -28,7 +28,7 @@
  *
  *  NOT A MACROMOLECULE RENDERER, whatever it ends up being pointed at. This
  *  draws a SPEC through Stage.buildMolecule and will never draw a protein;
- *  hemoglobin/tube.js, kit/surface.js and folding/ribbon.js are those,
+ *  hemoglobin/tube.js, kit/surface.js and kit/ribbon.js are those,
  *  and they work from deposited coordinates. That the big molecules keep
  *  landing here is emergent — the small ones have molecule-builder recipes —
  *  and not a definition.

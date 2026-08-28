@@ -3,7 +3,7 @@
 > ## SETTLED — Mol\* was not adopted
 >
 > **The verdict is in `demos/docs/rendering-modules.md`: we draw proteins ourselves**
-> (Three.js + `scene.js` + `folding/ribbon.js`). Read that first; this file is
+> (Three.js + `scene.js` + `kit/ribbon.js`). Read that first; this file is
 > the working that led to it.
 >
 > **Every path below is written as it stood, relative to `demos/`.** This file
@@ -537,7 +537,7 @@ one page unexplained is worse than the gap itself.
 `molstar/protein-inhouse.html`. **The comparison this folder is named after
 finally has both sides.** Until now "ours" was an argument; this is a page.
 Same file, same `PDBLib.orient` call, same chain colours, same house
-ball-and-stick for the haems — Three.js + `scene.js` + `folding/ribbon.js`
+ball-and-stick for the haems — Three.js + `scene.js` + `kit/ribbon.js`
 instead of Mol\*, and nothing else different. No steps and no animation: the
 four levels are `protein-molstar`'s job, and this arm answers only *can we draw
 it, and what does it cost*.

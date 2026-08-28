@@ -39,12 +39,12 @@
  *  cache headers in production, and the second box asking for one gets it from
  *  the memory cache anyway.
  *
- *  Every library is read by its BARE name, not off `global`: folding/ribbon.js
+ *  Every library is read by its BARE name, not off `global`: kit/ribbon.js
  *  publishes `const RibbonLib` at script top level, which is script scope and
  *  never a property of window — `global.RibbonLib` is undefined, and only at
  *  the moment a card tries to draw.
  *
- *  Needs, in load order: THREE, lib/scene.js, folding/ribbon.js,
+ *  Needs, in load order: THREE, lib/scene.js, kit/ribbon.js,
  *  kit/card-stage.js. And only for the option that uses it —
  *  kit/surface.js for `surface`, hemoglobin/hbfold.js +
  *  hemoglobin/foldplay.js for `fold`.
@@ -170,7 +170,7 @@
     /* Only setPocket reads it, but a box created without it fails at the
        click rather than at load, which is the harder failure to place. */
     if (typeof MolLib === 'undefined') gaps.push('lib/molecules.js');
-    if (typeof RibbonLib === 'undefined') gaps.push('folding/ribbon.js');
+    if (typeof RibbonLib === 'undefined') gaps.push('kit/ribbon.js');
     return gaps;
   }
 

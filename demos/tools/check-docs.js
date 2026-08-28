@@ -156,7 +156,7 @@ for (const doc of DOCS) {
 // Docs sometimes write a path from the repo root rather than from demos/.
 const norm = n => n.replace(/^demos\//, '');
 // Prose names a script the way a reader says it — `check-molecules.js` lives at
-// the top level, `check-docs.js` in tools/ and `ribbon.js` in folding/, and
+// the top level, `check-docs.js` in tools/ and `ribbon.js` in kit/, and
 // none of them gets a directory in running text. So resolve a bare name
 // against all of them. folding/ and folding/tools/ joined the list when
 // folding-lab's modules and bake scripts moved there, and hemoglobin/ +

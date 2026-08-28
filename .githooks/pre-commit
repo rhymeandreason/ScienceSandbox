@@ -357,8 +357,11 @@ else
   echo "pre-commit: skipping check-molecule-builder.js — no builder or drag module staged"
 fi
 
-# Everything folding-lab is now under demos/folding/, so one pattern covers its
-# modules, its data and its bake tools. palette.js is in too, from the other
+# Everything folding-lab is under demos/folding/, so one pattern covers its
+# modules, its data and its bake tools. kit/ribbon.js is named separately
+# because it left folding/ for kit/ once five folders outside folding/ drew a
+# ribbon, and check-folding.js asserts its frames on an ideal helix.
+# palette.js is in too, from the other
 # direction: folding-lab derives its display radii from PALETTE.radii / SCALE,
 # so a palette retune can bury that page's bond sticks inside its atoms, and
 # check-molecules cannot see it — the page has no spec in the registry.
@@ -366,7 +369,7 @@ fi
 # The three baked files are the reason this matters. A stale one is invisible
 # from the page: it animates a perfectly plausible fold, or draws a filament
 # from a screw the code no longer produces.
-if git diff --cached --name-only | grep -qE '^demos/(folding/.*|lib/palette\.js)$'; then
+if git diff --cached --name-only | grep -qE '^demos/(folding/.*|kit/ribbon\.js|lib/palette\.js)$'; then
   if ! node folding/tools/check-folding.js > /tmp/cf.$$ 2>&1; then
     tail -30 /tmp/cf.$$; rm -f /tmp/cf.$$
     echo ""
@@ -414,7 +417,7 @@ fi
 # that produces it, so only those files pay for it:
 #
 #   full    bake-unfold.js, bake-hb.js (the encoder), folding/folding.js,
-#           folding/ribbon.js  — re-bakes and compares the bytes
+#           kit/ribbon.js  — re-bakes and compares the bytes
 #   quick   the page, the captions, bake-quaternary.js, check-hb.js itself
 #           — 56 of the 59 assertions, off the committed file, in 0.3 s
 #
@@ -426,8 +429,8 @@ fi
 # The page is the likeliest file to change one of those, and it lives outside
 # hemoglobin/, so leaving it out made the checker blind to the edit it most
 # needs to see. Quick mode: a caption cannot make a bake stale.
-if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/.*|hemoglobin-lab\.html|folding/folding\.js|folding/ribbon\.js)$'; then
-  if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/tools/bake-unfold\.js|hemoglobin/tools/bake-hb\.js|folding/folding\.js|folding/ribbon\.js)$'; then
+if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/.*|hemoglobin-lab\.html|folding/folding\.js|kit/ribbon\.js)$'; then
+  if git diff --cached --name-only | grep -qE '^demos/(hemoglobin/tools/bake-unfold\.js|hemoglobin/tools/bake-hb\.js|folding/folding\.js|kit/ribbon\.js)$'; then
     HBMODE=""
     echo "pre-commit: check-hb.js — full run, a bake input changed (~57 s) ..."
   else

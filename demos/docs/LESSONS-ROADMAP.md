@@ -158,7 +158,7 @@ draws with.
 
 Costs: `1OSE` and a render path, which the paragraph above says amylase
 avoids. That was true when the alternative was lysozyme and nothing here drew
-a protein. It is not true now: `folding/ribbon.js` draws a cartoon from a Cα
+a protein. It is not true now: `kit/ribbon.js` draws a cartoon from a Cα
 trace, `hexokinase/tools/pdbio.js` reads one out of a PDB and superposes it, and
 `hexokinase/tools/probe-site.js` is the contact measurement above, pointed at
 a different file. A groove view is a page, not a project.
