@@ -7,12 +7,13 @@
 ## The three selection goals
 
 1. **Tells a story core to Bio 101**
-2. **Complete data, or a fragment that is honest by itself.** 
+2. **Complete data, or a fragment that is honest by itself.**
 3. **Contributes a shape or a function the library does not already have.**
 4. **Does it pair with something already in?** Contrast teaches. KcsA earns its place *because* napump is there; GroEL because prion is. Rank pairs above orphans.
 5. **When movement is the story, are there two deposited states?** Pairs often help us here. A single apo structure is a portrait; a pair is a mechanism.
 6. **Does it bring non-protein chains?** Nucleosome, DNA polymerase and the ribosome all carry nucleic acid. Whether `bake-lib.js` and the ss-record read handle that is a one-time engineering cost — but it gates four candidates at once, so it's worth pricing early.
 7. **Species consistency.** Half the current library is whale, pig, cow and rat. Not wrong, but if two candidates tie, take the human one.
+8. Is the shape beautiful?
 
 ## Tier 1 — big story, cheap bake, fills a real hole
 
@@ -26,7 +27,7 @@
 
 Insulin and GFP are the two cheapest additions available and neither duplicates anything. Insulin is 51 residues and carries a story a Bio 101 reader already half knows. GFP is one chain, one barrel, and a chromophore the protein builds out of its own backbone — which is a claim a ribbon can show.
 
-The nucleosome is the highest-value entry in this tier and the only one with an engineering cost: it brings DNA, and nothing in `bake-lib.js` has met a nucleic-acid chain. See the DNA note under criteria.
+The nucleosome is the highest-value entry in this tier and the only one with an engineering cost: it brings DNA, and nothing in `bake-lib.js` has met a nucleic-acid chain. 
 
 ## Tier 2 — strong story, more work
 
@@ -39,6 +40,8 @@ The nucleosome is the highest-value entry in this tier and the only one with an 
 | **Chymotrypsin** | 4CHA | the catalytic triad; digestion | 3 | **amylase** | a fourth enzyme in a library of three |
 | **Rubisco** | 1RCX | photosynthesis, absent entirely; most abundant protein on Earth | 16 | — | 16 chains, and no lesson waiting |
 | **GroEL** | 1OEL | folding, chaperoned | 14 | **prion** | 14 chains for one barrel |
+| **Ferritin** | 1FHA | 24 identical subunits, octahedral — a hollow iron ball built from one part | 24 | — | 24 chains, though only one part repeated |
+| **LH2 light-harvesting ring** | 1NKZ? | a circle of chlorophylls on a ring of helices; the symmetry *is* the antenna | 18 | **rubisco**, if photosynthesis lands | carries chlorophyll, and no photosynthesis lesson yet |
 
 The pairings are the argument. KcsA earns its place *because* napump is already registered — channel against pump, downhill against paid-for, on one bench — in a way it would not earn standing alone. Same for GroEL against prion: folding helped, next to folding gone wrong.
 
@@ -52,10 +55,12 @@ Myosin and kinesin are the second consumer of whatever the ATP synthase rotation
 | **DNA polymerase** | 1TAU | replication; the hand-shaped fold | 1 + DNA | DNA pipeline, and a two-state story to find |
 | **Ribosome** | 4V6X? | translation | \~50 protein + rRNA | **mmCIF only — see below** |
 | **Tubulin / actin** | 1JFF / 1ATN | cytoskeleton; a polymer that is not collagen | 2 / 1 | the subject is the filament, not the file |
+| **HK97 capsid** | 1OHG? | subunits covalently linked into interlocking rings — protein chainmail | 60+ | almost certainly mmCIF-only |
+| **Clathrin cage** | 1XI4? | triskelions self-assembling into a soccer ball; floppy leg, exact cage | 100+ | cryo-EM, coarse, and huge |
 
 Complex I is the one with a schedule behind it: fermentation and the ETC are queued, and Complex I is the ETC's largest single object. It will hit both traps `atp-synthase/tools/prep.js` already documents — fitting on a pseudo-symmetric region, and chain labels that travel with the moving part — so its baker should start from that file rather than from scratch.
 
-## Tier 4 — predicted
+## Tier 4 — predicted Alphafold
 
 keyed on **the hole** rather than on the protein. Verdict included so ruled-out candidates stay visible instead of being re-proposed.
 
@@ -72,7 +77,7 @@ Basic lesson: The bottom three rows are the section's real work. A collection th
 
 Two rows to take, one to hold, three that exist to be refused.
 
-Then the section changes character: it's no longer "a predicted entry when we're forced," it's **a section about how structures get made** — which is a current topic with a 2024 Nobel behind it (Baker for design; Hassabis and Jumper for AlphaFold). 
+Then the section changes character: it's no longer "a predicted entry when we're forced," it's **a section about how structures get made** — which is a current topic with a 2024 Nobel behind it (Baker for design; Hassabis and Jumper for AlphaFold).
 
 That reframes what belongs in it. The best entries aren't proteins that happen to lack a structure — they're proteins where **the method is the story**.
 
@@ -102,6 +107,8 @@ Ranked by how much biology they teach rather than by how impressive they are. Id
 | **Kemp eliminase**(KE07/KE59) | TBC | 2008 | designed enzymes start terrible; directed evolution improved them \~10⁵-fold | **rnase, amylase** — natural enzymes that are superb |
 | **Designed nanocage vaccine** (I53-50) | TBC | 2016–21 | self-assembly, and design reaching an approved medicine | — |
 | **Designed coiled coils** (Harbury) | 1GCM etc. | 1993 | why two, three or four helices wrap — the packing rules, made testable | fills the library's **missing coiled coil** |
+| **Designed TIM barrel** (sTIM11) | TBC | 2016 | **exact** symmetry where nature's is only pseudo — a billion years of drift, removed | **amylase**, whose catalytic domain is a natural TIM barrel |
+| **Designed β-propeller** | TBC | 2015–17 | the same argument on a pinwheel | a natural propeller, not yet held |
 
 **The two I'd actually build first:**
 
