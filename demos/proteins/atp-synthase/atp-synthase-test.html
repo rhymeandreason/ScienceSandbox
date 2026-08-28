@@ -202,7 +202,9 @@
       structure: the head is drawn out of the whole-enzyme bake, so what you
       see here is exactly where these subunits sit in the machine above. The
       three &beta; are the ones with catalytic sites; the three &alpha;
-      between them hold ATP they never turn over. &gamma; still turns.</p>
+      between them hold ATP they never turn over. &gamma; still turns.
+      <b>One &beta; is drawn in the site views' own blue and orange</b> &mdash;
+      the same chain, the same empty site, so you can carry it across.</p>
 
     <!-- THE ICON IS THE STATE, and it is swapped in CSS off the same
          `aria-pressed` the button already carries — not in script, so the
@@ -413,6 +415,20 @@ const SHOWN = {
    steps back a tone; gamma stays the rotor's rust, because it is still the
    rotor and it is still what turns. */
 const HEAD_COLORS = { β: 0x1f5f4f, α: 0x8fa9a1, γ: 0xe2643a };
+
+/* ONE BETA IS LEFT OUT OF THAT TABLE ON PURPOSE, and gets the repo's ordinary
+   secondary-structure palette instead — the blue helices and orange sheets the
+   two site views are drawn in. It is the bridge between the two halves of this
+   bench: a reader who has been looking at one subunit can find that same
+   subunit here, in the same colours, and see the five others packed around it.
+
+   CHAIN E, and the choice is not arbitrary twice over. It is the EMPTY site in
+   this structure — verified off the file, D and F hold ADP and E holds nothing
+   — so it is the same state as the view the bench opens on, and the panel says
+   so. Omitting a chain from `byChain` is what hands it back to the default
+   palette; kit/proteinbox.js falls through to its own materials for any chain
+   the caller did not name. */
+const HEAD_SS = 'E';
 
 /* The bake, cut to the chains a state draws. A shallow copy — the chain
    objects are shared, never mutated — with `meta.counts` and `meta.roles` cut
@@ -679,13 +695,29 @@ function show(id) {
      because 28 individual chains is a list nobody reads. */
   if (spec.only) {
     /* By SUBUNIT here, because that is what the state is about: which of the
-       six is the one with a site in it. */
+       six carries the chemistry — and then the one chain wearing the
+       site views' own colours, which is the whole reason this state exists.
+       Its swatch is split blue and orange rather than picking one, because
+       that chain is not drawn in a colour: it is drawn in a scheme. */
     const seen = {};
-    for (const id2 of t.order) (seen[m.roles[id2].subunit] ||= []).push(id2);
-    $('d-roles').innerHTML = Object.entries(seen).map(([sub, ids]) =>
+    for (const id2 of t.order) {
+      if (id2 === HEAD_SS) continue;
+      (seen[m.roles[id2].subunit] ||= []).push(id2);
+    }
+    const rows = Object.entries(seen).map(([sub, ids]) =>
       `<span><i style="background:${hex(HEAD_COLORS[sub] ||
-        ROLES[m.roles[ids[0]].role])}"></i><b>${sub}</b> × ${ids.length}` +
-      `${sub === 'β' ? ' · the catalytic ones' : ''}</span>`).join('');
+        ROLES[m.roles[ids[0]].role])}"></i><b>${sub}</b> × ${ids.length}</span>`);
+    if (t.order.includes(HEAD_SS)) {
+      /* THE TWO INKS COME OFF THE BOX, not out of this file. `Proteinbox.RIB`
+         is what the ribbon is actually painted with, so a swatch built from it
+         cannot name a colour the molecule is not wearing — the same reason the
+         other swatches here read the bake rather than a table on the page. */
+      const R = Proteinbox.RIB;
+      rows.push('<span><i style="background:linear-gradient(135deg,' +
+        `${hex(R.H)} 50%,${hex(R.E)} 50%)"></i>` +
+        `<b>β chain ${HEAD_SS}</b> · the third, as on the site views</span>`);
+    }
+    $('d-roles').innerHTML = rows.join('');
   } else if (m.palette === 'role') {
     const seen = {};
     for (const id2 of t.order) {
@@ -714,6 +746,7 @@ function show(id) {
      fold is the subject. The mapping is the baker's, out of the bake. */
   const colors = spec.only
     ? { byChain: Object.fromEntries(t.order
+        .filter(k => k !== HEAD_SS)
         .map(k => [k, HEAD_COLORS[m.roles[k].subunit] || ROLES[m.roles[k].role]])) }
     : m.palette === 'role'
     ? { byChain: Object.fromEntries(t.order.map(k => [k, ROLES[m.roles[k].role]])) }
