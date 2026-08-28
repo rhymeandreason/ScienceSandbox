@@ -246,6 +246,14 @@
 
     const mount = opts.mount;
     let radius = 0, player = null, surf = null, rep = 'ribbon', seeded = false;
+    /* THE PALETTE IN FORCE, held at box scope rather than inside setData.
+       The chain loop builds one chain per frame, so a build is usually still
+       running when anything else happens; if it closed over the materials it
+       started with, a setColors mid-build would repaint the chains that exist
+       and the loop would go on adding the rest in the OLD colours. Both write
+       here and the loop reads it per mesh, so the last word wins whenever it
+       was said. */
+    let paint = { mats: null, byChain: null };
     /* HALF-EXTENTS ACROSS AND UP, beside the radius, and only the ribbon has
        them. A sphere is the right frame for a globular protein and the wrong
        one for a rod: one collagen molecule is 3016 Å by 55, and framed on its
@@ -354,6 +362,57 @@
        chain, whether secondary structure is read or detected), and every page
        that owns a protein already owns them. What is shared here is the box:
        the scene, the camera, the framing and the turn. */
+    const palOf = v => v == null ? RIB
+      : (typeof v === 'number' ? { C: v, H: v, E: v }
+                               : Object.assign({}, RIB, v));
+    const matsOf = pal => [pal.C, pal.H, pal.E].map(v => {
+      const m = Stage.bondMat(v);
+      m.side = THREE.DoubleSide;
+      return m;
+    });
+
+    /* The materials one `colors` argument asks for: one set for the chains it
+       does not name, and one per chain it does. Lifted out of setData so a
+       recolour can build exactly what a rebuild would have. */
+    function materialsFor(c) {
+      const base = c && c.byChain ? Object.assign({}, c, { byChain: undefined }) : c;
+      return {
+        mats: matsOf(palOf(base)),
+        byChain: c && c.byChain
+          ? Object.fromEntries(Object.entries(c.byChain)
+              .map(([id, v]) => [id, matsOf(palOf(v))])) : null,
+      };
+    }
+
+    /* ---- setColors(colors) ----
+
+       REPAINT WHAT IS ALREADY DRAWN, without rebuilding it. The same argument
+       setData takes, applied to the meshes that are on screen:
+
+         box.setColors({ byChain: { A: 0x1f5f4f, B: 0x9aa0a6 } })
+
+       WHY THIS IS NOT setData WITH THE SAME TRACE. Rebuilding 28 chains of
+       ribbon is a spline and a tube per segment, and the box deliberately
+       builds a chain per frame so the page does not stall — which means a
+       structure the reader is already looking at visibly reassembles itself,
+       chain by chain, to change nothing but its colour. It also throws away
+       the pocket, the framing and anything a page had parented into the chain
+       group. A palette is not a model, and swapping one should not cost a
+       model's worth of work.
+
+       Meshes are found by the `userData.chain` they were tagged with, and
+       anywhere under the chain group — a page that has re-parented some of
+       them (a subassembly it turns) still gets them all. */
+    function setColors(colors) {
+      paint = materialsFor(colors);
+      chainGroup.traverse(m => {
+        const cid = m.userData && m.userData.chain;
+        if (cid === undefined || !m.isMesh) return;
+        m.material = (paint.byChain && paint.byChain[cid]) || paint.mats;
+      });
+      box.draw();
+    }
+
     function setData(t, o) {
       o = o || {};
       const mine = ++generation;
@@ -371,14 +430,6 @@
          else — a state, a mutation, a chain — passes `colors`, and one colour
          means all three. */
       const c = o.colors || opts.colors;
-      const palOf = v => v == null ? RIB
-        : (typeof v === 'number' ? { C: v, H: v, E: v }
-                                 : Object.assign({}, RIB, v));
-      const matsOf = pal => [pal.C, pal.H, pal.E].map(v => {
-        const m = Stage.bondMat(v);
-        m.side = THREE.DoubleSide;
-        return m;
-      });
       /* ONE SET, OR ONE PER CHAIN. `byChain` is the case the ss palette cannot
          serve: where what a reader has to tell apart is WHICH STRAND, not what
          it is folded into. Collagen is why it exists — three chains wound
@@ -386,11 +437,7 @@
          the default palette draws the braid as one green rope and the thing
          the structure is famous for is invisible. A chain the map does not
          name falls back to the palette beside it. */
-      const base = c && c.byChain ? Object.assign({}, c, { byChain: undefined }) : c;
-      const mats = matsOf(palOf(base));
-      const byChain = c && c.byChain
-        ? Object.fromEntries(Object.entries(c.byChain)
-            .map(([id, v]) => [id, matsOf(palOf(v))])) : null;
+      paint = materialsFor(c);
 
       /* THE PRESENTATION FRAME, applied to the GROUP and not to the camera.
 
@@ -450,7 +497,7 @@
             const mesh = new THREE.Mesh(
               RibbonLib.build(THREE, pts, seg.ss,
                               { sub: opts.sub == null ? 6 : opts.sub }),
-              (byChain && byChain[cid]) || mats);
+              (paint.byChain && paint.byChain[cid]) || paint.mats);
             /* WHICH CHAIN THIS MESH CAME FROM, and nothing more. A page that
                has to move PART of a structure — one subassembly of a machine,
                against the rest of it — cannot otherwise find its meshes: they
@@ -670,6 +717,7 @@
        which is the whole reason the box is shared: the reader's viewpoint
        survives the switch instead of snapping back on every click. */
     box.setData = setData;
+    box.setColors = setColors;
 
     /* ---- setPocket(pocket) ----
 

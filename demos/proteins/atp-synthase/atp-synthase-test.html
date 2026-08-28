@@ -585,6 +585,11 @@ const PARTS = {
         + '27, and why one of them is a visitor.' },
 };
 
+/* Which bake is on the stage, so a switch between two views of one file can
+   repaint instead of rebuild. Declared with the other draw state and not
+   beside the spin, because show() reads it before either exists. */
+let drawnBake = null;
+
 const views = {};                        // id -> baked trace
 let view = null;
 const $ = id => document.getElementById(id);
@@ -752,6 +757,10 @@ function show(id) {
   if (!raw || !c) return;                // fetch still in flight
   const t = raw;
   shownT = t;
+  /* Taken ONCE, before the draw below moves it on: two reads of `drawnBake`
+     either side of the assignment are two different answers, and the second
+     one is always "same". */
+  const repaint = drawnBake === spec.bake;
 
   /* BOTH SIDES OF ONE INTERFACE are left out of `byChain`, which hands them
      back to the box's own secondary-structure materials: the picked-out beta,
@@ -848,22 +857,43 @@ function show(id) {
     : m.palette === 'role'
     ? { byChain: Object.fromEntries(t.order.map(k => [k, ROLES[m.roles[k].role]])) }
     : null;
-  box.setData(t, colors ? { colors } : undefined);
+  /* SAME BAKE, DIFFERENT PALETTE: repaint, do not rebuild. `human` and `head`
+     are two buttons over one file, and setData would spline 28 chains of
+     ribbon again — a chain per frame, so the reader watches a structure they
+     are already looking at reassemble itself to change nothing but its
+     colour. It would also drop the pivot the rotor is turning in. */
+  if (repaint) {
+    box.setColors(colors);
+    if (!t.site) box.setPocket();
+  } else {
+    box.setData(t, colors ? { colors } : undefined);
+    drawnBake = spec.bake;
+  }
 
   /* THE SITE IS DRAWN, not just tabulated. A ribbon can show that a pocket
      exists and cannot show what is in it — and here what is in it is the
      entire difference between three otherwise identical subunits. setData
      clears the previous one, so a view without a site needs no call. */
-  /* The pivot belongs to the structure that was drawn, and setData has just
-     emptied the group it lived in. Dropping the reference here is what stops
-     the next view inheriting a rotation it never had. */
-  spinReset();
+  /* THE PIVOT BELONGS TO THE STRUCTURE THAT WAS DRAWN. On a rebuild setData
+     has just emptied the group it lived in, so the reference has to go or the
+     next view inherits a rotation it never had. On a repaint nothing moved:
+     the same rotor is still in the same pivot at the same angle, and resetting
+     it would snap the model back for a change of colour. */
   $('spin-note').innerHTML = spinNote(t);
-  $('spin').setAttribute('aria-pressed', 'false');
-  spinning = false;
   $('spin').disabled = !t.spin;
+  if (!repaint) {
+    spinReset();
+    $('spin').setAttribute('aria-pressed', 'false');
+    spinning = false;
+  }
 
+  /* The callout anchors go with the labels. setData used to take them out for
+     free by emptying the group; a recolour leaves the group alone, so the ones
+     from the previous view would pile up inside it and hold their old
+     positions. */
   notes.clear();
+  for (const c2 of [...box.group.children])
+    if (c2.userData && c2.userData.anchor) box.group.remove(c2);
   if (t.site) {
     siteNote(t, box.setPocket(t.site));
   } else if (m.palette === 'role') {
@@ -923,6 +953,7 @@ function fingerNote(t) {
   if (!best) return;
 
   const anchor = new THREE.Object3D();
+  anchor.userData.anchor = true;
   anchor.position.set(best.p[0], best.p[1], best.p[2]);
   box.group.add(anchor);
   const v = new THREE.Vector3();
@@ -968,6 +999,7 @@ function partNotes(t) {
       c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; n++;
     }
     const anchor = new THREE.Object3D();
+    anchor.userData.anchor = true;
     anchor.position.set(c[0] / n, c[1] / n, c[2] / n);
     box.group.add(anchor);
     notes.add({
