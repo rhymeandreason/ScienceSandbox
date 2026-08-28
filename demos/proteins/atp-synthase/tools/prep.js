@@ -105,7 +105,14 @@ const DATA = path.join(HERE, 'data');
  *  fold IS what is being looked at.
  */
 const ROLES = {
-  rotor:  0xe2643a,   // rust: the c-ring, gamma, delta, epsilon — what turns
+  /* AZURE, and deliberately not the house rust it used to be: protein-test.css
+     spends `--h-spark` (0xe2643a) on the panel's own controls and says it
+     belongs on no molecule, so a rotor wearing it put a UI colour on the
+     subject. It is also kept clear of the ribbon palette's helix blue
+     (0x0042aa, kit/proteinbox.js's RIB) — the head state draws one beta chain
+     in that palette beside gamma, and two blues a shade apart there would
+     undo the one match that view exists to make. */
+  rotor:  0x2b8cd8,   // azure: the c-ring, gamma, delta, epsilon — what turns
   head:   0x1f5f4f,   // house green: alpha3beta3, where the chemistry is
   stator: 0x9aa0a6,   // grey: present, holding still, not the subject
   brake:  0x8e5fa8,   // violet: IF1, the only thing here that is not the enzyme

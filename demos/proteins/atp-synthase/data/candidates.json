@@ -1,7 +1,7 @@
 {
  "note": "derived from CANDIDATES in tools/prep.js; under review, not yet in proteins/proteins.js",
  "roles": {
-  "rotor": 14836794,
+  "rotor": 2854104,
   "head": 2056015,
   "stator": 10133670,
   "brake": 9330600
