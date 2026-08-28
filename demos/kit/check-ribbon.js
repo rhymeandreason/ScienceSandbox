@@ -8,10 +8,10 @@
  *  now drawn by nine folders and no lesson, so a checker gated on folding/
  *  was guarding a shared module from behind a page in the attic.
  *
- *  WHAT IS NOT HERE. RibbonLib.HP35_HELICES and HP35_OFFSET stay in
- *  check-folding.js: they are villin numbering checked against 1VII's HELIX
- *  records, so they need that file and villin.js, and their only consumer is
- *  attic/folding-lab-ribbon.html.
+ *  WHAT IS NOT HERE. Villin's HP35 helices and their +750 offset, which used
+ *  to sit on RibbonLib and moved to folding/villin.js with this split — a
+ *  claim about one deposited structure, read only by
+ *  attic/folding-lab-ribbon.html, checked in check-folding.js against 1VII.
  *
  *  Every subject below is built from arithmetic — an ideal alpha helix (100
  *  deg per residue, 1.5 A rise, 2.3 A radius) and an ideal pleated strand.

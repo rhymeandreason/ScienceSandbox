@@ -2,10 +2,12 @@
 /* =====================================================================
  *  check-folding.js — every claim attic/folding-lab.html makes out loud.
  *
- *  RIBBON GEOMETRY IS NOT HERE ANY MORE. kit/check-ribbon.js has it. This
- *  file keeps only RibbonLib.HP35_HELICES and HP35_OFFSET, which are villin
- *  numbering checked against 1VII's HELIX records — villin's claim, not the
- *  ribbon's, and read by nothing outside attic/folding-lab-ribbon.html.
+ *  RIBBON GEOMETRY IS NOT HERE ANY MORE. kit/check-ribbon.js has it. What
+ *  stays is VillinLib.HP35's `helices` and `offset` against 1VII's HELIX
+ *  records — villin's claim, read by nothing outside
+ *  attic/folding-lab-ribbon.html. They sat on RibbonLib until that module
+ *  moved to kit/, which is when a shared renderer carrying one page's
+ *  structure stopped being defensible.
  *
  *  Lives beside the code and data it audits. These assertions used to sit at
  *  the foot of tools/check-pdb.js, which had grown three jobs: pdb.js's
@@ -26,8 +28,10 @@ const path = require('path');
 
 /* Hoisted, unlike folding.js/villin.js/actin.js below, which are required
    inside blocks guarded on their data files existing. ribbon.js reads no
-   data of its own and is now needed by both the villin section and the
-   ribbon section. */
+   data of its own. It is here for dssp() alone: act 3's secondary structure
+   is computed, not deposited, and 1VII is the one place that computation can
+   be checked against an experiment. The ribbon's own geometry moved to
+   kit/check-ribbon.js. */
 const Ribbon = require('../../kit/ribbon.js');
 
 const HERE = path.join(__dirname, '..');          // demos/folding
@@ -495,9 +499,9 @@ if (fs.existsSync(FIL) && fs.existsSync(CPX)) {
   }
 }
 
-/* CLAIM 6 — ribbon.js's helices are 1VII's, not an invention.
+/* CLAIM 6 — villin's HP35 helices are 1VII's, not an invention.
    attic/folding-lab-ribbon.html draws HP35 as a ribbon whose helices come from
-   RibbonLib.HP35_HELICES, hard-coded in villin numbering because act 3
+   VillinLib.HP35.helices, hard-coded in villin numbering because act 3
    renders from villin.js's Ca trace and never loads 1VII. That constant is
    a claim about a deposited file, so it is checked against it: the HELIX
    records, shifted by the same +750 that maps 1VII 41 onto villin 791.
@@ -508,32 +512,32 @@ if (fs.existsSync(FIL) && fs.existsSync(CPX)) {
   const recs = fs.readFileSync(VII, 'utf8').split('\n')
     .filter(l => l.startsWith('HELIX'))
     .map(l => [parseInt(l.slice(21, 25), 10), parseInt(l.slice(33, 37), 10)]);
-  const want = recs.map(([a, b]) => [a + Ribbon.HP35_OFFSET, b + Ribbon.HP35_OFFSET]);
-  const got = Ribbon.HP35_HELICES;
+  const want = recs.map(([a, b]) => [a + Villin.HP35.offset, b + Villin.HP35.offset]);
+  const got = Villin.HP35.helices;
   const same = want.length === got.length &&
     want.every(([a, b], i) => got[i][0] === a && got[i][1] === b);
   if (!recs.length)
-    fail('ribbon helices', '1VII.pdb has no HELIX records to check RibbonLib.HP35_HELICES against');
+    fail('villin helices', '1VII.pdb has no HELIX records to check VillinLib.HP35.helices against');
   else if (!same)
-    fail('ribbon helices',
-         `RibbonLib.HP35_HELICES is ${JSON.stringify(got)} but 1VII's HELIX records ` +
-         `shifted by +${Ribbon.HP35_OFFSET} give ${JSON.stringify(want)}`);
+    fail('villin helices',
+         `VillinLib.HP35.helices is ${JSON.stringify(got)} but 1VII's HELIX records ` +
+         `shifted by +${Villin.HP35.offset} give ${JSON.stringify(want)}`);
   else
-    ok(`ribbon helices match 1VII's ${recs.length} HELIX records (+${Ribbon.HP35_OFFSET} to villin numbering)`);
+    ok(`villin helices match 1VII's ${recs.length} HELIX records (+${Villin.HP35.offset} to villin numbering)`);
 
   /* The frame assertions that used to sit here — smoothing, the band on the
      cylinder, the rotating frame, the flat strand, the arrow — moved to
      kit/check-ribbon.js when ribbon.js moved to kit/. They build their own
      ideal helix and need nothing from folding/. What stays is the pair that
-     is genuinely villin's: HP35_HELICES above and the offset below. */
+     is genuinely villin's: HP35.helices above and HP35.offset below. */
 
   /* And the offset itself: 1VII's first residue must be villin's HP35 start. */
   const firstRes = fs.readFileSync(VII, 'utf8').split('\n')
     .find(l => l.startsWith('ATOM'));
   const lo = parseInt(firstRes.slice(22, 26), 10);
-  if (lo + Ribbon.HP35_OFFSET !== Villin.HP35.start)
-    fail('ribbon offset', `1VII starts at ${lo}; +${Ribbon.HP35_OFFSET} gives ` +
-         `${lo + Ribbon.HP35_OFFSET}, but VillinLib.HP35.start is ${Villin.HP35.start}`);
+  if (lo + Villin.HP35.offset !== Villin.HP35.start)
+    fail('villin offset', `1VII starts at ${lo}; +${Villin.HP35.offset} gives ` +
+         `${lo + Villin.HP35.offset}, but VillinLib.HP35.start is ${Villin.HP35.start}`);
   else ok(`1VII residue ${lo} maps onto villin ${Villin.HP35.start} under the same offset`);
 }
 

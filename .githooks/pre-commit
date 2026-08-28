@@ -359,9 +359,10 @@ fi
 
 # Everything folding-lab is under demos/folding/, so one pattern covers its
 # modules, its data and its bake tools. kit/ribbon.js is named separately
-# because check-folding.js still asserts RibbonLib.HP35_HELICES against 1VII's
-# HELIX records — villin's claim, living on a shared module. The ribbon's OWN
-# geometry is check-ribbon.js below.
+# because check-folding.js runs RibbonLib.dssp over 1VII and over the
+# AlphaFold model: act 3's secondary structure is COMPUTED, so the DSSP is
+# load-bearing there and a change to it can falsify that page without
+# touching folding/. The ribbon's own geometry is check-ribbon.js below.
 # palette.js is in too, from the other
 # direction: folding-lab derives its display radii from PALETTE.radii / SCALE,
 # so a palette retune can bury that page's bond sticks inside its atoms, and
