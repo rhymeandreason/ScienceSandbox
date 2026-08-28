@@ -114,7 +114,17 @@ const ROLES = {
      undo the one match that view exists to make. */
   rotor:  0x2b8cd8,   // azure: the c-ring, gamma, delta, epsilon — what turns
   head:   0x1f5f4f,   // house green: alpha3beta3, where the chemistry is
-  stator: 0x9aa0a6,   // grey: present, holding still, not the subject
+  /* TWO TANS WHERE THERE WAS ONE GREY, because one grey was drawing two
+     different objects. The peripheral stalk is a girder running down the
+     outside, and the membrane block is embedded in the bilayer beside the
+     ring — they do unrelated jobs and read as one thing when they share a
+     colour. The split also lifts subunit `a` out of the scenery: it carries
+     the two half-channels the protons cross, so it is half the mechanism and
+     was previously the same grey as a 41-residue scaffold. */
+  /* Deepened from 0xc9b28d, which read as paper against `--h-paper` where the
+     stalk crosses empty background at the top of the arc. */
+  stalk:  0xbfa478,   // light tan: the girder that holds the head against the torque
+  membrane: 0x8d6e4a, // deeper tan: what sits in the bilayer, subunit a among it
   brake:  0x8e5fa8,   // violet: IF1, the only thing here that is not the enzyme
 };
 
@@ -136,10 +146,13 @@ const HUMAN = {
   G: ['rotor', 'γ'], H: ['rotor', 'δ'], I: ['rotor', 'ε'],
   A: ['head', 'α'], B: ['head', 'α'], C: ['head', 'α'],
   D: ['head', 'β'], E: ['head', 'β'], F: ['head', 'β'],
-  N: ['stator', 'a'],                    // the proton path, beside the ring
-  K: ['stator', 'b'], L: ['stator', 'F6'], M: ['stator', 'd'],
-  O: ['stator', 'OSCP'], P: ['stator', 'ATP5MJ'], Q: ['stator', 'ATP8'],
-  R: ['stator', 'f'], S: ['stator', 'g'], T: ['stator', 'e'],
+  /* The girder: down the outside from the top of the head to the membrane. */
+  K: ['stalk', 'b'], L: ['stalk', 'F6'], M: ['stalk', 'd'], O: ['stalk', 'OSCP'],
+  /* In the bilayer. `a` is the proton path and the reason the ring turns;
+     ATP8 beside it is one of the two subunits this enzyme's own organelle
+     encodes rather than importing. */
+  N: ['membrane', 'a'], Q: ['membrane', 'ATP8'], P: ['membrane', 'ATP5MJ'],
+  R: ['membrane', 'f'], S: ['membrane', 'g'], T: ['membrane', 'e'],
   J: ['brake', 'IF1'],
 };
 
@@ -358,6 +371,10 @@ function fitAtoms(text, v, only) {
        to match them. It is also the physically right reference — the stalk is
        what holds the head still while the shaft turns inside it, which makes
        "still" a measured claim here rather than an assumption. */
+    /* Both tan roles together: the stalk AND the membrane block. What matters
+       for the fit is that none of these ten turn, not which of the two jobs
+       each does — and that they are one copy each, so there is no symmetry to
+       mismatch them into. */
     const stator = new Set(['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T']);
     for (const a of atomsOf(text, only)) {
       if (a.het || a.name !== 'CA' || !stator.has(a.chain)) continue;

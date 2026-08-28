@@ -3,7 +3,8 @@
  "roles": {
   "rotor": 2854104,
   "head": 2056015,
-  "stator": 10133670,
+  "stalk": 12559480,
+  "membrane": 9268810,
   "brake": 9330600
  },
  "candidates": [
@@ -31,7 +32,7 @@
   {
    "id": "human",
    "entry": "8H9S",
-   "chains": "1,2,3,4,5,6,7,8,G,H,I,A,B,C,D,E,F,N,K,L,M,O,P,Q,R,S,T,J",
+   "chains": "1,2,3,4,5,6,7,8,G,H,I,A,B,C,D,E,F,K,L,M,O,N,Q,P,R,S,T,J",
    "shows": "the whole human enzyme at 2.53 A: rotor ring in the membrane, shaft, head, and the stator arm holding the head still while the shaft turns inside it. Rotary state 1.",
    "group": "states",
    "roles": {
@@ -68,15 +69,15 @@
      "subunit": "c"
     },
     "K": {
-     "role": "stator",
+     "role": "stalk",
      "subunit": "b"
     },
     "L": {
-     "role": "stator",
+     "role": "stalk",
      "subunit": "F6"
     },
     "M": {
-     "role": "stator",
+     "role": "stalk",
      "subunit": "d"
     },
     "A": {
@@ -112,7 +113,7 @@
      "subunit": "IF1"
     },
     "O": {
-     "role": "stator",
+     "role": "stalk",
      "subunit": "OSCP"
     },
     "H": {
@@ -124,27 +125,27 @@
      "subunit": "ε"
     },
     "N": {
-     "role": "stator",
+     "role": "membrane",
      "subunit": "a"
     },
     "P": {
-     "role": "stator",
+     "role": "membrane",
      "subunit": "ATP5MJ"
     },
     "Q": {
-     "role": "stator",
+     "role": "membrane",
      "subunit": "ATP8"
     },
     "R": {
-     "role": "stator",
+     "role": "membrane",
      "subunit": "f"
     },
     "S": {
-     "role": "stator",
+     "role": "membrane",
      "subunit": "g"
     },
     "T": {
-     "role": "stator",
+     "role": "membrane",
      "subunit": "e"
     }
    },
