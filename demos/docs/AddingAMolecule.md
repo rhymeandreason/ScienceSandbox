@@ -2,9 +2,9 @@
 
 # Adding a molecule
 
-Eight steps, in the order that avoids rework. A molecule is a spec built here from geometry we assert; a protein is coordinates somebody else measured, and it goes the other way — `AddingAProtein.md`.
+Eight steps, in the order that avoids rework. 
 
-**Two of these steps exist because the failure they catch is invisible.** A mirrored molecule renders exactly like the real one, and a hand-typed SMILES describes a molecule the atoms may not be. Neither shows on screen, and the human reviewing the stage cannot catch either. Steps 5 and 7 are those, and skipping them is how a wrong molecule ships looking right.
+**Steps 5 and 7 catch invisible failures.** 
 
 ## 1. Decide the tier
 

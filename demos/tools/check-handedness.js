@@ -245,6 +245,9 @@ require('@rdkit/rdkit')().then(RDKit => {
     const ref = canon(normalise(raw));
     if (!ref) { console.log(`  skip  ${key.padEnd(12)} reference did not parse`); skipped++; continue; }
 
+    // DBG=1 prints both strings. A "differs from" is one stereocentre and the
+    // only way to find WHICH is to read the two canonical SMILES side by side.
+    if (process.env.DBG) console.log(`   dbg ${key}\n     ours ${ours}\n     ref  ${ref}`);
     if (ours === ref) { console.log(`  ok    ${key.padEnd(12)} matches ${name}`); continue; }
 
     bad++;
