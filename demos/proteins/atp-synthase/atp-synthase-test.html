@@ -867,8 +867,12 @@ function show(id) {
   if (t.site) {
     siteNote(t, box.setPocket(t.site));
   } else if (m.palette === 'role') {
-    partNotes(t);
+    /* THE ASSEMBLY NAMES ITS PARTS; THE DETAIL NAMES ITS SUBJECT. Naming the
+       head on a view that draws nothing but the head is a label for something
+       the reader cannot mistake, and it competes with the one callout that is
+       actually saying something here. */
     if (spec.only) fingerNote(t);
+    else partNotes(t);
   }
 }
 
