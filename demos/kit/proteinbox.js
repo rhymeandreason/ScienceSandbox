@@ -114,7 +114,7 @@
      otherwise be a grey ball the size of a carbon. */
   const METAL = new Set(['Fe', 'Co', 'Mg', 'Zn', 'Mn', 'Ni', 'Cu']);
 
-  /* Coil, helix, strand — folding/ribbon-test.html's, so a card and the bench
+  /* Coil, helix, strand — kit/ribbon-test.html's, so a card and the bench
      that tunes the ribbon are never two opinions about the same helix. */
   const RIB = { C: 0x7d8c7a, H: 0x0042aa, E: 0xc2571b };
   const SES_COLOUR = 0xdfe4ee;

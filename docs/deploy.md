@@ -31,7 +31,7 @@ serves.
 
 Four pages fetch one at runtime and so are broken on the deployment, on purpose:
 `attic/folding-lab.html` and `attic/folding-lab-ribbon.html` (1VII),
-`folding/ribbon-test.html` (villin), `hemoglobin/hemoglobin-inhouse.html`
+`kit/ribbon-test.html` (villin), `hemoglobin/hemoglobin-inhouse.html`
 (2HHB). All four are prototypes or benches, used on the dev server. **Promoting
 one to a featured lesson means baking what it fetches, not un-ignoring the
 `.pdb`.**

@@ -116,7 +116,7 @@
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/scene.js"></script>
-<script src="../kit/ribbon.js"></script>
+<script src="ribbon.js"></script>
 <script>
 'use strict';
 
@@ -204,10 +204,12 @@ function subject(mode) {
 }
 
 /* ---------- villin, through the real path ---------- */
+/* The PDB stays in folding/data/ — it is folding-lab's subject, and this bench
+   borrows it for a backbone real enough to run DSSP over. */
 let villinCache = null;
 async function villinSubject() {
   if (!villinCache) {
-    const txt = await (await fetch('data/AF-P02640-villin.pdb')).text();
+    const txt = await (await fetch('../folding/data/AF-P02640-villin.pdb')).text();
     const bb = RibbonLib.parseBackbone(txt);
     villinCache = {bb, ss: RibbonLib.dssp(bb)};
   }
