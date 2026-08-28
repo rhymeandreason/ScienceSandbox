@@ -196,6 +196,13 @@
     <h2>the machine</h2>
     <button class="mode" id="v-human" aria-pressed="false">
       <span class="who">human, whole &middot; state 1</span><span class="chip">28 chains</span></button>
+    <button class="mode" id="v-head" aria-pressed="false">
+      <span class="who">the head, &beta; picked out</span><span class="chip" id="head-chip">&mdash;</span></button>
+    <p class="earmark"><b>The same file, fewer chains.</b> Not another
+      structure: the head is drawn out of the whole-enzyme bake, so what you
+      see here is exactly where these subunits sit in the machine above. The
+      three &beta; are the ones with catalytic sites; the three &alpha;
+      between them hold ATP they never turn over. &gamma; still turns.</p>
 
     <!-- THE ICON IS THE STATE, and it is swapped in CSS off the same
          `aria-pressed` the button already carries — not in script, so the
@@ -387,7 +394,44 @@ notes = Annot.create(THREE, stage, box.camera, { mode: 'on' });
    `ProteinLib.byKey('atp-synthase')` and the JSON goes away. Nothing about
    the nine is typed here, so a candidate cannot be described one way in the
    panel and baked another. */
-const ORDER = ['open', 'dp', 'human'];
+/* A BUTTON IS NOT ALWAYS A BAKE. `head` is a RENDER STATE over the whole-
+   enzyme bake rather than a structure of its own — same coordinates, same
+   frame, fewer chains drawn and a palette that tells alpha from beta. Baking
+   it separately would put the same atoms on disk twice and let the two drift;
+   worse, it would stop being evidence about WHERE the head sits, which is the
+   only reason this view is worth having. */
+const ORDER = ['open', 'dp', 'human', 'head'];
+const SHOWN = {
+  open:  { bake: 'open' },
+  dp:    { bake: 'dp' },
+  human: { bake: 'human' },
+  head:  { bake: 'human', only: 'A,B,C,D,E,F,G' },
+};
+
+/* THE HEAD'S OWN PALETTE, and the one thing this state says with colour: beta
+   is the subunit with the chemistry in it. Alpha keeps the head's family and
+   steps back a tone; gamma stays the rotor's rust, because it is still the
+   rotor and it is still what turns. */
+const HEAD_COLORS = { β: 0x1f5f4f, α: 0x8fa9a1, γ: 0xe2643a };
+
+/* The bake, cut to the chains a state draws. A shallow copy — the chain
+   objects are shared, never mutated — with `meta.counts` and `meta.roles` cut
+   to match, or the panel would report 28 chains' worth of residues under a
+   picture of seven. */
+function trim(t, only) {
+  if (!only) return t;
+  const keep = new Set(only.split(','));
+  const order = t.order.filter(id => keep.has(id));
+  const chains = {};
+  for (const id of order) chains[id] = t.chains[id];
+  return Object.assign({}, t, {
+    order, chains,
+    meta: Object.assign({}, t.meta, {
+      counts: t.meta.counts.filter(c => keep.has(c.chain)),
+      roles: Object.fromEntries(order.map(id => [id, t.meta.roles[id]])),
+    }),
+  });
+}
 const OPEN = 'open';
 
 /* THE PAGE'S OWN COPY. What a structure IS is the baker's; what this bench
@@ -412,6 +456,20 @@ const SAYS = {
         + 'the part of this enzyme that surprises people — making the ATP '
         + 'costs almost nothing, and the rotation is what pays for letting '
         + 'it go.' },
+  head: {
+    claim: 'The head on its own: three β subunits, each with a catalytic '
+         + 'site, alternating with three α that hold ATP and never turn it '
+         + 'over.',
+    prov: 'The same 8H9S coordinates as the whole enzyme above, with the '
+        + 'membrane and the stator not drawn. Every catalytic site sits about '
+        + '31 Å out from the axis and 110 Å above the c-ring, so the three of '
+        + 'them ring the shaft at one height. γ never comes closer than about '
+        + '25 Å to a bound nucleotide — it bears on the base of each β and the '
+        + 'deformation travels the rest of the way, which is why β-DP\'s '
+        + '"what moved" row is the transmission rather than a side effect. '
+        + 'Each site is also a joint: about fourteen residues from β and one '
+        + 'arginine reaching across from the neighbouring α, so a lone β '
+        + 'subunit has a pocket and no chemistry.' },
   human: {
     claim: 'The whole human enzyme: rotor ring in the membrane, shaft, head, '
          + 'and the stator arm holding the head still while the shaft turns '
@@ -432,6 +490,8 @@ const SAYS = {
 const UNFITTED = {
   open: 'the reference the other site is fitted onto — the state it is a '
       + 'change from.',
+  head: 'the same coordinates as the whole-enzyme view, with fewer chains '
+      + 'drawn. Nothing is fitted because nothing moved.',
   human: 'the only whole-enzyme view on the bench. The two structures its '
        + 'rotation was measured against are read by the baker and not kept.',
 };
@@ -447,11 +507,14 @@ window.bench = { views, cand, box, get view() { return view; } };
 fetch('data/candidates.json').then(r => r.json()).then(reg => {
   ROLES = reg.roles;
   reg.candidates.forEach(c => { cand[c.id] = c; });
-  ORDER.forEach(id => {
-    fetch(`data/${cand[id].read.baked}`).then(r => r.json()).then(t => {
-      views[id] = t;
-      chip(id);
-      if (view === id) show(id);         // clicked before the fetch landed
+  /* ONE FETCH PER BAKE, not per button: `head` and `human` are two buttons
+     over one file, and fetching it twice would be two copies of 5,064
+     residues that could not disagree but would both be in memory. */
+  [...new Set(ORDER.map(id => SHOWN[id].bake))].forEach(key => {
+    fetch(`data/${cand[key].read.baked}`).then(r => r.json()).then(t => {
+      views[key] = t;
+      chip(key);
+      if (SHOWN[view] && SHOWN[view].bake === key) show(view);
     });
   });
   show(OPEN);
@@ -462,12 +525,20 @@ fetch('data/candidates.json').then(r => r.json()).then(reg => {
    occupancy and nothing else, and the contrast has to be visible in the list
    before anyone clicks. "empty" is spelled out rather than printed as 0,
    because a 0 beside an ADP reads as a missing measurement. */
-function chip(id) {
-  const el = $('v-' + id).querySelector('[data-chip="held"]');
-  if (!el) return;
-  const held = views[id].meta.bound;
-  el.textContent = held ? held.filter(x => x !== 'MG').join(' + ') || 'Mg only'
-                        : 'empty';
+function chip(key) {
+  const t = views[key];
+  const el = $('v-' + key) && $('v-' + key).querySelector('[data-chip="held"]');
+  if (el) {
+    const held = t.meta.bound;
+    el.textContent = held ? held.filter(x => x !== 'MG').join(' + ') || 'Mg only'
+                          : 'empty';
+  }
+  /* Counted off the roles the bake carries, so the head button cannot claim a
+     number of beta subunits the file does not have. */
+  if (key === 'head' || key === 'human') {
+    const b = Object.values(t.meta.roles).filter(r => r.subunit === 'β').length;
+    if ($('head-chip')) $('head-chip').textContent = `${b} β`;
+  }
 }
 
 /* WHAT COUNTS AS AN ASSEMBLY, said per view. A c-ring is a ring ALWAYS and a
@@ -575,8 +646,11 @@ function whereHTML(t, id) {
 
 function show(id) {
   view = id;
-  const t = views[id], c = cand[id];
-  if (!t || !c) return;                  // fetch still in flight
+  const spec = SHOWN[id];
+  const raw = views[spec.bake], c = cand[spec.bake];
+  if (!raw || !c) return;                // fetch still in flight
+  const t = trim(raw, spec.only);
+  shownT = t;
 
   const s = stats(t), m = t.meta, r = c.read;
   $('d-claim').textContent = SAYS[id].claim;
@@ -603,7 +677,16 @@ function show(id) {
   /* The legend is built from the same table the ribbon is coloured from, so a
      swatch cannot name a colour the molecule is not wearing. Grouped by role,
      because 28 individual chains is a list nobody reads. */
-  if (m.palette === 'role') {
+  if (spec.only) {
+    /* By SUBUNIT here, because that is what the state is about: which of the
+       six is the one with a site in it. */
+    const seen = {};
+    for (const id2 of t.order) (seen[m.roles[id2].subunit] ||= []).push(id2);
+    $('d-roles').innerHTML = Object.entries(seen).map(([sub, ids]) =>
+      `<span><i style="background:${hex(HEAD_COLORS[sub] ||
+        ROLES[m.roles[ids[0]].role])}"></i><b>${sub}</b> × ${ids.length}` +
+      `${sub === 'β' ? ' · the catalytic ones' : ''}</span>`).join('');
+  } else if (m.palette === 'role') {
     const seen = {};
     for (const id2 of t.order) {
       const R = m.roles[id2];
@@ -629,7 +712,10 @@ function show(id) {
   /* BY ROLE for an assembly, because what a reader has to tell apart is what
      TURNS; by secondary structure for a single subunit, because there the
      fold is the subject. The mapping is the baker's, out of the bake. */
-  const colors = m.palette === 'role'
+  const colors = spec.only
+    ? { byChain: Object.fromEntries(t.order
+        .map(k => [k, HEAD_COLORS[m.roles[k].subunit] || ROLES[m.roles[k].role]])) }
+    : m.palette === 'role'
     ? { byChain: Object.fromEntries(t.order.map(k => [k, ROLES[m.roles[k].role]])) }
     : null;
   box.setData(t, colors ? { colors } : undefined);
@@ -715,6 +801,9 @@ function siteNote(t, drawn) {
    rest standing still — a rotor with four subunits turning and four not,
    which reads as a rendering fault rather than as a bug in this loop. */
 let spinning = false, angle = 0, pivot = null, lastT = 0;
+/* What is actually on the stage, trimmed. The spin loops read this rather
+   than views[view], because a button id is not a bake id any more. */
+let shownT = null;
 
 /* 24 SECONDS A TURN. The enzyme does over a hundred a second, which at any
    honest speed is a blur — so this is a slow motion, and the panel says the
@@ -747,7 +836,7 @@ function spinNote(t) {
 
 function spinReset() {
   pivot = null; angle = 0;
-  $('spin-chip').textContent = views[view] && views[view].spin ? '0°' : 'n/a';
+  $('spin-chip').textContent = shownT && shownT.spin ? '0°' : 'n/a';
 }
 
 /* The pivot lives INSIDE the chain group, so it inherits the presentation
@@ -788,15 +877,14 @@ function collect(t) {
    for its own chain-by-chain build. Cheap enough to leave running: a filter
    over about thirty children, five times a second. */
 setInterval(() => {
-  const t = views[view];
-  if (t && t.spin) collect(t);
+  if (shownT && shownT.spin) collect(shownT);
 }, 200);
 
 const AXIS = new THREE.Vector3();
 
 function tick(now) {
   requestAnimationFrame(tick);
-  const t = views[view];
+  const t = shownT;
   if (!t || !t.spin) return;
   if (!spinning) { lastT = now; return; }
   if (!pivot) return;                    // nothing harvested yet
@@ -811,8 +899,7 @@ function tick(now) {
 requestAnimationFrame(tick);
 
 $('spin').addEventListener('click', () => {
-  const t = views[view];
-  if (!t || !t.spin) return;
+  if (!shownT || !shownT.spin) return;
   spinning = !spinning;
   $('spin').setAttribute('aria-pressed', String(spinning));
 });
