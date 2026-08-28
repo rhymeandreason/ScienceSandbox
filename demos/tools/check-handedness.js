@@ -101,6 +101,11 @@ const REF = {
   coa: 'coenzyme A',
   acetylcoa: 'acetyl-CoA',
   succinylcoa: 'succinyl-CoA',
+  // The vitamin. Two stereocentres, C4 and C5, and check-molecules.js is blind
+  // to both — its signed-volume test only runs on an amino acid's `pep`. So
+  // this row is the ONLY thing standing between L-ascorbate and its mirror,
+  // which renders identically and is not a vitamin.
+  ascorbate: 'L-ascorbic acid',
   /* THE REDUCED FORM IS THE ONE ANCHORED, and `fad` is deliberately absent.
    * mol-krebs.js builds FADH₂ and derives FAD from it by dropping two
    * hydrogens WITHOUT redrawing the ring's bond orders — a stated
