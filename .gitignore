@@ -20,6 +20,11 @@ demos/proteins/myoglobin/data/src/
 # bakes 113 KB. prep.js's header carries the curl loop that fetches them back.
 demos/proteins/collagen/data/src/
 
+# 21 MB of six raw depositions (three of them mmCIF, which is the only format
+# the human structures are published in); only prep.js reads them, and it bakes
+# ~600 KB. prep.js's header carries the curl loop that fetches them back.
+demos/proteins/atp-synthase/data/src/
+
 # NOT gitignored: demos/proteins/napump/data/src/ — 4 MB of PDBs whose OPM
 # copies are a second source that a plain RCSB curl does not reproduce. The
 # orientation is the half of that bake nothing here could re-derive.

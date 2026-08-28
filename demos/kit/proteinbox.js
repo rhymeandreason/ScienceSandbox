@@ -447,10 +447,19 @@
                centres the box on where the molecule USED to be, which reads
                as a framing bug rather than as a missing rotation. */
             drawn.push(...pts.map(v => v.clone().applyQuaternion(chainGroup.quaternion)));
-            chainGroup.add(new THREE.Mesh(
+            const mesh = new THREE.Mesh(
               RibbonLib.build(THREE, pts, seg.ss,
                               { sub: opts.sub == null ? 6 : opts.sub }),
-              (byChain && byChain[cid]) || mats));
+              (byChain && byChain[cid]) || mats);
+            /* WHICH CHAIN THIS MESH CAME FROM, and nothing more. A page that
+               has to move PART of a structure — one subassembly of a machine,
+               against the rest of it — cannot otherwise find its meshes: they
+               go in one at a time across frames, several segments to a chain,
+               and by the time a caller looks they are an anonymous pile. This
+               records the fact; what a page does with it stays the page's, the
+               same refusal this box makes about parsing. */
+            mesh.userData.chain = cid;
+            chainGroup.add(mesh);
           }
           /* The trace is centred on every chain it HOLDS, so a box drawing
              one of four would sit off to the side. Re-centre on what is
