@@ -27,13 +27,13 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | The AI tutor, or `api/` | `docs/ai-tutor.md` — design, and the local setup the pages do not need |
 | Deciding what to build next | ask the human if the roadmaps are still relevant |
 
-**Every doc in that table lives in `demos/docs/`**; prose names them bare, the way it names a script. 
+**Every doc in that table lives in `demos/docs/`**; prose names them bare, the way it names a script.
 
 Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = invariants, load whole. *recipe* = how to build one kind of thing. *argument* = why this and not that, written for the human; loading one during a build spends context on judgement about priority instead of on the build. **If you need a doc this table does not name, stop and say which** — a gap here is invisible from inside a build, and guessing past it is how a rule gets missed.
 
 ## Pages (lessons)
 
-<!-- ENUM: Only add to this chart if a page is a featured lesson. Prototypes and Test pages go on demos/admin.html -->
+<!-- ENUM: Only add to this chart if a page is a featured lesson or important prototype. Test pages go on demos/admin.html -->
 
 **Where a page lives says what it is.** The top level holds lessons — featured and prototype — and nothing else; the shared modules are in `lib/` and the shared stylesheets in `css/`. A module that belongs to one folder keeps its stylesheet beside it (`kit/enzyme-blob.css`, `energy/energy.css`); `css/` is only for the sheets more than one folder's pages load. A bench lives beside the module it exercises (`kit/kit-test.html`, `membrane/pump-test.html`); a bench with no module folder of its own goes in `tests/`. `attic/` holds superseded lessons, kept as worked examples and `.vercelignore`d so nothing links a student into one.
 
@@ -71,11 +71,9 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 ## The primary UX is always a bespoke 3D molecular simulation
 
-A lesson's main stage is a 3D scene built for that lesson, rendered as molecules, interacted with **on the molecule**. That is the lesson.
+A lesson's main stage is a 3D scene built for that lesson. We use molecule, protein, or cellular scale depending on what the lesson is. Water and solvation sims are a different scale than comparison or pathway lessons like glycolysis.
 
-**`reaction/` is the exception that proves this**: a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule, while the lesson keeps its lanes, carriers and ledger. **Adding a verb must not touch a page** — the cycle added six and changed no lesson but its own. `Modules.md`.
-
-**`massaction/`, `diffusion/` and `coupling/` are never the primary UX.** They are 2D abstractions that teach a statistical or thermodynamic point the 3D stage can't make honestly, and they belong behind a `kit/modal.js` side door — a second simulation the student opens when they doubt what the main stage just did, as glycolysis opens `massaction/`. `LESSONS-ROADMAP.md` lists them next to lessons as material, not as the design; don't read that as a stage.
+A molecule-scale lesson prioritizes interaction and animation **on the molecule**. See `Modules.md`.
 
 ## Scientific accuracy
 
