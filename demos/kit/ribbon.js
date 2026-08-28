@@ -4,7 +4,7 @@
  *  SHARED, and documented alongside tube.js and surface.js in
  *  docs/rendering-modules.md — hemoglobin-lab draws through it, as do
  *  folding-lab-ribbon and the test benches under hemoglobin/ and sickle/.
- *  Its abstract counterpart is hemoglobin/tube.js: one tube per chain,
+ *  Its abstract counterpart is kit/tube.js: one tube per chain,
  *  cheap enough for a tetramer or a crowd, where this one is the dense
  *  literal cartoon. Real angstroms, never sees SCALE, and it builds a
  *  BufferGeometry rather than a mesh so the page keeps ownership of

@@ -2,6 +2,10 @@
 
 # Rendering modules
 
+**All four renderers live in `kit/`** — `molbox.js`, `proteinbox.js`, `tube.js`, `ribbon.js` — with `surface.js` beside them for the baked skin. They were scattered across `hemoglobin/` and `folding/` for as long as one lesson was the only caller of each; a module named for the page that happened to want it first reads as that page's private code, and the next page copies it instead. `hemoglobin/foldplay.js` is the one that stayed put, because a trajectory played as a ribbon is haemoglobin's own act rather than a way of drawing.
+
+A bench stays with its subject, not always with its module: `kit/ribbon-test.html` moved here, `hemoglobin/tube-test.html` did not, since it loads `hbfold.js` and fetches 2HHB's bakes.
+
 **`kit/molbox.js` — `Molbox`**
 
 Use this to draw macromolecules on the page unless you need animations.
@@ -38,7 +42,7 @@ Three things it can show, and only the first is free: the 12 KB trace on create,
 
 * Look is `kit/proteinbox.css` (`.pbox-rep`, `.pbox-play`); the page decides WHEN they are reachable, because only the page knows how big its card is on screen.
 
-**`hemoglobin/tube.js` — `TubeLib`**
+**`kit/tube.js` — `TubeLib`**
 
 Cα trace + secondary structure → a smooth tube: one continuous mesh per chain, wide through helices, thin through loops, helix collapsed onto its axis so there's no corkscrew. The multi-molecule representation — a tetramer is 4 draw calls instead of \~240. This is used as a simplified illustration style that is more abstract and less dense than the ribbon render.
 

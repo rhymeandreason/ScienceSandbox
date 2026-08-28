@@ -18,9 +18,11 @@
  *  Real angstroms in, plain BufferGeometry out. No materials — the page owns
  *  those, exactly as RibbonLib does. No dependency but THREE, passed in.
  *
- *  Used by: sickle/fibre-test.html, hemoglobin/crowd-test.html.
- *  (hemoglobin/tube-test.html still carries the original inline copy; it is
- *  the prototype these were derived from and is left alone deliberately.)
+ *  Used by: sickle/fibre-test.html, hemoglobin/crowd-test.html and
+ *  hemoglobin/tube-test.html, which is its bench. That bench stays in
+ *  hemoglobin/ rather than beside this file: it loads hbfold.js and fetches
+ *  2HHB's quaternary and fold bakes, so it is a haemoglobin page that happens
+ *  to exercise the tube.
  * ===================================================================== */
 (function (global) {
   'use strict';
