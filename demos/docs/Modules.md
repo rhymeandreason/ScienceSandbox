@@ -2,8 +2,7 @@
 
 # Modules
 
-The shared layer: what exists, what each one owns, and how to add one. Building
-a *page* is `AddingAPage.md`; the architecture rule both follow is `SCIENCE.md` §6.
+The shared layer: what exists, what each one owns, and how to add one. 
 
 ## Script load order
 
@@ -148,18 +147,7 @@ Easy to get wrong, invisible from the API:
 * **`diffusion/` is the second sim of that kind, and its sibling.** Same paradigm as `massaction/` — populations of dots, no Three.js, no geometry claim — asking a different question: a box nothing is pushing. Load `diffusion/diffusion.css` + `diffusion/diffusion.js` after `palette.js`/`molecules.js`, then `Diffusion.create({host, scenarios})`. A scenario names molecules by MolLib key and the module reads their **size** from the spec (`radiusOf`), so the rate difference between water and glucose is a prediction, not a setting. Two traps it will throw on rather than fudge: an **ångström-family** spec is required (load `mol-small.js`, not `mol-solvation.js` — `MolecularGeometry.md` §1), and there is deliberately **no membrane** — that is the next lesson. `diffusion/check-diffusion.js` measures its predictions against four published diffusion coefficients, so a `palette.js` retune shows up as a chemistry error rather than as nothing.
 * **`coupling/` is the third sim of that kind, and the only one with real numbers.** Load `coupling/coupling.css` + `coupling/coupling.js`, then `Coupling.create({host, scenarios, range})`. A scenario carries `up`/`down` as `{label, dg, formula, src}` plus `shared` — the group that moves between them. **`shared` is not a caption**: with it unticked the two ΔG do not add and the uphill reaction goes back to not running, which is the misconception the module exists for. Note it *disagrees* with `glycolysis-lab.html` on purpose — that page draws the same coupling with no magnitudes because it sources none, and this one is about the arithmetic, so every ΔG°′ is a published value carried on the scenario. `coupling/check-coupling.js` audits them against the textbook figures and measures that the drawn stack lands on the total.
 * **`energy/` is a FIGURE, not a simulation.** No canvas, no loop, no state — `Energy.curve/solo/pair/tabs` return SVG strings, so a host that rebuilds its card every refresh can just call them again. Load `energy/energy.css` + `energy/energy.js`. It sits between the two kinds above: it draws the same subject as `coupling/` and deliberately makes the weaker claim, because a pathway page has no ΔG°′ to source. **Its one rule is that the axis carries no scale.** Where it travels past a pathway is the barrier — a pathway means nothing by the hump and everything by the ends, and the enzymes lesson is the mirror image, which is why `barrier` and `at` are inputs. `energy/check-energy.js` audits the rule off the OUTPUT rather than the source, since the way it breaks is a host passing a number through.
-* **`kit/card-stage.js` is a LAYER, not a peer, and `ConceptMap.md` is its
-  rulebook.** `kit/molbox.js` and `molecule-builder/molecule-builder.js` are
-  both built on it, so nothing that constructs either can live inside it — the
-  adapters a page writes to turn a descriptor into a box stay in the page. What
-  the three of them share is a short list of invariants that all break silently:
-  the WebGL context budget and its LRU pool, `onEvict` firing before the destroy
-  so a released card keeps a still, `acquire` doubling as bring-to-front, the
-  builder's `onResize` having to run after `Stage.resize`, `snapshot()` refusing
-  mid-fold, and `Stage.frame`'s perspective distance floor of 6 (which is why
-  molbox is orthographic). Read that file before touching any of them or either
-  card page; do not re-derive the list from the code, because most of it is
-  invisible from the page that has the bug.
+* **`kit/card-stage.js` is a LAYER, not a peer, and `ConceptMap.md` is its rulebook.** `kit/molbox.js` and `molecule-builder/molecule-builder.js` are both built on it, so nothing that constructs either can live inside it — the adapters a page writes to turn a descriptor into a box stay in the page. What the three of them share is a short list of invariants that all break silently: the WebGL context budget and its LRU pool, `onEvict` firing before the destroy so a released card keeps a still, `acquire` doubling as bring-to-front, the builder's `onResize` having to run after `Stage.resize`, `snapshot()` refusing mid-fold, and `Stage.frame`'s perspective distance floor of 6 (which is why molbox is orthographic). Read that file before touching any of them or either card page; do not re-derive the list from the code, because most of it is invisible from the page that has the bug.
 * **`water/` is the only shared module that IS the physics.** Everywhere else the rule is share the plumbing, not the physics (`SCIENCE.md` §6); here the liquid is the shared thing and the lesson is what stays on the page. Load `water/watersim.js` after `scene.js` and `mol-solvation.js`, then `WaterSim.create(THREE, root, {tuning, onDissociate, onSaltChange})`. A page calls `step(frame)` once a frame with a DESCRIPTION of the scene (`still`, `solvent`, `showHbonds`, `tempEnabled`, `temperature`, `freezeEnabled`) and gets back what the module did, including the phase-change points to print. **It is one module and not four on purpose**: the freeze fraction quiets the jitter, seats molecules on lattice sites, releases the hydration shells and drives brine rejection off the ice radius, while the dissolved ion count sets the freezing point that produced it — splitting that yields four files that import each other. It refuses two things. It draws no text, so every number a page shows comes back through `step`. And it does not decide what a snapping ionic bond LOOKS like — `onDissociate(na, cl, at)` hands the page the break point and the page spends its own `fx.js`. `thermo()` is reachable **without THREE**, which is what lets `tools/check-water.js` assert offline that pure water freezes at 0°C and 2 m brine does not. `water/water-test.html` is the bench, and it prints the two invariants a still screenshot cannot catch: ≤4 H-bonds per molecule, and no merged oxygens mid-freeze.
 * **`reaction/` is what a step DOES to a molecule, and it is not a second simulation.** Unlike `massaction/`, `diffusion/` and `coupling/`, it has no canvas and no side door — it drives the 3D stage the lesson already has. Load `reaction/reaction.js` after `fx.js`, `atomkit.js` and the `kit/` files it builds on (`motion`, `molgraph`, `leaving`), then `Reaction.create({…})` with a **host** that answers questions about the STAGE — which spec a key names, where a lane sits, where this lane's carrier stands, how to swap a lane — and nothing about the chemistry. A step names an animation with `fx:'…'`; the module owns the verbs (`in out ox move lose open iso split`), the transfers they are made of, and the spec geometry that aims them. **`verb(name, {dur, lane})` is the extension point**: pyruvate oxidation and the Krebs cycle need `decarb`, `join` and `thioester`, and adding one must not touch a page. **Its structural claim is that a verb is a per-lane body** — a reaction happens to a molecule, and the lane count is a stage fact, so `split` is the only whole-stage verb and `reaction/check-reaction.js` fails a second one. That claim is not decoration: the eight verbs lived in `glycolysis-lab.html` as an if/else chain written TWICE, once per route, and they had drifted — step 6's hydride was shed on one route and not the other, so a hydrogen flew to NAD⁺ while a copy of itself stayed on the aldehyde. It also fails an `fx:` no verb registers, which the old chain swallowed in a bare `else` and ran as a silent 280 ms swap with the ledger moving and nothing on screen wrong enough to notice.
 * **`lobes/` draws the electrons a molecule is NOT sharing.** Load `kit/molgraph.js` then `lobes/lobes.js` after `scene.js`; ask `Lobes.at(spec, i)` for the geometry, or `Lobes.create(THREE).build(spec, {like: molGroup})` for teardrop meshes. Three things it is easy to get wrong from the outside. **These are not molecular orbitals** — they are the localised picture, a model, and a page that draws them owes the student that word (the module header has the argument). **Always pass `like:`** — `buildMolecule`'s `center:true` and a spec's `view:` are baked into the atom MESHES, so lobes built from raw spec coordinates land a plausible distance from their own atoms and read as a placement bug. And **`dirs.length` is not a pair count**: a flat three-coordinate nitrogen returns one pair as the two lobes of its p orbital, flagged `pi`. Everything is derived — directions from the spec's own bond vectors, counts from a formal-electron sum over bond orders — and a count that does not come out whole returns `null` with a reason rather than a rounded guess, which is why AMP's phosphate oxygens draw nothing. `lobes/check-lobes.js` covers the two invisible failures: water's ears straddling the H−O−H plane (in-plane ears draw a flat water and delete tetrahedral ice), and conjugation — adenine's amino nitrogen counts a lone pair and is a **donor**, so an ear on it is base pairing backwards. `lobes/lobes-test.html` is the bench.
@@ -169,55 +157,20 @@ Easy to get wrong, invisible from the API:
 * Drag modules are *mechanics*, not plumbing. Same mechanic, different constants → a recipe in the same file; different mechanic → new file.
 * **`molecule-builder/` is the SHELL around those mechanics, and the split is the point.** `covalent-drag.js` and `ionic-drag.js` still own every rule; this owns the stage, the loop and the view. Two things about it are invisible from the API. **Its frame is sized by the WIDTH its content needs, not by a zoom level**: an embedded builder does not get to assume its host's aspect, and in a box taller than it is wide a height-driven frustum crops the outermost atom off the side — chloride first, dealt at x 4.6 with 1.24 of radius and a valence cloud outside that again. So a narrow panel zooms out instead of cutting, and `check-molecule-builder.js` measures that against each recipe's own dealt positions rather than trusting the constants. And **a recipe belongs to exactly one drag module**: the name is the only thing that routes it, so one that is in neither file, or in both, is a runtime crash or a silent wrong mechanic, and the checker fails either.
 
-
 ## Adding a module
 
-Most of this is already taught by the folders — `kit/`, `reaction/`, `energy/`,
-`massaction/`, `diffusion/`, `coupling/`, `lobes/`, `chain/`, `chair/`, `water/` all
-have the same shape, and an eleventh built by copying a tenth will come out right. What
-follows is what the folders cannot show.
+Most of this is already taught by the folders — `kit/`, `reaction/`, `energy/`, `massaction/`, `diffusion/`, `coupling/`, `lobes/`, `chain/`, `chair/`, `water/` all have the same shape, and an eleventh built by copying a tenth will come out right. What follows is what the folders cannot show.
 
-**When.** `SCIENCE.md` §6 has the test. The short version: plumbing every lesson
-would otherwise rebuild is a module; a lesson's own mechanic is not, however
-much of it there is. Two lessons sharing a *vocabulary* is not the signal — two
-lessons sharing an *implementation* is. The energy card qualified because the
-figure is the same drawing from the same flags; the pathway step runner does not,
-because glycolysis folds in a half-run per-lane step and the cycle folds in laps,
-and each of those is the lesson's own claim about what a step means.
+**When.** `SCIENCE.md` §6 has the test. The short version: plumbing every lesson would otherwise rebuild is a module; a lesson's own mechanic is not, however much of it there is. Two lessons sharing a *vocabulary* is not the signal — two lessons sharing an *implementation* is. The energy card qualified because the figure is the same drawing from the same flags; the pathway step runner does not, because glycolysis folds in a half-run per-lane step and the cycle folds in laps, and each of those is the lesson's own claim about what a step means.
 
-**The contract.** A folder named for the module, holding five things, each named
-for the folder: the module script, a stylesheet if it draws chrome of its own, a
-test page, a checker, and either a README or a load-bearing header comment.
-`lobes/` is the smallest complete example. Nothing here has a build step, so the
-module is a plain script assigning one global.
+**The contract.** A folder named for the module, holding five things, each named for the folder: the module script, a stylesheet if it draws chrome of its own, a test page, a checker, and either a README or a load-bearing header comment. `lobes/` is the smallest complete example. Nothing here has a build step, so the module is a plain script assigning one global.
 
-**The test page is not optional**, and its second job is the one worth stating:
-it is the next author's worked example, read more carefully than any paragraph
-here. Mount the module more than one way if the module supports more than one —
-`massaction-test.html` renders the barrier slider no lesson currently uses, which
-is what keeps that path from rotting.
+**The test page is not optional**, and its second job is the one worth stating: it is the next author's worked example, read more carefully than any paragraph here. Mount the module more than one way if the module supports more than one — `massaction-test.html` renders the barrier slider no lesson currently uses, which is what keeps that path from rotting.
 
-**The checker is not optional either**, for this repo's standing reason: a claim
-ships with its assertion. Assert the things that break silently, not the things a
-missing file would announce. `reaction/check-reaction.js` is the model — it fails
-an `fx:` no verb registers, because the old code swallowed that in a bare `else`
-and ran a 280 ms swap with nothing visibly wrong.
+**The checker is not optional either**, for this repo's standing reason: a claim ships with its assertion. Assert the things that break silently, not the things a missing file would announce. `reaction/check-reaction.js` is the model — it fails an `fx:` no verb registers, because the old code swallowed that in a bare `else` and ran a 280 ms swap with nothing visibly wrong.
 
-**What stays out.** No lesson state. A module reaching for `done`, `busy`,
-`intro`, `lanes` or the tray is the lesson's physics migrating into shared code;
-`check-reaction.js` asserts this by name for `reaction/`, and the rule is general.
-A module answers questions about the *stage*; the page answers questions about
-the *chemistry*.
+**What stays out.** No lesson state. A module reaching for `done`, `busy`, `intro`, `lanes` or the tray is the lesson's physics migrating into shared code; `check-reaction.js` asserts this by name for `reaction/`, and the rule is general. A module answers questions about the *stage*; the page answers questions about the *chemistry*.
 
-**Where a module may appear.** A 2D module that abstracts a statistical or
-thermodynamic point — `massaction/`, `diffusion/`, `coupling/` — is never a
-lesson's primary UX. It goes behind a `kit/modal.js` side door, as a second
-simulation the student opens when they doubt what the 3D stage just did. This is
-the boundary the folders cannot show you: they look like templates for a main
-stage, and they are not one. `energy/` is a third kind again — a figure, no
-canvas and no loop. `reaction/` is the exception that drives the 3D stage rather
-than replacing it.
+**Where a module may appear.** A 2D module that abstracts a statistical or thermodynamic point — `massaction/`, `diffusion/`, `coupling/` — is never a lesson's primary UX. It goes behind a `kit/modal.js` side door, as a second simulation the student opens when they doubt what the 3D stage just did. This is the boundary the folders cannot show you: they look like templates for a main stage, and they are not one. `energy/` is a third kind again — a figure, no canvas and no loop. `reaction/` is the exception that drives the 3D stage rather than replacing it.
 
-**One instance is not a convention.** If you are building the first of something,
-say so in its header. The next author cannot tell an accident from a pattern, and
-will copy either.
+**One instance is not a convention.** If you are building the first of something, say so in its header. The next author cannot tell an accident from a pattern, and will copy either.

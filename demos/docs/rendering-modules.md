@@ -1,10 +1,6 @@
-<!-- KIND: recipe + reference — load when drawing a PROTEIN from deposited coordinates: which of tube / ribbon / surface a page wants, what each one costs, and the settled verdict on outside viewers. Not needed for a lesson that only draws molecules from specs. -->
+<!-- KIND: recipe + reference — load when drawing a PROTEIN from deposited coordinates: which of tube / ribbon / surface a page wants, what each one costs. Not needed for a lesson that only draws molecules from specs. -->
 
 # Rendering modules
-
-**All four renderers live in `kit/`** — `molbox.js`, `proteinbox.js`, `tube.js`, `ribbon.js` — with `surface.js` beside them for the baked skin. They were scattered across `hemoglobin/` and `folding/` for as long as one lesson was the only caller of each; a module named for the page that happened to want it first reads as that page's private code, and the next page copies it instead. `hemoglobin/foldplay.js` is the one that stayed put, because a trajectory played as a ribbon is haemoglobin's own act rather than a way of drawing.
-
-A bench stays with its subject, not always with its module: `kit/ribbon-test.html` moved here, `hemoglobin/tube-test.html` did not, since it loads `hbfold.js` and fetches 2HHB's bakes.
 
 **`kit/molbox.js` — `Molbox`**
 
@@ -12,7 +8,7 @@ Use this to draw macromolecules on the page unless you need animations.
 
 **`kit/proteinbox.js` — `Proteinbox`**
 
-`Use this to draw Proteins unless the human gives you a reason not to. `Its own CardStage scene, ortho by default, real angstroms. 
+`Use this to draw Proteins unless the human gives you a reason not to. `Its own CardStage scene, ortho by default, real angstroms.
 
 ```
 Proteinbox.create({ mount, trace | data, chains, view, colors, sub, orbit, surface, fold })
@@ -78,7 +74,7 @@ The browser half of the SES1 format written by `bake-surface.js`.
 
 **`hemoglobin/foldplay.js` — `FoldPlay`**
 
-A trajectory from `HbFold.decode`, played as a ribbon that means something. It owns one rule, and the rule is the reason it is a module: **the ribbon must not show a helix before its bonds exist.** A residue is drawn helical when a formed H-bond spans it, and only where the deposited records say a helix belongs — so the assignment can arrive early or late but can never invent a helix the structure does not have. Pass the deposited `ss` to `RibbonLib` on every frame instead and the extended chain at t=0 comes out with eight wide blue bands in it: level 2 finished before level 1 has been read.
+Only used for hemoglobin, which has a special baked folding animation. A trajectory from `HbFold.decode`, played as a ribbon that means something. It owns one rule, and the rule is the reason it is a module: **the ribbon must not show a helix before its bonds exist.** A residue is drawn helical when a formed H-bond spans it, and only where the deposited records say a helix belongs — so the assignment can arrive early or late but can never invent a helix the structure does not have. Pass the deposited `ss` to `RibbonLib` on every frame instead and the extended chain at t=0 comes out with eight wide blue bands in it: level 2 finished before level 1 has been read.
 
 * `covers(fold)` — per residue, the bonds whose span contains it. Once per trajectory.
 * `ssFor(fold, cov, formed, out)` — the letters at this instant. `out` is reused; this runs every frame.
