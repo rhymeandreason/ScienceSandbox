@@ -84,10 +84,11 @@ function integrity() {
   /* The specimens are the OTHER registry's, and a protein renamed there drops
      its edges here exactly the way a renamed module id did. Loaded softly: a
      checkout without proteins/ still gets its questions checked. */
-  let keys = null;
+  let keys = null, byKey = null;
   try {
     const lib = require(path.join(ROOT, 'proteins/proteins.js'));
-    keys = new Set((lib.PROTEINS || lib.ProteinLib.PROTEINS).map(p => p.key));
+    byKey = new Map((lib.PROTEINS || lib.ProteinLib.PROTEINS).map(p => [p.key, p]));
+    keys = new Set(byKey.keys());
   } catch (e) {
     console.log('note  proteins/proteins.js did not load; specimen keys unchecked');
   }
@@ -95,10 +96,24 @@ function integrity() {
     ? (keys ? keys.has(id.slice(2)) : true)
     : ids.has(id);
 
-  for (const [key, mods] of (SPECIMENS || [])) {
+  for (const [key, mods, opt] of (SPECIMENS || [])) {
     if (keys && !keys.has(key)) bad.push(`SPECIMENS names no such protein \`${key}\``);
+    /* A row exists to pick a placement or a variant, so a variant it names has
+       to be there: the page falls back to the default, which draws a different
+       deposition than the row asked for and looks entirely correct. */
+    if (byKey && opt && opt.variant && byKey.has(key)
+        && !byKey.get(key).variants.some(v => v.id === opt.variant))
+      bad.push(`specimen \`${key}\` names no such variant \`${opt.variant}\``);
     for (const id of Object.keys(mods))
       if (!ids.has(id)) bad.push(`specimen \`${key}\` sits under no such module \`${id}\``);
+  }
+
+  /* Every registry entry is drawn now, so a variant with no baked ribbon is a
+     protein missing from the map rather than a row somebody left out. */
+  if (byKey) for (const p of byKey.values()) {
+    const v = p.variants.find(x => x.default) || p.variants[0];
+    const ribbon = v && (v.bake ? v.bake.trace : v.read && v.read.baked);
+    if (!ribbon) bad.push(`\`${p.key}/${v ? v.id : '?'}\` has no baked ribbon, so the map cannot draw it`);
   }
 
   for (const [text, mods] of QUESTIONS)

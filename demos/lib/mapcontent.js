@@ -207,9 +207,15 @@
   ];
 
   /* ---------------------------------------------------------------------
-   *  SPECIMENS — a protein from proteins/proteins.js, and the modules it sits
-   *  under. `key` is that file's key and nothing here restates what the
-   *  protein IS: the registry says what we hold, this says where it belongs.
+   *  SPECIMENS — WHERE a protein sits, and nothing else. The list of proteins
+   *  is proteins/proteins.js and this table does not repeat it: every entry
+   *  there is drawn whether or not it has a row here. A row moves one under
+   *  particular modules; without one, the protein hangs off the Proteins door
+   *  at the back rank, which is the honest place for a structure nobody has
+   *  filed under a concept yet. So adding a protein is a one-file edit, and
+   *  this table is an override rather than a second registry to keep in step.
+   *
+   *  `key` is that file's key and nothing here restates what the protein IS.
    *  A specimen is a LEAF — it hangs off modules and questions and never off
    *  another specimen, which is what keeps the map layered.
    *

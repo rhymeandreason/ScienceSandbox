@@ -73,10 +73,10 @@
  *  pair for AlphaFold. A stored URL is one more thing to mistype, and every
  *  bench already builds both from the id for exactly that reason.
  *
- *  WHAT IS NOT HERE. Hemoglobin and the sickle fibre are real structures with
- *  variants of their own, and they are deliberately out: their bakers feed the
- *  folding trajectory and this file's re-bake does not reach them. They join
- *  the day someone gives them a `pipeline` that does.
+ *  WHAT IS NOT HERE. The sickle fibre, whose baker feeds hemoglobin-lab's
+ *  folding trajectory and which this file's re-bake does not reach. It joins
+ *  the day someone gives it a `pipeline` that does. Hemoglobin itself is in,
+ *  on `pipeline:'own'` for that same reason — its entry says why.
  * ============================================================================= */
 (function (global) {
   'use strict';
