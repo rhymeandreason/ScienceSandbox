@@ -179,11 +179,34 @@
       ATP out of ADP and phosphate. Three views, and two more structures read
       only to measure the turn.</p>
 
-    <h2>what the turning is for</h2>
+    <h2>the machine</h2>
+    <button class="mode" id="v-human" aria-pressed="true">
+      <span class="who">human, whole &middot; state 1</span><span class="chip">28 chains</span></button>
+
+    <button class="mode" id="spin" aria-pressed="false">
+      <svg viewBox="0 0 12 12" aria-hidden="true">
+        <polygon class="play" points="3,2 10,6 3,10"/>
+        <g class="pause"><rect x="3" y="2.2" width="2.2" height="7.6" rx="0.5"/><rect x="6.8" y="2.2" width="2.2" height="7.6" rx="0.5"/></g>
+      </svg>
+      <span class="who">turn the rotor</span><span class="chip" id="spin-chip">&mdash;</span></button>
+    <p class="earmark careful" id="spin-note">&mdash;</p>
+
+    <h2>active site detail</h2>
+    <button class="mode" id="v-head" aria-pressed="false">
+      <span class="who">the head, &beta; picked out</span><span class="chip" id="head-chip">&mdash;</span></button>
+    <p class="earmark"><b>The same file, fewer chains.</b> Not another
+      structure: the head is drawn out of the whole-enzyme bake above, so what
+      you see here is exactly where these subunits sit in the machine. The
+      three &beta; are the ones with catalytic sites; the three &alpha;
+      between them hold ATP they never turn over. &gamma; still turns.
+      <b>One &beta; is drawn in the site views' own blue and orange</b> &mdash;
+      the same chain, the same empty site, so you can carry it down to the two
+      below.</p>
+
     <!-- THE CHIP HERE IS FILLED FROM THE BAKE, not typed: these two buttons
          exist to be an occupancy, and an occupancy typed into markup is a
          claim a re-bake falsifies silently. `data-chip="held"` is what asks. -->
-    <button class="mode" id="v-open" aria-pressed="true">
+    <button class="mode" id="v-open" aria-pressed="false">
       <span class="who">&beta;-E &middot; the empty site</span><span class="chip" data-chip="held">&mdash;</span></button>
     <button class="mode" id="v-dp" aria-pressed="false">
       <span class="who">&beta;-DP &middot; product still bound</span><span class="chip" data-chip="held">&mdash;</span></button>
@@ -192,32 +215,6 @@
       phosphates, so the site stays put and the domain swing is what moves.
       Releasing that ADP is what the rotation does, and it is where this
       enzyme's energy actually goes.</p>
-
-    <h2>the machine</h2>
-    <button class="mode" id="v-human" aria-pressed="false">
-      <span class="who">human, whole &middot; state 1</span><span class="chip">28 chains</span></button>
-    <button class="mode" id="v-head" aria-pressed="false">
-      <span class="who">the head, &beta; picked out</span><span class="chip" id="head-chip">&mdash;</span></button>
-    <p class="earmark"><b>The same file, fewer chains.</b> Not another
-      structure: the head is drawn out of the whole-enzyme bake, so what you
-      see here is exactly where these subunits sit in the machine above. The
-      three &beta; are the ones with catalytic sites; the three &alpha;
-      between them hold ATP they never turn over. &gamma; still turns.
-      <b>One &beta; is drawn in the site views' own blue and orange</b> &mdash;
-      the same chain, the same empty site, so you can carry it across.</p>
-
-    <!-- THE ICON IS THE STATE, and it is swapped in CSS off the same
-         `aria-pressed` the button already carries — not in script, so the
-         glyph cannot disagree with what the rotor is doing. Drawn rather
-         than fetched, like the external-link mark at the foot of the page:
-         an icon font for two shapes is a webfont this page does not need. -->
-    <button class="mode" id="spin" aria-pressed="false">
-      <svg viewBox="0 0 12 12" aria-hidden="true">
-        <polygon class="play" points="3,2 10,6 3,10"/>
-        <g class="pause"><rect x="3" y="2.2" width="2.2" height="7.6" rx="0.5"/><rect x="6.8" y="2.2" width="2.2" height="7.6" rx="0.5"/></g>
-      </svg>
-      <span class="who">turn the rotor</span><span class="chip" id="spin-chip">&mdash;</span></button>
-    <p class="earmark careful" id="spin-note">&mdash;</p>
 
     <h2>what you are looking at</h2>
     <p class="claim" id="d-claim">&mdash;</p>
@@ -402,7 +399,7 @@ notes = Annot.create(THREE, stage, box.camera, { mode: 'on' });
    it separately would put the same atoms on disk twice and let the two drift;
    worse, it would stop being evidence about WHERE the head sits, which is the
    only reason this view is worth having. */
-const ORDER = ['open', 'dp', 'human', 'head'];
+const ORDER = ['human', 'head', 'open', 'dp'];
 const SHOWN = {
   open:  { bake: 'open' },
   dp:    { bake: 'dp' },
@@ -449,7 +446,10 @@ function trim(t, only) {
     }),
   });
 }
-const OPEN = 'open';
+/* THE WHOLE ASSEMBLY OPENS THE BENCH. It is the subject — a reader arriving
+   here should meet the machine before a subunit cut out of it, and the two
+   site views only mean anything once you know where they came from. */
+const OPEN = 'human';
 
 /* THE PAGE'S OWN COPY. What a structure IS is the baker's; what this bench
    SAYS about it under this stage is page copy and belongs here. Keyed by
