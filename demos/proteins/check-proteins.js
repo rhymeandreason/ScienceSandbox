@@ -22,6 +22,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const IO = require('./tools/registry-io.js');
 const Bake = require('./bake-lib.js');
 const { chainsDeclared } = Bake;
@@ -36,6 +37,41 @@ const declaredOf = text => {
 
 const HERE = __dirname;
 const bad = [];
+
+/* ---- what git ignores --------------------------------------------------
+ *
+ *  A GITIGNORED FILE IS ALLOWED TO BE THERE OR NOT, and check 8 below needs
+ *  to know which files those are. The raw depositions a baker reads are many
+ *  times the size of what they bake down to, so they are gitignored: a fresh
+ *  clone has none of them and a working checkout has whichever ones somebody
+ *  curled back. Both are correct states, and a check that insists on one of
+ *  them fails somewhere no matter which it picks — which is exactly what
+ *  happened to prion, where `keeps` listing its two raw files failed every
+ *  clone, and `keeps` not listing them failed every checkout that had them.
+ *
+ *  GIT IS ASKED RATHER THAN .gitignore RE-IMPLEMENTED. The pattern language
+ *  has negations, directory rules and precedence, and a second half-copy of
+ *  it here would disagree with the real one on the day it mattered.
+ *  `check-ignore` also answers for paths that do not exist, which the missing
+ *  half of this question needs.
+ *
+ *  NO GIT, NO EXEMPTION. If the call fails for any reason other than "none of
+ *  these matched", every path is treated as tracked and the checks stay as
+ *  strict as they were — a checker that quietly stopped checking because a
+ *  subprocess failed would be worse than one that is occasionally noisy.
+ */
+function gitIgnores(paths) {
+  if (!paths.length) return new Set();
+  try {
+    const out = execFileSync('git', ['check-ignore', '--stdin'],
+      { cwd: HERE, input: paths.join('\n'), encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] });
+    return new Set(out.split('\n').filter(Boolean));
+  } catch (e) {
+    /* Exit 1 is `check-ignore` saying none of them matched, which is an
+       answer. Anything else — no git, not a repo — is not. */
+    return new Set();
+  }
+}
 const say = m => bad.push(m);
 
 const { lib } = IO.read();
@@ -221,13 +257,23 @@ for (const p of lib.PROTEINS) {
         not shown. Anything outside both lists is a stale file, and a stale
         bake from a renamed view is one a bench goes on loading. */
   const keeps = new Set(p.keeps || []);
-  if (p.pipeline !== 'own') for (const f of onDisk) {
-    if (f === 'src' || fs.statSync(path.join(data, f)).isDirectory()) continue;
-    if (!claimed.has(f) && !keeps.has(f))
+
+  /* Every file this check is about to have an opinion on, asked of git in one
+     call: the ones on disk that nothing claims, and the ones `keeps` names
+     that are not there. */
+  const unclaimed = p.pipeline === 'own' ? [] : onDisk.filter(f =>
+    f !== 'src' && !fs.statSync(path.join(data, f)).isDirectory() &&
+    !claimed.has(f) && !keeps.has(f));
+  const missing = [...keeps].filter(f => !onDisk.includes(f));
+  const rel = f => path.relative(HERE, path.join(data, f));
+  const ignored = gitIgnores([...unclaimed, ...missing].map(rel));
+
+  for (const f of unclaimed)
+    if (!ignored.has(rel(f)))
       say(`${p.key}: ${f} is in data/ and neither a variant nor in keeps`);
-  }
-  for (const f of keeps)
-    if (!onDisk.includes(f)) say(`${p.key}: keeps lists ${f}, which is not there`);
+  for (const f of missing)
+    if (!ignored.has(rel(f)))
+      say(`${p.key}: keeps lists ${f}, which is not there`);
 
   /* 9. THE BAKER CAN BE RE-RUN. Raw depositions are gitignored — they are
         many times the size of what they bake down to — so the curl that
