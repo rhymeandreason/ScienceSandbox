@@ -314,7 +314,7 @@
 <script src="../folding/folding.js"></script>
 <script src="../folding/villin.js"></script>
 <script src="../folding/actin.js"></script>
-<script src="../folding/ribbon.js"></script>
+<script src="../kit/ribbon.js"></script>
 <script>
 "use strict";
 /* =============================================================
@@ -1607,7 +1607,7 @@ function buildVillin() {
        which is the sentence act 1 ends on.
 
        Secondary structure comes from 1VII's own HELIX records via
-       RibbonLib.HP35_HELICES, NOT from a geometric guess: the deposited
+       VillinLib.HP35.helices, NOT from a geometric guess: the deposited
        file states where the helices are, so nothing here needs to infer it.
        Coil sections do NOT keep the tube's thickness, which is the one
        thing the first attempt got wrong. Passing coil: TUBE_R left the
@@ -1621,7 +1621,7 @@ function buildVillin() {
        Same colour and same userData as the tube it replaces, so the fade,
        the hover-to-glass raycast and the rung logic all still find it. */
     const ss = RibbonLib.assign(hpPts.length, VillinLib.HP35.start,
-                                RibbonLib.HP35_HELICES, 'H');
+                                VillinLib.HP35.helices, 'H');
     const g = RibbonLib.build(THREE, hpPts, ss);
     const m = new THREE.Mesh(g, Stage.bondMat(HP_COLOR));
     m.material.side = THREE.DoubleSide;   // a ribbon is thin; both faces show

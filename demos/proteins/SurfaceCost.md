@@ -98,7 +98,7 @@ intact.
 * 0.37 s in Node is likely 0.6 to 1.5 s in Safari. It has to run in a Worker or
   it freezes the whole card grid mid-scroll.
 * `tools/ses.js` is `module.exports`-only. It needs the dual-global wrapper
-  `hemoglobin/surface.js` already uses.
+  `kit/surface.js` already uses.
 * The EDT allocates several MB of typed arrays at 0.7 Å. Fine in a Worker,
   worth knowing before it is a surprise.
 * Residue tagging moves browser-side too. `SurfLib.chainOf` / `numberOf` is what

@@ -1,8 +1,44 @@
-<!-- KIND: recipe + reference — load when drawing a PROTEIN from deposited coordinates: which of tube / ribbon / surface a page wants, what each one costs, and the settled verdict on outside viewers. Not needed for a lesson that only draws molecules from specs. -->
+<!-- KIND: recipe + reference — load when drawing a PROTEIN from deposited coordinates: which of tube / ribbon / surface a page wants, what each one costs. Not needed for a lesson that only draws molecules from specs. -->
 
 # Rendering modules
 
-**`hemoglobin/tube.js` — `TubeLib`**
+**`kit/molbox.js` — `Molbox`**
+
+Use this to draw macromolecules on the page unless you need animations.
+
+**`kit/proteinbox.js` — `Proteinbox`**
+
+`Use this to draw Proteins unless the human gives you a reason not to. `Its own CardStage scene, ortho by default, real angstroms.
+
+```
+Proteinbox.create({ mount, trace | data, chains, view, colors, sub, orbit, surface, fold })
+```
+
+Three things it can show, and only the first is free: the 12 KB trace on create, a \~360 KB SES and an \~830 KB trajectory on the click that asks for them. Omit `surface` and there is no toggle; omit `fold` and there is no play button. Returns card-stage's box (so a pool's acquire / snapshot / destroy work unchanged) plus `drop()`, `setData(t)`, `setPocket(p)` and `rep`.
+
+* **`data:` is `trace:` already parsed** — the same object, no fetch. **It does not read PDB and must not learn to**: parsing decides which altloc, which chain, and whether secondary structure is read or detected, and a page that owns a protein already owns those decisions. What is shared is the box — the scene, the camera, the framing and the turn — so a page whose coordinates arrive as anything else parses them itself and hands over chains. `proteins/prion/prion-test.html` builds the object straight off a PDB with `proteins/prion/prion.js`.
+
+* **`setData(t)` redraws without replacing the box**, so a reader who turned the molecule keeps that view across a switch. A page comparing several structures wants one box re-fed, not one box per structure: the alternative costs a WebGL context each and snaps the camera back on every click.
+
+* **The ribbon breaks where the chain breaks**, on `nums` from the trace. A chain carrying only `first` is treated as contiguous, which is the honest reading of a file that does not say otherwise — and why `bake-trace.js` now writes them.
+
+* **`view:` is a 3x3 basis saying which way the structure should face**, applied to the chain group so the camera stays the reader's — the same split `scene.js` makes for a molecule spec's `view`. A trace carries its own when the bake solved one. **The box seeds a canonical camera on the FIRST data only**: "shortest axis into the screen" means nothing looked at obliquely, and a card's default camera stands off at an angle. After that the camera is the reader's, and a switch must not snap away the turn they just made.
+
+* **`sub:` is samples per residue, default 6.** A card is a thumbnail with a triangle budget; at full height 6 shows as faceting wherever the chain turns hard — the ends of arrows and tight loops read chunky, which is the spline showing rather than the protein. `RibbonLib`'s own default is 10 and that is what a stage wants.
+
+* **`colors:`** overrides the ss palette: one number for flat, or `{C,H,E}` for some of it. Omit it and every protein in the repo is drawn the same way, which is the default for a reason. A page overrides only when colour is carrying a claim of its own (prion: healthy fold against disease fold).
+
+* **`setPocket({atoms, bonds})` is the few atoms drawn INSIDE the ribbon** — a heme, what is bound to its iron, the one or two side chains a bench is about. Ball-and-stick is the exception a group of \~40 atoms earns: it is a shape you can read at 10 Å across, which 150 residues of the same treatment is not, and it is how every published figure draws a porphyrin. **The proportions are the module's** (`BALL`, `FE_BALL`, `STICK`): smaller balls and more than twice the house stick width, because the subject is the group's shape seen from across a 40 Å protein and at that distance the house width is about a pixel. Judge them at a whole-protein framing, never zoomed in. Sticks are SPLIT, each half in its atom's colour — deposited coordinates have no spec and often no hydrogens, so the bond does more of the work of saying what the atoms are. It draws in the chain group, so a heme wears the same `view` as the protein; it does not widen the framing radius, because a pocket is inside the protein by definition; and it clears with the ribbon on every `setData`. Returns `{group, materials}` so a lesson can fade or tint it without the box growing an opinion about timing. **What is IN the pocket is the baker's decision, never the box's** — the same refusal it makes about parsing. `proteins/myoglobin/` is the worked example; `hemoglobin-lab.html` still draws its heme by hand, and is the one place the two conventions have not yet met.
+
+* **One decoded surface across every box**, for the same reason contexts are rationed: the LRU rations contexts, not what a page hangs off one. A box that loses its surface falls back to the ribbon it never removed.
+
+* **`orbit:false` by default** — a drag belongs to the page, not to the molecule; a canvas that spins under the pointer leaves no way back to the framing the card was composed with.
+
+* **It reads every library by its BARE name.** `kit/ribbon.js` publishes `const RibbonLib` at script top level, which is script scope and never a property of window, so `global.RibbonLib` is undefined — and only at the moment a card tries to draw. Load it after every library it reads.
+
+* Look is `kit/proteinbox.css` (`.pbox-rep`, `.pbox-play`); the page decides WHEN they are reachable, because only the page knows how big its card is on screen.
+
+**`kit/tube.js` — `TubeLib`**
 
 Cα trace + secondary structure → a smooth tube: one continuous mesh per chain, wide through helices, thin through loops, helix collapsed onto its axis so there's no corkscrew. The multi-molecule representation — a tetramer is 4 draw calls instead of \~240. This is used as a simplified illustration style that is more abstract and less dense than the ribbon render.
 
@@ -14,7 +50,7 @@ Cα trace + secondary structure → a smooth tube: one continuous mesh per chain
 
 * Real ångströms in, plain `BufferGeometry` out. No materials. THREE passed in.
 
-**`folding/ribbon.js` — `RibbonLib`**
+**`kit/ribbon.js` — `RibbonLib`**
 
 Cα trace + secondary structure → a cartoon: helices as flat twisted bands, strands as arrows, coil as a round tube. The dense, literal style — one geometry per chain, but far more triangles than `TubeLib`, which is the abstract counterpart to reach for when a page needs many chains at once.
 
@@ -24,9 +60,9 @@ Cα trace + secondary structure → a cartoon: helices as flat twisted bands, st
 
 * `frames`, `smooth` and the tuning constants (`PROFILE`, `ARROW`, `SMOOTH_W`, `TENSION`) are exported for the test bench and for pages that need to retune rather than retype.
 
-* The orientation frame uses the neighbour **bisector**, not a cross product — a binormal rotates the band a quarter turn and it reads as a corkscrew while every other number stays right. The file's header explains the failure at length; `folding/tools/check-folding.js` asserts it on an ideal helix.
+* The orientation frame uses the neighbour **bisector**, not a cross product — a binormal rotates the band a quarter turn and it reads as a corkscrew while every other number stays right. The file's header explains the failure at length; `kit/check-ribbon.js` asserts it on an ideal helix, along with the rotating frame, the flat strand and the arrowhead. Every claim in that checker is a bug that shipped looking merely ugly, which is why it is gated on the module rather than on any page.
 
-**`hemoglobin/surface.js` — `SurfLib`**
+**`kit/surface.js` — `SurfLib`**
 
 The browser half of the SES1 format written by `bake-surface.js`.
 
@@ -36,30 +72,9 @@ The browser half of the SES1 format written by `bake-surface.js`.
 
 * The format itself stays specified in `bake-surface.js`'s header, next to the writer
 
-**`kit/proteinbox.js` — `Proteinbox`**
-
-`kit/molbox.js` draws a molecule built from a spec; this draws one measured in a lab. Its own CardStage scene, ortho by default, real angstroms — which is what lets it be angstroms at all, since one scale family per SCENE and the cards beside it are the small-molecule family. A full-height stage passes `stage:{ortho:false}` and usually `orbit:true`; on a map neither is wanted.
-
-    Proteinbox.create({ mount, trace | data, chains, view, colors, sub, orbit, surface, fold })
-
-Three things it can show, and only the first is free: the 12 KB trace on create, a ~360 KB SES and an ~830 KB trajectory on the click that asks for them. Omit `surface` and there is no toggle; omit `fold` and there is no play button. Returns card-stage's box (so a pool's acquire / snapshot / destroy work unchanged) plus `drop()`, `setData(t)`, `setPocket(p)` and `rep`.
-
-* **`data:` is `trace:` already parsed** — the same object, no fetch. **It does not read PDB and must not learn to**: parsing decides which altloc, which chain, and whether secondary structure is read or detected, and a page that owns a protein already owns those decisions. What is shared is the box — the scene, the camera, the framing and the turn — so a page whose coordinates arrive as anything else parses them itself and hands over chains. `proteins/prion/prion-test.html` builds the object straight off a PDB with `proteins/prion/prion.js`.
-* **`setData(t)` redraws without replacing the box**, so a reader who turned the molecule keeps that view across a switch. A page comparing several structures wants one box re-fed, not one box per structure: the alternative costs a WebGL context each and snaps the camera back on every click.
-* **The ribbon breaks where the chain breaks**, on `nums` from the trace. A chain carrying only `first` is treated as contiguous, which is the honest reading of a file that does not say otherwise — and why `bake-trace.js` now writes them.
-* **`view:` is a 3x3 basis saying which way the structure should face**, applied to the chain group so the camera stays the reader's — the same split `scene.js` makes for a molecule spec's `view`. A trace carries its own when the bake solved one. **The box seeds a canonical camera on the FIRST data only**: "shortest axis into the screen" means nothing looked at obliquely, and a card's default camera stands off at an angle. After that the camera is the reader's, and a switch must not snap away the turn they just made.
-* **`sub:` is samples per residue, default 6.** A card is a thumbnail with a triangle budget; at full height 6 shows as faceting wherever the chain turns hard — the ends of arrows and tight loops read chunky, which is the spline showing rather than the protein. `RibbonLib`'s own default is 10 and that is what a stage wants.
-* **`colors:`** overrides the ss palette: one number for flat, or `{C,H,E}` for some of it. Omit it and every protein in the repo is drawn the same way, which is the default for a reason. A page overrides only when colour is carrying a claim of its own (prion: healthy fold against disease fold).
-
-* **`setPocket({atoms, bonds})` is the few atoms drawn INSIDE the ribbon** — a heme, what is bound to its iron, the one or two side chains a bench is about. Ball-and-stick is the exception a group of ~40 atoms earns: it is a shape you can read at 10 Å across, which 150 residues of the same treatment is not, and it is how every published figure draws a porphyrin. **The proportions are the module's** (`BALL`, `FE_BALL`, `STICK`): smaller balls and more than twice the house stick width, because the subject is the group's shape seen from across a 40 Å protein and at that distance the house width is about a pixel. Judge them at a whole-protein framing, never zoomed in. Sticks are SPLIT, each half in its atom's colour — deposited coordinates have no spec and often no hydrogens, so the bond does more of the work of saying what the atoms are. It draws in the chain group, so a heme wears the same `view` as the protein; it does not widen the framing radius, because a pocket is inside the protein by definition; and it clears with the ribbon on every `setData`. Returns `{group, materials}` so a lesson can fade or tint it without the box growing an opinion about timing. **What is IN the pocket is the baker's decision, never the box's** — the same refusal it makes about parsing. `proteins/myoglobin/` is the worked example; `hemoglobin-lab.html` still draws its heme by hand, and is the one place the two conventions have not yet met.
-* **One decoded surface across every box**, for the same reason contexts are rationed: the LRU rations contexts, not what a page hangs off one. A box that loses its surface falls back to the ribbon it never removed.
-* **`orbit:false` by default** — a drag belongs to the page, not to the molecule; a canvas that spins under the pointer leaves no way back to the framing the card was composed with.
-* **It reads every library by its BARE name.** `folding/ribbon.js` publishes `const RibbonLib` at script top level, which is script scope and never a property of window, so `global.RibbonLib` is undefined — and only at the moment a card tries to draw. Load it after every library it reads.
-* Look is `kit/proteinbox.css` (`.pbox-rep`, `.pbox-play`); the page decides WHEN they are reachable, because only the page knows how big its card is on screen.
-
 **`hemoglobin/foldplay.js` — `FoldPlay`**
 
-A trajectory from `HbFold.decode`, played as a ribbon that means something. It owns one rule, and the rule is the reason it is a module: **the ribbon must not show a helix before its bonds exist.** A residue is drawn helical when a formed H-bond spans it, and only where the deposited records say a helix belongs — so the assignment can arrive early or late but can never invent a helix the structure does not have. Pass the deposited `ss` to `RibbonLib` on every frame instead and the extended chain at t=0 comes out with eight wide blue bands in it: level 2 finished before level 1 has been read.
+Only used for hemoglobin, which has a special baked folding animation. A trajectory from `HbFold.decode`, played as a ribbon that means something. It owns one rule, and the rule is the reason it is a module: **the ribbon must not show a helix before its bonds exist.** A residue is drawn helical when a formed H-bond spans it, and only where the deposited records say a helix belongs — so the assignment can arrive early or late but can never invent a helix the structure does not have. Pass the deposited `ss` to `RibbonLib` on every frame instead and the extended chain at t=0 comes out with eight wide blue bands in it: level 2 finished before level 1 has been read.
 
 * `covers(fold)` — per residue, the bonds whose span contains it. Once per trajectory.
 * `ssFor(fold, cov, formed, out)` — the letters at this instant. `out` is reused; this runs every frame.

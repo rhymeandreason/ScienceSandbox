@@ -33,7 +33,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const RibbonLib = require('../../folding/ribbon.js');
+const RibbonLib = require('../../kit/ribbon.js');
 
 const SRC = path.join(__dirname, '../../hemoglobin/data/2HBS.pdb');
 const OUT = path.join(__dirname, '../data/fibre.json');

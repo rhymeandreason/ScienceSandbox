@@ -12,28 +12,28 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 
 | Task | Read |
 | --- | --- |
-| Adding or converting a molecule | `MolecularGeometry.md` §1, and §1.4 for the fidelity tier it owes |
-| …and the chemistry it has to obey | `SCIENCE.md` §§2-3, plus the target `mol-*.js` |
+| Adding or converting a molecule | `AddingAMolecule.md` — the eight steps, two of which catch failures that render correctly. `MolecularGeometry.md` §1 is the rulebook behind it, §1.4 for the fidelity tier it owes |
+| The chemistry a molecule has to obey | `SCIENCE.md` §§2-3, plus the target `mol-*.js` |
 | Changing geometry, or what a motion implies happened | `SCIENCE.md` §§2-5 |
 | Polish on a reviewed animation (timing, easing, camera) | nothing extra |
 | A new page | `AddingAPage.md`, then the sibling page the human names |
 | A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
-| Bringing a NEW protein into the repo, before any lesson exists for it | `AddingAProtein.md` — say what the protein IS first, then pull the data that summary asked for, then build a bench to look at. Ends before the lesson does |
+| Add a Protein | `AddingAProtein.md` — say what the protein IS first, then pull the data that summary asked for, then build a bench to look at. Ends before the lesson does |
 | Drawing a PROTEIN, or anything from deposited coordinates | `rendering-modules.md` — which of tube / ribbon / surface, what each costs, and why no outside viewer is loaded. **A protein is not a molecule spec**: it is real ångströms, its secondary structure comes from the file's own records, and `MolecularGeometry.md` §1.5's scale families are what keep it in one frame with anything built from a spec |
 | Adding or changing a shared module | `Modules.md` |
-| A page that mounts SEVERAL live 3D boxes, or any of `card-stage.js` / `molbox.js` / the builder-as-a-box | `ConceptMap.md` — the invariants half especially. Every item in it is a failure that ships looking fine, and most are invisible from the page that has them |
+| Questions-composer, Map, any page that mounts SEVERAL live 3D boxes, or any of `card-stage.js` / `molbox.js` / the builder-as-a-box | `ConceptMap.md` — the invariants half especially. Every item in it is a failure that ships looking fine, and most are invisible from the page that has them |
 | A new `reaction/` verb | `reaction/reaction.js`'s header, `reaction/check-reaction.js` |
 | A solvation page | `WaterSim.md`, then `Modules.md`'s `water/` note — `water/watersim.js` is the liquid itself |
 | The AI tutor, or `api/` | `docs/ai-tutor.md` — design, and the local setup the pages do not need |
-| Deciding what to build next | the two roadmaps. This is the only task they serve |
+| Deciding what to build next | ask the human if the roadmaps are still relevant |
 
-**Every doc in that table lives in `demos/docs/`**; prose names them bare, the way it names a script. `CLAUDE.md` is the one that stays at the top level, because that is where it gets loaded from.
+**Every doc in that table lives in `demos/docs/`**; prose names them bare, the way it names a script.
 
 Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = invariants, load whole. *recipe* = how to build one kind of thing. *argument* = why this and not that, written for the human; loading one during a build spends context on judgement about priority instead of on the build. **If you need a doc this table does not name, stop and say which** — a gap here is invisible from inside a build, and guessing past it is how a rule gets missed.
 
 ## Pages (lessons)
 
-<!-- ENUM: Only add to this chart if a page is a featured lesson. Prototypes and Test pages go on demos/admin.html -->
+<!-- ENUM: Only add to this chart if a page is a featured lesson or important prototype. Test pages go on demos/admin.html -->
 
 **Where a page lives says what it is.** The top level holds lessons — featured and prototype — and nothing else; the shared modules are in `lib/` and the shared stylesheets in `css/`. A module that belongs to one folder keeps its stylesheet beside it (`kit/enzyme-blob.css`, `energy/energy.css`); `css/` is only for the sheets more than one folder's pages load. A bench lives beside the module it exercises (`kit/kit-test.html`, `membrane/pump-test.html`); a bench with no module folder of its own goes in `tests/`. `attic/` holds superseded lessons, kept as worked examples and `.vercelignore`d so nothing links a student into one.
 
@@ -53,15 +53,11 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 | `membrane-lab.html` | The membrane: what gets through, and what it costs. Five steps — bilayer structure, simple diffusion (O₂), a channel's selectivity, a pump spending ATP, active vs passive transport side by side | featured lesson |
 | `design-system.html` | Every token, type step and button in `main.css`, drawn on the stage's own paper. Swatches read their own computed value, so the page cannot claim a colour the token does not hold | internal tool |
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | internal tool |
+| `tests/question-composer.html` | The door map, entered by typing: the reader's words become the root card, and the map opens through the authored question they matched plus the modules the wording reached on its own. Every protein in `proteins/proteins.js` is a node on it; `SPECIMENS` only says where one sits. `ConceptMap.md` | prototype |
 | `capillary/pbf-test.html` | Capillary action as a position-based fluid: water climbing a 3.5 nm slot between real cellulose walls, with a measured contact angle, evaporation, and Young-Laplace holding as the pore narrows. `WaterSim.md` is its rulebook | prototype |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
-**A featured lesson is served at a short URL** by a `vercel.json` rewrite, which
-does not move the file. So every page in the table above marked *featured lesson*
-carries `<base href="/demos/">` and its relative paths keep resolving. Which URL
-maps to which file is `vercel.json`'s `rewrites` block, and copying that list
-into prose is how it goes stale. Promoting a page to featured means adding the
-tag and both routes: `docs/deploy.md`.
+**A featured lesson is served at a short URL** by a `vercel.json` rewrite, which does not move the file. So every page in the table above marked *featured lesson* carries `<base href="/demos/">` and its relative paths keep resolving. Which URL maps to which file is `vercel.json`'s `rewrites` block, and copying that list into prose is how it goes stale. Promoting a page to featured means adding the tag and both routes: `docs/deploy.md`.
 
 ## Making a new lesson
 
@@ -75,11 +71,9 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 
 ## The primary UX is always a bespoke 3D molecular simulation
 
-A lesson's main stage is a 3D scene built for that lesson, rendered as molecules, interacted with **on the molecule**. That is the lesson.
+A lesson's main stage is a 3D scene built for that lesson. We use molecule, protein, or cellular scale depending on what the lesson is. Water and solvation sims are a different scale than comparison or pathway lessons like glycolysis.
 
-**`reaction/` is the exception that proves this**: a shared module that drives the 3D stage rather than replacing it. A step says `fx:'ox'` and the module owns what that does to the molecule, while the lesson keeps its lanes, carriers and ledger. **Adding a verb must not touch a page** — the cycle added six and changed no lesson but its own. `Modules.md`.
-
-**`massaction/`, `diffusion/` and `coupling/` are never the primary UX.** They are 2D abstractions that teach a statistical or thermodynamic point the 3D stage can't make honestly, and they belong behind a `kit/modal.js` side door — a second simulation the student opens when they doubt what the main stage just did, as glycolysis opens `massaction/`. `LESSONS-ROADMAP.md` lists them next to lessons as material, not as the design; don't read that as a stage.
+A molecule-scale lesson prioritizes interaction and animation **on the molecule**. See `Modules.md`.
 
 ## Scientific accuracy
 

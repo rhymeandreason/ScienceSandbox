@@ -4,7 +4,7 @@
  *  SHARED, and documented alongside tube.js and surface.js in
  *  docs/rendering-modules.md — hemoglobin-lab draws through it, as do
  *  folding-lab-ribbon and the test benches under hemoglobin/ and sickle/.
- *  Its abstract counterpart is hemoglobin/tube.js: one tube per chain,
+ *  Its abstract counterpart is kit/tube.js: one tube per chain,
  *  cheap enough for a tetramer or a crowd, where this one is the dense
  *  literal cartoon. Real angstroms, never sees SCALE, and it builds a
  *  BufferGeometry rather than a mesh so the page keeps ownership of
@@ -1012,18 +1012,8 @@ const RibbonLib = (() => {
     return geo;
   }
 
-  /* 1VII's own HELIX records, in VILLIN numbering.
-     The deposited file states 44-48, 55-58 and 63-72 in 1VII numbering,
-     and 1VII residue 41 is villin 791 — a constant +750. Kept here rather
-     than parsed at runtime because act 3 draws HP35 from villin.js's Ca
-     trace, which never loads 1VII. folding/tools/check-folding.js asserts
-     the offset and the ranges against the deposited file, so this cannot
-     drift from the structure it claims to describe. */
-  const HP35_OFFSET = 750;
-  const HP35_HELICES = [[794, 798], [805, 808], [813, 822]];
-
   return { build, assign, detect, dssp, parseBackbone, frames, smooth,
-           PROFILE, ARROW, SMOOTH_W, TENSION, HP35_HELICES, HP35_OFFSET };
+           PROFILE, ARROW, SMOOTH_W, TENSION };
 })();
 
 if (typeof module !== 'undefined' && module.exports) module.exports = RibbonLib;

@@ -23,7 +23,7 @@
  *     hydrogens are part of the deposited model.
  *
  *     So the amide H is CONSTRUCTED, and the placement is deliberately
- *     the one folding/ribbon.js's dssp() already uses: 1 A from N, along
+ *     the one kit/ribbon.js's dssp() already uses: 1 A from N, along
  *     the direction opposite the preceding residue's C=O. Same convention
  *     in both files matters more than either being the best available
  *     guess — a page that assigns secondary structure with one rule and

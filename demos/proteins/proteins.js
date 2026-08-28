@@ -73,10 +73,10 @@
  *  pair for AlphaFold. A stored URL is one more thing to mistype, and every
  *  bench already builds both from the id for exactly that reason.
  *
- *  WHAT IS NOT HERE. Hemoglobin and the sickle fibre are real structures with
- *  variants of their own, and they are deliberately out: their bakers feed the
- *  folding trajectory and this file's re-bake does not reach them. They join
- *  the day someone gives them a `pipeline` that does.
+ *  WHAT IS NOT HERE. The sickle fibre, whose baker feeds hemoglobin-lab's
+ *  folding trajectory and which this file's re-bake does not reach. It joins
+ *  the day someone gives it a `pipeline` that does. Hemoglobin itself is in,
+ *  on `pipeline:'own'` for that same reason — its entry says why.
  * ============================================================================= */
 (function (global) {
   'use strict';
@@ -535,14 +535,13 @@
          check-prion.js reads two of them for its geometry assertions — only
          the three VIEWS became traces, when the unfold animation they were
          shaped for was dropped. */
-      keeps: ['1QLZ.pdb', '1QLZ-model1.pdb', '6LNI.pdb',
+      /* 1QLZ.pdb, the 2.7 MB twenty-model deposition, is not committed — the
+         baker's header carries its URL and 1QLZ-model1.pdb is what the bench
+         reads. The ensemble view was measured off it and never shown; prep.js
+         says why. Re-download before re-running either. */
+      keeps: ['1QLZ-model1.pdb', '6LNI.pdb',
               'prp-native.pdb', 'prp-fibril.pdb', 'prp-stack.pdb',
-              'prp-view-1QLZ.pdb', 'prp-view-6LNI.pdb', 'prp-view-stack.pdb',
-              /* Baked and drawn by nothing today: twenty NMR models as twenty
-                 chains, which says the native state is a FAMILY. The bench
-                 does not offer it — see prep.js on why it was measured and
-                 then not shown. */
-              'prp-view-ensemble.pdb'],
+              'prp-view-1QLZ.pdb', 'prp-view-6LNI.pdb', 'prp-view-stack.pdb'],
       /* Not superposed, and it must not be: the ensemble view IS the spread of
          twenty models, and the stack is ten chains whose relative positions
          are the subject. Fitting either would delete what it shows. */

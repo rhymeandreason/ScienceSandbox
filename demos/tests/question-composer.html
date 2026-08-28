@@ -597,9 +597,9 @@
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/molbox.js"></script>
 <script src="../molecule-builder/molecule-builder.js"></script>
-<script src="../folding/ribbon.js"></script>   <!-- protein cards: RibbonLib -->
+<script src="../kit/ribbon.js"></script>   <!-- protein cards: RibbonLib -->
 <script src="../kit/proteinbox.js"></script>   <!-- ...after every library it reads -->
-<script src="../hemoglobin/surface.js"></script>   <!-- ...and SurfLib, on demand -->
+<script src="../kit/surface.js"></script>   <!-- ...and SurfLib, on demand -->
 <script src="../hemoglobin/hbfold.js"></script>    <!-- ...and the fold, on demand -->
 <script src="../hemoglobin/foldplay.js"></script>  <!-- the ss-from-bonds rule, shared with hemoglobin-lab -->
 <script>
@@ -646,22 +646,34 @@ for (const m of MODULES) {
    never off another specimen, which is what keeps the map layered even though
    a module may now reach one directly, with no question between.
 
-   What it IS comes from proteins/proteins.js and is never restated here; only
-   the default variant's baked trace is resolved, because a card draws one
-   structure and the registry already says which. A key that does not resolve
-   is SKIPPED rather than drawn empty — `--check` is what says so out loud. */
+   THE REGISTRY IS THE LIST. Every protein in proteins/proteins.js gets a node;
+   `SPECIMENS` only says where one SITS, and which variant it sits as. So adding
+   a protein is a one-file edit, and a protein nobody has placed yet still has a
+   home — its own door — rather than being invisible until someone remembers a
+   second table exists.
+
+   What it IS comes from the registry and is never restated here; only the
+   chosen variant's baked trace is resolved, because a card draws one structure
+   and the registry already says which. */
 const SPEC = (window.ProteinLib && window.ProteinLib.PROTEINS) || [];
-for (const [key, mods, opt] of (SPECIMENS || [])) {
-  const p = SPEC.find(x => x.key === key);
-  if (!p) continue;
+const PLACED = new Map((SPECIMENS || []).map(([key, mods, opt]) => [key, { mods, opt }]));
+for (const key of PLACED.keys())
+  if (!SPEC.some(p => p.key === key)) console.warn(`[composer] SPECIMENS names no such protein \`${key}\``);
+
+for (const p of SPEC) {
+  const { mods = {}, opt } = PLACED.get(p.key) || {};
   const v = (opt && opt.variant && p.variants.find(x => x.id === opt.variant))
     || p.variants.find(x => x.default) || p.variants[0];
+  if (opt && opt.variant && (!v || v.id !== opt.variant))
+    console.warn(`[composer] ${p.key}: no variant \`${opt.variant}\``);
   /* A specimen card is a RIBBON. A `bake` block names roles and is
      authoritative when present (2HBS has no `trace` in it and no ribbon
      exists); without one, the protein is on the shared trace pipeline and
-     `read.baked` is that trace. Same rule kit/proteinbox.js applies. */
+     `read.baked` is that trace. Same rule kit/proteinbox.js applies. Every
+     entry is expected to have one now, so a miss is an authoring fault and
+     says so rather than vanishing from the map. */
   const ribbon = v && (v.bake ? v.bake.trace : v.read && v.read.baked);
-  if (!ribbon) continue;
+  if (!ribbon) { console.warn(`[composer] ${p.key}/${v ? v.id : '?'}: no baked ribbon`); continue; }
   /* NO PATHS HERE. The map decides WHICH specimen and WHICH variant; every
      file behind that pair is named by role in proteins/proteins.js, and
      kit/proteinbox.js reads it for itself. A page that resolved
@@ -675,21 +687,32 @@ for (const [key, mods, opt] of (SPECIMENS || [])) {
   const ec = v.read.ec || null;
   const cls = ec ? (ProteinLib.EC_CLASS || [])[Number(ec.split('.')[0])] : null;
   const n = {
-    id: 'p:' + key, kind: 'protein', deg: 0,
+    id: 'p:' + p.key, kind: 'protein', deg: 0,
     name: p.name, claim: p.blurb, does: p.does,
-    protein: key, variant: v.id,
+    protein: p.key, variant: v.id,
     purpose: v.purpose, species: v.species,
     method: v.read.method, residues: v.read.residues, declared: v.read.declared,
     ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
   };
-  byId[n.id] = n;
-  nodes.push(n);
+  const edges = [];
   for (const [mid, rank] of Object.entries(mods)) {
     const m = byId[mid];
     if (!m) continue;
-    links.push({ a: m, b: n, rank });
+    edges.push({ a: m, b: n, rank });
     n.deg++; m.deg++;
   }
+  /* UNPLACED FALLS TO ITS DOOR, at the back rank: a protein nobody has filed
+     under a module belongs to the Proteins question and nowhere else, and the
+     map draws one door at a time — so it appears there and never clutters
+     Water. Placed elsewhere, it reaches this door through its modules. */
+  if (!edges.length) {
+    if (DOOR.id !== 'proteins') continue;   // its door isn't the one on screen
+    edges.push({ a: door, b: n, rank: 3 });
+    n.deg++; door.deg++;
+  }
+  byId[n.id] = n;
+  nodes.push(n);
+  links.push(...edges);
 }
 
 /* One node per question, however many modules name it — which is what makes a

@@ -56,7 +56,7 @@
 const fs = require('fs');
 const path = require('path');
 const FoldLib = require('../../folding/folding.js');
-const RibbonLib = require('../../folding/ribbon.js');
+const RibbonLib = require('../../kit/ribbon.js');
 const { extract } = require('./chain.js');
 
 const HERE = path.join(__dirname, '..');            // demos/hemoglobin

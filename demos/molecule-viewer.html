@@ -289,6 +289,7 @@
 <script src="lib/mol-compare.js"></script>
 <script src="lib/mol-krebs.js"></script>
 <script src="lib/mol-lipids.js"></script>
+<script src="lib/mol-vitamins.js"></script>
 <!-- The flat view is drawn by SmilesDrawer from each spec's generated `smiles`
      — the same library and the same strings contrast-lab.html uses. -->
 <script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
@@ -414,6 +415,27 @@ const SHELF=[
                + 'one cannot, so it holds the membrane apart and keeps it '
                + 'fluid. Same reason olive oil pours and butter does not.',
             atoms:s=>s.cis.atoms },
+  },
+
+  /* On the shelf for the ordinary reason: it has no `view:` yet, and this is
+   * where an opening angle is chosen and pasted back into the spec.
+   *
+   * The focus reads `spec.acid.site` rather than naming an index, so it points
+   * at whichever oxygen the spec says the proton leaves from — the one fact
+   * about this molecule that a card would otherwise have to count out. */
+  { key:'ascorbate', card:'Vitamin C',
+    blurb:'An <b>acid with no –COOH</b>. A five-membered lactone ring, flat, '
+        + 'with two hydroxyls sitting on a double bond across the middle of it '
+        + '— and a two-carbon tail. It is also the reducing agent collagen’s '
+        + 'hydroxylase needs, which is what scurvy is a shortage of.',
+    focus:{ title:'The acidic hydroxyl',
+            body:'This <b>–OH</b> gives up its proton at pH 4.2. Not because it '
+               + 'is on a carboxyl — there isn’t one — but because the negative '
+               + 'charge left behind slides along the double bond and onto the '
+               + 'carbonyl oxygen, spread over four atoms instead of stuck on '
+               + 'one.',
+            atoms:s=>[s.acid.site, ...(s.bonds||[]).filter(b=>b[0]===s.acid.site||b[1]===s.acid.site)
+                      .map(b=>b[0]===s.acid.site?b[1]:b[0])] },
   },
 
   /* ---- the citric-acid cycle, in pathway order ------------------------

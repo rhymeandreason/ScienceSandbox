@@ -30,7 +30,7 @@
 const fs = require('fs');
 const path = require('path');
 const Villin = require('../villin.js');
-const Ribbon = require('../ribbon.js');
+const Ribbon = require('../../kit/ribbon.js');
 
 const HERE = path.join(__dirname, '..');   // demos/folding
 const MODEL = path.join(HERE, 'data', 'AF-P02640-villin.pdb');

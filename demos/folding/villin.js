@@ -64,8 +64,20 @@
 
 const VillinLib = (function () {
 
-  /* Chicken villin numbering. HP35 is what folding-lab folds. */
-  const HP35 = { start: 791, end: 826 };
+  /* Chicken villin numbering. HP35 is what folding-lab folds.
+
+     `helices` is 1VII's own HELIX records in this numbering: the deposited
+     file states 44-48, 55-58 and 63-72, and 1VII residue 41 is villin 791,
+     a constant +750. Kept as a constant rather than parsed at runtime
+     because act 3 draws HP35 from this file's Ca trace and never loads
+     1VII. check-folding.js asserts both the offset and the ranges against
+     the deposited file, so they cannot drift from what they describe.
+     They live here, not on RibbonLib, because they are a claim about
+     VILLIN — a shared renderer has no business carrying one page's
+     structure. */
+  const HP35 = { start: 791, end: 826,
+                 offset: 750,
+                 helices: [[794, 798], [805, 808], [813, 822]] };
   const N_POSES = 8;
   const CA_SPACING = 3.8;        // Ca-Ca along the backbone, angstroms
   /* No fixed clash distance: the bar is calibrated per structure against

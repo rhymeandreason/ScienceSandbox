@@ -6,14 +6,14 @@ Each item says what it is, why it's worth doing, and what would settle it. An
 item leaves this file when it ships, or when a decision doc absorbs it.
 
 **Rendering decisions are reconciled.** We draw proteins ourselves — Three.js +
-`scene.js` + `folding/ribbon.js`; no third-party 3D viewer is used. Mol\* was
+`scene.js` + `kit/ribbon.js`; no third-party 3D viewer is used. Mol\* was
 evaluated and not adopted (`viewer-compare/molstar-evaluation.md` holds the measurements);
 ChemDoodle was deleted for its GPLv3, along with the pages that loaded it, so no
 page here is GPL now. Both survive on the `chemdoodle-archive` branch.
 
-Related docs: `docs/molecule-pipeline.md`, `docs/plan.md`,
-`docs/bio-rendering-thorough.md` (the curriculum-wide 3D/2D survey this file's
-item 4 summarizes).
+Related docs: `docs/molecule-pipeline.md`, `docs/plan.md`. Item 4 below is
+what survives of a curriculum-wide 3D/2D survey; the survey itself is gone, so
+this is the summary, not a pointer to one.
 
 ---
 

@@ -89,8 +89,8 @@ const KNOWN_ABSENT = {
   'protein-molstar.html':         'same page, named without its folder',
   'pdb.js':              'deleted with protein-molstar.html; orient() ported into hemoglobin-inhouse.html',
   'tools/check-pdb.js':  'deleted with pdb.js — it had no other subject',
-  'RDKit.js':           'library NAME — bio-rendering-thorough.md weighs it, unadopted',
-  'Kekule.js':          'library NAME — bio-rendering-thorough.md weighs it, unadopted',
+  'RDKit.js':           'library NAME, weighed against SmilesDrawer and unadopted',
+  'Kekule.js':          'library NAME, weighed against SmilesDrawer and unadopted',
   'SmilesDrawer/RDKit.js': 'the two 2D candidates named as one alternative',
   // LESSONS-ROADMAP.md's domain-file plan. Absent BY DESIGN — the roadmap is
   // the file that proposes them, so building one must fail here until that
@@ -156,7 +156,7 @@ for (const doc of DOCS) {
 // Docs sometimes write a path from the repo root rather than from demos/.
 const norm = n => n.replace(/^demos\//, '');
 // Prose names a script the way a reader says it — `check-molecules.js` lives at
-// the top level, `check-docs.js` in tools/ and `ribbon.js` in folding/, and
+// the top level, `check-docs.js` in tools/ and `ribbon.js` in kit/, and
 // none of them gets a directory in running text. So resolve a bare name
 // against all of them. folding/ and folding/tools/ joined the list when
 // folding-lab's modules and bake scripts moved there, and hemoglobin/ +

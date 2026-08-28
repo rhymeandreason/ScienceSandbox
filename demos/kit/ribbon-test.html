@@ -76,7 +76,7 @@
   <div id="stage"><canvas id="cv"></canvas></div>
   <div class="panel">
     <h2>β-sheet test bench</h2>
-    <div class="note">Scratch page for <code>folding/ribbon.js</code>. Drag to orbit, wheel to zoom.</div>
+    <div class="note">Scratch page for <code>kit/ribbon.js</code>. Drag to orbit, wheel to zoom.</div>
 
     <h3>subject</h3>
     <button class="mode" data-mode="sheet">Synthetic 4-strand sheet<br><span style="color:#8a8175">antiparallel, hand-set SS — tests rendering only</span></button>
@@ -204,10 +204,12 @@ function subject(mode) {
 }
 
 /* ---------- villin, through the real path ---------- */
+/* The PDB stays in folding/data/ — it is folding-lab's subject, and this bench
+   borrows it for a backbone real enough to run DSSP over. */
 let villinCache = null;
 async function villinSubject() {
   if (!villinCache) {
-    const txt = await (await fetch('data/AF-P02640-villin.pdb')).text();
+    const txt = await (await fetch('../folding/data/AF-P02640-villin.pdb')).text();
     const bb = RibbonLib.parseBackbone(txt);
     villinCache = {bb, ss: RibbonLib.dssp(bb)};
   }
