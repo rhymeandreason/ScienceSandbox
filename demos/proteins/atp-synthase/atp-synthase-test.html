@@ -194,11 +194,11 @@
     <h2>active site detail</h2>
     <button class="mode" id="v-head" aria-pressed="false">
       <span class="who">the head, &beta; picked out</span><span class="chip" id="head-chip">&mdash;</span></button>
-    <p class="earmark"><b>The same file, fewer chains.</b> Not another
-      structure: the head is drawn out of the whole-enzyme bake above, so what
-      you see here is exactly where these subunits sit in the machine. The
-      three &beta; are the ones with catalytic sites; the three &alpha;
-      between them hold ATP they never turn over. &gamma; still turns.
+    <p class="earmark"><b>The same file, repainted.</b> Not another structure
+      and not a piece of one: all 28 chains are still here, with everything
+      that is not the head faded back so the eye goes to it. The three &beta;
+      are the ones with catalytic sites; the three &alpha; between them hold
+      ATP they never turn over.
       <b>One &beta; and the &alpha; beside it are drawn in the site views' own
       blue and orange</b> &mdash; one catalytic interface, lit up. The &beta;
       is the same chain and the same empty site as &beta;-E below, so you can
@@ -406,7 +406,13 @@ const SHOWN = {
   open:  { bake: 'open' },
   dp:    { bake: 'dp' },
   human: { bake: 'human' },
-  head:  { bake: 'human', only: 'A,B,C,D,E,F,G' },
+  /* NOT A SUBSET — the same 28 chains, repainted. Drawing the head alone cut
+     it out of the thing that gives it meaning, and left the rotor represented
+     by gamma and nothing else, which is a stranger claim than either drawing
+     all of it or none. Everything that is not the head fades to grey and the
+     head keeps its colour, so the eye is directed rather than the model
+     truncated. */
+  head:  { bake: 'human', detail: true },
 };
 
 /* THE HEAD'S OWN PALETTE, and the one thing this state says with colour: beta
@@ -418,7 +424,15 @@ const SHOWN = {
    in one tone with a joint lit up is a picture of where the chemistry happens.
    Gamma keeps the rotor's azure, kept clear of the ribbon palette's helix
    blue, because it is still the rotor and it is still what turns. */
-const HEAD_COLORS = { β: 0x1f5f4f, α: 0x1f5f4f, γ: 0x2b8cd8 };
+const HEAD_COLORS = { β: 0x1f5f4f, α: 0x1f5f4f };
+
+/* WHAT EVERYTHING ELSE FADES TO on the detail view. Warm rather than neutral,
+   because the stage is `--h-paper` cream and a true grey reads as a hole in
+   it; light enough to recede, dark enough that the rotor and the stalk are
+   still legible shapes rather than a smudge. It is one colour for four roles
+   on purpose — on this view they are all the same thing, which is "not the
+   head". */
+const FADE = 0xcbc7be;
 
 /* ONE BETA IS LEFT OUT OF THAT TABLE ON PURPOSE, and gets the repo's ordinary
    secondary-structure palette instead — the blue helices and orange sheets the
@@ -441,24 +455,6 @@ const HEAD_SS = 'E';
 const FINGER = 373;
 const HUMAN_PLOOP = [160, 167];
 
-/* The bake, cut to the chains a state draws. A shallow copy — the chain
-   objects are shared, never mutated — with `meta.counts` and `meta.roles` cut
-   to match, or the panel would report 28 chains' worth of residues under a
-   picture of seven. */
-function trim(t, only) {
-  if (!only) return t;
-  const keep = new Set(only.split(','));
-  const order = t.order.filter(id => keep.has(id));
-  const chains = {};
-  for (const id of order) chains[id] = t.chains[id];
-  return Object.assign({}, t, {
-    order, chains,
-    meta: Object.assign({}, t.meta, {
-      counts: t.meta.counts.filter(c => keep.has(c.chain)),
-      roles: Object.fromEntries(order.map(id => [id, t.meta.roles[id]])),
-    }),
-  });
-}
 /* THE WHOLE ASSEMBLY OPENS THE BENCH. It is the subject — a reader arriving
    here should meet the machine before a subunit cut out of it, and the two
    site views only mean anything once you know where they came from. */
@@ -752,7 +748,7 @@ function show(id) {
   const spec = SHOWN[id];
   const raw = views[spec.bake], c = cand[spec.bake];
   if (!raw || !c) return;                // fetch still in flight
-  const t = trim(raw, spec.only);
+  const t = raw;
   shownT = t;
 
   /* BOTH SIDES OF ONE INTERFACE are left out of `byChain`, which hands them
@@ -760,7 +756,7 @@ function show(id) {
      and the alpha whose arginine finger completes its site. Omitting is how a
      chain gets the default palette — kit/proteinbox.js falls through for any
      chain the caller did not name. */
-  const ss = spec.only
+  const ss = spec.detail
     ? new Set([HEAD_SS, (fing => fing && fing.id)(fingerOf(t))].filter(Boolean))
     : null;
 
@@ -789,17 +785,17 @@ function show(id) {
   /* The legend is built from the same table the ribbon is coloured from, so a
      swatch cannot name a colour the molecule is not wearing. Grouped by role,
      because 28 individual chains is a list nobody reads. */
-  if (spec.only) {
-    /* THREE ROWS, because the state now says three things: the head is one
-       material, one joint in it is lit up, and the shaft is not part of it.
-       Counting the lit chains separately keeps the green row honest about how
-       many subunits it actually covers. */
+  if (spec.detail) {
+    /* THREE ROWS: the head, the one joint lit up inside it, and everything
+       else as one faded mass. Counted off the bake so the green row cannot
+       claim more subunits than it covers. */
     const lit = t.order.filter(k => ss.has(k));
-    const rest = t.order.filter(k => !ss.has(k) && m.roles[k].subunit !== 'γ');
+    const rest = t.order.filter(k => !ss.has(k) && m.roles[k].role === 'head');
+    const faded = t.order.filter(k => m.roles[k].role !== 'head');
     const rows = [];
     if (rest.length)
       rows.push(`<span><i style="background:${hex(HEAD_COLORS.β)}"></i>` +
-        `<b>α, β</b> · the other ${rest.length}</span>`);
+        `<b>α, β</b> · the other ${rest.length} of the head</span>`);
     if (lit.length) {
       /* THE TWO INKS COME OFF THE BOX, not out of this file. `Proteinbox.RIB`
          is what the ribbon is actually painted with, so a swatch built from it
@@ -810,10 +806,9 @@ function show(id) {
         lit.map(k => `${m.roles[k].subunit} ${k}`).join(' + ') +
         '</b> · one catalytic interface, as on the site views</span>');
     }
-    for (const k of t.order)
-      if (m.roles[k].subunit === 'γ')
-        rows.push(`<span><i style="background:${hex(HEAD_COLORS.γ)}"></i>` +
-          '<b>γ</b> · the shaft, and it turns</span>');
+    if (faded.length)
+      rows.push(`<span><i style="background:${hex(FADE)}"></i>` +
+        `<b>everything else</b> · ${faded.length} chains, faded back</span>`);
     $('d-roles').innerHTML = rows.join('');
   } else if (m.palette === 'role') {
     const seen = {};
@@ -841,10 +836,11 @@ function show(id) {
   /* BY ROLE for an assembly, because what a reader has to tell apart is what
      TURNS; by secondary structure for a single subunit, because there the
      fold is the subject. The mapping is the baker's, out of the bake. */
-  const colors = spec.only
+  const colors = spec.detail
     ? { byChain: Object.fromEntries(t.order
         .filter(k => !ss.has(k))
-        .map(k => [k, HEAD_COLORS[m.roles[k].subunit] || ROLES[m.roles[k].role]])) }
+        .map(k => [k, m.roles[k].role === 'head'
+          ? HEAD_COLORS[m.roles[k].subunit] : FADE])) }
     : m.palette === 'role'
     ? { byChain: Object.fromEntries(t.order.map(k => [k, ROLES[m.roles[k].role]])) }
     : null;
@@ -871,7 +867,7 @@ function show(id) {
        head on a view that draws nothing but the head is a label for something
        the reader cannot mistake, and it competes with the one callout that is
        actually saying something here. */
-    if (spec.only) fingerNote(t);
+    if (spec.detail) fingerNote(t);
     else partNotes(t);
   }
 }
