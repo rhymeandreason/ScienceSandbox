@@ -90,7 +90,11 @@ function block(src, key) {
 /* Replace `field:` inside spec `key` of `file` with `valueText`.
  * Returns 'written' | 'unchanged' | 'absent' | 'ambiguous'. */
 function setField(file, key, field, valueText) {
-  const p = path.join(ROOT, file);
+  // `spec.domain` is the bare filename register() stamped on ('mol-krebs.js'),
+  // and every domain file lives in lib/. Joining it onto ROOT read the repo
+  // root instead and threw ENOENT on the first spec, which took --write out
+  // repo-wide when the domain files moved into lib/.
+  const p = path.join(ROOT, 'lib', file);
   const src = fs.readFileSync(p, 'utf8');
   const b = block(src, key);
   if (!b) return 'absent';
