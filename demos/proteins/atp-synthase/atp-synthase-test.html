@@ -428,6 +428,13 @@ const HEAD_COLORS = { β: 0x1f5f4f, α: 0x8fa9a1, γ: 0x2b8cd8 };
    the caller did not name. */
 const HEAD_SS = 'E';
 
+/* THE ARGININE FINGER, in this file's numbering. Human alpha is numbered
+   differently from the bovine chains the two site views are cut from, so this
+   is 8H9S's number and not a constant of the protein. The P-loop range is the
+   same file's too — the site views' 156-163 is bovine. */
+const FINGER = 373;
+const HUMAN_PLOOP = [160, 167];
+
 /* The bake, cut to the chains a state draws. A shallow copy — the chain
    objects are shared, never mutated — with `meta.counts` and `meta.roles` cut
    to match, or the panel would report 28 chains' worth of residues under a
@@ -845,7 +852,64 @@ function show(id) {
     siteNote(t, box.setPocket(t.site));
   } else if (m.palette === 'role') {
     partNotes(t);
+    if (spec.only) fingerNote(t);
   }
+}
+
+/* THE ONE RESIDUE THAT MAKES THE SITE A JOINT, and the reason this enzyme
+   cannot be a monomer. About fourteen residues of the catalytic site come from
+   beta; one comes from the alpha packed against it, reaching across the
+   interface. A lone beta subunit has a pocket that binds nucleotide and does
+   no chemistry.
+
+   WHICH ALPHA IS MEASURED, NOT LISTED. The label belongs to whichever alpha
+   actually serves the beta chain this state picks out, so it is found by
+   asking which one's residue 373 is nearest that chain's P-loop — αA for βE
+   here, at 11 Å, against 53 and 62 Å for the other two. Hardcoding the pair
+   would be a table to keep in step with HEAD_SS, and it would go quietly
+   wrong the day that changed. */
+function fingerNote(t) {
+  const m = t.meta;
+  const beta = t.chains[HEAD_SS];
+  if (!beta) return;
+
+  /* The middle of the P-loop, which is what an arginine finger reaches for. */
+  let c = [0, 0, 0], n = 0;
+  beta.nums.forEach((num, i) => {
+    if (num < HUMAN_PLOOP[0] || num > HUMAN_PLOOP[1]) return;
+    c[0] += beta.CA[i][0]; c[1] += beta.CA[i][1]; c[2] += beta.CA[i][2]; n++;
+  });
+  if (!n) return;
+  c = c.map(v => v / n);
+
+  let best = null;
+  for (const id of t.order) {
+    if (m.roles[id].subunit !== 'α') continue;
+    const k = t.chains[id].nums.indexOf(FINGER);
+    if (k < 0) continue;
+    const p = t.chains[id].CA[k];
+    const d = Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]);
+    if (!best || d < best.d) best = { id, p, d };
+  }
+  if (!best) return;
+
+  const anchor = new THREE.Object3D();
+  anchor.position.set(best.p[0], best.p[1], best.p[2]);
+  box.group.add(anchor);
+  const v = new THREE.Vector3();
+  notes.add({
+    text: `arginine finger · α${best.id} Arg${FINGER}`,
+    tone: 'head',
+    card: 'One residue, reaching across from the neighbouring α into this β '
+        + 'subunit\'s catalytic site. Count what lines a bound nucleotide '
+        + 'here and it comes to about fourteen residues from β and this one '
+        + 'from α — so the site is not a pocket inside a subunit, it is a '
+        + 'joint between two. That is why ATP synthase cannot be a monomer, '
+        + 'and why the head has to be an alternating ring: six interfaces, '
+        + 'three of them competent.',
+    at: () => anchor.getWorldPosition(v),
+    offset: [40, 30],
+  });
 }
 
 /* ONE CALLOUT PER PART OF THE MACHINE, pinned to the middle of the chains
