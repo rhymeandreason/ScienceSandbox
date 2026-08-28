@@ -12,13 +12,13 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 
 | Task | Read |
 | --- | --- |
-| Adding or converting a molecule | `MolecularGeometry.md` §1, and §1.4 for the fidelity tier it owes |
+| Adding or converting a molecule | `AddingAMolecule.md` — the eight steps, two of which catch failures that render correctly. `MolecularGeometry.md` §1 is the rulebook behind it, §1.4 for the fidelity tier it owes |
 | …and the chemistry it has to obey | `SCIENCE.md` §§2-3, plus the target `mol-*.js` |
 | Changing geometry, or what a motion implies happened | `SCIENCE.md` §§2-5 |
 | Polish on a reviewed animation (timing, easing, camera) | nothing extra |
 | A new page | `AddingAPage.md`, then the sibling page the human names |
 | A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
-| Bringing a NEW protein into the repo, before any lesson exists for it | `AddingAProtein.md` — say what the protein IS first, then pull the data that summary asked for, then build a bench to look at. Ends before the lesson does |
+| Add a Protein | `AddingAProtein.md` — say what the protein IS first, then pull the data that summary asked for, then build a bench to look at. Ends before the lesson does |
 | Drawing a PROTEIN, or anything from deposited coordinates | `rendering-modules.md` — which of tube / ribbon / surface, what each costs, and why no outside viewer is loaded. **A protein is not a molecule spec**: it is real ångströms, its secondary structure comes from the file's own records, and `MolecularGeometry.md` §1.5's scale families are what keep it in one frame with anything built from a spec |
 | Adding or changing a shared module | `Modules.md` |
 | A page that mounts SEVERAL live 3D boxes, or any of `card-stage.js` / `molbox.js` / the builder-as-a-box | `ConceptMap.md` — the invariants half especially. Every item in it is a failure that ships looking fine, and most are invisible from the page that has them |
@@ -56,12 +56,7 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 | `capillary/pbf-test.html` | Capillary action as a position-based fluid: water climbing a 3.5 nm slot between real cellulose walls, with a measured contact angle, evaporation, and Young-Laplace holding as the pore narrows. `WaterSim.md` is its rulebook | prototype |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 
-**A featured lesson is served at a short URL** by a `vercel.json` rewrite, which
-does not move the file. So every page in the table above marked *featured lesson*
-carries `<base href="/demos/">` and its relative paths keep resolving. Which URL
-maps to which file is `vercel.json`'s `rewrites` block, and copying that list
-into prose is how it goes stale. Promoting a page to featured means adding the
-tag and both routes: `docs/deploy.md`.
+**A featured lesson is served at a short URL** by a `vercel.json` rewrite, which does not move the file. So every page in the table above marked *featured lesson* carries `<base href="/demos/">` and its relative paths keep resolving. Which URL maps to which file is `vercel.json`'s `rewrites` block, and copying that list into prose is how it goes stale. Promoting a page to featured means adding the tag and both routes: `docs/deploy.md`.
 
 ## Making a new lesson
 
