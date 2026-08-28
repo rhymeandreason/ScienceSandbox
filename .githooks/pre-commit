@@ -359,8 +359,9 @@ fi
 
 # Everything folding-lab is under demos/folding/, so one pattern covers its
 # modules, its data and its bake tools. kit/ribbon.js is named separately
-# because it left folding/ for kit/ once five folders outside folding/ drew a
-# ribbon, and check-folding.js asserts its frames on an ideal helix.
+# because check-folding.js still asserts RibbonLib.HP35_HELICES against 1VII's
+# HELIX records — villin's claim, living on a shared module. The ribbon's OWN
+# geometry is check-ribbon.js below.
 # palette.js is in too, from the other
 # direction: folding-lab derives its display radii from PALETTE.radii / SCALE,
 # so a palette retune can bury that page's bond sticks inside its atoms, and
@@ -383,6 +384,25 @@ if git diff --cached --name-only | grep -qE '^demos/(folding/.*|kit/ribbon\.js|l
   rm -f /tmp/cf.$$
 else
   echo "pre-commit: skipping check-folding.js — nothing under demos/folding/ staged"
+fi
+
+# ribbon.js is drawn by nine folders and no single lesson owns it, so its gate
+# is the file itself. The checker builds its own ideal helix and strand and
+# needs no data — it is instant, and every claim in it is a bug that shipped
+# looking merely ugly: a band wound edge-first as a corkscrew, a frame that
+# alternated instead of rotating, a strand rolling along its own length, an
+# arrowhead snipped flat. None of those crash and none show in a diff.
+if git diff --cached --name-only | grep -qE '^demos/kit/ribbon\.js$'; then
+  if ! node kit/check-ribbon.js > /tmp/cr.$$ 2>&1; then
+    tail -20 /tmp/cr.$$; rm -f /tmp/cr.$$
+    echo ""
+    echo "pre-commit FAILED: check-ribbon.js — the ribbon frame no longer lies on"
+    echo "  a helix, or a strand is not flat and pointed. See the header for which."
+    exit 1
+  fi
+  rm -f /tmp/cr.$$
+else
+  echo "pre-commit: skipping check-ribbon.js — kit/ribbon.js not staged"
 fi
 
 # residues.js is generated from structures this repo commits, so it can go

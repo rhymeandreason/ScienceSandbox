@@ -64,7 +64,7 @@ Cα trace + secondary structure → a cartoon: helices as flat twisted bands, st
 
 * `frames`, `smooth` and the tuning constants (`PROFILE`, `ARROW`, `SMOOTH_W`, `TENSION`) are exported for the test bench and for pages that need to retune rather than retype.
 
-* The orientation frame uses the neighbour **bisector**, not a cross product — a binormal rotates the band a quarter turn and it reads as a corkscrew while every other number stays right. The file's header explains the failure at length; `folding/tools/check-folding.js` asserts it on an ideal helix.
+* The orientation frame uses the neighbour **bisector**, not a cross product — a binormal rotates the band a quarter turn and it reads as a corkscrew while every other number stays right. The file's header explains the failure at length; `kit/check-ribbon.js` asserts it on an ideal helix, along with the rotating frame, the flat strand and the arrowhead. Every claim in that checker is a bug that shipped looking merely ugly, which is why it is gated on the module rather than on any page.
 
 **`kit/surface.js` — `SurfLib`**
 
