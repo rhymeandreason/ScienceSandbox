@@ -26,7 +26,7 @@ Cα trace + secondary structure → a cartoon: helices as flat twisted bands, st
 
 * The orientation frame uses the neighbour **bisector**, not a cross product — a binormal rotates the band a quarter turn and it reads as a corkscrew while every other number stays right. The file's header explains the failure at length; `folding/tools/check-folding.js` asserts it on an ideal helix.
 
-**`hemoglobin/surface.js` — `SurfLib`**
+**`kit/surface.js` — `SurfLib`**
 
 The browser half of the SES1 format written by `bake-surface.js`.
 

@@ -46,7 +46,7 @@
  *
  *  Needs, in load order: THREE, lib/scene.js, folding/ribbon.js,
  *  kit/card-stage.js. And only for the option that uses it —
- *  hemoglobin/surface.js for `surface`, hemoglobin/hbfold.js +
+ *  kit/surface.js for `surface`, hemoglobin/hbfold.js +
  *  hemoglobin/foldplay.js for `fold`.
  *
  *    const box = Proteinbox.create({

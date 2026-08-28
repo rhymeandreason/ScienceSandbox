@@ -535,14 +535,13 @@
          check-prion.js reads two of them for its geometry assertions — only
          the three VIEWS became traces, when the unfold animation they were
          shaped for was dropped. */
-      keeps: ['1QLZ.pdb', '1QLZ-model1.pdb', '6LNI.pdb',
+      /* 1QLZ.pdb, the 2.7 MB twenty-model deposition, is not committed — the
+         baker's header carries its URL and 1QLZ-model1.pdb is what the bench
+         reads. The ensemble view was measured off it and never shown; prep.js
+         says why. Re-download before re-running either. */
+      keeps: ['1QLZ-model1.pdb', '6LNI.pdb',
               'prp-native.pdb', 'prp-fibril.pdb', 'prp-stack.pdb',
-              'prp-view-1QLZ.pdb', 'prp-view-6LNI.pdb', 'prp-view-stack.pdb',
-              /* Baked and drawn by nothing today: twenty NMR models as twenty
-                 chains, which says the native state is a FAMILY. The bench
-                 does not offer it — see prep.js on why it was measured and
-                 then not shown. */
-              'prp-view-ensemble.pdb'],
+              'prp-view-1QLZ.pdb', 'prp-view-6LNI.pdb', 'prp-view-stack.pdb'],
       /* Not superposed, and it must not be: the ensemble view IS the spread of
          twenty models, and the stack is ten chains whose relative positions
          are the subject. Fitting either would delete what it shows. */
