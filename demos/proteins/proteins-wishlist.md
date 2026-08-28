@@ -28,6 +28,14 @@
 | **Hexokinase** | 1HKB? / 2YHX? | EC class **2, transferase** — empty; and there is already a `hexokinase/` directory the registry does not know about | 1–2 | `enzyme` | **yes** — open and glucose-closed, the induced-fit pair | pdb |
 | **Carbonic anhydrase** | 1CA2 | EC class **4, lyase** — empty; one zinc, among the fastest enzymes known | 1 | `enzyme` | no | pdb |
 | **Lactate / alcohol dehydrogenase** | 1I0Z? / 1HET? | EC class **1, oxidoreductase** — empty; the enzyme the queued fermentation lesson needs | 4 / 2 | `enzyme` | NAD-bound and apo | pdb |
+| **Oxy haemoglobin** | 1HHO | **the other half of a pair we already hold** — 2HHB is deoxy, and T→R is the allostery story | 4 | `oxygen carrier` | **yes** — with 2HHB | pdb |
+| **Fetal haemoglobin** | 1FDH | the developmental switch: why fetal blood outcompetes maternal for O₂ | 4 | `oxygen carrier` | with 2HHB | pdb |
+| **Cytochrome c** | 3CYT | tiny, ancient, near-identical from yeast to human — *the* molecular-evolution molecule | 1 | new: `electron carrier` | no | pdb |
+| **Zinc finger on DNA** | 1ZAA | the missing **zinc finger**; sequence-specific DNA reading, in the smallest package there is | 1 + DNA | new: `DNA-binding` | no | pdb |
+| **Leucine zipper** | 1YSA | the **natural** coiled coil, against the designed ones below | 2 + DNA | new: `DNA-binding` | no | pdb |
+| **Bacterial porin** | 2POR | a **second** β-barrel, membrane-embedded — one fold, a completely different problem from GFP's | 3 | new: `transport` | no | pdb |
+| **Calmodulin** | 1CLL | one of the largest conformational changes in a small protein; a Ca²⁺ switch | 1 | new: `sensor` | **yes** — apo 1CFD | pdb |
+| **Catalase** | 1DGF | EC class **1** again, and among the fastest enzymes known — pairs with carbonic anhydrase, also diffusion-limited | 4 | `enzyme` | no | pdb |
 
 Insulin and GFP are the two cheapest additions available and neither duplicates anything. Insulin is 51 residues and carries a story a Bio 101 reader already half knows. GFP is one chain, one barrel, and a chromophore the protein builds out of its own backbone — which is a claim a ribbon can show.
 
@@ -46,6 +54,10 @@ The nucleosome is the highest-value entry in this tier and the only one with an 
 | **GroEL** | 1OEL | folding, chaperoned | 14 | **prion** | 14 chains for one barrel |
 | **Ferritin** | 1FHA | 24 identical subunits, octahedral — a hollow iron ball built from one part | 24 | — | 24 chains, though only one part repeated |
 | **LH2 light-harvesting ring** | 1NKZ? | a circle of chlorophylls on a ring of helices; the symmetry *is* the antenna | 18 | **rubisco**, if photosynthesis lands | carries chlorophyll, and no photosynthesis lesson yet |
+| **PCNA sliding clamp** | 1AXC | a ring threaded *around* DNA — mechanically obvious from one picture, which is rare | 3 | DNA polymerase | the story needs the DNA it encircles |
+| **β-lactamase** | 1BTL | antibiotic resistance: evolution on a human timescale, observable | 1 | **lysozyme** — bacterial wall made and unmade | wants a resistant variant beside it to read |
+| **Antifreeze protein** | 1WFA | binds **ice**, not a molecule — and `water-lab` is a featured lesson about that surface | 1 | **water-lab's ice** | the partner is a lattice, not a chain; new rendering |
+| **Nitrogenase** | 1N2C | the FeMo cofactor — the hardest chemistry in biology, breaking N≡N at room temperature | 4+ | — | a metal cluster the bake has never met |
 
 The pairings are the argument. KcsA earns its place *because* napump is already registered — channel against pump, downhill against paid-for, on one bench — in a way it would not earn standing alone. Same for GroEL against prion: folding helped, next to folding gone wrong.
 
@@ -60,6 +72,7 @@ Myosin and kinesin are the second consumer of whatever the ATP synthase rotation
 | **Ribosome** | 4V6X? | translation | \~50 protein + rRNA | **mmCIF only — see below** |
 | **Aminoacyl-tRNA synthetase** | TBC | EC class **6, ligase** — empty; charging tRNA is where the genetic code becomes physical | 1–2 + tRNA | RNA pipeline, same gate as DNA polymerase |
 | **Tubulin / actin** | 1JFF / 1ATN | cytoskeleton; a polymer that is not collagen | 2 / 1 | the subject is the filament, not the file |
+| **CRISPR-Cas9** | 5F9R | humans engineering biology, without needing a designed protein to say it | 1 + sgRNA + DNA | RNA *and* DNA in one file; same gate as DNA polymerase |
 | **HK97 capsid** | 1OHG? | subunits covalently linked into interlocking rings — protein chainmail | 60+ | almost certainly mmCIF-only |
 | **Clathrin cage** | 1XI4? | triskelions self-assembling into a soccer ball; floppy leg, exact cage | 100+ | cryo-EM, coarse, and huge |
 
