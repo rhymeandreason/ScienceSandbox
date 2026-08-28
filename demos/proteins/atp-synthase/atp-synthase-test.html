@@ -904,6 +904,14 @@ function show(id) {
     if (spec.detail) fingerNote(t);
     else partNotes(t);
   }
+
+  /* A CALLOUT IS PLACED BY A RENDER, not by being added. `notes.step()` runs
+     in the box's afterFrame, so a label sits at its initial corner until the
+     next frame draws — and the last draw of this function happened above,
+     before any of these existed. A rebuild hid that: its chain-per-frame build
+     keeps drawing for the next second, so the labels snapped into place too
+     quickly to see. A repaint draws once, and they stayed in the corner. */
+  box.draw();
 }
 
 /* THE ONE RESIDUE THAT MAKES THE SITE A JOINT, and the reason this enzyme
