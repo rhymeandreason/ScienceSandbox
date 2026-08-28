@@ -199,9 +199,11 @@
       you see here is exactly where these subunits sit in the machine. The
       three &beta; are the ones with catalytic sites; the three &alpha;
       between them hold ATP they never turn over. &gamma; still turns.
-      <b>One &beta; is drawn in the site views' own blue and orange</b> &mdash;
-      the same chain, the same empty site, so you can carry it down to the two
-      below.</p>
+      <b>One &beta; and the &alpha; beside it are drawn in the site views' own
+      blue and orange</b> &mdash; one catalytic interface, lit up. The &beta;
+      is the same chain and the same empty site as &beta;-E below, so you can
+      carry it down; the &alpha; is there because the site is a joint between
+      the two, not a pocket in one.</p>
 
     <!-- THE CHIP HERE IS FILLED FROM THE BAKE, not typed: these two buttons
          exist to be an occupancy, and an occupancy typed into markup is a
@@ -409,10 +411,14 @@ const SHOWN = {
 
 /* THE HEAD'S OWN PALETTE, and the one thing this state says with colour: beta
    is the subunit with the chemistry in it. Alpha keeps the head's family and
-   steps back a tone; gamma keeps the rotor's azure, because it is still the
-   rotor and it is still what turns. Kept clear of the ribbon palette's helix
-   blue, which the one beta chain below is drawn in. */
-const HEAD_COLORS = { β: 0x1f5f4f, α: 0x8fa9a1, γ: 0x2b8cd8 };
+   ONE GREEN FOR THE WHOLE HEAD, alpha and beta alike. Telling the two apart by
+   colour was the earlier version of this state, and it competed with the thing
+   the state is actually for: one CATALYTIC INTERFACE, picked out in the site
+   views' palette. Six subunits in three tones is a diagram of the ring; five
+   in one tone with a joint lit up is a picture of where the chemistry happens.
+   Gamma keeps the rotor's azure, kept clear of the ribbon palette's helix
+   blue, because it is still the rotor and it is still what turns. */
+const HEAD_COLORS = { β: 0x1f5f4f, α: 0x1f5f4f, γ: 0x2b8cd8 };
 
 /* ONE BETA IS LEFT OUT OF THAT TABLE ON PURPOSE, and gets the repo's ordinary
    secondary-structure palette instead — the blue helices and orange sheets the
@@ -749,6 +755,15 @@ function show(id) {
   const t = trim(raw, spec.only);
   shownT = t;
 
+  /* BOTH SIDES OF ONE INTERFACE are left out of `byChain`, which hands them
+     back to the box's own secondary-structure materials: the picked-out beta,
+     and the alpha whose arginine finger completes its site. Omitting is how a
+     chain gets the default palette — kit/proteinbox.js falls through for any
+     chain the caller did not name. */
+  const ss = spec.only
+    ? new Set([HEAD_SS, (fing => fing && fing.id)(fingerOf(t))].filter(Boolean))
+    : null;
+
   const s = stats(t), m = t.meta, r = c.read;
   $('d-claim').textContent = SAYS[id].claim;
   $('d-meta').textContent = `${c.entry} · ${r.method}` +
@@ -775,29 +790,30 @@ function show(id) {
      swatch cannot name a colour the molecule is not wearing. Grouped by role,
      because 28 individual chains is a list nobody reads. */
   if (spec.only) {
-    /* By SUBUNIT here, because that is what the state is about: which of the
-       six carries the chemistry — and then the one chain wearing the
-       site views' own colours, which is the whole reason this state exists.
-       Its swatch is split blue and orange rather than picking one, because
-       that chain is not drawn in a colour: it is drawn in a scheme. */
-    const seen = {};
-    for (const id2 of t.order) {
-      if (id2 === HEAD_SS) continue;
-      (seen[m.roles[id2].subunit] ||= []).push(id2);
-    }
-    const rows = Object.entries(seen).map(([sub, ids]) =>
-      `<span><i style="background:${hex(HEAD_COLORS[sub] ||
-        ROLES[m.roles[ids[0]].role])}"></i><b>${sub}</b> × ${ids.length}</span>`);
-    if (t.order.includes(HEAD_SS)) {
+    /* THREE ROWS, because the state now says three things: the head is one
+       material, one joint in it is lit up, and the shaft is not part of it.
+       Counting the lit chains separately keeps the green row honest about how
+       many subunits it actually covers. */
+    const lit = t.order.filter(k => ss.has(k));
+    const rest = t.order.filter(k => !ss.has(k) && m.roles[k].subunit !== 'γ');
+    const rows = [];
+    if (rest.length)
+      rows.push(`<span><i style="background:${hex(HEAD_COLORS.β)}"></i>` +
+        `<b>α, β</b> · the other ${rest.length}</span>`);
+    if (lit.length) {
       /* THE TWO INKS COME OFF THE BOX, not out of this file. `Proteinbox.RIB`
          is what the ribbon is actually painted with, so a swatch built from it
-         cannot name a colour the molecule is not wearing — the same reason the
-         other swatches here read the bake rather than a table on the page. */
+         cannot name a colour the molecule is not wearing. */
       const R = Proteinbox.RIB;
       rows.push('<span><i style="background:linear-gradient(135deg,' +
-        `${hex(R.H)} 50%,${hex(R.E)} 50%)"></i>` +
-        `<b>β chain ${HEAD_SS}</b> · the third, as on the site views</span>`);
+        `${hex(R.H)} 50%,${hex(R.E)} 50%)"></i><b>` +
+        lit.map(k => `${m.roles[k].subunit} ${k}`).join(' + ') +
+        '</b> · one catalytic interface, as on the site views</span>');
     }
+    for (const k of t.order)
+      if (m.roles[k].subunit === 'γ')
+        rows.push(`<span><i style="background:${hex(HEAD_COLORS.γ)}"></i>` +
+          '<b>γ</b> · the shaft, and it turns</span>');
     $('d-roles').innerHTML = rows.join('');
   } else if (m.palette === 'role') {
     const seen = {};
@@ -827,7 +843,7 @@ function show(id) {
      fold is the subject. The mapping is the baker's, out of the bake. */
   const colors = spec.only
     ? { byChain: Object.fromEntries(t.order
-        .filter(k => k !== HEAD_SS)
+        .filter(k => !ss.has(k))
         .map(k => [k, HEAD_COLORS[m.roles[k].subunit] || ROLES[m.roles[k].role]])) }
     : m.palette === 'role'
     ? { byChain: Object.fromEntries(t.order.map(k => [k, ROLES[m.roles[k].role]])) }
@@ -868,10 +884,14 @@ function show(id) {
    here, at 11 Å, against 53 and 62 Å for the other two. Hardcoding the pair
    would be a table to keep in step with HEAD_SS, and it would go quietly
    wrong the day that changed. */
-function fingerNote(t) {
+/* WHICH ALPHA COMPLETES THE PICKED-OUT BETA'S SITE, measured off the bake.
+   Called twice per draw — once to decide which chains wear the site views'
+   palette, once to place the label on the residue itself — and it has to be
+   ONE answer, or the ribbon and the callout would name different subunits. */
+function fingerOf(t) {
   const m = t.meta;
   const beta = t.chains[HEAD_SS];
-  if (!beta) return;
+  if (!beta) return null;
 
   /* The middle of the P-loop, which is what an arginine finger reaches for. */
   let c = [0, 0, 0], n = 0;
@@ -879,7 +899,7 @@ function fingerNote(t) {
     if (num < HUMAN_PLOOP[0] || num > HUMAN_PLOOP[1]) return;
     c[0] += beta.CA[i][0]; c[1] += beta.CA[i][1]; c[2] += beta.CA[i][2]; n++;
   });
-  if (!n) return;
+  if (!n) return null;
   c = c.map(v => v / n);
 
   let best = null;
@@ -891,6 +911,11 @@ function fingerNote(t) {
     const d = Math.hypot(p[0] - c[0], p[1] - c[1], p[2] - c[2]);
     if (!best || d < best.d) best = { id, p, d };
   }
+  return best;
+}
+
+function fingerNote(t) {
+  const best = fingerOf(t);
   if (!best) return;
 
   const anchor = new THREE.Object3D();
