@@ -153,6 +153,20 @@
   .tab-panel[hidden]{display:none}
   .tab-panel .lead{font-size:0.9rem;color:var(--h-ink);line-height:1.5;
     margin:0 0 var(--space-3)}
+
+  /* The play mark, and the pause it becomes. `currentColor` so it follows the
+     row through hover and the pressed state, where the button turns green and
+     the ink turns to paper — a fill named here would go invisible on one of
+     the three. */
+  #spin svg{width:11px;height:11px;flex:none;fill:currentColor}
+  #spin .pause{display:none}
+  #spin[aria-pressed=true] .play{display:none}
+  #spin[aria-pressed=true] .pause{display:inline}
+
+  /* A view with no measured rotation cannot be turned, and the button says so
+     rather than looking live and doing nothing when clicked. */
+  #spin:disabled{opacity:.4;cursor:default}
+  #spin:disabled:hover{border-color:var(--h-line);color:var(--h-ink)}
 </style>
 
 </head>
@@ -183,7 +197,16 @@
     <button class="mode" id="v-human" aria-pressed="false">
       <span class="who">human, whole &middot; state 1</span><span class="chip">28 chains</span></button>
 
+    <!-- THE ICON IS THE STATE, and it is swapped in CSS off the same
+         `aria-pressed` the button already carries — not in script, so the
+         glyph cannot disagree with what the rotor is doing. Drawn rather
+         than fetched, like the external-link mark at the foot of the page:
+         an icon font for two shapes is a webfont this page does not need. -->
     <button class="mode" id="spin" aria-pressed="false">
+      <svg viewBox="0 0 12 12" aria-hidden="true">
+        <polygon class="play" points="3,2 10,6 3,10"/>
+        <g class="pause"><rect x="3" y="2.2" width="2.2" height="7.6" rx="0.5"/><rect x="6.8" y="2.2" width="2.2" height="7.6" rx="0.5"/></g>
+      </svg>
       <span class="who">turn the rotor</span><span class="chip" id="spin-chip">&mdash;</span></button>
     <p class="earmark careful" id="spin-note">&mdash;</p>
 
