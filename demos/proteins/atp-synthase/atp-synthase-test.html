@@ -518,6 +518,50 @@ const UNFITTED = {
        + 'rotation was measured against are read by the baker and not kept.',
 };
 
+/* WHAT EACH PART IS, as a callout. Page copy: the baker says which chains
+   wear which role, and this says what that role MEANS, which is a sentence no
+   bake can produce. Anchored per role rather than per chain — twenty-eight
+   labels would be the soup annotate.js warns about, five is a figure caption.
+
+   `on` is the anchor group: which chains the label is pinned to the middle of.
+   The rotor's is the c-ring alone, and deliberately, because the c-ring's
+   centroid sits ON the rotation axis — so that label holds still while the
+   thing it names turns, instead of orbiting the screen. */
+const PARTS = {
+  head: { on: 'α,β', label: 'head · α₃β₃', offset: [40, -30],
+    card: 'Six subunits in a ring, alternating. The three β have the '
+        + 'catalytic sites; the three α hold ATP they never turn over. This '
+        + 'is where the ATP is made, and it never moves.' },
+  rotor: { on: 'c', label: 'rotor · c₈ γ δ ε', offset: [-150, 20],
+    card: 'The ring in the membrane, the shaft through the middle, and the '
+        + 'collar joining them. All one rigid body: protons turn the ring, '
+        + 'the shaft turns with it, and the head is deformed from inside. '
+        + 'Press "turn the rotor" and this is what moves.' },
+  stalk: { on: 'b,d,F6,OSCP', label: 'stalk', offset: [46, 10],
+    card: 'The girder. A motor needs something to push against, and this is '
+        + 'it: four subunits running from the top of the head down to the '
+        + 'membrane, holding the head still against the torque of the shaft '
+        + 'turning inside it. Without it the head would simply spin along '
+        + 'with the rotor and no ATP would be made.' },
+  membrane: { on: 'a,ATP8,ATP5MJ,f,g,e', label: 'membrane · subunit a',
+    offset: [44, 34],
+    card: 'What sits in the bilayer beside the ring. Subunit a is the '
+        + 'important one: it holds two half-channels that do not meet, one '
+        + 'open to each side of the membrane. A proton enters from one side, '
+        + 'rides a c-subunit almost all the way round, and leaves by the '
+        + 'other. That offset is what makes the ring turn one way. Subunit a '
+        + 'is also one of only two chains here encoded by the mitochondrion '
+        + 'itself rather than imported from the nucleus.' },
+  brake: { on: 'IF1', label: 'IF1 · the brake', offset: [-120, -34],
+    card: 'Not part of the enzyme — a separate protein, 35 residues of it '
+        + 'here, that jams the motor. Run the mitochondrion out of oxygen '
+        + 'and the proton gradient collapses; the enzyme would then run '
+        + 'backwards, spending ATP to pump protons and emptying the cell in '
+        + 'minutes. IF1 wedges into an α/β interface and blocks the reverse '
+        + 'direction only. It is why this structure has 28 chains and not '
+        + '27, and why one of them is a visitor.' },
+};
+
 const views = {};                        // id -> baked trace
 let cand = {}, ROLES = {};
 let view = null;
@@ -526,8 +570,24 @@ const hex = n => '#' + n.toString(16).padStart(6, '0');
 
 window.bench = { views, cand, box, get view() { return view; } };
 
+/* THE CALLOUT TINTS ARE THE RIBBON'S OWN, written into a stylesheet at load
+   from the same table the chains are painted from. A tone class typed into the
+   page's <style> would be a second copy of every role colour, and the day one
+   moved the label would go on naming the old one. */
+function roleTones(roles) {
+  const css = Object.entries(roles).map(([role, n]) => {
+    const c = hex(n);
+    return `.annot-${role} .annot-dot{border-color:${c}}` +
+           `.annot-${role} .annot-label{color:${c}}`;
+  }).join('');
+  const el = document.createElement('style');
+  el.textContent = css;
+  document.head.appendChild(el);
+}
+
 fetch('data/candidates.json').then(r => r.json()).then(reg => {
   ROLES = reg.roles;
+  roleTones(ROLES);
   reg.candidates.forEach(c => { cand[c.id] = c; });
   /* ONE FETCH PER BAKE, not per button: `head` and `human` are two buttons
      over one file, and fetching it twice would be two copies of 5,064
@@ -775,6 +835,47 @@ function show(id) {
   notes.clear();
   if (t.site) {
     siteNote(t, box.setPocket(t.site));
+  } else if (m.palette === 'role') {
+    partNotes(t);
+  }
+}
+
+/* ONE CALLOUT PER PART OF THE MACHINE, pinned to the middle of the chains
+   that make it up.
+
+   THE ANCHOR IS AN OBJECT IN THE CHAIN GROUP, never a coordinate out of the
+   bake. The group carries the presentation basis and the box re-centres on
+   what it has drawn, so a point copied from the bake is right until the first
+   frame and quietly wrong after it — annotate.js's own header makes the same
+   point about baking anchors. An empty Object3D costs nothing and moves with
+   whatever it is parented to. */
+function partNotes(t) {
+  const m = t.meta;
+  /* Which chains carry each subunit name, so a part can be named by its
+     subunits rather than by chain letters nobody outside the file knows. */
+  const chainsOf = subs => {
+    const want = new Set(subs.split(','));
+    return t.order.filter(id => want.has(m.roles[id].subunit));
+  };
+  const v = new THREE.Vector3();
+  for (const [role, part] of Object.entries(PARTS)) {
+    const ids = chainsOf(part.on);
+    if (!ids.length) continue;           // a chain absent from this file
+    let n = 0;
+    const c = [0, 0, 0];
+    for (const id of ids) for (const p of t.chains[id].CA) {
+      c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; n++;
+    }
+    const anchor = new THREE.Object3D();
+    anchor.position.set(c[0] / n, c[1] / n, c[2] / n);
+    box.group.add(anchor);
+    notes.add({
+      text: part.label,
+      tone: role,
+      card: part.card,
+      at: () => anchor.getWorldPosition(v),
+      offset: part.offset,
+    });
   }
 }
 
