@@ -537,7 +537,15 @@ const PARTS = {
         + 'collar joining them. All one rigid body: protons turn the ring, '
         + 'the shaft turns with it, and the head is deformed from inside. '
         + 'Press "turn the rotor" and this is what moves.' },
-  stalk: { on: 'b,d,F6,OSCP', label: 'stalk', offset: [46, 10],
+  /* ANCHORED ON b AND d, NOT ON THE WHOLE STALK, and this is the one part
+     whose obvious centroid is wrong. OSCP is the cap that sits ON TOP of the
+     head — 14 Å from the axis and 85 Å up — so averaging it with the arc drags
+     the anchor to 42 Å out and 20 Å up, which is inside the head's 63 Å
+     footprint. The label then pointed at the green. b and d are the descending
+     arc a reader would call "the stalk": 54 Å out, below the head's middle,
+     and unambiguously on the tan. The ROLE still covers all four; only the
+     anchor is narrower. */
+  stalk: { on: 'b,d', label: 'stalk', offset: [46, 10],
     card: 'The girder. A motor needs something to push against, and this is '
         + 'it: four subunits running from the top of the head down to the '
         + 'membrane, holding the head still against the torque of the shaft '
