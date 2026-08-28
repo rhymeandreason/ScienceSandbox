@@ -17,25 +17,25 @@
 
 ## Tier 1 — big story, cheap bake, fills a real hole
 
-| candidate | id | fills | chains | `does` | states? | format |
-| --- | --- | --- | --- | --- | --- | --- |
-| **Insulin** | 4INS | signalling; a hormone cut out of a bigger chain | 4 (2×AB) | new: `hormone` | no | pdb |
-| **GFP** | 1EMA | the missing β-barrel; how biology is *done* | 1 | new: `reporter` | no | pdb |
-| **Nucleosome** | 1AOI | DNA packaging — the chromatin picture | 8 + 2 DNA | `structural` | no | pdb |
-| **Lysozyme** | 1LZ1 (human) | the first enzyme mechanism ever solved | 1 | `enzyme` | 2LZT etc. | pdb |
-| **Antibody, intact IgG** | 1IGT | immune recognition; one fold reused six times | 4 | new: `recognition` | no | pdb |
-| **Triosephosphate isomerase** | 1TIM | EC class **5, isomerase** — empty; glycolysis; and it *is* the TIM barrel the fold is named after | 2 | `enzyme` | no | pdb |
-| **Hexokinase** | 1HKB? / 2YHX? | EC class **2, transferase** — empty; and there is already a `hexokinase/` directory the registry does not know about | 1–2 | `enzyme` | **yes** — open and glucose-closed, the induced-fit pair | pdb |
-| **Carbonic anhydrase** | 1CA2 | EC class **4, lyase** — empty; one zinc, among the fastest enzymes known | 1 | `enzyme` | no | pdb |
-| **Lactate / alcohol dehydrogenase** | 1I0Z? / 1HET? | EC class **1, oxidoreductase** — empty; the enzyme the queued fermentation lesson needs | 4 / 2 | `enzyme` | NAD-bound and apo | pdb |
-| **Oxy haemoglobin** | 1HHO | **the other half of a pair we already hold** — 2HHB is deoxy, and T→R is the allostery story | 4 | `oxygen carrier` | **yes** — with 2HHB | pdb |
-| **Fetal haemoglobin** | 1FDH | the developmental switch: why fetal blood outcompetes maternal for O₂ | 4 | `oxygen carrier` | with 2HHB | pdb |
-| **Cytochrome c** | 3CYT | tiny, ancient, near-identical from yeast to human — *the* molecular-evolution molecule | 1 | new: `electron carrier` | no | pdb |
-| **Zinc finger on DNA** | 1ZAA | the missing **zinc finger**; sequence-specific DNA reading, in the smallest package there is | 1 + DNA | new: `DNA-binding` | no | pdb |
-| **Leucine zipper** | 1YSA | the **natural** coiled coil, against the designed ones below | 2 + DNA | new: `DNA-binding` | no | pdb |
-| **Bacterial porin** | 2POR | a **second** β-barrel, membrane-embedded — one fold, a completely different problem from GFP's | 3 | new: `transport` | no | pdb |
-| **Calmodulin** | 1CLL | one of the largest conformational changes in a small protein; a Ca²⁺ switch | 1 | new: `sensor` | **yes** — apo 1CFD | pdb |
-| **Catalase** | 1DGF | EC class **1** again, and among the fastest enzymes known — pairs with carbonic anhydrase, also diffusion-limited | 4 | `enzyme` | no | pdb |
+| candidate | id | fills | chains | `does` | states? | format | status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **Insulin** | 4INS | signalling; a hormone cut out of a bigger chain | 4 (2×AB) | new: `hormone` | no | pdb |  |
+| **GFP** | 1EMA | the missing β-barrel; how biology is *done* | 1 | new: `reporter` | no | pdb |  |
+| **Nucleosome** | 1AOI | DNA packaging — the chromatin picture | 8 + 2 DNA | `structural` | no | pdb |  |
+| **Lysozyme** | 1LZ1 (human) | the first enzyme mechanism ever solved | 1 | `enzyme` | 2LZT etc. | pdb |  |
+| **Antibody, intact IgG** | 1IGT | immune recognition; one fold reused six times | 4 | new: `recognition` | no | pdb |  |
+| **Triosephosphate isomerase** | 1TIM | EC class **5, isomerase** — empty; glycolysis; and it *is* the TIM barrel the fold is named after | 2 | `enzyme` | no | pdb |  |
+| **Hexokinase** | 1HKB? / 2YHX? | EC class **2, transferase** — empty; and there is already a `hexokinase/` directory the registry does not know about | 1–2 | `enzyme` | **yes** — open and glucose-closed, the induced-fit pair | pdb |  |
+| **Carbonic anhydrase** | 1CA2 | EC class **4, lyase** — empty; one zinc, among the fastest enzymes known | 1 | `enzyme` | no | pdb |  |
+| **Lactate / alcohol dehydrogenase** | 1I0Z? / 1HET? | EC class **1, oxidoreductase** — empty; the enzyme the queued fermentation lesson needs | 4 / 2 | `enzyme` | NAD-bound and apo | pdb |  |
+| **Oxy haemoglobin** | 1HHO | **the other half of a pair we already hold** — 2HHB is deoxy, and T→R is the allostery story | 4 | `oxygen carrier` | **yes** — with 2HHB | pdb |  |
+| **Fetal haemoglobin** | 1FDH | the developmental switch: why fetal blood outcompetes maternal for O₂ | 4 | `oxygen carrier` | with 2HHB | pdb |  |
+| **Cytochrome c** | 3CYT | tiny, ancient, near-identical from yeast to human — *the* molecular-evolution molecule | 1 | new: `electron carrier` | no | pdb |  |
+| **Zinc finger on DNA** | 1ZAA | the missing **zinc finger**; sequence-specific DNA reading, in the smallest package there is | 1 + DNA | new: `DNA-binding` | no | pdb |  |
+| **Leucine zipper** | 1YSA | the **natural** coiled coil, against the designed ones below | 2 + DNA | new: `DNA-binding` | no | pdb |  |
+| **Bacterial porin** | 2POR | a **second** β-barrel, membrane-embedded — one fold, a completely different problem from GFP's | 3 | new: `transport` | no | pdb |  |
+| **Calmodulin** | 1CLL | one of the largest conformational changes in a small protein; a Ca²⁺ switch | 1 | new: `sensor` | **yes** — apo 1CFD | pdb |  |
+| **Catalase** | 1DGF | EC class **1** again, and among the fastest enzymes known — pairs with carbonic anhydrase, also diffusion-limited | 4 | `enzyme` | no | pdb |  |
 
 Insulin and GFP are the two cheapest additions available and neither duplicates anything. Insulin is 51 residues and carries a story a Bio 101 reader already half knows. GFP is one chain, one barrel, and a chromophore the protein builds out of its own backbone — which is a claim a ribbon can show.
 
@@ -43,21 +43,21 @@ The nucleosome is the highest-value entry in this tier and the only one with an 
 
 ## Tier 2 — strong story, more work
 
-| candidate | id | fills | chains | pairs against | why not tier 1 |
-| --- | --- | --- | --- | --- | --- |
-| **KcsA K⁺ channel** | 1BL8 | downhill transport; selectivity | 4 | **napump** | needs the bilayer treatment napump already has |
-| **Aquaporin** | 1J4N | water across a membrane | 4 | **napump** | same, and the story overlaps KcsA's |
-| **Myosin S1** | 2MYS | muscle; a lever arm that swings | 1 + 2 light | **atp-synthase** | wants a second state to tween |
-| **Kinesin** | 1BG2 | walking; the other motor | 1 | **atp-synthase** | ditto, and less famous than myosin |
-| **Chymotrypsin** | 4CHA | the catalytic triad; digestion | 3 | **amylase** | a fourth enzyme in a library of three |
-| **Rubisco** | 1RCX | photosynthesis, absent entirely; most abundant protein on Earth | 16 | — | 16 chains, and no lesson waiting |
-| **GroEL** | 1OEL | folding, chaperoned | 14 | **prion** | 14 chains for one barrel |
-| **Ferritin** | 1FHA | 24 identical subunits, octahedral — a hollow iron ball built from one part | 24 | — | 24 chains, though only one part repeated |
-| **LH2 light-harvesting ring** | 1NKZ? | a circle of chlorophylls on a ring of helices; the symmetry *is* the antenna | 18 | **rubisco**, if photosynthesis lands | carries chlorophyll, and no photosynthesis lesson yet |
-| **PCNA sliding clamp** | 1AXC | a ring threaded *around* DNA — mechanically obvious from one picture, which is rare | 3 | DNA polymerase | the story needs the DNA it encircles |
-| **β-lactamase** | 1BTL | antibiotic resistance: evolution on a human timescale, observable | 1 | **lysozyme** — bacterial wall made and unmade | wants a resistant variant beside it to read |
-| **Antifreeze protein** | 1WFA | binds **ice**, not a molecule — and `water-lab` is a featured lesson about that surface | 1 | **water-lab's ice** | the partner is a lattice, not a chain; new rendering |
-| **Nitrogenase** | 1N2C | the FeMo cofactor — the hardest chemistry in biology, breaking N≡N at room temperature | 4+ | — | a metal cluster the bake has never met |
+| candidate | id | fills | chains | pairs against | why not tier 1 | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| **KcsA K⁺ channel** | 1BL8 | downhill transport; selectivity | 4 | **napump** | needs the bilayer treatment napump already has |  |
+| **Aquaporin** | 1J4N | water across a membrane | 4 | **napump** | same, and the story overlaps KcsA's |  |
+| **Myosin S1** | 2MYS | muscle; a lever arm that swings | 1 + 2 light | **atp-synthase** | wants a second state to tween |  |
+| **Kinesin** | 1BG2 | walking; the other motor | 1 | **atp-synthase** | ditto, and less famous than myosin |  |
+| **Chymotrypsin** | 4CHA | the catalytic triad; digestion | 3 | **amylase** | a fourth enzyme in a library of three |  |
+| **Rubisco** | 1RCX | photosynthesis, absent entirely; most abundant protein on Earth | 16 | — | 16 chains, and no lesson waiting |  |
+| **GroEL** | 1OEL | folding, chaperoned | 14 | **prion** | 14 chains for one barrel |  |
+| **Ferritin** | 1FHA | 24 identical subunits, octahedral — a hollow iron ball built from one part | 24 | — | 24 chains, though only one part repeated |  |
+| **LH2 light-harvesting ring** | 1NKZ? | a circle of chlorophylls on a ring of helices; the symmetry *is* the antenna | 18 | **rubisco**, if photosynthesis lands | carries chlorophyll, and no photosynthesis lesson yet |  |
+| **PCNA sliding clamp** | 1AXC | a ring threaded *around* DNA — mechanically obvious from one picture, which is rare | 3 | DNA polymerase | the story needs the DNA it encircles |  |
+| **β-lactamase** | 1BTL | antibiotic resistance: evolution on a human timescale, observable | 1 | **lysozyme** — bacterial wall made and unmade | wants a resistant variant beside it to read |  |
+| **Antifreeze protein** | 1WFA | binds **ice**, not a molecule — and `water-lab` is a featured lesson about that surface | 1 | **water-lab's ice** | the partner is a lattice, not a chain; new rendering |  |
+| **Nitrogenase** | 1N2C | the FeMo cofactor — the hardest chemistry in biology, breaking N≡N at room temperature | 4+ | — | a metal cluster the bake has never met |  |
 
 The pairings are the argument. KcsA earns its place *because* napump is already registered — channel against pump, downhill against paid-for, on one bench — in a way it would not earn standing alone. Same for GroEL against prion: folding helped, next to folding gone wrong.
 
@@ -65,16 +65,16 @@ Myosin and kinesin are the second consumer of whatever the ATP synthase rotation
 
 ## Tier 3 — expensive, price before committing
 
-| candidate | id | fills | scale | the cost |
-| --- | --- | --- | --- | --- |
-| **Complex I** | 5XTD? | the ETC lesson already queued | \~45 subunits | the stator-fit and label-travel traps, again |
-| **DNA polymerase** | 1TAU | replication; the hand-shaped fold | 1 + DNA | DNA pipeline, and a two-state story to find |
-| **Ribosome** | 4V6X? | translation | \~50 protein + rRNA | **mmCIF only — see below** |
-| **Aminoacyl-tRNA synthetase** | TBC | EC class **6, ligase** — empty; charging tRNA is where the genetic code becomes physical | 1–2 + tRNA | RNA pipeline, same gate as DNA polymerase |
-| **Tubulin / actin** | 1JFF / 1ATN | cytoskeleton; a polymer that is not collagen | 2 / 1 | the subject is the filament, not the file |
-| **CRISPR-Cas9** | 5F9R | humans engineering biology, without needing a designed protein to say it | 1 + sgRNA + DNA | RNA *and* DNA in one file; same gate as DNA polymerase |
-| **HK97 capsid** | 1OHG? | subunits covalently linked into interlocking rings — protein chainmail | 60+ | almost certainly mmCIF-only |
-| **Clathrin cage** | 1XI4? | triskelions self-assembling into a soccer ball; floppy leg, exact cage | 100+ | cryo-EM, coarse, and huge |
+| candidate | id | fills | scale | the cost | status |
+| --- | --- | --- | --- | --- | --- |
+| **Complex I** | 5XTD? | the ETC lesson already queued | \~45 subunits | the stator-fit and label-travel traps, again |  |
+| **DNA polymerase** | 1TAU | replication; the hand-shaped fold | 1 + DNA | DNA pipeline, and a two-state story to find |  |
+| **Ribosome** | 4V6X? | translation | \~50 protein + rRNA | **mmCIF only — see below** |  |
+| **Aminoacyl-tRNA synthetase** | TBC | EC class **6, ligase** — empty; charging tRNA is where the genetic code becomes physical | 1–2 + tRNA | RNA pipeline, same gate as DNA polymerase |  |
+| **Tubulin / actin** | 1JFF / 1ATN | cytoskeleton; a polymer that is not collagen | 2 / 1 | the subject is the filament, not the file |  |
+| **CRISPR-Cas9** | 5F9R | humans engineering biology, without needing a designed protein to say it | 1 + sgRNA + DNA | RNA *and* DNA in one file; same gate as DNA polymerase |  |
+| **HK97 capsid** | 1OHG? | subunits covalently linked into interlocking rings — protein chainmail | 60+ | almost certainly mmCIF-only |  |
+| **Clathrin cage** | 1XI4? | triskelions self-assembling into a soccer ball; floppy leg, exact cage | 100+ | cryo-EM, coarse, and huge |  |
 
 Complex I is the one with a schedule behind it: fermentation and the ETC are queued, and Complex I is the ETC's largest single object. It will hit both traps `atp-synthase/tools/prep.js` already documents — fitting on a pseudo-symmetric region, and chain labels that travel with the moving part — so its baker should start from that file rather than from scratch.
 
@@ -82,14 +82,14 @@ Complex I is the one with a schedule behind it: fermentation and the ETC are que
 
 keyed on **the hole** rather than on the protein. Verdict included so ruled-out candidates stay visible instead of being re-proposed.
 
-| the hole | measured now | id | what prediction adds | pairs against | verdict |
-| --- | --- | --- | --- | --- | --- |
-| **PrP N-terminal half** | 1QLZ, **104 of 210** | P04156 | the half nobody can see, and the copper sites in it — why `does` is `unknown` | prion's own two, already registered | **take** — the hole is recorded in `read` already |
-| **Histone tails** | 1AOI, tails absent | P0C0S8 etc. | the parts the chromatin story is entirely about | nucleosome, if it lands | **take, with it** |
-| **α-synuclein monomer** | nothing deposited | P37840 | low pLDDT *as the finding* — the model reporting there is no answer | its own fibrils (2N0A, 6H6B); prion | **hold** — strong, but it's a new protein, not a hole in one we have |
-| **Full-length collagen** | 3HR2, 5.2 Å envelope | P02452 | atomic detail across 3016 Å | collagen's six | **no** — long PPII trimers are a known weak case; a confident wrong rope |
-| **Sickle Hb, E6V** | 2HBS, measured | P68871 | *nothing* — returns normal haemoglobin | 2HHB / 2HBS | **no, and say so** — the calibration case |
-| **napump, the other door** | 7E1Z + 7E20, both measured | P05023 | one state, chosen by training data | E1/E2 | **no** — prediction flattens exactly what the pair teaches |
+| the hole | measured now | id | what prediction adds | pairs against | verdict | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| **PrP N-terminal half** | 1QLZ, **104 of 210** | P04156 | the half nobody can see, and the copper sites in it — why `does` is `unknown` | prion's own two, already registered | **take** — the hole is recorded in `read` already |  |
+| **Histone tails** | 1AOI, tails absent | P0C0S8 etc. | the parts the chromatin story is entirely about | nucleosome, if it lands | **take, with it** |  |
+| **α-synuclein monomer** | nothing deposited | P37840 | low pLDDT *as the finding* — the model reporting there is no answer | its own fibrils (2N0A, 6H6B); prion | **hold** — strong, but it's a new protein, not a hole in one we have |  |
+| **Full-length collagen** | 3HR2, 5.2 Å envelope | P02452 | atomic detail across 3016 Å | collagen's six | **no** — long PPII trimers are a known weak case; a confident wrong rope |  |
+| **Sickle Hb, E6V** | 2HBS, measured | P68871 | *nothing* — returns normal haemoglobin | 2HHB / 2HBS | **no, and say so** — the calibration case |  |
+| **napump, the other door** | 7E1Z + 7E20, both measured | P05023 | one state, chosen by training data | E1/E2 | **no** — prediction flattens exactly what the pair teaches |  |
 
 Basic lesson: The bottom three rows are the section's real work. A collection that only shows prediction succeeding teaches that it's a substitute for measurement; these three are cases where you hold the measured answer and prediction is confidently wrong, so the distinction `method` draws becomes something a reader can check rather than something a comment asserts.
 
@@ -99,13 +99,13 @@ Then the section changes character: it's no longer "a predicted entry when we're
 
 That reframes what belongs in it. The best entries aren't proteins that happen to lack a structure — they're proteins where **the method is the story**.
 
-| entry | id | the claim it carries | method | why it's in this section |
-| --- | --- | --- | --- | --- |
-| **A nucleoporin** (Y-complex member) | AF, id TBC | prediction supplying parts measurement couldn't trace | `predicted` | the NPC scaffold, 2022 — high pLDDT, no crystal structure, docked into cryo-EM density. The best-documented win there is |
-| **Top7** | 1QYS | a fold that occurs in no gene, designed then solved | x-ray | the design half of the Nobel, and the library's only structure of something that was **imagined before it existed** |
-| **α-synuclein monomer** | P37840 | low pLDDT *as the answer*— the model reporting there is nothing to report | `predicted` | disorder is \~30% of the human proteome and the library currently implies it doesn't exist |
-| **A matched pair** — one protein you already hold, predicted | P02185 (myoglobin) | the same molecule, twice, by two methods | `predicted` | the calibration. Without it the section is anecdotes |
-| **Sickle Hb, predicted** | P68871 | prediction returning normal haemoglobin for the mutation the library is about | `predicted` | the failure you can check against 2HBS, which you already hold |
+| entry | id | the claim it carries | method | why it's in this section | status |
+| --- | --- | --- | --- | --- | --- |
+| **A nucleoporin** (Y-complex member) | AF, id TBC | prediction supplying parts measurement couldn't trace | `predicted` | the NPC scaffold, 2022 — high pLDDT, no crystal structure, docked into cryo-EM density. The best-documented win there is |  |
+| **Top7** | 1QYS | a fold that occurs in no gene, designed then solved | x-ray | the design half of the Nobel, and the library's only structure of something that was **imagined before it existed** |  |
+| **α-synuclein monomer** | P37840 | low pLDDT *as the answer*— the model reporting there is nothing to report | `predicted` | disorder is \~30% of the human proteome and the library currently implies it doesn't exist |  |
+| **A matched pair** — one protein you already hold, predicted | P02185 (myoglobin) | the same molecule, twice, by two methods | `predicted` | the calibration. Without it the section is anecdotes |  |
+| **Sickle Hb, predicted** | P68871 | prediction returning normal haemoglobin for the mutation the library is about | `predicted` | the failure you can check against 2HBS, which you already hold |  |
 
 **Top7 is the one I'd argue hardest for.** It's a measured x-ray structure, so it costs nothing unusual to bake — but it's a protein that was designed on a computer in 2003, then made, then crystallised, and the structure matched the design at \~1.2 Å. Nothing else in the collection is a molecule that didn't exist until someone specified it. Next to seven proteins that evolution wrote, it's the sharpest possible statement of what changed.
 
@@ -117,16 +117,16 @@ And the two bottom rows are what keep the section honest: one case where predict
 
 Ranked by how much biology they teach rather than by how impressive they are. Ids are from memory and need checking.
 
-| protein | id | year | what a student gets from it | pairs against |
-| --- | --- | --- | --- | --- |
-| **Top7** | 1QYS | 2003 | proof the inverse problem is solvable: a fold chosen on a screen, made, crystallised, and it matched at \~1.2 Å | everything — it's the baseline claim |
-| **Designed fluorescent β-barrel**(mFAP) | TBC | 2018 | nature's barrel and a designed one doing the same job by different means | **GFP**, if it lands |
-| **Neoleukin-2/15** | TBC | 2019 | same function as IL-2, *no sequence relation to it* — function follows shape, not ancestry | the whole homology assumption |
-| **Kemp eliminase**(KE07/KE59) | TBC | 2008 | designed enzymes start terrible; directed evolution improved them \~10⁵-fold | **rnase, amylase** — natural enzymes that are superb |
-| **Designed nanocage vaccine** (I53-50) | TBC | 2016–21 | self-assembly, and design reaching an approved medicine | — |
-| **Designed coiled coils** (Harbury) | 1GCM etc. | 1993 | why two, three or four helices wrap — the packing rules, made testable | fills the library's **missing coiled coil** |
-| **Designed TIM barrel** (sTIM11) | TBC | 2016 | **exact** symmetry where nature's is only pseudo — a billion years of drift, removed | **amylase**, whose catalytic domain is a natural TIM barrel |
-| **Designed β-propeller** | TBC | 2015–17 | the same argument on a pinwheel | a natural propeller, not yet held |
+| protein | id | year | what a student gets from it | pairs against | status |
+| --- | --- | --- | --- | --- | --- |
+| **Top7** | 1QYS | 2003 | proof the inverse problem is solvable: a fold chosen on a screen, made, crystallised, and it matched at \~1.2 Å | everything — it's the baseline claim |  |
+| **Designed fluorescent β-barrel**(mFAP) | TBC | 2018 | nature's barrel and a designed one doing the same job by different means | **GFP**, if it lands |  |
+| **Neoleukin-2/15** | TBC | 2019 | same function as IL-2, *no sequence relation to it* — function follows shape, not ancestry | the whole homology assumption |  |
+| **Kemp eliminase**(KE07/KE59) | TBC | 2008 | designed enzymes start terrible; directed evolution improved them \~10⁵-fold | **rnase, amylase** — natural enzymes that are superb |  |
+| **Designed nanocage vaccine** (I53-50) | TBC | 2016–21 | self-assembly, and design reaching an approved medicine | — |  |
+| **Designed coiled coils** (Harbury) | 1GCM etc. | 1993 | why two, three or four helices wrap — the packing rules, made testable | fills the library's **missing coiled coil** |  |
+| **Designed TIM barrel** (sTIM11) | TBC | 2016 | **exact** symmetry where nature's is only pseudo — a billion years of drift, removed | **amylase**, whose catalytic domain is a natural TIM barrel |  |
+| **Designed β-propeller** | TBC | 2015–17 | the same argument on a pinwheel | a natural propeller, not yet held |  |
 
 **The two I'd actually build first:**
 
