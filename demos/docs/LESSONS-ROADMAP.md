@@ -4,8 +4,6 @@
 
 What to build next, and why that order. Status vocabulary is `CLAUDE.md`'s (featured lesson / prototype / reference / test).
 
-`QUESTIONS-ROADMAP.md` ranks the same ground from the other end: it starts from student questions, and lands on additions to the ENGINES rather than on new pages, because the pathway compiler in `reaction/` + `kit/` reaches far past the two pages that produced it. Where the two disagree, the thesis below wins.
-
 ## The thesis
 
 **Fidelity, unified on one page.** An interactive 3D model beats a static diagram, but that is not the main claim. The main claim is that Bio 101's diagrams *disagree with each other*, and a student can't tell whether two pictures of the same thing are two conventions or two objects. A page here earns its place by putting them on one screen as one object.
@@ -78,7 +76,7 @@ So the order below alternates: engine, then the page that consumes it, then the 
 
 **Build the lesson around `sickle/fibre-test.html`.** The bench works — one contact, double strand, fibre — and the expensive parts (SES surface bake, fibre transforms, checker) are committed. Only the lesson is missing. Rides `hemoglobin-lab`, costs zero new molecules.
 
-**Do not build binding as a pose search.** Dragging one tetramer onto another while a contact score rises was tried and failed — a monotone score is maximised by driving atoms through each other. `QUESTIONS-ROADMAP.md` §3's `bind`/`release` argument from that drag is withdrawn with it. Copy `dna/pairing.js`: solve the pose in closed form from declared donors and acceptors, let `kit/hbond.js` find the bonds. A student controls concentration, affinity, or which partner is offered. `sickle/sickle.js` loads on no page; keep `mutate`, the Kyte-Doolittle colouring, and the score as an offline measurement.
+**Do not build binding as a pose search.** Dragging one tetramer onto another while a contact score rises was tried and failed — a monotone score is maximised by driving atoms through each other. Copy `dna/pairing.js`: solve the pose in closed form from declared donors and acceptors, let `kit/hbond.js` find the bonds. A student controls concentration, affinity, or which partner is offered. `sickle/sickle.js` loads on no page; keep `mutate`, the Kyte-Doolittle colouring, and the score as an offline measurement.
 
 ### 1. Enzymes
 
@@ -88,7 +86,7 @@ So the order below alternates: engine, then the page that consumes it, then the 
 
 **The model is already extracted** — module, CSS, checker, and a test bench (`massaction-test.html` panel B) mounting the slider path this page needs. A module, not an iframe: the modal chrome works, and a frame would re-pay `sandbox.css` and cut the sim off from the step's own ΔE.
 
-**Cost: the `bind`/`release` verb family, then ADP, then the slider.** `QUESTIONS-ROADMAP.md` §3 argues the same page from the engine side — all fourteen `reaction/` verbs change a bond, and nothing in the repo binds. An enzyme is `bind`, existing verbs, `release`. Build the verbs first and this page is an instance rather than a bespoke build, carrying eight further questions with it: hemoglobin's sigmoid, cyanide, arsenic, lactose, the `contrast-lab` chirality pair. Solve the pose in closed form (§0.75).
+**Cost: the `bind`/`release` verb family, then ADP, then the slider.** The same page argues from the engine side too: all fourteen `reaction/` verbs change a bond, and nothing in the repo binds. An enzyme is `bind`, existing verbs, `release`. Build the verbs first and this page is an instance rather than a bespoke build, carrying eight further questions with it: hemoglobin's sigmoid, cyanide, arsenic, lactose, the `contrast-lab` chirality pair. Solve the pose in closed form (§0.75).
 
 Matrix rows: energy transformation, probability, equilibrium.
 
@@ -258,14 +256,4 @@ Three notes on the deltas:
 
 **The hydrophobic effect.** *Why do oil and water separate, if separating makes things more ordered?* It doesn't; the water is what gains freedom, and nearly every student has this exactly backwards. Not a diagram conflict, so it ranked nowhere under the thesis — but `docs/Biology-2e-Concepts.md` flags it as a **known discontinuity**, absent from AP and qualitative in OpenStax §12, with "nothing internal fixes this" written against it. A conflict between what a student is told and what is true is the thesis in a different key. It would ride `water-lab` plus a nonpolar solute, and it is what §0.75 and `folding/` are both secretly about.
 
-**`crystal/` — nucleation and a growth front.** The one piece of genuinely new physics `QUESTIONS-ROADMAP.md` asks for. Freezing in `water-lab` is a scalar fraction snapping molecules onto a pre-built lattice: no nucleation, no crystal *size*, no face for anything to bind. Snowflakes, ice cream, and antifreeze proteins all ask what shape ice grows into, and none is reachable from a fraction-frozen model.
-
-## Where `QUESTIONS-ROADMAP.md` and this file disagree
-
-Three real disagreements, resolved:
-
-* **DNA.** Ranked §2 here and nearly cut there. This file wins, and the conflict was fake: §2 is DNA *structure* — ladder vs helix, antiparallel drawn parallel — and what that file cuts is *genetics*, calico cats and twins. Different subject. Both judgments stand.
-* **The water block.** Mostly this file wins on the thesis. Two survive into the tier above: the hydrophobic effect and `crystal/`.
-* **`osmosis/`.** Ranked high there, and lower here: the coverage table already shows `membrane-lab` claiming ch. 215 Osmoregulation, which makes it an extension to a featured page rather than a module.
-
-**And the two roadmaps cost in different currencies.** This file costs in new molecules, that one in new engine code. Neither is wrong and they predict different things: molecules predict structure pages, which is why DNA is third at nine of them; engine code predicts mechanism pages. Read both before ranking anything.
+**`crystal/` — nucleation and a growth front.** The one piece of genuinely new physics on this list. Freezing in `water-lab` is a scalar fraction snapping molecules onto a pre-built lattice: no nucleation, no crystal *size*, no face for anything to bind. Snowflakes, ice cream, and antifreeze proteins all ask what shape ice grows into, and none is reachable from a fraction-frozen model.
