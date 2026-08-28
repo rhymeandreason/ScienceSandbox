@@ -89,8 +89,8 @@ const KNOWN_ABSENT = {
   'protein-molstar.html':         'same page, named without its folder',
   'pdb.js':              'deleted with protein-molstar.html; orient() ported into hemoglobin-inhouse.html',
   'tools/check-pdb.js':  'deleted with pdb.js — it had no other subject',
-  'RDKit.js':           'library NAME — bio-rendering-thorough.md weighs it, unadopted',
-  'Kekule.js':          'library NAME — bio-rendering-thorough.md weighs it, unadopted',
+  'RDKit.js':           'library NAME, weighed against SmilesDrawer and unadopted',
+  'Kekule.js':          'library NAME, weighed against SmilesDrawer and unadopted',
   'SmilesDrawer/RDKit.js': 'the two 2D candidates named as one alternative',
   // LESSONS-ROADMAP.md's domain-file plan. Absent BY DESIGN — the roadmap is
   // the file that proposes them, so building one must fail here until that

@@ -110,7 +110,7 @@ Nothing built. Its threshold idea is that **the message never gets in**: a hormo
 | Switching off | process | planned · `bind`/`release` run backwards | proteins |
 | Nerve impulse | object | planned · voltage-gated channels, a large membrane build | boundaries |
 
-Four of the five ride on one verb family already wanted for its own sake — `bind`/`release` is Gap 1 in `QUESTIONS-ROADMAP.md`, and it pays off in enzymes and cooperativity too. Two questions in the bank are already signalling questions filed elsewhere: *How does one adrenaline molecule release a million glucose?* and *How does cholera dehydrate you without entering a cell?* This is also the arc that reaches drugs, hormones, allergies and poisons, which is worth something on a map for a general audience.
+Four of the five ride on one verb family already wanted for its own sake — `bind`/`release` is the largest gap in the verb set, and it pays off in enzymes and cooperativity too. Two questions in the bank are already signalling questions filed elsewhere: *How does one adrenaline molecule release a million glucose?* and *How does cholera dehydrate you without entering a cell?* This is also the arc that reaches drugs, hormones, allergies and poisons, which is worth something on a map for a general audience.
 
 **Development — how does one cell become a whole animal?**
 
@@ -124,7 +124,7 @@ Nothing built, and unlike signalling it is a **genre change**. Its threshold ide
 | Differentiation | process | planned · the same genre | information |
 | Sculpting by cell death | process | planned · the same genre | — |
 
-Only the first is cheap. After it the stage stops being a molecular one, which is the objection `QUESTIONS-ROADMAP.md` Part 5 raises against `xinact/`: the whole library renders molecules at true relative size, and a lineage tree of cells shares no plumbing with any of it. Not a reason never to build it; a reason not to make it the next arc.
+Only the first is cheap. After it the stage stops being a molecular one, which is the objection against `xinact/`: the whole library renders molecules at true relative size, and a lineage tree of cells shares no plumbing with any of it. Not a reason never to build it; a reason not to make it the next arc.
 
 
 ---

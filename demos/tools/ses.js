@@ -16,10 +16,9 @@
  *
  *  It is deliberately structure-agnostic: it takes {p:[x,y,z], r} and
  *  knows nothing about chains, residues or PDB. bake-surface.js does
- *  that part. The gaps list in bio-rendering-thorough.md calls a
- *  molecular surface "the largest single capability we gave up", and the
- *  membrane-transport row wants one too — so this is written to be the
- *  general answer, not haemoglobin's.
+ *  that part. A molecular surface was the largest single capability this
+ *  repo had given up, and membrane transport wants one too — so this is
+ *  written to be the general answer, not haemoglobin's.
  *
  * ---------------------------------------------------------------------
  *  WHAT AN SES ACTUALLY IS, AND WHY IT IS NOT A UNION OF SPHERES
