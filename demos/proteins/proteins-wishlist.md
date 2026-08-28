@@ -24,6 +24,10 @@
 | **Nucleosome** | 1AOI | DNA packaging — the chromatin picture | 8 + 2 DNA | `structural` | no | pdb |
 | **Lysozyme** | 1LZ1 (human) | the first enzyme mechanism ever solved | 1 | `enzyme` | 2LZT etc. | pdb |
 | **Antibody, intact IgG** | 1IGT | immune recognition; one fold reused six times | 4 | new: `recognition` | no | pdb |
+| **Triosephosphate isomerase** | 1TIM | EC class **5, isomerase** — empty; glycolysis; and it *is* the TIM barrel the fold is named after | 2 | `enzyme` | no | pdb |
+| **Hexokinase** | 1HKB? / 2YHX? | EC class **2, transferase** — empty; and there is already a `hexokinase/` directory the registry does not know about | 1–2 | `enzyme` | **yes** — open and glucose-closed, the induced-fit pair | pdb |
+| **Carbonic anhydrase** | 1CA2 | EC class **4, lyase** — empty; one zinc, among the fastest enzymes known | 1 | `enzyme` | no | pdb |
+| **Lactate / alcohol dehydrogenase** | 1I0Z? / 1HET? | EC class **1, oxidoreductase** — empty; the enzyme the queued fermentation lesson needs | 4 / 2 | `enzyme` | NAD-bound and apo | pdb |
 
 Insulin and GFP are the two cheapest additions available and neither duplicates anything. Insulin is 51 residues and carries a story a Bio 101 reader already half knows. GFP is one chain, one barrel, and a chromophore the protein builds out of its own backbone — which is a claim a ribbon can show.
 
@@ -54,6 +58,7 @@ Myosin and kinesin are the second consumer of whatever the ATP synthase rotation
 | **Complex I** | 5XTD? | the ETC lesson already queued | \~45 subunits | the stator-fit and label-travel traps, again |
 | **DNA polymerase** | 1TAU | replication; the hand-shaped fold | 1 + DNA | DNA pipeline, and a two-state story to find |
 | **Ribosome** | 4V6X? | translation | \~50 protein + rRNA | **mmCIF only — see below** |
+| **Aminoacyl-tRNA synthetase** | TBC | EC class **6, ligase** — empty; charging tRNA is where the genetic code becomes physical | 1–2 + tRNA | RNA pipeline, same gate as DNA polymerase |
 | **Tubulin / actin** | 1JFF / 1ATN | cytoskeleton; a polymer that is not collagen | 2 / 1 | the subject is the filament, not the file |
 | **HK97 capsid** | 1OHG? | subunits covalently linked into interlocking rings — protein chainmail | 60+ | almost certainly mmCIF-only |
 | **Clathrin cage** | 1XI4? | triskelions self-assembling into a soccer ball; floppy leg, exact cage | 100+ | cryo-EM, coarse, and huge |
