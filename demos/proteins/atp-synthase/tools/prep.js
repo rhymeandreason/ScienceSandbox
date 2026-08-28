@@ -20,17 +20,23 @@
  *  carry is now carried by the three rotary states instead, where it is a
  *  measurement rather than an arrangement of buttons.
  *
- *  SEVEN CANDIDATES, THREE GROUPS, and the groups are what the fitting is
- *  organised around:
+ *  THREE VIEWS ON THE BENCH, AND TWO MORE STRUCTURES READ TO CALIBRATE THEM:
  *
- *    the sites   open, dp — one beta subunit each, superposed on the P-loop
- *                so the site coincides and the domain swing does not.
- *    the machine human, state2, state3 — the whole human enzyme in three
- *                rotary positions, superposed on the stator so the rotor is
- *                what moves.
- *    alone       head (the bovine F1 assembly) and ring (one c11 rotor),
- *                each in its own frame, each answering a question the
- *                other two groups cannot.
+ *    open, dp    one beta subunit each, superposed on the P-loop so the site
+ *                coincides and the domain swing does not. The two states
+ *                either side of letting the product go.
+ *    human       the whole enzyme, and the thing that turns.
+ *    state2/3    `measureOnly`. Not on the bench: they are where the spin's
+ *                axis and angles come from, and they are dropped after the
+ *                measuring. Keeping them as sources rather than deleting
+ *                them is what makes the rotation re-derivable instead of
+ *                three numbers somebody once typed.
+ *
+ *  Review also cut the bovine F1 assembly and the c11 rotor ring. Both were
+ *  good views of something the bench is no longer about: F1 showed where the
+ *  sites sit inside the head, and the ring showed one ion per subunit in an
+ *  organism this bench does not otherwise mention. `human` holds a c8 ring
+ *  and the whole head, so neither claim lost its only home.
  *
  *  FIT ON WHAT THE VIEW IS ABOUT, twice, and both are the interesting
  *  decision rather than a default:
@@ -130,14 +136,6 @@ const HUMAN = {
   J: ['brake', 'IF1'],
 };
 
-/* Bovine F1 — the same head and shaft with nothing below them. */
-const BOVINE = { A: ['head', 'α'], B: ['head', 'α'], C: ['head', 'α'],
-                 D: ['head', 'β'], E: ['head', 'β'], F: ['head', 'β'],
-                 G: ['rotor', 'γ'] };
-
-const RING = Object.fromEntries('ABCDEFGHIJK'.split('')
-  .map(c => [c, ['rotor', 'c']]));
-
 /* One beta subunit on its own keeps the ss palette, because there the fold
    IS what is being looked at. */
 const BETA = c => ({ [c]: ['head', 'β'] });
@@ -181,14 +179,6 @@ const CANDIDATES = [
      nowhere on a bench about ATP synthase, because the only structure that
      showed it needed a fake one. */
   {
-    id: 'head', entry: '1BMF', file: '1BMF.pdb',
-    chains: 'A,B,C,D,E,F,G', roles: BOVINE,
-    shows: 'Walker\'s F1: three alpha, three beta, and the bent gamma shaft '
-         + 'through the middle. Where the three sites above actually sit, '
-         + 'and why three identical subunits are not identical.',
-    axis: { from: 'G', to: 'A,B,C,D,E,F' },
-  },
-  {
     id: 'human', entry: '8H9S', file: '8H9S.cif',
     chains: Object.keys(HUMAN).join(','), roles: HUMAN,
     shows: 'the whole human enzyme at 2.53 A: rotor ring in the membrane, '
@@ -202,25 +192,14 @@ const CANDIDATES = [
     chains: Object.keys(HUMAN).filter(c => c !== 'J').join(','), roles: HUMAN,
     shows: 'the same enzyme, rotor turned. IF1 is not resolved here, which '
          + 'is why this file has 27 chains and the other two have 28.',
-    group: 'states',
+    group: 'states', measureOnly: true,
   },
   {
     id: 'state3', entry: '8H9U', file: '8H9U.cif',
     chains: Object.keys(HUMAN).join(','), roles: HUMAN,
     shows: 'turned again. Three positions is as close to the rotation as '
          + 'deposited coordinates get.',
-    group: 'states',
-  },
-  {
-    id: 'ring', entry: '2WGM', file: '2WGM.pdb',
-    chains: 'A,B,C,D,E,F,G,H,I,J,K', roles: RING,
-    shows: 'one complete rotor ring — eleven subunits, eleven ions, one '
-         + 'each. This is the sodium-driven enzyme, because a proton has '
-         + 'no electrons and does not appear in a map.',
-    /* Only the ions. 2WGM also carries 440 atoms of detergent, which would
-       bury the thing the view is about under the thing it was solved in. */
-    site: { take: ['NA'] },
-    axis: { mean: 'A,B,C,D,E,F,G,H,I,J,K' },
+    group: 'states', measureOnly: true,
   },
 ];
 
@@ -791,9 +770,20 @@ function main() {
       };
     }
 
+    done[v.id] = out;
+
+    /* A MEASURE-ONLY CANDIDATE IS BAKED AND NOT KEPT. The two other rotary
+       states are not on the bench any more — review cut them — but they are
+       where the spin's axis and angles are MEASURED, and a rotation whose
+       calibration cannot be re-derived is three typed constants wearing a
+       measurement's clothes. So they are still read, still fitted, still
+       compared, and then dropped: nothing is written to data/, nothing goes
+       in the index, and no button can reach them. What survives them is the
+       `spin` block on atp-human.json and the figures the console prints. */
+    if (v.measureOnly) { console.log(`         (${v.id} measured, not kept)`); continue; }
+
     const { $ref, read, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, read.baked), JSON.stringify(bakeOut));
-    done[v.id] = out;
 
     index.push({
       id: v.id, entry: v.entry, chains: v.chains, shows: v.shows,

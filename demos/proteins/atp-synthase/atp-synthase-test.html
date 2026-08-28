@@ -36,17 +36,18 @@
        the sites    open and dp are the two states either side of letting
                     the product go. Whether the difference is legible at
                     ribbon width, or whether it only reads in the site.
-       the machine  `human` is the whole enzyme at 2.53 A: 28 chains,
-                    rotor, shaft, head, stator. Whether the rotor/stator
-                    split reads from colour alone.
-       the turn     state2 and state3 are the same enzyme in two more
-                    rotary positions, and this is now the bench's subject
-                    rather than one of its sections. Three stills is as
-                    close to the rotation as deposited coordinates get,
-                    and whether three buttons read as a sequence or as
-                    three unrelated boxes is the thing to look at.
-       the rotor    `ring` is eleven subunits and eleven ions, one each.
-                    Whether one ion per subunit lands as a picture.
+       the turn     `human` is the whole enzyme at 2.53 A, and its rotor
+                    turns. Whether a rotation a reader can start and stop
+                    carries the mechanism better than a row of stills did.
+
+     REVIEW CUT FOUR. The bovine F1 assembly and the c11 rotor ring went as
+     views of something this bench stopped being about; the human structure
+     holds a head and a c8 ring, so neither claim lost its only home. The
+     other two rotary states went from the BENCH but not from the baker —
+     they are where the spin's axis and angles are measured, and a rotation
+     whose calibration cannot be re-derived is three typed constants wearing
+     a measurement's clothes. tools/prep.js marks them `measureOnly`: read,
+     fitted, compared, and then dropped without a file.
 
      WHAT THIS BENCH CANNOT TELL YOU, and must not imply. Nothing here
      turns. The binding change mechanism is a KINETIC argument that
@@ -132,12 +133,10 @@
   .earmark.careful b{color:var(--h-spark)}
 
   /* Callout tones, off the palette tokens rather than typed:
-     tokens-from-palette.js publishes --atom-P and --atom-Na at load, so a
-     label naming the phosphates and the sphere it points at cannot drift. */
+     tokens-from-palette.js publishes --atom-P at load, so a label naming the
+     phosphates and the sphere it points at cannot drift. */
   .annot-phosphorus .annot-dot{border-color:var(--atom-P)}
   .annot-phosphorus .annot-label{color:#b35f12}
-  .annot-sodium .annot-dot{border-color:var(--atom-Na)}
-  .annot-sodium .annot-label{color:var(--atom-Na)}
 
   .tabs{display:flex;gap:var(--space-4);
     margin:var(--space-5) 0 var(--space-2);
@@ -154,14 +153,6 @@
   .tab-panel[hidden]{display:none}
   .tab-panel .lead{font-size:0.9rem;color:var(--h-ink);line-height:1.5;
     margin:0 0 var(--space-3)}
-
-  /* The pairing table: 28 chains and where each one's counterpart is. Set
-     as a monospaced run rather than a table because it is scanned for the
-     ones that MOVED, not read row by row. */
-  .pairs{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:0.7rem;line-height:1.7;color:var(--h-muted);
-    margin:var(--space-2) 0 0}
-  .pairs em{font-style:normal;color:var(--h-spark);font-weight:600}
 </style>
 
 </head>
@@ -171,8 +162,8 @@
   <div class="panel">
     <h1>ATP synthase</h1>
     <p class="deck">A rotor spun by protons falling across a membrane, wringing
-      ATP out of ADP and phosphate. Seven depositions, one camera, and not one
-      of them moving.</p>
+      ATP out of ADP and phosphate. Three views, and two more structures read
+      only to measure the turn.</p>
 
     <h2>what the turning is for</h2>
     <!-- THE CHIP HERE IS FILLED FROM THE BAKE, not typed: these two buttons
@@ -189,26 +180,12 @@
       enzyme's energy actually goes.</p>
 
     <h2>the machine</h2>
-    <button class="mode" id="v-head" aria-pressed="false">
-      <span class="who">F&#8321; &middot; the head alone</span><span class="chip">7 chains</span></button>
     <button class="mode" id="v-human" aria-pressed="false">
       <span class="who">human, whole &middot; state 1</span><span class="chip">28 chains</span></button>
-    <button class="mode" id="v-state2" aria-pressed="false">
-      <span class="who">rotary state 2</span><span class="chip" data-chip="ring">&mdash;</span></button>
-    <button class="mode" id="v-state3" aria-pressed="false">
-      <span class="who">rotary state 3</span><span class="chip" data-chip="ring">&mdash;</span></button>
-    <p class="earmark careful"><b>Three stills, not three frames.</b> These are
-      superposed on the stator, so the head and the rotor are where they are
-      relative to the part that holds still. The order they are listed in is an
-      argument from kinetics rather than something anybody watched.</p>
 
     <button class="mode" id="spin" aria-pressed="false">
       <span class="who">turn the rotor</span><span class="chip" id="spin-chip">&mdash;</span></button>
     <p class="earmark careful" id="spin-note">&mdash;</p>
-
-    <h2>the rotor</h2>
-    <button class="mode" id="v-ring" aria-pressed="false">
-      <span class="who">one c&#8321;&#8321; ring &middot; 2WGM</span><span class="chip" data-chip="ions">&mdash;</span></button>
 
     <h2>what you are looking at</h2>
     <p class="claim" id="d-claim">&mdash;</p>
@@ -231,7 +208,6 @@
 
     <p class="frag" id="d-frag">&mdash;</p>
     <p class="prov" id="d-prov">&mdash;</p>
-    <p class="pairs" id="d-pairs"></p>
 
     <div class="tabs" role="tablist">
       <button id="t-science" role="tab" aria-selected="true"
@@ -243,19 +219,21 @@
     <div class="tab-panel" id="p-science" role="tabpanel" aria-labelledby="t-science">
       <p class="note"><strong>You cannot see a proton.</strong> It is one
         positive charge with no electrons, and a structure is a map of where
-        the electrons are. So the ion in the rotor ring is a <em>sodium</em>:
-        2WGM is the Na&#8314;-driven version of this enzyme, chosen by the
-        depositors precisely because its ion scatters. Everything about the
-        binding site &mdash; one ion per subunit, buried in the middle of the
-        membrane, coordinated by a glutamate &mdash; is the same story, and the
-        ion is a stand-in.</p>
+        the electrons are. So nothing on this bench shows the thing that
+        actually drives it: the eight c-subunits are here, and the glutamate
+        each one carries in the middle of the membrane is here, but the ion
+        riding on it is not and cannot be. What is deposited elsewhere, in the
+        Na&#8314;-driven version of this enzyme, is one sodium per subunit,
+        sitting exactly where the proton goes.</p>
 
-      <p class="note"><strong>Eleven here, eight in the human enzyme.</strong>
-        The number of c-subunits is not a constant, so neither is the number of
-        protons a full turn costs, so neither is the protons-per-ATP figure a
-        textbook quotes. Three ATP per turn, and eight or eleven or fourteen
-        protons depending on the organism. Compare the <em>assembly</em> row on
-        this view against the human ones.</p>
+      <p class="note"><strong>Eight subunits, three ATP.</strong> A full turn
+        of this ring carries eight ions and makes three ATP, and those numbers
+        do not divide. The count is not a constant either &mdash; other
+        organisms build rings of ten, eleven, fourteen &mdash; so the
+        protons-per-ATP figure a textbook quotes is a property of the species,
+        not of the chemistry. It is also why the shaft has to be springy: the
+        ring can only stop where a subunit is, every 45&deg;, and the head
+        wants its steps at 120&deg;.</p>
 
       <p class="note"><strong>The chain labels travel with the rotor.</strong>
         The depositors name the three &beta; subunits by which conformation
@@ -263,8 +241,9 @@
         chain D is state 3's chain E. Comparing by letter therefore measures
         the relabelling and not the motion, and reported 60&nbsp;&Aring; for a
         head that did not move. Each chain is matched to the best-fitting copy
-        of the same subunit instead, and the <em>what moved</em> row and the
-        pairing list below it are what came back.</p>
+        of the same subunit instead. It is the reason the two structures the
+        turn was measured against are read by the baker rather than trusted by
+        their labels, and the console prints the pairing on every run.</p>
 
       <p class="note"><strong>The two sites are fitted on eight residues, not
         on the chain.</strong> &beta;-E is open because its C-terminal domain
@@ -385,7 +364,7 @@ notes = Annot.create(THREE, stage, box.camera, { mode: 'on' });
    `ProteinLib.byKey('atp-synthase')` and the JSON goes away. Nothing about
    the nine is typed here, so a candidate cannot be described one way in the
    panel and baked another. */
-const ORDER = ['open', 'dp', 'head', 'human', 'state2', 'state3', 'ring'];
+const ORDER = ['open', 'dp', 'human'];
 const OPEN = 'open';
 
 /* THE PAGE'S OWN COPY. What a structure IS is the baker's; what this bench
@@ -410,51 +389,17 @@ const SAYS = {
         + 'the part of this enzyme that surprises people — making the ATP '
         + 'costs almost nothing, and the rotation is what pays for letting '
         + 'it go.' },
-  head: {
-    claim: 'Walker\'s F₁: three α, three β, and the bent γ shaft running up '
-         + 'the middle of them.',
-    prov: 'X-ray at 2.85 Å — the structure the three sites above are cut '
-        + 'out of, and the one that won the Nobel. γ is drawn in the rotor '
-        + 'colour because that is what it is: a bent, asymmetric camshaft, '
-        + 'and its asymmetry is the entire reason three identical subunits '
-        + 'are in three different states. Nothing below the head is in this '
-        + 'file at all.' },
   human: {
     claim: 'The whole human enzyme: rotor ring in the membrane, shaft, head, '
          + 'and the stator arm holding the head still while the shaft turns '
          + 'inside it.',
     prov: 'Cryo-EM at 2.53 Å, 28 chains, 17 different subunits. The violet '
         + 'chain is IF1, the inhibitor that jams the motor so a starved cell '
-        + 'cannot run it backwards and burn its own ATP. Note what the β '
-        + 'subunits are holding here: two ADPs and one empty site, and no '
-        + 'ATP-like site anywhere — the crisp triad above needed an analogue '
-        + 'to exist.' },
-  state2: {
-    claim: 'The same enzyme, rotor turned. Superposed on the stator, so what '
-         + 'has moved is what actually moves.',
-    prov: 'Cryo-EM at 2.77 Å. IF1 is not resolved here, which is why this '
-        + 'file has 27 chains where the others have 28 — an absence in the '
-        + 'map, not an enzyme without a brake. The pairing list below says '
-        + 'which chain of state 1 each chain here matched, and the ones '
-        + 'marked in rust are the ones whose label changed.' },
-  state3: {
-    claim: 'Turned again. Three positions of one motor is as close to the '
-         + 'rotation as deposited coordinates get.',
-    prov: 'Cryo-EM at 2.61 Å. Read the "what moved" row against state 2: the '
-        + 'stator lands within about 2 Å in both, which is the fit doing its '
-        + 'job, and γ is tens of ångströms away in both, which is the shaft '
-        + 'having turned. The c-ring superposes on ITSELF a couple of '
-        + 'subunits round, and that is the cleanest statement of the '
-        + 'rotation this bench can make.' },
-  ring: {
-    claim: 'One complete rotor ring: eleven subunits, eleven ions, one each, '
-         + 'buried in the middle of where the membrane would be.',
-    prov: 'X-ray at 2.35 Å. The deposition holds four of these rings; this is '
-        + 'one. Each subunit is a hairpin of two helices, and the ion sits at '
-        + 'the join between neighbours — which is why the count of ions and '
-        + 'the count of subunits are the same number, and why that number '
-        + 'sets what a turn costs. It is sodium because a proton cannot be '
-        + 'seen; the site is the same site.' },
+        + 'cannot run it backwards and burn its own ATP. The eight c-subunits '
+        + 'in the membrane are the proton path: one ion each, so a full turn '
+        + 'costs eight and yields three ATP, which is why the ratio is not a '
+        + 'round number. Note what the β subunits hold here — two ADPs and '
+        + 'one empty site, and no ATP-like site anywhere.' },
 };
 
 /* Why a view has no superposition, which the baker cannot know: it reports
@@ -462,14 +407,10 @@ const SAYS = {
    or because there is nothing for it to be a state OF, is knowledge about the
    entry and is page copy. */
 const UNFITTED = {
-  open: 'the reference the other three sites are fitted onto — the state each '
-      + 'of them is a change from.',
-  human: 'the reference the other two states are fitted onto.',
-  head: 'nothing to fit it to: the only view of the bovine assembly, and the '
-      + 'three sites cut out of it are compared with each other rather than '
-      + 'with the whole.',
-  ring: 'a different organism and a different experiment from everything else '
-      + 'here. There is no correspondence for a fit to use.',
+  open: 'the reference the other site is fitted onto — the state it is a '
+      + 'change from.',
+  human: 'the only whole-enzyme view on the bench. The two structures its '
+       + 'rotation was measured against are read by the baker and not kept.',
 };
 
 const views = {};                        // id -> baked trace
@@ -499,19 +440,11 @@ fetch('data/candidates.json').then(r => r.json()).then(reg => {
    before anyone clicks. "empty" is spelled out rather than printed as 0,
    because a 0 beside an ADP reads as a missing measurement. */
 function chip(id) {
-  const el = $('v-' + id).querySelector('[data-chip]');
+  const el = $('v-' + id).querySelector('[data-chip="held"]');
   if (!el) return;
-  const t = views[id], kind = el.dataset.chip;
-  if (kind === 'held') {
-    const held = t.meta.bound;
-    el.textContent = held ? held.filter(x => x !== 'MG').join(' + ') || 'Mg only'
-                          : 'empty';
-  } else if (kind === 'ions') {
-    el.textContent = `${t.meta.siteAtoms} ions`;
-  } else if (kind === 'ring') {
-    const s = t.meta.ringStep;
-    el.textContent = s ? `ring +${s.subunits}` : '—';
-  }
+  const held = views[id].meta.bound;
+  el.textContent = held ? held.filter(x => x !== 'MG').join(' + ') || 'Mg only'
+                        : 'empty';
 }
 
 /* WHAT COUNTS AS AN ASSEMBLY, said per view. A c-ring is a ring ALWAYS and a
@@ -586,75 +519,36 @@ function siteRow(t) {
 function movedRow(t) {
   const m = t.meta;
   if (!m.fitOn) return 'not superposed';
-  /* Split by role only where there is more than one role to split. A single
-     beta subunit is all one role, and "head 6.33 Å" reads as a claim about the
-     hexamer when it is the swing of one chain. */
-  if (m.caByRole && Object.keys(m.caByRole).length > 1) {
-    const order = ['stator', 'head', 'rotor', 'brake'];
-    return Object.entries(m.caByRole)
-      .sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]))
-      .map(([k, x]) => `${k} ${x.rmsd} Å`).join(' · ');
-  }
   if (m.caByRole) {
     const only = Object.values(m.caByRole)[0];
     return `${only.rmsd} Å over the rest of the chain — the domain swing`;
   }
-  return m.caRmsd === null ? 'numbering not comparable'
-    : `${m.caRmsd} Å over the rest of the chain`;
+  return m.caRmsd === null ? 'numbering not comparable' : `${m.caRmsd} Å`;
 }
 
-/* WHAT THE FIT WAS MADE ON comes from the candidate's group, not from how
-   many atoms it happened to match: a threshold on the count would be a second
-   place that decides what this bench is about, and it would quietly relabel
-   the row the day a group changed size. */
-const FIT_ON = { sites: 'the P-loop', states: 'the stator' };
-
-function fitRow(t, id) {
+function fitRow(t) {
   const m = t.meta;
   if (!m.fitOn) return 'no';
-  return `on ${m.fitOn}, ${FIT_ON[cand[id].group]} · ${m.fitRmsd} Å over ` +
-         `${m.fitAtoms} atoms (${m.fitBefore} Å before)`;
+  return `on ${m.fitOn}, the P-loop · ${m.fitRmsd} Å over ${m.fitAtoms} ` +
+         `atoms (${m.fitBefore} Å before)`;
 }
 
 /* THE CAPTION ON THE STAGE. It carries the one thing the ribbon cannot: what
    kind of claim this picture is. */
 function whereHTML(t, id) {
   const m = t.meta;
-  if (m.ringStep) {
-    const s = m.ringStep;
-    return `<b>what moved</b>The rotor ring superposes on <em>itself, ` +
-      `${s.subunits} of ${s.of} subunits round</em> — ${s.agreeing} of the ` +
-      `${s.of} agree on that step. That is the rotation, measured. The shaft ` +
-      `has no copy to superpose on, so it simply reads as tens of ångströms.`;
-  }
   if (t.site && !m.bound)
     return `<b>the empty site</b>The P-loop is drawn with <em>nothing in ` +
       `it</em>. The baker was asked for whatever was bound here and found ` +
       `none — an absence that was measured, not a view that was never built.`;
-  if (t.site && m.grip)
+  if (t.site)
     return `<b>the catalytic site</b>Holding <em>${m.bound.join(' + ')}</em>, ` +
       `gripped by the P-loop and three side chains. The rest of the subunit ` +
       `is the ribbon around it.`;
-  if (t.site)
-    return `<b>one ion per subunit</b><em>${m.siteAtoms} ions, ` +
-      `${t.order.length} subunits.</em> Counted off the file, not assumed ` +
-      `from the symmetry.`;
   return `<b>${m.entry}</b>${t.order.length} chains, drawn as deposited. ` +
-    `Nothing here is turning.`;
+    `Nothing turns until you ask it to.`;
 }
 
-/* WHICH CHAIN OF THE REFERENCE EACH CHAIN MATCHED, with the relabelled ones
-   marked. Printed rather than summarised because it is the evidence for the
-   claim in the row above it. */
-function pairsHTML(t) {
-  const p = t.meta.pairing;
-  if (!p) return '';
-  const moved = t.meta.relabelled;
-  return `<b>${moved} of ${Object.keys(p).length} chains matched a different ` +
-    `letter</b><br>` + Object.entries(p)
-      .map(([id, x]) => x.to === id ? `${id}→${id}` : `<em>${id}→${x.to}</em>`)
-      .join(' ');
-}
 
 function show(id) {
   view = id;
@@ -675,14 +569,13 @@ function show(id) {
     : 'HELIX/SHEET records, read as deposited';
   $('d-lig').textContent = s.lig;
   $('d-site').textContent = siteRow(t);
-  $('d-fit').textContent = fitRow(t, id);
+  $('d-fit').textContent = fitRow(t);
   $('d-moved').textContent = movedRow(t);
   $('d-ext').textContent = s.ext;
   $('d-view').textContent = t.frame;
   $('d-frag').textContent = s.frag;
   $('d-prov').textContent = SAYS[id].prov +
     (m.fitOn ? '' : ' Not superposed: ' + (UNFITTED[id] || 'no reference.'));
-  $('d-pairs').innerHTML = pairsHTML(t);
 
   /* The legend is built from the same table the ribbon is coloured from, so a
      swatch cannot name a colour the molecule is not wearing. Grouped by role,
@@ -733,9 +626,7 @@ function show(id) {
 
   notes.clear();
   if (t.site) {
-    const drawn = box.setPocket(t.site);
-    if (m.grip) siteNote(t, drawn);
-    else ionNote(t, drawn);
+    siteNote(t, box.setPocket(t.site));
   }
 }
 
@@ -781,25 +672,6 @@ function siteNote(t, drawn) {
   });
 }
 
-function ionNote(t, drawn) {
-  /* THE ANCHOR IS THE MESH, never the baked coordinate: the group carries the
-     presentation frame and the box re-centres on what is drawn, so a point
-     copied out of the bake is right until the first setData. */
-  const mesh = drawn.group.children[0];
-  const v = new THREE.Vector3();
-  notes.add({
-    text: `${t.meta.siteAtoms} ions, ${t.order.length} subunits`,
-    tone: 'sodium',
-    card: 'One ion per subunit, each buried in the middle of the membrane at '
-        + 'the join between two neighbours. That one-to-one is what makes the '
-        + 'ring a counter: a full turn carries exactly as many ions as it has '
-        + 'subunits, so eleven here and eight in the human enzyme means a '
-        + 'turn does not cost the same everywhere. It is sodium because a '
-        + 'proton has no electrons and cannot be seen in a map.',
-    at: () => mesh.getWorldPosition(v),
-    offset: [34, -26],
-  });
-}
 
 /* ---- the turn ----------------------------------------------------------
 
