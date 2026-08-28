@@ -90,153 +90,59 @@ const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
 const DATA = path.join(HERE, 'data');
 
-/* ---- what each chain IS ------------------------------------------------
+/* ---- what is baked ------------------------------------------------------
  *
- *  ONE TABLE, READ BY THE RIBBON AND BY THE LEGEND, so a swatch cannot name
- *  a colour the molecule is not wearing. Keyed by ROLE and not by chain id,
- *  because the claim is about the machine: the eight c-subunits and gamma
- *  are one moving object and get one colour, and the fact that they are
- *  nine separate chains is exactly what a reader should stop seeing.
- *
- *  The ss palette is wrong for every assembly view here for the reason
- *  collagen's is: a reader looking at ATP synthase has to tell the rotor
- *  from the stator, which is not a question about what anything is folded
- *  into. The single-subunit views keep the ss palette, because there the
- *  fold IS what is being looked at.
+ *  THE TABLE IS proteins/proteins.js NOW, with every other protein's. Review
+ *  ended, three of nine survived, and everything about what they ARE — which
+ *  chains, which subunit each is, which site residues, the axis, the fitting
+ *  group — moved into the registry's `variants` in the same commit that
+ *  deleted it from here. What this file still owns is what an ATP synthase
+ *  bake IS: the site, the superposition, the rotation, and the numbers only
+ *  those can give.
  */
-const ROLES = {
-  /* AZURE, and deliberately not the house rust it used to be: protein-test.css
-     spends `--h-spark` (0xe2643a) on the panel's own controls and says it
-     belongs on no molecule, so a rotor wearing it put a UI colour on the
-     subject. It is also kept clear of the ribbon palette's helix blue
-     (0x0042aa, kit/proteinbox.js's RIB) — the head state draws one beta chain
-     in that palette beside gamma, and two blues a shade apart there would
-     undo the one match that view exists to make. */
-  rotor:  0x2b8cd8,   // azure: the c-ring, gamma, delta, epsilon — what turns
-  head:   0x1f5f4f,   // house green: alpha3beta3, where the chemistry is
-  /* TWO TANS WHERE THERE WAS ONE GREY, because one grey was drawing two
-     different objects. The peripheral stalk is a girder running down the
-     outside, and the membrane block is embedded in the bilayer beside the
-     ring — they do unrelated jobs and read as one thing when they share a
-     colour. The split also lifts subunit `a` out of the scenery: it carries
-     the two half-channels the protons cross, so it is half the mechanism and
-     was previously the same grey as a 41-residue scaffold. */
-  /* Deepened from 0xc9b28d, which read as paper against `--h-paper` where the
-     stalk crosses empty background at the top of the arc. */
-  stalk:  0xbfa478,   // light tan: the girder that holds the head against the torque
-  membrane: 0x8d6e4a, // deeper tan: what sits in the bilayer, subunit a among it
-  brake:  0x8e5fa8,   // violet: IF1, the only thing here that is not the enzyme
-};
+const REG = require('../../proteins.js');
+const IO = require('../../tools/registry-io.js');
+const ME = REG.byKey('atp-synthase');
+const CANDIDATES = ME.variants;
 
-/* Human mitochondrial ATP synthase, chain by chain. Identical across 8H9S,
-   8H9T and 8H9U, which is what lets the three be compared at all — and 8H9T
-   is missing J because IF1 is not resolved in state 2. A chain absent from a
-   file simply never appears; a chain PRESENT and unlisted throws, because a
-   silent grey default is how a subunit ends up filed as scenery. */
-/* EACH CHAIN IS [role, subunit], and the second half is not decoration: it
-   is what says which chains are COPIES of one another. Eight c-subunits are
-   eight copies of one gene product and can stand in for each other; gamma,
-   delta and epsilon are one each and cannot. The rotary-state comparison
-   below searches for a chain's counterpart among copies of the same subunit,
-   and given only the role it paired delta against epsilon — two different
-   proteins, 25 A apart, reported as a match. */
-const HUMAN = {
-  1: ['rotor', 'c'], 2: ['rotor', 'c'], 3: ['rotor', 'c'], 4: ['rotor', 'c'],
-  5: ['rotor', 'c'], 6: ['rotor', 'c'], 7: ['rotor', 'c'], 8: ['rotor', 'c'],
-  G: ['rotor', 'γ'], H: ['rotor', 'δ'], I: ['rotor', 'ε'],
-  A: ['head', 'α'], B: ['head', 'α'], C: ['head', 'α'],
-  D: ['head', 'β'], E: ['head', 'β'], F: ['head', 'β'],
-  /* The girder: down the outside from the top of the head to the membrane. */
-  K: ['stalk', 'b'], L: ['stalk', 'F6'], M: ['stalk', 'd'], O: ['stalk', 'OSCP'],
-  /* In the bilayer. `a` is the proton path and the reason the ring turns;
-     ATP8 beside it is one of the two subunits this enzyme's own organelle
-     encodes rather than importing. */
-  N: ['membrane', 'a'], Q: ['membrane', 'ATP8'], P: ['membrane', 'ATP5MJ'],
-  R: ['membrane', 'f'], S: ['membrane', 'g'], T: ['membrane', 'e'],
-  J: ['brake', 'IF1'],
-};
+/* THE TWO STRUCTURES THAT ARE NOT VARIANTS, and cannot be: the registry lists
+   what the repo holds, and it holds no file for either of these. They are read
+   to MEASURE the rotation — the axis, the angles, and the check that spinning
+   state 1 lands where they say it should — and then dropped. Keeping them as
+   sources rather than deleting them is the difference between a rotation that
+   can be re-derived and three constants somebody once typed.
 
-/* One beta subunit on its own keeps the ss palette, because there the fold
-   IS what is being looked at. */
-const BETA = c => ({ [c]: ['head', 'β'] });
-
-/* ---- the candidates ----------------------------------------------------
- *
- *  `shows` is what step 4 is being asked about: what this entry says that
- *  the others do not. It is not page copy and it is not a blurb; it is the
- *  sentence a human accepts or rejects.
- */
-const CANDIDATES = [
-  /* -- one beta subunit, four times ------------------------------------ */
-  {
-    id: 'open', entry: '1BMF', file: '1BMF.pdb', chains: 'E', roles: BETA('E'), palette: 'ss',
-    shows: 'the empty catalytic site. Same 466 residues as the two beside '
-         + 'it, nothing bound, and the C-terminal domain swung away.',
-    site: { grip: [156, 163], side: [188, 189, 345] },
-    group: 'sites', reference: true,
-  },
-  {
-    id: 'dp', entry: '1BMF', file: '1BMF.pdb', chains: 'D', roles: BETA('D'), palette: 'ss',
-    shows: 'the site holding ADP — the product, still bound, after the bond '
-         + 'was made and before it was let go.',
-    site: { grip: [156, 163], side: [188, 189, 345] },
-    group: 'sites',
-  },
-  /* REVIEW DROPPED TWO HERE, and the reason is worth one comment because the
-     obvious candidate was the one that went. beta-TP is the famous third
-     state, and it is the only view on this bench whose contents were CHOSEN:
-     AMP-PNP, an ATP that cannot be hydrolysed, soaked in to freeze the site
-     shut. 1H8E went with it — all three of its sites are occupied, and it was
-     only ever here to caveat the designed triad, so it had nothing left to
-     caveat once the triad was gone.
-
-     What survives is the pair either side of PRODUCT RELEASE: empty, and
-     still holding the ADP it has not let go of. Release is where this
-     enzyme's energy actually goes, and it is what the rotation does — so
-     these two are the sites the spin explains.
-
-     THE COST, which the page states rather than hides: ATP itself now appears
-     nowhere on a bench about ATP synthase, because the only structure that
-     showed it needed a fake one. */
-  {
-    id: 'human', entry: '8H9S', file: '8H9S.cif',
-    chains: Object.keys(HUMAN).join(','), roles: HUMAN,
-    shows: 'the whole human enzyme at 2.53 A: rotor ring in the membrane, '
-         + 'shaft, head, and the stator arm holding the head still while '
-         + 'the shaft turns inside it. Rotary state 1.',
-    axis: { from: '1,2,3,4,5,6,7,8', to: 'A,B,C,D,E,F' },
-    group: 'states', reference: true,
-  },
-  {
-    id: 'state2', entry: '8H9T', file: '8H9T.cif',
-    chains: Object.keys(HUMAN).filter(c => c !== 'J').join(','), roles: HUMAN,
-    shows: 'the same enzyme, rotor turned. IF1 is not resolved here, which '
-         + 'is why this file has 27 chains and the other two have 28.',
-    group: 'states', measureOnly: true,
-  },
-  {
-    id: 'state3', entry: '8H9U', file: '8H9U.cif',
-    chains: Object.keys(HUMAN).join(','), roles: HUMAN,
-    shows: 'turned again. Three positions is as close to the rotation as '
-         + 'deposited coordinates get.',
-    group: 'states', measureOnly: true,
-  },
+   They borrow the human variant's role table, because they are the same
+   enzyme in the same chain naming; 8H9T is missing J, which simply never
+   appears rather than needing a table of its own. */
+const MEASURED = [
+  { id: 'state2', entry: '8H9T', file: '8H9T.cif', group: 'states' },
+  { id: 'state3', entry: '8H9U', file: '8H9U.cif', group: 'states' },
 ];
 
-const byId = id => CANDIDATES.find(c => c.id === id);
 
 /* ---- reading ----------------------------------------------------------- */
 
 const r2 = Bake.r2, xyz = Bake.xyz;
+
+/* WHERE A VARIANT'S SOURCE FILE IS, from the registry's `source` rather than
+   from a filename beside it. `format:'cif'` is how an entry says it was never
+   published as a PDB — which for 8H9S is a fact about the deposition and not
+   a choice this baker made. A measure-only structure carries its own two
+   fields instead, because it has no registry entry to carry them. */
+const entryOf = v => v.entry || v.source.id;
+const fileOf = v => v.file ||
+  v.source.id + (v.source.format === 'cif' ? '.cif' : '.pdb');
 const elOf = l => (l.slice(76, 78).trim() || l.slice(12, 14).trim()).toUpperCase();
 
 function source(v) {
-  const p = path.join(SRC, v.file);
+  const name = fileOf(v);
+  const p = path.join(SRC, name);
   if (!fs.existsSync(p))
-    throw new Error(`${v.file} is missing from data/src — see the curl block ` +
+    throw new Error(`${name} is missing from data/src — see the curl block ` +
       'in this file\'s header');
   const raw = fs.readFileSync(p, 'utf8');
-  return v.file.endsWith('.cif') ? Cif.fromCif(raw) : Bake.modelOne(raw);
+  return name.endsWith('.cif') ? Cif.fromCif(raw) : Bake.modelOne(raw);
 }
 
 /* Every atom on the chains being drawn, with the altloc rule applied — the
@@ -536,7 +442,13 @@ function solve3(A, b) {
 
 function bake(v, ref) {
   const text = source(v);
-  const only = new Set(v.chains.split(','));
+  /* A VARIANT NAMES ITS CHAINS; A MEASURE-ONLY STRUCTURE TAKES WHAT IS THERE.
+     The registry lists chains because the checker holds a bake to them, and
+     because which chains are drawn is a decision. For the two rotary states
+     there is nothing to hold and no decision — 8H9T simply has no IF1 — so
+     null means every chain in the file, and the role check below still catches
+     any chain the table cannot name. */
+  const only = v.chains ? new Set(v.chains.split(',')) : null;
   const R = Bake.ssRanges(text);
 
   const traced = Bake.caTrace(text, only);
@@ -544,8 +456,9 @@ function bake(v, ref) {
 
   /* A CHAIN IN THE FILE AND NOT IN THE ROLE TABLE is a subunit about to be
      drawn as scenery. Thrown rather than defaulted: grey is a claim. */
+  const roles = v.roles || ME.variants.find(x => x.id === 'human').roles;
   for (const id of traced.keys())
-    if (!v.roles[id]) throw new Error(`${v.id}: chain ${id} has no role`);
+    if (!roles[id]) throw new Error(`${v.id}: chain ${id} has no role`);
 
   const site = siteOf(text, v, only);
   const mine = fitAtoms(text, v, only);
@@ -589,7 +502,7 @@ function bake(v, ref) {
   const T = Bake.assemble(traced, R, c);
 
   const out = {
-    source: v.entry + (v.file.endsWith('.cif') ? '.cif' : '.pdb'),
+    source: fileOf(v),
     ssFrom: Bake.ssFrom(R),
     centre: T.centre, order: T.order, chains: T.chains, radius: T.radius,
   };
@@ -632,7 +545,7 @@ function bake(v, ref) {
                                       declared: decl[id] === undefined ? null : decl[id] }));
 
   out.meta = {
-    entry: v.entry, view: v.id, chains: T.order.join(','),
+    entry: entryOf(v), view: v.id, chains: T.order.join(','),
     method: Bake.method(text), resolution: Bake.resolution(text),
     title: Bake.line1(text, 'TITLE'),
     chainsInFile: Bake.chainCount(text),
@@ -657,7 +570,7 @@ function bake(v, ref) {
     caRmsd: null,
     palette: v.palette || 'role',
     roles: Object.fromEntries(T.order.map(id =>
-      [id, { role: v.roles[id][0], subunit: v.roles[id][1] }])),
+      [id, { role: roles[id][0], subunit: roles[id][1] }])),
   };
 
   /* CHAIN LABELS DO NOT MEAN THE SAME THING IN TWO ROTARY STATES, and this
@@ -763,13 +676,14 @@ function bake(v, ref) {
 
 function main() {
   fs.mkdirSync(DATA, { recursive: true });
-  const done = {}, index = [];
+  const done = {}, blocks = {};
 
   /* Groups are baked reference first, then the rest onto it. A member of no
      group is its own reference and is baked in place. */
   const order = [
     ...CANDIDATES.filter(v => !v.group || v.reference),
     ...CANDIDATES.filter(v => v.group && !v.reference),
+    ...MEASURED,
   ];
 
   const refs = {};
@@ -804,15 +718,12 @@ function main() {
        compared, and then dropped: nothing is written to data/, nothing goes
        in the index, and no button can reach them. What survives them is the
        `spin` block on atp-human.json and the figures the console prints. */
-    if (v.measureOnly) { console.log(`         (${v.id} measured, not kept)`); continue; }
+    if (!v.read) { console.log(`         (${v.id} measured, not kept)`); continue; }
 
     const { $ref, read, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, read.baked), JSON.stringify(bakeOut));
 
-    index.push({
-      id: v.id, entry: v.entry, chains: v.chains, shows: v.shows,
-      group: v.group || null, roles: out.meta.roles, read,
-    });
+    blocks[v.id] = read;
 
     const m = out.meta, kb = (fs.statSync(path.join(DATA, read.baked)).size / 1024).toFixed(0);
     console.log(
@@ -957,16 +868,13 @@ function main() {
         `axes pass ${spread.lines} Å apart`);
   }
 
-  /* THE BENCH'S COPY OF THE TABLE ABOVE. It exists because this protein has
-     no registry entry yet and a page has to read the candidates from
-     somewhere; it is derived, never edited, and it is deleted along with
-     CANDIDATES the day step 5 registers whatever survived. */
-  fs.writeFileSync(path.join(DATA, 'candidates.json'),
-                   JSON.stringify({ note: 'derived from CANDIDATES in tools/prep.js; '
-                                        + 'under review, not yet in proteins/proteins.js',
-                                    roles: ROLES, candidates: index }, null, 1));
-  console.log(`candidates.json  ${index.length} under review, nothing registered`);
+  /* THE REGISTRY'S HALF, spliced back in. `registry-io.js` writes only the
+     `read: { … }` object inside each variant, so the prose and the reasons
+     around them survive a re-bake — and in that file the comments are why a
+     structure was chosen and which one it was chosen instead of. */
+  const touched = IO.write('atp-synthase', blocks);
+  console.log(`registry proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();
-module.exports = { CANDIDATES, ROLES, bake, siteOf, byId };
+module.exports = { bake, siteOf, screwOf };

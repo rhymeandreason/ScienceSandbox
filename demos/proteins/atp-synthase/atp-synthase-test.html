@@ -74,10 +74,12 @@
          measurement — the ring superposing on itself two subunits round
          IS the rotation.
 
-     UNDER REVIEW. Nothing is in proteins/proteins.js yet. The
-     candidates and their claims live in tools/prep.js's CANDIDATES
-     table and reach this page through data/candidates.json, which is
-     derived and goes away when step 5 registers whatever survives.
+     REVIEWED AND REGISTERED. Nine candidates went in front of a human
+     and three came out; ATP synthase is in proteins/proteins.js now,
+     and that is what this page and its baker both read. Two of the six
+     that did not survive are still READ by the baker — the other rotary
+     states, which is where the rotation is measured — but they are not
+     variants, because nothing on disk holds them.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -361,6 +363,7 @@
 <script src="../../kit/card-stage.js"></script>
 <script src="../../lib/annotate.js"></script>
 <script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
 <script>
 'use strict';
 
@@ -389,18 +392,26 @@ const box = Proteinbox.create({
    wrong trade — the thing being named is a nucleotide or a single ion. */
 notes = Annot.create(THREE, stage, box.camera, { mode: 'on' });
 
-/* WHICH STRUCTURES, AND WHAT EACH IS FOR, ARE tools/prep.js's CANDIDATES
-   table, reaching this page as data/candidates.json. It is derived and under
-   review; when step 5 registers whatever survives, this fetch becomes
-   `ProteinLib.byKey('atp-synthase')` and the JSON goes away. Nothing about
-   the nine is typed here, so a candidate cannot be described one way in the
-   panel and baked another. */
+/* WHICH STRUCTURES, AND WHAT EACH IS FOR, ARE proteins/proteins.js's — the
+   registry every protein in the repo is described in, and the same file the
+   baker read to write these bakes. ATP synthase was registered when its
+   review ended, so nothing about the three is typed here and a variant cannot
+   be described one way in the panel and baked another. */
 /* A BUTTON IS NOT ALWAYS A BAKE. `head` is a RENDER STATE over the whole-
    enzyme bake rather than a structure of its own — same coordinates, same
    frame, fewer chains drawn and a palette that tells alpha from beta. Baking
    it separately would put the same atoms on disk twice and let the two drift;
    worse, it would stop being evidence about WHERE the head sits, which is the
    only reason this view is worth having. */
+const ME = ProteinLib.byKey('atp-synthase');
+/* THE ROLE COLOURS AND THE FADE ARE THE REGISTRY'S, not this page's. They were
+   here first and moved at registration, for the reason collagen's strand
+   colours did: a colour kept on one page is a card and a bench showing one
+   protein two ways. */
+const ROLES = ME.draw.byRole;
+const FADE = ME.draw.fade;
+const cand = Object.fromEntries(ME.variants.map(v => [v.id, v]));
+
 const ORDER = ['human', 'head', 'open', 'dp'];
 const SHOWN = {
   open:  { bake: 'open' },
@@ -426,13 +437,7 @@ const SHOWN = {
    blue, because it is still the rotor and it is still what turns. */
 const HEAD_COLORS = { β: 0x1f5f4f, α: 0x1f5f4f };
 
-/* WHAT EVERYTHING ELSE FADES TO on the detail view. Warm rather than neutral,
-   because the stage is `--h-paper` cream and a true grey reads as a hole in
-   it; light enough to recede, dark enough that the rotor and the stalk are
-   still legible shapes rather than a smudge. It is one colour for four roles
-   on purpose — on this view they are all the same thing, which is "not the
-   head". */
-const FADE = 0xcbc7be;
+
 
 /* ONE BETA IS LEFT OUT OF THAT TABLE ON PURPOSE, and gets the repo's ordinary
    secondary-structure palette instead — the blue helices and orange sheets the
@@ -455,10 +460,11 @@ const HEAD_SS = 'E';
 const FINGER = 373;
 const HUMAN_PLOOP = [160, 167];
 
-/* THE WHOLE ASSEMBLY OPENS THE BENCH. It is the subject — a reader arriving
-   here should meet the machine before a subunit cut out of it, and the two
-   site views only mean anything once you know where they came from. */
-const OPEN = 'human';
+/* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id: which structure
+   a protein opens on is a decision and it belongs with the other decisions
+   about it. It is the whole assembly — a reader should meet the machine before
+   a subunit cut out of it. */
+const OPEN = ProteinLib.defaultOf(ME).id;
 
 /* THE PAGE'S OWN COPY. What a structure IS is the baker's; what this bench
    SAYS about it under this stage is page copy and belongs here. Keyed by
@@ -580,7 +586,6 @@ const PARTS = {
 };
 
 const views = {};                        // id -> baked trace
-let cand = {}, ROLES = {};
 let view = null;
 const $ = id => document.getElementById(id);
 const hex = n => '#' + n.toString(16).padStart(6, '0');
@@ -602,23 +607,20 @@ function roleTones(roles) {
   document.head.appendChild(el);
 }
 
-fetch('data/candidates.json').then(r => r.json()).then(reg => {
-  ROLES = reg.roles;
-  roleTones(ROLES);
-  reg.candidates.forEach(c => { cand[c.id] = c; });
-  /* ONE FETCH PER BAKE, not per button: `head` and `human` are two buttons
-     over one file, and fetching it twice would be two copies of 5,064
-     residues that could not disagree but would both be in memory. */
-  [...new Set(ORDER.map(id => SHOWN[id].bake))].forEach(key => {
-    fetch(`data/${cand[key].read.baked}`).then(r => r.json()).then(t => {
-      views[key] = t;
-      chip(key);
-      if (SHOWN[view] && SHOWN[view].bake === key) show(view);
-    });
+roleTones(ROLES);
+
+/* ONE FETCH PER BAKE, not per button: `head` and `human` are two buttons over
+   one file, and fetching it twice would be two copies of 5,064 residues that
+   could not disagree but would both be in memory. */
+[...new Set(ORDER.map(id => SHOWN[id].bake))].forEach(key => {
+  fetch(`data/${cand[key].read.baked}`).then(r => r.json()).then(t => {
+    views[key] = t;
+    chip(key);
+    if (SHOWN[view] && SHOWN[view].bake === key) show(view);
   });
-  show(OPEN);
-  ORDER.forEach(id => $('v-' + id).setAttribute('aria-pressed', String(id === OPEN)));
 });
+show(OPEN);
+ORDER.forEach(id => $('v-' + id).setAttribute('aria-pressed', String(id === OPEN)));
 
 /* A CHIP THAT IS A FACT READS IT OFF THE BAKE. The site buttons are an
    occupancy and nothing else, and the contrast has to be visible in the list
@@ -762,7 +764,7 @@ function show(id) {
 
   const s = stats(t), m = t.meta, r = c.read;
   $('d-claim').textContent = SAYS[id].claim;
-  $('d-meta').textContent = `${c.entry} · ${r.method}` +
+  $('d-meta').textContent = `${c.source.id} · ${r.method}` +
     (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
   $('d-quat').textContent = s.quat;
   $('d-res').textContent = s.res;
@@ -826,10 +828,12 @@ function show(id) {
 
   $('d-where').innerHTML = whereHTML(t, id);
 
-  const u = { entry: `https://www.rcsb.org/structure/${c.entry}`,
-              file: `https://files.rcsb.org/download/${t.source}` };
+  /* Built by the registry from `source`, so an id and its links cannot
+     disagree — and so the human entry links to the .cif it was actually
+     published as rather than to a .pdb that 404s. */
+  const u = ProteinLib.urls(c);
   $('d-rcsb').href = u.entry;
-  $('d-rcsb-label').textContent = `RCSB ${c.entry}`;
+  $('d-rcsb-label').textContent = `RCSB ${c.source.id}`;
   $('d-raw').href = u.file;
   $('d-baked').href = `data/${r.baked}`;
 

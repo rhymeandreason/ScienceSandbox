@@ -464,7 +464,142 @@
         baked: "col-molecule.json" } },
   ];
 
+/* ---------------------------------------------------------------- ATP synthase
+   *
+   *  THREE VIEWS AND TWO STRUCTURES THAT ARE NOT HERE. `state2` and `state3`
+   *  are read by the baker to measure the rotation and then dropped without a
+   *  file, so they are not variants: this file lists what the repo HOLDS, and
+   *  it holds neither. What survives them is the `spin` block on the human bake
+   *  and the figures its console prints.
+   *
+   *  ROLES ARE PART OF WHAT A STRUCTURE IS, which is why the chain table lives
+   *  here rather than on the bench. Which subunit chain N is, and whether it
+   *  turns, is a fact about the deposition; what colour a role is drawn is the
+   *  protein's, in `draw`; what the bench SAYS about a role is page copy. The
+   *  second half of each pair is the subunit NAME, and it is what says which
+   *  chains are copies of one another — eight c-subunits can stand in for each
+   *  other and gamma cannot, which is the difference that makes the rotary
+   *  comparison possible at all.
+   */
+  const ATP_VARIANTS = [
+    /* THE EMPTY SITE, and the reference the other one is fitted onto — the
+       state beta-DP is a change from. Bovine, because the crisp catalytic
+       states are Walker's crystal and no cryo-EM map of the human enzyme has
+       an empty site beside a full one in the same particle. */
+    { id: 'open',
+      purpose: 'the catalytic site with nothing in it',
+      species: 'bovine', chains: 'E',
+      source: { kind: 'rcsb', id: '1BMF' },
+      roles: { 'E': ['head', 'β'] },
+      site: { grip: [156, 163], side: [188, 189, 345] },
+      group: 'sites', reference: true,
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 7,
+        residues: 466,
+        declared: 482,
+        ec: "3.6.1.34",
+        baked: "atp-open.json" } },
+    { id: 'dp',
+      purpose: 'the same site holding the product it has not released',
+      species: 'bovine', chains: 'D',
+      source: { kind: 'rcsb', id: '1BMF' },
+      roles: { 'D': ['head', 'β'] },
+      site: { grip: [156, 163], side: [188, 189, 345] },
+      group: 'sites',
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 7,
+        residues: 467,
+        declared: 482,
+        ec: "3.6.1.34",
+        baked: "atp-dp.json" } },
+    /* THE WHOLE MACHINE, and the only view that can carry the rotation.
+       Published as mmCIF and not as PDB — 28 chains and 39,000 atoms is past
+       what the legacy format holds — which is what proteins/cif-lib.js exists
+       for, and why `source` has to say the format so a link does not 404. */
+    /* THE DEFAULT, and it is a decision rather than a position: the whole
+       machine is the subject, and the two site views only mean anything once
+       a reader knows where they were cut from. */
+    { id: 'human', default: true,
+      purpose: 'the whole enzyme, and the rotor that turns in it',
+      species: 'human', chains: '1,2,3,4,5,6,7,8,G,H,I,A,B,C,D,E,F,K,L,M,O,N,Q,P,R,S,T,J',
+      source: { kind: 'rcsb', id: '8H9S', format: 'cif' },
+      roles: {
+              '1': ['rotor', 'c'], '2': ['rotor', 'c'], '3': ['rotor', 'c'],
+              '4': ['rotor', 'c'], '5': ['rotor', 'c'], '6': ['rotor', 'c'],
+              '7': ['rotor', 'c'], '8': ['rotor', 'c'], 'G': ['rotor', 'γ'],
+              'H': ['rotor', 'δ'], 'I': ['rotor', 'ε'], 'A': ['head', 'α'],
+              'B': ['head', 'α'], 'C': ['head', 'α'], 'D': ['head', 'β'],
+              'E': ['head', 'β'], 'F': ['head', 'β'], 'K': ['stalk', 'b'],
+              'L': ['stalk', 'F6'], 'M': ['stalk', 'd'],
+              'O': ['stalk', 'OSCP'], 'N': ['membrane', 'a'],
+              'Q': ['membrane', 'ATP8'], 'P': ['membrane', 'ATP5MJ'],
+              'R': ['membrane', 'f'], 'S': ['membrane', 'g'],
+              'T': ['membrane', 'e'], 'J': ['brake', 'IF1'] },
+      /* The rotation axis is solved between these two groups of chains: the
+         c-ring to the head IS the axis, and the membrane normal with it, so it
+         needs no convention laid on top of it. */
+      axis: { from: '1,2,3,4,5,6,7,8', to: 'A,B,C,D,E,F' },
+      group: 'states', reference: true,
+      read: {
+        method: "electron microscopy",
+        chainsInFile: 28,
+        residues: 5064,
+        declared: 5415,
+        ec: null,
+        baked: "atp-human.json" } },
+  ];
+
   const PROTEINS = [
+    {
+      key: 'atp-synthase', name: 'ATP synthase', dir: 'proteins/atp-synthase',
+      blurb: 'A rotor spun by protons falling across a membrane, wringing ATP '
+           + 'out of ADP and phosphate. The only enzyme most students meet '
+           + 'that is literally a motor, and it turns over a hundred times a '
+           + 'second.',
+      does: 'enzyme',
+      pipeline: 'trace',
+      /* NO PROTEIN-WIDE FIT, because this collection is two kinds of thing.
+         The two beta subunits ARE states of one site and are superposed on
+         each other — the residual is in their bakes, and the bench prints it —
+         but the human assembly is a different organism and a different
+         experiment, and there is nothing for it to be a state OF. A single
+         `fit.on` would have to claim the assembly was fitted onto a bovine
+         subunit, which is why this is null and not a reference. */
+      fit: null,
+      fitWhy: 'the two beta subunits are superposed on each other, on the '
+            + 'P-loop, and each bake carries that residual; the human enzyme '
+            + 'is a different organism and is a state of nothing here',
+      view: { by: 'measured', shared: false,
+              why: 'the assembly is drawn on its rotation axis, which is the '
+                 + 'c-ring to the head and is the membrane normal with it; a '
+                 + 'single beta subunit is round enough that a solved basis '
+                 + 'would flip between rebakes, so those two open in the '
+                 + 'reference\'s deposited frame until a human picks one' },
+      surface: { bake: false,
+                 why: 'a mechanism claim, not a surface one: what this protein '
+                    + 'is about is which part turns against which, and a skin '
+                    + 'over the whole assembly hides the rotor inside it' },
+      /* WHAT A ROLE IS DRAWN, read by the bench and by the gallery card, so
+         the two cannot become two opinions about one molecule. Not the ss
+         palette: a reader looking at ATP synthase has to tell the rotor from
+         the stator, which is not a question about what anything is folded
+         into. The house rust is deliberately absent — protein-test.css spends
+         it on the panel's own controls and says it belongs on no molecule. */
+      draw: { byRole: {
+        head:     0x1f5f4f,   // deep green, the house accent
+        rotor:    0x2b8cd8,   // azure: everything that turns
+        stalk:    0xbfa478,   // light tan: the girder holding the head still
+        membrane: 0x8d6e4a,   // deeper tan: what sits in the bilayer
+        brake:    0x8e5fa8,   // violet: IF1, the one chain that is not the enzyme
+      },
+        /* What everything that is not the subject fades to on a detail view.
+           Warm rather than neutral, because the stage is cream and a true grey
+           reads as a hole in it. */
+        fade: 0xcbc7be },
+      variants: ATP_VARIANTS,
+    },
     {
       key: 'napump', name: 'Na⁺/K⁺-ATPase', dir: 'proteins/napump',
       blurb: 'The pump that keeps every animal cell electrically alive: three '
@@ -860,11 +995,26 @@
      protein. Every consumer calling this is what stops a bench and a gallery
      card becoming two opinions about the same molecule. */
   function colorsOf(p, v) {
-    const map = p.draw && p.draw.byStrand;
-    if (!map || !v || !v.strands) return null;
+    if (!v) return null;
     const byChain = {};
-    for (const [ch, strand] of Object.entries(v.strands))
-      if (map[strand] != null) byChain[ch] = map[strand];
+
+    /* TWO WAYS A PROTEIN CAN TELL ITS CHAINS APART, and which one it uses is a
+       fact about what the reader has to distinguish. `byStrand` is collagen's:
+       three interchangeable chains of one rope, told apart so the braid is
+       visible. `byRole` is ATP synthase's: twenty-eight chains doing four
+       jobs, and what matters is which of them turns. Both map a chain to a
+       colour through something the VARIANT says that chain is, so the protein
+       owns the palette and the variant owns the assignment. */
+    const strands = p.draw && p.draw.byStrand;
+    if (strands && v.strands)
+      for (const [ch, strand] of Object.entries(v.strands))
+        if (strands[strand] != null) byChain[ch] = strands[strand];
+
+    const roles = p.draw && p.draw.byRole;
+    if (roles && v.roles)
+      for (const [ch, pair] of Object.entries(v.roles))
+        if (roles[pair[0]] != null) byChain[ch] = roles[pair[0]];
+
     return Object.keys(byChain).length ? { byChain } : null;
   }
 
@@ -878,9 +1028,15 @@
       entry: 'https://alphafold.ebi.ac.uk/entry/' + s.id,
       file: 'https://alphafold.ebi.ac.uk/files/AF-' + s.id + '-F1-model_v4.pdb',
     };
+    /* `.pdb` UNLESS THE ENTRY SAYS OTHERWISE. An entry too large for the
+       legacy format is not published in it — RCSB 404s the .pdb for anything
+       past 62 chains or 99,999 atoms — so a link built on the assumption is a
+       dead link on exactly the biggest and most interesting structures. ATP
+       synthase's human enzyme is the first here to say `format:'cif'`. */
+    const ext = s.format === 'cif' ? '.cif' : '.pdb';
     return {
       entry: 'https://www.rcsb.org/structure/' + s.id,
-      file: 'https://files.rcsb.org/download/' + s.id + '.pdb',
+      file: 'https://files.rcsb.org/download/' + s.id + ext,
       local: s.kind === 'repo' ? s.path : null,
     };
   }
