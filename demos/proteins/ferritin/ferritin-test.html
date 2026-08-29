@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ferritin — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html and
+     the gallery card. Reviewed: all three views were kept, so the table
+     they live in is proteins/proteins.js and this page reads it.
+
+     WHAT IT IS FOR SETTLING:
+
+       is the ball worth it   the cage is 4128 residues and 106 KB
+                              against the subunit's 5. If 24 copies of a
+                              bundle read as one hollow shell, the story
+                              is the symmetry; if they read as green
+                              spaghetti, the subunit is the protein and
+                              the ball is a caption.
+       one part or two        the subunit and the site are the same
+                              coordinates. Whether the iron earns its own
+                              button, or just rides on the subunit, is a
+                              question about whether 31 atoms are legible
+                              inside a 60 A bundle.
+       which colouring        the cage is drawn by SUBUNIT by default,
+                              because its claim is "the same thing, 24
+                              times", which the ss palette cannot make —
+                              every copy is the same fold, so it paints
+                              all 24 identically. The toggle is there to
+                              check that judgement rather than assert it.
+
+     WHAT THE FILE MADE US DECIDE. 1FHA's asymmetric unit is ONE chain.
+     The cage is assembly 1, deposited as 24 MODELS of that chain, and
+     bake-lib's modelOne on it would have baked a twenty-fourth of an iron
+     ball that renders as a perfectly good four-helix bundle. The merge is
+     chain-aware in tools/prep.js and that is the only interesting thing
+     about this bake.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* The shared chrome is ../protein-test.css. What this bench adds is said
+     with COLOUR: the swatch beside the cage's note, written by the script off
+     the same table the ribbon is painted from, so they cannot drift. */
+  .legend{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:0 0 var(--space-3)}
+  .legend span{display:inline-flex;align-items:center;gap:5px;
+    font-size:0.72rem;color:var(--h-muted)}
+  .legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .legend[hidden]{display:none}
+  /* .mode sets its own display, so [hidden] alone loses to it. */
+  button.mode[hidden]{display:none}
+  .notes{margin:0;padding:0 0 0 1.1em}
+  .notes li{font-size:0.78rem;line-height:1.6;color:var(--h-muted);
+    margin:0 0 var(--space-2)}
+  .notes li:last-child{margin-bottom:0}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Ferritin</h1>
+    <p class="deck">A hollow ball built from 24 copies of one part. Ferritin
+      keeps iron in a form that cannot rust the cell: it oxidises Fe(II) at the
+      way in and stores the mineral inside the shell. Human H chain.</p>
+
+    <h2>1FHA</h2>
+    <button class="mode" id="v-cage" aria-pressed="true">
+      <span class="who">the cage</span><span class="chip">24 chains</span></button>
+    <button class="mode" id="v-subunit" aria-pressed="false">
+      <span class="who">subunit</span><span class="chip">1 chain</span></button>
+    <button class="mode" id="v-site" aria-pressed="false">
+      <span class="who">ferroxidase site</span><span class="chip">Fe</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <div class="legend" id="d-legend" hidden></div>
+    <button class="mode" id="paint" hidden aria-pressed="true">
+      <span class="who">colour by subunit</span></button>
+
+    <table>
+      <tr><td>chains drawn</td><td id="d-chains">&mdash;</td></tr>
+      <tr><td>in the site</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>span</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr class="hi"><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>pocket</td><td id="d-pocket">&mdash;</td></tr>
+      <tr><td>read from</td><td id="d-src">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+
+    <ul class="notes">
+      <li><strong>The asymmetric unit is one chain.</strong> The 24-mer is
+        assembly 1, deposited as 24 models of that chain, and the baker merges
+        them chain-aware &mdash; taking model 1 would bake a twenty-fourth of
+        the ball and it would look fine.</li>
+      <li><strong>The site is the file's own bonds.</strong> The iron is
+        CONECTed to Glu27, Glu62 and His65; Glu61 and Tyr34 are the rest of
+        the site and carry no bond to this metal, which is the picture telling
+        the truth about a di-iron centre with one iron in it.</li>
+      <li><strong>1FHA was crystallised through engineered contacts</strong>
+        &mdash; its own title says so. The fold is wild-type human H ferritin;
+        the crystal is not what nature does.</li>
+      <li><strong>The calcium is buffer.</strong> Two Ca per chain at 0.5 and
+        0.33 occupancy, not part of the site, and not drawn.</li>
+    </ul>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Paste it into
+      <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>, which would replace the deposited frame
+      the cage was reviewed in.</p>
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/download/1FHA.pdb" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
+<script>
+'use strict';
+
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('ferritin');
+
+/* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
+   Camera, framing, the turn and the WebGL context are the module's. Which
+   file, which chains and what is in the pocket are the BAKER's, decided in
+   tools/prep.js off the registry and written into what this fetches. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  /* Null here, and that is the reviewed answer rather than an omission: the
+     cage measures the same on all three axes, nobody has chosen a rotation,
+     and the deposited frame was looked at and kept. The two subunit views
+     wear the basis their own shape solved, which rides in their bakes. */
+  view: ProteinLib.viewOf(ME),
+  orbit: true,
+  /* Trackball, not turntable: the turntable clamps its pitch about a hundred
+     pixels into an upward drag, which runs out on a ball you want to look
+     down onto. */
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  /* 10 rather than the card default of 6. At full height, 6 samples per
+     residue facets wherever the chain turns hard. */
+  sub: 10,
+});
+
+const $ = id => document.getElementById(id);
+
+/* SIX COLOURS CYCLED OVER 24 CHAINS. The cage's claim is "the same thing, 24
+   times", and the ss palette cannot make it: every copy is the same fold, so
+   it paints all 24 identically and the shell reads as one green mass. Six is
+   enough that no subunit touches its own colour often, and 24 swatches would
+   be a legend nobody reads. */
+const UNIT_COLORS = [0x2f6fb5, 0xc2571b, 0x4a9a58, 0x9b5bb0, 0xc9a227, 0x2f9aa8];
+
+const views = {};                        // id -> bake
+let view = null, byUnit = true;
+window.bench = { views, box, get view() { return view; } };
+
+/* WHAT THIS BENCH SAYS, which is page copy and not a fact about the file.
+   Keyed by view id so a button and its paragraph cannot come apart. */
+const SAYS = {
+  subunit: {
+    claim: 'One ferritin subunit: a four-helix bundle with a short fifth '
+         + 'helix lying across one end. The whole asymmetric unit of 1FHA.',
+    prov:  'Human H chain, 183 residues declared. The bundle is the repeating '
+         + 'part and nothing about it is specific to ferritin — what is, is '
+         + 'what sits inside it and what 24 of them enclose.' },
+  site: {
+    claim: 'The same bundle, with the ferroxidase site drawn: an iron held '
+         + 'between two helices by Glu27, Glu62 and His65.',
+    prov:  'This is where Fe(II) is oxidised on its way in. The site takes '
+         + 'two irons; one is modelled here, which is why half the residues '
+         + 'in the picture are holding nothing.' },
+  cage: {
+    claim: '24 of those subunits, closed into a hollow shell about 120 Å '
+         + 'across. The iron mineral goes inside; the 24 dots are the entry '
+         + 'sites, one per subunit.',
+    prov:  'Assembly 1, merged from the 24 models the entry deposits. The '
+         + 'octahedral symmetry is the reason one gene builds a container.' },
+};
+
+/* THE CAGE OPENS, and the order of the buttons follows. Ferritin IS the ball:
+   a four-helix bundle is the least specific thing in structural biology, and
+   opening on one asks a reader to hold a part in mind before they have seen
+   what it is part OF. The subunit is what you go on to look at once the ball
+   has raised the question.
+
+   READ FROM THE REGISTRY, not typed: which variant a protein opens on is a
+   decision and it belongs with the other decisions about ferritin, or
+   re-ordering the list here would silently re-aim the bench. */
+const OPENS_ON = ProteinLib.defaultOf(ME).id;
+const said = id => ProteinLib.variantOf(ME, id);
+const BUTTONS = ME.variants.map(v => v.id);
+
+BUTTONS.forEach(id => {
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(data => {
+    views[id] = { data, stats: measure(data) };
+    if (view === id) show(id);           // clicked before the fetch landed
+  }).catch(e => console.warn(`ferritin: ${id} — ${e.message}`));
+});
+
+/* Everything the panel prints, counted off what was just loaded. A typed
+   number is a claim nothing checks, and a re-bake falsifies it silently. */
+function measure(t) {
+  const c = t.chains[t.order[0]], nums = c.nums, n = nums.length;
+  const H = [...c.ss].filter(x => x === 'H').length;
+  const E = [...c.ss].filter(x => x === 'E').length;
+  const segs = 1 + nums.filter((v, i, a) => i && v !== a[i - 1] + 1).length;
+  const declared = t.meta.counts[0].declared;
+  const pct = declared ? Math.round(100 * n / declared) : null;
+  const total = t.meta.counts.reduce((k, x) => k + x.modelled, 0);
+
+  return {
+    /* PER CHAIN, because every chain here is the same chain — a cage total of
+       4128 against 183 declared would be comparing 24 chains with one. */
+    pct: pct === null ? '—' : `${n} of ${declared} per chain · ${pct}%`,
+    frag: declared === null ? 'no SEQRES records: completeness unknown'
+        : n >= declared ? `complete: ${n} of ${declared} deposited`
+        : `${declared - n} residues of ${declared} are unmodelled, in `
+          + `${segs > 1 ? segs - 1 + ' gap(s) plus the termini' : 'the termini'}`,
+    span: `${nums[0]}–${nums[n - 1]}`,
+    res: t.order.length > 1 ? `${total} residues in ${t.order.length} chains`
+       : `${n} residues` + (segs > 1 ? ` in ${segs} segments` : ''),
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+/* WHAT IS IN THE SITE, off the bake's own HETATM read. CA is calcium out of
+   the crystallisation buffer at partial occupancy, and calling it "in the
+   site" would be the panel repeating a word the chemistry does not support. */
+const LIGAND = { FE: 'Fe — the ferroxidase iron', CA: 'calcium, from the buffer' };
+const ligands = meta => (meta.ligands || []).map(x => {
+  const [name, mult] = x.split(' ');
+  return (LIGAND[name] || name) + (mult ? ' ' + mult : '');
+}).join(', ') || 'nothing bound';
+
+function paintFor(t) {
+  return byUnit && t.order.length > 2
+    ? { colors: { byChain: Object.fromEntries(t.order.map((k, i) =>
+        [k, UNIT_COLORS[i % UNIT_COLORS.length]])) } }
+    : undefined;
+}
+
+function show(id) {
+  view = id;
+  const on = views[id];
+  if (!on) return;                       // fetch still in flight
+
+  const t = on.data, s = on.stats, m = t.meta;
+  $('d-chains').textContent = `${m.chainsDrawn} of ${m.chainsInFile}`
+    + (m.assemblyModels > 1 ? ` · merged from ${m.assemblyModels} models` : '');
+  $('d-lig').textContent = ligands(m);
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-frac').textContent = s.frac;
+  $('d-ext').textContent = s.ext;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  $('d-pocket').textContent = m.pocket
+    ? `${m.pocket.atoms} atoms, ${m.pocket.bonds} bonds`
+      + (m.pocket.residues.length ? ` · ${m.pocket.residues.join(' ')}` : '')
+    : 'none';
+  $('d-src').textContent = t.source;
+  $('d-view').textContent = t.frame;
+
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-prov').textContent = SAYS[id].prov;
+  $('d-meta').textContent = `${m.entry} · ${m.method}`
+    + (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
+  /* Built by the registry from `source`, so a link cannot point at a structure
+     the panel is not describing. The assembly is a different FILE from the
+     entry's deposition, and the baker recorded which one it read. */
+  const v = said(id), u = ProteinLib.urls(v);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${v.source.id}`;
+  $('d-raw').href = `https://files.rcsb.org/download/${t.source}`
+    .replace('.pdb1', '.pdb1.gz');
+  $('d-baked').href = `data/${v.read.baked}`;
+
+  const many = t.order.length > 2;
+  $('paint').hidden = !many;
+  $('paint').setAttribute('aria-pressed', String(byUnit));
+  const leg = $('d-legend');
+  leg.hidden = !(many && byUnit);
+  leg.innerHTML = !leg.hidden ? UNIT_COLORS.map(c =>
+    `<i style="background:#${c.toString(16).padStart(6, '0')}"></i>`).join('')
+    + `<span>${t.order.length} subunits, six colours cycled</span>` : '';
+
+  box.setData(t, paintFor(t));
+  /* The iron, where the baker put one there. Ball-and-stick proportions and
+     the split sticks are the box's. */
+  box.setPocket(t.pocket);
+}
+
+$('paint').addEventListener('click', () => { byUnit = !byUnit; show(view); });
+
+/* THE PROTEIN'S molecule-viewer.html, in one button. The basis itself is the
+   box's to compute: what is on screen is camera⁻¹ · view, so a button reading
+   only the camera is wrong the moment a structure wears one. */
+$('pick').addEventListener('click', () => {
+  const text = JSON.stringify(box.pickView());
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+BUTTONS.forEach(id => {
+  /* The pressed button is set from the same answer the stage opens on, so the
+     highlight and the molecule cannot disagree. */
+  $('v-' + id).setAttribute('aria-pressed', String(id === OPENS_ON));
+  $('v-' + id).addEventListener('click', () => {
+    BUTTONS.forEach(b => $('v-' + b).setAttribute('aria-pressed', String(b === id)));
+    show(id);
+  });
+});
+view = OPENS_ON;
+</script>
+</body>
+</html>

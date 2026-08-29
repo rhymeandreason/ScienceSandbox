@@ -652,6 +652,72 @@
         baked: "insulin-4INS.json" } },
   ];
 
+  /* THREE VIEWS OF ONE ENTRY, AT TWO SCALES. 1FHA's asymmetric unit is a
+     single 183-residue chain; the cage is assembly 1, the same chain 24 times,
+     deposited as 24 MODELS. Which FILE a variant reads is therefore part of
+     what it is, so it is recorded here — `assembly: true` is what stops
+     `Bake.modelOne` baking a twenty-fourth of an iron ball that renders as a
+     perfectly good four-helix bundle.
+
+     `subunit` AND `site` ARE THE SAME COORDINATES. What separates them is
+     whether the iron is drawn, which is a decision about what the view is
+     ABOUT rather than about which structure it is: the bundle alone is the
+     repeating part, and the bundle with its metal is what that part DOES.
+     Review kept both.
+
+     NOT SUPERPOSED, and there is nothing to superpose: a subunit and the ball
+     it is one twenty-fourth of are two scales of one object, not two states.
+     The cage sits in the deposited frame — its three extents are 119 A each,
+     so a solved basis would flip between re-bakes — and the two subunit views
+     wear the basis their own shape solved. */
+  const FERRITIN_VARIANTS = [
+    { id: 'cage', default: true,
+      purpose: 'the ball: 24 subunits closed into a hollow shell',
+      species: 'human',
+      section: '1FHA', label: 'the cage', chip: '24 chains',
+      source: { kind: 'rcsb', id: '1FHA' },
+      assembly: true,
+      pocket: 'irons',
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 24,
+        residues: 4128,
+        declared: 4392,
+        ec: null,
+        baked: "ferritin-cage.json" } },
+    { id: 'subunit',
+      purpose: 'the part, alone: one four-helix bundle',
+      species: 'human',
+      section: '1FHA', label: 'subunit', chip: '1 chain',
+      source: { kind: 'rcsb', id: '1FHA' },
+      chains: 'A',
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 1,
+        residues: 172,
+        declared: 183,
+        ec: null,
+        baked: "ferritin-subunit.json" } },
+    /* THE SITE TAKES TWO IRONS AND 1FHA MODELS ONE. Glu61 and Tyr34 are kept
+       in the pocket holding nothing, because a picture with only the liganded
+       half of a di-iron centre in it would read as the whole site. The metal's
+       three bonds come off the file's own CONECT records. */
+    { id: 'site',
+      purpose: 'where iron is oxidised on its way in',
+      species: 'human',
+      section: '1FHA', label: 'ferroxidase site', chip: 'Fe',
+      source: { kind: 'rcsb', id: '1FHA' },
+      chains: 'A',
+      pocket: { metal: 'FE', res: [27, 34, 61, 62, 65] },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 1,
+        residues: 172,
+        declared: 183,
+        ec: null,
+        baked: "ferritin-site.json" } },
+  ];
+
   const PROTEINS = [
     {
       key: 'atp-synthase', name: 'ATP synthase', dir: 'proteins/atp-synthase',
@@ -1166,6 +1232,42 @@
                  why: 'the claim is the site, and an SES seals the pocket shut' },
       variants: MYOGLOBIN_VARIANTS,
     },
+    {
+      key: 'ferritin', name: 'Ferritin', dir: 'proteins/ferritin',
+      blurb: 'A hollow ball of 24 identical parts. Iron is poisonous loose in '
+           + 'a cell and essential to it, so ferritin oxidises it at the way '
+           + 'in and keeps the mineral behind a wall of protein.',
+      /* IT KEEPS. `storage` is the sixth word, and the wishlist reserved it
+         for this row before ferritin was pulled: the job is holding a
+         reactive thing somewhere it cannot do harm, and none of the other
+         five say that. It is not `enzyme` even though the ferroxidase site
+         is real chemistry — 1FHA carries no EC number anywhere, so calling it
+         one would be a claim this collection cannot check. */
+      does: 'storage',
+      pipeline: 'trace',
+      /* Two scales of one object rather than two states of it, so there is
+         no correspondence for a fit to use: a subunit is not a version of
+         the ball, it is part of it. */
+      fit: null,
+      fitWhy: 'a part and the whole it builds, not two states of one thing',
+      /* Deposited, and reviewed as deposited. The cage is a sphere — 119 A on
+         every axis — so `frameOf` writes no basis for it, and the frame it
+         opens in points a 4-fold axis at the reader. That was looked at on
+         the bench and kept. */
+      view: { by: 'deposited', shared: false,
+              why: 'the cage measures the same on all three axes, so a solved '
+                 + 'basis would flip between re-bakes; the deposited frame '
+                 + 'was reviewed and kept' },
+      /* An assembly claim and a site claim, and a ribbon is better at both:
+         the shell reads as 24 parts BECAUSE you can see through it, and an
+         SES would close the pores that are the reason iron gets in at all.
+         The surface claim worth baking is the interior wall where the mineral
+         grows, which nothing here holds coordinates for. */
+      surface: { bake: false,
+                 why: 'the shell reads as 24 parts because the ribbon is '
+                    + 'see-through; an SES closes the pores' },
+      variants: FERRITIN_VARIANTS,
+    },
   ];
 
   const byKey = key => PROTEINS.find(p => p.key === key) || null;
@@ -1305,7 +1407,12 @@
      nothing up; what it does is arrive at a receptor and be read. That is a
      different kind of answer from the other four, and it is the word the
      wishlist reserved for insulin before insulin was pulled. */
-  const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural', 'hormone'];
+  /* `storage` is the answer for a protein whose job is to HOLD SOMETHING that
+     would be dangerous loose. Ferritin catalyses a step on the way in and
+     still is not an enzyme in this collection's sense: what it is for is the
+     iron sitting inside it afterwards. */
+  const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural', 'hormone',
+                'storage'];
 
   /* HOW A VARIANT DIFFERS FROM THE HEALTHY PROTEIN, where it differs at all.
      Optional: most variants are the same protein under different conditions —
