@@ -170,6 +170,7 @@ const norm = n => n.replace(/^demos\//, '');
 // the superseded lessons do; all three are named bare in running text, the same
 // way a script is.
 const SEARCH = ['.', '..', 'lib', 'css', 'docs', 'tests', 'attic', 'tools', 'folding', 'folding/tools',
+                'proteins', 'proteins/tools',
                 'hemoglobin', 'hemoglobin/tools', 'massaction', 'diffusion',
                 'sickle', 'sickle/tools', 'membrane', 'membrane/tools',
                 'kit', 'reaction', 'coupling', 'lobes', 'dna', 'ask', 'capillary', 'water',

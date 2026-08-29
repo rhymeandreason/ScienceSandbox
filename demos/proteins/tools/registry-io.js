@@ -103,6 +103,15 @@ function validate(lib) {
       if (m && !lib.METHODS.includes(m))
         bad.push(`${vat}: method '${m}' is not one of ${lib.METHODS.join(', ')}`);
 
+      /* THE OTHER AXIS, and controlled for the same reason as `method`: a
+         collection that let 'mutant' and 'mutation' both stand would split
+         the disease structures in two on a sort and nobody would see it. The
+         field is optional — most variants differ by a ligand or a species,
+         which is not a state — but a value outside the list is a typo, not a
+         new idea. */
+      if (v.state && !lib.STATES.includes(v.state))
+        bad.push(`${vat}: state '${v.state}' is not one of ${lib.STATES.join(', ')}`);
+
       /* Residues against what the entry declares, and ONLY where the two are
          the same kind of number: SEQRES is per chain, so this holds for a
          variant drawing one named chain and says nothing about an assembly.
