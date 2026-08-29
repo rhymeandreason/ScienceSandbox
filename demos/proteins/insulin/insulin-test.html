@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Insulin — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH, AND PRE-REVIEW. Insulin is not in proteins/proteins.js and
+     must not be until a human has looked at this page and said which of
+     these six earn a place. So the view table is the baker's CANDIDATES
+     and this page reads what the bakes carry about themselves, rather
+     than ProteinLib.byKey — every other protein bench in the repo does
+     the opposite, and will again the day these are selected.
+
+     WHAT IT IS FOR SETTLING:
+
+       is the cut visible   proinsulin is one chain of 86 superposed on
+                            the hormone's 51. Does the C-peptide read as
+                            something removed, or as a protein with a
+                            long loop?
+       is the hexamer worth  six copies and two zincs, or a green mass.
+                            The colour-by-unit palette is the attempt.
+       T against R          settled: dropped. 1TRZ's T3R3 hexamer carried
+                            the biggest motion here — D1 swings 25.6 A
+                            with the rest of that monomer holding to
+                            1.05 A — but R is what phenol in a vial does
+                            rather than what a granule stores, and 96 of
+                            its 102 residues are unchanged, so it read as
+                            a second copy of 1MSO.
+       which monomer        3I40 is deposited as the lone AB unit; 1MSO
+                            is the same molecule at 1.0 A but as two of
+                            them. 3I40 is the reference here because a
+                            fit onto a dimer has to pick a copy.
+
+     WHAT THIS BENCH CANNOT TELL YOU. Nothing here is insulin DOING
+     anything: the receptor complexes are a different scale and a
+     different bake. The hexamer is storage, not signalling, and the
+     monomer is what leaves the granule.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* The shared chrome is ../protein-test.css. What this bench adds is one
+     thing said with COLOUR: the swatches beside the hexamer's legend, which
+     have to be the same six the ribbon is painted in. They are written by
+     the script off the same table, so they cannot drift. */
+  .legend{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:0 0 var(--space-3)}
+  .legend span{display:inline-flex;align-items:center;gap:5px;
+    font-size:0.72rem;color:var(--h-muted)}
+  .legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .legend[hidden]{display:none}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Insulin</h1>
+    <p class="deck">A hormone cut out of a bigger protein: two short chains
+      stapled by three disulfides. It works as one molecule and is stored six
+      at a time around two zincs. Every view is superposed on the same
+      A&nbsp;+&nbsp;B unit, so switching shows what changed and not how the
+      crystal happened to sit.</p>
+
+    <h2>the hormone</h2>
+    <button class="mode" id="v-3I40" aria-pressed="true">
+      <span class="who">monomer &middot; 3I40</span><span class="chip">human</span></button>
+    <button class="mode" id="v-1MSO">
+      <span class="who">two of them &middot; 1MSO</span><span class="chip">1.0 &Aring;</span></button>
+
+    <h2>before the cut</h2>
+    <button class="mode" id="v-2KQP">
+      <span class="who">proinsulin &middot; 2KQP</span><span class="chip">NMR</span></button>
+
+    <h2>stored</h2>
+    <button class="mode" id="v-hexamer">
+      <span class="who">hexamer &middot; 1MSO</span><span class="chip">2 Zn</span></button>
+
+    <h2>another species</h2>
+    <button class="mode" id="v-4INS">
+      <span class="who">pig &middot; 4INS</span><span class="chip">2 Zn</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <div class="legend" id="d-legend" hidden></div>
+
+    <table>
+      <tr><td>chains</td><td id="d-chains">&mdash;</td></tr>
+      <tr class="hi"><td>insulin units</td><td id="d-units">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr class="hi"><td>disulfides</td><td id="d-ss">&mdash;</td></tr>
+      <tr><td>in the site</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr class="hi"><td>C-peptide</td><td id="d-cpep">&mdash;</td></tr>
+      <tr><td>superposed on</td><td id="d-fit">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Every entry
+      shares one rotation basis, so one choice re-aims the whole bench. It goes
+      into <code>view.basis</code> with <code>by:&nbsp;'human'</code> the day
+      insulin is added to <code>proteins.js</code>.</p>
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script>
+'use strict';
+
+/* NO ProteinLib.byKey HERE, AND THAT IS THE POINT OF A PRE-REVIEW BENCH.
+   proteins/proteins.js holds decisions, and none has been made about insulin,
+   so this page reads the six bakes and what each says about itself. When they
+   are selected, this becomes byKey and the ids below go away. */
+const VIEWS = ['3I40', '1MSO', '2KQP', 'hexamer', '4INS'];
+const OPENS_ON = '3I40';
+
+/* The box is kit/proteinbox.js: the scene, the camera, the framing, the turn
+   and the WebGL context are the module's. One box re-fed, so a reader who
+   turned the molecule keeps that view across a switch — which is most of what
+   makes a superposed set worth having. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true,
+  /* Trackball, not turntable: the hexamer is read down its three-fold axis
+     and a turntable's pitch clamps about a hundred pixels short of it. */
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  /* 10 rather than the card default of 6: insulin's helices are short and
+     turn hard, which is exactly where 6 samples per residue facets. */
+  sub: 10,
+});
+
+const $ = id => document.getElementById(id);
+
+/* SIX COLOURS FOR SIX COPIES, and the hexamer is the only view painted with
+   them. Its claim is "the thing you just looked at, six times", and the ss
+   palette cannot make that claim: every copy is the same fold, so it paints
+   all six identically and the reader sees one green mass. Everywhere else the
+   ss palette is right and is left alone, because there what has to be told
+   apart IS what the chain is folded into. */
+const UNIT_COLORS = [0x2f6fb5, 0xc2571b, 0x4a9a58, 0x9b5bb0, 0xc9a227, 0x2f9aa8];
+
+const views = {};                        // id -> bake
+let view = null;
+window.bench = { views, box, get view() { return view; } };
+
+/* THE PAGE'S OWN COPY, keyed by view id so a button and its paragraph cannot
+   come apart. What a structure IS is the baker's `purpose`; what this bench
+   SAYS about it is page copy. */
+const SAYS = {
+  '3I40': {
+    claim: 'Insulin itself: an A chain of 21 and a B chain of 30, held '
+         + 'together by two disulfides with a third folded inside A.',
+    prov:  'Human insulin, deposited as the single AB unit. Every other view '
+         + 'on this bench is superposed onto this one.' },
+  '1MSO': {
+    claim: 'The same molecule at 1.0 Å, and there are two of them. Insulin\'s '
+         + 'only β sheet is not in the fold at all: B24–B26 of one copy lies '
+         + 'antiparallel against B24–B26 of the other, so the strand count on '
+         + 'the monomer is zero and this sheet IS the dimer.',
+    prov:  'T6 human insulin. The sharpest insulin structure deposited, and '
+         + 'the file the hexamer view is built from.' },
+  '2KQP': {
+    claim: 'One chain of 86 — the same hormone, still joined up. The '
+         + 'C-peptide is the loop with nothing superposed under it; a '
+         + 'protease cuts it out at both ends and what is left is insulin.',
+    prov:  'Proinsulin by solution NMR, model 1 of 20. It is what a beta cell '
+         + 'makes; the C-peptide leaves the cell alongside the hormone.' },
+  'hexamer': {
+    claim: 'How the body stores it: six copies around two zinc ions, three '
+         + 'histidines to each zinc. This is the T6 hexamer, and it is what '
+         + 'fills the dense core of a beta cell\'s granule — not a '
+         + 'crystallographic convenience. It cannot signal: the receptor '
+         + 'reads B-chain residues that are buried in here, so the hexamer '
+         + 'has to fall apart to monomers first.',
+    prov:  '1MSO assembly 1, which the file deposits as three models of its '
+         + 'asymmetric unit. Merged here, chain-aware, and renamed A–L. The '
+         + 'cell builds a zinc transporter, ZnT8, to load these granules, '
+         + 'which is a strong argument that the assembly is real.' },
+  '4INS': {
+    claim: 'Pig insulin. One residue different from human at the end of the '
+         + 'B chain, which is why it worked in patients for sixty years '
+         + 'before human insulin could be made.',
+    prov:  'The 2-zinc pig structure, Hodgkin 1969 — the first insulin '
+         + 'structure solved, and one of the earliest proteins of any kind.' },
+};
+
+/* Each fetch draws itself if its button was clicked before it landed. */
+VIEWS.forEach(id => {
+  fetch(`data/insulin-${id}.json`).then(r => r.json()).then(data => {
+    views[id] = data;
+    if (view === id) show(id);
+  }).catch(e => console.warn(`insulin: ${id} — ${e.message}`));
+});
+
+/* Everything the panel prints, counted off what was just loaded. A typed
+   number is a claim nothing checks, and a re-bake falsifies it silently. */
+function measure(t) {
+  let n = 0, H = 0, E = 0, segs = 0;
+  for (const id of t.order) {
+    const c = t.chains[id];
+    n += c.nums.length;
+    H += [...c.ss].filter(x => x === 'H').length;
+    E += [...c.ss].filter(x => x === 'E').length;
+    segs += 1 + c.nums.filter((v, i, a) => i && v !== a[i - 1] + 1).length;
+  }
+  const declared = t.meta.counts.every(c => c.declared !== null)
+    ? t.meta.counts.reduce((k, c) => k + c.declared, 0) : null;
+  return {
+    n, declared,
+    pct: declared === null ? '—'
+       : `${n} of ${declared} · ${Math.round(100 * n / declared)}%`,
+    frag: declared === null ? 'no SEQRES records: completeness unknown'
+        : n >= declared ? `complete: ${n} of ${declared} deposited`
+        : `${n} of ${declared} deposited`,
+    res: `${n} residues` + (segs > t.order.length ? ` in ${segs} segments` : ''),
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+const LIGAND = { ZN: 'zinc', CL: 'chloride, from the buffer',
+                 NA: 'sodium, from the buffer' };
+function ligands(meta) {
+  const l = meta.ligands || [];
+  if (!l.length) return 'nothing bound';
+  return l.map(x => {
+    const [name, times] = x.split(' ');
+    const said = LIGAND[name] || name;
+    return times ? `${said} ${times}` : said;
+  }).join(', ');
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;                        // fetch still in flight
+  const m = t.meta, s = measure(t);
+
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-prov').textContent = SAYS[id].prov;
+  /* An assembly's models are COPIES of one asymmetric unit and an NMR
+     deposition's are alternative solutions of one molecule, so the same
+     record means two different things and the row has to say which. */
+  $('d-meta').textContent = `${m.entry} · ${m.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '') +
+    (m.assembly ? ` · assembly 1, ${m.models} copies merged`
+                : m.models ? ` · model 1 of ${m.models}` : '');
+
+  $('d-chains').textContent = m.counts
+    .map(c => c.role ? `${c.chain} (${c.role} chain)` : c.chain).join(', ');
+  $('d-units').textContent = m.unitCount === 1 ? 'one'
+    : `${m.unitCount}, ${m.assembly ? 'from 3 models of the asymmetric unit'
+                                    : 'in the asymmetric unit'}`;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  /* The assembly repeats its asymmetric unit, and its SSBOND records describe
+     only that unit — so the count the baker writes is the records times the
+     models, and the pairs listed are one unit's. */
+  $('d-ss').textContent = m.ssTotal
+    ? `${m.ssTotal} · ${m.ssPairs.join(', ')}` +
+      (m.unitCount > 1 ? ' per insulin' : '')
+    : 'none recorded';
+  $('d-lig').textContent = ligands(m);
+  $('d-frac').textContent = s.frac;
+  $('d-ext').textContent = s.ext;
+  $('d-cpep').textContent = m.cPeptide
+    ? `${m.cPeptide} residues, cut out to make the hormone` : '— (already cut out)';
+  $('d-fit').textContent = m.fitOn
+    ? `${m.fitOn} · ${m.fitOnWhat} · ${m.fitRmsd} Å`
+    : 'nothing — this is the reference';
+  /* Named by WHERE THE FRAME CAME FROM. `deposited` is the file left alone,
+     `computed` is a basis solved off the shape, and `chosen in the registry`
+     is a human's — which insulin cannot have yet, since it has no registry
+     entry to hold one. */
+  $('d-view').textContent = t.frame + ', shared by every entry here';
+
+  const entry = m.entry;
+  $('d-rcsb').href = `https://www.rcsb.org/structure/${entry}`;
+  $('d-rcsb-label').textContent = `RCSB ${entry}`;
+  $('d-raw').href = `https://files.rcsb.org/download/${t.source}`;
+  $('d-baked').href = `data/insulin-${id}.json`;
+
+  /* BY UNIT only where there are units to tell apart. Elsewhere the omission
+     is the decision: kit/proteinbox.js falls back to the repo's
+     secondary-structure palette, which is what every other protein is drawn
+     in and what makes the fold readable. */
+  const paint = m.unitCount > 2;
+  box.setData(t, paint ? { colors: { byChain: Object.fromEntries(t.order
+    .map(k => [k, UNIT_COLORS[m.units[k] % UNIT_COLORS.length]])) } } : undefined);
+  /* The zinc site, where the baker put one there. Ball-and-stick proportions
+     and the split sticks are the box's. */
+  box.setPocket(t.pocket);
+
+  const leg = $('d-legend');
+  leg.hidden = !paint;
+  leg.innerHTML = !paint ? '' :
+    Array.from({ length: m.unitCount }, (_, i) =>
+      `<span><i style="background:#${UNIT_COLORS[i % UNIT_COLORS.length]
+        .toString(16).padStart(6, '0')}"></i>insulin ${i + 1}</span>`).join('');
+}
+
+/* THE PROTEIN'S molecule-viewer.html, in one button: turn the molecule, copy,
+   paste. The basis is the box's to compute, because the answer needs the chain
+   group's rotation as well as the camera's and only the box can see both. */
+$('pick').addEventListener('click', () => {
+  const text = JSON.stringify(box.pickView());
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+VIEWS.forEach(id => {
+  $('v-' + id).setAttribute('aria-pressed', String(id === OPENS_ON));
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(b => $('v-' + b).setAttribute('aria-pressed', String(b === id)));
+    show(id);
+  });
+});
+view = OPENS_ON;
+</script>
+</body>
+</html>
