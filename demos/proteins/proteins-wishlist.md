@@ -2,7 +2,7 @@
 
 # What to add next, and what each one costs
 
-**Tier 1 is verified (2026-08-28); tiers 2-5 are not.** Every id outside Tier 1 was written from memory and none has been fetched. Confirm the id, the chain count and the format availability against RCSB before a baker is pointed at one. The `format` column is a prediction, not a measurement.
+**Tier 1 is verified (2026-08-28), as are the Tier 2 and 3 rows marked `id verified`; the rest are not.** Every id outside Tier 1 was written from memory and none has been fetched. Confirm the id, the chain count and the format availability against RCSB before a baker is pointed at one. The `format` column is a prediction, not a measurement.
 
 ## The three selection goals
 
@@ -10,7 +10,7 @@
 2. **Complete data, or a fragment that is honest by itself.**
 3. **Contributes a shape or a function the library does not already have.**
 4. **Does it pair with something already in?** Contrast teaches. KcsA earns its place *because* napump is there; GroEL because prion is. Rank pairs above orphans.
-5. **When movement is the story, are there two deposited states?** Pairs often help us here. A single apo structure is a portrait; a pair is a mechanism.
+5. **When movement is the story, are there two deposited states?** Pairs often help us here. A single apo structure is a portrait; a pair is a mechanism. The `motion?` column answers this and nothing else — a second *state of the same construct*. A related protein, a different species or a bound partner goes in `pairs with`, which is goal 4.
 6. **Does it bring non-protein chains?** Nucleosome, DNA polymerase and the ribosome all carry nucleic acid. Whether `bake-lib.js` and the ss-record read handle that is a one-time engineering cost — but it gates four candidates at once, so it's worth pricing early.
 7. **Species consistency.** Half the current library is whale, pig, cow and rat. Not wrong, but if two candidates tie, take the human one.
 8. Is the shape beautiful?
@@ -19,26 +19,26 @@
 
 **Verified 2026-08-28** against RCSB: every id below was fetched, `.pdb` confirmed to exist, and chains / missing residues / ligands read out of the file itself. `chains` is the asymmetric unit; `gaps` counts unobserved residues per chain (REMARK 465).
 
-| candidate | id | fills | chains (AU) | `does` | states? | resolution, gaps, ligands | status |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **Insulin** | **1MSO** (was 4INS) | signalling; a hormone cut out of a bigger chain | 4 = 2×(A21 + B30) | new: `hormone` | no | 1.00 Å, **no gaps**, 2 Zn. 4INS is pig at 1.5 Å; 1MSO is human and better. 3I40 is one AB dimer if the hexamer is noise | id verified |
-| **GFP** | 1EMA | the missing β-barrel; how biology is *done* | 1 | new: `reporter` | no | 1.9 Å, 10 gaps (both termini, barrel intact), chromophore present as **CRO** — one residue, so the ribbon can point at it | id verified |
-| **Nucleosome** | 1AOI | DNA packaging — the chromatin picture | 8 histone + 2×146 bp DNA | `structural` | no | 2.8 Å, Xenopus. Tails unobserved: H3 18, H3′ 8, H4 4, H2A 1 — the hole Tier 4 wants to fill | id verified |
-| **Lysozyme** | 1LZ1 | the first enzyme mechanism ever solved | 1 | `enzyme` | 2LZT etc. are hen, not human | 1.5 Å, human, **130/130, no gaps, no ligands** — the cleanest file in the tier | id verified |
-| **Antibody, intact IgG** | **1HZH** (or 1IGT) | immune recognition; one fold reused six times | 4 (2 heavy 457, 2 light 215) | new: `recognition` | no | 2.7 Å, **human** IgG1 b12, 13 gaps in one heavy chain, heavy N-glycans (NAG/MAN/GAL/BMA/FUC). 1IGT is mouse, 2.8 Å, **no gaps** — cleaner file, wrong species | id verified, pick one |
-| **Triosephosphate isomerase** | **1HTI** (was 1TIM) | EC class **5, isomerase** — empty; glycolysis; the TIM barrel itself | 2 | `enzyme` | no | 2.8 Å, human, **no gaps**, PGA inhibitor in the site. 1TIM is chicken at 2.5 Å — the fold is named after that file, which is the one argument for it | id verified |
-| **Hexokinase** | 1HKB? / 2YHX? | EC class **2, transferase** — empty | 1–2 | `enzyme` | **yes** — open and glucose-closed | pdb | Done |
-| **Carbonic anhydrase** | 1CA2 | EC class **4, lyase** — empty; one zinc, among the fastest enzymes known | 1 | `enzyme` | no | 2.0 Å, human, 3 gaps (N-term), 1 Zn | id verified |
-| **Lactate dehydrogenase** | 1I0Z | EC class **1, oxidoreductase** — empty | 2 in AU, tetramer in assembly 1 | `enzyme` | ternary here; apo elsewhere | 2.1 Å, **human** heart LDH-H, 1 gap/chain, **NADH + oxamate bound** — coenzyme and substrate-analogue in one file | id verified |
-| **Alcohol dehydrogenase** | 1HET / **4W6Z** | the fermentation branch | 2 / 4 | `enzyme` | NAD-bound and apo | 1HET horse liver, **1.15 Å, no gaps**, NAD + 2 Zn — outstanding file, wrong organism for fermentation. 4W6Z is **yeast ADH1**, 2.4 Å, 4 chains, no gaps; 5ENV is the same enzyme with NAD at 3.0 Å | id verified, pick one |
-| **Haemoglobin R state** | **2DN1** (was 1HHO) | T→R allostery | 2 in AU (αβ half-tetramer; assembly 1 expands to 4) | `oxygen carrier` | **yes** | 1.25 Å oxy, 1 gap/chain, HEM + **OXY**. Its matched deoxy **2DN2** is 1.25 Å, 4 chains, no gaps, same study — a cleaner T/R pair than 2HHB (1.74 Å) against 1HHO (2.1 Å) | id verified |
-| **Fetal haemoglobin** | 1FDH | the developmental switch | 4 (2α + 2γ) | `oxygen carrier` | with 2HHB / 2DN2 | 2.5 Å, human, deoxy, **no gaps**, 4 HEM | id verified |
-| **Cytochrome c** | **3ZCF** (was 3CYT) | tiny, ancient, near-identical yeast to human | 4 copies of 1 | new: `electron carrier` | no | 1.65 Å, **human**, no gaps, HEC covalently attached. 3CYT is tuna and holds **oxidised and reduced conformers as chains O and I** — a redox pair in one file, which is the one reason to keep it | id verified |
-| **Zinc finger on DNA** | 1ZAA | sequence-specific DNA reading, smallest package there is | 1 protein (87) + 2 DNA (11 bp) | new: `DNA-binding` | no | 2.1 Å, Zif268 (mouse), 2 gaps, **3 Zn** — one per finger | id verified |
-| **Leucine zipper** | 1YSA | the **natural** coiled coil | 2 protein (58) + 2 DNA (20 bp) | new: `DNA-binding` | no | 2.9 Å, GCN4 (yeast), 1 gap/chain, no ligands. Two HELIX records for the whole thing — the file *is* the coiled coil | id verified |
-| **Bacterial porin** | 2POR | a **second** β-barrel, membrane-embedded | 1 | new: `transport` | no | 1.8 Å, *Rhodobacter capsulatus*, **no gaps**, 17 SHEET records, C8E detergent belt marks the bilayer | id verified |
-| **Calmodulin** | 1CLL + 1CFD | a Ca²⁺ switch; one of the largest changes in a small protein | 1 each | new: `sensor` | **yes** — apo 1CFD | 1CLL 1.7 Å x-ray, 4 Ca, 4 gaps; 1CFD **solution NMR**, apo, no gaps. Labelled human and Xenopus — **their SEQRES are identical at all 148 residues**, so the pair is one protein in two states, not two species | id verified |
-| **Catalase** | 1DGF | EC class **1** again; diffusion-limited, like carbonic anhydrase | 4 | `enzyme` | no | 1.5 Å, human erythrocyte, **4×497, no gaps**, 4 HEM + 4 NADPH | id verified |
+| candidate | id | fills | chains (AU) | `does` | motion? | pairs with | file notes | status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **Insulin** | **1MSO** (was 4INS) | signalling; a hormone cut out of a bigger chain | 4 = 2×(A21 + B30) | new: `hormone` | no | — | 1.00 Å, **no gaps**, 2 Zn. 4INS is pig at 1.5 Å; 3I40 is one AB dimer if the hexamer is noise | id verified |
+| **GFP** | 1EMA | the missing β-barrel; how biology is *done* | 1 | new: `reporter` | no | **2POR** — one fold, two problems | 1.9 Å, 10 gaps (both termini, barrel intact), chromophore as **CRO**, one residue | id verified |
+| **Nucleosome** | 1AOI | DNA packaging — the chromatin picture | 8 histone + 2×146 bp DNA | `structural` | no | 1ZAA; histone tails (Tier 4) | 2.8 Å, Xenopus. Tails unobserved: H3 18, H3′ 8, H4 4, H2A 1 | id verified |
+| **Lysozyme** | 1LZ1 | the first enzyme mechanism ever solved | 1 | `enzyme` | no | **amylase** (held); β-lactamase | 1.5 Å, human, **130/130, no gaps, no ligands** — the cleanest file in the tier. 2LZT etc. are hen, a species contrast not a state | id verified |
+| **Antibody, intact IgG** | **1HZH** (or 1IGT) | immune recognition; one fold reused six times | 4 (2 heavy 457, 2 light 215) | new: `recognition` | no | — | 2.7 Å, **human** IgG1 b12, 13 gaps in one heavy chain, heavy N-glycans. 1IGT is mouse, 2.8 Å, **no gaps** — cleaner file, wrong species | id verified, pick one |
+| **Triosephosphate isomerase** | **1HTI** (was 1TIM) | EC class **5, isomerase** — empty; glycolysis | 2 | `enzyme` | no | **amylase**, whose catalytic domain is the same barrel | 2.8 Å, human, **no gaps**, PGA inhibitor bound. 1TIM is chicken at 2.5 Å — the fold is named after that file | id verified |
+| **Hexokinase** | 1HKB? / 2YHX? | EC class **2, transferase** — empty | 1–2 | `enzyme` | **yes** — open, glucose-closed | — | | Done |
+| **Carbonic anhydrase** | 1CA2 | EC class **4, lyase** — empty; one zinc | 1 | `enzyme` | no | **catalase** — both diffusion-limited | 2.0 Å, human, 3 gaps (N-term), 1 Zn | id verified |
+| **Lactate dehydrogenase** | **4L4R / 4L4S / 1I10** | EC class **1, oxidoreductase** — empty | 2 / 2 / 8 | `enzyme` | **yes — three states, verified** | ADH, the other branch | Human **M** isozyme all the way through: **4L4R apo** 2.1 Å, **4L4S + NADH** 2.9 Å, **1I10 + NADH + oxamate** 2.3 Å. A loop closing over the site in three steps. 1I0Z is the **H** isozyme — do not mix the two | id verified |
+| **Alcohol dehydrogenase** | **1HET + 8ADH** | the fermentation branch | 2 / 1 | `enzyme` | **yes — verified** | LDH; the fermentation lesson | Horse liver both: **1HET holo** 1.15 Å with NAD + 2 Zn, **8ADH apo** 2.4 Å, no gaps. 8ADH's own title is the interdomain motion. Yeast **4W6Z** (2.4 Å, 4 chains) is right for fermentation but has no apo partner verified | id verified, pick organism |
+| **Haemoglobin R state** | **2DN1** + **2DN2** (was 1HHO/2HHB) | T→R allostery | 2 (assembly 1 → 4) / 4 | `oxygen carrier` | **yes** — oxy/deoxy | held haemoglobin | Both 1.25 Å, same study: 2DN1 oxy with **OXY** bound, 1 gap/chain; 2DN2 deoxy, no gaps. Cleaner than 2HHB (1.74) against 1HHO (2.1) | id verified |
+| **Fetal haemoglobin** | 1FDH | the developmental switch | 4 (2α + 2γ) | `oxygen carrier` | no | **2DN2** — adult deoxy, same state | 2.5 Å, human, deoxy, **no gaps**, 4 HEM | id verified |
+| **Cytochrome c** | **3ZCF** (was 3CYT) | tiny, ancient, near-identical yeast to human | 4 copies of 1 | new: `electron carrier` | no | — | 1.65 Å, **human**, no gaps, HEC covalently attached. 3CYT is tuna and holds oxidised and reduced conformers as chains O and I, but the difference is sub-ångström: a redox pair, not a visible motion | id verified |
+| **Zinc finger on DNA** | 1ZAA | sequence-specific DNA reading, smallest package there is | 1 protein (87) + 2 DNA (11 bp) | new: `DNA-binding` | no | **1AOI**, **1YSA** | 2.1 Å, Zif268 (mouse), 2 gaps, **3 Zn** — one per finger | id verified |
+| **Leucine zipper** | 1YSA | the **natural** coiled coil | 2 protein (58) + 2 DNA (20 bp) | new: `DNA-binding` | no | **1ZAA**; designed coiled coils (Tier 5) | 2.9 Å, GCN4 (yeast), 1 gap/chain, no ligands. Two HELIX records for the whole file | id verified |
+| **Bacterial porin** | 2POR | a **second** β-barrel, membrane-embedded | 1 | new: `transport` | no | **1EMA**; napump (held) | 1.8 Å, *Rhodobacter capsulatus*, **no gaps**, 17 SHEET records, C8E detergent belt marks the bilayer | id verified |
+| **Calmodulin** | **1CLL + 1CFD** | a Ca²⁺ switch; one of the largest changes in a small protein | 1 each | new: `sensor` | **yes** — Ca-bound/apo | — | 1CLL 1.7 Å x-ray, 4 Ca, 4 gaps; 1CFD **solution NMR**, apo, no gaps. Labelled human and Xenopus — **SEQRES identical at all 148 residues**, so it is one protein twice | id verified |
+| **Catalase** | 1DGF | EC class **1** again; diffusion-limited | 4 | `enzyme` | no | **1CA2** | 1.5 Å, human erythrocyte, **4×497, no gaps**, 4 HEM + 4 NADPH | id verified |
 
 Every Tier 1 file is x-ray except 1CFD (NMR), every one has legacy `.pdb`, and every one carries HELIX/SHEET records, so the ss read needs nothing new.
 
@@ -50,38 +50,38 @@ The nucleosome is still the highest-value entry and still the only one with an e
 
 ## Tier 2 — strong story, more work
 
-| candidate | id | fills | chains | pairs against | why not tier 1 | status |
-| --- | --- | --- | --- | --- | --- | --- |
-| **KcsA K⁺ channel** | 1BL8 | downhill transport; selectivity | 4 | **napump** | needs the bilayer treatment napump already has |  |
-| **Aquaporin** | 1J4N | water across a membrane | 4 | **napump** | same, and the story overlaps KcsA's |  |
-| **Myosin S1** | 2MYS | muscle; a lever arm that swings | 1 + 2 light | **atp-synthase** | wants a second state to tween |  |
-| **Kinesin** | 1BG2 | walking; the other motor | 1 | **atp-synthase** | ditto, and less famous than myosin |  |
-| **Chymotrypsin** | 4CHA | the catalytic triad; digestion | 3 | **amylase** | a fourth enzyme in a library of three |  |
-| **Rubisco** | 1RCX | photosynthesis, absent entirely; most abundant protein on Earth | 16 | — | 16 chains, and no lesson waiting |  |
-| **GroEL** | 1OEL (+ **1AON**) | folding, chaperoned | **7 in the file**; 14 via assembly 1, as 2 models of 7 | **prion** | verified 2026-08-28: 2.8 Å, *E. coli*, 547 res/chain, 23 gaps each, no ligands. **1AON is the partner state** — GroEL + GroES + 7 ADP, 3.0 Å, 21 chains in the AU (14 + 7), lid on and one ring open. A two-state machine, not one barrel |  |
-| **Ferritin** | 1FHA | 24 identical subunits, octahedral — a hollow iron ball built from one part | **1 in the file**; 24 via assembly 1, as 24 models of 1 | — | verified 2026-08-28: **human** H ferritin, 2.4 Å, one 183-residue 4-helix bundle, 11 gaps, 1 Fe + 2 Ca. **Not a 24-chain bake** — it is the cheapest chain in the doc, repeated. Cost is merging 24 models, not reading 24 chains |  |
-| **LH2 light-harvesting ring** | 1NKZ? | a circle of chlorophylls on a ring of helices; the symmetry *is* the antenna | 18 | **rubisco**, if photosynthesis lands | carries chlorophyll, and no photosynthesis lesson yet |  |
-| **PCNA sliding clamp** | **1VYM** (was 1AXC) | a ring threaded *around* DNA — mechanically obvious from one picture, which is rare | 3 | DNA polymerase | verified 2026-08-28: 1VYM is **native human PCNA**, 2.3 Å, 3×261, 5 gaps/chain, no ligands — the bare ring. 1AXC is the same ring at 2.6 Å with a 22-residue **p21 peptide** bound in each site, which is a different claim | id verified |
-| **β-lactamase** | 1BTL | antibiotic resistance: evolution on a human timescale, observable | 1 | **lysozyme** — bacterial wall made and unmade | wants a resistant variant beside it to read |  |
-| **Antifreeze protein** | 1WFA | binds **ice**, not a molecule — and `water-lab` is a featured lesson about that surface | 1 | **water-lab's ice** | the partner is a lattice, not a chain; new rendering |  |
-| **Nitrogenase** | 1N2C | the FeMo cofactor — the hardest chemistry in biology, breaking N≡N at room temperature | 4+ | — | a metal cluster the bake has never met |  |
+| candidate | id | fills | chains | motion? | pairs against | why not tier 1 | status |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **KcsA K⁺ channel** | 1BL8 (+ **5VK6**) | downhill transport; selectivity | 4 | **yes, with a caveat** | **napump** | needs the bilayer treatment napump already has. Verified: 1BL8 closed 3.2 Å; **5VK6 open 2.25 Å is the E71A mutant and ships with a mouse Fab bound** (2 of its 3 chains) — the open state is not the same molecule alone | id verified |
+| **Aquaporin** | 1J4N | water across a membrane | 4 | unverified | **napump** | same, and the story overlaps KcsA's |  |
+| **Myosin S1** | **1FMW / 1MMD / 1VOM** (not 2MYS) | muscle; a lever arm that swings | 1 each | **yes — three states, verified** | **atp-synthase** | the second state exists after all. *Dictyostelium* motor domain, one construct: **1FMW** MgATP 2.15 Å, **1MMD** ADP·BeF₃ 2.0 Å, **1VOM** ADP·vanadate 1.9 Å, 19–32 gaps each. **2MYS is a trap** — chicken S1 at 2.8 Å whose two light chains are **Cα-only**, which renders as a ribbon and is not a structure | id verified |
+| **Kinesin** | 1BG2 | walking; the other motor | 1 | **no clean pair** | **atp-synthase** | verified: 1BG2 is human motor domain + ADP, 1.8 Å. 3KIN is a rat dimer, 4HNA is kinesin on tubulin with a DARPin — neither is the same construct in a second state. The demotion stands | id verified |
+| **Chymotrypsin** | 4CHA | the catalytic triad; digestion | 3 | no | **amylase** | a fourth enzyme in a library of three |  |
+| **Rubisco** | 1RCX | photosynthesis, absent entirely; most abundant protein on Earth | 16 | unverified | — | 16 chains, and no lesson waiting |  |
+| **GroEL** | 1OEL (+ **1AON**) | folding, chaperoned | **7 in the file**; 14 via assembly 1, as 2 models of 7 | **yes — verified** | **prion** | 2.8 Å, *E. coli*, 547 res/chain, 23 gaps each, no ligands. **1AON is the partner state** — GroEL + GroES + 7 ADP, 3.0 Å, 21 chains in one AU, lid on and one ring open | id verified |
+| **Ferritin** | 1FHA | 24 identical subunits, octahedral — a hollow iron ball built from one part | **1 in the file**; 24 via assembly 1, as 24 models of 1 | no | — | **human** H ferritin, 2.4 Å, one 183-residue 4-helix bundle, 11 gaps, 1 Fe + 2 Ca. **Not a 24-chain bake** — the cheapest chain in the doc, repeated. Cost is merging 24 models | id verified |
+| **LH2 light-harvesting ring** | 1NKZ? | a circle of chlorophylls on a ring of helices; the symmetry *is* the antenna | 18 | unverified | **rubisco**, if photosynthesis lands | carries chlorophyll, and no photosynthesis lesson yet |  |
+| **PCNA sliding clamp** | **1VYM** (was 1AXC) | a ring threaded *around* DNA | 3 | no | DNA polymerase | 1VYM is **native human PCNA**, 2.3 Å, 3×261, 5 gaps/chain, no ligands — the bare ring. 1AXC is the same ring with a 22-residue **p21 peptide** in each site: a binding partner, not a second state | id verified |
+| **β-lactamase** | 1BTL | antibiotic resistance: evolution on a human timescale | 1 | no | **lysozyme** — bacterial wall made and unmade | verified: *E. coli* TEM-1, 1.8 Å, 1 chain. Wants a resistant variant beside it to read | id verified |
+| **Antifreeze protein** | 1WFA | binds **ice**, not a molecule — and `water-lab` is a featured lesson about that surface | 1 | unverified | **water-lab's ice** | the partner is a lattice, not a chain; new rendering |  |
+| **Nitrogenase** | 1N2C | the FeMo cofactor — breaking N≡N at room temperature | 4+ | unverified | — | a metal cluster the bake has never met |  |
 
 The pairings are the argument. KcsA earns its place *because* napump is already registered — channel against pump, downhill against paid-for, on one bench — in a way it would not earn standing alone. Same for GroEL against prion: folding helped, next to folding gone wrong.
 
-Myosin and kinesin are the second consumer of whatever the ATP synthase rotation became. Neither is worth adding until that machinery has settled and been named.
+Myosin and kinesin are the second consumer of whatever the ATP synthase rotation became, and neither is worth adding until that machinery has settled and been named. They are no longer the same bet, though: **myosin's second state exists and kinesin's does not.** The *Dictyostelium* motor domain is deposited in three nucleotide states of one construct, all under 2.2 Å, so a lever-arm tween is a matter of choosing two of them. Kinesin's only partners change the composition — a dimer, or the motor on tubulin — so there is nothing to tween against.
 
 ## Tier 3 — expensive, price before committing
 
-| candidate | id | fills | scale | the cost | status |
-| --- | --- | --- | --- | --- | --- |
-| **Complex I** | 5XTD? | the ETC lesson already queued | \~45 subunits | the stator-fit and label-travel traps, again |  |
-| **DNA polymerase** | 1TAU | replication; the hand-shaped fold | 1 + DNA | DNA pipeline, and a two-state story to find |  |
-| **Ribosome** | 4V6X? | translation | \~50 protein + rRNA | **mmCIF only — see below** |  |
-| **Aminoacyl-tRNA synthetase** | TBC | EC class **6, ligase** — empty; charging tRNA is where the genetic code becomes physical | 1–2 + tRNA | RNA pipeline, same gate as DNA polymerase |  |
-| **Tubulin / actin** | 1JFF / 1ATN | cytoskeleton; a polymer that is not collagen | 2 / 1 | the subject is the filament, not the file |  |
-| **CRISPR-Cas9** | 5F9R | humans engineering biology, without needing a designed protein to say it | 1 + sgRNA + DNA | RNA *and* DNA in one file; same gate as DNA polymerase |  |
-| **HK97 capsid** | 1OHG? | subunits covalently linked into interlocking rings — protein chainmail | 60+ | almost certainly mmCIF-only |  |
-| **Clathrin cage** | 1XI4? | triskelions self-assembling into a soccer ball; floppy leg, exact cage | 100+ | cryo-EM, coarse, and huge |  |
+| candidate | id | fills | scale | motion? | the cost | status |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Complex I** | 5XTD? | the ETC lesson already queued | \~45 subunits | unverified | the stator-fit and label-travel traps, again |  |
+| **DNA polymerase** | **4KTQ + 3KTQ** (was 1TAU) | replication; the hand-shaped fold | 1 + DNA each | **yes — verified** | DNA pipeline. The two-state story is found: Taq large fragment, **4KTQ open binary** 2.5 Å (primer/template only) and **3KTQ closed ternary** 2.3 Å (ddNTP caught in the site), each 1 protein + 2 DNA chains, essentially no gaps. The fingers close between them | id verified |
+| **Ribosome** | 4V6X? | translation | \~50 protein + rRNA | unverified | **mmCIF only — see below** |  |
+| **Aminoacyl-tRNA synthetase** | TBC | EC class **6, ligase** — empty | 1–2 + tRNA | unverified | RNA pipeline, same gate as DNA polymerase |  |
+| **Tubulin / actin** | 1JFF / 1ATN | cytoskeleton; a polymer that is not collagen | 2 / 1 | unverified | the subject is the filament, not the file |  |
+| **CRISPR-Cas9** | 5F9R | humans engineering biology | 1 + sgRNA + DNA | unverified | RNA *and* DNA in one file; same gate as DNA polymerase |  |
+| **HK97 capsid** | 1OHG? | subunits covalently linked into interlocking rings — protein chainmail | 60+ | unverified | almost certainly mmCIF-only |  |
+| **Clathrin cage** | 1XI4? | triskelions self-assembling into a soccer ball | 100+ | unverified | cryo-EM, coarse, and huge |  |
 
 Complex I is the one with a schedule behind it: fermentation and the ETC are queued, and Complex I is the ETC's largest single object. It will hit both traps `atp-synthase/tools/prep.js` already documents — fitting on a pseudo-symmetric region, and chain labels that travel with the moving part — so its baker should start from that file rather than from scratch.
 
