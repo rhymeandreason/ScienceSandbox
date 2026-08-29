@@ -670,6 +670,58 @@
      The cage sits in the deposited frame — its three extents are 119 A each,
      so a solved basis would flip between re-bakes — and the two subunit views
      wear the basis their own shape solved. */
+  /* GFP's two, chosen off proteins/gfp/gfp-test.html. THREE CAME OFF THAT
+     BENCH and the reasons are worth one line each, because each is an entry
+     somebody will propose again. 1EMA is the S65T mutant every fusion tag
+     descends from, and it went because the bench is about the fold and the
+     dye rather than about the engineering; dropping it dropped the S65T
+     comparison, so the phenol-to-Thr203 distance here is wild type's 4.7 A
+     with nothing reading 2.7 against it. 2WUR is 0.90 A, the sharpest GFP
+     there is, and it is a folding variant (F64L, I167T, K238N) whose
+     CHROMOPHORE happens to be wild type — it was filed on the bench as "wild
+     type" on that strength, which is why the baker reads SEQADV. And 1GFL's
+     second chain went because REMARK 350 calls the biological unit MONOMERIC:
+     two copies in an asymmetric unit are not a dimer, whatever the contact
+     between them sits on.
+
+     NEITHER IS STRICTLY WILD TYPE. Both carry Q80R, which rode in on the
+     original cDNA and is in every GFP entry in the PDB. */
+  const GFP_VARIANTS = [
+    { id: '1GFL', default: true,
+      purpose: 'the jellyfish protein: a barrel with a dye built into the helix '
+             + 'down its axis',
+      species: 'Aequorea victoria',
+      section: 'green', label: 'one subunit', chip: '1.90 \u00c5',
+      source: { kind: 'rcsb', id: '1GFL' },
+      chains: 'A',
+      /* The chromophore plus the five side chains that hold and tune it. Arg96
+         and Glu222 drive the cyclisation and sit under the imidazolinone;
+         His148, Thr203 and Ser205 are the phenol end. Numbering is the same in
+         both entries, which is what lets one list serve both. */
+      pocket: { res: [96, 148, 203, 205, 222] },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 2,
+        residues: 230,
+        declared: 238,
+        ec: null,
+        baked: "gfp-1GFL.json" } },
+    { id: '1BFP',
+      purpose: 'blue: one chromophore residue swapped, Y66H',
+      species: 'Aequorea victoria',
+      section: 'other colours', label: 'Y66H, blue', chip: 'BFP',
+      source: { kind: 'rcsb', id: '1BFP' },
+      chains: 'A',
+      pocket: { res: [96, 148, 203, 205, 222] },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 1,
+        residues: 229,
+        declared: 238,
+        ec: null,
+        baked: "gfp-1BFP.json" } },
+  ];
+
   const FERRITIN_VARIANTS = [
     { id: 'cage', default: true,
       purpose: 'the ball: 24 subunits closed into a hollow shell',
@@ -1233,6 +1285,44 @@
       variants: MYOGLOBIN_VARIANTS,
     },
     {
+      key: 'gfp', name: 'GFP', dir: 'proteins/gfp',
+      blurb: 'Eleven strands make a can, one helix runs up the middle, and '
+           + 'three of that helix\u2019s residues turn themselves into a dye. '
+           + 'Nothing is added: the protein builds its own chromophore and '
+           + 'then holds it still enough to glow.',
+      /* IT REPORTS. `reporter` is a seventh word, reserved for this row in
+         proteins-wishlist.md before GFP was pulled, and it is a word about
+         what the protein is USED for rather than what it does in the animal —
+         which is the honest description of why this protein is in a library
+         for Bio 101. No EC anywhere in either file, so `enzyme` would be a
+         claim the collection cannot check. */
+      does: 'reporter',
+      pipeline: 'trace',
+      /* The blue variant onto the green one, on Ca. Both are the same protein
+         under the same numbering and the barrel is rigid, so the fit is a
+         measurement rather than a convenience — and without it the two
+         crystals are two arbitrary orientations, so flipping between them
+         turns the whole molecule and hides the one residue that changed. */
+      fit: { on: '1GFL', by: 'the alpha-carbons they share, by residue number' },
+      fitWhy: 'one fold in two colours; the shared frame is what makes a single '
+            + 'substituted residue legible as the difference',
+      /* A barrel's three extents are close enough that a solved basis flips
+         between re-bakes, and the one that matters here is the one that shows
+         the dye through the wall. Turned on the bench and pasted. */
+      view: { by: 'human', shared: true,
+              why: 'the chromophore has to be visible inside the can, which is '
+                 + 'a framing no solved basis knows to look for',
+              basis: [[0.8271, -0.1948, -0.5155],
+                      [-0.2428, 0.706, -0.6572],
+                      [0.497, 0.6787, 0.539]] },
+      /* A fold claim, and an SES would seal the barrel and bury the dye
+         inside it \u2014 which is the one thing the reader is here to see. */
+      surface: { bake: false,
+                 why: 'the claim is the fold and what is inside it; a surface '
+                    + 'closes the can' },
+      variants: GFP_VARIANTS,
+    },
+    {
       key: 'ferritin', name: 'Ferritin', dir: 'proteins/ferritin',
       blurb: 'A hollow ball of 24 identical parts. Iron is poisonous loose in '
            + 'a cell and essential to it, so ferritin oxidises it at the way '
@@ -1412,7 +1502,7 @@
      still is not an enzyme in this collection's sense: what it is for is the
      iron sitting inside it afterwards. */
   const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural', 'hormone',
-                'storage'];
+                'storage', 'reporter'];
 
   /* HOW A VARIANT DIFFERS FROM THE HEALTHY PROTEIN, where it differs at all.
      Optional: most variants are the same protein under different conditions —

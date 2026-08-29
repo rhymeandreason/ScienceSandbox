@@ -7,9 +7,10 @@
 
 <!-- ===================================================================
      SCRATCH. Not a lesson, not linked from anywhere but admin.html.
-     A bench for a protein UNDER REVIEW: nothing here is in
-     proteins/proteins.js yet, so the candidate table is the baker's and
-     this page reads it back out of data/candidates.json.
+     REVIEWED: which structures, which chains and which residues make the
+     site are proteins/proteins.js's, the same file the baker read to
+     write these bakes, so a variant cannot be described one way here and
+     baked another. What stays the page's is what it SAYS, below.
 
      WHY THIS EXISTS. GFP is the beta-barrel the library does not have,
      and it is also the one protein here that is famous for what people
@@ -127,8 +128,9 @@
       end. Chain A's, in both views.</p>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
-    <p class="note" id="pick-note">Turn the molecule, click copy. Nothing reads it
-      yet: GFP has no <code>proteins.js</code> entry until this bench is reviewed.</p>
+    <p class="note" id="pick-note">Turn the molecule, click copy, then paste into
+      <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>.</p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -147,16 +149,24 @@
 <script src="../../kit/ribbon.js"></script>
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
 <script>
 'use strict';
 
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('gfp');
+const said = id => ProteinLib.variantOf(ME, id);
+
 /* One box, re-fed: setData swaps the structure and keeps the camera, so a
    reader who turned the barrel still has that view after a switch. sub:10 and
-   the trackball are the full-stage settings, not a card's. No `view:` — GFP
-   has no registry entry to hold a chosen basis, so every bake wears the one
-   the baker solved on the reference. */
+   the trackball are the full-stage settings, not a card's. */
 const box = Proteinbox.create({
   mount: document.getElementById('stage'),
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a basis
+     a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Both views wear it, which is what the fit is
+     for. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   stage: { ortho: false, turn: 'trackball' },
   pad: 1.15,
@@ -186,7 +196,7 @@ const SAYS = {
 
 const $ = id => document.getElementById(id);
 const views = {};
-let ORDER = [], CAND = null, view = null;
+let view = null;
 window.bench = { views, box, get view() { return view; } };
 
 /* ---- what only the pocket can say ------------------------------------- */
@@ -274,11 +284,11 @@ function show(id) {
   view = id;
   const t = views[id];
   if (!t) return;
-  const v = CAND.variants[id], r = v.read, m = t.meta;
+  const v = said(id), r = v.read, m = t.meta;
   const s = stats(t, v);
 
   $('d-claim').textContent = SAYS[id].claim;
-  $('d-meta').textContent = `${v.entry} · chain ${m.chain} · ${r.method}` +
+  $('d-meta').textContent = `${v.source.id} · chain ${m.chain} · ${r.method}` +
     (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
   $('d-fold').textContent = s.fold;
   $('d-span').textContent = s.span;
@@ -300,46 +310,51 @@ function show(id) {
   $('d-unit').textContent = s.unit;
   $('d-lig').textContent = s.lig;
   $('d-ext').textContent = s.ext;
-  $('d-view').textContent = m.fitOn
+  /* WHERE THE FRAME CAME FROM, in the bake's own words — `chosen in the
+     registry`, `computed` or `deposited` are Bake.viewFor's three, not this
+     page's — and, for anything fitted, how well it was put there. */
+  $('d-view').textContent = (m.fitOn
     ? `superposed on ${m.fitOn} · ${m.fitRmsd.toFixed(2)} Å over ${m.fitAtoms} α-carbons`
-    : 'the reference · basis solved from its shape';
+    : 'the reference · its own frame') + ` · rotation ${t.frame}`;
   $('d-prov').textContent = SAYS[id].prov;
 
-  $('d-rcsb').href = `https://www.rcsb.org/structure/${v.entry}`;
-  $('d-rcsb-label').textContent = `RCSB ${v.entry}`;
-  $('d-raw').href = `https://files.rcsb.org/download/${v.entry}.pdb`;
+  /* Built by the registry from `source`, never stored: a typed URL is one
+     more thing to mistype. */
+  const u = ProteinLib.urls(v);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${v.source.id}`;
+  $('d-raw').href = u.file;
   $('d-baked').href = `data/${r.baked}`;
 
   box.setData(t);
   box.setPocket(t.pocket);
 }
 
-/* THE CANDIDATE TABLE IS THE BAKER'S while this protein is under review, so
-   the page reads it rather than keeping a second copy that a re-bake would
-   leave behind. Step 5 of AddingAProtein.md moves it into proteins.js and this
-   becomes ProteinLib.byKey('gfp'). */
-fetch('data/candidates.json').then(r => r.json()).then(c => {
-  CAND = c;
-  ORDER = c.order;
-  ORDER.forEach(id => {
-    $('v-' + id).addEventListener('click', () => {
-      ORDER.forEach(x => $('v-' + x).setAttribute('aria-pressed', String(x === id)));
-      show(id);
-    });
-    fetch(`data/${c.variants[id].read.baked}`).then(r => r.json()).then(t => {
-      views[id] = t;
-      if (view === id) show(id);
-    });
+/* WHICH STRUCTURES, AND WHAT THEY CLAIM, ARE proteins/proteins.js's. Panel
+   order is the page's; which one it opens on is the registry's, because that
+   is a decision and it belongs with the other decisions about this protein. */
+const ORDER = ['1GFL', '1BFP'];
+
+ORDER.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    ORDER.forEach(x => $('v-' + x).setAttribute('aria-pressed', String(x === id)));
+    show(id);
   });
-  const open = ORDER.find(id => c.variants[id].deflt) || ORDER[0];
-  ORDER.forEach(id => $('v-' + id).setAttribute('aria-pressed', String(id === open)));
-  show(open);
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(t => {
+    views[id] = t;
+    if (view === id) show(id);
+  });
 });
 
-/* The basis a human picks is taste and lives in the registry, not in a bake —
-   so this button is here and its output has nowhere to go until GFP has an
-   entry. It is `box.pickView()` because the answer needs the chain group's
-   rotation as well as the camera's, and only the box can see that. */
+const OPEN = ProteinLib.defaultOf(ME).id;
+ORDER.forEach(id => $('v-' + id).setAttribute('aria-pressed', String(id === OPEN)));
+show(OPEN);
+
+/* THE PROTEIN'S molecule-viewer.html, in one button. A basis a human picks is
+   taste, so it lives in the registry and is pasted there by hand. It is
+   `box.pickView()` because the answer needs the chain group's rotation as well
+   as the camera's, and a page reading only the camera would silently drop the
+   view the structure is already wearing. */
 $('pick').addEventListener('click', () => {
   const text = JSON.stringify(box.pickView());
   navigator.clipboard && navigator.clipboard.writeText(text);

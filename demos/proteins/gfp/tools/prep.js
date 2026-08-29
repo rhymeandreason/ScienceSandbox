@@ -4,8 +4,11 @@
  *
  *  Run:  node proteins/gfp/tools/prep.js      (offline, no dependencies)
  *
- *  UNDER REVIEW, so the view table is CANDIDATES below and nothing is in
- *  proteins/proteins.js yet. AddingAProtein.md step 5 moves it.
+ *  REVIEWED. The view table is proteins/proteins.js, like every other
+ *  protein here; what stays this baker's is what a GFP bake IS — the
+ *  chromophore spliced back into the trace, the pocket, and the two reads
+ *  (SEQADV, REMARK 350) that stop this bench claiming things the files do
+ *  not.
  *
  *  WHAT GFP IS, and therefore what a bake of it has to contain. Eleven
  *  strands make a barrel about 24 A across and 42 A tall; one helix runs
@@ -91,35 +94,15 @@ const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
 const DATA = path.join(HERE, 'data');
 
-/* ---- THE CANDIDATES ---------------------------------------------------
- *
- *  Not proteins/proteins.js: nothing here has been reviewed. Each line is
- *  one question the bench is being built to answer.
- */
-const REF = '1GFL';
-
-const CANDIDATES = [
-  { id: '1GFL', entry: '1GFL', chains: 'A', deflt: true,
-    purpose: 'the jellyfish protein bar one cloning artifact, as one subunit: the '
-             + 'chromophore written as three ordinary residues' },
-  { id: '1BFP', entry: '1BFP', chains: 'A',
-    purpose: 'blue variant: Y66H, one residue swapped, and the colour changes' },
-];
-
-/* WHAT WAS ON THE BENCH AND CAME OFF, at review: 1EMA (S65T), 2WUR (0.90 A,
-   a folding variant) and 1GFL's second chain. The two-chain view went because
-   the entry declares itself MONOMERIC and two copies in an asymmetric unit are
-   not a dimer; the other two went because the bench is about the fold and the
-   dye, and three greens said it once each. Dropping 1EMA drops the S65T
-   comparison with it — the Thr203 distance below is wild type's 4.72 A, and
-   there is nothing on the bench that reads 2.66. Re-adding one is a line here
-   and a re-run. */
-
-/* THE SITE. The chromophore, plus the five side chains that hold and tune
-   it: Arg96 and Glu222 drive the cyclisation and sit on the imidazolinone,
-   His148, Thr203 and Ser205 hydrogen-bond the phenol end. Numbering is the
-   same in all five files, which is the point of the splice above. */
-const SITE = [96, 148, 203, 205, 222];
+/* THE VIEW TABLE IS proteins/proteins.js, with every other protein's — which
+   entries, which chains, which residues make the site, and which one the
+   collection opens on. What came off this bench at review and why is recorded
+   there too, beside the two that stayed. */
+const REG = require('../../proteins.js');
+const IO = require('../../tools/registry-io.js');
+const ME = REG.byKey('gfp');
+const VIEWS = ME.variants;
+const REF = ME.fit.on;
 
 /* The names a deposition gives the fused 65-67 residue. Each is one
    residue in the file and three in the protein. */
@@ -257,7 +240,7 @@ function substitutions(text, chain) {
  *  does, and a chromophore that grows 14 atoms between two views would
  *  read as a difference in the molecule.
  */
-function pocket(text, chain) {
+function pocket(text, chain, site) {
   const lines = text.split('\n');
   const atoms = [], bySerial = new Map();
   const keep = (line, group) => {
@@ -279,7 +262,7 @@ function pocket(text, chain) {
        residues, backbone included: the three are one conjugated system and
        cutting the backbone out of it would draw two thirds of a dye. */
     if (CHROMO_NUMS.includes(num)) { keep(line, 'chromophore'); continue; }
-    if (!SITE.includes(num)) continue;
+    if (!site.includes(num)) continue;
     /* Side chain only, CB kept as the stub that says which way the residue
        is attached. The backbone here is already drawn, as ribbon. */
     const name = line.slice(12, 16).trim();
@@ -326,7 +309,7 @@ function pocket(text, chain) {
 /* ---- one candidate ---------------------------------------------------- */
 
 function bake(v, ref) {
-  const text = read(v.entry);
+  const text = read(v.source.id);
   const only = new Set(v.chains.split(','));
   const mod = Bake.modResidues(text);
 
@@ -335,7 +318,7 @@ function bake(v, ref) {
     if (!chains.has(id)) throw new Error(v.id + ': no CA on chain ' + id);
   const R = Bake.ssRanges(text);
 
-  const site = pocket(text, v.chains.split(',')[0]);
+  const site = pocket(text, v.chains.split(',')[0], v.pocket.res);
 
   /* SUPERPOSE BEFORE CENTRING, in the crystal's own coordinates: the fit is
      a rotation about the reference's origin, and centring first would fit
@@ -372,7 +355,7 @@ function bake(v, ref) {
 
   const T = Bake.assemble(chains, R, c);
 
-  const out = { source: v.entry + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
+  const out = { source: v.source.id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
                 order: T.order, chains: T.chains, radius: T.radius };
   out.centreRaw = c;
   if (site) out.pocket = {
@@ -387,21 +370,23 @@ function bake(v, ref) {
      a human replaces it from the bench's copy button at step 5. */
   const all = [];
   for (const id of out.order) for (const p of out.chains[id].CA) all.push(p);
+  /* THE BASIS IS THE REGISTRY'S and is not baked: a rotation a human chose is
+     taste, so re-aiming this protein is an edit to proteins.js and a reload
+     rather than a re-run that rewrites coordinates nobody changed.
+     `Bake.viewFor` writes no view where the registry holds one and names the
+     frame `chosen in the registry`; check-proteins.js fails a bake that
+     carries a chosen basis anyway. The EXTENTS are still solved — they are a
+     measurement of this shape and the panel prints them. */
   const F = Bake.frameOf(all);
-  /* ONE BASIS, WORN BY ALL FIVE — the reference's. They share a frame after
-     the fit, so a basis solved per view would turn the molecule on every
-     switch and hide the one substituted residue inside the rotation. The
-     EXTENTS stay each view's own: they are a measurement of that shape, and
-     the dimer's are twice the monomer's. */
-  const B = ref ? ref.basis : F;
-  if (B.view) out.view = B.view;
+  const V = Bake.viewFor(ME, F);
+  if (V.view) out.view = V.view;
   out.extents = F.extents;
-  out.frame = B.frame;
+  out.frame = V.frame;
 
   const decl = declaredFixed(text, only);
   const chromo = site ? site.atoms.filter(a => a.group === 'chromophore') : [];
   out.meta = {
-    entry: v.entry, view: v.id, chain: v.chains,
+    entry: v.source.id, view: v.id, chain: v.chains,
     method: Bake.method(text), resolution: Bake.resolution(text),
     title: Bake.line1(text, 'TITLE'), models: Bake.models(text),
     chainsInFile: Bake.chainCount(text), chainsDrawn: out.order.length,
@@ -428,7 +413,7 @@ function bake(v, ref) {
     chromoFrom: chromoFrom(chromo),
     chromoAtoms: chromo.length,
     chromoSplit: chromo.length ? new Set(chromo.map(a => a.num)).size : 0,
-    site: SITE,
+    site: v.pocket.res,
     fitOn: ref ? REF : null,
     fitAtoms: fit ? fit.n : null,
     fitRmsd: fit ? +fit.rmsd.toFixed(2) : null,
@@ -450,7 +435,7 @@ function main() {
 
   /* Two passes: the reference in its own frame and on its own centroid, then
      every other view fitted onto that already-centred copy. */
-  const refCand = CANDIDATES.find(v => v.id === REF);
+  const refCand = VIEWS.find(v => v.id === REF);
   const refOut = bake(refCand, null);
   const refChain = refCand.chains.split(',')[0];
   const ref = {
@@ -460,11 +445,11 @@ function main() {
       .map((n, i) => [n, refOut.chains[refChain].CA[i]])),
   };
 
-  for (const v of CANDIDATES) {
+  for (const v of VIEWS) {
     const out = v.id === REF ? refOut : bake(v, ref);
     const { read: r, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, r.baked), JSON.stringify(bakeOut));
-    blocks[v.id] = { ...v, read: r };
+    blocks[v.id] = r;
     const m = out.meta, kb = (fs.statSync(path.join(DATA, r.baked)).size / 1024).toFixed(0);
     console.log(`${v.id.padEnd(11)} ${r.residues} of ${r.declared} residues` +
       (Bake.breaks(out) ? `, ${Bake.breaks(out)} break(s)` : ', no breaks') +
@@ -479,14 +464,9 @@ function main() {
       `, ${kb} KB`);
   }
 
-  /* THE CANDIDATE TABLE, WRITTEN OUT FOR THE BENCH. Under review there is no
-     registry entry to read, and a second copy of this list on the page is
-     the thing that goes stale between a re-bake and a reload. */
-  fs.writeFileSync(path.join(DATA, 'candidates.json'),
-                   JSON.stringify({ ref: REF, order: CANDIDATES.map(v => v.id),
-                                    variants: blocks }, null, 1));
-  console.log(`candidates.json  ${CANDIDATES.length} candidates`);
+  const touched = IO.write('gfp', blocks);
+  console.log(`registry  proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();
-module.exports = { bake, pocket, trace, CANDIDATES };
+module.exports = { bake, pocket, trace, VIEWS };
