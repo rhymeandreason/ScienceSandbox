@@ -21,7 +21,7 @@
 
 | candidate | id | fills | chains (AU) | `does` | motion? | variance? | pairs with | file notes | status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Insulin** | **1MSO** (was 4INS) | signalling; a hormone cut out of a bigger chain | 4 = 2×(A21 + B30) | new: `hormone` | no | no | — | 1.00 Å, **no gaps**, 2 Zn. 4INS is pig at 1.5 Å; 3I40 is one AB dimer if the hexamer is noise | id verified |
+| **Insulin** | **1MSO** (was 4INS) | signalling; a hormone cut out of a bigger chain | 4 = 2×(A21 + B30) | new: `hormone` | no | no | — | 1.00 Å, **no gaps**, 2 Zn. 4INS is pig at 1.5 Å; 3I40 is one AB dimer if the hexamer is noise | Done |
 | **GFP** | 1EMA | the missing β-barrel; how biology is *done* | 1 | new: `reporter` | no | **engineered** — 1EMA is the **S65T** bright mutant, `MUTATION: YES` in the file, not wild-type *Aequorea* GFP | **2POR** — one fold, two problems | 1.9 Å, 10 gaps (both termini, barrel intact), chromophore as **CRO**, one residue | id verified |
 | **Nucleosome** | 1AOI | DNA packaging — the chromatin picture | 8 histone + 2×146 bp DNA | `structural` | no | no | 1ZAA; histone tails (Tier 4) | 2.8 Å, Xenopus. Tails unobserved: H3 18, H3′ 8, H4 4, H2A 1 | id verified |
 | **Lysozyme** | 1LZ1 | the first enzyme mechanism ever solved | 1 | `enzyme` | no | no — but human lysozyme **amyloid** variants (I56T, D67H) are a real disease pair, not yet priced | **amylase** (held); β-lactamase | 1.5 Å, human, **130/130, no gaps, no ligands** — the cleanest file in the tier. 2LZT etc. are hen, a species contrast not a state | id verified |
@@ -51,7 +51,7 @@ Every Tier 1 file is x-ray except 1CFD (NMR), every one has legacy `.pdb`, and e
 
 **2HHB stays.** An earlier draft of this row proposed swapping the held deoxy tetramer for 2DN2 so that T and R came from one study at one resolution. That is wrong from inside the registry: 2HHB's bakes feed `hemoglobin-lab`, a featured lesson, and re-cutting them to gain sharpness a ribbon cannot show is a regression traded for nothing. R is the half that is missing, and 2DN1 is the whole change.
 
-**The cheapest three are 1LZ1, 1MSO and 1EMA** — one chain or two, no gaps worth naming, and in GFP's case a chromophore the file already names as a residue.
+**The cheapest two left are 1LZ1 and 1EMA** — one chain each, no gaps worth naming, and in GFP's case a chromophore the file already names as a residue. Insulin was the third and is done: five structures selected, including the storage hexamer, which cost a chain-aware merge of 1MSO's three assembly models.
 
 **Two rows arrived here from Tier 2 on the strength of the verification.** Ferritin was priced at 24 chains and holds one; chymotrypsin was dismissed as a fourth enzyme and is really a zymogen and an enzyme, with the cut between them legible as a chain count. Both are cheap, both fill a hole, and neither reason for keeping them down survived contact with the files.
 

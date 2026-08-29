@@ -556,6 +556,102 @@
         baked: "atp-human.json" } },
   ];
 
+
+  /* INSULIN'S FIVE. The set is one hormone told three ways — what it is, what
+     it was cut out of, and how it is put away — plus the pig entry, which is
+     history rather than structure and is kept for that.
+
+     WHAT WAS LOOKED AT AND NOT SELECTED: 1TRZ, the T3R3 hexamer. It carries
+     the largest motion of anything considered here — with the second monomer's
+     core superposed to 1.05 A, its B-chain N-terminus swings 25.6 A at B1 and
+     is back to 1.7 A by B7 — but the R conformation needs a phenol bound, and
+     phenol is a preservative in a vial rather than anything a pancreas
+     supplies. Ninety-six of its 102 residues are unchanged from 1MSO, so on a
+     ribbon it read as a second copy of the dimer. It is the entry to come back
+     for if a lesson ever wants the DRUG rather than the hormone.
+
+     THE HEXAMER IS NOT A SECOND DEPOSITION. It is 1MSO's assembly 1, which
+     that file publishes as three MODELs of its asymmetric unit; the baker
+     merges them chain-aware and renames the copies A-L. `assembly` is what
+     says so, and `header` is where the provenance is read from, because the
+     assembly file has no EXPDTA, no REMARK 2 and an entry id of XXXX. */
+  const INSULIN_VARIANTS = [
+    { id: '3I40', default: true,
+      purpose: 'the hormone itself, as the single A + B unit',
+      species: 'human',
+      section: 'the hormone', label: 'monomer', chip: 'human',
+      source: { kind: 'rcsb', id: '3I40' },
+      chains: 'A,B',
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 2,
+        residues: 51,
+        declared: 51,
+        ec: null,
+        baked: "insulin-3I40.json" } },
+    { id: '1MSO',
+      purpose: 'two of them, and the only \u03b2 sheet insulin has',
+      species: 'human',
+      section: 'the hormone', label: 'two of them', chip: '1.0 \u00c5',
+      source: { kind: 'rcsb', id: '1MSO' },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 4,
+        residues: 102,
+        declared: 102,
+        ec: null,
+        baked: "insulin-1MSO.json" } },
+    { id: '2KQP',
+      purpose: 'before the cut: one chain, C-peptide still in it',
+      species: 'human',
+      section: 'before the cut', label: 'proinsulin', chip: 'NMR',
+      source: { kind: 'rcsb', id: '2KQP' },
+      /* 20 models, and model 1 is baked like every other NMR entry here. */
+      model: true,
+      /* The correspondence the fit runs on, and the cut it describes: B1-30
+         are residues 1-30 of the precursor and A1-21 are 66-86, so everything
+         between is C-peptide. Here rather than in the baker because it is a
+         fact about what this entry IS, and the baker measures the rest. */
+      proinsulin: { B: 0, A: 65 },
+      read: {
+        method: "solution nmr",
+        chainsInFile: 1,
+        residues: 86,
+        declared: 86,
+        ec: null,
+        baked: "insulin-2KQP.json" } },
+    { id: 'hexamer', of: '1MSO',
+      purpose: 'how the body stores it: six copies around two zincs',
+      species: 'human',
+      section: 'stored', label: 'hexamer', chip: '2 Zn',
+      source: { kind: 'rcsb', id: '1MSO' },
+      /* assembly 1, not the asymmetric unit; provenance off the deposition. */
+      file: '1MSO.pdb1', header: '1MSO.pdb', assembly: true,
+      /* The zinc site the box draws inside the ribbon: two ions on the
+         three-fold axis, each held by three His B10. Which residue makes the
+         site is this file's to say, the same way myoglobin's pocket is. */
+      zinc: { residue: 10, chainRole: 'B' },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 12,
+        residues: 306,
+        declared: 306,
+        ec: null,
+        baked: "insulin-hexamer.json" } },
+    { id: '4INS',
+      purpose: 'pig \u2014 what diabetics were injected with for sixty years',
+      species: 'pig',
+      section: 'another species', label: 'pig', chip: '2 Zn',
+      source: { kind: 'rcsb', id: '4INS' },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 4,
+        residues: 102,
+        declared: 102,
+        ec: null,
+        baked: "insulin-4INS.json" } },
+  ];
+
   const PROTEINS = [
     {
       key: 'atp-synthase', name: 'ATP synthase', dir: 'proteins/atp-synthase',
@@ -1003,6 +1099,45 @@
       variants: RNASE_VARIANTS,
     },
     {
+      key: 'insulin', name: 'Insulin', dir: 'proteins/insulin',
+      blurb: 'A hormone cut out of a bigger protein: two short chains stapled '
+           + 'by three disulfides. It works as one molecule and is stored six '
+           + 'at a time around two zincs.',
+      /* No EC anywhere, and that is the point of the word: insulin is read,
+         not run. `hormone` was added to DOES for it. */
+      does: 'hormone',
+      pipeline: 'trace',
+      /* ONE AB UNIT, and the reference is the entry deposited AS one. Fitting
+         onto a dimer would mean picking which of its two copies is the
+         reference, and that choice would be invisible in every number
+         downstream. It is also the correspondence the precursor has: 2KQP's
+         residues 1-30 and 66-86 are the same two chains, still joined, so the
+         same fit that aligns the dimers puts proinsulin's hormone under the
+         hormone and leaves the C-peptide as the only loop with nothing
+         beneath it. */
+      fit: { on: '3I40', by: 'the A and B chains, matched by residue number' },
+      fitWhy: 'states of one hormone at four sizes; the shared frame is what '
+            + 'makes the C-peptide and the hexamer legible as additions',
+      /* Deposited until a human picks one. They share a frame, so the basis
+         when it comes is one basis for all five — `shared: true` is a claim
+         about the fit above, not about whether anyone has chosen yet. */
+      view: { by: 'human', shared: true,
+              why: 'four extents too close to solve a stable basis from, so a '
+                 + 'solved one would flip between re-bakes; turned on the '
+                 + 'bench and pasted here instead',
+              basis: [[0.6376, 0.1454, -0.7565],
+                      [-0.7236, -0.224, -0.6529],
+                      [-0.2644, 0.9637, -0.0376]] },
+      /* Fold and assembly claims, both served better by a ribbon: the dimer
+         sheet and the zinc site are the two things to see, and a surface
+         buries both. The one claim that would earn a bake is the receptor
+         interface, and no receptor structure is held. */
+      surface: { bake: false,
+                 why: 'fold and assembly claims; the surface claim would be '
+                    + 'the receptor interface, which is not held' },
+      variants: INSULIN_VARIANTS,
+    },
+    {
       key: 'myoglobin', name: 'Myoglobin', dir: 'proteins/myoglobin',
       blurb: 'One iron atom, wrapped in 153 residues. The first protein '
            + 'structure ever solved, and still the clearest binding site '
@@ -1165,7 +1300,12 @@
      not a synonym for 'no function': collagen does one thing, mechanically,
      and does it as material rather than as chemistry. It is the first entry
      here that catalyses nothing and carries nothing. */
-  const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural'];
+  /* `hormone` is the answer for a protein whose whole job is to be RECOGNISED
+     somewhere else. Insulin catalyses nothing, carries nothing and holds
+     nothing up; what it does is arrive at a receptor and be read. That is a
+     different kind of answer from the other four, and it is the word the
+     wishlist reserved for insulin before insulin was pulled. */
+  const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural', 'hormone'];
 
   /* HOW A VARIANT DIFFERS FROM THE HEALTHY PROTEIN, where it differs at all.
      Optional: most variants are the same protein under different conditions —

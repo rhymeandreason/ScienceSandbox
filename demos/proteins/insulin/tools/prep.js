@@ -1,14 +1,13 @@
 #!/usr/bin/env node
 /* =====================================================================
- *  prep.js — six insulin depositions down to what the bench draws.
+ *  prep.js — five insulin depositions down to what the bench draws.
  *
  *  Run:  node proteins/insulin/tools/prep.js   (offline, no dependencies)
  *
- *  UNDER REVIEW, SO THE VIEW TABLE IS HERE. Every other baker in
- *  proteins/ opens the registry, because its protein has been selected.
- *  Nothing about insulin has been decided yet, so CANDIDATES below is
- *  the table, and it moves into proteins/proteins.js `variants` the day
- *  a human looks at the bench and says which of these earn a place.
+ *  THE VIEW TABLE IS proteins/proteins.js, like every other protein
+ *  here. Which entries, which chains, which is the default and what each
+ *  one is FOR live there with every other protein's; this file turns that
+ *  into files under data/ and writes the counted half back.
  *
  *  WHAT THIS PROTEIN IS. A hormone that is cut out of a bigger chain.
  *  Mature insulin is two peptides, A of 21 and B of 30, held together
@@ -50,28 +49,16 @@ const fs = require('fs');
 const path = require('path');
 const Bake = require('../../bake-lib.js');
 const { superpose } = require('../../../hexokinase/tools/pdbio.js');
+const REG = require('../../proteins.js');
+const IO = require('../../tools/registry-io.js');
 
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
 const DATA = path.join(HERE, 'data');
 
-/* ---- the candidates, while this protein is under review --------------
- *
- *  `file` is what is read; `chains` is what is drawn, or null for all of
- *  them. `assembly` merges every MODEL rather than taking the first.
- */
-const CANDIDATES = [
-  { id: '3I40', file: '3I40.pdb', chains: 'A,B', ref: true,
-    purpose: 'the hormone itself: two chains, three disulfides' },
-  { id: '1MSO', file: '1MSO.pdb', chains: null,
-    purpose: 'human at 1.0 A — two AB units, and the B-chain sheet that pairs them' },
-  { id: 'hexamer', file: '1MSO.pdb1', header: '1MSO.pdb', assembly: true, chains: null, zinc: true,
-    purpose: 'the storage form: six insulins around two zincs' },
-  { id: '2KQP', file: '2KQP.pdb', chains: null, model: true, proinsulin: true,
-    purpose: 'before the cut: one chain, with the C-peptide still in it' },
-  { id: '4INS', file: '4INS.pdb', chains: null,
-    purpose: 'pig, the insulin diabetics were injected with for sixty years' },
-];
+const ME = REG.byKey('insulin');
+const VIEWS = ME.variants;
+const REF = ME.fit.on;
 
 const read = f => fs.readFileSync(path.join(SRC, f), 'utf8');
 
@@ -122,7 +109,6 @@ function roles(text) {
  *  everything between is the C-peptide, which is fitted onto nothing
  *  because it has no counterpart in the mature hormone at all.
  */
-const CUT = { B: 0, A: 65 };              // proinsulin offset per chain role
 
 function pairsFor(chains, role, refCA) {
   const out = { mob: [], ref: [] };
@@ -140,19 +126,19 @@ function pairsFor(chains, role, refCA) {
   return out;
 }
 
-function proinsulinPairs(res, refCA) {
+function proinsulinPairs(res, refCA, cut) {
   const out = { mob: [], ref: [] };
   for (const k of ['A', 'B']) {
     const R = new Map(refCA[k].map(p => [p.num, p]));
     for (const p of res) {
-      const n = p.num - CUT[k];
+      const n = p.num - cut[k];
       if (n < 1 || !R.has(n)) continue;
       /* B is 1-30 and A is 66-86, so the two windows do not overlap and a
          residue can only satisfy one of them. Guard it anyway: an entry
          numbered differently would otherwise fit the same residue twice
          and the rmsd would come out flattering. */
       if (k === 'B' && p.num > 30) continue;
-      if (k === 'A' && p.num <= 65) continue;
+      if (k === 'A' && p.num <= cut.A) continue;
       out.mob.push(p); out.ref.push(R.get(n));
     }
   }
@@ -192,7 +178,7 @@ function ssPairs(text, role, only) {
  */
 const elOf = l => (l.slice(76, 78).trim() || l.slice(12, 14).trim()).toUpperCase();
 
-function zincSite(text, role) {
+function zincSite(text, role, want) {
   const atoms = [], zseen = new Set();
   /* NO HYDROGENS. 1MSO is 1.0 A and rides them, which no ribbon-scale
      ball-and-stick in this repo draws — and they would double the atom count
@@ -211,8 +197,9 @@ function zincSite(text, role) {
       if (zseen.has(key)) continue;
       zseen.add(key);
       keep(line, 'zinc');
-    } else if (line.startsWith('ATOM') && parseInt(line.slice(22, 26), 10) === 10
-               && role[line[21]] === 'B') {
+    } else if (line.startsWith('ATOM')
+               && parseInt(line.slice(22, 26), 10) === want.residue
+               && role[line[21]] === want.chainRole) {
       const name = line.slice(12, 16).trim();
       if (name === 'N' || name === 'C' || name === 'O') continue;   // ribbon draws these
       keep(line, 'his');
@@ -234,7 +221,7 @@ function zincSite(text, role) {
 /* ---- one view -------------------------------------------------------- */
 
 function bake(v, ctx) {
-  const raw = read(v.file);
+  const raw = read(v.file || v.source.id + '.pdb');
   /* AN ASSEMBLY FILE IS NOT SELF-DESCRIBING. 1MSO.pdb1 has no REMARK 2, no
      EXPDTA and an entry id of XXXX — every fact about the EXPERIMENT is in the
      deposition it was generated from, so provenance is read there and only the
@@ -259,15 +246,16 @@ function bake(v, ctx) {
 
   /* THE REFERENCE SETS THE FRAME AND IS FITTED ONTO NOTHING. */
   let fit = null, pairs = 0;
-  if (v.ref) {
+  if (v.id === REF) {
     ctx.refCA = { A: [], B: [] };
     /* First chain per role. A reference deposited as a dimer holds each role
        twice, and the second copy is the same molecule again. */
     for (const [id, res] of chains)
       if (role[id] && !ctx.refCA[role[id]].length) ctx.refCA[role[id]] = res;
   } else {
-    const p = v.proinsulin ? proinsulinPairs([...chains.values()][0], ctx.refCA)
-                           : pairsFor(chains, role, ctx.refCA);
+    const p = v.proinsulin
+      ? proinsulinPairs([...chains.values()][0], ctx.refCA, v.proinsulin)
+      : pairsFor(chains, role, ctx.refCA);
     if (p.mob.length < 20) throw new Error(`${v.id}: only ${p.mob.length} residues pair`);
     fit = superpose(p.mob, p.ref);
     pairs = p.mob.length;
@@ -281,11 +269,11 @@ function bake(v, ctx) {
   const T = Bake.assemble(chains, R, ctx.centre);
   if (!ctx.centre) ctx.centre = T.centre;
 
-  const out = { source: v.file, ssFrom: Bake.ssFrom(R), centre: T.centre,
+  const out = { source: v.file || v.source.id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
                 order: T.order, chains: T.chains, radius: T.radius };
 
   if (v.zinc) {
-    const site = zincSite(text, role);
+    const site = zincSite(text, role, v.zinc);
     if (fit) site.atoms = site.atoms.map(a => {
       const q = fit.apply([{ x: a.p[0], y: a.p[1], z: a.p[2] }])[0];
       return { ...a, p: [q.x, q.y, q.z] };
@@ -303,7 +291,7 @@ function bake(v, ctx) {
   const all = [];
   for (const id of out.order) for (const p of out.chains[id].CA) all.push(p);
   const F = Bake.frameOf(all);
-  if (!ctx.picked) ctx.picked = Bake.viewFor(null, F);
+  if (!ctx.picked) ctx.picked = Bake.viewFor(ME, F);
   if (ctx.picked.view) out.view = ctx.picked.view;
   out.extents = F.extents;
   out.frame = ctx.picked.frame;
@@ -327,11 +315,16 @@ function bake(v, ctx) {
     return decl[src] === undefined ? null : decl[src];
   };
   out.meta = {
-    entry: v.id === 'hexamer' ? '1MSO' : v.id,
+    entry: v.source.id,
     purpose: v.purpose, chainsDrawn: out.order.length,
     method: Bake.method(head), resolution: Bake.resolution(head),
     title: Bake.line1(head, 'TITLE'), models: Bake.models(raw),
-    chainsInFile: Bake.chainCount(text),
+    /* AN ASSEMBLY REUSES ITS CHAIN IDS PER MODEL, so counting distinct ids
+       gives 4 for a file holding twelve chains' worth of coordinates. After
+       the merge the count is what was actually drawn, which is the number the
+       registry is asked for and the one a reader can check against the
+       picture. */
+    chainsInFile: v.assembly ? T.order.length : Bake.chainCount(text),
     assembly: !!v.assembly,
     units, unitCount: unit + 1,
     counts: out.order.map(id => ({ chain: id, role: role[id] || null,
@@ -347,8 +340,8 @@ function bake(v, ctx) {
     ssTotal: Bake.disulfides(text, only).length * (v.assembly ? merged.models : 1),
     ssPairs: ssPairs(text, v.assembly ? roles(head) : role, only),
     ligands: Bake.ligands(text, only),
-    fitOn: v.ref ? null : ctx.ref,
-    fitOnWhat: v.ref ? null : `${pairs} residues of the A and B chains`,
+    fitOn: v.id === REF ? null : REF,
+    fitOnWhat: v.id === REF ? null : `${pairs} residues of the A and B chains`,
     fitRmsd: fit ? Bake.r2(fit.rmsd) : null,
     /* WHAT THE CUT TAKES OUT, counted rather than quoted: the precursor's
        chain minus the residues that pair with the hormone. */
@@ -357,7 +350,7 @@ function bake(v, ctx) {
   };
   out.read = {
     method: Bake.method(head),
-    chainsInFile: Bake.chainCount(text),
+    chainsInFile: out.meta.chainsInFile,
     residues: out.meta.counts.reduce((k, c) => k + c.modelled, 0),
     declared: out.meta.counts.every(c => c.declared !== null)
       ? out.meta.counts.reduce((k, c) => k + c.declared, 0) : null,
@@ -370,26 +363,31 @@ function bake(v, ctx) {
 }
 
 function main() {
-  const order = [...CANDIDATES].sort((a, b) => (b.ref ? 1 : 0) - (a.ref ? 1 : 0));
-  const ctx = { centre: null, picked: null, refCA: null, ref: order[0].id };
+  /* THE REFERENCE FIRST, whatever order the registry lists them in: it sets
+     the centre and the basis every other view wears. */
+  const order = [...VIEWS].sort((a, b) => (b.id === REF ? 1 : 0) - (a.id === REF ? 1 : 0));
+  const ctx = { centre: null, picked: null, refCA: null };
+  const blocks = {};
   for (const v of order) {
     const out = bake(v, ctx);
     const file = out.read.baked;
     const { read: r, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, file), JSON.stringify(bakeOut));
+    blocks[v.id] = r;
     const kb = (fs.statSync(path.join(DATA, file)).size / 1024).toFixed(0);
     console.log(`${v.id.padEnd(8)} ${out.order.length} chain(s), ${r.residues} of ` +
       `${r.declared} residues` +
       (Bake.breaks(out) ? `, ${Bake.breaks(out)} break(s)` : '') +
-      `, ss ${out.ssFrom}, ${out.extents.join(' × ')} A, ` +
-      `${out.meta.ss.length} SS, ligands [${out.meta.ligands.join(' ')}]` +
+      `, ss ${out.ssFrom}, ${out.extents.join(' \u00d7 ')} A, ` +
+      `${out.meta.ssTotal} SS, ligands [${out.meta.ligands.join(' ')}]` +
       (out.pocket ? `, pocket ${out.pocket.atoms.length} atoms / ${out.zincs} Zn` : '') +
       `, view ${out.frame}, ` +
       (out.meta.fitOn ? `fitted ${out.meta.fitRmsd} A on ${out.meta.fitOnWhat}` : 'reference') +
       `, ${kb} KB`);
   }
-  console.log('\nUNDER REVIEW: nothing written to proteins/proteins.js yet.');
+  const touched = IO.write('insulin', blocks);
+  console.log(`registry  proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();
-module.exports = { bake, CANDIDATES };
+module.exports = { bake, VIEWS };
