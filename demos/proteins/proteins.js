@@ -290,7 +290,7 @@
     { id: '1A2W',
       kind: 'swap',
       purpose: 'the C-terminal half traded',
-      species: 'bovine',
+      species: 'bovine', state: 'swap',
       section: 'taken apart', label: 'C-terminal swap', chip: '2 chains',
       source: { kind: 'rcsb', id: '1A2W' },
       chains: 'A,B',
@@ -304,7 +304,7 @@
     { id: '1F0V',
       kind: 'swap',
       purpose: 'the N-terminal half traded',
-      species: 'bovine',
+      species: 'bovine', state: 'swap',
       section: 'taken apart', label: 'N-terminal swap', chip: '2 chains',
       source: { kind: 'rcsb', id: '1F0V' },
       chains: 'A,B',
@@ -392,7 +392,12 @@
 
     { id: 'oi',
       purpose: 'one glycine replaced by alanine — the brittle-bone substitution',
-      species: 'synthetic',
+      species: 'synthetic', state: 'mutant',
+      /* No `healthy` counterpart is marked here, and that is not an omission:
+         1CAG's own control is the (POG) host it was built in, which this list
+         does not hold separately. ppg10 and pog9 are a comparison about
+         hydroxyls, and labelling either one healthy would answer a question
+         nobody asked of them. */
       source: { kind: 'rcsb', id: '1CAG' },
       chains: 'A,B,C',
       helix: 'A,B,C',
@@ -861,7 +866,7 @@
       variants: [
         { id: '2HHB', default: true,
           purpose: 'the tetramer, deoxy — what the lesson folds',
-          species: 'human',
+          species: 'human', state: 'healthy',
           source: { kind: 'repo', id: '2HHB', path: 'hemoglobin/data/2HHB.pdb' },
           /* EVERY BAKE THIS ENTRY HAS, BY ROLE. A protein whose files another
              pipeline writes has several in several shapes, and which is which
@@ -888,7 +893,7 @@
             baked: "2HHB.trace.json" } },
         { id: '2HBS',
           purpose: 'sickle haemoglobin, one mutation away',
-          species: 'human',
+          species: 'human', state: 'mutant',
           chains: 'A,B,C,D',
           source: { kind: 'repo', id: '2HBS', path: 'hemoglobin/data/2HBS.pdb' },
           /* The first of the two tetramers in the asymmetric unit. NO TRACE,
@@ -1162,7 +1167,38 @@
      here that catalyses nothing and carries nothing. */
   const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural'];
 
-  global.ProteinLib = { PROTEINS, METHODS, MEASURED, DOES, EC_CLASS,
+  /* HOW A VARIANT DIFFERS FROM THE HEALTHY PROTEIN, where it differs at all.
+     Optional: most variants are the same protein under different conditions —
+     a ligand bound, a second species, a solution instead of a crystal — and
+     they carry no `state` because there is nothing to say. The field is for
+     the collection's other axis, the one the prion pair opened and the sickle
+     tetramer, the OI peptide and RNase's two swaps were each recording in
+     prose of their own.
+
+     It answers HOW the difference arises, which is the part a reader cannot
+     see in a ribbon:
+
+       healthy  the unaffected form, in an entry that also holds an affected
+                one. Not a default: it is a claim that something else here is
+                the disease, and 1QLZ and 2HHB are the two that make it.
+       disease  the pathological form, reached with NO change of sequence —
+                the same chain folded another way. PrP is the case, and the
+                only one: 6LNI is 1QLZ's sequence, refolded.
+       mutant   the pathological or altered form, reached BY a substitution.
+                2HBS is one glutamate for one valine; 1CAG is one glycine for
+                one alanine. Both are diseases, and both are diseases of the
+                SEQUENCE, which is what separates them from PrP.
+       swap     the same sequence and the same fold, with a domain traded
+                between two chains. RNase's two, and neither is a disease —
+                it is how a fold comes apart, which is the reason they are
+                held beside the prion.
+
+     A sort on this field puts the two routes to a disease structure side by
+     side, and that contrast is the entire reason the prion entry and the
+     haemoglobin entry are in one collection. */
+  const STATES = ['healthy', 'disease', 'mutant', 'swap'];
+
+  global.ProteinLib = { PROTEINS, METHODS, MEASURED, DOES, STATES, EC_CLASS,
                         byKey, defaultOf, ecOf, viewOf,
                         variantOf, colorsOf, urls };
   if (typeof module === 'object' && module.exports)
