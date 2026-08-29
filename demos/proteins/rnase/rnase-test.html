@@ -94,18 +94,13 @@
 
     <p class="frag" id="d-frag">&mdash;</p>
     <p class="prov" id="d-prov">&mdash;</p>
-    <p class="note">Colour is secondary structure, the repo default: helix, strand,
-      coil. Chains are not coloured apart, so on the two-chain views the second
-      molecule is told by its shape and not by its colour.</p>
+    <p class="note">Colour is secondary structure (helix, strand, coil), the repo
+      default. Chains aren't colour-coded — the second chain reads by shape.</p>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
-    <p class="note" id="pick-note">Turn the molecule, then copy. Prints the basis
-      the structure would need to open facing this way, for a shape whose own
-      axes are too close together to solve — the view row says which.
-      Paste it into <code>view.basis</code> in <code>proteins.js</code> with
-      <code>by:&nbsp;'human'</code>, then re-run the baker: the registry is the
-      only place a chosen basis is written, and the baker is what puts it in
-      the file every page reads.</p>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Paste into
+      <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>, then re-run the baker.</p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -185,28 +180,27 @@ const SAYS = {
            + 'sheet, four disulfides.' },
   '2AAS': {
     claim: 'The same protein in solution, by NMR.',
-    prov:  '32 deposited models; this is model 1, and it is not more real than '
-           + 'model 12. The crystal fold and the solution fold agree.' },
+    prov:  '32 deposited models; this is model 1, no more real than any other. '
+           + 'Crystal and solution folds agree.' },
   '1RUV': {
     claim: 'Uridine vanadate in the active site — the transition state, held '
            + 'still.',
-    prov:  'X-ray at 1.25 A. Vanadium fakes the five-coordinate phosphorus RNA '
-           + 'passes through, so the enzyme cannot finish the reaction and will not '
-           + 'let go.' },
+    prov:  'X-ray at 1.25 A. Vanadium mimics the five-coordinate phosphorus '
+           + 'transition state, trapping the enzyme mid-reaction.' },
   '1RNU': {
     claim: 'RNase S: one backbone bond cut, and the protein still works.',
-    prov:  'Subtilisin cuts between residues 20 and 21. The 20-residue S-peptide '
-           + 'stays bound to the S-protein and the pair is active. Residues 16-23 '
-           + 'are unmodelled, so the gap drawn is wider than the cut.' },
+    prov:  'Subtilisin cuts between residues 20-21; the 20-residue S-peptide stays '
+           + 'bound to the S-protein and the pair is active. Residues 16-23 are '
+           + 'unmodelled, so the drawn gap is wider than the cut.' },
   '1A2W': {
     claim: 'Two molecules, each folded around the other’s C-terminal strand.',
-    prov:  'Domain swapping: the same contacts as the monomer, made between chains '
-           + 'instead of within one. The hinge is the loop around 112-115.' },
+    prov:  'Domain swapping: the monomer’s own contacts, made between chains. '
+           + 'Hinge: the loop around 112-115.' },
   '1F0V': {
     claim: 'The other swap: the N-terminal helix traded instead.',
-    prov:  'Chains A and B of a deposition holding two dimers, with a CpG '
-           + 'dinucleotide bound on chains M-P, which the bench does not draw. One '
-           + 'protein, two different ways to come apart and re-fold as a pair.' },
+    prov:  'Chains A/B of a deposition holding two dimers; a CpG dinucleotide '
+           + 'binds chains M-P, not drawn here. Same protein, two ways to swap and '
+           + 're-fold as a pair.' },
   '1DFJ': {
     claim: 'RNase A held by ribonuclease inhibitor, the protein that keeps it off '
            + 'your own RNA.',

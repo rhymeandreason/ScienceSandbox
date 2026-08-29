@@ -127,15 +127,13 @@ const $ = id => document.getElementById(id);
 const SAYS = {
   'E1': {
     claim: 'E1: three sodiums loaded, and the door open to the inside.',
-    prov: 'Pig kidney, cryo-EM. The pump takes three Na⁺ from the cytoplasm '
-        + 'here, and ATP pays to close this door and open the other one. Four '
-        + 'sodiums are modelled — a site can be occupied without being one of '
-        + 'the three that cross.' },
+    prov: 'Pig kidney, cryo-EM. Three Na⁺ enter from the cytoplasm before ATP '
+        + 'closes this door and opens the other. Four sodiums are modelled — '
+        + 'one occupied site isn\'t part of the stoichiometry.' },
   'E2': {
     claim: 'E2: two potassiums loaded, and the door open to the outside.',
-    prov: 'The other end of the same cycle, and the reason the pump is worth '
-        + 'the ATP: three charges leave and two come back, so every turn '
-        + 'leaves the inside of the cell more negative than it was.' },
+    prov: 'The cycle\'s other end: three charges leave and two return, so '
+        + 'every turn leaves the cell interior more negative.' },
 };
 
 const box = Proteinbox.create({

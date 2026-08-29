@@ -111,23 +111,15 @@
     <p class="frag" id="d-frag">&mdash;</p>
     <p class="prov" id="d-prov">&mdash;</p>
     <p class="note">Every view is superposed on deoxy (1BZP) by its heme, matched
-      atom by atom, so flipping between states moves only what actually moved.
-      Seven crystals otherwise means seven arbitrary orientations, and the
-      molecule jumps on every click.</p>
+      atom by atom, so flipping between states moves only what actually moved.</p>
     <p class="note">Ribbon colour is secondary structure, the repo default. The
-      pocket is drawn ball-and-stick: the heme with its iron in rust, whatever
-      is bound to it, and the two histidines — proximal below the ring, distal
-      above it — with their backbone left to the ribbon.</p>
+      pocket is ball-and-stick: heme with iron in rust, whatever is bound to it,
+      and the two histidines — proximal below the ring, distal above it.</p>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
-    <p class="note" id="pick-note">Turn the molecule, then copy. Myoglobin is a
-      bundle whose three axes are too close together for a solver to choose
-      between, so the orientation is a human's — and because all seven views
-      share one frame, one choice re-aims every one of them.
-      Paste it into <code>view.basis</code> in <code>proteins.js</code> with
-      <code>by:&nbsp;'human'</code>, then re-run the baker: the registry is the
-      only place a chosen basis is written, and the baker is what puts it in
-      the file every page reads.</p>
+    <p class="note" id="pick-note">Turn the molecule, click copy, then paste into
+      <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code> and re-run the baker.</p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -185,44 +177,38 @@ const said = id => ProteinLib.variantOf(ME, id);
 const SAYS = {
   '1MBN': {
     claim: 'Kendrew’s myoglobin: the first protein structure anyone ever saw.',
-    prov:  'Sperm whale, X-ray at 2.0 A. The 1958 model was a 6 A blob that showed '
-           + 'only the sausage of the chain; this is the refined coordinate set that '
-           + 'came out of the same work. The iron carries a hydroxide — the protein '
-           + 'has been oxidised and cannot bind O2 in this state.' },
+    prov:  'Sperm whale, X-ray at 2.0 A. The 1958 model was a 6 A blob; this is the '
+           + 'refined coordinates from the same work. The iron carries a hydroxide, '
+           + 'oxidised and unable to bind O2 here.' },
   '1BZP': {
     claim: 'Deoxy myoglobin: the site with nothing in it.',
-    prov:  'Sperm whale, 1.15 A. The iron sits slightly out of the porphyrin '
-           + 'plane, pulled towards the histidine below it. This is the state that '
-           + 'is waiting.' },
+    prov:  'Sperm whale, 1.15 A. The iron sits slightly out of the porphyrin plane, '
+           + 'pulled toward the histidine below it — the state that is waiting.' },
   '1A6M': {
     claim: 'Oxygen bound: what myoglobin is for.',
     prov:  'Sperm whale, 1.0 A — among the sharpest protein structures there are. '
-           + 'The O2 comes in at an angle and is held there by the distal histidine, '
-           + 'which is why the site binds oxygen well and carbon monoxide less well '
-           + 'than a bare iron would.' },
+           + 'The O2 binds at an angle, held by the distal histidine, which is why '
+           + 'the site favors oxygen over carbon monoxide.' },
   '1MBC': {
     claim: 'Carbon monoxide in the same place: poisoning, as a structure.',
-    prov:  'Sperm whale, 1.5 A. CO binds this site far more tightly than O2 and '
-           + 'does not let go, so the protein is full and useless. The distal '
-           + 'histidine is what keeps the ratio from being far worse than it is.' },
+    prov:  'Sperm whale, 1.5 A. CO binds tighter than O2 and does not let go, so the '
+           + 'protein is full and useless. The distal histidine keeps the ratio from '
+           + 'being worse.' },
   '1ABS': {
     claim: 'The same CO, cut loose by light and frozen before it could leave.',
-    prov:  'Sperm whale, 1.5 A at 20 kelvin. A laser broke the Fe-CO bond and the '
-           + 'crystal was held cold enough that the CO stopped in a pocket beside '
-           + 'the iron instead of escaping. A reaction intermediate, held still and '
-           + 'measured.' },
+    prov:  'Sperm whale, 1.5 A at 20 kelvin. A laser broke the Fe-CO bond; the '
+           + 'crystal was cold enough that the CO stopped beside the iron instead of '
+           + 'escaping — a reaction intermediate, held still.' },
   '1YMB': {
     claim: 'Horse heart myoglobin: another animal, the same answer.',
-    prov:  'X-ray at 1.9 A. About a fifth of the sequence differs from the whale’s '
-           + 'and the fold does not care. The residues that do not change are the '
-           + 'ones lining the pocket.' },
+    prov:  'X-ray at 1.9 A. About a fifth of the sequence differs from the whale’s; '
+           + 'the fold does not care. The unchanged residues line the pocket.' },
   '2HHB-B': {
     claim: 'One beta chain of haemoglobin: the same fold, doing a job myoglobin '
            + 'cannot.',
-    prov:  'Human, 1.74 A, read from the file hemoglobin-lab already uses. '
-           + 'Myoglobin holds oxygen; haemoglobin passes it on, and the difference '
-           + 'is not in this chain — it is in having four of them that talk to each '
-           + 'other.' },
+    prov:  'Human, 1.74 A, from the file hemoglobin-lab already uses. Myoglobin '
+           + 'holds oxygen; haemoglobin passes it on — the difference is in having '
+           + 'four chains that talk to each other.' },
 };
 
 const views = {};
