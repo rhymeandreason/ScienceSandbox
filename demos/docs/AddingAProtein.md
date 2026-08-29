@@ -99,7 +99,7 @@ Each started as a bug that rendered beautifully, and collagen hit eight of them 
 
 ## 4. Human reviews the bench
 
-**Hand the bench over and stop.** 
+**Hand the bench over and stop.**
 
 ## 5. Add selections to proteins.js
 
@@ -127,4 +127,4 @@ It is expensive and it is a bake, not a render: `rendering-modules.md` owns the 
 
 ## 7. Downloads and files
 
-**Raw downloads are a separate question.** A deposition can be much larger than anything the bench reads (1QLZ is 2.7 MB of 20 models; the bake is 169 KB). Bake small, commit the bake, and ask before committing the raw file. The baker's header carries the source URLs so a re-run is possible without it.
+**gitignore the pdb files because they are multiple MBs**
