@@ -29,36 +29,32 @@
                                full-stage size. If the can does not read
                                as a can, the fold half of the lesson has
                                no picture.
-       does the dye read       22 atoms inside a 42 A protein, against
+       does the dye read       21 atoms inside a 42 A protein, against
                                myoglobin's 43. Whether it survives the
                                framing is the question.
-       S65T against S65        1EMA and 1GFL are one chromophore residue
-                               apart, and the difference shows up as
-                               Thr203 swinging off the phenol. The table
-                               measures it; whether it is VISIBLE is what
-                               the bench is for.
        Y66H, the blue one      1BFP has no phenol at all. One residue,
-                               one colour change, and the pocket is
-                               visibly smaller.
-       the two-chain view      1GFL holds two copies and declares itself
-                               MONOMERIC. The contact sits on the real
-                               weak interface — A206, L221, F223 — so the
-                               question is whether a crystal contact is
-                               worth showing for that, or whether it
-                               teaches two chains as a dimer.
+                               one colour change, two hydrogen bonds
+                               gone, and a visibly smaller ring.
 
-     WHAT THIS BENCH CANNOT TELL YOU. Colour. All four entries fluoresce
-     — three green, one blue — and nothing drawn here does: the difference
-     between the two is a set of atom positions, and a lesson that wants
-     the light itself has to say it some other way.
+     WHAT CAME OFF AT REVIEW, and what went with it. 1EMA (S65T), 2WUR
+     (0.90 A, a folding variant) and 1GFL's second chain. Dropping 1EMA
+     drops the S65T comparison: the phenol-to-Thr203 row now prints wild
+     type's 4.72 A with nothing on the bench reading 2.66, so the row is
+     a fact about this structure rather than half of a contrast. The
+     two-chain view went because the entry declares itself MONOMERIC and
+     two copies in an asymmetric unit are not a dimer.
 
-     AND NONE OF THEM IS WILD-TYPE GFP. Every entry carries Q80R, 2WUR
-     carries three more, and the two substitutions the bench is actually
-     about — S65T and Y66H — are inside the fused chromophore residue
-     where SEQADV cannot report them. The `made from` row reads them off
-     the atoms instead. 2WUR was filed here as "wild type" on the
-     strength of its Ser-Tyr-Gly chromophore, which is the mistake that
-     row exists to stop.
+     WHAT THIS BENCH CANNOT TELL YOU. Colour. Both entries fluoresce, one
+     green and one blue, and nothing drawn here does: the difference
+     between them is a set of atom positions, and a lesson that wants the
+     light itself has to say it some other way.
+
+     AND NEITHER IS WILD-TYPE GFP. Both carry Q80R, and the substitution
+     the bench is about — Y66H — is inside the fused chromophore residue
+     where SEQADV cannot report it. The `made from` row reads it off the
+     atoms instead. That row exists because 2WUR was filed here as "wild
+     type" on the strength of its Ser-Tyr-Gly chromophore while carrying
+     four substitutions elsewhere.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -85,19 +81,9 @@
       and three of its residues turn themselves into a dye. Nothing is added:
       the protein builds its own chromophore and then holds it still.</p>
 
-    <h2>the bright one</h2>
-    <button class="mode" id="v-1EMA" aria-pressed="true">
-      <span class="who">S65T &middot; 1EMA</span><span class="chip">1.90 &Aring;</span></button>
-
-    <h2>the jellyfish sequence</h2>
-    <button class="mode" id="v-1GFL" aria-pressed="false">
-      <span class="who">one subunit &middot; 1GFL</span><span class="chip">1 chain</span></button>
-    <button class="mode" id="v-1GFL-dimer" aria-pressed="false">
-      <span class="who">both copies &middot; 1GFL</span><span class="chip">2 chains</span></button>
-
-    <h2>the sharpest look</h2>
-    <button class="mode" id="v-2WUR" aria-pressed="false">
-      <span class="who">a folding variant &middot; 2WUR</span><span class="chip">0.90 &Aring;</span></button>
+    <h2>the jellyfish protein</h2>
+    <button class="mode" id="v-1GFL" aria-pressed="true">
+      <span class="who">one subunit &middot; 1GFL</span><span class="chip">1.90 &Aring;</span></button>
 
     <h2>one residue, another colour</h2>
     <button class="mode" id="v-1BFP" aria-pressed="false">
@@ -127,17 +113,18 @@
 
     <p class="frag" id="d-frag">&mdash;</p>
     <p class="prov" id="d-prov">&mdash;</p>
-    <p class="note">All four entries are fluorescent and all four are engineered:
-      every one carries Q80R, and none of them is the wild-type protein. What
-      changes the colour is the <em>made from</em> row, which is read off the
-      atoms rather than off the sequence records.</p>
-    <p class="note">Every view is superposed on 1EMA by its &alpha;-carbons, so
-      flipping between them moves only what actually moved. All five are the
-      same protein under the same numbering.</p>
+    <p class="note">Both are fluorescent and both are engineered: each carries
+      Q80R, so neither is strictly the wild-type protein. What changes the colour
+      is the <em>made from</em> row, read off the atoms rather than off the
+      sequence records &mdash; Y66H sits inside the fused chromophore residue,
+      where SEQADV does not report it.</p>
+    <p class="note">The blue variant is superposed on 1GFL by its &alpha;-carbons,
+      so flipping between them moves only what actually moved. Both are the same
+      protein under the same numbering.</p>
     <p class="note">Ribbon colour is secondary structure, the repo default. The
       ball-and-stick inside is the chromophore and the five side chains around
       it &mdash; Arg96 and Glu222 below, His148, Thr203 and Ser205 on the phenol
-      end. Chain A's, on every view.</p>
+      end. Chain A's, in both views.</p>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
     <p class="note" id="pick-note">Turn the molecule, click copy. Nothing reads it
@@ -180,46 +167,21 @@ const box = Proteinbox.create({
    candidate id so a button and its paragraph cannot come apart. The figures
    are all read off the bake below; nothing here is a number. */
 const SAYS = {
-  '1EMA': {
-    claim: 'The GFP everything else is a copy of: one residue changed, and it '
-           + 'got bright.',
-    prov:  'Aequorea victoria, X-ray at 1.90 A, selenomethionine. S65T folds and '
-           + 'matures faster than the wild type and has one excitation peak instead '
-           + 'of two, which is why every fusion tag descends from this and not from '
-           + 'the jellyfish protein.' },
-  '2WUR': {
-    claim: 'A chromophore as sharp as a protein gets — in an engineered variant, '
-           + 'not in the jellyfish protein.',
-    prov:  'X-ray at 0.90 A on a rotating anode, and fluorescent: F64L, I167T and '
-           + 'K238N are folding and spectral mutations well away from the site, so '
-           + 'residues 65-67 are still the wild-type Ser-Tyr-Gly. At this '
-           + 'resolution the hydrogens are modelled — dropped here, because nothing '
-           + 'else on the bench has them and a dye that grew fourteen atoms between '
-           + 'two views would read as a different molecule.' },
   '1GFL': {
-    claim: 'The jellyfish sequence, and the file that writes the chromophore as '
-           + 'three ordinary residues.',
-    prov:  'X-ray at 1.90 A, one substitution off wild type: Q80R rode in on the '
-           + 'original cDNA and is in every entry on this bench. '
-           + 'Ser65-Tyr66-Gly67 are deposited as SER, TYR and GLY, '
-           + 'cyclised in fact and not in the records — everywhere else on this '
-           + 'bench the same three atoms arrive as one residue with its own name.' },
-  '1GFL-dimer': {
-    claim: 'Both copies in the asymmetric unit — and the file calls itself a '
-           + 'monomer.',
-    prov:  'Two chains in a deposition are not a dimer: REMARK 350 says MONOMERIC, '
-           + 'author and PISA both. What makes the contact worth a look is which '
-           + 'residues are in it — Ala206, Leu221 and Phe223, the three that '
-           + 'monomeric GFP variants substitute so the protein stops sticking to '
-           + 'itself at the concentrations a cell reaches. 31 of 230 residues have '
-           + 'an α-carbon within 10 Å of the other chain, which is a small patch '
-           + 'for a 230-residue protein and about the size of the weak dimer GFP '
-           + 'actually makes.' },
+    claim: 'GFP as the jellyfish makes it: a can of eleven strands with a dye '
+           + 'built into the helix down the middle.',
+    prov:  'Yang, Moss and Phillips, 1996 — X-ray at 1.90 A, and one substitution '
+           + 'off wild type: Q80R rode in on the original cDNA. Ser65-Tyr66-Gly67 '
+           + 'are deposited as SER, TYR and GLY, cyclised in fact and not in the '
+           + 'records, so this is the one file where the chromophore can be read as '
+           + 'three ordinary residues of the chain. The entry holds two copies and '
+           + 'declares itself monomeric; one is drawn.' },
   '1BFP': {
     claim: 'Y66H: swap the phenol for an imidazole and the protein turns blue.',
     prov:  'X-ray at 2.10 A. The chromophore is a smaller ring with no hydroxyl, so '
-           + 'the hydrogen bond that Thr203 makes in the green protein has nothing '
-           + 'to make. Same barrel, same fold, different colour.' },
+           + 'the hydrogen bonds Thr203 and His148 make to the phenol have nothing '
+           + 'to make. Same barrel, same fold, same 230 residues around it — the '
+           + 'colour is one residue.' },
 };
 
 const $ = id => document.getElementById(id);
@@ -292,10 +254,10 @@ function stats(t, v) {
        them appears — SEQADV writes CHROMOPHORE there and says no more. */
     from: (m.chromoFrom || 'residues 65–67')
       + (m.chromoSplit === 1 ? ', deposited as one residue'
-                             : `, deposited as ${m.chromoSplit}`),
-    /* Against UniProt P42212, and DECLARED is the operative word: 1EMA's S65T
-       and 1BFP's Y66H are inside the chromophore, so neither file lists them
-       here. Read the row above for those. */
+                             : `, deposited as ${m.chromoSplit} residues`),
+    /* Against UniProt P42212, and DECLARED is the operative word: Y66H is
+       inside the chromophore residue, so 1BFP does not list it here. Read the
+       row above for that one. */
     subs: m.subs.length ? m.subs.join(', ') : 'none, outside the chromophore',
     lig: m.ligands.length ? m.ligands.join(', ') : 'nothing',
     /* REMARK 350's verdict, not a chain count. Two chains drawn against a

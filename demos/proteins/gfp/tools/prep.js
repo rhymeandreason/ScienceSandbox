@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* =====================================================================
- *  prep.js — five GFP candidates as ribbons with the chromophore inside.
+ *  prep.js — two GFP candidates as ribbons with the chromophore inside.
  *
  *  Run:  node proteins/gfp/tools/prep.js      (offline, no dependencies)
  *
@@ -19,8 +19,9 @@
  *  way proteins/myoglobin/tools/prep.js does.
  *
  *  THE CHROMOPHORE IS THREE RESIDUES DEPOSITED AS ONE, and that is the
- *  trap in this protein. 1EMA, 2WUR and 1BFP write it as a single
- *  HETATM residue at 66 (CRO / GYS / IIC), so 65 and 67 do not exist as
+ *  trap in this protein. 1BFP writes it as a single
+ *  HETATM residue at 66 (IIC; CRO and GYS are the codes for the ones this
+ *  bench dropped), so 65 and 67 do not exist as
  *  residues at all and an ordinary Ca trace jumps 64 -> 68. `nums` then
  *  says chain break and kit/proteinbox.js correctly snaps the ribbon in
  *  half — through the middle of the central helix, which is the one
@@ -36,38 +37,32 @@
  *  and comparing 228 modelled against 236 declared would report a
  *  complete structure as missing eight residues.
  *
- *  MSE IS A SECOND MODIFIED RESIDUE, in 1EMA only — selenomethionine at
- *  78, 88, 153, 218, deposited as HETATM. `Bake.modResidues` reads the
- *  file's own MODRES set and caTrace takes it, so those four count as
- *  chain and stop being reported as four bound ligands.
+ *  MODRES IS READ RATHER THAN LISTED. Neither entry here carries a
+ *  selenomethionine, but 1EMA did — four of them, as HETATM, which an
+ *  ATOM-only trace drops and a ligand count reports as cargo.
+ *  `Bake.modResidues` reads the file's own set, so a re-added entry needs
+ *  nothing from this baker.
  *
- *  THE TWO-CHAIN VIEW IS NOT A DEPOSITED DIMER. 1GFL holds two copies in
- *  its asymmetric unit and REMARK 350 calls the biological unit MONOMERIC,
- *  author and PISA both. What the contact IS worth looking at is which
- *  residues make it: Ala206, Leu221 and Phe223 are in it, and those three
- *  are exactly what Zacharias's monomeric variants substitute to stop GFP
- *  dimerising at the concentrations a cell reaches. So the view is a
- *  crystal contact sitting on a real weak interface, and the panel says
- *  so rather than calling two chains a dimer.
+ *  ONE CHAIN OF 1GFL, THOUGH THE FILE HOLDS TWO. They are two copies in
+ *  the asymmetric unit and REMARK 350 calls the biological unit MONOMERIC,
+ *  author and PISA both, so drawing both would teach a dimer nobody
+ *  deposited. `assembly` reads that declaration and the panel prints it.
  *
- *  NONE OF THESE IS THE WILD-TYPE PROTEIN, and only the file says so.
- *  Every entry here is engineered: 1GFL carries the Q80R cloning artifact
- *  that came with the original cDNA, 1EMA adds S65T, 2WUR is a folding
- *  variant (F64L, I167T, K238N) whose CHROMOPHORE-forming residues happen
- *  to be the wild-type Ser-Tyr-Gly, and 1BFP is Y66H plus Y145F. Calling
- *  2WUR "wild type" on the strength of its chromophore is the mistake this
- *  read exists to stop: the substitutions are counted off SEQADV, and the
- *  bench prints them rather than a word somebody chose. All four are
- *  fluorescent — three green, one blue.
+ *  NEITHER IS THE WILD-TYPE PROTEIN, and only the file says so. 1GFL
+ *  carries the Q80R cloning artifact that came with the original cDNA and
+ *  1BFP adds Y66H and Y145F to it. The substitutions are counted off
+ *  SEQADV rather than typed — which is what caught 2WUR being filed here
+ *  as wild type on the strength of its Ser-Tyr-Gly chromophore while
+ *  carrying four substitutions elsewhere. Both are fluorescent: one green,
+ *  one blue.
  *
- *  EVERY VIEW IS SUPERPOSED ON 1EMA, on Ca, over the residues the two
- *  files share. The barrel is rigid and all five are the same protein
+ *  THE BLUE VARIANT IS SUPERPOSED ON 1GFL, on Ca, over the residues the
+ *  two files share. The barrel is rigid and both are the same protein
  *  under the same numbering, so the fit is a proper measurement rather
- *  than a convenience, and the backbone RMSD it returns is comparable
- *  across the set. Without it, five crystals are five arbitrary
- *  orientations and flipping between a green and a blue variant turns
- *  the whole molecule — a reader cannot tell one substituted residue
- *  from the crystallographer's choice of origin.
+ *  than a convenience. Without it, two crystals are two arbitrary
+ *  orientations and flipping between the green and the blue turns the
+ *  whole molecule — a reader cannot tell one substituted residue from
+ *  the crystallographer's choice of origin.
  *
  *  CONNECTIVITY IS DEPOSITED WHERE THERE IS ANY. The HETATM chromophores
  *  carry CONECT; 1GFL's does not, because it is written as three
@@ -80,7 +75,7 @@
  *  SOURCES, for a re-run from scratch. The .pdb files are gitignored;
  *  data/ holds the bakes.
  *
- *    for id in 1EMA 1GFL 2WUR 1BFP; do
+ *    for id in 1GFL 1BFP; do
  *      curl -o proteins/gfp/data/src/$id.pdb \
  *        https://files.rcsb.org/download/$id.pdb
  *    done
@@ -101,23 +96,24 @@ const DATA = path.join(HERE, 'data');
  *  Not proteins/proteins.js: nothing here has been reviewed. Each line is
  *  one question the bench is being built to answer.
  */
-const REF = '1EMA';
+const REF = '1GFL';
 
 const CANDIDATES = [
-  { id: '1EMA', entry: '1EMA', chains: 'A', deflt: true,
-    purpose: 'the canonical GFP: S65T, the bright mutant every fusion tag descends from' },
-  { id: '2WUR', entry: '2WUR', chains: 'A',
-    purpose: 'the sharpest look at a chromophore, at 0.90 A — in a folding variant, '
-             + 'not in the wild-type protein' },
-  { id: '1GFL', entry: '1GFL', chains: 'A',
-    purpose: 'the jellyfish protein bar one cloning artifact: the chromophore '
-             + 'written as three ordinary residues' },
-  { id: '1GFL-dimer', entry: '1GFL', chains: 'A,B',
-    purpose: 'both copies in the asymmetric unit: the contact GFP is engineered '
-             + 'not to make. The entry declares itself MONOMERIC' },
+  { id: '1GFL', entry: '1GFL', chains: 'A', deflt: true,
+    purpose: 'the jellyfish protein bar one cloning artifact, as one subunit: the '
+             + 'chromophore written as three ordinary residues' },
   { id: '1BFP', entry: '1BFP', chains: 'A',
     purpose: 'blue variant: Y66H, one residue swapped, and the colour changes' },
 ];
+
+/* WHAT WAS ON THE BENCH AND CAME OFF, at review: 1EMA (S65T), 2WUR (0.90 A,
+   a folding variant) and 1GFL's second chain. The two-chain view went because
+   the entry declares itself MONOMERIC and two copies in an asymmetric unit are
+   not a dimer; the other two went because the bench is about the fold and the
+   dye, and three greens said it once each. Dropping 1EMA drops the S65T
+   comparison with it — the Thr203 distance below is wild type's 4.72 A, and
+   there is nothing on the bench that reads 2.66. Re-adding one is a line here
+   and a re-run. */
 
 /* THE SITE. The chromophore, plus the five side chains that hold and tune
    it: Arg96 and Glu222 drive the cyclisation and sit on the imidazolinone,
