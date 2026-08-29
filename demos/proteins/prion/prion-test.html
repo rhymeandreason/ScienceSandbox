@@ -346,25 +346,17 @@ function show(id) {
   box.setData(on.data, { colors: on.color });
 }
 
-/* THE PROTEIN'S molecule-viewer.html, in one button.
-
-   A solved basis is right for anything with distinguishable axes and wrong
-   for a globular domain, whose three extents are too close to tell apart and
-   whose solved frame would flip between rebakes. Those need a human, and a
-   human needs a way to say what they chose — which is this: turn the
-   molecule, copy the basis, paste it into the bake.
-
-   Read off the CAMERA, then inverted: the camera's orientation says where the
-   reader is standing, and a view basis says how the structure should be
-   turned to be seen from there. Those are opposites, and mixing them up
-   produces a frame that is right in exactly the wrong direction. */
+/* THE PROTEIN'S molecule-viewer.html, in one button. A solved basis is right
+   wherever the shape has axes worth solving and wrong where it does not — a
+   globular domain's three extents are too close to tell apart, so its solved
+   frame flips between rebakes. Those need a human, and a human needs a way to
+   say what they chose: turn the molecule, copy, paste it into the registry.
+   The basis itself is the box's to compute. */
 $('pick').addEventListener('click', () => {
-  const q = box.camera.quaternion.clone().invert();
-  const m = new THREE.Matrix4().makeRotationFromQuaternion(q);
-  const e = m.elements, r2 = v => Math.round(v * 1e4) / 1e4;
-  /* three.js stores column-major; a basis here is rows, same as the bake. */
-  const R = [[e[0], e[4], e[8]], [e[1], e[5], e[9]], [e[2], e[6], e[10]]]
-    .map(row => row.map(r2));
+  /* kit/proteinbox.js's, because the correct answer needs the chain group's
+     rotation as well as the camera's and only the box can see it. Done here
+     it silently dropped whatever view the structure was already wearing. */
+  const R = box.pickView();
   const text = JSON.stringify(R);
   navigator.clipboard && navigator.clipboard.writeText(text);
   $('pick-note').textContent = text;

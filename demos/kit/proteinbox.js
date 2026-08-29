@@ -798,6 +798,42 @@
        for a trace that happened to earn no view. Cleared on every setData, so
        a caller re-adds after it. */
     box.group = chainGroup;
+
+    /* ---- pickView() ----
+     *
+     *  THE BASIS THIS STRUCTURE WOULD NEED TO OPEN FACING THE WAY IT FACES
+     *  RIGHT NOW, as a row-major 3x3 ready to paste into a registry. Every
+     *  bench's "copy this view" button is this, and it lives here because the
+     *  correct answer needs something no page can reach.
+     *
+     *  WHAT A PAGE GOT WRONG DOING IT ITSELF. The obvious version reads the
+     *  camera and inverts it: the camera's orientation says where the reader
+     *  is standing, a view basis says how the structure should be turned to be
+     *  seen from there, and those are opposites. That is right only while the
+     *  chain group is unrotated — which it is exactly until a structure earns
+     *  a view, and then never again. A structure already wearing V and looked
+     *  at from camera C SHOWS C⁻¹·V, so copying C⁻¹ back drops the V that was
+     *  on screen at the time, and the paste opens somewhere nobody chose. The
+     *  failure is silent: a rotation is still a rotation, the protein still
+     *  looks like a protein, and only the person who picked the view can tell.
+     *
+     *  So: read the group's rotation as well as the camera's, and return the
+     *  product. `setData` seeds the canonical camera (theta 0, phi pi/2, which
+     *  is the identity orientation) on the first structure with a view, which
+     *  is what makes the returned basis mean the same thing when it is read
+     *  back in.
+     */
+    box.pickView = function pickView(dp) {
+      const d = dp === undefined ? 4 : dp;
+      const m = new THREE.Matrix4().makeRotationFromQuaternion(
+        box.camera.quaternion.clone().invert());
+      m.multiply(new THREE.Matrix4().makeRotationFromQuaternion(chainGroup.quaternion));
+      const e = m.elements, k = Math.pow(10, d), r = v => Math.round(v * k) / k;
+      /* three.js stores column-major; a basis is rows, same as a bake. */
+      return [[e[0], e[4], e[8]], [e[1], e[5], e[9]], [e[2], e[6], e[10]]]
+        .map(row => row.map(r));
+    };
+
     Object.defineProperty(box, 'rep', { get: () => rep });
     return box;
   }
