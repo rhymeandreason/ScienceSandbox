@@ -51,8 +51,7 @@
  *  editorial work is.
  *
  *  VIEWS — which modules have something to SHOW, and what. A module with
- *  no entry keeps its placeholder, which is the honest signal that the
- *  lesson behind it has no stage yet; a stand-in that is not that
+ *  no entry grows no picture box at all; a stand-in that is not that
  *  module's own subject is worse than no picture. The water scenarios'
  *  `frame` blocks are TUNING rather than curriculum — they are what
  *  water/watersim.js's step() takes.
@@ -177,7 +176,7 @@
     ['Why does carbon monoxide kill at 0.1% of the air?',       { levels:2, cooperat:1 }],
     ['Why does haemoglobin have four parts and not one?',       { cooperat:1 }],
     ['How does a fetus take oxygen from its mother’s blood?',   { cooperat:2 }],
-    ['What does a cell move molecules against their gradient?', { pumps:1, glycolysis:2, bilayer:2 }],
+    ['How does a cell move molecules against their gradient?',  { pumps:1, glycolysis:2, bilayer:2 }],
     ['How does cholera dehydrate you without entering a cell?', { pumps:1, osmosis:1 }],
     ['Why do insects need no lungs?',                           { pumps:2, diffusion:1 }],
     ['Why can you digest starch but not cellulose?',            { polymers:1 }],

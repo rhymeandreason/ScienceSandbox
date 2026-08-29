@@ -11,9 +11,9 @@
      A module card goes LIVE the moment it is REVEALED, not on a click. The map's
      whole claim is that a module is a thing you can look at, and a placeholder
      asks the reader to take that on faith until they click. `VIEWS` below says
-     which modules have something to show; the ones with no entry keep the
-     placeholder, which is the honest signal that the lesson behind them has no
-     stage yet.
+     which modules have something to show; the ones with no entry grow no
+     picture box at all, and the ones that do show a loading state until the
+     stage mounts.
 
      They have to RUN rather than be pre-rendered as stills: most are water
      sims, and a freshly spawned one is molecules at random positions, so a
@@ -190,18 +190,21 @@
     width: 100%; aspect-ratio: 4 / 3; margin: 0.65rem 0 0.25rem;
     background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
   }
-  /* The word is an OVERLAY, not a sibling of the canvas. As a text node in a
-     flex box it was a flex ITEM: the canvas took its 100% beside it and shoved
-     the word out of the left edge, leaving the tail of it — "GE" — showing on
-     every card wide enough to clip rather than hide it. Absolutely positioned,
-     it sits behind and is simply not displayed once a stage is mounted, so
-     nothing about the layout depends on whether there is a picture yet. */
+  /* A LOADING state, not a label. The thumb only exists on a card that has a
+     picture coming, so the box says "arriving" rather than naming an absence:
+     an overlay sweeping until the stage mounts over it. Absolutely positioned
+     and behind the canvas, so nothing about the layout depends on whether the
+     picture is here yet. */
   .node.module .thumb .ph {
     position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.5rem; letter-spacing: 0.16em; text-transform: uppercase; color: #c2beb4;
+    background: linear-gradient(100deg,
+      #eceae4 30%, #f6f4ef 48%, #eceae4 66%) 0 0 / 300% 100%;
+    animation: thumb-shimmer 1.5s linear infinite;
   }
-  .node.module.hub .thumb .ph { font-size: 0.6rem; letter-spacing: 0.2em; color: #b6b2a8; }
+  @keyframes thumb-shimmer { to { background-position: -300% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .node.module .thumb .ph { animation: none; }
+  }
   .node.module .thumb.mounted .ph { display: none; }
   /* Every stage this page mounts makes its own canvas inside the thumb —
      card-stage.js and molecule-builder.js both, and for the same reason: a
@@ -219,10 +222,10 @@
     object-fit: contain; opacity: .5;
   }
   /* The open card keeps the ratio and only the width changes, so opening a card
-     scales its picture rather than re-composing it. Type for the placeholder
-     lives on `.ph` above: setting `color` here used to beat `.mounted`'s own
-     rule on equal specificity, which is why the word came back the moment a
-     card was expanded and nowhere else. */
+     scales its picture rather than re-composing it. The loading state lives on
+     `.ph` above and nowhere else: a rule here on equal specificity beats
+     `.mounted`, which is how the placeholder used to come back the moment a
+     card was expanded. */
   .node.module.hub .thumb { margin: 1rem 0 0.35rem; }
 
   .node.module .meta {
@@ -758,8 +761,8 @@ const rankFrom = (from, other) => {
      build  — molecule-builder.js, which brings its own ORTHOGRAPHIC stage.
      molbox — kit/molbox.js: one spec, solved into the box, turning.
 
-   A module with no entry keeps the placeholder, which is the honest signal that
-   the lesson behind it has no stage yet. There was a fourth kind, `mol`: one
+   A module with no entry grows no picture box: the empty rectangle was the
+   reader's problem to interpret, and its absence says the same thing better. There was a fourth kind, `mol`: one
    built spec on a turntable. It is gone, and nothing replaced it, because it
    was two mistakes at once. It solved its camera at create and never again, so
    a card re-framed for its opening size kept that frame (measured: ethanol
@@ -949,6 +952,14 @@ function goLiveSoon(n) {
 /* What a node draws. A module names its view in mapcontent.js; a SPECIMEN
    carries its own, because the file it draws is the registry's answer and
    restating it in VIEWS would be a second source for the same fact. */
+/* A thumb is a PROMISE that a picture is coming, so a card with no view has no
+   box: an empty grey rectangle appearing on click is something the reader has
+   to read as meaning anything at all. The `.ph` inside is the loading state
+   until the stage mounts over it. */
+function thumbHTML(n) {
+  return viewFor(n) ? '<div class="thumb"><span class="ph"></span></div>' : '';
+}
+
 function viewFor(n) {
   if (n.kind === 'protein') return { kind: 'protein', protein: n.protein, variant: n.variant };
   return VIEWS[n.id];
@@ -1167,7 +1178,7 @@ function paintNode(n) {
     if (tint) el.style.setProperty('--dot', tint);
     el.innerHTML = '<div class="name">' + n.name + '</div>' +
                    '<div class="claim">' + n.claim + '</div>' +
-                   '<div class="thumb"><span class="ph">image</span></div>' +
+                   thumbHTML(n) +
                    '<div class="meta"></div>';
   } else if (n.kind === 'protein') {
     /* A specimen, not a claim. Same card frame so it sits in the fan, and its
@@ -1196,7 +1207,7 @@ function paintNode(n) {
       n.species,
     ].filter(Boolean).map(esc).join(' · ');
     el.innerHTML = '<div class="name">' + n.name + '</div>' + tag +
-                   '<div class="thumb"><span class="ph">image</span></div>' +
+                   thumbHTML(n) +
                    '<div class="claim">' + n.claim + '</div>' +
                    '<div class="prov">' + prov + '</div>' +
                    '<div class="meta"></div>';
