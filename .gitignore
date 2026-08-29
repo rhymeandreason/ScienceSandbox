@@ -5,26 +5,20 @@ node_modules/
 .env.local
 .vercel/
 
-# 2.7 MB of 20 NMR models; only prep.js reads it, and it bakes 169 KB.
-# prep.js skips the ensemble when it is absent and prints the curl.
-demos/proteins/prion/data/1QLZ.pdb
-# derived from it, and no page loads it today
-demos/proteins/prion/data/prp-view-ensemble.pdb
+# EVERY RAW DEPOSITION, WHEREVER IT SITS. A .pdb is megabytes of the thing a
+# baker READS; what the pages load is the JSON it writes, which is kilobytes.
+# Each baker's header carries the curl that fetches its sources back, so a
+# clean checkout re-bakes after one download rather than carrying the inputs
+# forever. `.pdb1` and friends are biological-assembly files, same deal.
+*.pdb
+*.pdb[0-9]
 
-# 4.4 MB of seven raw depositions; only prep.js reads them, and it bakes 45 KB.
-# prep.js's header carries the curl loop that fetches them back.
-demos/proteins/rnase/data/src/
-demos/proteins/myoglobin/data/src/
+# THE ONE EXCEPTION, and it is not about size. napump's OPM copies are a
+# second source: they carry the membrane orientation, which is the half of
+# that bake nothing here could re-derive from a plain RCSB curl.
+!demos/proteins/napump/data/src/*.pdb
 
-# 2.9 MB of six raw collagen depositions; only prep.js reads them, and it
-# bakes 113 KB. prep.js's header carries the curl loop that fetches them back.
-demos/proteins/collagen/data/src/
-
-# 21 MB of six raw depositions (three of them mmCIF, which is the only format
-# the human structures are published in); only prep.js reads them, and it bakes
-# ~600 KB. prep.js's header carries the curl loop that fetches them back.
+# Not a .pdb and so not covered above: atp-synthase's sources are 21 MB, three
+# of them mmCIF, which is the only format its human structures are published
+# in. prep.js's header carries the curl loop.
 demos/proteins/atp-synthase/data/src/
-
-# NOT gitignored: demos/proteins/napump/data/src/ — 4 MB of PDBs whose OPM
-# copies are a second source that a plain RCSB curl does not reproduce. The
-# orientation is the half of that bake nothing here could re-derive.
