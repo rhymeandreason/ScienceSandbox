@@ -137,6 +137,10 @@
      the ink of something meant to be read rather than checked. */
   .tab-panel .lead{font-size:0.9rem;color:var(--h-ink);line-height:1.5;
     margin:0 0 var(--space-3)}
+  .notes{margin:0;padding:0 0 0 1.1em}
+  .notes li{font-size:0.78rem;line-height:1.6;color:var(--h-muted);
+    margin:0 0 var(--space-2)}
+  .notes li:last-child{margin-bottom:0}
 </style>
 
 </head>
@@ -210,25 +214,19 @@
     </div>
 
     <div class="tab-panel" id="p-science" role="tabpanel" aria-labelledby="t-science">
-      <p class="note"><strong>The helix nobody records.</strong> A PDB says
-        helix or sheet, and the collagen helix is neither &mdash; it is
-        polyproline II, three of them coiled together. Half of these six files
-        therefore carry no secondary structure at all and bake as pure coil,
-        which is honest and is why the strands are told apart by colour
-        instead. Two of the three that do carry records are describing their
-        PARTNER &mdash; the integrin domain and Hsp47 are ordinary proteins
-        with real helices and sheets in them, and the collagen beside them is
-        still coil. That leaves 1CAG, the only file here that annotates a
-        collagen chain at all, as a helix of class 10 and a coiled coil in the
-        remark. So the collection holds both answers about the same shape, and
-        the <em>ss records</em> row says which one you are looking at.</p>
-
-      <p class="note">Hydroxyproline is deposited as HETATM, because it is a
-        modified residue. It is also every third residue of collagen: an
-        ATOM-only trace of 1CAG keeps 19 of 29 and splines the ribbon over the
-        holes, looking like a disordered protein rather than a broken read. The
-        bakes pass each file's own MODRES set, and the <em>hydroxylated</em>
-        row is what that bought.</p>
+      <ul class="notes">
+        <li><strong>The helix nobody records.</strong> Collagen's helix isn't
+          a PDB helix or sheet &mdash; it's polyproline II, three strands
+          coiled together &mdash; so half these files bake as pure coil,
+          told apart by colour instead.</li>
+        <li><strong>Records that describe the wrong thing.</strong> Two of
+          the three files with SS records are annotating their
+          <em>partner</em> (the integrin domain, Hsp47), not collagen. Only
+          1CAG annotates a collagen chain at all.</li>
+        <li><strong>Hydroxyproline hides as HETATM.</strong> It's every
+          third residue, so an ATOM-only trace (1CAG) drops most of it and
+          looks disordered rather than unread.</li>
+      </ul>
     </div>
 
     <div class="tab-panel" id="p-summary" role="tabpanel" aria-labelledby="t-summary" hidden>
@@ -236,36 +234,26 @@
         tendon and cornea hold their shape. Three chains, each a left-handed
         polyproline helix, wound into a right-handed rope.</p>
 
-      <p class="note">The sequence is Gly-X-Y, forever: every third residue is
-        glycine because the three chains pack so close to the axis that nothing
-        with a side chain fits there. X is usually proline and Y usually
-        hydroxyproline, which is why you need vitamin C &mdash; the enzyme that
-        makes hydroxyproline needs it, and without it the helix is unstable at
-        body temperature. That is scurvy: not a missing protein, a protein that
-        cannot hold its shape.</p>
-
-      <p class="note">The glycine rule is what makes the disease. Swap one
-        glycine for alanine &mdash; one extra methyl group, the smallest
-        possible change &mdash; and the helix cannot close there. In a person
-        that is osteogenesis imperfecta, and it is dominant rather than
-        recessive: the bad chain joins triple helices built mostly from good
-        chains and ruins them, so one broken copy out of two is worse than
-        having none.</p>
-
-      <p class="note">Then it leaves the cell and assembles: molecules
-        staggered by 67 nm into fibrils, fibrils into fibres, cross-linked
-        until they stop being individual molecules at all. That is the step no
-        deposition holds, and the step that makes tendon.</p>
+      <ul class="notes">
+        <li><strong>Gly-X-Y, forever.</strong> Glycine is the only residue
+          small enough for the crowded axis; Y is usually hydroxyproline,
+          made by an enzyme that needs vitamin C. Without it the helix is
+          unstable at body temperature &mdash; scurvy, not a missing
+          protein.</li>
+        <li><strong>One substitution breaks it.</strong> Swap a glycine for
+          alanine and the helix can't close there. It's dominant: the bad
+          chain joins helices built from good chains and ruins them &mdash;
+          osteogenesis imperfecta.</li>
+        <li><strong>Then it assembles.</strong> Molecules stagger by 67 nm
+          into fibrils, fibrils into fibres &mdash; the step no deposition
+          holds, and what makes tendon.</li>
+      </ul>
     </div>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
-    <p class="note" id="pick-note">Turn the molecule, then copy. Every view here
-      already opens on its own long axis &mdash; the one thing about a rod's
-      frame that is never in doubt &mdash; so this is for choosing the roll.
+    <p class="note" id="pick-note">Turn the molecule, then copy.
       Paste it into <code>view.basis</code> in <code>proteins.js</code> with
-      <code>by:&nbsp;'human'</code>, then re-run the baker: the registry is the
-      only place a chosen basis is written, and the baker is what puts it in
-      the file every page reads.</p>
+      <code>by:&nbsp;'human'</code>.</p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>

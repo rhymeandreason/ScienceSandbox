@@ -162,20 +162,9 @@ const box = Proteinbox.create({
   sub: 10,
 });
 
-/* Colour says WHICH STATE, not which residue: blue is the healthy fold, rust
-   the disease one, the same two roles the contrast pages use. It overrides
-   Proteinbox's secondary-structure palette on purpose — the page's whole
-   claim is that one sequence occupies both states, and helix-vs-strand is
-   already carried by the ribbon's own shape and by the helix / strand row. */
-const NATIVE_COLOR = 0x3f7abd, FIBRIL_COLOR = 0xb3300c;
+const VIEWS = ['1QLZ', '6LNI', 'stack'];
 
-const VIEWS = [
-  { id: '1QLZ', native: true },
-  { id: '6LNI', native: false },
-  { id: 'stack', native: false },
-];
-
-const views = {};                        // id -> { chains, data, color, stats }
+const views = {};                        // id -> { chains, data, stats }
 let view = null;
 const $ = id => document.getElementById(id);
 
@@ -211,15 +200,14 @@ const SAYS = {
 };
 
 
-VIEWS.forEach(({ id, native }) => {
+VIEWS.forEach(id => {
   fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(data => {
     /* A bake, like every other protein's: the chain-aware parse and the solved
        frame both happened in the baker, so this page reads coordinates and
        draws them. It was PDB text until the unfold animation was dropped —
        what a ribbon needs is a trace, and a page that parses is a page making
        decisions the baker already made. */
-    views[id] = { data, color: native ? NATIVE_COLOR : FIBRIL_COLOR,
-                  stats: measure(data) };
+    views[id] = { data, stats: measure(data) };
     if (view === id) show(id);           // clicked before the fetch landed
   }).catch(e => console.warn(`prion: ${id} — ${e.message}`));
 });
@@ -347,7 +335,7 @@ function show(id) {
   $('d-raw').href = u.file;
   $('d-baked').href = `data/${r.baked}`;
 
-  box.setData(on.data, { colors: on.color });
+  box.setData(on.data, { colors: ProteinLib.colorsOf(ME, m) });
 }
 
 /* THE PROTEIN'S molecule-viewer.html, in one button. A solved basis is right
@@ -367,9 +355,9 @@ $('pick').addEventListener('click', () => {
   console.log(`view for ${view}:`, text);
 });
 
-VIEWS.forEach(({ id }) => {
+VIEWS.forEach(id => {
   $('v-' + id).addEventListener('click', () => {
-    VIEWS.forEach(v => $('v-' + v.id).setAttribute('aria-pressed', String(v.id === id)));
+    VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
     show(id);
   });
 });
@@ -379,8 +367,7 @@ VIEWS.forEach(({ id }) => {
    other decisions about it. The pressed button is set from the same answer, so
    the highlight and the stage cannot disagree. */
 const OPEN = ProteinLib.defaultOf(ME).id;
-VIEWS.forEach(v => {
-  const id = typeof v === 'string' ? v : v.id;
+VIEWS.forEach(id => {
   $('v-' + id).setAttribute('aria-pressed', String(id === OPEN));
 });
 show(OPEN);

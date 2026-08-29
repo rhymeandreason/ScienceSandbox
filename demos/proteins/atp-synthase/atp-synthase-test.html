@@ -155,6 +155,10 @@
   .tab-panel[hidden]{display:none}
   .tab-panel .lead{font-size:0.9rem;color:var(--h-ink);line-height:1.5;
     margin:0 0 var(--space-3)}
+  .notes{margin:0;padding:0 0 0 1.1em}
+  .notes li{font-size:0.78rem;line-height:1.6;color:var(--h-muted);
+    margin:0 0 var(--space-2)}
+  .notes li:last-child{margin-bottom:0}
 
   /* The play mark, and the pause it becomes. `currentColor` so it follows the
      row through hover and the pressed state, where the button turns green and
@@ -196,16 +200,11 @@
     <h2>active site detail</h2>
     <button class="mode" id="v-head" aria-pressed="false">
       <span class="who">the head, &beta; picked out</span><span class="chip" id="head-chip">&mdash;</span></button>
-    <p class="earmark"><b>The same file, repainted.</b> Not another structure
-      and not a piece of one: all 28 chains are still here, with everything
-      that is not the head faded back so the eye goes to it. The three &beta;
-      are the ones with catalytic sites; the three &alpha; between them hold
-      ATP they never turn over.
-      <b>One &beta; and the &alpha; beside it are drawn in the site views' own
-      blue and orange</b> &mdash; one catalytic interface, lit up. The &beta;
-      is the same chain and the same empty site as &beta;-E below, so you can
-      carry it down; the &alpha; is there because the site is a joint between
-      the two, not a pocket in one.</p>
+    <p class="earmark"><b>The same file, repainted.</b> All 28 chains are
+      still here, faded except the head. Three &beta; carry the catalytic
+      sites; three &alpha; hold ATP they never turn over. One interface is
+      lit in the site views' blue and orange &mdash; the same &beta; as
+      &beta;-E below, plus the &alpha; that completes its site.</p>
 
     <!-- THE CHIP HERE IS FILLED FROM THE BAKE, not typed: these two buttons
          exist to be an occupancy, and an occupancy typed into markup is a
@@ -215,10 +214,9 @@
     <button class="mode" id="v-dp" aria-pressed="false">
       <span class="who">&beta;-DP &middot; product still bound</span><span class="chip" data-chip="held">&mdash;</span></button>
     <p class="earmark"><b>Two subunits of one crystal, either side of letting
-      go.</b> Superposed on the P-loop, the eight residues that grip the
-      phosphates, so the site stays put and the domain swing is what moves.
-      Releasing that ADP is what the rotation does, and it is where this
-      enzyme's energy actually goes.</p>
+      go.</b> Superposed on the P-loop, so the site stays put and the domain
+      swing is what moves &mdash; releasing that ADP is where this enzyme's
+      energy goes.</p>
 
     <h2>what you are looking at</h2>
     <p class="claim" id="d-claim">&mdash;</p>
@@ -250,51 +248,20 @@
     </div>
 
     <div class="tab-panel" id="p-science" role="tabpanel" aria-labelledby="t-science">
-      <p class="note"><strong>You cannot see a proton.</strong> It is one
-        positive charge with no electrons, and a structure is a map of where
-        the electrons are. So nothing on this bench shows the thing that
-        actually drives it: the eight c-subunits are here, and the glutamate
-        each one carries in the middle of the membrane is here, but the ion
-        riding on it is not and cannot be. What is deposited elsewhere, in the
-        Na&#8314;-driven version of this enzyme, is one sodium per subunit,
-        sitting exactly where the proton goes.</p>
-
-      <p class="note"><strong>Eight subunits, three ATP.</strong> A full turn
-        of this ring carries eight ions and makes three ATP, and those numbers
-        do not divide. The count is not a constant either &mdash; other
-        organisms build rings of ten, eleven, fourteen &mdash; so the
-        protons-per-ATP figure a textbook quotes is a property of the species,
-        not of the chemistry. It is also why the shaft has to be springy: the
-        ring can only stop where a subunit is, every 45&deg;, and the head
-        wants its steps at 120&deg;.</p>
-
-      <p class="note"><strong>The chain labels travel with the rotor.</strong>
-        The depositors name the three &beta; subunits by which conformation
-        each is in, so as &gamma; turns the labels follow it round: state 1's
-        chain D is state 3's chain E. Comparing by letter therefore measures
-        the relabelling and not the motion, and reported 60&nbsp;&Aring; for a
-        head that did not move. Each chain is matched to the best-fitting copy
-        of the same subunit instead. It is the reason the two structures the
-        turn was measured against are read by the baker rather than trusted by
-        their labels, and the console prints the pairing on every run.</p>
-
-      <p class="note"><strong>The two sites are fitted on eight residues, not
-        on the chain.</strong> &beta;-E is open because its C-terminal domain
-        has swung away from the nucleotide. Fitting whole subunits would split
-        that difference and misalign both sites in order to make the domains
-        agree; fitting the P-loop puts the chemistry in one place and leaves
-        the swing visible. The <em>what moved</em> row is the residual over the
-        rest of the chain, and it is the swing.</p>
-
-      <p class="note"><strong>There is no ATP on this bench.</strong> The only
-        deposition that shows one in this enzyme's catalytic site holds
-        AMP-PNP &mdash; ATP with the oxygen between the last two phosphates
-        replaced by nitrogen, so it cannot be broken and the site can be
-        photographed clamped shut. That view was cut at review, because a
-        ligand chosen by the experimenter is a weaker thing to build a lesson
-        on than two sites that simply are what they are. So the product is
-        here and the substrate is not, and that gap is a fact about what has
-        been crystallised rather than about the enzyme.</p>
+      <ul class="notes">
+        <li><strong>You cannot see a proton.</strong> It has no electrons, so
+          nothing here shows the ion actually driving the motor &mdash; only
+          the glutamate each c-subunit carries it on.</li>
+        <li><strong>Eight ions, three ATP &mdash; the numbers don't divide.</strong>
+          That mismatch is why the shaft has to be springy: the ring can only
+          stop every 45&deg;, and the head wants steps of 120&deg;.</li>
+        <li><strong>Matched by conformation, not by chain letter.</strong>
+          Depositors' labels travel with the rotor, so states are compared by
+          best-fitting subunit, and the two sites are fitted on the P-loop
+          alone so the domain swing stays visible. No view here holds real
+          ATP &mdash; the one deposition that tried used an unbreakable
+          stand-in, and was cut at review.</li>
+      </ul>
     </div>
 
     <div class="tab-panel" id="p-summary" role="tabpanel" aria-labelledby="t-summary" hidden>
@@ -304,50 +271,27 @@
         is literally a motor, and it runs at over a hundred revolutions a
         second.</p>
 
-      <p class="note">Two pieces, two jobs. <strong>F&#8320;</strong> sits in
-        the membrane: a ring of c-subunits, eight to fifteen depending on the
-        species, each carrying one proton across in single file. The flow of
-        protons down their gradient turns the ring, the way water turns a mill
-        wheel. <strong>F&#8321;</strong> sticks out into the matrix: three
-        &alpha; and three &beta; subunits alternating around a central shaft,
-        the &gamma; subunit, which is bolted to the ring. As &gamma; turns
-        inside the head it deforms each &beta; subunit in turn.</p>
-
-      <p class="note">That deformation is the chemistry. Boyer's binding change
-        mechanism says the three catalytic sites are never in the same state at
-        once: one open, one loosely holding ADP and phosphate, one clamped
-        shut. A third of a turn moves each site on to the next state. The
-        surprise is that making the ATP bond costs almost nothing &mdash; the
-        energy goes into <em>releasing</em> it. The finished ATP is stuck to
-        the tight site, and the rotation is what pries it off. The two site
-        views on this bench are the two ends of that release: holding, and
-        empty.</p>
-
-      <p class="note">Walker solved the F&#8321; structure in 1994 and found
-        what Boyer had predicted from kinetics alone: three &beta; subunits
-        caught in three different states in one crystal. They shared the Nobel
-        in 1997. The gradient that drives the whole thing is what the electron
-        transport chain exists to build, which makes this the enzyme that
-        chain has been working towards.</p>
-
-      <p class="note">It also runs backwards, and does. Spend ATP instead of
-        making it and the motor becomes a pump, pushing protons out. A cell
-        starved of oxygen would burn its remaining ATP that way in minutes,
-        which is what the inhibitor protein IF1 is for: it jams the rotor in
-        one direction only. It is drawn in violet on the human views, and it
-        is the one chain there that is not part of the enzyme.</p>
+      <ul class="notes">
+        <li><strong>Two pieces, two jobs.</strong> F&#8320; is a membrane
+          ring turned by protons falling down their gradient; F&#8321;'s
+          &alpha;&#8323;&beta;&#8323; head sits on the &gamma; shaft bolted
+          to it, and each turn deforms a &beta; subunit.</li>
+        <li><strong>Boyer's binding change mechanism.</strong> The three
+          catalytic sites are never in the same state &mdash; open, holding,
+          clamped shut &mdash; and a third of a turn moves each one on.
+          Making the bond costs almost nothing; releasing it is what the
+          rotation pays for. Walker's 1994 structure confirmed it, and they
+          shared the 1997 Nobel.</li>
+        <li><strong>It runs backwards too.</strong> Starved of oxygen, the
+          motor burns ATP to pump protons instead &mdash; which is what IF1,
+          the violet chain on the human view, jams shut.</li>
+      </ul>
     </div>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
-    <p class="note" id="pick-note">Turn the molecule, then copy. The assemblies
-      already open on the rotation axis, which is the one thing about this
-      enzyme's frame that is never in doubt, so this is for choosing the roll
-      &mdash; and for the four single-subunit views, which have no axis and
-      open in the deposited frame until somebody picks one.
+    <p class="note" id="pick-note">Turn the molecule, then copy. 
       Paste it into <code>view.basis</code> in <code>proteins.js</code> with
-      <code>by:&nbsp;'human'</code>, then re-run the baker: the registry is the
-      only place a chosen basis is written, and the baker is what puts it in
-      the file every page reads.</p>
+      <code>by:&nbsp;'human'</code></p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -484,51 +428,34 @@ const SAYS = {
   open: {
     claim: 'The catalytic site with nothing in it — the same protein as the '
          + 'one below, in the same crystal, standing open.',
-    prov: 'X-ray at 2.85 Å. This is β-E: the C-terminal domain has swung away '
-        + 'from the nucleotide site, which is why nothing is bound and why '
-        + 'the swing shows up in the "what moved" row next door. The P-loop '
-        + 'is drawn close up with nothing in it, and that absence is a '
-        + 'measurement — the baker was asked what was bound here and found '
-        + 'nothing, which is not the same as never having looked.' },
+    prov: 'X-ray at 2.85 Å. β-E\'s C-terminal domain has swung away from the '
+        + 'nucleotide, so the P-loop is drawn with nothing bound — a measured '
+        + 'absence, not an unlooked one.' },
   dp: {
     claim: 'The same site holding ADP and a magnesium — the product, made, '
          + 'and not yet let go.',
-    prov: 'Chain D of the same crystal. Read against β-E this is the pair '
-        + 'either side of release: the bond is already made, and what the '
-        + 'next third of a turn has to do is pry the product off. That is '
-        + 'the part of this enzyme that surprises people — making the ATP '
-        + 'costs almost nothing, and the rotation is what pays for letting '
-        + 'it go.' },
+    prov: 'Chain D of the same crystal, holding ADP and magnesium — the pair '
+        + 'either side of release. Making the bond costs almost nothing; the '
+        + 'rotation is what pries the product off.' },
   head: {
     claim: 'The head on its own: three β subunits, each with a catalytic '
          + 'site, alternating with three α that hold ATP and never turn it '
          + 'over.',
-    prov: 'The same 8H9S coordinates as the whole enzyme above, with the '
-        + 'membrane and the stator not drawn. Every catalytic site sits about '
-        + '31 Å out from the axis and 110 Å above the c-ring, so the three of '
-        + 'them ring the shaft at one height. γ never comes closer than about '
-        + '25 Å to a bound nucleotide — it bears on the base of each β and the '
-        + 'deformation travels the rest of the way, which is why β-DP\'s '
-        + '"what moved" row is the transmission rather than a side effect. '
-        + 'Each site is also a joint: about fourteen residues from β and one '
-        + 'arginine reaching across from the neighbouring α, so a lone β '
-        + 'subunit has a pocket and no chemistry.' },
+    prov: 'The same 8H9S coordinates, membrane and stator hidden. Each site '
+        + 'sits ~31 Å out and ~110 Å above the c-ring; γ stays ~25 Å from the '
+        + 'nucleotide and works through the β base instead. About fourteen '
+        + 'residues come from β and one arginine reaches in from the '
+        + 'neighbouring α — a lone β has a pocket, not chemistry.' },
   human: {
     claim: 'The whole human enzyme: rotor ring in the membrane, shaft, head, '
          + 'and two tan parts that hold the head still while the shaft turns '
          + 'inside it.',
-    prov: 'Cryo-EM at 2.53 Å, 28 chains, 17 different subunits. The violet '
-        + 'chain is IF1, the inhibitor that jams the motor so a starved cell '
-        + 'cannot run it backwards and burn its own ATP. The two tans are one '
-        + 'job split in two: the light one is the girder running down the '
-        + 'outside, and the darker one is what sits in the membrane. The '
-        + 'proton path is a joint between the darker tan and the blue — '
-        + 'subunit a holds two half-channels, and each c-subunit carries one '
-        + 'ion between them, so a full turn costs eight and yields three ATP, '
-        + 'which is why the ratio is not a round number. Subunit a is also '
-        + 'one of only two chains here that the mitochondrion encodes itself '
-        + 'rather than importing. Note what the β subunits hold — two ADPs '
-        + 'and one empty site, and no ATP-like site anywhere.' },
+    prov: 'Cryo-EM at 2.53 Å, 28 chains, 17 subunits. Violet is IF1, the '
+        + 'inhibitor that blocks reverse rotation. The two tans are one '
+        + 'stator split in two — girder outside, membrane anchor inside — '
+        + 'and subunit a\'s two half-channels move one proton per c-subunit, '
+        + 'so a full turn costs eight protons for three ATP. The β subunits '
+        + 'hold two ADPs and one empty site — no ATP anywhere.' },
 };
 
 /* Why a view has no superposition, which the baker cannot know: it reports
@@ -1112,18 +1039,13 @@ function spinNote(t) {
   if (!sp) return 'This structure has no measured rotation, so there is ' +
                   'nothing here to turn.';
   const best = sp.states.map(x =>
-    `<em>${x.deg > 0 ? '+' : ''}${x.deg}°</em> lands its rotor ` +
-    `${x.lands}&nbsp;&Aring; from where ${x.id === 'state2' ? 'state 2' : 'state 3'} ` +
-    `actually has it, against ${x.apart}&nbsp;&Aring; unturned`).join(', and ');
-  return `<b>What is real in this, and what is not.</b> The axis was measured, ` +
-    `not chosen: both other states solve it independently and agree to ` +
-    `<em>${sp.spread.degrees}°</em>, with their axes passing ` +
-    `<em>${sp.spread.lines}&nbsp;&Aring;</em> apart. Turning this file's ` +
-    `${sp.chains.length} rotor chains by ${best} — over ${sp.states[0].over} ` +
-    `&alpha;-carbons. So every frame is state 1's own coordinates rigidly ` +
-    `rotated, and the deposited states sit on the path. What is <b>not</b> ` +
-    `here: the head never changes as it turns, and in the real enzyme it does. ` +
-    `That change is the chemistry, and it is what the two site views hold.`;
+    `<em>${x.deg > 0 ? '+' : ''}${x.deg}°</em> &rarr; ${x.lands}&nbsp;&Aring; ` +
+    `off state ${x.id === 'state2' ? '2' : '3'} (${x.apart}&nbsp;&Aring; unturned)`
+  ).join(', ');
+  return `<b>Real vs. not.</b> The axis is measured &mdash; two independent ` +
+    `solves agree to <em>${sp.spread.degrees}°</em>. Rigidly rotating: ${best}. ` +
+    `<b>Not</b> shown: the head changing shape as it turns &mdash; that's the ` +
+    `chemistry, in the site views instead.`;
 }
 
 function spinReset() {

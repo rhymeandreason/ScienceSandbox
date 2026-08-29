@@ -2,67 +2,28 @@
 
 # Adding a protein
 
-From "let's look at X" to a bench the human can click through, and from there to a protein the repo holds. No lesson, no page copy, no roadmap. The report at the end of each step is the deliverable, not the code.
+Workflow: A separate agent session looks at proteins-wishlist and does a first pass at finding a good candidate file.
 
-**Say what the protein IS before pulling a byte of it.** Step 1 is a summary written from what you already know, printed into the chat, and it is the brief for the search that follows — every claim in it is a structure to go looking for. Pull first and you get whatever a keyword search returned, then write a caption for it.
+**The bench comes before the database.** `proteins/proteins.js` is what we have SELECTED, and selecting is a human looking at structures on a bench and saying which ones earn a place. So a new protein is not registered when it is pulled; it is registered after the human reviews the bench.
 
-**The bench comes before the database.** `proteins/proteins.js` is what we have SELECTED, and selecting is a human looking at structures on a bench and saying which ones earn a place. So a new protein is not registered when it is pulled; it is registered in step 5, after step 4 has thrown some of it away. The prion bench carried a Syrian hamster pair through review and lost it there, which is the shape of a normal pass, not a failure of one.
+**The rule the whole file serves: look before you decide, and measure before you render.**
 
-**The rule the whole file serves: look before you decide, and measure before you render.** A protein arrives as an argument about what it will show, and the argument is usually wrong. This repo has paid for that twice, and both receipts are in here.
+## 1. Pull the data from proteins/proteins-wishlist.md
 
-## 1. Summary — write this FIRST, and print it into the chat
+## 2. Build the bench
 
-Write a short editorial style summary capturing what the protein IS and why a lesson would want it. Before pulling anything.
+One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can review. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
 
-**IT IS THE BRIEF FOR STEP 2, which is why it comes first.** A summary written after the data is a caption for whatever happened to be deposited; written before, it is a list of claims, and each claim is a structure to go looking for. Collagen's went "Gly-X-Y, every third residue glycine · hydroxyproline and vitamin C · one wrong glycine gives brittle bone · staggered into fibrils", and that is exactly the shelf that came back: a bare helix, a hydroxylated twin, a Gly→Ala peptide, one whole molecule. Nothing on that bench was found by browsing.
+4 examples. Copy hexokinase as the default. Copy prion if you have a disease or mutation variatn. If you have a reason to use an advanced example, tell the human first.
 
-It is written from what you already know, so **it will contain things the data then corrects** — that is the point of the order, not a flaw in it. Collagen's first draft said the imino-poor stretch splays the helix; measuring said that was a frayed chain terminus. Fix the summary when the data says so, and say what changed.
-
-**PRINT IT INTO THE CHAT.** The human reads it here, before any bytes are pulled, because this is the cheapest moment to say "that is not the lesson I want".
-
-**IT ALSO GOES ON THE BENCH, in a `summary` tab beside the panel's own notes.** Not in a reply, not in a doc, and not in `proteins/proteins.js`: a reply is gone by the next session, and the registry says what a structure IS, never what it MEANS. `proteins/collagen/collagen-test.html` is the worked example — a two-button tab strip under the provenance line, `what the files say` holding the notes that were already there and `summary` holding this. Set as section labels rather than `button.mode`, because a tab changes what you READ and `button.mode` is the thing that changes what is DRAWN, and a bench that blurred those would have six buttons where three of them do nothing to the stage.
-
-It is PAGE COPY, so it lives in the page's markup with `SAYS`, and it is the only prose on a bench not keyed to one variant: the per-structure claims say what each file shows, and this says what the protein is for. **Open with a lead paragraph** — two or three sentences that would survive alone — then the rest as notes. The lead is what a reader takes away from a bench they clicked through once, and it is what gets compressed into the registry's `blurb` at step 5. The tab goes in once the bench exists at step 3; the words are written now.
-
-Some of what a summary says has nowhere else to go, and that is the second reason to write one: collagen's vitamin C and its dominant-not-recessive inheritance are in none of its seven files, and no panel row could ever print them.
-
-Example written for prion:
-
-**PrP — the prion protein**
-
-Most abundant in the brain. Misfolding causes a family of rare and fatal neurological diseases. Prion disease is also called transmissible spongiform encephalopathy, TSE, named for the sponge-like holes the brain ends up full of.
-
-Creutzfeldt-Jakob disease (CJD) is the common one, and happens sporadically with no known cause.
-
-Mad-cow (BSE) is the same disease. BSE was unusually good at crossing barriers, which is why it was a public health emergency.
-
-The healthy form is a compact bundle, about 60% helix, tumbling alone in solution. The diseased form is the same sequence with the same disulfide bond and not one atom changed, flattened into a sheet one molecule thick and stacked against identical copies of itself. The stack is the reason it spreads: its exposed top face is shaped exactly like the molecule that should bind there, so any healthy PrP that drifts up gets pressed flat onto it and becomes the new top face. There is no gene here and no enzyme. Growing is copying, and breaking a fibril in half just gives you two of them.
-
-Neurologist and biochemist Stanley Prusiner coined the word "prion” in 1982, for proteinaceous infectious particle. Most scientists at the time believed that only viruses, bacteria, fungi, or parasites could transmit disease using DNA or RNA. Prusiner got the Nobel for it in 1997, with fifteen years of being told he was wrong in between.
-
-## 2. Pull the data and say what is actually in it
-
-**Go looking for the claims step 1 made**, one search per claim, rather than pulling what a keyword search returns first. Then say what actually came back — including which claims have no structure behind them, because that gap is a finding and it decides what the lesson can show. Collagen's stability claim is the case: the summary said hydroxyproline is what holds the helix together at body temperature, and the evidence for it turned out to be two melting temperatures and no structure at all, since both crystals are folded.
-
-Pull the data and see if it’s complete.
-
-\-Are there variants? do the variants tell a story? Are there quaternary structures? special features like heme groups? Are there ensemble views? Explain what you found to the human in non-technical words and include the links. If the data is incomplete, state simply “fragment: 104 out of 210 deposited” Flag if there are holes. Write in non-technical language using bullet points.
-
-For framents, check Alphafold and state the confidence score. If Alphafold score is low, also check for molecular dynamics papers that might have accessible data and inform the human in the chat, don’t proceed to step 3.
-
-## 3. Build the bench
-
-One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can look, and so the conversation about what the protein is for happens against something real. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
-
-Three worked examples, and they are different SHAPES of bench rather than three of the same thing. Copy whichever the protein resembles:
-
-* **`proteins/prion/prion-test.html` — one sequence in two states.** The pair IS the lesson, so the page says it with colour and almost nothing else.
-* **`proteins/rnase/rnase-test.html` — one molecule in seven situations.** Every entry is the same 124 residues doing something different, so the panel is about what changed.
-* **`proteins/collagen/collagen-test.html` — seven structures that are mostly NOT the same molecule.** Three designed peptides, a natural fragment of a different collagen gene, two complexes and one whole molecule. That is the hard case, because a reader will assume seven collagen structures are seven pieces of one thing, and six of them are pieces of nothing. What that bench had to grow to be honest is below.
+* **`proteins/hexokinase/hexokinase-test.html` — enzyme with two states for motion. This is the primary example.**
+* **`proteins/prion/prion-test.html` — normal and misfolded disease variant, and extra assembly view for the disease.**
+* **`proteins/collagen/collagen-test.html` —**  **(Advanced)** More files were included on this page to show closeups, a mutation example,  and the whole structure. There are two stories here: scurvy and brittle bone disease.
+* **`proteins/atp-synthase/atp-synthase-test.html` —**  **(Advanced)** This assembly has many chains, and a custom rotation animation. Ask the human before doing animation. Tell her what should happen.
 
 **The layout is `proteins/protein-test.css` .**  Load it after `sandbox.css` and before `kit/proteinbox.css`. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all.
 
-**Bake, do not parse the deposition at runtime.** A baker beside the page cuts each source down to what the bench draws and writes it to `data/` as `bake-trace.js`-shaped JSON the box takes directly. All three do it; prion did not until the animation it kept whole residues for was dropped, and while it parsed at load its bench and its gallery card drew the same file facing two different ways. A page that parses nothing cannot decide an altloc — or a frame — differently from the baker that already decided it.
+**Bake, do not parse the deposition at runtime.** A baker beside the page cuts each source down to what the bench draws and writes it to `data/` as `bake-trace.js`-shaped JSON the box takes directly.
 
 **While the protein is under review its candidates live in the baker**, as a `CANDIDATES` table at the top of `proteins/<name>/tools/prep.js`: id, chains, and one line saying what each is meant to show. Nothing goes into `proteins/proteins.js` yet, because everything in that file is a decision and none has been made. Bake generously here — a candidate that turns out to say nothing is what step 4 is for, and it is cheaper to look at one than to argue about it.
 
@@ -83,7 +44,7 @@ box.setData(data, { colors });      // again per structure, same box
 
 **A ribbon is not always the whole subject.** Myoglobin is 153 residues wrapped around one iron, and a bench that drew only the backbone would draw the box and leave out what is in it. `proteins/myoglobin/` is the worked example: its baker writes a `pocket` beside the trace — the heme, whatever is bound to its iron, the one or two side chains that make the site — **centred by the same vector as the trace**, because a pocket centred on itself sits at the origin with the protein somewhere else, and that reads as a bug in the ribbon. The page hands it to `box.setPocket({atoms, bonds})` and the box draws it: the ball-and-stick proportions, the split sticks and the iron's rust are the module's, so this heme and hemoglobin-lab's cannot become two opinions about the same group. It draws in the structure's own frame, does not widen the framing radius, and clears with the ribbon on every `setData`. **What is IN the pocket stays the baker's** — which residues, which ligand names count, whether a cross-residue bond is kept — the same refusal the box makes about parsing. Connectivity comes off the file's `CONECT` records, never a distance cutoff — a cutoff wide enough for the 2.0 Å Fe–N coordination also draws the porphyrin's diagonals.
 
-**If the views are states of one thing, superpose them.** A deposition's orientation is its crystal's, so N files is N arbitrary frames: flipping between them turns the whole molecule, and a reader cannot tell a real change from the crystallographer's choice of origin. Fit every view onto ONE reference in the baker — `proteins/myoglobin/tools/prep.js` does it with the `kabsch` in `sickle/tools/bake-sickle.js` — and centre them all on the reference's centroid, or the re-centring slides back apart most of the fit that was just made.
+**If the views are states of one thing, match their rotation and position so they can be flipped back and forth.** A deposition's orientation is its crystal's, so N files is N arbitrary frames: flipping between them turns the whole molecule, and a reader cannot tell a real change from the crystallographer's choice of origin. Fit every view onto ONE reference in the baker — `proteins/myoglobin/tools/prep.js` does it with the `kabsch` in `sickle/tools/bake-sickle.js` — and centre them all on the reference's centroid, or the re-centring slides back apart most of the fit that was just made.
 
 * **Fit on what the bench is ABOUT**, which is not always the trace. Myoglobin's four states are a binding site, so the fit is on the heme, matched by atom name: that puts the iron in the same place in every view, and it works between structures whose residue numbering does not correspond at all — a whale's myoglobin against haemoglobin's β chain. A Cα fit could not have matched those two.
 * **The panel says it was fitted, and how well.** A `view: deposited` row is a half-truth the moment anything is superposed. Name the reference and print the residual beside it.
@@ -97,7 +58,7 @@ Three invariants, wherever the chains get built. Each is a bug that ships lookin
 
 * **Parse chain-aware before anything multi-chain.** `PrionLib.parse` keys residues by number alone, which is right for one chain and silently wrong for ten: chain B's residue 180 overwrites chain A's, and a ten-rung stack parses as one rung wearing the last chain's coordinates.
 * **Send `nums`, not just `first`.** They are what lets the box break the ribbon where the chain breaks. Omit them and a chain reads as contiguous, so an unmodelled loop is drawn as a smooth tube across 10 Å of nothing — indistinguishable from data at ribbon width. 1RNU is the case: subtilisin cuts RNase A at 20-21 and residues 16-23 go unmodelled, so the gap drawn is wider than the cut.
-* **Say where the frame came from.** A deposited frame is the experiment's, not a decision about how the structure should be seen, so the box gets a `view` basis: `FoldLib.viewBasis` solves one from the shape, `FoldLib.basisFrom` puts a known axis upright where the field has a convention (a fibril vertical, a membrane protein on its normal), and a globular domain gets neither — its extents are too close to tell apart, its solved basis would flip between rebakes, and a human picks one instead. Whichever it was, the panel names it rather than leaving a rotation nobody can account for: `custom view`, `computed`, `deposited`, and those three words are `Bake.viewFor`'s, not a baker's.
+* **Say where the frame came from.** A deposited frame is the experiment's, not a decision about how the structure should be seen, so the box gets a `view` basis: `FoldLib.viewBasis` solves one from the shape, `FoldLib.basisFrom` puts a known axis upright where the field has a convention (a fibril vertical, a membrane protein on its normal), and a globular domain gets neither — its extents are too close to tell apart, its solved basis would flip between rebakes, and a human picks one instead. Whichever it was, the panel names it rather than leaving a rotation nobody can account for: `chosen in the registry`, `computed`, `deposited`, and those three words are `Bake.viewFor`'s, not a baker's.
 
 **A HUMAN'S ROTATION HAS EXACTLY ONE PATH, AND IT IS NOT A BAKE.** Turn the molecule on the bench, press *copy this view*, paste into that protein's `view: {by:'human', basis}` in `proteins/proteins.js`, reload. That is the whole loop, and it is short on purpose: a chosen basis is taste rather than measurement, so making it a committed artefact would charge a re-bake for every re-aim, rewrite files whose coordinates did not change, and leave the same decision in two places with a checker holding them level.
 
