@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFP — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+     A bench for a protein UNDER REVIEW: nothing here is in
+     proteins/proteins.js yet, so the candidate table is the baker's and
+     this page reads it back out of data/candidates.json.
+
+     WHY THIS EXISTS. GFP is the beta-barrel the library does not have,
+     and it is also the one protein here that is famous for what people
+     DID with it rather than for what it does in the animal. The lesson
+     question is which of those it is about, and that is a question about
+     what a reader can see.
+
+     SO THIS BENCH DRAWS THE CHROMOPHORE. The barrel is the container;
+     the subject is the twenty-odd atoms in the middle of it, which the
+     protein made out of its own residues 65-67 with no help from
+     anything. Drawn by kit/proteinbox.js's setPocket, same as
+     myoglobin's heme, so the two are one convention.
+
+     WHAT IT IS FOR SETTLING:
+
+       is the barrel legible   eleven strands round a central helix, at
+                               full-stage size. If the can does not read
+                               as a can, the fold half of the lesson has
+                               no picture.
+       does the dye read       22 atoms inside a 42 A protein, against
+                               myoglobin's 43. Whether it survives the
+                               framing is the question.
+       S65T against wild type  1EMA and 1GFL are the same protein one
+                               residue apart, and the difference shows up
+                               as Thr203 swinging off the phenol. The
+                               table measures it; whether it is VISIBLE
+                               is what the bench is for.
+       Y66H, the blue one      1BFP has no phenol at all. One residue,
+                               one colour change, and the pocket is
+                               visibly smaller.
+       monomer or dimer        1GFL is deposited as two chains. Whether
+                               the dimer says anything a lesson needs.
+
+     WHAT THIS BENCH CANNOT TELL YOU. Colour. Nothing on this page is
+     fluorescent, and the difference between green and blue is a set of
+     atom positions, not a rendering. A lesson that wants the colour has
+     to say it some other way.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* The one thing this bench says with colour: the chip on the variant
+     whose chromophore is a different molecule. Blue, because that is what
+     Y66H actually does to the protein. */
+  .chip.blue{background:rgba(0,66,170,.12);color:#0042aa}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>GFP</h1>
+    <p class="deck">Eleven strands make a can. One helix runs up the middle,
+      and three of its residues turn themselves into a dye. Nothing is added:
+      the protein builds its own chromophore and then holds it still.</p>
+
+    <h2>the bright mutant</h2>
+    <button class="mode" id="v-1EMA" aria-pressed="true">
+      <span class="who">S65T &middot; 1EMA</span><span class="chip">1.90 &Aring;</span></button>
+
+    <h2>wild type</h2>
+    <button class="mode" id="v-2WUR" aria-pressed="false">
+      <span class="who">the sharpest look &middot; 2WUR</span><span class="chip">0.90 &Aring;</span></button>
+    <button class="mode" id="v-1GFL" aria-pressed="false">
+      <span class="who">one subunit &middot; 1GFL</span><span class="chip">1 chain</span></button>
+    <button class="mode" id="v-1GFL-dimer" aria-pressed="false">
+      <span class="who">the dimer &middot; 1GFL</span><span class="chip">2 chains</span></button>
+
+    <h2>one residue, another colour</h2>
+    <button class="mode" id="v-1BFP" aria-pressed="false">
+      <span class="who">Y66H, blue &middot; 1BFP</span><span class="chip blue">BFP</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>fold</td><td id="d-fold">&mdash;</td></tr>
+      <tr><td>span</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>chromophore</td><td id="d-cro">&mdash;</td></tr>
+      <tr><td>made from</td><td id="d-from">&mdash;</td></tr>
+      <tr class="hi"><td>phenol O to Thr203</td><td id="d-t203">&mdash;</td></tr>
+      <tr><td>phenol O to His148</td><td id="d-h148">&mdash;</td></tr>
+      <tr><td>Glu222 to Ser205</td><td id="d-e222">&mdash;</td></tr>
+      <tr><td>brought by the crystal</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>frame</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">Every view is superposed on 1EMA by its &alpha;-carbons, so
+      flipping between them moves only what actually moved. All five are the
+      same protein under the same numbering.</p>
+    <p class="note">Ribbon colour is secondary structure, the repo default. The
+      ball-and-stick inside is the chromophore and the five side chains around
+      it &mdash; Arg96 and Glu222 below, His148, Thr203 and Ser205 on the phenol
+      end. Chain A's, on every view.</p>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, click copy. Nothing reads it
+      yet: GFP has no <code>proteins.js</code> entry until this bench is reviewed.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script>
+'use strict';
+
+/* One box, re-fed: setData swaps the structure and keeps the camera, so a
+   reader who turned the barrel still has that view after a switch. sub:10 and
+   the trackball are the full-stage settings, not a card's. No `view:` — GFP
+   has no registry entry to hold a chosen basis, so every bake wears the one
+   the baker solved on the reference. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true,
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  sub: 10,
+});
+
+/* WHAT THIS BENCH SAYS, as opposed to what the files say. Page copy, keyed by
+   candidate id so a button and its paragraph cannot come apart. The figures
+   are all read off the bake below; nothing here is a number. */
+const SAYS = {
+  '1EMA': {
+    claim: 'The GFP everything else is a copy of: one residue changed, and it '
+           + 'got bright.',
+    prov:  'Aequorea victoria, X-ray at 1.90 A, selenomethionine. S65T folds and '
+           + 'matures faster than the wild type and has one excitation peak instead '
+           + 'of two, which is why every fusion tag descends from this and not from '
+           + 'the jellyfish protein.' },
+  '2WUR': {
+    claim: 'The wild-type chromophore, as sharp as a protein gets.',
+    prov:  'X-ray at 0.90 A on a rotating anode. At this resolution the hydrogens '
+           + 'are modelled — dropped here, because nothing else on the bench has '
+           + 'them and a dye that grew fourteen atoms between two views would read '
+           + 'as a different molecule.' },
+  '1GFL': {
+    claim: 'Wild-type GFP, and the file that writes the chromophore as three '
+           + 'ordinary residues.',
+    prov:  'X-ray at 1.90 A. Ser65-Tyr66-Gly67 are deposited as SER, TYR and GLY, '
+           + 'cyclised in fact and not in the records — everywhere else on this '
+           + 'bench the same three atoms arrive as one residue with its own name.' },
+  '1GFL-dimer': {
+    claim: 'The same file, both chains: GFP as the jellyfish has it.',
+    prov:  'The wild-type protein dimerises; the mutants used as tags are chosen '
+           + 'partly not to. The interface is what a monomeric variant has to give '
+           + 'up.' },
+  '1BFP': {
+    claim: 'Y66H: swap the phenol for an imidazole and the protein turns blue.',
+    prov:  'X-ray at 2.10 A. The chromophore is a smaller ring with no hydroxyl, so '
+           + 'the hydrogen bond that Thr203 makes in the green protein has nothing '
+           + 'to make. Same barrel, same fold, different colour.' },
+};
+
+const $ = id => document.getElementById(id);
+const views = {};
+let ORDER = [], CAND = null, view = null;
+window.bench = { views, box, get view() { return view; } };
+
+/* ---- what only the pocket can say ------------------------------------- */
+
+const dist = (a, b) => Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1], a.p[2] - b.p[2]);
+const at = (t, group, num, name) => t.pocket && t.pocket.atoms.find(a =>
+  a.group === group && a.name === name && (num === null || a.num === num));
+
+/* The phenol oxygen of the chromophore to a named side-chain atom. Null where
+   there is no phenol, which is the entire content of Y66H and not a missing
+   measurement. Measured rather than quoted: a number in this table came off
+   the file it is printed beside. */
+function toPhenol(t, num, name) {
+  const oh = at(t, 'chromophore', null, 'OH');
+  const x = at(t, 'site', num, name);
+  return oh && x ? dist(oh, x) : null;
+}
+
+/* Glu222 to Ser205, the other half of the network — the relay that carries the
+   proton off the phenol in the wild type. Nearest carboxylate oxygen. */
+function e222(t) {
+  if (!t.pocket) return null;
+  const og = at(t, 'site', 205, 'OG');
+  const O = t.pocket.atoms.filter(a => a.group === 'site' && a.num === 222 &&
+                                       (a.name === 'OE1' || a.name === 'OE2'));
+  return og && O.length ? Math.min(...O.map(o => dist(og, o))) : null;
+}
+
+/* ---- the panel -------------------------------------------------------- */
+
+const A = d => d === null ? '—' : `${d.toFixed(2)} Å`;
+/* A hydrogen bond is about 2.6-3.2 A. Past 3.5 the two are simply near each
+   other, which for wild-type Thr203 is the result rather than a poor number. */
+const bonded = d => d !== null && d <= 3.5;
+
+function stats(t, v) {
+  const cid = t.order[0], ch = t.chains[cid], m = t.meta, r = v.read;
+  const n = ch.ss.length;
+  const H = [...ch.ss].filter(c => c === 'H').length;
+  const E = [...ch.ss].filter(c => c === 'E').length;
+  const modelled = m.counts.reduce((k, c) => k + c.modelled, 0);
+  const declared = m.counts.every(c => c.declared !== null)
+    ? m.counts.reduce((k, c) => k + c.declared, 0) : null;
+  const segs = m.counts.length + ch.nums.filter((x, i, a) => i && x !== a[i - 1] + 1).length;
+
+  return {
+    /* Said from the records, not typed: eleven strands and a helix is the
+       claim, and a rebake that read twelve should change this line. */
+    fold: `${m.strands} strands round ${m.helices} helices`
+          + (m.chainsDrawn > 1 ? ` · ${m.chainsDrawn} chains` : ''),
+    span: `${ch.first}–${ch.nums[ch.nums.length - 1]}`,
+    res: `${modelled} residues` + (segs > 1 ? ` in ${segs} segments` : ''),
+    pct: declared === null ? '—'
+      : `${modelled} of ${declared} · ${Math.floor(100 * modelled / declared)}%`,
+    frag: declared === null ? 'no SEQRES records: completeness unknown'
+      : modelled >= declared ? `complete: ${modelled} of ${declared} deposited`
+      : `${declared - modelled} residues unmodelled, both termini`,
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    cro: m.chromoRes ? `${m.chromoRes} · ${m.chromoAtoms} atoms` : 'none in this file',
+    /* One residue in the file or three, which is a fact about the DEPOSITION
+       and not about the protein: it is three residues of the helix either way,
+       and the baker splices them back so the ribbon does not break. */
+    from: m.chromoSplit === 1
+      ? 'residues 65–67, deposited as one'
+      : `residues 65–67, deposited as ${m.chromoSplit}`,
+    lig: m.ligands.length ? m.ligands.join(', ') : 'nothing',
+    ext: t.extents.map(x => x.toFixed(0)).join(' × '),
+  };
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;
+  const v = CAND.variants[id], r = v.read, m = t.meta;
+  const s = stats(t, v);
+
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-meta').textContent = `${v.entry} · chain ${m.chain} · ${r.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
+  $('d-fold').textContent = s.fold;
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  $('d-frac').textContent = s.frac;
+  $('d-cro').textContent = s.cro;
+  $('d-from').textContent = s.from;
+
+  const t203 = toPhenol(t, 203, 'OG1'), h148 = toPhenol(t, 148, 'ND1');
+  const e = e222(t);
+  const noPhenol = !at(t, 'chromophore', null, 'OH');
+  $('d-t203').textContent = noPhenol ? 'no phenol — Y66H' : A(t203);
+  $('d-t203').classList.toggle('flag', !noPhenol && !bonded(t203));
+  $('d-h148').textContent = noPhenol ? 'no phenol — Y66H' : A(h148);
+  $('d-e222').textContent = A(e);
+  $('d-lig').textContent = s.lig;
+  $('d-ext').textContent = s.ext;
+  $('d-view').textContent = m.fitOn
+    ? `superposed on ${m.fitOn} · ${m.fitRmsd.toFixed(2)} Å over ${m.fitAtoms} α-carbons`
+    : 'the reference · basis solved from its shape';
+  $('d-prov').textContent = SAYS[id].prov;
+
+  $('d-rcsb').href = `https://www.rcsb.org/structure/${v.entry}`;
+  $('d-rcsb-label').textContent = `RCSB ${v.entry}`;
+  $('d-raw').href = `https://files.rcsb.org/download/${v.entry}.pdb`;
+  $('d-baked').href = `data/${r.baked}`;
+
+  box.setData(t);
+  box.setPocket(t.pocket);
+}
+
+/* THE CANDIDATE TABLE IS THE BAKER'S while this protein is under review, so
+   the page reads it rather than keeping a second copy that a re-bake would
+   leave behind. Step 5 of AddingAProtein.md moves it into proteins.js and this
+   becomes ProteinLib.byKey('gfp'). */
+fetch('data/candidates.json').then(r => r.json()).then(c => {
+  CAND = c;
+  ORDER = c.order;
+  ORDER.forEach(id => {
+    $('v-' + id).addEventListener('click', () => {
+      ORDER.forEach(x => $('v-' + x).setAttribute('aria-pressed', String(x === id)));
+      show(id);
+    });
+    fetch(`data/${c.variants[id].read.baked}`).then(r => r.json()).then(t => {
+      views[id] = t;
+      if (view === id) show(id);
+    });
+  });
+  const open = ORDER.find(id => c.variants[id].deflt) || ORDER[0];
+  ORDER.forEach(id => $('v-' + id).setAttribute('aria-pressed', String(id === open)));
+  show(open);
+});
+
+/* The basis a human picks is taste and lives in the registry, not in a bake —
+   so this button is here and its output has nowhere to go until GFP has an
+   entry. It is `box.pickView()` because the answer needs the chain group's
+   rotation as well as the camera's, and only the box can see that. */
+$('pick').addEventListener('click', () => {
+  const text = JSON.stringify(box.pickView());
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+</script>
+</body>
+</html>

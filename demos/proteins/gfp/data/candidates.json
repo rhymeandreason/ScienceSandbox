@@ -1,0 +1,83 @@
+{
+ "ref": "1EMA",
+ "order": [
+  "1EMA",
+  "2WUR",
+  "1GFL",
+  "1GFL-dimer",
+  "1BFP"
+ ],
+ "variants": {
+  "1EMA": {
+   "id": "1EMA",
+   "entry": "1EMA",
+   "chains": "A",
+   "deflt": true,
+   "purpose": "the canonical GFP: S65T, the bright mutant every fusion tag descends from",
+   "read": {
+    "method": "x-ray diffraction",
+    "chainsInFile": 1,
+    "residues": 228,
+    "declared": 238,
+    "ec": null,
+    "baked": "gfp-1EMA.json"
+   }
+  },
+  "2WUR": {
+   "id": "2WUR",
+   "entry": "2WUR",
+   "chains": "A",
+   "purpose": "wild-type chromophore at 0.90 A — the sharpest look at what the barrel made",
+   "read": {
+    "method": "x-ray diffraction",
+    "chainsInFile": 1,
+    "residues": 229,
+    "declared": 238,
+    "ec": null,
+    "baked": "gfp-2WUR.json"
+   }
+  },
+  "1GFL": {
+   "id": "1GFL",
+   "entry": "1GFL",
+   "chains": "A",
+   "purpose": "wild-type GFP, one subunit: the chromophore written as three ordinary residues",
+   "read": {
+    "method": "x-ray diffraction",
+    "chainsInFile": 2,
+    "residues": 230,
+    "declared": 238,
+    "ec": null,
+    "baked": "gfp-1GFL.json"
+   }
+  },
+  "1GFL-dimer": {
+   "id": "1GFL-dimer",
+   "entry": "1GFL",
+   "chains": "A,B",
+   "purpose": "the same file as its dimer — how the jellyfish protein actually sits",
+   "read": {
+    "method": "x-ray diffraction",
+    "chainsInFile": 2,
+    "residues": 460,
+    "declared": 476,
+    "ec": null,
+    "baked": "gfp-1GFL-dimer.json"
+   }
+  },
+  "1BFP": {
+   "id": "1BFP",
+   "entry": "1BFP",
+   "chains": "A",
+   "purpose": "blue variant: Y66H, one residue swapped, and the colour changes",
+   "read": {
+    "method": "x-ray diffraction",
+    "chainsInFile": 1,
+    "residues": 229,
+    "declared": 238,
+    "ec": null,
+    "baked": "gfp-1BFP.json"
+   }
+  }
+ }
+}
