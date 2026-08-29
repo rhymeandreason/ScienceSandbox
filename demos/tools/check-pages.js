@@ -72,9 +72,13 @@ const PDB_PAGES = new Set();
 // wicking are all properties of the bulk. There is no molecule on either page.
 // tests/concept-map.html draws the topics themselves as a graph — labels and
 // edges, no stage. questions-cms.html edits that graph's data file as text.
+// tests/osmosis-data-test.html is at cell scale: a wall, a protoplast and the
+// water crossing it. The registry has no spec for any of those, and the page's
+// subject is a class's own measurements rather than a structure — loading
+// molecules.js would buy it nothing and cost it a domain it never draws.
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
                           'tests/droplet-test.html', 'tests/adhesion-test.html',
-                          'tests/concept-map.html',
+                          'tests/concept-map.html', 'tests/osmosis-data-test.html',
                           'questions-cms.html', 'map-cms.html']);
 
 // The lessons at the top level, plus the benches in tests/. Both directories,

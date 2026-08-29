@@ -220,13 +220,16 @@ const lessonOf = p => p.lesson ? '../' + p.lesson : null;
    to the folding pipeline. */
 const dataOf = (p, file) => `../${p.dir}/data/${file}`;
 
-/* CONTEXTS ARE RATIONED (ConceptMap.md invariant 1). Four live boxes cost
-   about 4.5 ms a frame against the 16.7 ms a 60 fps budget allows; the tenth
-   protein would be past the browser's cap, where the OLDEST context is dropped
-   with no error and the card that blanks is the one the reader opened first.
+/* CONTEXTS ARE RATIONED (ConceptMap.md invariant 1), and CONTEXTS ARE THE ONLY
+   THING RATIONED. An off-screen box already stops its own loop — card-stage's
+   observer — so a card scrolled past costs no frame time whether it is live or
+   destroyed. What eviction buys is the context, and a destroyed one cannot come
+   back on the same canvas, so the card rebuilds from scratch when the reader
+   scrolls up. Below the browser's ~8 cap that rebuild is pure loss, which is why
+   every card here stays live and the ceiling only bites past eight proteins.
    `onEvict` fires before the destroy, so a card that loses its box keeps the
    last frame it drew and reads as gone quiet rather than gone. */
-const POOL_LIMIT = 4;
+const POOL_LIMIT = Math.min(ProteinLib.PROTEINS.length, 8);
 const pool = CardStage.pool({
   limit: POOL_LIMIT,
   onEvict: (key, box) => { const url = box.snapshot && box.snapshot(); still(key, url); },
@@ -418,9 +421,10 @@ function open(key, mount) {
    automated screenshot — gets no intersection callbacks at all, so a gallery
    that waited for one would render a grid of empty frames and look broken to
    exactly the readers who cannot tell it apart from a bug. */
+const EAGER = 4;                         // above the fold; the rest wait to be seen
 const stages = [...document.querySelectorAll('.stage')];
 stages.forEach((el, i) => {
-  if (i < POOL_LIMIT) open(el.dataset.key, el);
+  if (i < EAGER) open(el.dataset.key, el);
   io.observe(el);
   el.addEventListener('pointerdown', () => open(el.dataset.key, el));
 });
