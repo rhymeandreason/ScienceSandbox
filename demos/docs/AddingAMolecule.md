@@ -2,9 +2,9 @@
 
 # Adding a molecule
 
-Eight steps, in the order that avoids rework. 
+Eight steps, in the order that avoids rework.
 
-**Steps 5 and 7 catch invisible failures.** 
+**Steps 5 and 7 catch invisible failures.**
 
 ## 1. Decide the tier
 
@@ -18,7 +18,19 @@ A NEW domain file needs a cost argument — nothing already in the library wants
 
 ## 3. Build in real ångströms
 
-Skel, `units:'angstrom'`, and `register()` applies the display scale once. Grow C–H **last** so every index the spec refers to stays stable — glucose's discipline, and every spec since has kept it.
+Two paths into this step — pick by `MolecularGeometry.md` §1.2, not by habit.
+
+**From PubChem.** (Default path) Ask for the record **by CID**, never by name — a name pins neither charge state nor stereocentre (`tools/sdf/README.md`'s AMP and glucose traps are both this mistake). Fetch the 3D SDF, commit it under `tools/sdf/<name>.sdf`, then convert from inside that directory:
+
+```bash
+cd demos/tools/sdf
+node ../sdf2spec.js <name>            # amino acids — forces the pep: backbone order
+node ../sdf2spec-generic.js <name>    # everything else — keeps the SDF's own atom order
+```
+
+Both do parse → reindex/reframe → one global scale so sticks clear the display radii, right-handed basis (`e3 = e1 × e2`) — negating a single output component is a silent mirror, not a rotation (§1.3). The spec's `src:` records `{path:'pubchem', cid, sdf, regen}`; `regen` says how completely the file rebuilds the spec — `'exact'`, `'manual'` (converter can't take it, e.g. proline's secondary amine), or `'lost'` (source conformer no longer published; the committed spec is now its own source, and must not be "refreshed"). `check-molecules.js` fails a spec missing any of this. If `sdf2spec.js` throws on an amino acid, don't force it through the generic converter — reindex by hand and say so in `regen`, proline's precedent.
+
+**Hand-built with Skel.** `units:'angstrom'`, and `register()` applies the display scale once. Grow C–H **last** so every index the spec refers to stays stable — glucose's discipline, and every spec since has kept it.
 
 A fact about one molecule goes in that molecule's spec, beside the comment explaining it; a capability every molecule needs goes in `skel.js`. An in-plane hydroxyl for an sp2 carbon is the first kind. `ringFuranose` is the second.
 
