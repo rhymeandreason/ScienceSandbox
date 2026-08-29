@@ -28,6 +28,23 @@
  *  code change.
  *
  *  CONCEPTS — one claim each, and `host` is the page that teaches it.
+ *  `alt` is the OTHER WORDS a reader might type for this card, ` · `
+ *  separated, and it exists because a name is not the only way in: nobody
+ *  types "Simple diffusion", they type "diffusion", and "buffer" is what a
+ *  student asks for when the card is called Acids & pH. It replaced matching
+ *  the reader's words against the ID, which only worked where somebody had
+ *  happened to pick a short one — `ice` and `geometry` landed, `cooperat` and
+ *  `hydrophob` were truncations nobody would ever type, and `condense`
+ *  answered for Dehydration & hydrolysis by accident. An alternate is
+ *  authored, so it says what it is.
+ *
+ *  `alt` is for KNOWING, not for ranking. It is matched exactly (after the
+ *  composer's `norm`) and is deliberately NOT baked into the claim's vector:
+ *  a sentence that measured well is not improved by having synonyms stapled
+ *  to it, and a two-word row embedded against a corpus of sentences ranks
+ *  badly. Two alternates must not normalise to the same text — first match
+ *  wins and which card it is would be an accident of table order — and the
+ *  checker fails on it.
  *  `rank` is its place in ITS door's fan, so a door opens on its rank 1
  *  concepts and not on all nine. `state` is CLAUDE.md's vocabulary
  *  (built / engine / planned) and `away` marks a concept belonging to
@@ -87,58 +104,84 @@
 
   const CONCEPTS = [
     { id:'polarity', name:'Polarity', door:'water', rank:1, state:'built', host:'water-lab · molecule-builder',
+      alt:'polar · dipole · partial charge',
       claim:'An uneven share of electrons gives a molecule two charged ends.' },
     { id:'hbond', name:'Hydrogen bonding', door:'water', rank:2, state:'built', host:'water-lab',
+      alt:'hbond · h bond · hydrogen bonds',
       claim:'The + H of one water molecule attracts the − O of another.' },
     { id:'solvation', name:'Solvation', door:'water', rank:2, state:'built', host:'water-lab · solvation-lab',
+      alt:'dissolving · solvent · hydration shell',
       claim:'Water is polar, so it dissolves anything polar or charged.' },
     { id:'ice', name:'Ice & density', door:'water', rank:3, state:'built', host:'water-lab',
+      alt:'ice · density · freezing',
       claim:'Unlike almost every substance, water is less dense as a solid.' },
     { id:'heat', name:'Heat & temperature', door:'water', rank:3, state:'built', host:'water-lab',
+      alt:'heat · temperature · specific heat',
       claim:'Water takes a lot of heating, because the energy goes into breaking H-bonds first.' },
     { id:'cohesion', name:'Cohesion & adhesion', door:'water', rank:3, state:'engine', host:'droplet-test · adhesion-test',
+      alt:'surface tension · capillary action · adhesion',
       claim:'Water sticks to itself and to other things.' },
     { id:'hydrophob', name:'The hydrophobic effect', door:'water', rank:2, state:'planned',
+      alt:'nonpolar · water fearing · oil and water',
       claim:'Oil and water separate because the water gains freedom by it.' },
     { id:'condense', name:'Dehydration & hydrolysis', door:'water', rank:2, state:'planned',
+      alt:'hydrolysis · dehydration · condensation',
       claim:'Monomers join by losing a water, and water splits them apart again.' },
     { id:'entropy', name:'Entropy', door:'water', rank:3, state:'planned',
+      alt:'disorder · second law',
       claim:'Order can rise in one place as long as more disorder is made somewhere else.' },
     { id:'acids', name:'Acids & pH', door:'water', rank:3, state:'built', host:'molecule-lab',
+      alt:'ph · acid · buffer',
       claim:'A buffer trades protons back and forth, so pH barely moves.' },
     { id:'basepair', name:'Base pairing', door:'information', rank:1, state:'built', away:1, host:'dna-lab',
+      alt:'base pair · complementary',
       claim:'A pairs only with T and G only with C, because that is where the hydrogen bonds line up.' },
     { id:'replication', name:'Replication & fidelity', door:'information', rank:2, state:'planned', away:1,
+      alt:'dna replication · proofreading',
       claim:'Copying is proofread as it goes, and the error rate is low but never zero.' },
     { id:'binding', name:'Binding & recognition', door:'proteins', rank:1, state:'planned', away:1,
+      alt:'binding site · ligand · recognition',
       claim:'Two molecules stick because their shapes and charges match, and neither is changed by it.' },
     { id:'enzyme', name:'Enzyme catalysis', door:'proteins', rank:2, state:'engine', away:1, host:'hexokinase/',
+      alt:'catalysis · active site',
       claim:'An enzyme lowers the barrier and comes out the other side unchanged.' },
     { id:'levels', name:'Levels of structure', door:'proteins', rank:1, state:'built', away:1, host:'hemoglobin-lab',
+      alt:'protein structure · primary structure · secondary structure · tertiary structure · quaternary structure',
       claim:'A protein has four levels of structure, and the sequence decides all four.' },
     { id:'cooperat', name:'Cooperativity', door:'proteins', rank:2, state:'planned', away:1,
+      alt:'allostery · allosteric',
       claim:'One oxygen binding changes the shape, and makes the next one easier.' },
     { id:'pumps', name:'Channels & pumps', door:'boundaries', rank:1, state:'built', away:1, host:'membrane-lab',
+      alt:'pump · channel · active transport · sodium potassium pump',
       claim:'A channel lets things through; a pump spends ATP to push them the wrong way.' },
     { id:'polymers', name:'Monomers & polymers', door:'carbon', rank:1, state:'built', away:1, host:'macromolecule-lab',
+      alt:'polymer · monomer · macromolecule',
       claim:'Four classes of macromolecule, each one a chain of repeating units.' },
     { id:'glycolysis', name:'Glycolysis', door:'energy', rank:1, state:'built', away:1, host:'glycolysis-lab',
       claim:'Ten steps split one sugar in two, spending two ATP to make four.' },
     { id:'geometry', name:'Molecular geometry', door:'carbon', rank:2, state:'built', away:1, host:'molecule-builder',
+      alt:'geometry · vsepr · bond angle',
       claim:'Electron pairs push each other apart, and that is what sets the shape.' },
     { id:'covalent', name:'Covalent bonding', door:'carbon', rank:1, state:'built', away:1, host:'molecule-builder',
+      alt:'covalent bond · sharing electrons',
       claim:'Two atoms share a pair of electrons, and both count them as their own.' },
     { id:'ionic', name:'Ionic bonding', door:'carbon', rank:2, state:'built', away:1, host:'molecule-builder',
+      alt:'ionic bond · ion',
       claim:'One atom takes the electron outright, and the two ions hold on by charge.' },
     { id:'osmosis', name:'Osmosis', door:'boundaries', rank:2, state:'planned', away:1,
+      alt:'osmotic pressure · tonicity',
       claim:'Water crosses toward the saltier side with nothing pushing it.' },
     { id:'bilayer', name:'The bilayer', door:'boundaries', rank:1, state:'built', away:1, host:'membrane-lab',
+      alt:'phospholipid · lipid bilayer',
       claim:'Phospholipids assemble into a sheet on their own, because their tails avoid water.' },
     { id:'denature', name:'Denaturing', door:'proteins', rank:2, state:'planned', away:1,
+      alt:'denature · denaturation · unfolding',
       claim:'Heat and acid unfold a protein without breaking a single covalent bond.' },
     { id:'folding', name:'Folding', door:'proteins', rank:1, state:'built', away:1, host:'folding-lab',
+      alt:'fold · protein folding',
       claim:'The chain folds to one shape out of astronomically many, and the sequence picks it.' },
     { id:'diffusion', name:'Simple diffusion', door:'boundaries', rank:1, state:'built', away:1, host:'membrane-lab · diffusion/',
+      alt:'diffusion · brownian motion',
       claim:'Random motion spreads molecules out; going twice as far takes four times as long.' },
   ];
 

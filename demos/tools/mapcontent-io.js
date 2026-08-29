@@ -85,6 +85,38 @@ function validateConcepts(concepts, doors, rows) {
     if (!['built', 'engine', 'planned'].includes(m.state)) at('state is not built, engine or planned');
   });
 
+  /* AN ALTERNATE THAT TWO CARDS CLAIM IS A COIN TOSS. `cardNamed()` returns the
+     FIRST match, so a word on two cards routes by table order and looks like a
+     considered answer. Names count too: an alt that repeats another card's name
+     shadows it, which is the same bug with a worse symptom.
+
+     A cheap normalise, not the composer's: this catches what an author actually
+     does twice, which is type the same word on two rows. The composer also
+     de-pluralises, so `pump` there and `pumps` here would slip past — that is a
+     known gap and not worth a second copy of `norm` drifting from the first. */
+  const flat = t => String(t).toLowerCase().replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ').trim();
+  const claimed = new Map();
+  const label = m => m.name || m.id;
+  concepts.forEach((m, i) => {
+    const words = [[flat(m.name), true], ...String(m.alt || '').split('·').map(w => [flat(w), false])]
+      .filter(([w]) => w);
+    for (const [w, isName] of words) {
+      const prev = claimed.get(w);
+      if (prev === undefined || prev.i === i) { claimed.set(w, { i, isName }); continue; }
+      /* Neither row is the offender — the checker cannot know which card the
+         word belongs to — so it names BOTH and leaves the choice to the author.
+         Reported on the later row only, because saying it twice reads as two
+         problems when there is one. */
+      const other = concepts[prev.i];
+      out.push({ row: i, text: label(m),
+                 problem: '“' + w + '” is on two cards, ' + label(other)
+                        + (prev.isName ? ' (its name)' : '') + ' and ' + label(m)
+                        + (isName ? ' (its name)' : '')
+                        + ' — first match wins, so one of them has to go' });
+    }
+  });
+
   // An OPEN door has to open on something. A door nothing points at is fine —
   // it is a door not yet written — but one that is open and has no rank 1
   // concept renders as an empty screen with no error.
@@ -184,7 +216,9 @@ function serialiseConcepts(concepts) {
                   'rank:' + m.rank, 'state:' + quote(m.state)];
     if (m.away) bits.push('away:1');
     if (m.host) bits.push('host:' + quote(m.host));
-    return '    { ' + bits.join(', ') + ',\n      claim:' + quote(m.claim) + ' },';
+    // Its own line: an alt list runs long and would wrap the first one.
+    const alt = m.alt ? '\n      alt:' + quote(m.alt) + ',' : '';
+    return '    { ' + bits.join(', ') + ',' + alt + '\n      claim:' + quote(m.claim) + ' },';
   }).join('\n');
 }
 

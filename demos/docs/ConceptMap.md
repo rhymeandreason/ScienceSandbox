@@ -220,7 +220,13 @@ photosynthesis  0.851  MATCH      <- there is no photosynthesis concept
 
 Both directions wrong: the most central card on the map is unreachable by its own name, and an off-map word scrapes over the floor. **No scoring rule fixes the first half.** `polarity` and `glycolysis` have zero questions within 0.83 of them, so there is nothing for a floor or a vote rule to work with — a concept name is simply not a question, and this corpus contains only questions.
 
-So a keyword that names a card is answered **before any embedding**, by `cardNamed()`. It is a CARD-NAME LOOKUP and not keyword search: three ways in, over the concept AND specimen names and ids, after normalising away a leading article and folding plurals. `hemoglobin` reaches its card the same way `polarity` does.
+So a keyword that names a card is answered **before any embedding**, by `cardNamed()`. It is a CARD-NAME LOOKUP and not keyword search: exact on the name or on an authored alternate, then a prefix / whole-word pass at five characters or more, after normalising away a leading article and folding plurals. `hemoglobin` reaches its card the same way `polarity` does.
+
+**A concept matches its name and its `alt` list, never its id.** It used to match the id, and that was measured and retired: the branch was load-bearing for ten of the 27 cards and junk for the rest. `ice` and `geometry` landed only because somebody had picked a short id; `cooperat` and `hydrophob` were truncations no reader types; `condense` answered for Dehydration & hydrolysis by accident. Worse, it did quietly what the name rule refuses on purpose — `density` cannot reach Ice & density, but `pumps` reached Channels & pumps, and an internal key was what decided which. Those ten are `alt` entries now, so they are authored, and the list reaches what no id ever would: `pH` and `buffer` for Acids & pH, `water fearing` for the hydrophobic effect, `quaternary structure` for Levels of structure.
+
+**A SPECIMEN still matches its registry key**, and the case that settles it is `hemoglobin`, whose registry name is the British spelling. Drop the key and an American student cannot type the flagship card. A protein's key is its common name; a concept's id is an abbreviation of its own title, which is the whole difference.
+
+**`alt` is for knowing, not for ranking.** It is not baked into the claim's vector: a sentence that measured well is not improved by synonyms stapled to it, and a two-word row embedded against a corpus of sentences ranks badly. Two alternates that normalise alike are a `--check` failure — first match wins, so which card a shared word opens would be an accident of table order.
 
 | the typed text | reaches |
 | --- | --- |

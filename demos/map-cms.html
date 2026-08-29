@@ -136,6 +136,13 @@
   .crow .side { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; }
   .crow .side select { width: 100%; }
   .crow .qn { font-size: 0.62rem; letter-spacing: 0.06em; color: var(--muted); }
+  /* Quieter than the claim: an alt list is a lookup key, not a sentence anybody
+     reads. Same box, so the row stays one column. */
+  .crow input.alt { width: 100%; font-family: var(--sans); font-size: 0.72rem;
+                    color: var(--muted); background: transparent;
+                    border: 1px solid transparent; border-radius: 3px;
+                    padding: 0.2rem 0.4rem; }
+  .crow input.alt::placeholder { color: var(--line); }
   /* An id is editable ONLY before its first save, so it looks like a field then
      and like a label ever after. Same column, same size: the row must not jump
      when the concept lands. */
@@ -573,6 +580,19 @@ function crowEl(m, i) {
   claim.addEventListener('input', () => { m.claim = claim.value; grow(); cscore(); });
   mid.appendChild(claim);
   requestAnimationFrame(grow);
+  /* The other words a reader might type. One field, ` · ` separated, the same
+     shape `host` has — and the same shape it is stored in, so what is typed here
+     is what lands in the file. The checker is what catches two cards claiming
+     one word; it is not enforced live, because half a word is a collision while
+     it is being typed. */
+  const alt = document.createElement('input');
+  alt.className = 'alt'; alt.value = m.alt || '';
+  alt.placeholder = 'also typed as · one · per · separator';
+  alt.title = 'Words a reader might type for this card, beyond its name. '
+            + 'Matched exactly, so write the form somebody would type.';
+  alt.addEventListener('input', () => { m.alt = alt.value.trim(); cscore(); });
+  mid.appendChild(alt);
+
   const qn = document.createElement('div');
   qn.className = 'qn';
   const n = rows.filter(r => id_in(r, m.id)).length;

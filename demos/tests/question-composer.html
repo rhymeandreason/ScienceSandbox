@@ -2210,10 +2210,31 @@ const norm = t => t.toLowerCase().normalize('NFKD')
   .split(' ').map(w => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w)).join(' ');
 
 /* Concepts AND specimens: "hemoglobin" is a card that exists, and refusing it
-   because it is not a concept is the same failure `polarity` had. A specimen's
-   id is namespaced (`p:hemoglobin`), so the bare key is what gets matched. */
+   because it is not a concept is the same failure `polarity` had.
+
+   WHAT EACH KIND MATCHES ON, and the two are not the same rule.
+
+   A CONCEPT matches its name and its authored `alt` list. It does NOT match its
+   id. Measured over the 27: the id branch was load-bearing for ten cards and
+   junk for the rest — `ice` and `geometry` landed because somebody had picked a
+   short id, `cooperat` and `hydrophob` were truncations nobody types, and
+   `condense` answered for Dehydration & hydrolysis by accident. Worse, it did
+   quietly what the name rule below deliberately refuses: `density` cannot reach
+   Ice & density, but `pumps` reached Channels & pumps, and an internal key was
+   what decided which. Those ten are `alt` entries now, so they are authored.
+
+   A SPECIMEN matches its name and its registry KEY, because a protein's key IS
+   its common name — and the case that settles it is `hemoglobin`, whose
+   registry name is the British spelling. Drop the key and an American student
+   cannot type the flagship card. The key is namespaced (`p:hemoglobin`), so the
+   bare half is what gets matched. */
 const CARDS = nodes.filter(n => n.kind === 'concept' || n.kind === 'protein');
-const NAMED = CARDS.map(m => ({ m, key: norm(m.name), id: norm(m.id.replace(/^p:/, '')) }));
+const NAMED = CARDS.map(m => ({
+  m,
+  key: norm(m.name),
+  alt: (m.kind === 'protein' ? [m.id.replace(/^p:/, '')]
+                             : String(m.alt || '').split('·')).map(norm).filter(Boolean),
+}));
 
 /* The typed text holds the name as WHOLE WORDS: "protein folding" reaches
    Folding, "lipid bilayer" reaches The bilayer. Never a substring — `run` inside
@@ -2223,14 +2244,25 @@ const holds = (hay, needle) => (' ' + hay + ' ').includes(' ' + needle + ' ');
 /* Three ways in, and NOT "the name contains the typed word", which was tried and
    is too loose: it let `effect` claim The hydrophobic effect and `levels` claim
    Levels of structure. A tail word is not a name. The cost is that `density`
-   no longer reaches Ice & density, which is the right trade — being asked to
-   type the head of a name is normal, being answered from its tail is a surprise. */
+   no longer reaches Ice & density — and where that trade is wrong, the answer is
+   an `alt` entry saying so, not a looser rule that guesses for all 27 at once.
+
+   EXACT ON ALTERNATES, prefix only on names. An alternate is already the short
+   form somebody chose to write down, so widening it would be widening a wildcard
+   — and the checker only guarantees that two alternates do not COLLIDE, not that
+   one is not the prefix of another. */
 function cardNamed(text) {
   const k = norm(text);
-  if (k.length < 3) return null;
-  const hit = NAMED.find(x => x.key === k || x.id === k)
-    || (k.length >= 5 && NAMED.find(x => x.key.startsWith(k) || holds(k, x.key)));
-  return hit ? hit.m : null;
+  if (!k) return null;
+  /* Exact FIRST, and with no length floor: `pH` is two characters and is the
+     word a student uses for Acids & pH. The floor exists to stop a stray
+     fragment reaching the fuzzy branch below, and an authored alternate is not
+     a fragment — somebody wrote it down meaning this card. */
+  const exact = NAMED.find(x => x.key === k || x.alt.includes(k));
+  if (exact) return exact.m;
+  if (k.length < 5) return null;
+  const near = NAMED.find(x => x.key.startsWith(k) || holds(k, x.key));
+  return near ? near.m : null;
 }
 
 /* What clicking that card would have done, composed from cold: the card, its
