@@ -1286,10 +1286,9 @@
     },
     {
       key: 'gfp', name: 'GFP', dir: 'proteins/gfp',
-      blurb: 'Eleven strands make a can, one helix runs up the middle, and '
-           + 'three of that helix\u2019s residues turn themselves into a dye. '
-           + 'Nothing is added: the protein builds its own chromophore and '
-           + 'then holds it still enough to glow.',
+      blurb: 'The green fluorescent protein, isolated from jellyfish. GFP is '
+           + 'useful for tracking protein movements, gene expression, and '
+           + 'cellular processes.',
       /* IT REPORTS. `reporter` is a seventh word, reserved for this row in
          proteins-wishlist.md before GFP was pulled, and it is a word about
          what the protein is USED for rather than what it does in the animal —
