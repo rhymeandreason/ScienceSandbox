@@ -118,11 +118,6 @@
   .blurb{font-size:0.9rem;color:var(--muted);
     line-height:1.5;margin:0.55rem 0 0.9rem}
 
-  /* The default variant's own line: what the box above is showing. */
-  .showing{font-size:0.78rem;color:var(--muted);margin:0 0 0.9rem;
-    font-variant-numeric:tabular-nums}
-  .showing b{color:var(--ink);font-weight:600}
-
   .facts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 1rem}
   .fact{font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;
     font-weight:600;padding:3px 8px;border-radius:999px;
@@ -267,13 +262,10 @@ function card(p) {
      true of prion's half a protein and misleading of amylase, which is short
      one residue because its N-terminus is a modified pyroglutamate that rides
      on a HETATM line. A count says both without deciding where the line is. */
-  const short = r.declared ? r.declared - r.residues : null;
   const facts = [
     v.species,
     r.method,
     r.declared ? `${r.residues} of ${r.declared} residues` : `${r.residues} residues`,
-    short ? `${short} not modelled` : null,
-    r.chainsInFile > 1 ? `${r.chainsInFile} chains in the entry` : null,
   ].filter(Boolean);
 
   el.innerHTML = `
@@ -282,7 +274,6 @@ function card(p) {
       <h3 class="name"></h3>
       <p class="does"></p>
       <p class="blurb"></p>
-      <p class="showing">showing <b></b> &mdash; <span class="purpose"></span></p>
       <div class="facts"></div>
       <h2>${p.variants.length} structure${p.variants.length === 1 ? '' : 's'}</h2>
       <ul class="vars"></ul>
@@ -299,19 +290,17 @@ function card(p) {
      what is known instead. */
   const does = el.querySelector('.does');
   if (p.does && p.does !== 'unknown') {
-    /* An enzyme says WHICH REACTION beside the word, because "enzyme" is a
-       category and the EC number is the thing a reader can look up. The class
-       name — hydrolase, transferase — is the half of it that means something
-       without a lookup, so it goes in the title where a hover reaches it. */
+    /* An enzyme says WHICH KIND beside the word, because "enzyme" is a
+       category and the class name — hydrolase, transferase — is the thing a
+       reader recognizes without a lookup. The description goes in the title
+       where a hover reaches it. */
     const ec = ProteinLib.ecOf(p);
     const cls = ec && ProteinLib.EC_CLASS[+ec[0]];
-    does.textContent = p.does + (ec ? ` · EC ${ec}` : '');
-    if (cls) does.title = `${cls[0]} — ${cls[1]}`;
+    does.textContent = p.does + (cls ? ` · ${cls[0]}` : '');
+    if (cls) does.title = cls[1];
     does.classList.add(p.does === 'enzyme' ? 'enzyme' : 'carrier');
   } else does.remove();
   el.querySelector('.blurb').textContent = p.blurb;
-  el.querySelector('.showing b').textContent = v.source.id;
-  el.querySelector('.purpose').textContent = v.purpose;
 
   const fx = el.querySelector('.facts');
   for (const f of facts) {
@@ -352,15 +341,10 @@ function card(p) {
 const grid = $('grid');
 for (const p of ProteinLib.PROTEINS) grid.appendChild(card(p));
 
-/* The tally, counted at render. `entries` is smaller than `variants` wherever a
-   protein holds two cuts of one deposition — prion's stack is 6LNI drawn whole
-   — and saying both is what keeps "17 structures" from reading as 17 downloads. */
+/* The tally, counted at render. */
 const variants = ProteinLib.PROTEINS.reduce((k, p) => k + p.variants.length, 0);
-const entries = new Set(ProteinLib.PROTEINS.flatMap(p =>
-  p.variants.map(v => p.key + ':' + (v.source ? v.source.id : v.id)))).size;
 $('tally').textContent =
-  `${ProteinLib.PROTEINS.length} proteins · ${variants} structures · ` +
-  `${entries} depositions`;
+  `${ProteinLib.PROTEINS.length} proteins · ${variants} structures`;
 
 /* A BOX IS ACQUIRED WHEN ITS CARD IS SEEN, and re-acquired on a click, because
    acquire is also bring-to-front: a card already live must re-acquire or the
