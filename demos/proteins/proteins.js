@@ -774,8 +774,9 @@
     {
       key: 'atp-synthase', name: 'ATP synthase', dir: 'proteins/atp-synthase',
       blurb: 'The enzyme that makes ATP, built into the inner membrane of the '
-           + 'mitochondrion. Protons falling across the membrane spin its rotor, '
-           + 'and each turn assembles ATP from ADP and phosphate.',
+           + 'mitochondrion. Protons falling across the membrane spin its rotor '
+           + 'about a hundred times a second, and each turn assembles ATP from '
+           + 'ADP and phosphate.',
       does: 'enzyme',
       pipeline: 'trace',
       /* NO PROTEIN-WIDE FIT, because this collection is two kinds of thing.
