@@ -151,6 +151,9 @@
                     border-radius: 3px; padding: 0.25rem 0.4rem; width: 100%;
                     margin-top: 0.2rem; }
   .crow input.idc.bad { border-color: var(--spark); }
+  /* Following the name rather than typed: muted, so it reads as a suggestion
+     you may overwrite and not as a value somebody already committed to. */
+  .crow input.idc.hint { color: var(--muted); }
   .crow .why { font-size: 0.58rem; line-height: 1.3; color: var(--spark);
                margin-top: 0.25rem; }
   /* On hover, because it is the rarest thing done on this screen and one per
@@ -531,6 +534,31 @@ function cdraw() {
   cscore();
 }
 
+/* An id SUGGESTED from the name, and only ever a suggestion: it follows the
+   house rule for 17 of the 27 already written, which is the whole rule — drop a
+   leading article, take the FIRST word. The ten it misses are `Hydrogen bonding`
+   → hbond and `Channels & pumps` → pumps: initialisms and second words that a
+   person chose, and no heuristic recovers those. What it gives back is
+   `hydrogen` and `channels`, which are ids somebody would accept.
+
+   Never truncated. `cooperativity` is a long id and a fine one; cutting it at
+   eleven characters produced `cooperativi`, which is nobody's idea of a name.
+
+   Collisions fall through to the two words joined, then to a digit — a digit
+   being the visible admission that the name needs a decision, not a generated
+   id somebody should live with. */
+function suggestId(name, i) {
+  const words = String(name).toLowerCase().normalize('NFKD')
+    .replace(/&/g, ' ').replace(/[^a-z0-9 ]+/g, '').trim()
+    .replace(/^(the|a|an) /, '').split(/\s+/).filter(Boolean);
+  if (!words.length) return '';
+  const taken = t => draft.some((x, j) => j !== i && x.id === t);
+  const tries = [words[0], words.slice(0, 2).join(''), words.join('')];
+  for (const t of tries) if (t && /^[a-z]/.test(t) && !taken(t)) return t;
+  for (let n = 2; n < 99; n++) if (!taken(words[0] + n)) return words[0] + n;
+  return words[0];
+}
+
 /* Why a new concept cannot be saved yet, or '' if it can. The io checks all of
    this too and its message is what a save reports; this is the same rule said
    early, so the row shows it while it is being typed rather than at Save. */
@@ -546,6 +574,7 @@ function crowEl(m, i) {
   el.className = 'crow' + (m.rank === 1 ? ' starter' : '') + (m.fresh ? ' fresh' : '');
 
   const idc = document.createElement('div');
+  let follow = null;   // set on a fresh row: re-suggest the id as the name is typed
   if (m.fresh) {
     const box = document.createElement('input');
     box.className = 'idc'; box.value = m.id; box.placeholder = 'id';
@@ -555,9 +584,24 @@ function crowEl(m, i) {
     const test = () => {
       const p = idProblem(m, i);
       box.classList.toggle('bad', !!p);
+      // Muted while it is still following the name, ink once it is a decision.
+      box.classList.toggle('hint', !m.idTouched);
       why.textContent = p;
     };
-    box.addEventListener('input', () => { m.id = box.value.trim(); test(); cscore(); });
+    /* Typing in the id box BREAKS THE LINK, permanently and silently. An id that
+       kept re-deriving after being corrected would overwrite the correction on
+       the next keystroke of the name, which is the whole failure mode of this
+       kind of field. Emptying it does not re-link either: blank is a decision
+       too, and the row already says it needs an id. */
+    box.addEventListener('input', () => {
+      m.idTouched = true; m.id = box.value.trim(); test(); cscore();
+    });
+    follow = name => {
+      if (m.idTouched) return;
+      m.id = suggestId(name, i);
+      box.value = m.id;
+      test(); cscore();
+    };
     test();
     idc.appendChild(box);
     idc.appendChild(why);
@@ -572,7 +616,10 @@ function crowEl(m, i) {
   const mid = document.createElement('div');
   const name = document.createElement('input');
   name.className = 'name'; name.value = m.name;
-  name.addEventListener('input', () => { m.name = name.value; cscore(); });
+  name.addEventListener('input', () => {
+    m.name = name.value;
+    if (follow) follow(name.value); else cscore();
+  });
   mid.appendChild(name);
   const claim = document.createElement('textarea');
   claim.className = 'claim'; claim.rows = 1; claim.value = m.claim;
@@ -769,7 +816,7 @@ $('csave').addEventListener('click', async () => {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       // `fresh` never reaches the file: it is this session's note that a row's
       // id is still open, and serialiseConcepts would ignore it anyway.
-      body: JSON.stringify({ concepts: draft.map(({ fresh, ...m }) => m), mtimeMs }),
+      body: JSON.stringify({ concepts: draft.map(({ fresh, idTouched, ...m }) => m), mtimeMs }),
     });
     const data = await r.json();
     if (!r.ok) {
@@ -780,7 +827,7 @@ $('csave').addEventListener('click', async () => {
     }
     mtimeMs = data.mtimeMs;
     // Saved is what closes the id window: from here a question can name it.
-    for (const m of draft) delete m.fresh;
+    for (const m of draft) { delete m.fresh; delete m.idTouched; }
     cbase = csnapshot();
     // The questions screen resolves ids against this, so it has to follow, and
     // fillFilters is what puts a new concept in its dropdowns.
