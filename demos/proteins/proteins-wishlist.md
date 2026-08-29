@@ -2,7 +2,7 @@
 
 # What to add next, and what each one costs
 
-**THE IDS ARE UNVERIFIED.** Every PDB id below was written from memory and none has been fetched. Confirm the id, the chain count and the format availability against RCSB before a baker is pointed at one. The `format` column is a prediction, not a measurement.
+**Tier 1 is verified (2026-08-28); tiers 2-5 are not.** Every id outside Tier 1 was written from memory and none has been fetched. Confirm the id, the chain count and the format availability against RCSB before a baker is pointed at one. The `format` column is a prediction, not a measurement.
 
 ## The three selection goals
 
@@ -17,29 +17,36 @@
 
 ## Tier 1 — big story, cheap bake, fills a real hole
 
-| candidate | id | fills | chains | `does` | states? | format | status |
+**Verified 2026-08-28** against RCSB: every id below was fetched, `.pdb` confirmed to exist, and chains / missing residues / ligands read out of the file itself. `chains` is the asymmetric unit; `gaps` counts unobserved residues per chain (REMARK 465).
+
+| candidate | id | fills | chains (AU) | `does` | states? | resolution, gaps, ligands | status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Insulin** | 4INS | signalling; a hormone cut out of a bigger chain | 4 (2×AB) | new: `hormone` | no | pdb |  |
-| **GFP** | 1EMA | the missing β-barrel; how biology is *done* | 1 | new: `reporter` | no | pdb |  |
-| **Nucleosome** | 1AOI | DNA packaging — the chromatin picture | 8 + 2 DNA | `structural` | no | pdb |  |
-| **Lysozyme** | 1LZ1 (human) | the first enzyme mechanism ever solved | 1 | `enzyme` | 2LZT etc. | pdb |  |
-| **Antibody, intact IgG** | 1IGT | immune recognition; one fold reused six times | 4 | new: `recognition` | no | pdb |  |
-| **Triosephosphate isomerase** | 1TIM | EC class **5, isomerase** — empty; glycolysis; and it *is* the TIM barrel the fold is named after | 2 | `enzyme` | no | pdb |  |
-| **Hexokinase** | 1HKB? / 2YHX? | EC class **2, transferase** — empty; and there is already a `hexokinase/` directory the registry does not know about | 1–2 | `enzyme` | **yes** — open and glucose-closed, the induced-fit pair | pdb |  |
-| **Carbonic anhydrase** | 1CA2 | EC class **4, lyase** — empty; one zinc, among the fastest enzymes known | 1 | `enzyme` | no | pdb |  |
-| **Lactate / alcohol dehydrogenase** | 1I0Z? / 1HET? | EC class **1, oxidoreductase** — empty; the enzyme the queued fermentation lesson needs | 4 / 2 | `enzyme` | NAD-bound and apo | pdb |  |
-| **Oxy haemoglobin** | 1HHO | **the other half of a pair we already hold** — 2HHB is deoxy, and T→R is the allostery story | 4 | `oxygen carrier` | **yes** — with 2HHB | pdb |  |
-| **Fetal haemoglobin** | 1FDH | the developmental switch: why fetal blood outcompetes maternal for O₂ | 4 | `oxygen carrier` | with 2HHB | pdb |  |
-| **Cytochrome c** | 3CYT | tiny, ancient, near-identical from yeast to human — *the* molecular-evolution molecule | 1 | new: `electron carrier` | no | pdb |  |
-| **Zinc finger on DNA** | 1ZAA | the missing **zinc finger**; sequence-specific DNA reading, in the smallest package there is | 1 + DNA | new: `DNA-binding` | no | pdb |  |
-| **Leucine zipper** | 1YSA | the **natural** coiled coil, against the designed ones below | 2 + DNA | new: `DNA-binding` | no | pdb |  |
-| **Bacterial porin** | 2POR | a **second** β-barrel, membrane-embedded — one fold, a completely different problem from GFP's | 3 | new: `transport` | no | pdb |  |
-| **Calmodulin** | 1CLL | one of the largest conformational changes in a small protein; a Ca²⁺ switch | 1 | new: `sensor` | **yes** — apo 1CFD | pdb |  |
-| **Catalase** | 1DGF | EC class **1** again, and among the fastest enzymes known — pairs with carbonic anhydrase, also diffusion-limited | 4 | `enzyme` | no | pdb |  |
+| **Insulin** | **1MSO** (was 4INS) | signalling; a hormone cut out of a bigger chain | 4 = 2×(A21 + B30) | new: `hormone` | no | 1.00 Å, **no gaps**, 2 Zn. 4INS is pig at 1.5 Å; 1MSO is human and better. 3I40 is one AB dimer if the hexamer is noise | id verified |
+| **GFP** | 1EMA | the missing β-barrel; how biology is *done* | 1 | new: `reporter` | no | 1.9 Å, 10 gaps (both termini, barrel intact), chromophore present as **CRO** — one residue, so the ribbon can point at it | id verified |
+| **Nucleosome** | 1AOI | DNA packaging — the chromatin picture | 8 histone + 2×146 bp DNA | `structural` | no | 2.8 Å, Xenopus. Tails unobserved: H3 18, H3′ 8, H4 4, H2A 1 — the hole Tier 4 wants to fill | id verified |
+| **Lysozyme** | 1LZ1 | the first enzyme mechanism ever solved | 1 | `enzyme` | 2LZT etc. are hen, not human | 1.5 Å, human, **130/130, no gaps, no ligands** — the cleanest file in the tier | id verified |
+| **Antibody, intact IgG** | **1HZH** (or 1IGT) | immune recognition; one fold reused six times | 4 (2 heavy 457, 2 light 215) | new: `recognition` | no | 2.7 Å, **human** IgG1 b12, 13 gaps in one heavy chain, heavy N-glycans (NAG/MAN/GAL/BMA/FUC). 1IGT is mouse, 2.8 Å, **no gaps** — cleaner file, wrong species | id verified, pick one |
+| **Triosephosphate isomerase** | **1HTI** (was 1TIM) | EC class **5, isomerase** — empty; glycolysis; the TIM barrel itself | 2 | `enzyme` | no | 2.8 Å, human, **no gaps**, PGA inhibitor in the site. 1TIM is chicken at 2.5 Å — the fold is named after that file, which is the one argument for it | id verified |
+| **Hexokinase** | 1HKB? / 2YHX? | EC class **2, transferase** — empty | 1–2 | `enzyme` | **yes** — open and glucose-closed | pdb | Done |
+| **Carbonic anhydrase** | 1CA2 | EC class **4, lyase** — empty; one zinc, among the fastest enzymes known | 1 | `enzyme` | no | 2.0 Å, human, 3 gaps (N-term), 1 Zn | id verified |
+| **Lactate dehydrogenase** | 1I0Z | EC class **1, oxidoreductase** — empty | 2 in AU, tetramer in assembly 1 | `enzyme` | ternary here; apo elsewhere | 2.1 Å, **human** heart LDH-H, 1 gap/chain, **NADH + oxamate bound** — coenzyme and substrate-analogue in one file | id verified |
+| **Alcohol dehydrogenase** | 1HET / **4W6Z** | the fermentation branch | 2 / 4 | `enzyme` | NAD-bound and apo | 1HET horse liver, **1.15 Å, no gaps**, NAD + 2 Zn — outstanding file, wrong organism for fermentation. 4W6Z is **yeast ADH1**, 2.4 Å, 4 chains, no gaps; 5ENV is the same enzyme with NAD at 3.0 Å | id verified, pick one |
+| **Haemoglobin R state** | **2DN1** (was 1HHO) | T→R allostery | 2 in AU (αβ half-tetramer; assembly 1 expands to 4) | `oxygen carrier` | **yes** | 1.25 Å oxy, 1 gap/chain, HEM + **OXY**. Its matched deoxy **2DN2** is 1.25 Å, 4 chains, no gaps, same study — a cleaner T/R pair than 2HHB (1.74 Å) against 1HHO (2.1 Å) | id verified |
+| **Fetal haemoglobin** | 1FDH | the developmental switch | 4 (2α + 2γ) | `oxygen carrier` | with 2HHB / 2DN2 | 2.5 Å, human, deoxy, **no gaps**, 4 HEM | id verified |
+| **Cytochrome c** | **3ZCF** (was 3CYT) | tiny, ancient, near-identical yeast to human | 4 copies of 1 | new: `electron carrier` | no | 1.65 Å, **human**, no gaps, HEC covalently attached. 3CYT is tuna and holds **oxidised and reduced conformers as chains O and I** — a redox pair in one file, which is the one reason to keep it | id verified |
+| **Zinc finger on DNA** | 1ZAA | sequence-specific DNA reading, smallest package there is | 1 protein (87) + 2 DNA (11 bp) | new: `DNA-binding` | no | 2.1 Å, Zif268 (mouse), 2 gaps, **3 Zn** — one per finger | id verified |
+| **Leucine zipper** | 1YSA | the **natural** coiled coil | 2 protein (58) + 2 DNA (20 bp) | new: `DNA-binding` | no | 2.9 Å, GCN4 (yeast), 1 gap/chain, no ligands. Two HELIX records for the whole thing — the file *is* the coiled coil | id verified |
+| **Bacterial porin** | 2POR | a **second** β-barrel, membrane-embedded | 1 | new: `transport` | no | 1.8 Å, *Rhodobacter capsulatus*, **no gaps**, 17 SHEET records, C8E detergent belt marks the bilayer | id verified |
+| **Calmodulin** | 1CLL + 1CFD | a Ca²⁺ switch; one of the largest changes in a small protein | 1 each | new: `sensor` | **yes** — apo 1CFD | 1CLL 1.7 Å x-ray, 4 Ca, 4 gaps; 1CFD **solution NMR**, apo, no gaps. Labelled human and Xenopus — **their SEQRES are identical at all 148 residues**, so the pair is one protein in two states, not two species | id verified |
+| **Catalase** | 1DGF | EC class **1** again; diffusion-limited, like carbonic anhydrase | 4 | `enzyme` | no | 1.5 Å, human erythrocyte, **4×497, no gaps**, 4 HEM + 4 NADPH | id verified |
 
-Insulin and GFP are the two cheapest additions available and neither duplicates anything. Insulin is 51 residues and carries a story a Bio 101 reader already half knows. GFP is one chain, one barrel, and a chromophore the protein builds out of its own backbone — which is a claim a ribbon can show.
+Every Tier 1 file is x-ray except 1CFD (NMR), every one has legacy `.pdb`, and every one carries HELIX/SHEET records, so the ss read needs nothing new.
 
-The nucleosome is the highest-value entry in this tier and the only one with an engineering cost: it brings DNA, and nothing in `bake-lib.js` has met a nucleic-acid chain. 
+**Four id changes**, all on selection goal 7: insulin 4INS → **1MSO**, TIM 1TIM → **1HTI**, cytochrome c 3CYT → **3ZCF**, oxy Hb 1HHO → **2DN1** (and the deoxy partner 2HHB → **2DN2**, for a pair measured in one study at one resolution).
+
+**The cheapest three are 1LZ1, 1MSO and 1EMA** — one chain or two, no gaps worth naming, and in GFP's case a chromophore the file already names as a residue.
+
+The nucleosome is still the highest-value entry and still the only one with an engineering cost: 2 DNA chains of 146 nt, and nothing in `bake-lib.js` has met a nucleic-acid chain.
 
 ## Tier 2 — strong story, more work
 
