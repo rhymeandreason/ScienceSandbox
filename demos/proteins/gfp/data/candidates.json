@@ -55,7 +55,7 @@
    "id": "1GFL-dimer",
    "entry": "1GFL",
    "chains": "A,B",
-   "purpose": "the same file as its dimer — how the jellyfish protein actually sits",
+   "purpose": "both copies in the asymmetric unit: the contact GFP is engineered not to make. The entry declares itself MONOMERIC",
    "read": {
     "method": "x-ray diffraction",
     "chainsInFile": 2,

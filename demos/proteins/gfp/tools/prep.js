@@ -41,6 +41,15 @@
  *  file's own MODRES set and caTrace takes it, so those four count as
  *  chain and stop being reported as four bound ligands.
  *
+ *  THE TWO-CHAIN VIEW IS NOT A DEPOSITED DIMER. 1GFL holds two copies in
+ *  its asymmetric unit and REMARK 350 calls the biological unit MONOMERIC,
+ *  author and PISA both. What the contact IS worth looking at is which
+ *  residues make it: Ala206, Leu221 and Phe223 are in it, and those three
+ *  are exactly what Zacharias's monomeric variants substitute to stop GFP
+ *  dimerising at the concentrations a cell reaches. So the view is a
+ *  crystal contact sitting on a real weak interface, and the panel says
+ *  so rather than calling two chains a dimer.
+ *
  *  NONE OF THESE IS THE WILD-TYPE PROTEIN, and only the file says so.
  *  Every entry here is engineered: 1GFL carries the Q80R cloning artifact
  *  that came with the original cDNA, 1EMA adds S65T, 2WUR is a folding
@@ -104,7 +113,8 @@ const CANDIDATES = [
     purpose: 'the jellyfish protein bar one cloning artifact: the chromophore '
              + 'written as three ordinary residues' },
   { id: '1GFL-dimer', entry: '1GFL', chains: 'A,B',
-    purpose: 'the same file as its dimer — how the jellyfish protein actually sits' },
+    purpose: 'both copies in the asymmetric unit: the contact GFP is engineered '
+             + 'not to make. The entry declares itself MONOMERIC' },
   { id: '1BFP', entry: '1BFP', chains: 'A',
     purpose: 'blue variant: Y66H, one residue swapped, and the colour changes' },
 ];
@@ -165,6 +175,25 @@ function declaredFixed(text, only) {
   for (const id of Object.keys(decl))
     if (!only || only.has(id)) out[id] = decl[id] + fused;
   return out;
+}
+
+/* WHAT THE ENTRY SAYS ITS BIOLOGICAL UNIT IS, off REMARK 350 — the author's
+   verdict and PISA's, as they are written. TWO CHAINS IN A FILE ARE NOT A
+   DIMER: 1GFL holds two copies and declares both MONOMERIC, so a bake of A+B
+   is the asymmetric unit and the contact between them is crystal packing that
+   happens to sit on a real interface. Read, because the alternative is
+   counting chains and calling the answer biology, which is how this bench
+   shipped a "dimer" nobody deposited. */
+function assembly(text) {
+  const out = {};
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('REMARK 350')) continue;
+    const m = line.match(/AUTHOR DETERMINED BIOLOGICAL UNIT:\s*(.+?)\s*$/);
+    const p2 = line.match(/SOFTWARE DETERMINED QUATERNARY STRUCTURE:\s*(.+?)\s*$/);
+    if (m && !out.author) out.author = m[1].toLowerCase();
+    if (p2 && !out.software) out.software = p2[1].toLowerCase();
+  }
+  return out.author || out.software ? out : null;
 }
 
 /* WHICH THREE RESIDUES THIS CHROMOPHORE WAS MADE OF, read off the atoms that
@@ -390,6 +419,7 @@ function bake(v, ref) {
        the crystal actually brought: 2WUR's ethanol and isopropanol. */
     ligands: Bake.ligands(text, only, mod),
     modres: [...mod].sort(),
+    assembly: assembly(text),
     /* Against UniProt P42212, the entry's own comparison. An empty list would
        mean a file that declares itself unmodified; none of these does. */
     subs: substitutions(text, v.chains.split(',')[0]),
@@ -447,6 +477,7 @@ function main() {
       ` from ${m.chromoFrom}` +
       `, ligands [${m.ligands.join(' ') || '-'}]` +
       `, subs [${m.subs.join(' ') || 'none declared'}]` +
+      `, unit ${m.assembly ? m.assembly.author || m.assembly.software : 'not declared'}` +
       `, ${out.extents.join(' × ')} A, view ${out.frame}, ` +
       (m.fitOn ? `fit on ${m.fitOn} ${m.fitRmsd} A over ${m.fitAtoms} Ca` : 'reference') +
       `, ${kb} KB`);

@@ -40,8 +40,12 @@
        Y66H, the blue one      1BFP has no phenol at all. One residue,
                                one colour change, and the pocket is
                                visibly smaller.
-       monomer or dimer        1GFL is deposited as two chains. Whether
-                               the dimer says anything a lesson needs.
+       the two-chain view      1GFL holds two copies and declares itself
+                               MONOMERIC. The contact sits on the real
+                               weak interface — A206, L221, F223 — so the
+                               question is whether a crystal contact is
+                               worth showing for that, or whether it
+                               teaches two chains as a dimer.
 
      WHAT THIS BENCH CANNOT TELL YOU. Colour. All four entries fluoresce
      — three green, one blue — and nothing drawn here does: the difference
@@ -89,7 +93,7 @@
     <button class="mode" id="v-1GFL" aria-pressed="false">
       <span class="who">one subunit &middot; 1GFL</span><span class="chip">1 chain</span></button>
     <button class="mode" id="v-1GFL-dimer" aria-pressed="false">
-      <span class="who">the dimer &middot; 1GFL</span><span class="chip">2 chains</span></button>
+      <span class="who">both copies &middot; 1GFL</span><span class="chip">2 chains</span></button>
 
     <h2>the sharpest look</h2>
     <button class="mode" id="v-2WUR" aria-pressed="false">
@@ -115,6 +119,7 @@
       <tr class="hi"><td>phenol O to Thr203</td><td id="d-t203">&mdash;</td></tr>
       <tr><td>phenol O to His148</td><td id="d-h148">&mdash;</td></tr>
       <tr><td>Glu222 to Ser205</td><td id="d-e222">&mdash;</td></tr>
+      <tr><td>biological unit</td><td id="d-unit">&mdash;</td></tr>
       <tr><td>brought by the crystal</td><td id="d-lig">&mdash;</td></tr>
       <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
       <tr><td>frame</td><td id="d-view">&mdash;</td></tr>
@@ -200,10 +205,16 @@ const SAYS = {
            + 'cyclised in fact and not in the records — everywhere else on this '
            + 'bench the same three atoms arrive as one residue with its own name.' },
   '1GFL-dimer': {
-    claim: 'The same file, both chains: how the jellyfish protein sits.',
-    prov:  'The wild-type protein dimerises; the mutants used as tags are chosen '
-           + 'partly not to. The interface is what a monomeric variant has to give '
-           + 'up.' },
+    claim: 'Both copies in the asymmetric unit — and the file calls itself a '
+           + 'monomer.',
+    prov:  'Two chains in a deposition are not a dimer: REMARK 350 says MONOMERIC, '
+           + 'author and PISA both. What makes the contact worth a look is which '
+           + 'residues are in it — Ala206, Leu221 and Phe223, the three that '
+           + 'monomeric GFP variants substitute so the protein stops sticking to '
+           + 'itself at the concentrations a cell reaches. 31 of 230 residues have '
+           + 'an α-carbon within 10 Å of the other chain, which is a small patch '
+           + 'for a 230-residue protein and about the size of the weak dimer GFP '
+           + 'actually makes.' },
   '1BFP': {
     claim: 'Y66H: swap the phenol for an imidazole and the protein turns blue.',
     prov:  'X-ray at 2.10 A. The chromophore is a smaller ring with no hydroxyl, so '
@@ -287,6 +298,12 @@ function stats(t, v) {
        here. Read the row above for those. */
     subs: m.subs.length ? m.subs.join(', ') : 'none, outside the chromophore',
     lig: m.ligands.length ? m.ligands.join(', ') : 'nothing',
+    /* REMARK 350's verdict, not a chain count. Two chains drawn against a
+       monomeric declaration is the asymmetric unit, which is a different claim
+       from a dimer and the one this file makes. */
+    unit: !m.assembly ? 'not declared'
+      : `${m.assembly.author || m.assembly.software}` +
+        (m.chainsDrawn > 1 ? ` · ${m.chainsDrawn} chains drawn` : ''),
     ext: t.extents.map(x => x.toFixed(0)).join(' × '),
   };
 }
@@ -318,6 +335,7 @@ function show(id) {
   $('d-t203').classList.toggle('flag', !noPhenol && !bonded(t203));
   $('d-h148').textContent = noPhenol ? 'no phenol — Y66H' : A(h148);
   $('d-e222').textContent = A(e);
+  $('d-unit').textContent = s.unit;
   $('d-lig').textContent = s.lig;
   $('d-ext').textContent = s.ext;
   $('d-view').textContent = m.fitOn
