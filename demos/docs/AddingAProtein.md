@@ -14,6 +14,15 @@ Workflow: A separate agent session looks at proteins-wishlist and does a first p
 
 One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can review. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
 
+**First, read your file and answer these. Each names what it costs, and the list below the examples is where each answer is spelled out.** Most candidates answer no to all of them, and no to all of them means copy hexokinase, bake chain A, ship — 1LZ1 is the case, and 1CA2 and 2POR are one pocket away from it.
+
+* **Is there a nucleic-acid chain, or is the entry mmCIF-only?** Then stop and say so — see the two below that end the recipe.
+* **Does the entry deposit its biological assembly as MODELS?** *The biological assembly is not what the file's first model holds.*
+* **Is there a chain in the file you are not drawing?** *A partner chain is in the file.*
+* **Is there a HETATM sitting in the site — a metal, a cofactor, a ligand?** *Something is bound in the site*, and *the pair is apo against holo* if you also hold the empty one.
+* **Does it declare MODRES, or carry no HELIX / SHEET records?** *A residue is modified*, and *the file carries no HELIX or SHEET records*.
+* **Is the entry a fragment or a construct, or does the literature number it differently from the file?** *An entry is a fragment or a construct*, and *the field quotes different numbers than the file*.
+
 4 examples. Copy hexokinase as the default. Copy prion if you have a disease or mutation variatn. If you have a reason to use an advanced example, tell the human first.
 
 * **`proteins/hexokinase/hexokinase-test.html` — enzyme with two states for motion. This is the primary example.**
