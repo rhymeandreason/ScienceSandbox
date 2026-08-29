@@ -1312,9 +1312,9 @@
       view: { by: 'human', shared: true,
               why: 'the chromophore has to be visible inside the can, which is '
                  + 'a framing no solved basis knows to look for',
-              basis: [[0.8271, -0.1948, -0.5155],
-                      [-0.2428, 0.706, -0.6572],
-                      [0.497, 0.6787, 0.539]] },
+              basis: [[0.1781, -0.9797, 0.0839],
+                      [0.9835, 0.1761, -0.0153],
+                      [0.0001, 0.0853, 0.9949]] },
       /* A fold claim, and an SES would seal the barrel and bury the dye
          inside it \u2014 which is the one thing the reader is here to see. */
       surface: { bake: false,
