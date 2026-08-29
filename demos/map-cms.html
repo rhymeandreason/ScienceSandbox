@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <!-- Internal tool: edit lib/mapcontent.js's QUESTIONS — the wording, which
-     modules each question names, and the rank it carries on each.
+     concepts each question names, and the rank it carries on each.
 
      Saves through the dev server's /api/mapcontent, which lives in
      tools/dev-server.js and nowhere else, so this page can only write on a
      machine running that server. Without it the page is read-only and Export
      hands back the file text instead. Kept out of the deploy by .vercelignore.
 
-     WHAT THIS IS FOR, AND WHY IT COUNTS CROSSINGS. The map goes module →
-     question → module: a question is the CROSSING, and one that names a single
-     module is a caption that costs a node and leads nowhere. 28 of the 63 are
+     WHAT THIS IS FOR, AND WHY IT COUNTS CROSSINGS. The map goes concept →
+     question → concept: a question is the CROSSING, and one that names a single
+     concept is a caption that costs a node and leads nowhere. 28 of the 63 are
      still that. So every row wears what it joins, the filters are cut by it,
      and the bar keeps the running score — the editorial work is turning
      captions into crossings, and a tool that did not show the number would hide
      the only thing worth watching.
 
-     It does NOT edit DOORS, MODULES or VIEWS. mapcontent-io.js splices only the
-     QUESTIONS array back, so a save cannot touch a module's claim or the prose
+     It does NOT edit DOORS, CONCEPTS or VIEWS. mapcontent-io.js splices only the
+     QUESTIONS array back, so a save cannot touch a concept's claim or the prose
      that states the curation rules. -->
 <html lang="en">
 <head>
@@ -93,9 +93,9 @@
          color: var(--muted); margin-top: 0.35rem; display: flex; gap: 0.6rem; }
   .tag .cap { color: var(--spark); }
 
-  /* Which modules a question names, and the rank on each. The rank belongs to
-     the EDGE, so it is drawn on the module chip and never on the question. */
-  .mods { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  /* Which concepts a question names, and the rank on each. The rank belongs to
+     the EDGE, so it is drawn on the concept chip and never on the question. */
+  .draft { display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .chip { display: inline-flex; align-items: center; gap: 0.3rem;
           font-size: 0.66rem; letter-spacing: 0.02em;
           background: var(--card); border: 1px solid var(--line); border-radius: 3px;
@@ -116,26 +116,26 @@
          padding: 0.4rem 0.6rem; cursor: pointer; }
   .tab.on { color: var(--ink); border-bottom-color: var(--accent); }
 
-  /* A module row leads with what the door opens on, because that is the one
+  /* A concept row leads with what the door opens on, because that is the one
      field here that changes the map's first screen. */
-  .mrow { display: grid; grid-template-columns: 7rem 1fr 11rem; gap: 1rem;
+  .crow { display: grid; grid-template-columns: 7rem 1fr 11rem; gap: 1rem;
           align-items: start; padding: 0.7rem 0; border-bottom: 1px solid var(--line); }
-  .mrow.starter { background: linear-gradient(90deg, rgba(31,95,79,.06), transparent 55%); }
-  .mrow .idc { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
+  .crow.starter { background: linear-gradient(90deg, rgba(31,95,79,.06), transparent 55%); }
+  .crow .idc { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase;
                color: var(--muted); padding-top: 0.45rem; }
-  .mrow input.name { width: 100%; font-family: var(--sans); font-size: 0.86rem;
+  .crow input.name { width: 100%; font-family: var(--sans); font-size: 0.86rem;
                      font-weight: 500; color: var(--ink); background: transparent;
                      border: 1px solid transparent; border-radius: 3px; padding: 0.25rem 0.4rem; }
-  .mrow textarea.claim { width: 100%; font-family: var(--serif); font-size: 0.92rem;
+  .crow textarea.claim { width: 100%; font-family: var(--serif); font-size: 0.92rem;
                          line-height: 1.3; color: var(--ink); background: transparent;
                          border: 1px solid transparent; border-radius: 3px;
                          padding: 0.25rem 0.4rem; resize: none; overflow: hidden; }
-  .mrow input:hover, .mrow textarea:hover { border-color: var(--line); }
-  .mrow input:focus, .mrow textarea:focus { outline: none; border-color: var(--accent);
+  .crow input:hover, .crow textarea:hover { border-color: var(--line); }
+  .crow input:focus, .crow textarea:focus { outline: none; border-color: var(--accent);
                                             background: var(--card); }
-  .mrow .side { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; }
-  .mrow .side select { width: 100%; }
-  .mrow .qn { font-size: 0.62rem; letter-spacing: 0.06em; color: var(--muted); }
+  .crow .side { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; }
+  .crow .side select { width: 100%; }
+  .crow .qn { font-size: 0.62rem; letter-spacing: 0.06em; color: var(--muted); }
 
   .empty { padding: 3rem 0; text-align: center; color: var(--muted);
            font-family: var(--serif); }
@@ -161,15 +161,15 @@
 
 <div class="tabs">
   <button class="tab on" data-pane="questions">Questions</button>
-  <button class="tab" data-pane="modules">Modules</button>
+  <button class="tab" data-pane="concepts">Concepts</button>
 </div>
 
 <div class="bar" id="qbar">
   <select id="door"></select>
-  <select id="module"></select>
+  <select id="concept"></select>
   <select id="kind">
     <option value="all">every question</option>
-    <option value="caption">captions only (1 module)</option>
+    <option value="caption">captions only (1 concept)</option>
     <option value="cross">crossings only (2+)</option>
     <option value="doors">door crossings (2+ doors)</option>
   </select>
@@ -183,26 +183,26 @@
   <button class="btn primary" id="save">Save</button>
 </div>
 
-<!-- The modules screen. Separate rather than a column on the questions list,
+<!-- The concepts screen. Separate rather than a column on the questions list,
      because the two are edited in different sittings: wording and edges is bulk
-     work down a list, and a module's rank is one decision that changes what the
+     work down a list, and a concept's rank is one decision that changes what the
      door OPENS with. They save independently for the same reason — the io
      splices each array on its own, so one screen never writes back a stale copy
      of the other's. -->
-<div class="bar" id="mbar" hidden>
-  <select id="mdoor"></select>
+<div class="bar" id="cbar" hidden>
+  <select id="cdoor"></select>
   <span class="spacer" style="flex:1"></span>
-  <span class="score" id="mscore"></span>
-  <span class="dirty" id="mdirty"></span>
-  <button class="btn" id="mrevert">Revert</button>
-  <button class="btn primary" id="msave">Save</button>
+  <span class="score" id="cscore"></span>
+  <span class="dirty" id="cdirty"></span>
+  <button class="btn" id="crevert">Revert</button>
+  <button class="btn primary" id="csave">Save</button>
 </div>
 
 <p class="note" id="note"></p>
 <p class="msg" id="msg"></p>
 
 <div id="list"></div>
-<div id="mlist" hidden></div>
+<div id="clist" hidden></div>
 
 <script>
 /* ---- state -------------------------------------------------------------
@@ -211,26 +211,26 @@
    is what the save is checked against, so two editors cannot silently
    overwrite each other. */
 
-let rows = [], base = '', modules = [], doors = [], viewIds = [];
+let rows = [], base = '', concepts = [], doors = [], viewIds = [];
 let writable = false, mtimeMs = null;
 
 const $ = id => document.getElementById(id);
-const byMod = id => modules.find(m => m.id === id);
+const byConcept = id => concepts.find(m => m.id === id);
 const say = (t, cls) => { const m = $('msg'); m.textContent = t || ''; m.className = 'msg ' + (cls || ''); };
 
-/* One module is a caption, two or more is a crossing, and two or more DOORS is
+/* One concept is a caption, two or more is a crossing, and two or more DOORS is
    the crossing the map exists for. Computed the same way tools/mapcontent-io.js
    computes it, because the bar's score and any checker have to agree. */
 function reach(r) {
-  const ids = Object.keys(r.mods || {}).filter(byMod);
-  const ds = new Set(ids.map(id => byMod(id).door));
-  return { mods: ids.length, doors: ds.size };
+  const ids = Object.keys(r.concepts || {}).filter(byConcept);
+  const ds = new Set(ids.map(id => byConcept(id).door));
+  return { concepts: ids.length, doors: ds.size };
 }
 
 function score() {
   const all = rows.map(reach);
-  const cap = all.filter(a => a.mods === 1).length;
-  const cross = all.filter(a => a.mods > 1).length;
+  const cap = all.filter(a => a.concepts === 1).length;
+  const cross = all.filter(a => a.concepts > 1).length;
   const dd = all.filter(a => a.doors > 1).length;
   $('score').innerHTML =
     '<b>' + rows.length + '</b> questions · ' +
@@ -246,14 +246,14 @@ const dirty = () => snapshot() !== base;
 /* ---- drawing ------------------------------------------------------------ */
 
 function matches(r) {
-  const d = $('door').value, m = $('module').value, k = $('kind').value;
+  const d = $('door').value, m = $('concept').value, k = $('kind').value;
   const f = $('find').value.trim().toLowerCase();
-  const ids = Object.keys(r.mods || {}).filter(byMod);
+  const ids = Object.keys(r.concepts || {}).filter(byConcept);
   if (m !== 'all' && !ids.includes(m)) return false;
-  if (d !== 'all' && !ids.some(id => byMod(id).door === d)) return false;
+  if (d !== 'all' && !ids.some(id => byConcept(id).door === d)) return false;
   const a = reach(r);
-  if (k === 'caption' && a.mods !== 1) return false;
-  if (k === 'cross' && a.mods < 2) return false;
+  if (k === 'caption' && a.concepts !== 1) return false;
+  if (k === 'cross' && a.concepts < 2) return false;
   if (k === 'doors' && a.doors < 2) return false;
   if (f && !r.text.toLowerCase().includes(f)) return false;
   return true;
@@ -278,7 +278,7 @@ function draw() {
 function rowEl(r, i) {
   const a = reach(r);
   const el = document.createElement('div');
-  el.className = 'row' + (a.mods === 1 ? ' caption' : '');
+  el.className = 'row' + (a.concepts === 1 ? ' caption' : '');
 
   const left = document.createElement('div');
   const ta = document.createElement('textarea');
@@ -298,25 +298,25 @@ function rowEl(r, i) {
 
   const tag = document.createElement('div');
   tag.className = 'tag';
-  tag.innerHTML = a.mods === 1
-    ? '<span class="cap">caption — names one module</span>'
+  tag.innerHTML = a.concepts === 1
+    ? '<span class="cap">caption — names one concept</span>'
     : a.doors > 1
       ? '<span>crosses ' + a.doors + ' doors</span>'
-      : '<span>joins ' + a.mods + ' modules on one door</span>';
+      : '<span>joins ' + a.concepts + ' concepts on one door</span>';
   /* TWO DESTRUCTIVE ACTIONS, ALWAYS BOTH, AND THEY MEAN DIFFERENT THINGS. A
-     question is ONE row however many modules name it, so deleting the row takes
-     it off all of them — including modules on doors this view is filtered away
+     question is ONE row however many concepts name it, so deleting the row takes
+     it off all of them — including concepts on doors this view is filtered away
      from. Reading a list filtered to Water and pressing something called
      `delete` on a question that also hangs off Carbon is the mistake the filter
      invites, so the two are named apart and the delete's confirm counts what it
      would actually take.
 
-     UNLINK targets the module in the filter, because that is the only module
-     this view can be said to be "in". With the filter on every module there is
+     UNLINK targets the concept in the filter, because that is the only concept
+     this view can be said to be "in". With the filter on every concept there is
      no such target — a door names nine — so it disables and says why rather
      than guessing. The × on a chip is the same action with the target picked by
      hand, and stays the fast path. */
-  const here = $('module').value;
+  const here = $('concept').value;
   const linked = here !== 'all' && id_in(r, here);
 
   const un = document.createElement('button');
@@ -324,11 +324,11 @@ function rowEl(r, i) {
   un.textContent = 'unlink';
   un.disabled = !linked;
   un.title = linked
-    ? 'Take this question off ' + byMod(here).name + ', leaving it on the others'
-    : 'Pick one module in the filter to unlink from — or use the × on a chip';
+    ? 'Take this question off ' + byConcept(here).name + ', leaving it on the others'
+    : 'Pick one concept in the filter to unlink from — or use the × on a chip';
   un.addEventListener('click', () => {
     if (!linked) return;
-    delete r.mods[here];
+    delete r.concepts[here];
     draw();
   });
   tag.appendChild(un);
@@ -337,9 +337,9 @@ function rowEl(r, i) {
   del.className = 'btn'; del.style.padding = '0.1rem 0.35rem';
   del.textContent = 'delete question';
   del.addEventListener('click', () => {
-    const names = Object.keys(r.mods).filter(byMod).map(id => byMod(id).name);
+    const names = Object.keys(r.concepts).filter(byConcept).map(id => byConcept(id).name);
     const scope = names.length > 1
-      ? '\n\nIt is named by ' + names.length + ' modules — ' + names.join(', ')
+      ? '\n\nIt is named by ' + names.length + ' concepts — ' + names.join(', ')
         + ' — and this takes it off all of them.'
         + '\nTo remove just one, unlink instead.'
       : '';
@@ -350,9 +350,9 @@ function rowEl(r, i) {
   left.appendChild(tag);
 
   const right = document.createElement('div');
-  right.className = 'mods';
-  for (const [id, rank] of Object.entries(r.mods || {})) {
-    const m = byMod(id);
+  right.className = 'draft';
+  for (const [id, rank] of Object.entries(r.concepts || {})) {
+    const m = byConcept(id);
     const chip = document.createElement('span');
     chip.className = 'chip' + (m && m.door !== 'water' ? ' away' : '');
     const dot = document.createElement('span');
@@ -371,24 +371,24 @@ function rowEl(r, i) {
       o.value = n; o.textContent = 'rank ' + n; o.selected = n === rank;
       sel.appendChild(o);
     }
-    sel.addEventListener('change', () => { r.mods[id] = +sel.value; score(); });
+    sel.addEventListener('change', () => { r.concepts[id] = +sel.value; score(); });
     chip.appendChild(sel);
 
     const x = document.createElement('button');
     x.textContent = '×'; x.title = 'unlink';
-    x.addEventListener('click', () => { delete r.mods[id]; draw(); });
+    x.addEventListener('click', () => { delete r.concepts[id]; draw(); });
     chip.appendChild(x);
     right.appendChild(chip);
   }
 
   const add = document.createElement('select');
   add.className = 'addmod';
-  add.innerHTML = '<option value="">+ module…</option>';
+  add.innerHTML = '<option value="">+ concept…</option>';
   for (const d of doors) {
     const g = document.createElement('optgroup');
     g.label = d.name + (d.open ? '' : ' (not opened)');
-    for (const m of modules.filter(x => x.door === d.id)) {
-      if (r.mods && id_in(r, m.id)) continue;
+    for (const m of concepts.filter(x => x.door === d.id)) {
+      if (r.concepts && id_in(r, m.id)) continue;
       const o = document.createElement('option');
       o.value = m.id;
       o.textContent = m.name + (viewIds.includes(m.id) ? ' ◍' : '');
@@ -398,7 +398,7 @@ function rowEl(r, i) {
   }
   add.addEventListener('change', () => {
     if (!add.value) return;
-    r.mods[add.value] = 1;      // a new edge opens at rank 1; re-rank on the chip
+    r.concepts[add.value] = 1;      // a new edge opens at rank 1; re-rank on the chip
     draw();
   });
   right.appendChild(add);
@@ -408,7 +408,7 @@ function rowEl(r, i) {
   return el;
 }
 
-const id_in = (r, id) => Object.prototype.hasOwnProperty.call(r.mods || {}, id);
+const id_in = (r, id) => Object.prototype.hasOwnProperty.call(r.concepts || {}, id);
 
 /* ---- filters ------------------------------------------------------------ */
 
@@ -421,7 +421,7 @@ function fillFilters() {
     o.textContent = d.name + (d.open ? '' : ' (not opened)');
     dsel.appendChild(o);
   }
-  const md = $('mdoor');
+  const md = $('cdoor');
   md.innerHTML = '<option value="all">every door</option>';
   for (const d of doors) {
     const o = document.createElement('option');
@@ -429,81 +429,81 @@ function fillFilters() {
     o.textContent = d.name + (d.open ? '' : ' (not opened)');
     md.appendChild(o);
   }
-  const msel = $('module');
-  msel.innerHTML = '<option value="all">every module</option>';
-  for (const m of modules) {
+  const msel = $('concept');
+  msel.innerHTML = '<option value="all">every concept</option>';
+  for (const m of concepts) {
     const o = document.createElement('option');
     o.value = m.id;
     o.textContent = m.name + (viewIds.includes(m.id) ? ' ◍' : '');
     msel.appendChild(o);
   }
 }
-['door', 'module', 'kind', 'find'].forEach(id => $(id).addEventListener('input', draw));
+['door', 'concept', 'kind', 'find'].forEach(id => $(id).addEventListener('input', draw));
 
-/* ---- modules -------------------------------------------------------------
+/* ---- concepts -------------------------------------------------------------
    The one field that changes the map's first screen is `rank`: a door opens on
-   its rank 1 modules and reveals the rest a band at a time. That used to be
+   its rank 1 concepts and reveals the rest a band at a time. That used to be
    capped at four by a hand-composed fan of four positions — a fifth wrapped and
    was dealt on top of the first — so the fan is resampled now and any count
    composes. Which is what makes this screen worth having.
 
-   The id is shown and NOT editable. Every question names its modules by id, so
+   The id is shown and NOT editable. Every question names its concepts by id, so
    changing one here would orphan those edges silently; the io catches it, but
    the honest move is not to offer it. */
 
-let mods = [], mbase = '';
+let draft = [], cbase = '';
 
-const msnapshot = () => JSON.stringify(mods);
-const mdirty = () => msnapshot() !== mbase;
+const csnapshot = () => JSON.stringify(draft);
+const cdirty = () => csnapshot() !== cbase;
 
-function mscore() {
-  const d = $('mdoor').value;
+function cscore() {
+  const d = $('cdoor').value;
   const inDoor = m => d === 'all' || m.door === d;
-  const shown = mods.filter(inDoor);
+  const shown = draft.filter(inDoor);
   const starters = shown.filter(m => m.rank === 1);
   const openDoors = doors.filter(x => x.open && (d === 'all' || x.id === d));
-  const bad = openDoors.filter(x => mods.some(m => m.door === x.id)
-                                 && !mods.some(m => m.door === x.id && m.rank === 1));
-  $('mscore').innerHTML =
-    '<b>' + shown.length + '</b> modules · '
+  const bad = openDoors.filter(x => draft.some(m => m.door === x.id)
+                                 && !draft.some(m => m.door === x.id && m.rank === 1));
+  $('cscore').innerHTML =
+    '<b>' + shown.length + '</b> concepts · '
     + '<span class="cross"><b>' + starters.length + '</b> open the door</span>'
     + (bad.length ? ' · <span class="cap">' + bad.map(x => x.name).join(', ')
                     + ' opens on nothing</span>' : '');
-  $('mdirty').textContent = mdirty() ? 'unsaved' : '';
+  $('cdirty').textContent = cdirty() ? 'unsaved' : '';
 }
 
-function mdraw() {
-  const host = $('mlist');
+function cdraw() {
+  const host = $('clist');
   host.replaceChildren();
-  const d = $('mdoor').value;
+  const d = $('cdoor').value;
   // Rank first, so what a door OPENS with is at the top and reads as a set.
-  const shown = mods.map((m, i) => [m, i])
+  const shown = draft.map((m, i) => [m, i])
     .filter(([m]) => d === 'all' || m.door === d)
     .sort((a, b) => (a[0].door.localeCompare(b[0].door)) || (a[0].rank - b[0].rank));
   for (const [m, i] of shown) host.appendChild(mrowEl(m, i));
-  mscore();
+  cscore();
 }
 
 function mrowEl(m, i) {
   const el = document.createElement('div');
-  el.className = 'mrow' + (m.rank === 1 ? ' starter' : '');
+  el.className = 'crow' + (m.rank === 1 ? ' starter' : '');
 
   const id = document.createElement('div');
   id.className = 'idc';
   id.textContent = m.id;
-  id.title = 'Questions name this module by id, so it is not editable here — '
+  id.title = 'Questions name this concept by id, so it is not editable here — '
            + 'changing it would orphan every edge that names it.';
   el.appendChild(id);
 
   const mid = document.createElement('div');
   const name = document.createElement('input');
   name.className = 'name'; name.value = m.name;
-  name.addEventListener('input', () => { m.name = name.value; mscore(); });
+  name.addEventListener('input', () => { m.name = name.value; cscore(); });
   mid.appendChild(name);
   const claim = document.createElement('textarea');
   claim.className = 'claim'; claim.rows = 1; claim.value = m.claim;
   const grow = () => { claim.style.height = 'auto'; claim.style.height = claim.scrollHeight + 'px'; };
-  claim.addEventListener('input', () => { m.claim = claim.value; grow(); mscore(); });
+  claim.addEventListener('input', () => { m.claim = claim.value; grow(); cscore(); });
   mid.appendChild(claim);
   requestAnimationFrame(grow);
   const qn = document.createElement('div');
@@ -524,7 +524,7 @@ function mrowEl(m, i) {
     o.textContent = n2 === 1 ? 'rank 1 — opens the door' : 'rank ' + n2;
     rank.appendChild(o);
   }
-  rank.addEventListener('change', () => { m.rank = +rank.value; mdraw(); });
+  rank.addEventListener('change', () => { m.rank = +rank.value; cdraw(); });
   side.appendChild(rank);
 
   const door = document.createElement('select');
@@ -534,7 +534,7 @@ function mrowEl(m, i) {
     o.textContent = dd.name + (dd.open ? '' : ' (not opened)');
     door.appendChild(o);
   }
-  door.addEventListener('change', () => { m.door = door.value; mdraw(); });
+  door.addEventListener('change', () => { m.door = door.value; cdraw(); });
   side.appendChild(door);
 
   const state = document.createElement('select');
@@ -543,14 +543,14 @@ function mrowEl(m, i) {
     o.value = st; o.selected = st === m.state; o.textContent = st;
     state.appendChild(o);
   }
-  state.addEventListener('change', () => { m.state = state.value; mscore(); });
+  state.addEventListener('change', () => { m.state = state.value; cscore(); });
   side.appendChild(state);
 
   el.appendChild(side);
   return el;
 }
 
-$('mdoor').addEventListener('input', mdraw);
+$('cdoor').addEventListener('input', cdraw);
 
 /* ---- panes -------------------------------------------------------------- */
 
@@ -559,9 +559,9 @@ function pane(which) {
   document.querySelectorAll('.tab').forEach(t =>
     t.classList.toggle('on', t.dataset.pane === which));
   $('qbar').hidden = !q; $('list').hidden = !q;
-  $('mbar').hidden = q;  $('mlist').hidden = q;
+  $('cbar').hidden = q;  $('clist').hidden = q;
   say('');
-  if (q) draw(); else mdraw();
+  if (q) draw(); else cdraw();
 }
 document.querySelectorAll('.tab').forEach(t =>
   t.addEventListener('click', () => pane(t.dataset.pane)));
@@ -574,19 +574,19 @@ async function load() {
     if (!r.ok) throw new Error('status ' + r.status);
     const data = await r.json();
     rows = data.rows;
-    modules = data.modules;
+    concepts = data.concepts;
     doors = data.doors;
     viewIds = data.views || [];
     mtimeMs = data.mtimeMs;
     writable = !!data.writable;
-    // The modules screen edits a COPY. `modules` stays the read-only lookup the
+    // The concepts screen edits a COPY. `concepts` stays the read-only lookup the
     // questions screen resolves ids against, so an unsaved rename on one screen
     // cannot quietly change what the other one is showing.
-    mods = data.modules.map(m => ({ ...m }));
-    base = snapshot(); mbase = msnapshot();
+    draft = data.concepts.map(m => ({ ...m }));
+    base = snapshot(); cbase = csnapshot();
     $('note').innerHTML = 'Editing <code>lib/mapcontent.js</code>. '
-      + 'A question naming one module is a caption; the work is turning those into '
-      + 'crossings. <b>◍</b> marks a module whose card has something to show.';
+      + 'A question naming one concept is a caption; the work is turning those into '
+      + 'crossings. <b>◍</b> marks a concept whose card has something to show.';
   } catch (e) {
     writable = false;
     $('note').innerHTML = 'No dev server, so this page is read-only — run '
@@ -599,17 +599,17 @@ async function load() {
       const sb = { window: {} }; sb.window = sb;
       new Function('global', src)(sb);
       const c = sb.MapContent;
-      rows = c.QUESTIONS.map(([text, m]) => ({ text, mods: { ...m } }));
-      modules = c.MODULES; doors = c.DOORS; viewIds = Object.keys(c.VIEWS || {});
-      mods = c.MODULES.map(m => ({ ...m }));
-      base = snapshot(); mbase = msnapshot();
+      rows = c.QUESTIONS.map(([text, m]) => ({ text, concepts: { ...m } }));
+      concepts = c.CONCEPTS; doors = c.DOORS; viewIds = Object.keys(c.VIEWS || {});
+      draft = c.CONCEPTS.map(m => ({ ...m }));
+      base = snapshot(); cbase = csnapshot();
     } catch (e2) { say('could not read mapcontent.js: ' + e2.message, 'bad'); }
   }
   $('save').disabled = !writable;
-  $('msave').disabled = !writable;
+  $('csave').disabled = !writable;
   fillFilters();
   draw();
-  mdraw();
+  cdraw();
 }
 
 $('save').addEventListener('click', async () => {
@@ -633,14 +633,14 @@ $('save').addEventListener('click', async () => {
   } catch (e) { say(e.message, 'bad'); }
 });
 
-$('msave').addEventListener('click', async () => {
+$('csave').addEventListener('click', async () => {
   say('');
   try {
-    // `mods` only. The io leaves QUESTIONS exactly as the file has it, so an
+    // `draft` only. The io leaves QUESTIONS exactly as the file has it, so an
     // unsaved question edit on the other screen is neither written nor lost.
     const r = await fetch('/api/mapcontent', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mods, mtimeMs }),
+      body: JSON.stringify({ concepts: draft, mtimeMs }),
     });
     const data = await r.json();
     if (!r.ok) {
@@ -650,16 +650,16 @@ $('msave').addEventListener('click', async () => {
       return;
     }
     mtimeMs = data.mtimeMs;
-    mbase = msnapshot();
+    cbase = csnapshot();
     // The questions screen resolves ids against this, so it has to follow.
-    modules = mods.map(m => ({ ...m }));
-    say('saved ' + data.mods + ' modules to mapcontent.js', 'ok');
-    mscore();
+    concepts = draft.map(m => ({ ...m }));
+    say('saved ' + data.draft + ' concepts to mapcontent.js', 'ok');
+    cscore();
   } catch (e) { say(e.message, 'bad'); }
 });
 
-$('mrevert').addEventListener('click', () => {
-  if (mdirty() && !confirm('Throw away the unsaved module edits?')) return;
+$('crevert').addEventListener('click', () => {
+  if (cdirty() && !confirm('Throw away the unsaved concept edits?')) return;
   load().then(() => say('reloaded from disk', 'ok'));
 });
 
@@ -668,18 +668,18 @@ $('revert').addEventListener('click', () => {
   load().then(() => say('reloaded from disk', 'ok'));
 });
 
-/* Seeded from whatever the list is filtered to. A question born with no module
+/* Seeded from whatever the list is filtered to. A question born with no concept
    is invisible under any filter AND counts as unlinked, so the new row would
-   vanish at the moment it was asked for. Module filter wins; a door falls back
+   vanish at the moment it was asked for. Concept filter wins; a door falls back
    to what that door opens with. */
 $('add').addEventListener('click', () => {
-  const m = $('module').value, d = $('door').value;
+  const m = $('concept').value, d = $('door').value;
   let seed = m !== 'all' ? m : null;
   if (!seed && d !== 'all') {
-    const cand = modules.filter(x => x.door === d).sort((a, b) => a.rank - b.rank)[0];
+    const cand = concepts.filter(x => x.door === d).sort((a, b) => a.rank - b.rank)[0];
     if (cand) seed = cand.id;
   }
-  rows.unshift({ text: 'New question?', mods: seed ? { [seed]: 1 } : {} });
+  rows.unshift({ text: 'New question?', concepts: seed ? { [seed]: 1 } : {} });
   $('kind').value = 'all'; $('find').value = '';
   draw();
   const first = document.querySelector('.q');
@@ -687,7 +687,7 @@ $('add').addEventListener('click', () => {
 });
 
 /* Export writes the QUESTIONS array the way mapcontent-io.js would, so a paste
-   into the file lands identical to a save. The alignment is that module's, not
+   into the file lands identical to a save. The alignment is that concept's, not
    this page's opinion — a diff of 63 re-indented lines would bury the edit. */
 const COLUMN = 64;
 const quote = s => "'" + String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
@@ -695,8 +695,8 @@ $('export').addEventListener('click', () => {
   const body = rows.map(r => {
     const head = '    [' + quote(r.text) + ',';
     const pad = ' '.repeat(Math.max(1, COLUMN - head.length));
-    const mods = Object.entries(r.mods || {}).map(([id, n]) => id + ':' + n).join(', ');
-    return head + pad + '{ ' + mods + ' }],';
+    const edges = Object.entries(r.concepts || {}).map(([id, n]) => id + ':' + n).join(', ');
+    return head + pad + '{ ' + edges + ' }],';
   }).join('\n');
   let ta = document.querySelector('textarea.dump');
   if (!ta) { ta = document.createElement('textarea'); ta.className = 'dump'; $('list').before(ta); }
@@ -705,7 +705,7 @@ $('export').addEventListener('click', () => {
   say('paste this over the QUESTIONS array in lib/mapcontent.js', 'ok');
 });
 
-addEventListener('beforeunload', e => { if (dirty() || mdirty()) e.preventDefault(); });
+addEventListener('beforeunload', e => { if (dirty() || cdirty()) e.preventDefault(); });
 
 load();
 </script>

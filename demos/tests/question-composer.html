@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<!-- Test bench for the door → module → question → module hierarchy.
+<!-- Test bench for the door → concept → question → concept hierarchy.
      One door is wired up: "Why is water the foundation of life?"
 
-     The module table lives in this page, not in lib/questions.js, because
-     modules are the part still being designed — a module owns a name, a
+     The concept table lives in this page, not in lib/questions.js, because
+     concepts are the part still being designed — a concept owns a name, a
      question of its own, a kind, a state, and the questions it answers. A
-     question naming two modules is what carries you from one door to the
+     question naming two concepts is what carries you from one door to the
      next; nothing here links out to a lesson yet.
 
-     A module card goes LIVE the moment it is REVEALED, not on a click. The map's
-     whole claim is that a module is a thing you can look at, and a placeholder
+     A concept card goes LIVE the moment it is REVEALED, not on a click. The map's
+     whole claim is that a concept is a thing you can look at, and a placeholder
      asks the reader to take that on faith until they click. `VIEWS` below says
-     which modules have something to show; the ones with no entry grow no
+     which concepts have something to show; the ones with no entry grow no
      picture box at all, and the ones that do show a loading state until the
      stage mounts.
 
@@ -134,7 +134,7 @@
     color: var(--spark); margin-top: 0.5rem;
   }
 
-  .node.module {
+  .node.concept {
     width: 17.5rem;
     padding: 0.85rem 1rem 0.9rem;
     background: var(--card);
@@ -142,7 +142,7 @@
     text-align: left;
   }
   /* the name is an eyebrow — which lesson this is — and the claim is the card */
-  .node.module .name {
+  .node.concept .name {
     font-size: 0.6rem; font-weight: 500; letter-spacing: 0.18em;
     text-transform: uppercase; color: var(--muted);
     display: flex; align-items: center; gap: 0.4rem;
@@ -152,31 +152,31 @@
      the same dot's fill — solid is built, half is an engine with no lesson on
      it, hollow is planned — which is a weaker signal than a colour, and the
      right way round for a map about crossings. `--dot` is set per card in
-     paintNode from that module's door tint. */
-  .node.module .name::before {
+     paintNode from that concept's door tint. */
+  .node.concept .name::before {
     content: ''; width: 7px; height: 7px; border-radius: 50%;
     background: var(--dot, var(--line)); flex: none;
   }
-  .node.module.engine  .name::before { opacity: 0.5; }
-  .node.module.planned .name::before {
+  .node.concept.engine  .name::before { opacity: 0.5; }
+  .node.concept.planned .name::before {
     background: transparent; box-shadow: inset 0 0 0 1.5px var(--dot, var(--line));
   }
   /* the open card: the one you clicked grows and makes room for its picture */
-  .node.module.hub { width: 34rem; padding: 1.7rem 1.9rem 1.75rem; }
+  .node.concept.hub { width: 34rem; padding: 1.7rem 1.9rem 1.75rem; }
   /* the claim: what this lesson asserts, in water-lab's own register — flat,
      present tense, the fact itself rather than a tease of it */
-  .node.module .claim {
+  .node.concept .claim {
     font-family: var(--serif); font-size: 1rem; line-height: 1.28;
     color: var(--ink); margin-top: 0.35rem; letter-spacing: -0.005em;
     display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .node.module.planned .claim { color: var(--muted); }
-  .node.module.hub .claim {
+  .node.concept.planned .claim { color: var(--muted); }
+  .node.concept.hub .claim {
     font-size: 1.9rem; line-height: 1.18; margin-top: 0.6rem;
     letter-spacing: -0.015em; -webkit-line-clamp: 5;
   }
-  .node.module.hub .name { font-size: 0.68rem; letter-spacing: 0.2em; }
+  .node.concept.hub .name { font-size: 0.68rem; letter-spacing: 0.2em; }
 
   /* 4:3, the same shape cards-cluster gives its stages, and a RATIO rather than
      a height on purpose: the card sets the width, the picture follows, and the
@@ -185,7 +185,7 @@
      opens, so nothing about its framing changes except the scale. Two typed
      heights could not promise that — 17.5rem wide against 6.6rem tall is 2.4:1,
      which crops a tall molecule to a letterbox. */
-  .node.module .thumb {
+  .node.concept .thumb {
     position: relative; overflow: hidden;
     width: 100%; aspect-ratio: 4 / 3; margin: 0.65rem 0 0.25rem;
     background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
@@ -195,7 +195,7 @@
      an overlay sweeping until the stage mounts over it. Absolutely positioned
      and behind the canvas, so nothing about the layout depends on whether the
      picture is here yet. */
-  .node.module .thumb .ph {
+  .node.concept .thumb .ph {
     position: absolute; inset: 0;
     background: linear-gradient(100deg,
       #eceae4 30%, #f6f4ef 48%, #eceae4 66%) 0 0 / 300% 100%;
@@ -203,9 +203,9 @@
   }
   @keyframes thumb-shimmer { to { background-position: -300% 0; } }
   @media (prefers-reduced-motion: reduce) {
-    .node.module .thumb .ph { animation: none; }
+    .node.concept .thumb .ph { animation: none; }
   }
-  .node.module .thumb.mounted .ph { display: none; }
+  .node.concept .thumb.mounted .ph { display: none; }
   /* Every stage this page mounts makes its own canvas inside the thumb —
      card-stage.js and molecule-builder.js both, and for the same reason: a
      destroy that force-loses the context can never give the element back.
@@ -214,10 +214,10 @@
      the opening zoom and softening as the reader scrolls in. The card that
      matters is the open one, and opening it grows the thumb, which resizes the
      renderer for real. */
-  .node.module .thumb > canvas { display: block; width: 100%; height: 100%; }
+  .node.concept .thumb > canvas { display: block; width: 100%; height: 100%; }
   /* The word goes when the picture arrives, and comes back when it leaves. */
-  .node.module .thumb.mounted { background: #f2f0ea; }
-  .node.module .thumb .still {
+  .node.concept .thumb.mounted { background: #f2f0ea; }
+  .node.concept .thumb .still {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: contain; opacity: .5;
   }
@@ -226,14 +226,14 @@
      `.ph` above and nowhere else: a rule here on equal specificity beats
      `.mounted`, which is how the placeholder used to come back the moment a
      card was expanded. */
-  .node.module.hub .thumb { margin: 1rem 0 0.35rem; }
+  .node.concept.hub .thumb { margin: 1rem 0 0.35rem; }
 
-  .node.module .meta {
+  .node.concept .meta {
     font-size: 0.55rem; letter-spacing: 0.16em; text-transform: uppercase;
     color: var(--spark); margin-top: 0.4rem;
   }
   /* state, drawn on the left edge: built is solid, planned is nothing */
-  .node.module.planned { border-style: dashed; }
+  .node.concept.planned { border-style: dashed; }
 
 
   /* A card's own controls belong to the `interact` band and nowhere else. Below
@@ -241,21 +241,21 @@
      they cannot hit — the buttons are 22px tall before the zoom takes half of
      it — is an invitation to a click that pans instead. `.near` is that test,
      set per card because an open card is twice the width and passes it at half
-     the k. The module keeps deciding whether the control is EARNED
+     the k. The concept keeps deciding whether the control is EARNED
      (mb-dims.armed, a finished molecule); this decides whether it is reachable.
      Faded rather than removed, so nothing reflows as the reader scrolls in. */
-  .node.module .mb-dims { transition: opacity .18s ease; }
-  .node.module:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
+  .node.concept .mb-dims { transition: opacity .18s ease; }
+  .node.concept:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
 
   /* Every control a card carries is gated the same way, and the gate is this
      page's: only the map knows how big its card is on screen. What they look
      like is the module's (kit/proteinbox.css) or the builder's. */
-  .node.module:not(.near) .pbox-rep,
-  .node.module:not(.near) .pbox-play,
-  .node.module:not(.near) .lesson,
-  .node.module:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
+  .node.concept:not(.near) .pbox-rep,
+  .node.concept:not(.near) .pbox-play,
+  .node.concept:not(.near) .lesson,
+  .node.concept:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
 
-  .node.module .lesson {
+  .node.concept .lesson {
     position: absolute; left: 8px; bottom: 8px;
     font: inherit; font-size: 0.55rem; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted); cursor: pointer;
@@ -263,7 +263,7 @@
     padding: 0.3rem 0.5rem; box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
     transition: opacity .18s ease, color .15s, border-color .15s;
   }
-  .node.module .lesson:hover { color: var(--ink); border-color: var(--ink); }
+  .node.concept .lesson:hover { color: var(--ink); border-color: var(--ink); }
 
   .node.question {
     width: 13.5rem;
@@ -274,9 +274,9 @@
     text-align: center;
   }
 
-  /* a question opens the same way a module does: bigger, with room for a picture */
-  /* A question opens the same way a module does — bigger, and readable — but it
-     grows NO picture block. A module's placeholder is a promise: that card has
+  /* a question opens the same way a concept does: bigger, with room for a picture */
+  /* A question opens the same way a concept does — bigger, and readable — but it
+     grows NO picture block. A concept's placeholder is a promise: that card has
      a lesson behind it and a stage is what arrives there. A question has
      neither, so the grey box was only ever an empty rectangle appearing on
      click, and the reader has to read it as meaning something. The question IS
@@ -291,7 +291,7 @@
 
   .focusing .node { opacity: 0.18; pointer-events: none; }
   .focusing .node.lit { opacity: 1; pointer-events: auto; }
-  /* Hop 2 is NOT dimmed: it is the modules the clicked card's questions cross
+  /* Hop 2 is NOT dimmed: it is the concepts the clicked card's questions cross
      to, and the crossing is the point. Depth still reads, in the links. */
   .focusing .node.hop2 { opacity: 1; }
   .focusing .node.question.lit {
@@ -423,44 +423,44 @@
      CLAIM is the card, because a lesson is what it asserts. Here the NAME is
      the card, because a specimen is a thing and its blurb is a label on it.
 
-     No dot either: the dot carries which DOOR a module belongs to, and a
+     No dot either: the dot carries which DOOR a concept belongs to, and a
      specimen belongs to no door — it is held by every concept that names it. */
-  .node.module.specimen .name {
+  .node.concept.specimen .name {
     font-family: var(--serif); font-size: 1.1rem; line-height: 1.2;
     font-weight: 400; letter-spacing: -0.01em; text-transform: none;
     color: var(--ink); display: block;
   }
-  .node.module.specimen .name::before { display: none; }
-  .node.module.specimen .claim {
+  .node.concept.specimen .name::before { display: none; }
+  .node.concept.specimen .claim {
     font-family: var(--ui); font-size: 0.72rem; line-height: 1.4;
     color: var(--muted); margin-top: 0.5rem; letter-spacing: 0;
     -webkit-line-clamp: 3;
   }
-  .node.module.specimen .thumb { margin-top: 0.55rem; }
+  .node.concept.specimen .thumb { margin-top: 0.55rem; }
   /* What made this file, read from the baker's half of the registry. Small,
      tabular, and deliberately quiet: it is provenance, not the point. */
-  .node.module.specimen .prov {
+  .node.concept.specimen .prov {
     font-family: var(--ui); font-size: 0.63rem; line-height: 1.35;
     color: var(--faint, #9a9ca3); margin-top: 0.35rem;
     font-variant-numeric: tabular-nums;
   }
   /* An enzyme, marked by its EC class rather than by the word. */
-  .node.module.specimen .tag {
+  .node.concept.specimen .tag {
     display: inline-flex; align-items: baseline; gap: 0.4rem;
     margin-top: 0.3rem;
     font-family: var(--sans); font-size: 0.56rem; font-weight: 500;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
   }
-  .node.module.specimen .tag span {
+  .node.concept.specimen .tag span {
     letter-spacing: 0.08em; color: var(--muted); font-variant-numeric: tabular-nums;
   }
-  .node.module.specimen.hub .prov { font-size: 0.75rem; margin-top: 0.5rem; }
-  .node.module.specimen.hub .tag { font-size: 0.62rem; }
+  .node.concept.specimen.hub .prov { font-size: 0.75rem; margin-top: 0.5rem; }
+  .node.concept.specimen.hub .tag { font-size: 0.62rem; }
   /* Opened, the name takes the size the claim would have had. */
-  .node.module.specimen.hub .name {
+  .node.concept.specimen.hub .name {
     font-size: 1.9rem; line-height: 1.18; letter-spacing: -0.015em;
   }
-  .node.module.specimen.hub .claim { font-size: 0.85rem; margin-top: 0.7rem; }
+  .node.concept.specimen.hub .claim { font-size: 0.85rem; margin-top: 0.7rem; }
 
   /* ---- the title card -------------------------------------------------
      Only for `?q=`. The question is known before any fetch, so the second the
@@ -595,7 +595,7 @@
 <script src="../lib/ionic-drag.js"></script>
 <script src="../water/watersim.js"></script>
 <script src="../proteins/proteins.js"></script>   <!-- SPECIMENS resolve their keys here -->
-<script src="../lib/mapcontent.js"></script>   <!-- DOORS, MODULES, QUESTIONS, VIEWS -->
+<script src="../lib/mapcontent.js"></script>   <!-- DOORS, CONCEPTS, QUESTIONS, VIEWS -->
 <script src="../kit/modal.js"></script>
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/molbox.js"></script>
@@ -607,23 +607,23 @@
 <script src="../hemoglobin/foldplay.js"></script>  <!-- the ss-from-bonds rule, shared with hemoglobin-lab -->
 <script>
 /* ---- the content ------------------------------------------------------
-   DOORS, MODULES, QUESTIONS and VIEWS all live in lib/mapcontent.js now, so
+   DOORS, CONCEPTS, QUESTIONS and VIEWS all live in lib/mapcontent.js now, so
    they can be edited somewhere better than an HTML file — map-cms.html reads
    and writes that file through the dev server. What is left in this page is
    what DRAWS them, which is the only thing a page should hold.
 
    QUESTIONS is question-major: one row per question, carrying the rank it has
-   on each module it names. The map is bipartite and a question is the CROSSING,
-   so it has to be one node however many modules name it; module-major, the same
-   text appeared once per module and a re-wording in one of them split that node
+   on each concept it names. The map is bipartite and a question is the CROSSING,
+   so it has to be one node however many concepts name it; concept-major, the same
+   text appeared once per concept and a re-wording in one of them split that node
    in two. `mapcontent.js`'s header has the argument. */
 
-const { DOORS, MODULES, QUESTIONS, SPECIMENS, VIEWS } = MapContent;
+const { DOORS, CONCEPTS, QUESTIONS, SPECIMENS, VIEWS } = MapContent;
 const DOOR = DOORS.find(d => d.open) || DOORS[0];
 
 /* ---- graph ------------------------------------------------------------
-   Bipartite, like the concept map: modules never link to modules. A question
-   node is shared by every module that answers it, so the question IS the
+   Bipartite, like the concept map: concepts never link to concepts. A question
+   node is shared by every concept that answers it, so the question IS the
    crossing — from Hydrogen bonding to Base pairing, and with it from the
    water door to the information door. */
 
@@ -638,16 +638,16 @@ const door = { id: 'door', kind: 'door', text: DOOR.question, meta: DOOR.label, 
 byId.door = door;
 nodes.push(door);
 
-for (const m of MODULES) {
-  const n = { ...m, kind: 'module', deg: 0 };
+for (const m of CONCEPTS) {
+  const n = { ...m, kind: 'concept', deg: 0 };
   byId[m.id] = n;
   nodes.push(n);
   if (m.door === DOOR.id) links.push({ a: door, b: n, rank: m.rank });
 }
 
-/* SPECIMENS — a protein is a LEAF: it hangs off modules and off questions and
+/* SPECIMENS — a protein is a LEAF: it hangs off concepts and off questions and
    never off another specimen, which is what keeps the map layered even though
-   a module may now reach one directly, with no question between.
+   a concept may now reach one directly, with no question between.
 
    THE REGISTRY IS THE LIST. Every protein in proteins/proteins.js gets a node;
    `SPECIMENS` only says where one SITS, and which variant it sits as. So adding
@@ -659,12 +659,12 @@ for (const m of MODULES) {
    chosen variant's baked trace is resolved, because a card draws one structure
    and the registry already says which. */
 const SPEC = (window.ProteinLib && window.ProteinLib.PROTEINS) || [];
-const PLACED = new Map((SPECIMENS || []).map(([key, mods, opt]) => [key, { mods, opt }]));
+const PLACED = new Map((SPECIMENS || []).map(([key, ranks, opt]) => [key, { ranks, opt }]));
 for (const key of PLACED.keys())
   if (!SPEC.some(p => p.key === key)) console.warn(`[composer] SPECIMENS names no such protein \`${key}\``);
 
 for (const p of SPEC) {
-  const { mods = {}, opt } = PLACED.get(p.key) || {};
+  const { ranks = {}, opt } = PLACED.get(p.key) || {};
   const v = (opt && opt.variant && p.variants.find(x => x.id === opt.variant))
     || p.variants.find(x => x.default) || p.variants[0];
   if (opt && opt.variant && (!v || v.id !== opt.variant))
@@ -698,16 +698,16 @@ for (const p of SPEC) {
     ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
   };
   const edges = [];
-  for (const [mid, rank] of Object.entries(mods)) {
-    const m = byId[mid];
+  for (const [cid, rank] of Object.entries(ranks)) {
+    const m = byId[cid];
     if (!m) continue;
     edges.push({ a: m, b: n, rank });
     n.deg++; m.deg++;
   }
   /* UNPLACED FALLS TO ITS DOOR, at the back rank: a protein nobody has filed
-     under a module belongs to the Proteins question and nowhere else, and the
+     under a concept belongs to the Proteins question and nowhere else, and the
      map draws one door at a time — so it appears there and never clutters
-     Water. Placed elsewhere, it reaches this door through its modules. */
+     Water. Placed elsewhere, it reaches this door through its concepts. */
   if (!edges.length) {
     if (DOOR.id !== 'proteins') continue;   // its door isn't the one on screen
     edges.push({ a: door, b: n, rank: 3 });
@@ -718,16 +718,16 @@ for (const p of SPEC) {
   links.push(...edges);
 }
 
-/* One node per question, however many modules name it — which is what makes a
+/* One node per question, however many concepts name it — which is what makes a
    question the crossing rather than a leaf on each card. The row already IS one
    per question, so nothing here has to dedupe by text any more. */
-for (const [text, mods] of QUESTIONS) {
+for (const [text, ranks] of QUESTIONS) {
   const q = { id: 'q' + nodes.length, kind: 'question', text, deg: 0 };
   byId[q.id] = q;
   nodes.push(q);
-  for (const [mid, rank] of Object.entries(mods)) {
-    const m = byId[mid];
-    if (!m) continue;              // a module the map does not draw yet
+  for (const [cid, rank] of Object.entries(ranks)) {
+    const m = byId[cid];
+    if (!m) continue;              // a concept the map does not draw yet
     links.push({ a: m, b: q, rank });
     q.deg++; m.deg++;
   }
@@ -736,7 +736,7 @@ for (const [text, mods] of QUESTIONS) {
 const neighbours = n => links.flatMap(l => l.a === n ? [l.b] : l.b === n ? [l.a] : []);
 
 // Browsing beats ranking. A question that is rank 2 or 3 everywhere would never
-// open a card, and could only be met by wandering in from a module that happens
+// open a card, and could only be met by wandering in from a concept that happens
 // to name it — so it is promoted to rank 1 on the card that ranks it best. It
 // still reads as depth wherever it IS depth; it just gets one card that owns it.
 for (const n of nodes) {
@@ -746,14 +746,14 @@ for (const n of nodes) {
   if (best > 1) for (const l of mine) if (l.rank === best) l.rank = 1;
 }
 // the rank of `other` as seen from `from` — a question's rank belongs to the
-// edge, not to the question, which is the whole point of the per-module ranks
+// edge, not to the question, which is the whole point of the per-concept ranks
 const rankFrom = (from, other) => {
   const l = links.find(l => (l.a === from && l.b === other) || (l.b === from && l.a === other));
   return l ? l.rank : 2;
 };
 
 /* ---- what a card has to show -------------------------------------------
-   `VIEWS` is in lib/mapcontent.js with the rest of the content: which modules
+   `VIEWS` is in lib/mapcontent.js with the rest of the content: which concepts
    have something to SHOW and what. Three kinds, and the page knows how to build
    each one:
 
@@ -761,7 +761,7 @@ const rankFrom = (from, other) => {
      build  — molecule-builder.js, which brings its own ORTHOGRAPHIC stage.
      molbox — kit/molbox.js: one spec, solved into the box, turning.
 
-   A module with no entry grows no picture box: the empty rectangle was the
+   A concept with no entry grows no picture box: the empty rectangle was the
    reader's problem to interpret, and its absence says the same thing better. There was a fourth kind, `mol`: one
    built spec on a turntable. It is gone, and nothing replaced it, because it
    was two mistakes at once. It solved its camera at create and never again, so
@@ -776,7 +776,7 @@ const rankFrom = (from, other) => {
 /* ---- a protein card ------------------------------------------------------
    kit/proteinbox.js owns the molecule and the two questions a reader can ask
    of it (the surface, the fold). This owns what belongs to the MAP: which
-   files a module names, and the button that opens the lesson behind it. */
+   files a concept names, and the button that opens the lesson behind it. */
 
 /* The lesson behind a card, opened over the map. `src` is set on show and
    cleared on hide, so the lesson's context and its megabyte of trajectory
@@ -794,7 +794,7 @@ const lessonModal = Modal.create({
 
 function protein(thumb, view, id, name) {
   /* Two callers, one box. A SPECIMEN names a protein and lets the registry
-     answer; a module's VIEWS entry names files directly, because the ones it
+     answer; a concept's VIEWS entry names files directly, because the ones it
      draws (a chain-B fold, a lesson-tier surface) have no role in the registry.
      `base` is this page's own fact: paths are repo-relative and tests/ is a
      directory down. */
@@ -894,7 +894,7 @@ const densifySoon = () => {
   densityTimer = setTimeout(reDensify, 180);
 };
 
-/* ONE card starts per frame. A wave is up to four modules, and each one that
+/* ONE card starts per frame. A wave is up to four concepts, and each one that
    has something to show creates a WebGL context, compiles its shaders and
    builds its geometry — the protein card alone is 80k triangles of ribbon. All
    of that in the frame the wave arrives is a visible stall exactly where the
@@ -949,7 +949,7 @@ function goLiveSoon(n) {
 
 // The click that opens a card is the click that starts it. A card asked twice
 // for its picture is a card the reader never sees move.
-/* What a node draws. A module names its view in mapcontent.js; a SPECIMEN
+/* What a node draws. A concept names its view in mapcontent.js; a SPECIMEN
    carries its own, because the file it draws is the registry's answer and
    restating it in VIEWS would be a second source for the same fact. */
 /* A thumb is a PROMISE that a picture is coming, so a card with no view has no
@@ -1023,7 +1023,7 @@ function goLive(n) {
 /* ---- reveal ----------------------------------------------------------- */
 
 const COL = 560;
-const FIRST_ARM = 700;   // the door's own reach, scaled per module below
+const FIRST_ARM = 700;   // the door's own reach, scaled per concept below
 let alpha = 1;
 /* The relax used to floor at alpha 0.012 and run for ever, so every frame wrote
    a transform on every card and a `d` on every link whether or not anything had
@@ -1048,7 +1048,7 @@ function show(n, depth, y, x, ty) {
    * for. The pool is what makes that affordable: the four most recently
    * revealed or clicked stay live, and everything older keeps a still of its
    * last frame — so there is a picture on every card that has one to show, and
-   * only four of them are running. A wave of new modules is by definition the
+   * only four of them are running. A wave of new concepts is by definition the
    * most recent, so it is never the thing evicted. */
   goLiveSoon(n);
   for (const l of links) {
@@ -1066,9 +1066,9 @@ function show(n, depth, y, x, ty) {
 // ranks it highly — that is the per-card ranking doing its job, not a gap.
 const SHOW = 4;
 
-/* A question's best band, not literally rank 1: a question whose modules are
+/* A question's best band, not literally rank 1: a question whose concepts are
    all rank 2 or 3 there would deal nothing and read as a dead end, so the cut
-   is the lowest rank it actually has among the modules still hidden. Whole
+   is the lowest rank it actually has among the concepts still hidden. Whole
    bands only, the same promise a card's own wave makes. `also` narrows the
    field the band is measured over — measuring it before the narrowing picks a
    band that then gets filtered away to nothing. */
@@ -1081,14 +1081,14 @@ const top1 = band(null);
 
 /* `keep` is the opening screen's only extra: a click passes nothing and takes
    the whole wave, while start() opens three levels deep and has to say which of
-   a question's modules belong to the shape it is composing. `next` is the same
-   filter one level on: a module's wave carries its questions' first modules
+   a question's concepts belong to the shape it is composing. `next` is the same
+   filter one level on: a concept's wave carries its questions' first concepts
    with it, and start() narrows that to this door — without it the four
    crossings drag their away-door partners in and the door opens on twelve
    cards. */
 function expand(n, keep, next = top1) {
   /* The asked card is a root and never a wave: its links make it a genuine
-     neighbour of the modules it reached, so without this `start()` deals the
+     neighbour of the concepts it reached, so without this `start()` deals the
      reader's last question into the door's own map as though someone had
      authored it. Tested as a PROPERTY, not against the `ASKED` binding: this
      runs from start() at the bottom of the map's own script, which is before
@@ -1112,12 +1112,12 @@ function expand(n, keep, next = top1) {
   // toward the middle line the moment the relax touches it.
   const REACH = n.kind === 'door' ? 640 : 580;   // how far right of the card
   /* Gap down the fan, and it has to CLEAR the card or the wave is dealt on top
-     of itself and the relax opens with a shove. Measured: a module card is 304
+     of itself and the relax opens with a shove. Measured: a concept card is 304
      tall once its picture is 4:3 (it was ~217 when the thumb was a fixed
-     6.6rem), a question card 58. So the module step is the card plus a gap, and
+     6.6rem), a question card 58. So the concept step is the card plus a gap, and
      the question step is generous because a question is mostly air — it is
      spacing the ROW, not clearing the box. */
-  // A specimen card is a module card, so it steps like one.
+  // A specimen card is a concept card, so it steps like one.
   const STEP = m0 => m0 === 'question' ? 215 : 345;   // gap down the fan
   wave.forEach((m, i) => {
     const t = wave.length === 1 ? 0 : (i / (wave.length - 1)) * 2 - 1;   // -1 … +1
@@ -1127,12 +1127,12 @@ function expand(n, keep, next = top1) {
   });
   n.done = true;
 
-  /* A module's wave is questions, and a question alone is a dead end on the
+  /* A concept's wave is questions, and a question alone is a dead end on the
      screen — the reader has to click it to learn what it crosses to. So the
      wave carries its own next step: each new question deals its best band of
-     modules, which is what makes the crossing visible instead of promised.
+     concepts, which is what makes the crossing visible instead of promised.
      One band, or a click opens a card's entire second neighbourhood. */
-  if (n.kind === 'module' && next)
+  if (n.kind === 'concept' && next)
     for (const q of wave) if (q.kind === 'question') expand(q, next);
 
   wake(0.6);
@@ -1150,8 +1150,8 @@ function refreshMeta(n) {
   const el = n.el.querySelector('.meta');
   if (!el) return;
   const hidden = neighbours(n).filter(m => !m.visible).length;
-  if (n.kind === 'door') { el.textContent = hidden ? '+' + hidden + ' modules' : DOOR.label; return; }
-  /* A specimen's hidden neighbours are MODULES — the concepts that hold it —
+  if (n.kind === 'door') { el.textContent = hidden ? '+' + hidden + ' concepts' : DOOR.label; return; }
+  /* A specimen's hidden neighbours are CONCEPTS — the concepts that hold it —
      not questions, and the card said "+1 question" over two of them. */
   const noun = n.kind === 'protein'
     ? (hidden === 1 ? ' concept' : ' concepts')
@@ -1172,8 +1172,8 @@ function paintNode(n) {
   if (n.kind === 'door') {
     el.className = 'node door';
     el.innerHTML = '<div class="q">' + n.text + '</div><div class="meta"></div>';
-  } else if (n.kind === 'module') {
-    el.className = 'node module ' + n.state + (n.away ? ' away' : '');
+  } else if (n.kind === 'concept') {
+    el.className = 'node concept ' + n.state + (n.away ? ' away' : '');
     const tint = (DOORS.find(d => d.id === n.door) || {}).tint;
     if (tint) el.style.setProperty('--dot', tint);
     el.innerHTML = '<div class="name">' + n.name + '</div>' +
@@ -1185,7 +1185,7 @@ function paintNode(n) {
        own dot colour so a reader can see at a glance that this one is a THING
        we hold rather than something the map asserts. The meta line is the
        registry's own words — method and species — never typed here. */
-    el.className = 'node module specimen';
+    el.className = 'node concept specimen';
     /* Name first and picture second, with the blurb a caption under it. A
        concept card leads with its CLAIM because the claim is the lesson; a
        specimen leads with its NAME because the thing is the point, and what we
@@ -1362,14 +1362,14 @@ requestAnimationFrame(frame);
 
 /* ---- full screen ------------------------------------------------------
    The card at reading size: the same three parts it already has — what it is,
-   what it claims, and the picture — with the picture given the room. A module
+   what it claims, and the picture — with the picture given the room. A concept
    also lists the questions it answers, since that is what the map would have
    shown next. Nothing here navigates; closing returns you to where you were. */
 
 const full = document.getElementById('full');
 
 function openFull(n) {
-  document.getElementById('fullLede').textContent = n.kind === 'module' ? n.claim : n.text;
+  document.getElementById('fullLede').textContent = n.kind === 'concept' ? n.claim : n.text;
   const r = n.el.getBoundingClientRect();
   full.style.transformOrigin =
     (r.left + r.width / 2) + 'px ' + (r.top + r.height / 2) + 'px';
@@ -1428,9 +1428,9 @@ const HUB_RATIO = 34 / 17.5;
 const CONTROLS_AT = 0.95;
 function markNear() {
   for (const n of live) {
-    // Specimens too: the card is a module card, wears the same controls, and
+    // Specimens too: the card is a concept card, wears the same controls, and
     // skipping it left a surface toggle sitting at opacity 0 forever.
-    if (!n.el || (n.kind !== 'module' && n.kind !== 'protein')) continue;
+    if (!n.el || (n.kind !== 'concept' && n.kind !== 'protein')) continue;
     const f = n.el.classList.contains('hub') ? HUB_RATIO : 1;
     n.el.classList.toggle('near', view.k * f >= CONTROLS_AT);
   }
@@ -1610,7 +1610,7 @@ canvas.addEventListener('wheel', () => { touched = true; });
 addEventListener('resize', () => { if (!touched) centre(); });
 
 // The opening frame is composed, not chased: it fits the door and its four
-// modules exactly once, so the spacing can grow without pushing a card off the
+// concepts exactly once, so the spacing can grow without pushing a card off the
 // top. Everything after this is the reader's own panning.
 function centre() {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -1666,11 +1666,11 @@ function start() {
      these are four ways in and not four steps.
 
      RESAMPLED, not indexed. It used to be `FAN[i % FAN.length]`, which meant a
-     fifth rank 1 module wrapped onto the first slot and was dealt on the exact
+     fifth rank 1 concept wrapped onto the first slot and was dealt on the exact
      same point (measured: heat landed at 649,-262 on top of polarity). Reading
      the table as CONTROL POINTS on a curve instead, four starters land on the
      hand-composed positions unchanged — exactly, that is what makes this safe —
-     and any other count follows the same bow. So how many modules a door opens
+     and any other count follows the same bow. So how many concepts a door opens
      with is a rank in mapcontent.js, not a layout to re-tune. */
   const FAN = [[-22, 1.00], [-8, 1.55], [10, 1.36], [30, 0.94]];
   const fanAt = (i, n) => {
@@ -1689,10 +1689,10 @@ function start() {
 
   /* The water door's claim is a CHAIN, not a fan: everything water does comes
      from polarity, so the door opens already two crossings deep — the rank 1
-     module, its rank 1 questions, and the module each of those leads to. The
+     concept, its rank 1 questions, and the concept each of those leads to. The
      ranks in mapcontent.js still choose every card; this only says how many
      levels are dealt before the reader touches anything. A door whose opening
-     module has no rank 1 questions just stops, so this costs nothing elsewhere.
+     concept has no rank 1 questions just stops, so this costs nothing elsewhere.
      Own-door only, or a crossing hauls its far side in as well. */
   const onward = band((q, m) => m.door === DOOR.id);
   for (const m of first) expand(m, null, onward);
@@ -1762,8 +1762,8 @@ function lexRank(text) {
 
 /* What the typed question landed on, and what it crosses to. Same three-level
    shape start() composes for a door, rooted on a question instead: the question,
-   every module that answers it, and each of those modules' best band. A question
-   IS the crossing, so its own modules are the fan — that is the paradigm, not a
+   every concept that answers it, and each of those concepts' best band. A question
+   IS the crossing, so its own concepts are the fan — that is the paradigm, not a
    special case built for the search box. */
 function openFrom(q) {
   clearFocus();
@@ -1776,24 +1776,24 @@ function openFrom(q) {
 
   show(q, 0, 0);
   /* The door's FAN is hand-composed for four ways in; a question answers two or
-     three modules at most, so it gets the same bow read at whatever count it
+     three concepts at most, so it gets the same bow read at whatever count it
      has. Reusing start()'s control points would claim a spread this never has. */
-  const mods = neighbours(q).sort((a, b) => rankFrom(q, a) - rankFrom(q, b));
-  mods.forEach((m, i) => {
-    const t = mods.length === 1 ? 0 : (i / (mods.length - 1)) * 2 - 1;
-    const y = (i - (mods.length - 1) / 2) * 345;
+  const fan = neighbours(q).sort((a, b) => rankFrom(q, a) - rankFrom(q, b));
+  fan.forEach((m, i) => {
+    const t = fan.length === 1 ? 0 : (i / (fan.length - 1)) * 2 - 1;
+    const y = (i - (fan.length - 1) / 2) * 345;
     const x = FIRST_ARM * 0.9 - Math.abs(t) * 70;
     show(m, 1, y, x, y);
   });
   /* Own-door only, or a crossing hauls its far side in at load — start()'s rule,
      and it is the same rule here for the same reason. */
   const onward = band((qq, m) => m.door === DOOR.id);
-  /* A module's neighbours include ITS DOOR, and here the door is hidden — so
-     without this every module deals the door into its own wave and three of
+  /* A concept's neighbours include ITS DOOR, and here the door is hidden — so
+     without this every concept deals the door into its own wave and three of
      them deal the same one, stacked. start() never sees it because the door is
      already visible by the time anything expands. The composer's root is the
      typed question; the door is not part of the shape it opens. */
-  for (const m of mods) expand(m, (n, x) => x.kind === 'question' || x.kind === 'protein', onward);
+  for (const m of fan) expand(m, (n, x) => x.kind === 'question' || x.kind === 'protein', onward);
   for (const m of live) refreshMeta(m);
   follow = null;
   touched = false;
@@ -1804,9 +1804,9 @@ function openFrom(q) {
 /* ---- the reader's question as a node ----------------------------------
    ONE card carrying what was typed, and two kinds of edge off it.
 
-     INHERITED (solid) — the modules of the authored question it matched. Real
+     INHERITED (solid) — the concepts of the authored question it matched. Real
        crossings, carrying the rank that question already had on each.
-     DISCOVERED (dashed) — modules the text reached on its own, that the match
+     DISCOVERED (dashed) — concepts the text reached on its own, that the match
        did not already cover. Proximity, drawn as proximity.
 
    Both at once, because a question rarely lands entirely in one bucket: the
@@ -1817,8 +1817,8 @@ const ASKED = { id: 'asked', kind: 'question', ask: true, text: '', deg: 0 };
 byId.asked = ASKED;
 nodes.push(ASKED);
 
-const MODNODES = nodes.filter(n => n.kind === 'module');
-/* A module's words are its own plus every question filed under it: the name is
+const MODNODES = nodes.filter(n => n.kind === 'concept');
+/* A concept's words are its own plus every question filed under it: the name is
    two tokens, and the questions are most of what it is ABOUT. Built before
    ASKED has any links, so it can never contain one. */
 const MBAG = new Map(MODNODES.map(m => [m, new Set([
@@ -1827,15 +1827,15 @@ const MBAG = new Map(MODNODES.map(m => [m, new Set([
 ])]));
 
 /* Plain token counting made `water` worth as much as `curly`, and `water` is in
-   nearly every module on a water door — which is how the first version put
+   nearly every concept on a water door — which is how the first version put
    things on Polarity for saying "water" at all. Weighting by how RARE a word is
-   across modules is what makes a shared word evidence instead of noise. */
+   across concepts is what makes a shared word evidence instead of noise. */
 const DF = new Map();
 for (const bag of MBAG.values()) for (const w of bag) DF.set(w, (DF.get(w) || 0) + 1);
 const idf = w => Math.log(1 + MODNODES.length / (1 + (DF.get(w) || 0)));
 
 const NEAR = 3;          // most discovered edges a question gets
-const NEARFLOOR = 0.18;  // share of the query's WEIGHT a module has to carry
+const NEARFLOOR = 0.18;  // share of the query's WEIGHT a concept has to carry
 
 function lexNear(text, skip) {
   const want = toks(text);
@@ -1852,7 +1852,7 @@ function lexNear(text, skip) {
     .slice(0, NEAR);
 }
 
-/* Returns how many modules the question reached. ZERO IS THE ONLY MISS, and the
+/* Returns how many concepts the question reached. ZERO IS THE ONLY MISS, and the
    caller must not open on it: a root with no neighbours draws one card on blank
    paper, which reads as the page being broken rather than as an answer. */
 function openAsk(text, best, near) {
@@ -1860,7 +1860,7 @@ function openAsk(text, best, near) {
     if (links[i].a === ASKED || links[i].b === ASKED) links.splice(i, 1);
 
   // A question may name a specimen, and inheriting it is the point of saying so.
-  const inherited = best ? neighbours(best).filter(m => m.kind === 'module' || m.kind === 'protein') : [];
+  const inherited = best ? neighbours(best).filter(m => m.kind === 'concept' || m.kind === 'protein') : [];
   for (const m of inherited) links.push({ a: m, b: ASKED, rank: rankFrom(best, m) });
   for (const { m } of near) links.push({ a: m, b: ASKED, rank: 1, near: true });
 
@@ -1871,17 +1871,25 @@ function openAsk(text, best, near) {
 }
 
 /* ---- the vector backend -----------------------------------------------
-   lib/mapcontent-vectors.json is every authored question, embedded once by
-   tools/bake-vectors.js. api/find.js embeds the READER's question and returns
-   just that vector; the ranking is here, because the corpus vectors ship with
-   the page anyway and the floor is the knob worth tuning without a redeploy.
+   lib/mapcontent-vectors.json is two kinds of row, embedded once by
+   tools/bake-vectors.js: every authored QUESTION, and every concept's own
+   CLAIM. api/find.js embeds the READER's question and returns just that
+   vector; the ranking is here, because the corpus vectors ship with the page
+   anyway and the floors are the knobs worth tuning without a redeploy.
 
-   MODULES COME FROM QUESTIONS, NOT FROM A BAG OF THEIR OWN. The lexical
-   scorer below unions every question filed under a module into one token bag,
-   which is where its noise came from: `ice` inherited the word `blood` from a
-   question about freezing, so anything mentioning blood scored against it.
-   Ranking whole questions and reading off THEIR modules is max-pooling instead
-   of mean-pooling, and the collision has nowhere to form.
+   A QUESTION IS A CROSSING; A CLAIM IS THE CARD. Ranking questions and
+   reading off THEIR concepts is what makes a match a match, and it is
+   max-pooling rather than mean-pooling: the lexical scorer below unions every
+   question filed under a concept into one token bag, which is where its noise
+   came from (`ice` inherited the word `blood` from a question about freezing,
+   so anything mentioning blood scored against it). One question is one vector
+   and the collision has nowhere to form.
+
+   But a concept reached ONLY through its questions is a concept nobody has
+   written a question for yet, and there are three of those. The claim rows
+   answer for the content directly, and they are what `polarity`, `what is a
+   buffer` and `how do atoms share electrons` land on. They never become
+   hits — see CLAIMFLOOR.
 
    ABSOLUTE COSINE, and it had to be measured. Everything in this corpus sits
    between 0.75 and 0.99, so the useful range is narrow — but query-to-corpus
@@ -1899,15 +1907,41 @@ function openAsk(text, best, near) {
        does my body get energy from sugar" is 0.836 and correct; Base pairing's
        for "what makes hair curly" is 0.841 and noise. No cut separates them.
      · votes alone do not work either. Counting how many of the top rows carry
-       a module puts three of them on "how do I bake sourdough bread", which
+       a concept puts three of them on "how do I bake sourdough bread", which
        the map should refuse outright.
 
-   So a discovered module has to clear a floor AND be corroborated: two of the
+   So a discovered concept has to clear a floor AND be corroborated: two of the
    near questions carry it, or one carries it from very close. */
 const MATCH = 0.85;     // below this, the map does not answer the question
-const NEARABS = 0.83;   // no module below this, however many rows name it
+const NEARABS = 0.83;   // no concept below this, however many rows name it
 const NEARSOLO = 0.87;  // ...unless one row is this close, which stands alone
-const NEARK = 8;        // how deep to read for discovered modules
+const NEARK = 8;        // how deep to read for discovered concepts
+
+/* CLAIMS ARE THE OTHER HALF OF THE CORPUS, and they need their own number.
+   A concept's `claim` is baked as `Name. claim.` (tools/bake-vectors.js), so a
+   claim row IS the card rather than a question that crosses to it. Two
+   consequences, both measured over 20 off-map and 16 on-map queries:
+
+     · ONE FLOOR, NO VOTE RULE. The question rule needs corroboration because
+       one question mentioning a concept is a coincidence; a claim is the
+       concept's own sentence and there is nothing to corroborate it with. The
+       measurement agrees: `asdfqwer`'s top claim is 0.821 AND carries two
+       question votes, so corroboration separates nothing here.
+     · A DIFFERENT ABSOLUTE SCALE. Claims sit lower than questions across the
+       board, declarative against interrogative, so NEARABS is the wrong
+       number for them and would let noise straight in.
+
+   0.84 sits above the off-map ceiling (0.825, `the mitochondria is the
+   powerhouse of the cell`; then 0.821 `asdfqwer`, 0.818 `what causes
+   earthquakes`) and under the answers the question corpus cannot reach:
+   `how do atoms share electrons` reaches Covalent bonding at 0.939, `what
+   holds table salt together` Ionic bonding at 0.870, `what is a buffer`
+   Acids & pH at 0.854, and every bare concept name lands 0.887 to 0.945.
+
+   What it deliberately misses: `why is methane a tetrahedron` reaching
+   Molecular geometry at 0.828, three thousandths above the noise. Not
+   separable, so not claimed. */
+const CLAIMFLOOR = 0.84;
 
 /* Read and shown SYNCHRONOUSLY, before any await below: the map is deliberately
    empty until the query resolves, and an empty map with an empty box is a page
@@ -1972,15 +2006,24 @@ const VISITOR = (() => {
     if (!file) throw new Error('no corpus');
     // Baked rows carry their text; the map's nodes are the things we return.
     const byText = new Map(QNODES.map(n => [n.text, n]));
-    VEC.by = file.rows.map(r => ({ n: byText.get(r.text), v: r.v })).filter(x => x.n);
+    /* A row is resolved BY KIND. A question row finds its node by text; a claim
+       row is baked as `Name. claim.` and matches no node's text at all, so it
+       resolves through the concept id it was baked from. A pre-claims corpus has
+       no `kind` and every row reads as a question, which is what it was. */
+    VEC.by = file.rows
+      .map(r => (r.kind === 'claim'
+        ? { n: byId[r.concept], v: r.v, isClaim: true }
+        : { n: byText.get(r.text), v: r.v, isClaim: false }))
+      .filter(x => x.n);
     /* A question whose wording changed since the bake has no vector, so it is
        simply ABSENT from search: not a wrong answer, an unreachable card, and
        nothing about it is visible from the page. Said out loud here because the
        only other way to notice is to miss a question you know is there.
        `node tools/bake-vectors.js` fixes it; --check names the rows. */
-    if (VEC.by.length < QNODES.length) {
-      const have = new Set(VEC.by.map(x => x.n));
-      console.warn(`[composer] ${QNODES.length - VEC.by.length} question(s) have no vector `
+    const qrows = VEC.by.filter(x => !x.isClaim);
+    if (qrows.length < QNODES.length) {
+      const have = new Set(qrows.map(x => x.n));
+      console.warn(`[composer] ${QNODES.length - qrows.length} question(s) have no vector `
         + 'and cannot be found by search. Re-bake: node tools/bake-vectors.js\n  '
         + QNODES.filter(n => !have.has(n)).map(n => n.text).join('\n  '));
     }
@@ -1992,7 +2035,7 @@ const VISITOR = (() => {
   if (!VEC.online) askEl.placeholder = 'Why does ice float? (word matching)';
 
   /* ?q= — A DOOR IS A SAVED QUERY. `start()` composes the water door from
-     DOORS, its rank 1 modules and an own-door filter; this composes the same
+     DOORS, its rank 1 concepts and an own-door filter; this composes the same
      kind of opening from a question, through the path a reader's own typing
      takes. If that reads as well, the door stops being a node kind and becomes
      a URL somebody bookmarked, which collapses DOORS, start(), the own-door
@@ -2096,30 +2139,43 @@ async function search(text, pre) {
         if (!r.ok) throw new Error('find ' + r.status);
         v = (await r.json()).v;
       }
-      const ranked = VEC.by.map(x => ({ q: x.n, score: dot(v, x.v) }))
+      const scored = VEC.by.map(x => ({ n: x.n, isClaim: x.isClaim, score: dot(v, x.v) }))
                            .sort((a, b) => b.score - a.score);
+      /* Only questions can be HITS. A hit is drawn as a row the reader can open
+         and openAsk() takes one as the authored question it matched, so a claim
+         has no shape to be there in. Claims reach the map as discovered edges,
+         below, which is what a proximity to the content itself is. */
+      const ranked = scored.filter(x => !x.isClaim).map(x => ({ q: x.n, score: x.score }));
       const hits = ranked.filter(h => h.score >= MATCH).slice(0, HITS);
       const best = hits.length ? hits[0].q : null;
-      /* Tallied over the top rows, not taken from them in order: a module two
-         near questions agree on is a neighbourhood, and a module one question
+      /* Tallied over the top rows, not taken from them in order: a concept two
+         near questions agree on is a neighbourhood, and a concept one question
          mentions is a coincidence. `covered` drops anything the match already
          inherits, so a discovered edge is never a duplicate of a solid one. */
       const covered = new Set(best ? neighbours(best) : []);
       const tally = new Map();
-      for (const h of ranked.slice(0, NEARK)) {
-        for (const m of neighbours(h.q)) {
-          if (m.kind !== 'module' || covered.has(m)) continue;
-          const t = tally.get(m) || { votes: 0, score: 0 };
-          t.votes++;
-          t.score = Math.max(t.score, h.score);
-          tally.set(m, t);
-        }
-      }
+      /* Question cosines and claim cosines are kept in SEPARATE fields on the
+         same row, never maxed together: they are two scales, and one number
+         holding both would be compared against whichever floor ran last. */
+      const bump = (m, score, claim) => {
+        if (!m || m.kind !== 'concept' || covered.has(m)) return;
+        const t = tally.get(m) || { votes: 0, score: 0, claim: 0 };
+        if (claim) t.claim = Math.max(t.claim, score);
+        else { t.votes++; t.score = Math.max(t.score, score); }
+        tally.set(m, t);
+      };
+      for (const h of ranked.slice(0, NEARK))
+        for (const m of neighbours(h.q)) bump(m, h.score, false);
+      for (const c of scored)
+        if (c.isClaim && c.score >= CLAIMFLOOR) bump(c.n, c.score, true);
+
+      /* Claims sort ahead of votes: a concept whose own sentence answers the
+         query is a better thing to offer than one two questions glanced at. */
       const near = [...tally]
-        .filter(([, t]) => t.score >= NEARABS && (t.votes >= 2 || t.score >= NEARSOLO))
-        .sort((a, b) => b[1].votes - a[1].votes || b[1].score - a[1].score)
+        .filter(([, t]) => t.claim || (t.score >= NEARABS && (t.votes >= 2 || t.score >= NEARSOLO)))
+        .sort((a, b) => b[1].claim - a[1].claim || b[1].votes - a[1].votes || b[1].score - a[1].score)
         .slice(0, NEAR)
-        .map(([m, t]) => ({ m, score: t.score }));
+        .map(([m, t]) => ({ m, score: t.claim || t.score }));
       return { hits, near };
     } catch (e) {
       // One failure drops this session to words rather than to nothing.
@@ -2135,9 +2191,9 @@ async function search(text, pre) {
 
 /* ---- a keyword that names a card --------------------------------------
    Measured: "polarity" scores 0.811 against this corpus and "glycolysis" 0.819,
-   both under MATCH — the door's own rank 1 module, refused by name. Neither has
+   both under MATCH — the door's own rank 1 concept, refused by name. Neither has
    a single near question either, so no floor and no vote rule rescues them: the
-   corpus is QUESTIONS, and a module name is not a question. It is the one case
+   corpus is QUESTIONS, and a concept name is not a question. It is the one case
    where knowing beats ranking, so it is answered before any embedding.
 
    Deliberately narrow. Equality after normalising, or one being the other's
@@ -2153,10 +2209,10 @@ const norm = t => t.toLowerCase().normalize('NFKD')
   .replace(/^the /, '')
   .split(' ').map(w => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w)).join(' ');
 
-/* Modules AND specimens: "hemoglobin" is a card that exists, and refusing it
+/* Concepts AND specimens: "hemoglobin" is a card that exists, and refusing it
    because it is not a concept is the same failure `polarity` had. A specimen's
    id is namespaced (`p:hemoglobin`), so the bare key is what gets matched. */
-const CARDS = nodes.filter(n => n.kind === 'module' || n.kind === 'protein');
+const CARDS = nodes.filter(n => n.kind === 'concept' || n.kind === 'protein');
 const NAMED = CARDS.map(m => ({ m, key: norm(m.name), id: norm(m.id.replace(/^p:/, '')) }));
 
 /* The typed text holds the name as WHOLE WORDS: "protein folding" reaches
@@ -2178,7 +2234,7 @@ function cardNamed(text) {
 }
 
 /* What clicking that card would have done, composed from cold: the card, its
-   best band of neighbours, and the module each question leads to. Same shape
+   best band of neighbours, and the concept each question leads to. Same shape
    start() and openAsk() use, so a keyword lands on a map that reads like every
    other one. */
 function openCard(m) {
@@ -2249,7 +2305,7 @@ function drawHits() {
     hitsEl.append(li);
   }
 
-  /* No module chips. Which cards a question opens is what the MAP shows a
+  /* No concept chips. Which cards a question opens is what the MAP shows a
      moment later, and saying it twice made a list of questions read as a list
      of metadata. */
   hits.forEach((h, i) => {

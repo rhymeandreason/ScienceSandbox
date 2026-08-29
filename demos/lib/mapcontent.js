@@ -1,58 +1,64 @@
 /* =====================================================================
  *  mapcontent.js — the door map's content, and nothing that draws it.
  *  Loaded as a classic script BEFORE tests/door-map.html's own script;
- *  exposes window.MapContent = { DOORS, MODULES, QUESTIONS, VIEWS }.
+ *  exposes window.MapContent = { DOORS, CONCEPTS, QUESTIONS, VIEWS }.
  *
- *  This is CONTENT, not a module: no behaviour, no DOM, nothing to call.
+ *  This is CONTENT, not code: no behaviour, no DOM, nothing to call.
  *  It is split out of door-map.html so it can be edited somewhere better
  *  than an HTML file — map-cms.html reads and writes it through the dev
  *  server's /api/mapcontent, the same path questions-cms.html uses.
  *
+ *  CONCEPT, NOT MODULE. A node here used to be called a module, which
+ *  collided head-on with the code modules in lib/ and with Modules.md: two
+ *  unrelated things, one word, in a repo that names both constantly. A node
+ *  on this map is a CONCEPT — one claim, worth one card.
+ *
  *  NOT lib/questions.js. That bank cuts the same ground into 27 COARSE
- *  concepts ('water', 'bonds', 'shape'); this cuts it into the modules a
- *  lesson actually is ('polarity', 'hbond', 'ice', 'heat'), which is the
+ *  buckets ('water', 'bonds', 'shape'); this cuts it into the concepts a
+ *  lesson actually teaches ('polarity', 'hbond', 'ice', 'heat'), which is the
  *  decomposition the map needs and the reason the two are separate files
  *  rather than one. 54 of the question texts started life there.
  *
  *  ---------------------------------------------------------------------
  *  DOORS — a door is a question big enough to hold a region. `tint` is the
- *  door's colour on the map, and every module wears its own door's — which
+ *  door's colour on the map, and every concept wears its own door's — which
  *  is how a crossing is visible on a card that looks like all the rest. `open` says
- *  whether it has been written; the others are named because modules
+ *  whether it has been written; the others are named because concepts
  *  point at them, and they are what a second door costs: content, not a
  *  code change.
  *
- *  MODULES — one lesson each. `rank` is its place in ITS door's fan, so a
- *  door opens on its rank 1 modules and not on all nine. `state` is
- *  CLAUDE.md's vocabulary (built / engine / planned) and `away` marks a
- *  module belonging to another door, which the map dots in a different
- *  colour so a crossing is visible.
+ *  CONCEPTS — one claim each, and `host` is the page that teaches it.
+ *  `rank` is its place in ITS door's fan, so a door opens on its rank 1
+ *  concepts and not on all nine. `state` is CLAUDE.md's vocabulary
+ *  (built / engine / planned) and `away` marks a concept belonging to
+ *  another door, which the map dots in a different colour so a crossing
+ *  is visible.
  *
  *  QUESTIONS — one row each, and QUESTION-MAJOR on purpose:
  *
  *      ['Why is water bent and CO₂ straight?', { polarity:1, geometry:1 }]
- *        the question                            the modules, and the rank
+ *        the question                            the concepts, and the rank
  *                                                the question has ON EACH
  *
- *  The map crosses from one module to another THROUGH a shared question,
- *  so a question is one node however many modules name it. Written
- *  module-major, the same question appeared once per module and a
+ *  The map crosses from one concept to another THROUGH a shared question,
+ *  so a question is one node however many concepts name it. Written
+ *  concept-major, the same question appeared once per concept and a
  *  re-wording in one of them silently split that node in two — breaking
  *  the exact thing the map exists to do. One row cannot drift from
  *  itself.
  *
  *  RANK belongs to the EDGE, not to the question: 27 of these carry a
- *  different rank on different modules, because rank answers "is this a
+ *  different rank on different concepts, because rank answers "is this a
  *  good FIRST thing to ask on this card?" and the answer changes with
  *  the card. 1 introduces from cold, 2 follows up, 3 is depth.
  *
- *  A question naming ONE module is a caption, not a crossing — it costs a
+ *  A question naming ONE concept is a caption, not a crossing — it costs a
  *  node and leads nowhere. 28 of these are still that, which is where the
  *  editorial work is.
  *
- *  VIEWS — which modules have something to SHOW, and what. A module with
+ *  VIEWS — which concepts have something to SHOW, and what. A concept with
  *  no entry grows no picture box at all; a stand-in that is not that
- *  module's own subject is worse than no picture. The water scenarios'
+ *  concept's own subject is worse than no picture. The water scenarios'
  *  `frame` blocks are TUNING rather than curriculum — they are what
  *  water/watersim.js's step() takes.
  * ===================================================================== */
@@ -79,7 +85,7 @@
       question:'Where does the energy in food actually go?', label:'the energy door' },
   ];
 
-  const MODULES = [
+  const CONCEPTS = [
     { id:'polarity', name:'Polarity', door:'water', rank:1, state:'built', host:'water-lab · molecule-builder',
       claim:'An uneven share of electrons gives a molecule two charged ends.' },
     { id:'hbond', name:'Hydrogen bonding', door:'water', rank:2, state:'built', host:'water-lab',
@@ -195,13 +201,13 @@
    *  SPECIMENS — WHERE a protein sits, and nothing else. The list of proteins
    *  is proteins/proteins.js and this table does not repeat it: every entry
    *  there is drawn whether or not it has a row here. A row moves one under
-   *  particular modules; without one, the protein hangs off the Proteins door
+   *  particular concepts; without one, the protein hangs off the Proteins door
    *  at the back rank, which is the honest place for a structure nobody has
    *  filed under a concept yet. So adding a protein is a one-file edit, and
    *  this table is an override rather than a second registry to keep in step.
    *
    *  `key` is that file's key and nothing here restates what the protein IS.
-   *  A specimen is a LEAF — it hangs off modules and questions and never off
+   *  A specimen is a LEAF — it hangs off concepts and questions and never off
    *  another specimen, which is what keeps the map layered.
    *
    *  RANK MEANS WHAT IT MEANS EVERYWHERE ELSE: 1 shows the specimen when the
@@ -209,7 +215,7 @@
    *  what lets a specimen be authored like everything else on this map.
    *
    *  A question reaches one by naming it in its own row, namespaced so a key
-   *  can never collide with a module id:
+   *  can never collide with a concept id:
    *
    *      ['Why do proteins bury their greasy parts?',
    *       { hydrophob:1, folding:2, 'p:myoglobin':2 }]
@@ -246,11 +252,11 @@
   /* The bonding builder rather than a picture of a water: this card's claim is
      about the uneven SHARE, and the builder's flat view is the one that draws
      every valence electron. Every builder card here passes `fill:true`, so it
-     opens finished and STAYS in that flat view — the turn is the module's
+     opens finished and STAYS in that flat view — the turn is the concept's
      reward for a molecule the student assembled, and a card the page built has
      not earned it. Turning it is the reader's, through the control.
      Same recipe as `covalent` below, on purpose and not by accident: the two
-     modules make different claims about the same molecule. */
+     concepts make different claims about the same molecule. */
   polarity:  { kind:'build', recipe:'water' },
   covalent:  { kind:'build', recipe:'water' },
   geometry:  { kind:'build', recipe:'methane' },
@@ -293,5 +299,5 @@
   glycolysis:{ kind:'molbox', spec:'glucose' },
 };
 
-  global.MapContent = { DOORS, MODULES, QUESTIONS, SPECIMENS, VIEWS };
+  global.MapContent = { DOORS, CONCEPTS, QUESTIONS, SPECIMENS, VIEWS };
 })(this);

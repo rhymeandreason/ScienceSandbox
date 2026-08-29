@@ -212,7 +212,7 @@ try {
  * The same contract as the question bank above and the same reasons: local
  * only, mtime-guarded, and absent from the deployed site by construction
  * because `api/` does not hold it. Its own handler rather than a parameter on
- * that one: the GET payloads differ (this hands over the modules a question can
+ * that one: the GET payloads differ (this hands over the concepts a question can
  * name, and the crossing counts the CMS ranks by), and folding them together
  * would mean one function that answers two shapes.
  */
@@ -227,10 +227,10 @@ function editable(req, res, json, which) {
 
   if (req.method === 'GET') {
     try {
-      const { rows, mods, doors, views, mtimeMs } = io.read();
-      return json(200, { writable: true, mtimeMs, rows, modules: mods, doors,
+      const { rows, concepts, doors, views, mtimeMs } = io.read();
+      return json(200, { writable: true, mtimeMs, rows, concepts, doors,
                          views: Object.keys(views),
-                         crossings: io.crossings(rows, mods) });
+                         crossings: io.crossings(rows, concepts) });
     } catch (e) {
       return json(500, { error: e.message });
     }
@@ -245,14 +245,14 @@ function editable(req, res, json, which) {
     catch { return json(400, { error: 'body is not JSON' }); }
     // Either half, or both. Whichever is absent is left as the file has it, so
     // the CMS's two screens can save independently.
-    if (!Array.isArray(body.rows) && !Array.isArray(body.mods)) {
-      return json(400, { error: 'body needs { rows } or { mods }' });
+    if (!Array.isArray(body.rows) && !Array.isArray(body.concepts)) {
+      return json(400, { error: 'body needs { rows } or { concepts }' });
     }
 
     try {
-      const saved = io.write({ rows: body.rows, mods: body.mods, since: body.mtimeMs });
-      console.log(`  mapcontent.js ← ${body.mods ? saved.mods + ' modules' : ''}`
-        + `${body.mods && body.rows ? ' and ' : ''}`
+      const saved = io.write({ rows: body.rows, concepts: body.concepts, since: body.mtimeMs });
+      console.log(`  mapcontent.js ← ${body.concepts ? saved.concepts + ' concepts' : ''}`
+        + `${body.concepts && body.rows ? ' and ' : ''}`
         + `${body.rows ? saved.rows + ' questions' : ''} from the map CMS`);
       return json(200, { ok: true, ...saved });
     } catch (e) {

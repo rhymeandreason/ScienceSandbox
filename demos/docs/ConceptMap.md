@@ -1,21 +1,21 @@
 <!-- KIND: rulebook, scoped — load before touching the map's content (lib/mapcontent.js, and tools/bake-vectors.js which derives from it), any of the card pages (tests/question-composer.html, tests/door-map.html, tests/cards-cluster.html), the stage layer under them (kit/card-stage.js, kit/molbox.js, kit/proteinbox.js, molecule-builder/molecule-builder.js as a mounted box), or the composer's search (api/find.js). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. The last section is an ARGUMENT rather than a rule and can be skipped during a build. Nothing here applies to a lesson that draws one stage of its own. -->
 
-# Cards, the stage modules, and door-map
+# Cards, the stage concepts, and door-map
 
 ## **Goal**
 
-Exploration by **connecting questions through biology concepts**. A door opens onto modules; a shared QUESTION is the crossing from one module to the next, which is what makes the map a map rather than a list. Typing your own question is a second way in, needing no door. Specimens — real deposited structures — hang off the concepts that hold them.
+Exploration by **connecting questions through biology concepts**. A door opens onto concepts; a shared QUESTION is the crossing from one concept to the next, which is what makes the map a map rather than a list. Typing your own question is a second way in, needing no door. Specimens — real deposited structures — hang off the concepts that hold them.
 
 **`tests/question-composer.html` is the page to work in.** `tests/door-map.html` is the same engine without the box, kept as the plainer version and as the thing the composer is rebased onto.
 
-**Bipartite, with one exception.** Modules never link to modules, and a question is always the crossing between them. A module reaches a SPECIMEN directly, with no question between; that survives because a specimen is a leaf and never links onward.
+**Bipartite, with one exception.** Concepts never link to concepts, and a question is always the crossing between them. A concept reaches a SPECIMEN directly, with no question between; that survives because a specimen is a leaf and never links onward.
 
 ## **What exists**
 
 **Content** — what the map says, and nothing that draws it:
 
-* **`lib/mapcontent.js`** — `DOORS`, `MODULES`, `QUESTIONS` (question-major, rank on the EDGE), `SPECIMENS`, `VIEWS`. Its own header is the rulebook for what each field means.
-* **`lib/mapcontent-vectors.json`** — every authored question embedded once, by `tools/bake-vectors.js`. Re-bake when a question's TEXT changes; `--check` is also the map's integrity checker.
+* **`lib/mapcontent.js`** — `DOORS`, `CONCEPTS`, `QUESTIONS` (question-major, rank on the EDGE), `SPECIMENS`, `VIEWS`. Its own header is the rulebook for what each field means.
+* **`lib/mapcontent-vectors.json`** — the map's searchable text embedded once, by `tools/bake-vectors.js`: every authored question, and every concept's own `claim` as `Name. claim.`. Re-bake when either TEXT changes; `--check` is also the map's integrity checker.
 * **`proteins/proteins.js`** — not map content. The registry of which structures we hold and which file plays which role for each. `SPECIMENS` names keys in it.
 
 **Pages**:
@@ -39,11 +39,11 @@ Exploration by **connecting questions through biology concepts**. A door opens o
 
 ## **How much opens, and when**
 
-The door opens **three levels deep, not one**: its rank 1 modules, their best band of questions, and the module each of those leads to. The water door is the argument for it — everything water does comes from polarity, so a fan of five peers would state the wrong thing. Polarity is the door's only rank 1 module, and hydrogen bonding, solvation, dehydration & hydrolysis and the hydrophobic effect arrive through the questions that cross to them.
+The door opens **three levels deep, not one**: its rank 1 concepts, their best band of questions, and the concept each of those leads to. The water door is the argument for it — everything water does comes from polarity, so a fan of five peers would state the wrong thing. Polarity is the door's only rank 1 concept, and hydrogen bonding, solvation, dehydration & hydrolysis and the hydrophobic effect arrive through the questions that cross to them.
 
-A click carries the same shape: expanding a module deals its questions **and** the modules each question ranks first, because a question with nothing on its far side is a crossing the reader has to take on faith. `expand(n, keep, next)` — `keep` filters the wave, `next` filters the step beyond it, and `start()` narrows `next` to this door so a crossing does not haul its far side in at load.
+A click carries the same shape: expanding a concept deals its questions **and** the concepts each question ranks first, because a question with nothing on its far side is a crossing the reader has to take on faith. `expand(n, keep, next)` — `keep` filters the wave, `next` filters the step beyond it, and `start()` narrows `next` to this door so a crossing does not haul its far side in at load.
 
-**Band, not rank 1.** Both filters take the lowest rank a question actually has among its still-hidden modules, so a question whose modules are all rank 2 deals them rather than nothing. Whole bands only, which is the same promise a card's own wave makes.
+**Band, not rank 1.** Both filters take the lowest rank a question actually has among its still-hidden concepts, so a question whose concepts are all rank 2 deals them rather than nothing. Whole bands only, which is the same promise a card's own wave makes.
 
 ## **Zoom**
 
@@ -71,7 +71,7 @@ The two agree exactly at k = 1. All the pan/drag maths is in screen px; only the
 | open (`.hub`, 34rem) | k ≥ 0.49 |
 | default (17.5rem) | k ≥ 0.95 |
 
-So opening a card is most of the way to being able to work on it, which is what the `.hub` width was already promising and nothing was reading. The module still decides whether a control is EARNED (`mb-dims.armed` is a finished molecule); `.near` decides whether it is reachable, and it is faded rather than removed so nothing reflows as the reader scrolls in.
+So opening a card is most of the way to being able to work on it, which is what the `.hub` width was already promising and nothing was reading. The concept still decides whether a control is EARNED (`mb-dims.armed` is a finished molecule); `.near` decides whether it is reachable, and it is faded rather than removed so nothing reflows as the reader scrolls in.
 
 `markNear()` runs from `applyView()` and from `measure()` — `measure()` being the one place a card's size is re-read, so opening and closing a card re-tests it for free.
 
@@ -95,7 +95,7 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
  4. **The builder's resize order.** `Stage.resize()` holds an ortho camera's half-HEIGHT and rewrites width from aspect; the builder's rule is the opposite (half-height is whatever shows the WIDTH the recipe needs). So `applyZoom` runs from `onResize`, which fires AFTER `Stage.resize`. Reversed, a tall panel narrows to 6.83 of the 14.00 every recipe needs and chloride falls off the side. Asserted in `check-molecule-builder.js` §3.
 
- 5. **`snapshot()` refuses mid-fold.** A 2D↔3D change hides the sticks for 340ms (covalent-drag `stickHold`); a still caught there shows a bonded molecule with no bonds. Both drag modules answer `holding()`.
+ 5. **`snapshot()` refuses mid-fold.** A 2D↔3D change hides the sticks for 340ms (covalent-drag `stickHold`); a still caught there shows a bonded molecule with no bonds. Both drag concepts answer `holding()`.
 
  6. **Molbox: a zero-sized box must not be fitted.** Stage.frame bails on the missing aspect, leaving THREE's constructor frustum `top = 1` — a 30-unit molecule in a 2-unit frame. membrane-lab hits this every load (builds its box while `#lipidBox` is hidden). Guarded on `mount.clientWidth`.
 
@@ -105,13 +105,13 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
  9. **One scale family per SCENE, not per page** (MolecularGeometry.md §1.5). A page with separate stages may load both families and says so at its script tags — that comment is the only enforcement, since which scene a spec lands in is a runtime fact. `mol-small`/`mol-solvation` still throw if both load: same keys, different rule.
 
-10. **`molecule-builder.html` does NOT use the module.** It has its own shell. It keeps its own copy of the 900ms turn, and the checker fails if the two numbers diverge.
+10. **`molecule-builder.html` does NOT use the concept.** It has its own shell. It keeps its own copy of the 900ms turn, and the checker fails if the two numbers diverge.
 
-11. **A module's neighbours include ITS DOOR.** `door-map`'s `start()` never sees it, because the door is visible before anything expands. Anything that roots the map on a node OTHER than the door must filter the door out of every module's wave (`expand`'s `keep`) — otherwise each module deals the same 29rem door node and they stack on it. `question-composer` hit this on its first run.
+11. **A concept's neighbours include ITS DOOR.** `door-map`'s `start()` never sees it, because the door is visible before anything expands. Anything that roots the map on a node OTHER than the door must filter the door out of every concept's wave (`expand`'s `keep`) — otherwise each concept deals the same 29rem door node and they stack on it. `question-composer` hit this on its first run.
 
 12. **`function draw()` is taken.** The map's `draw()` is what positions every node from the rAF loop, and a second `function draw` at the page's top scope silently REPLACES it: function declarations redeclare without error, so every card stays at the origin with opacity 1 and nothing logs. Adding page-level UI to a copy of door-map is exactly when this happens. `question-composer` shipped it and it read as a physics bug for two rounds.
 
-13. **The asked card is a root and never a wave.** Its links make it a genuine neighbour of every module it reached, so `start()` will otherwise deal the reader's last question into the door's own map as though someone had authored it. Filtered in `expand()`, because every path that reveals a card goes through that one.
+13. **The asked card is a root and never a wave.** Its links make it a genuine neighbour of every concept it reached, so `start()` will otherwise deal the reader's last question into the door's own map as though someone had authored it. Filtered in `expand()`, because every path that reveals a card goes through that one.
 
 14. **Declaration order inside the composer's own block bites too.** Invariant 14's dead-zone throw is not only about `start()` calling into the block from above: the block is \~500 lines and a `const` near its top touching one declared near its bottom is the same throw, with the same symptom — a blank page and one error, because the script aborts and nothing after the throwing line initializes. It has happened three times in this file (`ASKED`, `ASKED_URL`, and `expand()`'s filter). `document.getElementById` costs a lookup and has no dead zone.
 
@@ -119,16 +119,16 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
 ## **Card kinds**
 
-| KIND | MODULE | PAGES |
+| KIND | CONCEPT | PAGES |
 | --- | --- | --- |
 | `water` | card-stage + `water/watersim.js` | composer, door-map, cards-cluster |
 | `build` | `molecule-builder.js` (ortho, own context) | composer, door-map, cards-cluster |
 | `molbox` | `kit/molbox.js` | cards-cluster, membrane-lab |
 | `protein` | `kit/proteinbox.js` | composer, door-map |
 
-A `VIEWS` entry picks the kind for a MODULE's card. A SPECIMEN is always `protein` and has no `VIEWS` entry at all — `viewFor()` hands the box a protein key instead of paths.
+A `VIEWS` entry picks the kind for a CONCEPT's card. A SPECIMEN is always `protein` and has no `VIEWS` entry at all — `viewFor()` hands the box a protein key instead of paths.
 
-**`kit/proteinbox.js` owns the molecule; the page owns the map.** The box knows about the trace, the surface and the fold, draws its own two controls, and — given `protein:` / `variant:` — reads `proteins/proteins.js` to find those three files itself. Which files a MODULE's card names is `VIEWS`; the lesson button and its modal are the page's, because a box has no opinion about what is behind the card it sits on. `rendering-modules.md` has the module.
+**`kit/proteinbox.js` owns the molecule; the page owns the map.** The box knows about the trace, the surface and the fold, draws its own two controls, and — given `protein:` / `variant:` — reads `proteins/proteins.js` to find those three files itself. Which files a CONCEPT's card names is `VIEWS`; the lesson button and its modal are the page's, because a box has no opinion about what is behind the card it sits on. `rendering-modules.md` has the module.
 
 **A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. **Three things a protein card can show, and only the first is free.** Ribbon is the default and the only one fetched at reveal. The other two are gated the same way, and the gates are the design:
 
@@ -164,7 +164,7 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 
 **It is a REBASE of `tests/door-map.html`, not a fork left to drift** — and it is the one to work in. The first copy was taken from a dirty working tree and was \~175 lines behind within the day: it missed `goLiveSoon()` (card startup queued for quiet frames instead of created mid-wave) and `cardsQuiet()` (sims paused during pan and zoom), and it still carried the protein card inline after `kit/proteinbox.js` had taken it out of door-map. Both pages now run the same engine. Re-do the rebase the same way rather than porting functions across: take door-map as it stands, then re-apply the composer's own code, which is **four insertions plus a set of edits inside the engine**.
 
-Insertions: the CSS block, the `.composer` markup, the `SPECIMENS` node loop (in the graph construction, after `MODULES` and before `QUESTIONS`), and everything after `start();`.
+Insertions: the CSS block, the `.composer` markup, the `SPECIMENS` node loop (in the graph construction, after `CONCEPTS` and before `QUESTIONS`), and everything after `start();`.
 
 Edits, and this list grows every time the composer gains a kind or a control — check it against the diff rather than trusting it:
 
@@ -179,20 +179,24 @@ Edits, and this list grows every time the composer gains a kind or a control —
 | `goLive()` / `goLiveSoon()` | both go through `viewFor()` |
 | the protein card | `protein:`/`variant:` when a specimen, paths when a `VIEWS` entry |
 
-`tests/question-composer.html` is door-map with a text box, and the claim is that **the typed question becomes a temporary door**. `openFrom(q)` composes the same three levels `start()` does, rooted on a question instead of one of the written doors: the question, every module that answers it, then each of those modules' best band. It reuses `show` / `expand` / `centre` and keeps start()'s own-door rule, so a crossing does not haul its far side in.
+`tests/question-composer.html` is door-map with a text box, and the claim is that **the typed question becomes a temporary door**. `openFrom(q)` composes the same three levels `start()` does, rooted on a question instead of one of the written doors: the question, every concept that answers it, then each of those concepts' best band. It reuses `show` / `expand` / `centre` and keeps start()'s own-door rule, so a crossing does not haul its far side in.
+
+**Content is in the corpus, not only questions about it.** A concept used to be reachable only through a question somebody had written for it, so `geometry`, `covalent` and `ionic` — no questions filed — could not be found at all, and `what is a buffer` was a miss with Acids & pH sitting right there. Every concept's `claim` is now a row of its own. **A claim never becomes a hit**: a hit is a row the reader opens and `openAsk()` takes one as the authored question it matched, so a claim arrives as a discovered (dashed) edge, which is what a proximity to the content itself is.
+
+**The two kinds do not share a threshold.** Claims sit lower than questions across the board, declarative against interrogative, so `CLAIMFLOOR` is separate and was measured rather than guessed: 20 off-map queries top out at 0.825 and the answers the question corpus cannot reach land 0.84 to 0.94. One floor and no vote rule, because a claim is the concept's own sentence and there is nothing to corroborate it with — measured, `asdfqwer`'s top claim carries two question votes, so corroboration separates nothing here.
 
 **Two halves, and only the first one changed.** `search()` scores the typed text; `openAsk()` composes the map around what it returns. That seam held: the scorer went from token overlap to cosine over baked embeddings and nothing below it moved. `lexRank()` / `lexNear()` are the original lexical pair, kept as the no-key fallback rather than deleted — a checkout with no `GEMINI_API_KEY` is still a working page, and it is the same code path the session drops to when the endpoint refuses.
 
 **A miss is the artefact, not the failure.** Below the floor the box says nothing answers that yet rather than routing to the least-bad card, and the typed text is the only record of a door worth writing. Every search is now a row in `finds` (`api/_finds.js`), and `demos/ask/log.html`'s **Map** tab is where they are read — rolled up by repeated text, because one person asking about osmosis is a person and forty are a lesson that is missing.
 
-**25 of the 66 questions in `mapcontent.js` name one module.** Rooting on one of those opens 7 cards against \~16 — a thin door a student can type straight into. That is the "a question naming ONE module is a caption, not a crossing" gap `mapcontent.js`'s own header already flags; the composer is what makes it visible.
+**25 of the 66 questions in `mapcontent.js` name one concept.** Rooting on one of those opens 7 cards against \~16 — a thin door a student can type straight into. That is the "a question naming ONE concept is a caption, not a crossing" gap `mapcontent.js`'s own header already flags; the composer is what makes it visible.
 
 ### The reader's own words, and the edges off them
 
 The typed question is **one card carrying what was typed**, dashed and captioned *you asked*, with two kinds of edge off it:
 
-* **Inherited (solid)** — the modules of the authored question it matched, carrying the rank that question already had on each. Real crossings.
-* **Discovered (dashed)** — modules the text reached on its own that the match did not already cover. Proximity, drawn as proximity.
+* **Inherited (solid)** — the concepts of the authored question it matched, carrying the rank that question already had on each. Real crossings.
+* **Discovered (dashed)** — concepts the text reached on its own that the match did not already cover. Proximity, drawn as proximity.
 
 Both at once, because a question rarely lands entirely in one bucket. Measured: *"how does my body get energy from sugar"* matches *"Why is sugar sweet and starch isn't?"* and inherits Monomers & polymers and Molecular geometry, while the discovered edges are what reach **Glycolysis**, which the authored match never touches. The match explains what the map already answers; the discovered edges are where this particular wording pulls that the authored one does not.
 
@@ -200,7 +204,7 @@ The card prints both wordings (*the map words it as "…"*), because the reader 
 
 **Zero reach is the only miss, and it must not open.** A root with no neighbours draws one card on blank paper, which reads as a broken page rather than as an answer. `openAsk()` returns the reach and the caller refuses to open on nothing. This is the failure that killed the first version of this feature: two guards I added (a 0.34 floor and a two-matching-words rule) made most questions reach nothing, and every one of them rendered as an empty map.
 
-**Weight rare words, not all words.** Plain token counting made `water` worth as much as `curly`, and `water` is in nearly every module on a water door, so questions attached to Polarity for saying "water" at all. Module scores are IDF-weighted over the query.
+**Weight rare words, not all words.** Plain token counting made `water` worth as much as `curly`, and `water` is in nearly every concept on a water door, so questions attached to Polarity for saying "water" at all. Concept scores are IDF-weighted over the query.
 
 **`centre()` diverges from door-map's**: the composer is a fixed band across the top, and centring on the whole window put the root card underneath it.
 
@@ -209,14 +213,14 @@ The card prints both wordings (*the map words it as "…"*), because the reader 
 A reader types `osmosis` as readily as a sentence, and the corpus is QUESTIONS. Measured against it:
 
 ```
-polarity        0.811  refused    <- the door's own rank 1 module, by name
+polarity        0.811  refused    <- the door's own rank 1 concept, by name
 glycolysis      0.819  refused
-photosynthesis  0.851  MATCH      <- there is no photosynthesis module
+photosynthesis  0.851  MATCH      <- there is no photosynthesis concept
 ```
 
-Both directions wrong: the most central card on the map is unreachable by its own name, and an off-map word scrapes over the floor. **No scoring rule fixes the first half.** `polarity` and `glycolysis` have zero questions within 0.83 of them, so there is nothing for a floor or a vote rule to work with — a module name is simply not a question, and this corpus contains only questions.
+Both directions wrong: the most central card on the map is unreachable by its own name, and an off-map word scrapes over the floor. **No scoring rule fixes the first half.** `polarity` and `glycolysis` have zero questions within 0.83 of them, so there is nothing for a floor or a vote rule to work with — a concept name is simply not a question, and this corpus contains only questions.
 
-So a keyword that names a card is answered **before any embedding**, by `cardNamed()`. It is a CARD-NAME LOOKUP and not keyword search: three ways in, over the module AND specimen names and ids, after normalising away a leading article and folding plurals. `hemoglobin` reaches its card the same way `polarity` does.
+So a keyword that names a card is answered **before any embedding**, by `cardNamed()`. It is a CARD-NAME LOOKUP and not keyword search: three ways in, over the concept AND specimen names and ids, after normalising away a leading article and folding plurals. `hemoglobin` reaches its card the same way `polarity` does.
 
 | the typed text | reaches |
 | --- | --- |
@@ -232,7 +236,7 @@ The card becomes the first row in the list, because they named a thing that exis
 
 ### The list is what the map already says
 
-Putting the reader's own wording on the map is what **Enter** does, and it is **not a row**. It was one, and drawing it meant offering the reader back the thing they had just typed, above the answers they came for. So the list holds only what already exists: a named card if there is one, then authored questions, and no module chips under them — which cards a question opens is what the map itself shows a moment later, and saying it twice made a list of questions read as a list of metadata.
+Putting the reader's own wording on the map is what **Enter** does, and it is **not a row**. It was one, and drawing it meant offering the reader back the thing they had just typed, above the answers they came for. So the list holds only what already exists: a named card if there is one, then authored questions, and no concept chips under them — which cards a question opens is what the map itself shows a moment later, and saying it twice made a list of questions read as a list of metadata.
 
 `cursor` at -1 is **nothing highlighted**, and that is the resting state: Enter takes the default. Arrowing down starts at the first row rather than at a default that is not drawn. `cursor` indexes `order` (a named card is -1, questions are 1+, and 0 is the default that never appears in it) because three index conventions in one handler is how an arrow key opens the wrong thing.
 
@@ -253,7 +257,7 @@ Measured, one link per door:
 | information | Base pairing (+ H-bonding, Folding) | 1/3 |
 | energy | Glycolysis | 1/1 |
 
-Water lands on the same three cards `start()` composes, which is the result that matters. The doors that pull in other doors' modules are doing the right thing rather than leaking: base pairing IS hydrogen bonding, and folding IS the hydrophobic effect, so a crossing at the opening frame is the map making its own argument. `energy` opens thin because that door has one module, which is content and not mechanism.
+Water lands on the same three cards `start()` composes, which is the result that matters. The doors that pull in other doors' concepts are doing the right thing rather than leaking: base pairing IS hydrogen bonding, and folding IS the hydrophobic effect, so a crossing at the opening frame is the map making its own argument. `energy` opens thin because that door has one concept, which is content and not mechanism.
 
 **The card is the intro.** `?q=` draws the reader's question at once, alone, framed centre at whatever zoom one card fits at, with `body.intro` hiding the mast, the ask box, the legend and the readout — the intro is a state of the PAGE, not of four widgets. There is no separate title card: a second presentation of the same sentence was one too many, and the card can carry it at a size worth reading.
 
@@ -267,7 +271,7 @@ It fires on the LATER of the graph being composed and a beat long enough to read
 
 **A door's question now has to RETRIEVE as well as read**, which is a constraint a door that was only a node never had. `What decides which things get into a cell?` opens the PROTEIN door: `cell` collides with *"Why does one wrong amino acid sickle a whole cell?"* at 0.863, and two separate phrasings using the word did it. `membrane` does not collide. Write a door's question against the corpus, not against the ear.
 
-**What deleting `DOORS` would actually cost.** The node and `start()` go, and so does the own-door filter in `expand()` — but `door` survives as a MODULE field, because it is also the colour system: `paintNode` reads a module's door tint for the dot, and that dot is how a crossing is visible on a card that looks like all the rest. So the end state is a lookup table of regions, not an entry point.
+**What deleting `DOORS` would actually cost.** The node and `start()` go, and so does the own-door filter in `expand()` — but `door` survives as a CONCEPT field, because it is also the colour system: `paintNode` reads a concept's door tint for the dot, and that dot is how a crossing is visible on a card that looks like all the rest. So the end state is a lookup table of regions, not an entry point.
 
 ### The vector backend
 
@@ -275,16 +279,16 @@ It fires on the LATER of the graph being composed and a beat long enough to read
 
 **The task type is not a detail.** A query embedded with anything other than the corpus's task type lands in a different geometry: the cosines come back plausible and the ranking is quietly wrong. `api/find.js` echoes its task and dims, and the page refuses a vector that disagrees with the file it is comparing against.
 
-**Modules come from questions, not from a bag of their own.** The lexical fallback unions every question under a module into one token bag, which is where its noise came from: `ice` inherited the word `blood` from a question about freezing, so anything mentioning blood scored against it. Ranking whole questions and reading off THEIR modules is max-pooling instead of mean-pooling, and the collision has nowhere to form. Measured: *"why is blood red"* went from Ice & density to Cooperativity.
+**Concepts come from questions, not from a bag of their own.** The lexical fallback unions every question under a concept into one token bag, which is where its noise came from: `ice` inherited the word `blood` from a question about freezing, so anything mentioning blood scored against it. Ranking whole questions and reading off THEIR concepts is max-pooling instead of mean-pooling, and the collision has nowhere to form. Measured: *"why is blood red"* went from Ice & density to Cooperativity.
 
 **What ten queries settled, and what they did not.** The shape of the scoring is now known and the numbers are not:
 
 * An **absolute floor works for the match**. Off-map questions ("the capital of France", "how do I bake sourdough") land 0.79-0.83 and real ones land 0.87+, so `MATCH = 0.85` refuses cleanly. This was worth measuring, because corpus-to-corpus similarity sits in a narrow 0.75-0.99 band that suggests no floor could work; query-to-corpus separates where corpus-to-corpus does not.
 * **Normalising against the query's own distribution is worse.** A z-score ranks `asdfqwer` above a real membrane question, because a flat distribution has a high z at its own top. Tried and rejected.
 * **An absolute floor alone fails for discovered edges.** Glycolysis's best row for *"how does my body get energy from sugar"* is 0.836 and correct; Base pairing's for *"what makes hair curly"* is 0.841 and noise. No cut separates them.
-* **Votes alone fail too.** Counting how many top rows carry a module puts three of them on *"how do I bake sourdough bread"*.
+* **Votes alone fail too.** Counting how many top rows carry a concept puts three of them on *"how do I bake sourdough bread"*.
 
-So a discovered module must clear a floor AND be corroborated: two near questions carry it, or one carries it from very close. Ten queries is enough to see that shape and nowhere near enough to trust `NEARABS` / `NEARSOLO` / `NEARK`. The fixture is what should fix them.
+So a discovered concept must clear a floor AND be corroborated: two near questions carry it, or one carries it from very close. Ten queries is enough to see that shape and nowhere near enough to trust `NEARABS` / `NEARSOLO` / `NEARK`. The fixture is what should fix them.
 
 **Embeddings recover coverage, not only phrasing.** *"why do we breathe"* reached nothing lexically and reads as a coverage gap; it matches *"Why does breathing fast make you dizzy?"* at 0.903. The question was always there.
 
@@ -298,57 +302,58 @@ So a discovered module must clear a floor AND be corroborated: two near question
 
 ### Editing the map after it is baked
 
-**Re-bake when a question's TEXT changes**, and only then. Vectors are keyed on the text, so:
+**Re-bake when any BAKED TEXT changes**, and only then. Vectors are keyed on the text, and two texts are baked: a question as written, and a concept as `Name. claim.`
 
 | what you edited in `lib/mapcontent.js` | re-bake? |
 | --- | --- |
 | a question's wording, or a new / deleted question | **yes** |
-| a question's ranks, or which modules it names | no |
-| a module's name, `claim`, `rank`, `state`, `door` | no |
-| `VIEWS`, `DOORS` | no |
+| a concept's `name` or `claim`, or a new / deleted concept | **yes** |
+| a question's ranks, or which concepts it names | no |
+| a concept's `rank`, `state`, `door`, `host` | no |
+| `VIEWS`, `DOORS`, `SPECIMENS` | no |
 
-Everything in the "no" rows is read live from `mapcontent.js` at load. Only the question text is embedded, and the vector path takes its modules from the questions it matched rather than from anything about the module itself.
+A concept's NAME is in its baked text, so renaming a card re-bakes it — the name is what a reader typing `polarity` matches against. Everything in the "no" rows is read live from `mapcontent.js` at load.
 
 ```bash
 npm run check:vectors                # = bake-vectors.js --check; names the drift, embeds nothing
 node tools/bake-vectors.js           # re-embeds only the rows whose text moved
 ```
 
-**There is no separate *check-mapcontent.js*.** One script, two modes: both read the same file and the same hashes, so a second one would only be a way for them to disagree. `--check` covers four things — questions with no vector, orphan vectors whose question was reworded, broken module references, and a note for modules with no questions.
+**There is no separate *check-mapcontent.js*.** One script, two modes: both read the same file and the same hashes, so a second one would only be a way for them to disagree. `--check` covers four things — questions with no vector, orphan vectors whose question was reworded, broken concept references, and a note for concepts with no questions.
 
 **Forgetting is silent, so the page says it out loud.** A question whose wording changed has no vector and is simply ABSENT from search: not a wrong answer, an unreachable card, and nothing about it is visible on screen. The page compares its question count against the baked file and warns to the console with the exact rows. Measured: rewording one question drops the corpus to 65 of 66 and names it.
 
 **The deployed page reads the committed file**, so a re-bake has to be committed and pushed like any other artefact.
 
-### Changing modules, and adding new ones
+### Changing concepts, and adding new ones
 
-Modules need no bake at all, because nothing about a module is embedded: the vector path reads a matched question's `neighbours()` for its modules, so a module is reachable the moment a question with a vector names it. Two consequences worth knowing:
+Concepts need no bake at all, because nothing about a concept is embedded: the vector path reads a matched question's `neighbours()` for its concepts, so a concept is reachable the moment a question with a vector names it. Two consequences worth knowing:
 
-* **Attaching an EXISTING question to a new module needs no bake.** The text did not move, only the edge, so the new card is searchable immediately. A new module built out of new questions does need one, for the questions.
-* **Renaming or deleting a module id silently drops every edge pointing at it.** The page resolves `byId[mid]` and does `if (!m) continue`, so the card is still drawn, the question is still drawn, and the crossing between them is simply gone — the one thing the map exists to do. Nothing caught this, so `--check` now does:
+* **Attaching an EXISTING question to a new concept needs no bake.** The text did not move, only the edge, so the new card is searchable immediately. A new concept built out of new questions does need one, for the questions.
+* **Renaming or deleting a concept id silently drops every edge pointing at it.** The page resolves `byId[mid]` and does `if (!m) continue`, so the card is still drawn, the question is still drawn, and the crossing between them is simply gone — the one thing the map exists to do. Nothing caught this, so `--check` now does:
 
 ```
 BROKEN: 1 bad reference(s) in lib/mapcontent.js
-  question names no such module `polarityy`: Why do water molecules stick to each other?
+  question names no such concept `polarityy`: Why do water molecules stick to each other?
 ```
 
-It checks question rows, `VIEWS` keys and each module's `door` against the ids that actually exist, and notes modules with no questions without failing on them — a planned card waiting for questions is a normal thing to commit. It fails `--check` and only warns a bake, because the page reads `mapcontent.js` live and never reads the `mods` the bake writes: a broken reference does not corrupt a vector, it breaks the map.
+It checks question rows, `VIEWS` keys and each concept's `door` against the ids that actually exist, and notes concepts with no questions without failing on them — a planned card waiting for questions is a normal thing to commit. It fails `--check` and only warns a bake, because the page reads `mapcontent.js` live and never reads the `concepts` the bake writes: a broken reference does not corrupt a vector, it breaks the map.
 
 ### SPECIMENS — a protein is an object, not a concept
 
-`SPECIMENS` in `lib/mapcontent.js` names a protein by its `key` in `proteins/proteins.js`, the modules it sits under with a rank on each, and optionally which variant to draw. That is everything it stores: no path, no filename, no restatement of what the protein is. The registry says what we hold; the map says where it belongs and which deposition it means.
+`SPECIMENS` in `lib/mapcontent.js` names a protein by its `key` in `proteins/proteins.js`, the concepts it sits under with a rank on each, and optionally which variant to draw. That is everything it stores: no path, no filename, no restatement of what the protein is. The registry says what we hold; the map says where it belongs and which deposition it means.
 
-**A module reaches a specimen directly, with no question between**, and that is the one place the map is no longer bipartite. It survives because **a specimen is a LEAF**: it hangs off modules and off questions and never off another specimen, so the graph stays layered and the fan, the bands and the relax are untouched. `expand`'s tail already only re-expands questions, so a specimen never drags a second neighbourhood in.
+**A concept reaches a specimen directly, with no question between**, and that is the one place the map is no longer bipartite. It survives because **a specimen is a LEAF**: it hangs off concepts and off questions and never off another specimen, so the graph stays layered and the fan, the bands and the relax are untouched. `expand`'s tail already only re-expands questions, so a specimen never drags a second neighbourhood in.
 
 **Rank means what it means everywhere else** — 1 shows the specimen when the card opens, 2 is one step in. Reusing it rather than inventing a rule is what lets a specimen be authored like everything else here.
 
-A question reaches one by naming it in its own row, namespaced so a key can never collide with a module id:
+A question reaches one by naming it in its own row, namespaced so a key can never collide with a concept id:
 
 ```js
 ['Why do proteins bury their greasy parts?', { hydrophob:1, folding:2, 'p:myoglobin':2 }]
 ```
 
-**The card is the concept card inverted.** On a module the name is an eyebrow and the CLAIM is the card, because a lesson is what it asserts; on a specimen the NAME is the card and the blurb is a caption under the picture, because a thing is the point and what we say about it is a label on it. No dot either: the dot carries which DOOR a module belongs to, and a specimen belongs to none — it is held by every concept that names it.
+**The card is the concept card inverted.** On a concept the name is an eyebrow and the CLAIM is the card, because a lesson is what it asserts; on a specimen the NAME is the card and the blurb is a caption under the picture, because a thing is the point and what we say about it is a label on it. No dot either: the dot carries which DOOR a concept belongs to, and a specimen belongs to none — it is held by every concept that names it.
 
 **The card prints its provenance, and every number on it is read at render time** from the variant's `read` block — the baker's half of the registry, rewritten from the deposition on every run. So a card says *x-ray diffraction · 124 of 124 residues · bovine* without a human having typed a count a re-bake could falsify, which is the thing `proteins/proteins.js`'s two-halves design exists to make possible.
 
@@ -358,33 +363,33 @@ A question reaches one by naming it in its own row, namespaced so a key can neve
 
 **The MAP names the pair, the BOX finds the files.** `SPECIMENS` stores a protein key and optionally a variant id, and that is all it stores; `kit/proteinbox.js` takes `protein:` / `variant:` / `base:` and reads `proteins/proteins.js` itself. Nothing on the page resolves a path. A page that reconstructed `2HHB.card.surf.bin` from a stem would be standing a convention where a fact already is, and it would go on working right up until one file was named differently.
 
-Which deposition a card shows is the map's decision — 2HHB or sickle 2HBS is a different claim — and which files are behind it is the registry's. An explicit path still wins, because a module's `VIEWS` entry names files the registry has no role for (a chain-B fold, a lesson-tier surface).
+Which deposition a card shows is the map's decision — 2HHB or sickle 2HBS is a different claim — and which files are behind it is the registry's. An explicit path still wins, because a concept's `VIEWS` entry names files the registry has no role for (a chain-B fold, a lesson-tier surface).
 
 **Two conventions for finding the ribbon, and the registry means both.** A protein on its own pipeline carries a `bake` block naming every artefact by role, and that block is authoritative: hemoglobin's 2HBS has no `trace` in it because the entry is deposited for a SURFACE — a contact between tetramers is a claim about skin — so no ribbon exists and the box says so instead of drawing an empty frame. A protein on the shared `trace` pipeline has no `bake` block at all and `read.baked` IS its trace, which is four of the six. Reading `read.baked` unconditionally hands 2HBS's quaternary json to a ribbon drawer; both files apply the same rule, and 21 of the 22 variants resolve to a file that exists.
 
 The toggle then follows the registry's judgement for free: four of the six have no `card` role because a skin teaches nothing about them, and for the pump it hides the site that is the whole point of the E1/E2 pair. Amylase's card surface was baked and RECORDED as a role, since a file in `data/` the registry does not name is exactly what `proteins/check-proteins.js` exists to catch.
 
-**`viewFor()` is the one place that decides what a node draws.** A module hands over the paths its `VIEWS` entry names; a specimen hands over `{protein, variant}` and lets the box resolve. Two callers, one box, and no third place where a filename could be wrong.
+**`viewFor()` is the one place that decides what a node draws.** A concept hands over the paths its `VIEWS` entry names; a specimen hands over `{protein, variant}` and lets the box resolve. Two callers, one box, and no third place where a filename could be wrong.
 
-**`refreshMeta` knows two nouns now.** A specimen's hidden neighbours are the concepts that hold it, and the card said "+1 question" over two modules.
+**`refreshMeta` knows two nouns now.** A specimen's hidden neighbours are the concepts that hold it, and the card said "+1 question" over two concepts.
 
 The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is Futura and Futura is a DISPLAY face here: it carries the logo, the buttons and the uppercase letterspaced labels, and it is unreadable as running text at 11px. Prose set in sans takes `--ui`; a label keeps `--sans`. This is the composer's own `:root`, so door-map is unchanged and a rebase carries it across with the rest of the CSS block.
 
-**`--check` covers the new keys**: a protein renamed in `proteins/proteins.js` drops its edges exactly the way a renamed module id did, and the checker names it. It loads `proteins/proteins.js` softly, so a checkout without `proteins/` still gets its questions checked.
+**`--check` covers the new keys**: a protein renamed in `proteins/proteins.js` drops its edges exactly the way a renamed concept id did, and the checker names it. It loads `proteins/proteins.js` softly, so a checkout without `proteins/` still gets its questions checked.
 
-**What the kind actually cost.** The drawing half was cheap, because a leaf is cheap: a `paintNode` branch, `viewFor()`, one widened filter in `openAsk`, one in `openFrom`, and `moduleNamed()` becoming `cardNamed()` over both kinds. `band()`, `STEP` and the rank-promotion loop needed nothing — a specimen card is a module card and steps like one, and the promotion loop already skipped non-questions.
+**What the kind actually cost.** The drawing half was cheap, because a leaf is cheap: a `paintNode` branch, `viewFor()`, one widened filter in `openAsk`, one in `openFrom`, and `moduleNamed()` becoming `cardNamed()` over both kinds. `band()`, `STEP` and the rank-promotion loop needed nothing — a specimen card is a concept card and steps like one, and the promotion loop already skipped non-questions.
 
-**The half that bit was the checks that GATE rather than draw.** `markNear()` skipped a non-module and the surface toggle was invisible at every zoom, and `openCard()` not focusing what it opened left the root under `CONTROLS_AT` for a second reason. Neither threw, neither logged, and both survived a DOM query that found the buttons and reported them working. **The lesson is the test, not the count**: `querySelectorAll` finds a control that `opacity: 0` has hidden, so a kind change is verified with computed style or it is not verified. A cheap kind is still a kind.
+**The half that bit was the checks that GATE rather than draw.** `markNear()` skipped a non-concept and the surface toggle was invisible at every zoom, and `openCard()` not focusing what it opened left the root under `CONTROLS_AT` for a second reason. Neither threw, neither logged, and both survived a DOM query that found the buttons and reported them working. **The lesson is the test, not the count**: `querySelectorAll` finds a control that `opacity: 0` has hidden, so a kind change is verified with computed style or it is not verified. A cheap kind is still a kind.
 
 ### A new KIND of node is a page change
 
-`DOORS` / `MODULES` / `QUESTIONS` / `SPECIMENS` / `VIEWS` are data, and a sixth table is not. The page says what a kind is in several places: `paintNode`'s branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, `markNear()`, and the composer's `QNODES` and `CARDS`.
+`DOORS` / `CONCEPTS` / `QUESTIONS` / `SPECIMENS` / `VIEWS` are data, and a sixth table is not. The page says what a kind is in several places: `paintNode`'s branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, `markNear()`, and the composer's `QNODES` and `CARDS`.
 
-**`markNear()` is the one that hides.** It skipped anything that was not `kind === 'module'`, so a specimen never took `.near` at any zoom and its surface toggle sat at opacity 0 forever — present in the DOM, queryable, invisible. Nothing throws and nothing is missing from the page; the control is simply always faded. A kind check that GATES A CLASS fails this way rather than loudly, which is why it is worth listing separately from the ones that draw.
+**`markNear()` is the one that hides.** It skipped anything that was not `kind === 'concept'`, so a specimen never took `.near` at any zoom and its surface toggle sat at opacity 0 forever — present in the DOM, queryable, invisible. Nothing throws and nothing is missing from the page; the control is simply always faded. A kind check that GATES A CLASS fails this way rather than loudly, which is why it is worth listing separately from the ones that draw.
 
 **A named card is focused**, the way a clicked one is. `openCard()` calls `focus()`, so the card takes `.hub` and its 34rem width — otherwise the root is a default 17.5rem card at apparent 0.85, just under `CONTROLS_AT`, and the toggle is hidden for that reason as well. Naming a card is asking to work on it. A kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js` — cheap for a leaf, as `SPECIMENS` turned out to be, and not cheap for anything that questions must cross THROUGH.
 
-**Gated on `lib/mapcontent.js`, not on the page.** `question-composer.html` is still test status, and the usual reason a test page skips a gate is that it has no audience — which stops holding the moment the link is shared. What the hook protects is the MAP: a question with no vector is an unreachable card, and a renamed module id drops every edge pointing at it, which bites `door-map` just as hard and has nothing to do with embeddings.
+**Gated on `lib/mapcontent.js`, not on the page.** `question-composer.html` is still test status, and the usual reason a test page skips a gate is that it has no audience — which stops holding the moment the link is shared. What the hook protects is the MAP: a question with no vector is an unreachable card, and a renamed concept id drops every edge pointing at it, which bites `door-map` just as hard and has nothing to do with embeddings.
 
 The check belongs in the hook rather than beside `tools/check-handedness.js` because it is offline: `--check` embeds nothing and only compares hashes. Only the fix needs the key, which is what `--no-verify` is for. The pattern covers `lib/mapcontent.js`, `lib/mapcontent-vectors.json` and `tools/bake-vectors.js`.
 
@@ -421,4 +426,4 @@ The check belongs in the hook rather than beside `tools/check-handedness.js` bec
 * **The shipped corpus.** \~2 KB a question: comfortable to \~500, awkward past \~1500. Quantising to int8 buys 4x. Past that, search moves server-side — which is why `api/find.js` returns a VECTOR rather than results, so that flip is a change in one file.
 * **Authoring throughput.** At which point generation into the CMS queue, human-approved and never drawn unapproved, stops being overkill. The miss log in `finds` is already collecting the evidence of what to write.
 
-**What to add, and as what.** More doors and modules are content and cost no mechanism. Tools and species are FACETS, not cards — `read.method` and `species` already connect every specimen, so "everything solved by cryo-EM" can highlight what exists rather than adding to it. Experiments earn a card, because an experiment has its own content and its own edge: the claim it settled. Images want a registry with licences before they want plumbing.
+**What to add, and as what.** More doors and concepts are content and cost no mechanism. Tools and species are FACETS, not cards — `read.method` and `species` already connect every specimen, so "everything solved by cryo-EM" can highlight what exists rather than adding to it. Experiments earn a card, because an experiment has its own content and its own edge: the claim it settled. Images want a registry with licences before they want plumbing.

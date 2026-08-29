@@ -1,17 +1,17 @@
 <!DOCTYPE html>
-<!-- Test bench for the door → module → question → module hierarchy.
+<!-- Test bench for the door → concept → question → concept hierarchy.
      One door is wired up: "Why is water the foundation of life?"
 
-     The module table lives in this page, not in lib/questions.js, because
-     modules are the part still being designed — a module owns a name, a
+     The concept table lives in this page, not in lib/questions.js, because
+     concepts are the part still being designed — a concept owns a name, a
      question of its own, a kind, a state, and the questions it answers. A
-     question naming two modules is what carries you from one door to the
+     question naming two concepts is what carries you from one door to the
      next; nothing here links out to a lesson yet.
 
-     A module card goes LIVE the moment it is REVEALED, not on a click. The map's
-     whole claim is that a module is a thing you can look at, and a placeholder
+     A concept card goes LIVE the moment it is REVEALED, not on a click. The map's
+     whole claim is that a concept is a thing you can look at, and a placeholder
      asks the reader to take that on faith until they click. `VIEWS` below says
-     which modules have something to show; the ones with no entry keep the
+     which concepts have something to show; the ones with no entry keep the
      placeholder, which is the honest signal that the lesson behind them has no
      stage yet.
 
@@ -129,7 +129,7 @@
     color: var(--spark); margin-top: 0.5rem;
   }
 
-  .node.module {
+  .node.concept {
     width: 17.5rem;
     padding: 0.85rem 1rem 0.9rem;
     background: var(--card);
@@ -137,7 +137,7 @@
     text-align: left;
   }
   /* the name is an eyebrow — which lesson this is — and the claim is the card */
-  .node.module .name {
+  .node.concept .name {
     font-size: 0.6rem; font-weight: 500; letter-spacing: 0.18em;
     text-transform: uppercase; color: var(--muted);
     display: flex; align-items: center; gap: 0.4rem;
@@ -147,31 +147,31 @@
      the same dot's fill — solid is built, half is an engine with no lesson on
      it, hollow is planned — which is a weaker signal than a colour, and the
      right way round for a map about crossings. `--dot` is set per card in
-     paintNode from that module's door tint. */
-  .node.module .name::before {
+     paintNode from that concept's door tint. */
+  .node.concept .name::before {
     content: ''; width: 7px; height: 7px; border-radius: 50%;
     background: var(--dot, var(--line)); flex: none;
   }
-  .node.module.engine  .name::before { opacity: 0.5; }
-  .node.module.planned .name::before {
+  .node.concept.engine  .name::before { opacity: 0.5; }
+  .node.concept.planned .name::before {
     background: transparent; box-shadow: inset 0 0 0 1.5px var(--dot, var(--line));
   }
   /* the open card: the one you clicked grows and makes room for its picture */
-  .node.module.hub { width: 34rem; padding: 1.7rem 1.9rem 1.75rem; }
+  .node.concept.hub { width: 34rem; padding: 1.7rem 1.9rem 1.75rem; }
   /* the claim: what this lesson asserts, in water-lab's own register — flat,
      present tense, the fact itself rather than a tease of it */
-  .node.module .claim {
+  .node.concept .claim {
     font-family: var(--serif); font-size: 1rem; line-height: 1.28;
     color: var(--ink); margin-top: 0.35rem; letter-spacing: -0.005em;
     display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .node.module.planned .claim { color: var(--muted); }
-  .node.module.hub .claim {
+  .node.concept.planned .claim { color: var(--muted); }
+  .node.concept.hub .claim {
     font-size: 1.9rem; line-height: 1.18; margin-top: 0.6rem;
     letter-spacing: -0.015em; -webkit-line-clamp: 5;
   }
-  .node.module.hub .name { font-size: 0.68rem; letter-spacing: 0.2em; }
+  .node.concept.hub .name { font-size: 0.68rem; letter-spacing: 0.2em; }
 
   /* 4:3, the same shape cards-cluster gives its stages, and a RATIO rather than
      a height on purpose: the card sets the width, the picture follows, and the
@@ -180,7 +180,7 @@
      opens, so nothing about its framing changes except the scale. Two typed
      heights could not promise that — 17.5rem wide against 6.6rem tall is 2.4:1,
      which crops a tall molecule to a letterbox. */
-  .node.module .thumb {
+  .node.concept .thumb {
     position: relative; overflow: hidden;
     width: 100%; aspect-ratio: 4 / 3; margin: 0.65rem 0 0.25rem;
     background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
@@ -191,13 +191,13 @@
      every card wide enough to clip rather than hide it. Absolutely positioned,
      it sits behind and is simply not displayed once a stage is mounted, so
      nothing about the layout depends on whether there is a picture yet. */
-  .node.module .thumb .ph {
+  .node.concept .thumb .ph {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
     font-size: 0.5rem; letter-spacing: 0.16em; text-transform: uppercase; color: #c2beb4;
   }
-  .node.module.hub .thumb .ph { font-size: 0.6rem; letter-spacing: 0.2em; color: #b6b2a8; }
-  .node.module .thumb.mounted .ph { display: none; }
+  .node.concept.hub .thumb .ph { font-size: 0.6rem; letter-spacing: 0.2em; color: #b6b2a8; }
+  .node.concept .thumb.mounted .ph { display: none; }
   /* Every stage this page mounts makes its own canvas inside the thumb —
      card-stage.js and molecule-builder.js both, and for the same reason: a
      destroy that force-loses the context can never give the element back.
@@ -206,10 +206,10 @@
      the opening zoom and softening as the reader scrolls in. The card that
      matters is the open one, and opening it grows the thumb, which resizes the
      renderer for real. */
-  .node.module .thumb > canvas { display: block; width: 100%; height: 100%; }
+  .node.concept .thumb > canvas { display: block; width: 100%; height: 100%; }
   /* The word goes when the picture arrives, and comes back when it leaves. */
-  .node.module .thumb.mounted { background: #f2f0ea; }
-  .node.module .thumb .still {
+  .node.concept .thumb.mounted { background: #f2f0ea; }
+  .node.concept .thumb .still {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: contain; opacity: .5;
   }
@@ -218,14 +218,14 @@
      lives on `.ph` above: setting `color` here used to beat `.mounted`'s own
      rule on equal specificity, which is why the word came back the moment a
      card was expanded and nowhere else. */
-  .node.module.hub .thumb { margin: 1rem 0 0.35rem; }
+  .node.concept.hub .thumb { margin: 1rem 0 0.35rem; }
 
-  .node.module .meta {
+  .node.concept .meta {
     font-size: 0.55rem; letter-spacing: 0.16em; text-transform: uppercase;
     color: var(--spark); margin-top: 0.4rem;
   }
   /* state, drawn on the left edge: built is solid, planned is nothing */
-  .node.module.planned { border-style: dashed; }
+  .node.concept.planned { border-style: dashed; }
 
 
   /* A card's own controls belong to the `interact` band and nowhere else. Below
@@ -233,21 +233,21 @@
      they cannot hit — the buttons are 22px tall before the zoom takes half of
      it — is an invitation to a click that pans instead. `.near` is that test,
      set per card because an open card is twice the width and passes it at half
-     the k. The module keeps deciding whether the control is EARNED
+     the k. The concept keeps deciding whether the control is EARNED
      (mb-dims.armed, a finished molecule); this decides whether it is reachable.
      Faded rather than removed, so nothing reflows as the reader scrolls in. */
-  .node.module .mb-dims { transition: opacity .18s ease; }
-  .node.module:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
+  .node.concept .mb-dims { transition: opacity .18s ease; }
+  .node.concept:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
 
   /* Every control a card carries is gated the same way, and the gate is this
      page's: only the map knows how big its card is on screen. What they look
      like is the module's (kit/proteinbox.css) or the builder's. */
-  .node.module:not(.near) .pbox-rep,
-  .node.module:not(.near) .pbox-play,
-  .node.module:not(.near) .lesson,
-  .node.module:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
+  .node.concept:not(.near) .pbox-rep,
+  .node.concept:not(.near) .pbox-play,
+  .node.concept:not(.near) .lesson,
+  .node.concept:not(.near) .mb-dims { opacity: 0; pointer-events: none; }
 
-  .node.module .lesson {
+  .node.concept .lesson {
     position: absolute; left: 8px; bottom: 8px;
     font: inherit; font-size: 0.55rem; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted); cursor: pointer;
@@ -255,7 +255,7 @@
     padding: 0.3rem 0.5rem; box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
     transition: opacity .18s ease, color .15s, border-color .15s;
   }
-  .node.module .lesson:hover { color: var(--ink); border-color: var(--ink); }
+  .node.concept .lesson:hover { color: var(--ink); border-color: var(--ink); }
 
   .node.question {
     width: 13.5rem;
@@ -266,9 +266,9 @@
     text-align: center;
   }
 
-  /* a question opens the same way a module does: bigger, with room for a picture */
-  /* A question opens the same way a module does — bigger, and readable — but it
-     grows NO picture block. A module's placeholder is a promise: that card has
+  /* a question opens the same way a concept does: bigger, with room for a picture */
+  /* A question opens the same way a concept does — bigger, and readable — but it
+     grows NO picture block. A concept's placeholder is a promise: that card has
      a lesson behind it and a stage is what arrives there. A question has
      neither, so the grey box was only ever an empty rectangle appearing on
      click, and the reader has to read it as meaning something. The question IS
@@ -283,7 +283,7 @@
 
   .focusing .node { opacity: 0.18; pointer-events: none; }
   .focusing .node.lit { opacity: 1; pointer-events: auto; }
-  /* Hop 2 is NOT dimmed: it is the modules the clicked card's questions cross
+  /* Hop 2 is NOT dimmed: it is the concepts the clicked card's questions cross
      to, and the crossing is the point. Depth still reads, in the links. */
   .focusing .node.hop2 { opacity: 1; }
   .focusing .node.question.lit {
@@ -428,7 +428,7 @@
 <script src="../lib/covalent-drag.js"></script>
 <script src="../lib/ionic-drag.js"></script>
 <script src="../water/watersim.js"></script>
-<script src="../lib/mapcontent.js"></script>   <!-- DOORS, MODULES, QUESTIONS, VIEWS -->
+<script src="../lib/mapcontent.js"></script>   <!-- DOORS, CONCEPTS, QUESTIONS, VIEWS -->
 <script src="../kit/modal.js"></script>
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/molbox.js"></script>
@@ -440,23 +440,23 @@
 <script src="../hemoglobin/foldplay.js"></script>  <!-- the ss-from-bonds rule, shared with hemoglobin-lab -->
 <script>
 /* ---- the content ------------------------------------------------------
-   DOORS, MODULES, QUESTIONS and VIEWS all live in lib/mapcontent.js now, so
+   DOORS, CONCEPTS, QUESTIONS and VIEWS all live in lib/mapcontent.js now, so
    they can be edited somewhere better than an HTML file — map-cms.html reads
    and writes that file through the dev server. What is left in this page is
    what DRAWS them, which is the only thing a page should hold.
 
    QUESTIONS is question-major: one row per question, carrying the rank it has
-   on each module it names. The map is bipartite and a question is the CROSSING,
-   so it has to be one node however many modules name it; module-major, the same
-   text appeared once per module and a re-wording in one of them split that node
+   on each concept it names. The map is bipartite and a question is the CROSSING,
+   so it has to be one node however many concepts name it; concept-major, the same
+   text appeared once per concept and a re-wording in one of them split that node
    in two. `mapcontent.js`'s header has the argument. */
 
-const { DOORS, MODULES, QUESTIONS, VIEWS } = MapContent;
+const { DOORS, CONCEPTS, QUESTIONS, VIEWS } = MapContent;
 const DOOR = DOORS.find(d => d.open) || DOORS[0];
 
 /* ---- graph ------------------------------------------------------------
-   Bipartite, like the concept map: modules never link to modules. A question
-   node is shared by every module that answers it, so the question IS the
+   Bipartite, like the concept map: concepts never link to concepts. A question
+   node is shared by every concept that answers it, so the question IS the
    crossing — from Hydrogen bonding to Base pairing, and with it from the
    water door to the information door. */
 
@@ -471,23 +471,23 @@ const door = { id: 'door', kind: 'door', text: DOOR.question, meta: DOOR.label, 
 byId.door = door;
 nodes.push(door);
 
-for (const m of MODULES) {
-  const n = { ...m, kind: 'module', deg: 0 };
+for (const m of CONCEPTS) {
+  const n = { ...m, kind: 'concept', deg: 0 };
   byId[m.id] = n;
   nodes.push(n);
   if (m.door === DOOR.id) links.push({ a: door, b: n, rank: m.rank });
 }
 
-/* One node per question, however many modules name it — which is what makes a
+/* One node per question, however many concepts name it — which is what makes a
    question the crossing rather than a leaf on each card. The row already IS one
    per question, so nothing here has to dedupe by text any more. */
-for (const [text, mods] of QUESTIONS) {
+for (const [text, ranks] of QUESTIONS) {
   const q = { id: 'q' + nodes.length, kind: 'question', text, deg: 0 };
   byId[q.id] = q;
   nodes.push(q);
-  for (const [mid, rank] of Object.entries(mods)) {
-    const m = byId[mid];
-    if (!m) continue;              // a module the map does not draw yet
+  for (const [cid, rank] of Object.entries(ranks)) {
+    const m = byId[cid];
+    if (!m) continue;              // a concept the map does not draw yet
     links.push({ a: m, b: q, rank });
     q.deg++; m.deg++;
   }
@@ -496,7 +496,7 @@ for (const [text, mods] of QUESTIONS) {
 const neighbours = n => links.flatMap(l => l.a === n ? [l.b] : l.b === n ? [l.a] : []);
 
 // Browsing beats ranking. A question that is rank 2 or 3 everywhere would never
-// open a card, and could only be met by wandering in from a module that happens
+// open a card, and could only be met by wandering in from a concept that happens
 // to name it — so it is promoted to rank 1 on the card that ranks it best. It
 // still reads as depth wherever it IS depth; it just gets one card that owns it.
 for (const n of nodes) {
@@ -506,14 +506,14 @@ for (const n of nodes) {
   if (best > 1) for (const l of mine) if (l.rank === best) l.rank = 1;
 }
 // the rank of `other` as seen from `from` — a question's rank belongs to the
-// edge, not to the question, which is the whole point of the per-module ranks
+// edge, not to the question, which is the whole point of the per-concept ranks
 const rankFrom = (from, other) => {
   const l = links.find(l => (l.a === from && l.b === other) || (l.b === from && l.a === other));
   return l ? l.rank : 2;
 };
 
 /* ---- what a card has to show -------------------------------------------
-   `VIEWS` is in lib/mapcontent.js with the rest of the content: which modules
+   `VIEWS` is in lib/mapcontent.js with the rest of the content: which concepts
    have something to SHOW and what. Three kinds, and the page knows how to build
    each one:
 
@@ -521,7 +521,7 @@ const rankFrom = (from, other) => {
      build  — molecule-builder.js, which brings its own ORTHOGRAPHIC stage.
      molbox — kit/molbox.js: one spec, solved into the box, turning.
 
-   A module with no entry keeps the placeholder, which is the honest signal that
+   A concept with no entry keeps the placeholder, which is the honest signal that
    the lesson behind it has no stage yet. There was a fourth kind, `mol`: one
    built spec on a turntable. It is gone, and nothing replaced it, because it
    was two mistakes at once. It solved its camera at create and never again, so
@@ -536,7 +536,7 @@ const rankFrom = (from, other) => {
 /* ---- a protein card ------------------------------------------------------
    kit/proteinbox.js owns the molecule and the two questions a reader can ask
    of it (the surface, the fold). This owns what belongs to the MAP: which
-   files a module names, and the button that opens the lesson behind it. */
+   files a concept names, and the button that opens the lesson behind it. */
 
 /* The lesson behind a card, opened over the map. `src` is set on show and
    cleared on hide, so the lesson's context and its megabyte of trajectory
@@ -650,7 +650,7 @@ const densifySoon = () => {
   densityTimer = setTimeout(reDensify, 180);
 };
 
-/* ONE card starts per frame. A wave is up to four modules, and each one that
+/* ONE card starts per frame. A wave is up to four concepts, and each one that
    has something to show creates a WebGL context, compiles its shaders and
    builds its geometry — the protein card alone is 80k triangles of ribbon. All
    of that in the frame the wave arrives is a visible stall exactly where the
@@ -763,7 +763,7 @@ function goLive(n) {
 /* ---- reveal ----------------------------------------------------------- */
 
 const COL = 560;
-const FIRST_ARM = 700;   // the door's own reach, scaled per module below
+const FIRST_ARM = 700;   // the door's own reach, scaled per concept below
 let alpha = 1;
 /* The relax used to floor at alpha 0.012 and run for ever, so every frame wrote
    a transform on every card and a `d` on every link whether or not anything had
@@ -788,7 +788,7 @@ function show(n, depth, y, x, ty) {
    * for. The pool is what makes that affordable: the four most recently
    * revealed or clicked stay live, and everything older keeps a still of its
    * last frame — so there is a picture on every card that has one to show, and
-   * only four of them are running. A wave of new modules is by definition the
+   * only four of them are running. A wave of new concepts is by definition the
    * most recent, so it is never the thing evicted. */
   goLiveSoon(n);
   for (const l of links) {
@@ -806,9 +806,9 @@ function show(n, depth, y, x, ty) {
 // ranks it highly — that is the per-card ranking doing its job, not a gap.
 const SHOW = 4;
 
-/* A question's best band, not literally rank 1: a question whose modules are
+/* A question's best band, not literally rank 1: a question whose concepts are
    all rank 2 or 3 there would deal nothing and read as a dead end, so the cut
-   is the lowest rank it actually has among the modules still hidden. Whole
+   is the lowest rank it actually has among the concepts still hidden. Whole
    bands only, the same promise a card's own wave makes. `also` narrows the
    field the band is measured over — measuring it before the narrowing picks a
    band that then gets filtered away to nothing. */
@@ -821,8 +821,8 @@ const top1 = band(null);
 
 /* `keep` is the opening screen's only extra: a click passes nothing and takes
    the whole wave, while start() opens three levels deep and has to say which of
-   a question's modules belong to the shape it is composing. `next` is the same
-   filter one level on: a module's wave carries its questions' first modules
+   a question's concepts belong to the shape it is composing. `next` is the same
+   filter one level on: a concept's wave carries its questions' first concepts
    with it, and start() narrows that to this door — without it the four
    crossings drag their away-door partners in and the door opens on twelve
    cards. */
@@ -845,9 +845,9 @@ function expand(n, keep, next = top1) {
   // toward the middle line the moment the relax touches it.
   const REACH = n.kind === 'door' ? 640 : 580;   // how far right of the card
   /* Gap down the fan, and it has to CLEAR the card or the wave is dealt on top
-     of itself and the relax opens with a shove. Measured: a module card is 304
+     of itself and the relax opens with a shove. Measured: a concept card is 304
      tall once its picture is 4:3 (it was ~217 when the thumb was a fixed
-     6.6rem), a question card 58. So the module step is the card plus a gap, and
+     6.6rem), a question card 58. So the concept step is the card plus a gap, and
      the question step is generous because a question is mostly air — it is
      spacing the ROW, not clearing the box. */
   const STEP = m0 => m0 === 'question' ? 215 : 345;   // gap down the fan
@@ -859,12 +859,12 @@ function expand(n, keep, next = top1) {
   });
   n.done = true;
 
-  /* A module's wave is questions, and a question alone is a dead end on the
+  /* A concept's wave is questions, and a question alone is a dead end on the
      screen — the reader has to click it to learn what it crosses to. So the
      wave carries its own next step: each new question deals its best band of
-     modules, which is what makes the crossing visible instead of promised.
+     concepts, which is what makes the crossing visible instead of promised.
      One band, or a click opens a card's entire second neighbourhood. */
-  if (n.kind === 'module' && next)
+  if (n.kind === 'concept' && next)
     for (const q of wave) if (q.kind === 'question') expand(q, next);
 
   wake(0.6);
@@ -882,7 +882,7 @@ function refreshMeta(n) {
   const el = n.el.querySelector('.meta');
   if (!el) return;
   const hidden = neighbours(n).filter(m => !m.visible).length;
-  if (n.kind === 'door') { el.textContent = hidden ? '+' + hidden + ' modules' : DOOR.label; return; }
+  if (n.kind === 'door') { el.textContent = hidden ? '+' + hidden + ' concepts' : DOOR.label; return; }
   el.textContent = n.done || !hidden
     ? ''
     : '+' + hidden + (hidden === 1 ? ' question' : ' questions');
@@ -895,8 +895,8 @@ function paintNode(n) {
   if (n.kind === 'door') {
     el.className = 'node door';
     el.innerHTML = '<div class="q">' + n.text + '</div><div class="meta"></div>';
-  } else if (n.kind === 'module') {
-    el.className = 'node module ' + n.state + (n.away ? ' away' : '');
+  } else if (n.kind === 'concept') {
+    el.className = 'node concept ' + n.state + (n.away ? ' away' : '');
     const tint = (DOORS.find(d => d.id === n.door) || {}).tint;
     if (tint) el.style.setProperty('--dot', tint);
     el.innerHTML = '<div class="name">' + n.name + '</div>' +
@@ -1042,14 +1042,14 @@ requestAnimationFrame(frame);
 
 /* ---- full screen ------------------------------------------------------
    The card at reading size: the same three parts it already has — what it is,
-   what it claims, and the picture — with the picture given the room. A module
+   what it claims, and the picture — with the picture given the room. A concept
    also lists the questions it answers, since that is what the map would have
    shown next. Nothing here navigates; closing returns you to where you were. */
 
 const full = document.getElementById('full');
 
 function openFull(n) {
-  document.getElementById('fullLede').textContent = n.kind === 'module' ? n.claim : n.text;
+  document.getElementById('fullLede').textContent = n.kind === 'concept' ? n.claim : n.text;
   const r = n.el.getBoundingClientRect();
   full.style.transformOrigin =
     (r.left + r.width / 2) + 'px ' + (r.top + r.height / 2) + 'px';
@@ -1108,7 +1108,7 @@ const HUB_RATIO = 34 / 17.5;
 const CONTROLS_AT = 0.95;
 function markNear() {
   for (const n of live) {
-    if (!n.el || n.kind !== 'module') continue;
+    if (!n.el || n.kind !== 'concept') continue;
     const f = n.el.classList.contains('hub') ? HUB_RATIO : 1;
     n.el.classList.toggle('near', view.k * f >= CONTROLS_AT);
   }
@@ -1288,7 +1288,7 @@ canvas.addEventListener('wheel', () => { touched = true; });
 addEventListener('resize', () => { if (!touched) centre(); });
 
 // The opening frame is composed, not chased: it fits the door and its four
-// modules exactly once, so the spacing can grow without pushing a card off the
+// concepts exactly once, so the spacing can grow without pushing a card off the
 // top. Everything after this is the reader's own panning.
 function centre() {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
@@ -1338,11 +1338,11 @@ function start() {
      these are four ways in and not four steps.
 
      RESAMPLED, not indexed. It used to be `FAN[i % FAN.length]`, which meant a
-     fifth rank 1 module wrapped onto the first slot and was dealt on the exact
+     fifth rank 1 concept wrapped onto the first slot and was dealt on the exact
      same point (measured: heat landed at 649,-262 on top of polarity). Reading
      the table as CONTROL POINTS on a curve instead, four starters land on the
      hand-composed positions unchanged — exactly, that is what makes this safe —
-     and any other count follows the same bow. So how many modules a door opens
+     and any other count follows the same bow. So how many concepts a door opens
      with is a rank in mapcontent.js, not a layout to re-tune. */
   const FAN = [[-22, 1.00], [-8, 1.55], [10, 1.36], [30, 0.94]];
   const fanAt = (i, n) => {
@@ -1361,10 +1361,10 @@ function start() {
 
   /* The water door's claim is a CHAIN, not a fan: everything water does comes
      from polarity, so the door opens already two crossings deep — the rank 1
-     module, its rank 1 questions, and the module each of those leads to. The
+     concept, its rank 1 questions, and the concept each of those leads to. The
      ranks in mapcontent.js still choose every card; this only says how many
      levels are dealt before the reader touches anything. A door whose opening
-     module has no rank 1 questions just stops, so this costs nothing elsewhere.
+     concept has no rank 1 questions just stops, so this costs nothing elsewhere.
      Own-door only, or a crossing hauls its far side in as well. */
   const onward = band((q, m) => m.door === DOOR.id);
   for (const m of first) expand(m, null, onward);
