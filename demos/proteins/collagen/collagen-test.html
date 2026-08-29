@@ -301,8 +301,16 @@ const stage = document.getElementById('stage');
 /* Declared before the box because the box's afterFrame closes over it and the
    first render happens inside create(). */
 let notes = null;
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('collagen');
+
 const box = Proteinbox.create({
   mount: stage,
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a
+     basis a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Null where nobody has chosen, and then the
+     bake's solved basis stands. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   stage: { ortho: false, turn: 'trackball' },
   pad: 1.15,
@@ -329,7 +337,6 @@ notes = Annot.create(THREE, stage, box.camera, { mode: 'on' });
 
    Panel order is the page's business: the helix first, then the substitution,
    then what holds on to it, then the whole thing. */
-const ME = ProteinLib.byKey('collagen');
 const ORDER = ['ppg10', 'pog9', 'oi', 'grip', 'chaperone', 'molecule'];
 /* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id: which structure
    a protein opens on is a decision and it belongs with the other decisions

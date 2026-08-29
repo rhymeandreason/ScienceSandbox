@@ -140,6 +140,11 @@ const SAYS = {
 
 const box = Proteinbox.create({
   mount: $('stage'),
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a
+     basis a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Null where nobody has chosen, and then the
+     bake's solved basis stands. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   stage: { ortho: false, turn: 'trackball' },
   pad: 1.15,

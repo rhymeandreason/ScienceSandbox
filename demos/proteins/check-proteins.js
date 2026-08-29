@@ -228,24 +228,18 @@ for (const p of lib.PROTEINS) {
       if (t.ssFrom === 'deposited' && noSS && !p.ss.some)
         say(`${at}: ss is deposited, but ${p.key} claims its files carry none`);
 
-      /* 6. A HAND-PICKED BASIS IS THE ONE THE BAKE WEARS. Two rules were one
-            until a human's view went unchecked on a protein that had not
-            declared `shared`, which is most of them.
+      /* 6. A CHOSEN BASIS IS NOT IN THE BAKE, and that is the invariant now
+            rather than the old one about the two agreeing. The registry holds
+            it and kit/proteinbox.js reads it at draw time; a bake carrying a
+            copy would be a second source that a re-bake or an edit could put
+            out of step, with nothing on screen saying which one won.
 
-            SHARED is about the SET: a basis is only legal across variants that
-            are superposed, and if it is declared then every bake carries it —
-            half the views wearing one is the jumping this rule exists to stop.
-
-            BY:'HUMAN' is about the CHOICE, and needs checking whether the set
-            shares it or not. A registry that records a basis nobody baked is
-            the failure mode: the choice is written down, the picture is the
-            solver's, and nothing on screen says they differ. `Bake.viewFor` is
-            what a baker uses so the two cannot come apart. */
-      const wants = p.view && (p.view.shared || p.view.by === 'human')
-        ? p.view.basis : null;
-      if (wants && JSON.stringify(t.view) !== JSON.stringify(wants))
-        say(`${at}: registry declares a ${p.view.by === 'human' ? 'hand-picked' : 'shared'}` +
-            ` view the bake is not wearing — re-run the baker`);
+            A SHARED basis is still only legal across variants that are
+            superposed — registry-io.js's validate holds that, since it is a
+            fact about the registry and needs no file to check. */
+      if (p.view && p.view.by === 'human' && t.view)
+        say(`${at}: ${p.key} chooses its rotation in the registry, but the bake ` +
+            `carries one too — re-run the baker`);
 
       /* 7. Every fitted variant names the reference, and the reference itself
             is fitted onto nothing. Read off the BAKE's meta, which is where a
@@ -324,4 +318,4 @@ console.log(`PASS: ${lib.PROTEINS.length} proteins, ${n} variants — every vari
   'its bake, every bake a variant; entries, chains and residue counts agree with ' +
   'what was baked; secondary structure is deposited everywhere' +
   (noSSKeys.length ? ` except ${noSSKeys.join(', ')}, which says so` : '') +
-  '; every declared fit and shared view is the one the bakes carry');
+  '; every declared fit is the one the bakes carry, and no chosen rotation is baked');

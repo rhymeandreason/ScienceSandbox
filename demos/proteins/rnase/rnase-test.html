@@ -128,6 +128,9 @@
 <script>
 'use strict';
 
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('rnase');
+
 /* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
 
    Camera, framing, the turn and the WebGL context are the module's, so this
@@ -143,6 +146,11 @@
    recreate per click would throw away every time. */
 const box = Proteinbox.create({
   mount: document.getElementById('stage'),
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a
+     basis a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Null where nobody has chosen, and then the
+     bake's solved basis stands. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   /* Trackball, not turntable: a turntable clamps its pitch short of the poles,
      about a hundred pixels of upward drag, which runs out exactly when someone
@@ -160,7 +168,6 @@ const box = Proteinbox.create({
    registry every protein in the repo is described in, and the same file the
    baker read to write these bakes. Nothing about the seven is typed here, so
    a variant cannot be described one way in the panel and baked another. */
-const ME = ProteinLib.byKey('rnase');
 /* Panel order, which is the page's business: the fold first, then the two
    views of it working, then the three ways it comes apart. */
 const VIEWS = ['1FS3', '2AAS', '1RUV', '1DFJ', '1RNU', '1A2W', '1F0V'];

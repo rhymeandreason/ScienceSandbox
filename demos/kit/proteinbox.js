@@ -74,10 +74,26 @@
  *  that owns a protein already owns those. What is shared is the box.
  *
  *  `view:` is a 3x3 basis saying which way the structure should face, applied
- *  to the chain group so the camera stays the reader's. A trace baked by
- *  tools/bake-trace.js carries its own in `view` when the shape earned one;
- *  pass this to override, and see FoldLib.viewBasis for why it is solved
- *  rather than typed and why a globular domain does not get one.
+ *  to the chain group so the camera stays the reader's.
+ *
+ *  TWO KINDS OF BASIS AND THEY LIVE IN DIFFERENT PLACES, which is the whole of
+ *  the precedence `setData` applies — this option, then create's, then the
+ *  bake's:
+ *
+ *    CHOSEN   a human turned the molecule and picked. Taste, not measurement,
+ *             so it lives in proteins/proteins.js as `view:{by:'human',basis}`
+ *             and is read at draw time. `protein:` picks it up here; a caller
+ *             passing `data:` asks `ProteinLib.viewOf(p)` for it. Re-aiming a
+ *             protein is then an edit and a reload, not a re-bake.
+ *
+ *    SOLVED   FoldLib.viewBasis worked it out from the shape. That IS a
+ *             measurement, so it is baked beside the extents it came with, and
+ *             it is the fallback whenever nobody has chosen. See viewBasis for
+ *             why a globular domain gets none.
+ *
+ *  A protein whose registry entry holds a chosen basis bakes NO view at all,
+ *  so a page that forgets to pass one opens in the deposited frame — visibly
+ *  wrong rather than subtly, and the panel's `frame` row says why.
  *
  *  `afterFrame:` runs after every render, for a page drawing over the scene —
  *  an annotate.js layer's `step()`. Orbit moves the camera without advancing
@@ -233,6 +249,11 @@
       surface: opts.surface || at(bake.card),
       fold:    opts.fold    || at(bake.fold),
       chains:  opts.chains  || v.chains,
+      /* THE ROTATION A HUMAN CHOSE, read here rather than baked. A caller
+         passing `data:` instead of a key does the same with
+         `ProteinLib.viewOf(p)`; the bake's own `view`, where it has one, is
+         the solved fallback under both. */
+      view:    opts.view    || (lib.viewOf ? lib.viewOf(p) : null),
     });
   }
 

@@ -335,30 +335,29 @@ function frameOf(points) {
 
 /* ------------------------------------------------------------------ viewFor
  *
- *  THE BASIS A BAKE SHOULD WEAR, and the one place that decides between a
- *  human's answer and a solved one.
+ *  WHAT A BAKE SHOULD SAY ABOUT ITS OWN ORIENTATION, given that a human may
+ *  have chosen one somewhere this file never reads.
  *
- *  A HUMAN'S BASIS WINS AND IS READ FROM THE REGISTRY. `view: {by:'human',
- *  basis}` beside every other decision about that protein is the only place
- *  one is written: a baker that solved over it would undo the choice on the
- *  next re-bake with the picture still looking like a protein, and a page that
- *  applied one after the fetch would turn the bench without turning the
- *  gallery card that reads the same file.
+ *  A CHOSEN BASIS IS NOT BAKED. It is taste rather than measurement, it lives
+ *  in `proteins/proteins.js`, and kit/proteinbox.js reads it at draw time —
+ *  so re-aiming a protein is an edit and a reload instead of a re-bake that
+ *  rewrites files whose coordinates did not change. Baking it too would put
+ *  one decision in two places and need a checker to hold them level.
  *
- *  Everything else falls back to whatever the baker worked out — `frameOf` for
+ *  So where the registry holds one, this writes NO view and says the rotation
+ *  came from the registry. The `frame` string is what a panel prints, and it
+ *  is fixed here rather than per baker: `chosen in the registry`, `computed`,
+ *  `deposited`, one word each. A page that then forgets to pass the basis
+ *  opens in the deposited frame, which is visibly wrong rather than subtly —
+ *  and the row it prints says where to look.
+ *
+ *  Everything else falls through to what the baker worked out: `frameOf` for
  *  most, `FoldLib.basisFrom` where a field has a convention about which axis
- *  stands up. Pass that as `fallback` and it is returned untouched.
- *
- *  `frame` is the WORD THE PANEL PRINTS, so it is fixed here rather than per
- *  baker: `custom view` is a human's, `computed` is solved, `deposited` is the
- *  file left alone. Three bakers spelling the third state three ways is how a
- *  reader stops being able to tell which they are looking at.
- *
- *  The human path is what `check-proteins.js` then enforces against the bake.
+ *  stands up. Pass that as `fallback` and it comes back untouched.
  */
 function viewFor(p, fallback) {
-  const picked = p && p.view && p.view.by === 'human' && p.view.basis;
-  if (picked) return { view: picked, frame: 'custom view' };
+  if (p && p.view && p.view.by === 'human' && p.view.basis)
+    return { view: null, frame: 'chosen in the registry' };
   const f = fallback || {};
   return { view: f.view || null, frame: f.view ? (f.frame || 'computed') : 'deposited' };
 }

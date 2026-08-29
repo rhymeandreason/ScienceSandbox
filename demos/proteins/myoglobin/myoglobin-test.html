@@ -150,6 +150,9 @@
 <script>
 'use strict';
 
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('myoglobin');
+
 /* The box is kit/proteinbox.js, same as every protein in the repo: the
    scene, the camera, the framing and the turn are the module's, and one box
    is re-fed so a reader who turned the molecule keeps that view across a
@@ -157,6 +160,11 @@
    this page hands over what the baker put there and nothing more. */
 const box = Proteinbox.create({
   mount: document.getElementById('stage'),
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a
+     basis a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Null where nobody has chosen, and then the
+     bake's solved basis stands. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   stage: { ortho: false, turn: 'trackball' },
   pad: 1.15,
@@ -166,7 +174,6 @@ const box = Proteinbox.create({
 /* WHICH STRUCTURES, AND WHAT THEY CLAIM, ARE proteins/proteins.js's — the
    same file the baker read to write these bakes, so a variant cannot be
    described one way here and baked another. Panel order is the page's. */
-const ME = ProteinLib.byKey('myoglobin');
 const VIEWS = ['1BZP', '1A6M', '1MBC', '1ABS', '1MBN', '1YMB', '2HHB-B'];
 const said = id => ProteinLib.variantOf(ME, id);
 

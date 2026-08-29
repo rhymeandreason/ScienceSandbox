@@ -774,9 +774,9 @@
       view: { by: 'human', shared: true,
               why: 'the cleft has to face the reader — a solved basis put the '
                  + 'hinge edge-on, where 18.58° looks like nothing',
-              basis: [[-0.875, 0.4607, -0.1144],
-                      [0.4275, 0.8739, 0.24],
-                      [0.2037, 0.1625, -0.9686]] },
+              basis: [[-0.8805, 0.4613, -0.111],
+                      [0.4269, 0.8721, 0.2393],
+                      [0.2071, 0.1632, -0.9649]] },
       surface: { bake: false,
                  why: 'the claim is a hinge, and the hinge is backbone — an '
                     + 'SES would seal the cleft that is the whole subject' },
@@ -1050,6 +1050,24 @@
     return seen.length === 1 ? seen[0] : null;
   }
 
+  /* THE ROTATION A HUMAN CHOSE, or null where nobody has. Read at draw time
+     and never baked, which is the whole of the arrangement:
+
+       a SOLVED basis is a measurement of the shape, computed from the
+       coordinates, and it lives in the bake beside the extents it was solved
+       with — `Bake.frameOf`.
+
+       a CHOSEN basis is taste. It lives here, and changing it is an edit to
+       this file and a reload. Baking it would make a presentation decision
+       into a committed artefact, so every re-aim would cost a re-bake, rewrite
+       files whose coordinates did not change, and put the same basis in two
+       places with a checker to keep them level.
+
+     A FUNCTION RATHER THAN A FIELD READ DIRECTLY, for `colorsOf`'s reason: it
+     is every consumer calling the same thing that stops a bench and a gallery
+     card becoming two opinions about which way one molecule faces. */
+  const viewOf = p => (p && p.view && p.view.by === 'human' && p.view.basis) || null;
+
   /* What the first digit of an EC number means, for a page that wants to say
      it in words. The same table bake-lib.js keeps for Node. */
   const EC_CLASS = [null,
@@ -1145,7 +1163,7 @@
   const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural'];
 
   global.ProteinLib = { PROTEINS, METHODS, MEASURED, DOES, EC_CLASS,
-                        byKey, defaultOf, ecOf,
+                        byKey, defaultOf, ecOf, viewOf,
                         variantOf, colorsOf, urls };
   if (typeof module === 'object' && module.exports)
     module.exports = global.ProteinLib;

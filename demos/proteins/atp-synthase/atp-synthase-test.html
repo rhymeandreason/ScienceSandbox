@@ -383,8 +383,16 @@
    comparable from one viewpoint. */
 const stage = document.getElementById('stage');
 let notes = null;
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('atp-synthase');
+
 const box = Proteinbox.create({
   mount: stage,
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a
+     basis a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Null where nobody has chosen, and then the
+     bake's solved basis stands. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   stage: { ortho: false, turn: 'trackball' },
   pad: 1.15,
@@ -407,7 +415,6 @@ notes = Annot.create(THREE, stage, box.camera, { mode: 'on' });
    it separately would put the same atoms on disk twice and let the two drift;
    worse, it would stop being evidence about WHERE the head sits, which is the
    only reason this view is worth having. */
-const ME = ProteinLib.byKey('atp-synthase');
 /* THE ROLE COLOURS AND THE FADE ARE THE REGISTRY'S, not this page's. They were
    here first and moved at registration, for the reason collagen's strand
    colours did: a colour kept on one page is a card and a bench showing one

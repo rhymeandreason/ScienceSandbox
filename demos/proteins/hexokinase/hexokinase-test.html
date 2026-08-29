@@ -219,6 +219,9 @@
 <script>
 'use strict';
 
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('hexokinase');
+
 /* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
    Camera, framing, the turn and the WebGL context are the module's, so this
    page orbits and frames exactly like every protein card in the repo. Which
@@ -227,6 +230,11 @@
    fetches. */
 const box = Proteinbox.create({
   mount: document.getElementById('stage'),
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a
+     basis a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Null where nobody has chosen, and then the
+     bake's solved basis stands. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   /* Trackball, not turntable: the turntable clamps its pitch short of the
      poles, which runs out exactly where someone is looking down into a
@@ -248,7 +256,6 @@ const $ = id => document.getElementById(id);
    colour can carry a position.
 
    WHICH STRUCTURES ARE proteins/proteins.js's. */
-const ME = ProteinLib.byKey('hexokinase');
 const REF = ME.fit.on;
 const MOVED = ME.variants.find(v => v.id !== REF).id;
 const said = id => ProteinLib.variantOf(ME, id);

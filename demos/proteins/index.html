@@ -400,6 +400,10 @@ function open(key, mount) {
          on the card that indexes it. Read from the registry so this card and
          the bench cannot colour the same molecule two ways. */
       colors: ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
+      /* And the same for the rotation, for the same reason: a chosen basis
+         lives in the registry, so this card and the bench cannot face one
+         molecule two ways. */
+      view: ProteinLib.viewOf(p),
       data: t,
     }));
     /* THE POCKET, where a protein has one. Myoglobin without its heme is the

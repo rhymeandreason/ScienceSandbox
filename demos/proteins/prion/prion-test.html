@@ -123,6 +123,9 @@
 <script>
 'use strict';
 
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('prion');
+
 /* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
 
    Camera, framing, the turn and the WebGL context are the module's, so this
@@ -139,6 +142,11 @@
    destroy-and-recreate per click would throw away every time. */
 const box = Proteinbox.create({
   mount: document.getElementById('stage'),
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a
+     basis a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Null where nobody has chosen, and then the
+     bake's solved basis stands. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   /* Trackball, not turntable. A turntable clamps its pitch short of the poles
      — about a hundred pixels of upward drag at the default rate — and on a
@@ -182,7 +190,6 @@ window.bench = { views, box, get view() { return view; } };
    describe; method, chain and residue counts are the baker's, written back
    into the same file. A panel that typed any of it would be making claims
    nothing checks. */
-const ME = ProteinLib.byKey('prion');
 const said = id => ProteinLib.variantOf(ME, id);
 
 /* THE PAGE'S OWN COPY. What a structure IS lives in the registry; what this
