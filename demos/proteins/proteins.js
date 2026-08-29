@@ -739,6 +739,84 @@
       ],
     },
     {
+      key: 'hexokinase', name: 'Hexokinase', dir: 'proteins/hexokinase',
+      blurb: 'Step one of glycolysis, and the enzyme shuts around its sugar to '
+           + 'do it. Two lobes hinge together over the glucose, which is what '
+           + 'keeps the ATP from being spent on a molecule of water.',
+      /* EC 2.7.1.1, on the COMPND record of all four depositions. */
+      does: 'enzyme',
+      /* TWO BENCHES, AND THE DERIVED ONE IS THIS REGISTRY'S. `hexokinase-test`
+         draws the two entries as themselves and is where the question of
+         whether the closure is visible gets answered; `hexokinase/closure-test`
+         plays a 41-frame trajectory in its own binary format and is downstream
+         of that answer. So no `page:` — the derived path is right — and the
+         animation is linked from the bench rather than from the card.
+
+         The PDBs stay in `hexokinase/` with the trajectory baker that pulled
+         them. `proteins/hexokinase/tools/prep.js` reads them across and writes
+         only the two static ribbons; two copies of a deposition is two things
+         to keep in step, and the stale one is whichever nothing is run on. */
+      /* STATES OF ONE THING, so they are superposed — and on LOBE 1 alone,
+         the large one, because that is what makes the picture the small lobe
+         swinging rather than the whole protein writhing. Which residues are
+         lobe 1 is a consensus the closure baker solves; prep.js reads it back
+         out of the trajectory instead of solving it again. */
+      fit: { on: '1IG8', by: 'lobe 1' },
+      /* A HUMAN'S BASIS, AND prep.js READS IT FROM HERE. The solver had an
+         answer — the two lobes make the long axis easy — but it was the wrong
+         way round for the only thing this pair is for: the cleft has to face
+         the reader, or the closure happens edge-on and reads as a shrug. So
+         the choice is made on the bench with `copy this view` and lives here,
+         and the baker writes it into both bakes rather than solving over it.
+         Shared is legal because the two are superposed; it is also required,
+         since a basis per entry would turn the molecule on every switch and
+         hide the motion inside the rotation. */
+      view: { by: 'human', shared: true,
+              why: 'the cleft has to face the reader — a solved basis put the '
+                 + 'hinge edge-on, where 18.58° looks like nothing',
+              basis: [[-0.875, 0.4607, -0.1144],
+                      [0.4275, 0.8739, 0.24],
+                      [0.2037, 0.1625, -0.9686]] },
+      surface: { bake: false,
+                 why: 'the claim is a hinge, and the hinge is backbone — an '
+                    + 'SES would seal the cleft that is the whole subject' },
+      variants: [
+        { id: '1IG8', default: true,
+          purpose: 'open and empty — the mouth before glucose',
+          species: 'yeast',
+          chains: 'A',
+          source: { kind: 'repo', id: '1IG8', path: 'hexokinase/data/1IG8.pdb' },
+          read: {
+            method: "x-ray diffraction",
+            chainsInFile: 1,
+            residues: 469,
+            declared: 486,
+            ec: "2.7.1.1",
+            baked: "hexokinase-1IG8.json" } },
+        /* NOT THE SAME ISOZYME, and the animation's own header is where the
+           consequence is worked out: 1IG8 is hexokinase PII and 3B8A is PI,
+           77% identical, so the 18.6° between them is closure PLUS whatever
+           the two isozymes differ by, and these files cannot separate them.
+           The obvious pair — 2YHX and 1HKG, the one the textbooks use — is
+           worse: 83 and 78 UNK residues, unsequenced in 1978, so there is no
+           residue correspondence to morph along, and measured it closes the
+           wrong way. Both are on disk in `hexokinase/data/` and neither is
+           registered. */
+        { id: '3B8A',
+          purpose: 'shut on glucose — the same mouth, closed',
+          species: 'yeast',
+          chains: 'X',
+          source: { kind: 'repo', id: '3B8A', path: 'hexokinase/data/3B8A.pdb' },
+          read: {
+            method: "x-ray diffraction",
+            chainsInFile: 1,
+            residues: 470,
+            declared: 485,
+            ec: "2.7.1.1",
+            baked: "hexokinase-3B8A.json" } },
+      ],
+    },
+    {
       key: 'hemoglobin', name: 'Haemoglobin', dir: 'hemoglobin',
       blurb: 'Four myoglobins that learned to talk to each other. One oxygen '
            + 'binding pulls the whole tetramer into the shape that binds the '

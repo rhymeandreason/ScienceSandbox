@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hexokinase — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html and
+     the gallery card.
+
+     WHY THIS EXISTS ALONGSIDE closure-test.html. That page plays the
+     MOTION: 41 frames of a solved trajectory, which is an argument about
+     what happens between two structures. This one draws the two
+     structures, as themselves, and is where the question of whether the
+     difference is something a student would SEE gets answered. The
+     animation is downstream of that answer.
+
+     WHAT IT SETTLED, so far:
+
+       is it visible    Yes, and the number is on the panel. With the
+                        large lobe superposed, lobe 1's 262 residues sit
+                        0.85 A from where they were and lobe 2's 140
+                        move 5.68 A rms. Residue 122 moves 11.4 A.
+       one lobe or two  One. The consensus finds 262 + 140 of 467 paired
+                        residues; the remaining 65 belong to neither and
+                        are the hinge itself plus the termini.
+       which pair       1IG8 (PII, apo) and 3B8A (PI, glucose). NOT the
+                        textbook 2YHX/1HKG pair, which has 83 and 78 UNK
+                        residues and, measured, closes the wrong way.
+                        Both are on disk in hexokinase/data/ and neither
+                        is registered.
+
+     WHAT THIS BENCH CANNOT TELL YOU. The two entries are different
+     ISOZYMES, 77% identical, so 18.58 degrees is closure PLUS whatever
+     PI and PII differ by. Nothing here separates them, and no deposited
+     pair can: it would take a fully sequenced apo PI or holo PII, and
+     the only candidates are the two with the unreadable side chains.
+     The panel says so on the view where it matters.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* The shared chrome is ../protein-test.css, and this bench adds NOTHING to
+     it with colour. Both entries are drawn in the repo's ss palette, which is
+     the right default here for the reason it usually is not: the two states
+     are the same fold, so there is nothing for a second palette to tell apart
+     that the ribbon's own shape does not already carry. What differs is where
+     the chain IS, and position is not something colour can say.
+
+  /* TWO WAYS TO READ ONE PROTEIN, on tabs: what the FILES do to this molecule,
+     and what the molecule IS. Section labels rather than button.mode, because
+     a tab changes what you READ and button.mode changes what is DRAWN. */
+  .tabs{display:flex;gap:var(--space-4);
+    margin:var(--space-5) 0 var(--space-2);
+    border-bottom:1px solid var(--h-line)}
+  .tabs button{background:none;border:0;padding:0 0 6px;cursor:pointer;
+    font:inherit;font-family:var(--h-ui);font-size:0.7rem;font-weight:600;
+    letter-spacing:0.16em;text-transform:uppercase;color:var(--h-muted);
+    border-bottom:2px solid transparent;margin-bottom:-1px;
+    transition:color var(--dur-fast) var(--ease-out),
+               border-color var(--dur-fast) var(--ease-out)}
+  .tabs button:hover{color:var(--h-spark)}
+  .tabs button[aria-selected=true]{color:var(--h-ink);
+    border-bottom-color:var(--h-ink)}
+  .tab-panel[hidden]{display:none}
+  .tab-panel .lead{font-size:0.9rem;color:var(--h-ink);line-height:1.5;
+    margin:0 0 var(--space-3)}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Hexokinase</h1>
+    <p class="deck">One enzyme, two states: the mouth open and the mouth shut
+      on its sugar. Superposed on the lobe that holds still, so switching shows
+      the other one swing. Yeast.</p>
+
+    <h2>yeast</h2>
+    <button class="mode" id="v-1IG8" aria-pressed="true">
+      <span class="who">open &middot; 1IG8</span><span class="chip">apo</span></button>
+    <button class="mode" id="v-3B8A" aria-pressed="false">
+      <span class="who">closed &middot; 3B8A</span><span class="chip">glucose</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>in the site</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>span</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr class="hi"><td>hinge</td><td id="d-hinge">&mdash;</td></tr>
+      <tr><td>large lobe moves</td><td id="d-lobe1">&mdash;</td></tr>
+      <tr><td>small lobe moves</td><td id="d-lobe2">&mdash;</td></tr>
+      <tr><td>furthest residue</td><td id="d-far">&mdash;</td></tr>
+      <tr><td>superposed on</td><td id="d-fit">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+
+    <div class="tabs" role="tablist">
+      <button id="t-science" role="tab" aria-selected="true"
+              aria-controls="p-science">what the files say</button>
+      <button id="t-summary" role="tab" aria-selected="false"
+              aria-controls="p-summary">summary</button>
+    </div>
+
+    <div class="tab-panel" id="p-science" role="tabpanel" aria-labelledby="t-science">
+      <p class="note"><strong>Two isozymes, not two states of one.</strong>
+        1IG8 is yeast hexokinase PII and 3B8A is PI. They are 77% identical and
+        467 of their residues pair, but they are different gene products, so
+        the 18.58&deg; measured here is closure <em>plus</em> whatever PI and
+        PII differ by. No deposited pair separates the two: it would need a
+        fully sequenced apo PI or holo PII, and the only candidates &mdash;
+        1HKG and 2YHX, the pair the textbooks reproduce &mdash; carry 83 and 78
+        UNK residues, side chains the depositors could not read in 1978. With
+        no residue correspondence there is nothing to measure along, and
+        measured anyway that pair closes the wrong way.</p>
+
+      <p class="note"><strong>The lobes are found, not assigned.</strong>
+        Nothing in either file says which residues belong to which lobe. A
+        consensus search takes a seed of 30 neighbours, superposes, keeps
+        whatever lands within 1.5 &Aring;, and repeats until the set stops
+        changing &mdash; twice, the second time on what the first left over.
+        That gives 262 and 140 of the 467 paired residues. The other 65 belong
+        to neither, and they are the hinge itself and the two termini: the
+        parts that are neither held still nor carried rigidly.</p>
+
+      <p class="note"><strong>Superposed on the large lobe alone.</strong>
+        Fitting on the whole molecule would split the rotation across both
+        lobes and read as the protein writhing. Fitting on lobe 1 puts the
+        entire difference where it belongs, which is why the two numbers under
+        <em>hinge</em> are so far apart &mdash; 0.85 &Aring; against 5.68. The
+        same consensus feeds
+        <a href="../../hexokinase/closure-test.html">the closure animation</a>,
+        read back out of its trajectory rather than solved twice.</p>
+    </div>
+
+    <div class="tab-panel" id="p-summary" role="tabpanel" aria-labelledby="t-summary" hidden>
+      <p class="lead">The first step of glycolysis, and the enzyme has to shut
+        its mouth to take it. Hexokinase puts a phosphate from ATP onto
+        glucose, and the reason the sugar goes anywhere at all is that the
+        enzyme folds around it first.</p>
+
+      <p class="note">Glucose arrives in the cell uncharged, which is how it
+        crossed the membrane and also how it could leave again. Phosphorylating
+        it puts a charge on it, and glucose-6-phosphate cannot cross back. So
+        step one of glycolysis is not really about breaking anything down: it
+        is about trapping the sugar. The cell pays one ATP for a molecule it
+        has not yet got any energy out of.</p>
+
+      <p class="note">The closure is the reason this enzyme is in every
+        textbook. Water is a small molecule with an -OH on it, the same group
+        the phosphate is being handed to, and it is everywhere. An open active
+        site would let water sit where glucose should be, and the enzyme would
+        spend ATP turning it into ADP and phosphate and nothing else &mdash; an
+        expensive way to heat the cell. Closing the two lobes squeezes the
+        water out, and only then does the chemistry happen. Daniel Koshland
+        proposed induced fit in 1958 as an alternative to the lock and key;
+        hexokinase is the structure that showed him right.</p>
+
+      <p class="note">Humans have four. Hexokinases I to III are the ordinary
+        ones, saturated at normal blood sugar and switched off by their own
+        product, so they take what the cell needs and stop. The fourth,
+        glucokinase, sits in the liver and the pancreas and does neither: its
+        affinity is low enough that its rate still tracks blood glucose at the
+        concentrations that matter, and no product inhibition stops it. That
+        makes it a sensor rather than a valve &mdash; it is how a beta cell
+        knows to release insulin, and mutations in it cause a heritable
+        diabetes, MODY2. Same reaction, same fold, opposite job, and the
+        difference is entirely in the regulation.</p>
+
+      <p class="note">These files are yeast, which has two isozymes of its own.
+        The closure is the same motion in ours.</p>
+    </div>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Prints the
+      basis the structure would need to open facing this way. Both entries
+      share one, so pasting it into the registry re-aims the pair together.</p>
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+      <a href="../../hexokinase/closure-test.html">the closure, animated</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
+<script>
+'use strict';
+
+/* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
+   Camera, framing, the turn and the WebGL context are the module's, so this
+   page orbits and frames exactly like every protein card in the repo. Which
+   altloc, which chain, and whether secondary structure was read or detected
+   are the BAKER's, decided in tools/prep.js and written into what this
+   fetches. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true,
+  /* Trackball, not turntable: the turntable clamps its pitch short of the
+     poles, which runs out exactly where someone is looking down into a
+     cleft — and a cleft is this page's whole subject. */
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  /* 10 rather than the card default of 6. At full height, 6 samples per
+     residue is visible as faceting wherever the chain turns hard. */
+  sub: 10,
+});
+
+const $ = id => document.getElementById(id);
+
+/* NO `colors`, WHICH IS THE DECISION AND NOT AN OMISSION. Proteinbox's default
+   is the repo's secondary-structure palette, and it is right here: the two
+   entries are the same fold, so a state palette would be spending the one
+   channel a reader reads first on something the ribbon's own shape already
+   says. The difference between these files is WHERE the chain is, and no
+   colour can carry a position.
+
+   WHICH STRUCTURES ARE proteins/proteins.js's. */
+const ME = ProteinLib.byKey('hexokinase');
+const REF = ME.fit.on;
+const MOVED = ME.variants.find(v => v.id !== REF).id;
+const said = id => ProteinLib.variantOf(ME, id);
+
+/* A bench is a thing you poke at from the console. */
+const views = {};                        // id -> { data, color, stats }
+let view = null;
+window.bench = { views, box, get view() { return view; } };
+
+/* THE PAGE'S OWN COPY. What a structure IS lives in the registry; what this
+   bench SAYS about it is page copy and belongs to the page. Keyed by view id,
+   so a button and its paragraph cannot come apart. */
+const SAYS = {
+  '1IG8': {
+    claim: 'Yeast hexokinase with nothing in the site. The cleft between the '
+         + 'two lobes is open.',
+    prov:  'Hexokinase PII, apo. The entry that finally got the sequence right '
+         + 'after two decades of structures that did not.' },
+  '3B8A': {
+    claim: 'The same enzyme with glucose bound, and the cleft shut over it.',
+    prov:  'Hexokinase PI with glucose. A different isozyme from the open '
+         + 'form, which is why the angle below is approximate.' },
+};
+
+/* THE TWO SHARE A FRAME, WHICH IS WHAT MAKES THE SWITCH WORTH WATCHING.
+   prep.js superposed the closed entry onto the open one on the large lobe and
+   centred both on the same vector, so `setData` swaps one for the other under
+   an unchanged camera and the large lobe stays put while the small one jumps.
+   Two bakes each centred on itself would both land in the middle and the
+   closure would be invisible. */
+[REF, MOVED].forEach(id => {
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(data => {
+    views[id] = { data, stats: measure(data) };
+    if (view === id) show(id);           // clicked before the fetch landed
+  }).catch(e => console.warn(`hexokinase: ${id} — ${e.message}`));
+});
+
+/* Everything the panel prints, counted off what was just loaded. A typed
+   number is a claim nothing checks, and a re-bake falsifies it silently. */
+function measure(t) {
+  const c = t.chains[t.order[0]], nums = c.nums, n = nums.length;
+  const H = [...c.ss].filter(x => x === 'H').length;
+  const E = [...c.ss].filter(x => x === 'E').length;
+  /* Segments, counted off the residue numbers the box breaks the ribbon on. */
+  const segs = 1 + nums.filter((v, i, a) => i && v !== a[i - 1] + 1).length;
+
+  /* Completeness against what the entry declares, off the bake's own meta.
+     A percentage alone rounds a hole away and a span alone hides one, so the
+     segment count rides along in the row above. */
+  const declared = t.meta.counts[0].declared;
+  const pct = declared ? Math.round(100 * n / declared) : null;
+
+  return {
+    pct: pct === null ? '—' : `${n} of ${declared} · ${pct}%`,
+    frag: declared === null ? 'no SEQRES records: completeness unknown'
+        : n >= declared ? `complete: ${n} of ${declared} deposited`
+        : `fragment: ${n} out of ${declared} deposited`,
+    span: `${nums[0]}–${nums[n - 1]}`,
+    res: `${n} residues` + (segs > 1 ? ` in ${segs} segments` : ''),
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+/* WHAT IS IN THE SITE, off the bake's own HETATM read. The open form's only
+   ligand is a sulphate out of the crystallisation buffer, and saying "SO4" is
+   less honest than saying the site is empty — the whole point of that entry is
+   that nothing is bound. BGC is beta-D-glucose, the substrate. */
+const LIGAND = { BGC: 'β-D-glucose — the substrate', SO4: 'sulphate, from the buffer' };
+function ligands(meta) {
+  const l = meta.ligands || [];
+  const real = l.filter(x => x !== 'SO4');
+  if (!real.length) return 'nothing bound' + (l.length ? ' (sulphate from the buffer)' : '');
+  return real.map(x => LIGAND[x] || x).join(', ');
+}
+
+
+function show(id) {
+  view = id;
+  const on = views[id];
+  if (!on) return;                       // fetch still in flight
+
+  const s = on.stats, m = on.data.meta;
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-frac').textContent = s.frac;
+  $('d-ext').textContent = s.ext;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  $('d-lig').textContent = ligands(m);
+
+  const me = said(id);
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-prov').textContent = SAYS[id].prov;
+  /* Resolution off the bake's meta, where every fact about this one structure
+     lives; the registry indexes on the method alone. */
+  $('d-meta').textContent = `${me.source.id} · ${me.read.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
+
+  /* THE CLOSURE, measured in the baker and printed here. Only the moved file
+     carries it: the reference is fitted onto nothing, so on the open view
+     these rows have no answer rather than a zero, which would read as a
+     measurement that came out at nothing. */
+  const mo = m.motion;
+  const has = mo && id !== REF;
+  $('d-hinge').textContent = has
+    ? `${mo.hingeDeg}° over ${mo.paired} paired residues` : '— (the reference)';
+  $('d-lobe1').textContent = has
+    ? `${mo.lobe1.rms} Å rms · ${mo.lobe1.residues} residues` : '—';
+  $('d-lobe2').textContent = has
+    ? `${mo.lobe2.rms} Å rms · ${mo.lobe2.residues} residues` : '—';
+  $('d-far').textContent = has
+    ? `${mo.furthest.residue}, by ${mo.furthest.moved} Å` : '—';
+  $('d-fit').textContent = m.fitOn && id !== REF
+    ? `${m.fitOn} · ${m.fitOnWhat} · ${m.fitRmsd} Å` : 'nothing — this is the reference';
+  /* Named by WHERE THE FRAME CAME FROM. `computed` is solved from the shape,
+     `deposited` is the file left alone, `custom view` is a human's paste. */
+  $('d-view').textContent = on.data.frame +
+    (ME.view && ME.view.shared ? ', shared by both entries' : '');
+
+  /* Built by the registry from `source`, so a link cannot point at a structure
+     the panel is not describing. */
+  const u = ProteinLib.urls(me);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${me.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${me.read.baked}`;
+
+  /* No colours: the ss palette is the default and the default is the point. */
+  box.setData(on.data);
+}
+
+/* THE PROTEIN'S molecule-viewer.html, in one button. A solved basis is right
+   wherever the shape has axes worth solving and wrong where it does not — a
+   globular domain's three extents are too close to tell apart, so its solved
+   frame flips between rebakes. Those need a human, and a human needs a way to
+   say what they chose: turn the molecule, copy, paste it into the registry.
+   The basis itself is the box's to compute. */
+$('pick').addEventListener('click', () => {
+  /* kit/proteinbox.js's, because the correct answer needs the chain group's
+     rotation as well as the camera's and only the box can see it. Done here
+     it silently dropped whatever view the structure was already wearing. */
+  const R = box.pickView();
+  const text = JSON.stringify(R);
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+/* The tabs switch reading, not what is drawn — the stage is untouched, which
+   is why they are not button.mode. */
+const TABS = [['t-science', 'p-science'], ['t-summary', 'p-summary']];
+TABS.forEach(([tab]) => {
+  $(tab).addEventListener('click', () => {
+    TABS.forEach(([t, panel]) => {
+      $(t).setAttribute('aria-selected', String(t === tab));
+      $(panel).hidden = t !== tab;
+    });
+  });
+});
+
+/* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id: which structure
+   a protein opens on is a decision, and it belongs in the file that holds the
+   other decisions about it. The pressed button is set from the same answer, so
+   the highlight and the stage cannot disagree. */
+const OPENS_ON = ProteinLib.defaultOf(ME).id;
+const BUTTONS = [REF, MOVED];
+BUTTONS.forEach(id => {
+  $('v-' + id).setAttribute('aria-pressed', String(id === OPENS_ON));
+  $('v-' + id).addEventListener('click', () => {
+    BUTTONS.forEach(b => $('v-' + b).setAttribute('aria-pressed', String(b === id)));
+    show(id);
+  });
+});
+view = OPENS_ON;
+</script>
+</body>
+</html>
