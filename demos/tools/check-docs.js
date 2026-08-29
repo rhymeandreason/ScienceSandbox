@@ -45,6 +45,13 @@ const SCIENCE = rd('docs/SCIENCE.md');
 // excused — it is asserted ABSENT, so if one gets built the check fails and
 // tells you to update the doc that called it hypothetical.
 const KNOWN_ABSENT = {
+  // molecules-wishlist.md's proposed re-partition. These five are the files the
+  // class-based split would create; nothing is moved yet, and the doc says so.
+  'mol-sugars.js':      'molecules-wishlist.md proposal — not built',
+  'mol-glycans.js':     'molecules-wishlist.md proposal — not built',
+  'mol-carriers.js':    'molecules-wishlist.md proposal — not built',
+  'mol-glycolysis.js':  'molecules-wishlist.md proposal — not built',
+  'mol-cofactors.js':   'molecules-wishlist.md proposal — not built',
   'engine.js':          'the monolith CLAUDE.md/§10 exist to argue against',
   'water.html':         "CLAUDE.md's example of a rename that outlived its file",
   'layout.js':          'TESTING.md proposal — not built',
