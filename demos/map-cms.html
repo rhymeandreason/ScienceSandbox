@@ -95,7 +95,7 @@
 
   /* Which concepts a question names, and the rank on each. The rank belongs to
      the EDGE, so it is drawn on the concept chip and never on the question. */
-  .draft { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .edges { display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .chip { display: inline-flex; align-items: center; gap: 0.3rem;
           font-size: 0.66rem; letter-spacing: 0.02em;
           background: var(--card); border: 1px solid var(--line); border-radius: 3px;
@@ -136,6 +136,25 @@
   .crow .side { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; }
   .crow .side select { width: 100%; }
   .crow .qn { font-size: 0.62rem; letter-spacing: 0.06em; color: var(--muted); }
+  /* An id is editable ONLY before its first save, so it looks like a field then
+     and like a label ever after. Same column, same size: the row must not jump
+     when the concept lands. */
+  .crow input.idc { font-family: var(--sans); text-transform: lowercase;
+                    background: var(--card); border: 1px solid var(--line);
+                    border-radius: 3px; padding: 0.25rem 0.4rem; width: 100%;
+                    margin-top: 0.2rem; }
+  .crow input.idc.bad { border-color: var(--spark); }
+  .crow .why { font-size: 0.58rem; line-height: 1.3; color: var(--spark);
+               margin-top: 0.25rem; }
+  /* On hover, because it is the rarest thing done on this screen and one per
+     row made a destructive action the most repeated element on the page. Faded
+     rather than absent, so nothing reflows as the cursor runs down the list. A
+     fresh row keeps its own: that row is how you back out of an accidental
+     + concept, and hunting for it is not the moment to hide it. */
+  .crow .del { align-self: flex-end; padding: 0.1rem 0.35rem;
+               opacity: 0; transition: opacity .15s ease; }
+  .crow:hover .del, .crow:focus-within .del, .crow.fresh .del { opacity: 1; }
+  .crow.fresh { background: linear-gradient(90deg, rgba(193,138,30,.10), transparent 55%); }
 
   .empty { padding: 3rem 0; text-align: center; color: var(--muted);
            font-family: var(--serif); }
@@ -191,6 +210,7 @@
      of the other's. -->
 <div class="bar" id="cbar" hidden>
   <select id="cdoor"></select>
+  <button class="btn" id="cadd">+ concept</button>
   <span class="spacer" style="flex:1"></span>
   <span class="score" id="cscore"></span>
   <span class="dirty" id="cdirty"></span>
@@ -350,7 +370,7 @@ function rowEl(r, i) {
   left.appendChild(tag);
 
   const right = document.createElement('div');
-  right.className = 'draft';
+  right.className = 'edges';
   for (const [id, rank] of Object.entries(r.concepts || {})) {
     const m = byConcept(id);
     const chip = document.createElement('span');
@@ -412,7 +432,13 @@ const id_in = (r, id) => Object.prototype.hasOwnProperty.call(r.concepts || {}, 
 
 /* ---- filters ------------------------------------------------------------ */
 
+/* Called again after a concepts save, so a new concept is selectable without a
+   reload — which means it has to KEEP the selections. Rebuilding the options
+   drops each select back to its first, and silently rewinding the filter the
+   curator is working in is worse than the stale dropdown it fixes. A value that
+   no longer exists (the concept was just deleted) falls back to `all`. */
 function fillFilters() {
+  const was = { door: $('door').value, cdoor: $('cdoor').value, concept: $('concept').value };
   const dsel = $('door');
   dsel.innerHTML = '<option value="all">every door</option>';
   for (const d of doors) {
@@ -437,6 +463,13 @@ function fillFilters() {
     o.textContent = m.name + (viewIds.includes(m.id) ? ' ◍' : '');
     msel.appendChild(o);
   }
+
+  const keep = (el, v) => {
+    if (!v) return;
+    el.value = v;
+    if (!el.value) el.value = 'all';   // gone: the option no longer exists
+  };
+  keep(dsel, was.door); keep(md, was.cdoor); keep(msel, was.concept);
 }
 ['door', 'concept', 'kind', 'find'].forEach(id => $(id).addEventListener('input', draw));
 
@@ -447,9 +480,12 @@ function fillFilters() {
    was dealt on top of the first — so the fan is resampled now and any count
    composes. Which is what makes this screen worth having.
 
-   The id is shown and NOT editable. Every question names its concepts by id, so
-   changing one here would orphan those edges silently; the io catches it, but
-   the honest move is not to offer it. */
+   The id is editable exactly ONCE, while the concept is new and nothing names
+   it yet. After the first save it is a label: every question names its concepts
+   by id, so changing one would orphan those edges silently. The io catches it,
+   but the honest move is not to offer it. `fresh` is what carries that window,
+   and it is stripped out of the save rather than written to the file — it is a
+   fact about this session, not about the map. */
 
 let draft = [], cbase = '';
 
@@ -476,24 +512,55 @@ function cdraw() {
   const host = $('clist');
   host.replaceChildren();
   const d = $('cdoor').value;
-  // Rank first, so what a door OPENS with is at the top and reads as a set.
+  // Rank first, so what a door OPENS with is at the top and reads as a set —
+  // except a `fresh` row, which floats above all of it. It has no id yet, so
+  // rank order would deal a half-typed concept into the middle of the list.
   const shown = draft.map((m, i) => [m, i])
     .filter(([m]) => d === 'all' || m.door === d)
-    .sort((a, b) => (a[0].door.localeCompare(b[0].door)) || (a[0].rank - b[0].rank));
-  for (const [m, i] of shown) host.appendChild(mrowEl(m, i));
+    .sort((a, b) => (!!b[0].fresh - !!a[0].fresh)
+                 || (a[0].door.localeCompare(b[0].door))
+                 || (a[0].rank - b[0].rank));
+  for (const [m, i] of shown) host.appendChild(crowEl(m, i));
   cscore();
 }
 
-function mrowEl(m, i) {
-  const el = document.createElement('div');
-  el.className = 'crow' + (m.rank === 1 ? ' starter' : '');
+/* Why a new concept cannot be saved yet, or '' if it can. The io checks all of
+   this too and its message is what a save reports; this is the same rule said
+   early, so the row shows it while it is being typed rather than at Save. */
+function idProblem(m, i) {
+  if (!m.id) return 'needs an id';
+  if (!/^[a-z][a-z0-9]*$/.test(m.id)) return 'lowercase letters and digits, starting with a letter';
+  if (draft.some((x, j) => j !== i && x.id === m.id)) return 'another concept already has this id';
+  return '';
+}
 
-  const id = document.createElement('div');
-  id.className = 'idc';
-  id.textContent = m.id;
-  id.title = 'Questions name this concept by id, so it is not editable here — '
-           + 'changing it would orphan every edge that names it.';
-  el.appendChild(id);
+function crowEl(m, i) {
+  const el = document.createElement('div');
+  el.className = 'crow' + (m.rank === 1 ? ' starter' : '') + (m.fresh ? ' fresh' : '');
+
+  const idc = document.createElement('div');
+  if (m.fresh) {
+    const box = document.createElement('input');
+    box.className = 'idc'; box.value = m.id; box.placeholder = 'id';
+    box.title = 'Questions will name this concept by id, and it is fixed once saved.';
+    const why = document.createElement('div');
+    why.className = 'why';
+    const test = () => {
+      const p = idProblem(m, i);
+      box.classList.toggle('bad', !!p);
+      why.textContent = p;
+    };
+    box.addEventListener('input', () => { m.id = box.value.trim(); test(); cscore(); });
+    test();
+    idc.appendChild(box);
+    idc.appendChild(why);
+  } else {
+    idc.className = 'idc';
+    idc.textContent = m.id;
+    idc.title = 'Questions name this concept by id, so it is not editable here — '
+              + 'changing it would orphan every edge that names it.';
+  }
+  el.appendChild(idc);
 
   const mid = document.createElement('div');
   const name = document.createElement('input');
@@ -546,11 +613,51 @@ function mrowEl(m, i) {
   state.addEventListener('change', () => { m.state = state.value; cscore(); });
   side.appendChild(state);
 
+  /* Refused rather than cascaded. A concept with questions on it is not a row
+     to tidy away: deleting it would drop every one of those crossings, and the
+     io rejects the save anyway. So the button says the count and stops, and
+     unlinking the questions first is the deliberate path. */
+  const del = document.createElement('button');
+  del.className = 'btn del';
+  del.textContent = 'delete';
+  del.addEventListener('click', () => {
+    const named = rows.filter(r => id_in(r, m.id));
+    if (named.length) {
+      say('“' + (m.name || m.id) + '” is named by ' + named.length
+        + (named.length === 1 ? ' question' : ' questions')
+        + '. Unlink those first — deleting it would drop the crossings.', 'bad');
+      return;
+    }
+    if (viewIds.includes(m.id)
+        && !confirm('“' + (m.name || m.id) + '” has a VIEWS entry, which this cannot remove.\n\n'
+                  + 'Delete the concept and leave the orphan entry for a hand edit?')) return;
+    if (!m.fresh && !confirm('Delete “' + (m.name || m.id) + '”?')) return;
+    draft.splice(i, 1);
+    say('');
+    cdraw();
+  });
+  side.appendChild(del);
+
   el.appendChild(side);
   return el;
 }
 
 $('cdoor').addEventListener('input', cdraw);
+
+/* A new concept opens on the door being filtered, because that is the one the
+   curator is looking at; rank 2 and `planned`, because a rank 1 changes what a
+   door OPENS with and a new row has not earned that. It goes to the TOP of the
+   list rather than into rank order, so it is not dealt somewhere off screen. */
+$('cadd').addEventListener('click', () => {
+  const d = $('cdoor').value;
+  draft.unshift({ id: '', name: '', claim: '',
+                  door: d === 'all' ? doors[0].id : d,
+                  rank: 2, state: 'planned', fresh: true });
+  say('');
+  cdraw();
+  const box = $('clist').querySelector('input.idc');
+  if (box) box.focus();
+});
 
 /* ---- panes -------------------------------------------------------------- */
 
@@ -640,7 +747,9 @@ $('csave').addEventListener('click', async () => {
     // unsaved question edit on the other screen is neither written nor lost.
     const r = await fetch('/api/mapcontent', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ concepts: draft, mtimeMs }),
+      // `fresh` never reaches the file: it is this session's note that a row's
+      // id is still open, and serialiseConcepts would ignore it anyway.
+      body: JSON.stringify({ concepts: draft.map(({ fresh, ...m }) => m), mtimeMs }),
     });
     const data = await r.json();
     if (!r.ok) {
@@ -650,11 +759,15 @@ $('csave').addEventListener('click', async () => {
       return;
     }
     mtimeMs = data.mtimeMs;
+    // Saved is what closes the id window: from here a question can name it.
+    for (const m of draft) delete m.fresh;
     cbase = csnapshot();
-    // The questions screen resolves ids against this, so it has to follow.
+    // The questions screen resolves ids against this, so it has to follow, and
+    // fillFilters is what puts a new concept in its dropdowns.
     concepts = draft.map(m => ({ ...m }));
-    say('saved ' + data.draft + ' concepts to mapcontent.js', 'ok');
-    cscore();
+    fillFilters();
+    say('saved ' + data.concepts + ' concepts to mapcontent.js', 'ok');
+    cdraw();
   } catch (e) { say(e.message, 'bad'); }
 });
 
