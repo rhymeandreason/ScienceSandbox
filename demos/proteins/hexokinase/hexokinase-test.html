@@ -371,8 +371,12 @@ function show(id) {
     ? `${mo.furthest.residue}, by ${mo.furthest.moved} Å` : '—';
   $('d-fit').textContent = m.fitOn && id !== REF
     ? `${m.fitOn} · ${m.fitOnWhat} · ${m.fitRmsd} Å` : 'nothing — this is the reference';
-  /* Named by WHERE THE FRAME CAME FROM. `computed` is solved from the shape,
-     `deposited` is the file left alone, `custom view` is a human's paste. */
+  /* Named by WHERE THE FRAME CAME FROM, not by how it was arrived at. Nothing
+     in a PDB says which way a structure should face: what is deposited is the
+     experiment's frame, an artefact of collection rather than a decision about
+     presentation. So `computed` is the baker solving one off the shape,
+     `deposited` is the file left alone, and `chosen in the registry` is a
+     human's, held in proteins.js and read at draw time rather than baked. */
   $('d-view').textContent = on.data.frame +
     (ME.view && ME.view.shared ? ', shared by both entries' : '');
 

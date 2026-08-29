@@ -325,9 +325,10 @@ function show(id) {
   $('d-ext').textContent = s.ext;
   /* Named by WHERE THE FRAME CAME FROM, not by how it was arrived at. Nothing
      in a PDB says which way a structure should face: what is deposited is the
-     experiment's frame, an artefact of collection. So `computed` is the
-     baker's work, `deposited` is the file left alone, and `custom view` is a
-     human's choice pasted into the page. */
+     experiment's frame, an artefact of collection rather than a decision about
+     presentation. So `computed` is the baker solving one off the shape,
+     `deposited` is the file left alone, and `chosen in the registry` is a
+     human's, held in proteins.js and read at draw time rather than baked. */
   $('d-view').textContent = t.frame;
   $('d-prov').textContent = SAYS[id].prov;
 

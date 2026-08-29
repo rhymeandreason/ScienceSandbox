@@ -330,13 +330,12 @@ function show(id) {
   $('d-meta').textContent = `${m.source.id} · ${r.method}` +
     (on.data.meta.resolution ? ` · ${on.data.meta.resolution.toFixed(2)} Å` : '');
   $('d-quat').textContent = quaternary(r, on.data.order.length);
-  /* Three states, named by WHERE THE FRAME CAME FROM rather than by how it
-     was arrived at. Nothing in a PDB says which way a structure should face:
-     what is deposited is the experiment's frame, a crystal's axes or the box
-     an EM reconstruction was solved in, which is an artefact of collection
-     and not a decision about presentation. So `computed` is the page's own
-     work, `deposited` is the file left alone, and `custom view` is a human's
-     choice pasted into the bake. */
+  /* Named by WHERE THE FRAME CAME FROM, not by how it was arrived at. Nothing
+     in a PDB says which way a structure should face: what is deposited is the
+     experiment's frame, an artefact of collection rather than a decision about
+     presentation. So `computed` is the baker solving one off the shape,
+     `deposited` is the file left alone, and `chosen in the registry` is a
+     human's, held in proteins.js and read at draw time rather than baked. */
   $('d-view').textContent = on.data.frame;
   $('d-prov').textContent = SAYS[id].prov;
 
