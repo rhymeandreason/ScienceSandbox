@@ -97,7 +97,11 @@
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
     <p class="note" id="pick-note">Turn the molecule, then copy. Prints the basis
       the structure would need to open facing this way, for a shape whose own
-      axes are too close together to solve — the row above says which.</p>
+      axes are too close together to solve — the row above says which.
+      Paste it into <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>, then re-run the baker: the registry is the
+      only place a chosen basis is written, and the baker is what puts it in
+      the file every page reads.</p>
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
       <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -163,11 +167,6 @@ const VIEWS = [
   { id: 'stack', native: false },
 ];
 
-/* A basis pasted from the bench's "copy this view", for a structure whose own
-   axes are too close together for the solver to choose between. Empty today:
-   every one of these five earns a computed frame. */
-const CUSTOM = {};
-
 const views = {};                        // id -> { chains, data, color, stats }
 let view = null;
 const $ = id => document.getElementById(id);
@@ -212,7 +211,6 @@ VIEWS.forEach(({ id, native }) => {
        draws them. It was PDB text until the unfold animation was dropped —
        what a ribbon needs is a trace, and a page that parses is a page making
        decisions the baker already made. */
-    if (CUSTOM[id]) { data.view = CUSTOM[id]; data.frame = 'custom view'; }
     views[id] = { data, color: native ? NATIVE_COLOR : FIBRIL_COLOR,
                   stats: measure(data) };
     if (view === id) show(id);           // clicked before the fetch landed

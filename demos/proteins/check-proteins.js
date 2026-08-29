@@ -228,11 +228,24 @@ for (const p of lib.PROTEINS) {
       if (t.ssFrom === 'deposited' && noSS && !p.ss.some)
         say(`${at}: ss is deposited, but ${p.key} claims its files carry none`);
 
-      /* 6. A SHARED VIEW IS ONLY LEGAL ON A SUPERPOSED SET, and if it is
-            declared then every bake has to be carrying it. Half the views
-            wearing a basis is the jumping this rule exists to stop. */
-      if (p.view && p.view.shared && JSON.stringify(t.view) !== JSON.stringify(p.view.basis))
-        say(`${at}: registry declares a shared view the bake is not wearing`);
+      /* 6. A HAND-PICKED BASIS IS THE ONE THE BAKE WEARS. Two rules were one
+            until a human's view went unchecked on a protein that had not
+            declared `shared`, which is most of them.
+
+            SHARED is about the SET: a basis is only legal across variants that
+            are superposed, and if it is declared then every bake carries it —
+            half the views wearing one is the jumping this rule exists to stop.
+
+            BY:'HUMAN' is about the CHOICE, and needs checking whether the set
+            shares it or not. A registry that records a basis nobody baked is
+            the failure mode: the choice is written down, the picture is the
+            solver's, and nothing on screen says they differ. `Bake.viewFor` is
+            what a baker uses so the two cannot come apart. */
+      const wants = p.view && (p.view.shared || p.view.by === 'human')
+        ? p.view.basis : null;
+      if (wants && JSON.stringify(t.view) !== JSON.stringify(wants))
+        say(`${at}: registry declares a ${p.view.by === 'human' ? 'hand-picked' : 'shared'}` +
+            ` view the bake is not wearing — re-run the baker`);
 
       /* 7. Every fitted variant names the reference, and the reference itself
             is fitted onto nothing. Read off the BAKE's meta, which is where a

@@ -192,7 +192,11 @@
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
     <p class="note" id="pick-note">Turn the molecule, then copy. Prints the
       basis the structure would need to open facing this way. Both entries
-      share one, so pasting it into the registry re-aims the pair together.</p>
+      share one, so one choice re-aims the pair together.
+      Paste it into <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>, then re-run the baker: the registry is the
+      only place a chosen basis is written, and the baker is what puts it in
+      the file every page reads.</p>
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
       <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>

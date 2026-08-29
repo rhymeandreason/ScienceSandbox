@@ -164,11 +164,13 @@ function bake(v, ctx) {
   const all = [];
   for (const id of out.order) for (const p of out.chains[id].CA) all.push(p);
   const F = Bake.frameOf(all);
-  const picked = ME.view && ME.view.by === 'human' ? ME.view.basis : null;
-  if (!ctx.view) ctx.view = picked || F.view || null;
-  if (ctx.view) out.view = ctx.view;
+  /* `Bake.viewFor` decides between the registry's hand-picked basis and the
+     solved one, and names the result. The extents are still solved: they are a
+     measurement of the shape and the panel prints them. */
+  if (!ctx.picked) ctx.picked = Bake.viewFor(ME, F);
+  if (ctx.picked.view) out.view = ctx.picked.view;
   out.extents = F.extents;
-  out.frame = picked ? 'custom view' : ctx.view ? 'computed' : F.frame;
+  out.frame = ctx.picked.frame;
 
   const decl = Bake.declared(text);
   out.meta = {
@@ -215,7 +217,7 @@ function main() {
 
   /* The reference first, so it sets the centre and the basis the other wears. */
   const order = [...VIEWS].sort((a, b) => (a.id === OPEN ? -1 : 0) - (b.id === OPEN ? -1 : 0));
-  const ctx = { fit, on, paired, motion, centre: null, view: null };
+  const ctx = { fit, on, paired, motion, centre: null, picked: null };
   const blocks = {};
   for (const v of order) {
     const out = bake(v, ctx);

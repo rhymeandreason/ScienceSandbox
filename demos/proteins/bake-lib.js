@@ -333,6 +333,36 @@ function frameOf(points) {
   return out;
 }
 
+/* ------------------------------------------------------------------ viewFor
+ *
+ *  THE BASIS A BAKE SHOULD WEAR, and the one place that decides between a
+ *  human's answer and a solved one.
+ *
+ *  A HUMAN'S BASIS WINS AND IS READ FROM THE REGISTRY. `view: {by:'human',
+ *  basis}` beside every other decision about that protein is the only place
+ *  one is written: a baker that solved over it would undo the choice on the
+ *  next re-bake with the picture still looking like a protein, and a page that
+ *  applied one after the fetch would turn the bench without turning the
+ *  gallery card that reads the same file.
+ *
+ *  Everything else falls back to whatever the baker worked out — `frameOf` for
+ *  most, `FoldLib.basisFrom` where a field has a convention about which axis
+ *  stands up. Pass that as `fallback` and it is returned untouched.
+ *
+ *  `frame` is the WORD THE PANEL PRINTS, so it is fixed here rather than per
+ *  baker: `custom view` is a human's, `computed` is solved, `deposited` is the
+ *  file left alone. Three bakers spelling the third state three ways is how a
+ *  reader stops being able to tell which they are looking at.
+ *
+ *  The human path is what `check-proteins.js` then enforces against the bake.
+ */
+function viewFor(p, fallback) {
+  const picked = p && p.view && p.view.by === 'human' && p.view.basis;
+  if (picked) return { view: picked, frame: 'custom view' };
+  const f = fallback || {};
+  return { view: f.view || null, frame: f.view ? (f.frame || 'computed') : 'deposited' };
+}
+
 /* Chain breaks, counted off the numbers a bake carries — for a baker's own
    console line and for a panel that reports segments. */
 const breaks = trace => trace.order.reduce((k, id) => k + trace.chains[id].nums
@@ -343,5 +373,5 @@ module.exports = {
   line1, method, models, resolution, chainCount, chainsDeclared, provenance,
   modResidues,
   ecNumbers, EC_CLASS,
-  assemble, frameOf, breaks,
+  assemble, frameOf, viewFor, breaks,
 };

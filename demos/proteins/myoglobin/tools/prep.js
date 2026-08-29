@@ -92,7 +92,6 @@ const IO = require('../../tools/registry-io.js');
 const ME = REG.byKey('myoglobin');
 const VIEWS = ME.variants;
 const REF = ME.fit.on;
-const VIEW = ME.view.basis;
 
 /* Everything the pocket is made of. HEM is the ring; the rest are the
    things that get bound to its iron across these seven files, and a view
@@ -287,9 +286,10 @@ function bake(v, ref) {
      basis for a bundle this round would flip between rebakes, and seven views
      each flipping independently is the jumping this page just stopped. */
   const F = Bake.frameOf(out.chains[chain].CA);
-  out.view = VIEW;
+  const V = Bake.viewFor(ME, F);
+  out.view = V.view;
   out.extents = F.extents;
-  out.frame = 'chosen by hand, shared by all seven';
+  out.frame = V.frame;
 
   const decl = Bake.declared(text);
   const bound = site ? [...new Set(site.atoms.filter(a => a.group === 'bound')

@@ -120,11 +120,14 @@
       above it — with their backbone left to the ribbon.</p>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
-    <p class="note" id="pick-note">Turn the molecule, then copy, and paste the
-      basis into <code>VIEW</code> in the baker. Myoglobin is a bundle whose three
-      axes are too close together for a solver to choose between, so the
-      orientation is a human's — and because all seven views share one frame, one
-      choice re-aims every one of them.</p>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Myoglobin is a
+      bundle whose three axes are too close together for a solver to choose
+      between, so the orientation is a human's — and because all seven views
+      share one frame, one choice re-aims every one of them.
+      Paste it into <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>, then re-run the baker: the registry is the
+      only place a chosen basis is written, and the baker is what puts it in
+      the file every page reads.</p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -215,12 +218,6 @@ const SAYS = {
            + 'other.' },
 };
 
-/* A basis pasted from "copy this view", per view. Empty, and expected to stay
-   so: the ONE hand-picked orientation lives in the bake and covers all seven,
-   because they share a frame. This stays as the override for a view that ever
-   needs its own. */
-const CUSTOM = {};
-
 const views = {};
 let view = null;
 const $ = id => document.getElementById(id);
@@ -278,7 +275,6 @@ function ironOutOfPlane(t) {
 
 VIEWS.forEach(id => {
   fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(t => {
-    if (CUSTOM[id]) { t.view = CUSTOM[id]; t.frame = 'custom view'; }
     views[id] = t;
     if (view === id) show(id);
   });
