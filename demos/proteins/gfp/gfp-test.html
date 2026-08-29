@@ -32,21 +32,29 @@
        does the dye read       22 atoms inside a 42 A protein, against
                                myoglobin's 43. Whether it survives the
                                framing is the question.
-       S65T against wild type  1EMA and 1GFL are the same protein one
-                               residue apart, and the difference shows up
-                               as Thr203 swinging off the phenol. The
-                               table measures it; whether it is VISIBLE
-                               is what the bench is for.
+       S65T against S65        1EMA and 1GFL are one chromophore residue
+                               apart, and the difference shows up as
+                               Thr203 swinging off the phenol. The table
+                               measures it; whether it is VISIBLE is what
+                               the bench is for.
        Y66H, the blue one      1BFP has no phenol at all. One residue,
                                one colour change, and the pocket is
                                visibly smaller.
        monomer or dimer        1GFL is deposited as two chains. Whether
                                the dimer says anything a lesson needs.
 
-     WHAT THIS BENCH CANNOT TELL YOU. Colour. Nothing on this page is
-     fluorescent, and the difference between green and blue is a set of
-     atom positions, not a rendering. A lesson that wants the colour has
-     to say it some other way.
+     WHAT THIS BENCH CANNOT TELL YOU. Colour. All four entries fluoresce
+     — three green, one blue — and nothing drawn here does: the difference
+     between the two is a set of atom positions, and a lesson that wants
+     the light itself has to say it some other way.
+
+     AND NONE OF THEM IS WILD-TYPE GFP. Every entry carries Q80R, 2WUR
+     carries three more, and the two substitutions the bench is actually
+     about — S65T and Y66H — are inside the fused chromophore residue
+     where SEQADV cannot report them. The `made from` row reads them off
+     the atoms instead. 2WUR was filed here as "wild type" on the
+     strength of its Ser-Tyr-Gly chromophore, which is the mistake that
+     row exists to stop.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -73,17 +81,19 @@
       and three of its residues turn themselves into a dye. Nothing is added:
       the protein builds its own chromophore and then holds it still.</p>
 
-    <h2>the bright mutant</h2>
+    <h2>the bright one</h2>
     <button class="mode" id="v-1EMA" aria-pressed="true">
       <span class="who">S65T &middot; 1EMA</span><span class="chip">1.90 &Aring;</span></button>
 
-    <h2>wild type</h2>
-    <button class="mode" id="v-2WUR" aria-pressed="false">
-      <span class="who">the sharpest look &middot; 2WUR</span><span class="chip">0.90 &Aring;</span></button>
+    <h2>the jellyfish sequence</h2>
     <button class="mode" id="v-1GFL" aria-pressed="false">
       <span class="who">one subunit &middot; 1GFL</span><span class="chip">1 chain</span></button>
     <button class="mode" id="v-1GFL-dimer" aria-pressed="false">
       <span class="who">the dimer &middot; 1GFL</span><span class="chip">2 chains</span></button>
+
+    <h2>the sharpest look</h2>
+    <button class="mode" id="v-2WUR" aria-pressed="false">
+      <span class="who">a folding variant &middot; 2WUR</span><span class="chip">0.90 &Aring;</span></button>
 
     <h2>one residue, another colour</h2>
     <button class="mode" id="v-1BFP" aria-pressed="false">
@@ -100,7 +110,8 @@
       <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
       <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
       <tr><td>chromophore</td><td id="d-cro">&mdash;</td></tr>
-      <tr><td>made from</td><td id="d-from">&mdash;</td></tr>
+      <tr class="hi"><td>made from</td><td id="d-from">&mdash;</td></tr>
+      <tr><td>substitutions declared</td><td id="d-subs">&mdash;</td></tr>
       <tr class="hi"><td>phenol O to Thr203</td><td id="d-t203">&mdash;</td></tr>
       <tr><td>phenol O to His148</td><td id="d-h148">&mdash;</td></tr>
       <tr><td>Glu222 to Ser205</td><td id="d-e222">&mdash;</td></tr>
@@ -111,6 +122,10 @@
 
     <p class="frag" id="d-frag">&mdash;</p>
     <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">All four entries are fluorescent and all four are engineered:
+      every one carries Q80R, and none of them is the wild-type protein. What
+      changes the colour is the <em>made from</em> row, which is read off the
+      atoms rather than off the sequence records.</p>
     <p class="note">Every view is superposed on 1EMA by its &alpha;-carbons, so
       flipping between them moves only what actually moved. All five are the
       same protein under the same numbering.</p>
@@ -168,19 +183,24 @@ const SAYS = {
            + 'of two, which is why every fusion tag descends from this and not from '
            + 'the jellyfish protein.' },
   '2WUR': {
-    claim: 'The wild-type chromophore, as sharp as a protein gets.',
-    prov:  'X-ray at 0.90 A on a rotating anode. At this resolution the hydrogens '
-           + 'are modelled — dropped here, because nothing else on the bench has '
-           + 'them and a dye that grew fourteen atoms between two views would read '
-           + 'as a different molecule.' },
+    claim: 'A chromophore as sharp as a protein gets — in an engineered variant, '
+           + 'not in the jellyfish protein.',
+    prov:  'X-ray at 0.90 A on a rotating anode, and fluorescent: F64L, I167T and '
+           + 'K238N are folding and spectral mutations well away from the site, so '
+           + 'residues 65-67 are still the wild-type Ser-Tyr-Gly. At this '
+           + 'resolution the hydrogens are modelled — dropped here, because nothing '
+           + 'else on the bench has them and a dye that grew fourteen atoms between '
+           + 'two views would read as a different molecule.' },
   '1GFL': {
-    claim: 'Wild-type GFP, and the file that writes the chromophore as three '
-           + 'ordinary residues.',
-    prov:  'X-ray at 1.90 A. Ser65-Tyr66-Gly67 are deposited as SER, TYR and GLY, '
+    claim: 'The jellyfish sequence, and the file that writes the chromophore as '
+           + 'three ordinary residues.',
+    prov:  'X-ray at 1.90 A, one substitution off wild type: Q80R rode in on the '
+           + 'original cDNA and is in every entry on this bench. '
+           + 'Ser65-Tyr66-Gly67 are deposited as SER, TYR and GLY, '
            + 'cyclised in fact and not in the records — everywhere else on this '
            + 'bench the same three atoms arrive as one residue with its own name.' },
   '1GFL-dimer': {
-    claim: 'The same file, both chains: GFP as the jellyfish has it.',
+    claim: 'The same file, both chains: how the jellyfish protein sits.',
     prov:  'The wild-type protein dimerises; the mutants used as tags are chosen '
            + 'partly not to. The interface is what a monomeric variant has to give '
            + 'up.' },
@@ -256,9 +276,16 @@ function stats(t, v) {
     /* One residue in the file or three, which is a fact about the DEPOSITION
        and not about the protein: it is three residues of the helix either way,
        and the baker splices them back so the ribbon does not break. */
-    from: m.chromoSplit === 1
-      ? 'residues 65–67, deposited as one'
-      : `residues 65–67, deposited as ${m.chromoSplit}`,
+    /* WHICH THREE RESIDUES, off the atoms in the file. S65T and Y66H are both
+       inside the fused residue, so this row is the only place either one of
+       them appears — SEQADV writes CHROMOPHORE there and says no more. */
+    from: (m.chromoFrom || 'residues 65–67')
+      + (m.chromoSplit === 1 ? ', deposited as one residue'
+                             : `, deposited as ${m.chromoSplit}`),
+    /* Against UniProt P42212, and DECLARED is the operative word: 1EMA's S65T
+       and 1BFP's Y66H are inside the chromophore, so neither file lists them
+       here. Read the row above for those. */
+    subs: m.subs.length ? m.subs.join(', ') : 'none, outside the chromophore',
     lig: m.ligands.length ? m.ligands.join(', ') : 'nothing',
     ext: t.extents.map(x => x.toFixed(0)).join(' × '),
   };
@@ -282,6 +309,7 @@ function show(id) {
   $('d-frac').textContent = s.frac;
   $('d-cro').textContent = s.cro;
   $('d-from').textContent = s.from;
+  $('d-subs').textContent = s.subs;
 
   const t203 = toPhenol(t, 203, 'OG1'), h148 = toPhenol(t, 148, 'ND1');
   const e = e222(t);

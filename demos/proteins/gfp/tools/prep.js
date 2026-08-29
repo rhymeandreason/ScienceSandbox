@@ -41,6 +41,16 @@
  *  file's own MODRES set and caTrace takes it, so those four count as
  *  chain and stop being reported as four bound ligands.
  *
+ *  NONE OF THESE IS THE WILD-TYPE PROTEIN, and only the file says so.
+ *  Every entry here is engineered: 1GFL carries the Q80R cloning artifact
+ *  that came with the original cDNA, 1EMA adds S65T, 2WUR is a folding
+ *  variant (F64L, I167T, K238N) whose CHROMOPHORE-forming residues happen
+ *  to be the wild-type Ser-Tyr-Gly, and 1BFP is Y66H plus Y145F. Calling
+ *  2WUR "wild type" on the strength of its chromophore is the mistake this
+ *  read exists to stop: the substitutions are counted off SEQADV, and the
+ *  bench prints them rather than a word somebody chose. All four are
+ *  fluorescent — three green, one blue.
+ *
  *  EVERY VIEW IS SUPERPOSED ON 1EMA, on Ca, over the residues the two
  *  files share. The barrel is rigid and all five are the same protein
  *  under the same numbering, so the fit is a proper measurement rather
@@ -88,9 +98,11 @@ const CANDIDATES = [
   { id: '1EMA', entry: '1EMA', chains: 'A', deflt: true,
     purpose: 'the canonical GFP: S65T, the bright mutant every fusion tag descends from' },
   { id: '2WUR', entry: '2WUR', chains: 'A',
-    purpose: 'wild-type chromophore at 0.90 A — the sharpest look at what the barrel made' },
+    purpose: 'the sharpest look at a chromophore, at 0.90 A — in a folding variant, '
+             + 'not in the wild-type protein' },
   { id: '1GFL', entry: '1GFL', chains: 'A',
-    purpose: 'wild-type GFP, one subunit: the chromophore written as three ordinary residues' },
+    purpose: 'the jellyfish protein bar one cloning artifact: the chromophore '
+             + 'written as three ordinary residues' },
   { id: '1GFL-dimer', entry: '1GFL', chains: 'A,B',
     purpose: 'the same file as its dimer — how the jellyfish protein actually sits' },
   { id: '1BFP', entry: '1BFP', chains: 'A',
@@ -152,6 +164,59 @@ function declaredFixed(text, only) {
   const out = {};
   for (const id of Object.keys(decl))
     if (!only || only.has(id)) out[id] = decl[id] + fused;
+  return out;
+}
+
+/* WHICH THREE RESIDUES THIS CHROMOPHORE WAS MADE OF, read off the atoms that
+   are there. The two substitutions that matter most on this bench are the two
+   SEQADV cannot report: S65T and Y66H are INSIDE the fused residue, so the
+   record says CHROMOPHORE and stops. The atoms do not — a threonine at 65
+   leaves a methyl (CG1) that a serine has not, and a tyrosine at 66 leaves a
+   phenol (OH) where a histidine leaves an imidazole (ND1/NE2). 67 is glycine
+   in every GFP there is; it is printed from the same atoms rather than assumed,
+   and comes back null if a file ever disagrees.
+
+   THE FILE'S OWN NAME FOR THE RESIDUE SAYS THE SAME THING — CRO is the
+   hydroxypropyl one, GYS the hydroxyethyl — but only for the codes the PDB has
+   already minted, and it says it in IUPAC rather than in residues. */
+function chromoFrom(atoms) {
+  const has = n => atoms.some(a => a.name === n);
+  if (!atoms.length) return null;
+  /* 1GFL writes the three as themselves, so it can simply be read. The atom
+     test below is for the files that fuse them and lose the names. */
+  const nums = [...new Set(atoms.map(a => a.num))].sort((a, b) => a - b);
+  if (nums.length === 3) return nums.map(n => {
+    const r = atoms.find(a => a.num === n).res;
+    return r[0] + r.slice(1).toLowerCase() + n;
+  }).join('-');
+  const one = has('CG1') ? 'Thr65' : has('OG1') || has('CB1') ? 'Ser65' : null;
+  const two = has('OH') ? 'Tyr66' : has('NE2') || has('ND1') ? 'His66' : null;
+  /* CA3 with nothing hanging off it: glycine. Anything else is a file this
+     bench has not met, and it should say so rather than print the usual. */
+  const three = has('CA3') && !has('CB3') ? 'Gly67' : null;
+  return [one, two, three].every(Boolean) ? `${one}-${two}-${three}` : null;
+}
+
+/* THE SUBSTITUTIONS THE ENTRY DECLARES, off its own SEQADV records against
+   UniProt P42212. Each comes back as `Q80R`, from the three fields the record
+   already holds: what is in the file, at what number, and what the database
+   has there. CHROMOPHORE rows are skipped — they say 65-67 became one residue,
+   which is maturation and not a substitution — so what is left is exactly what
+   somebody changed. Read, never typed: 2WUR was described as wild type here
+   on the strength of its Ser-Tyr-Gly chromophore, and it carries four. */
+const AA3 = { ALA:'A', ARG:'R', ASN:'N', ASP:'D', CYS:'C', GLN:'Q', GLU:'E',
+              GLY:'G', HIS:'H', ILE:'I', LEU:'L', LYS:'K', MET:'M', PHE:'F',
+              PRO:'P', SER:'S', THR:'T', TRP:'W', TYR:'Y', VAL:'V' };
+
+function substitutions(text, chain) {
+  const out = [];
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('SEQADV') || line[16] !== chain) continue;
+    const was = AA3[line.slice(39, 42).trim()], now = AA3[line.slice(12, 15).trim()];
+    const num = parseInt(line.slice(43, 48), 10);
+    if (!was || !now || !Number.isFinite(num)) continue;   /* CHROMOPHORE rows */
+    out.push(`${was}${num}${now}`);
+  }
   return out;
 }
 
@@ -325,12 +390,16 @@ function bake(v, ref) {
        the crystal actually brought: 2WUR's ethanol and isopropanol. */
     ligands: Bake.ligands(text, only, mod),
     modres: [...mod].sort(),
+    /* Against UniProt P42212, the entry's own comparison. An empty list would
+       mean a file that declares itself unmodified; none of these does. */
+    subs: substitutions(text, v.chains.split(',')[0]),
     /* Counted here, printed by the page. CRO is 22 heavy atoms, GYS the
        21 because the wild type has a serine at 65 where S65T put a threonine,
        and IIC 19 — Y66H swaps a phenol for a smaller imidazole, which is the
        whole of what turns this protein blue. */
     chromoRes: chromo.length
       ? [...new Set(chromo.map(a => a.res))].join('-') : null,
+    chromoFrom: chromoFrom(chromo),
     chromoAtoms: chromo.length,
     chromoSplit: chromo.length ? new Set(chromo.map(a => a.num)).size : 0,
     site: SITE,
@@ -375,7 +444,9 @@ function main() {
       (Bake.breaks(out) ? `, ${Bake.breaks(out)} break(s)` : ', no breaks') +
       `, ${m.strands} strands / ${m.helices} helices` +
       `, chromophore ${m.chromoRes} ${m.chromoAtoms} atoms as ${m.chromoSplit} residue(s)` +
+      ` from ${m.chromoFrom}` +
       `, ligands [${m.ligands.join(' ') || '-'}]` +
+      `, subs [${m.subs.join(' ') || 'none declared'}]` +
       `, ${out.extents.join(' × ')} A, view ${out.frame}, ` +
       (m.fitOn ? `fit on ${m.fitOn} ${m.fitRmsd} A over ${m.fitAtoms} Ca` : 'reference') +
       `, ${kb} KB`);

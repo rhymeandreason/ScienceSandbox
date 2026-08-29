@@ -27,7 +27,7 @@
    "id": "2WUR",
    "entry": "2WUR",
    "chains": "A",
-   "purpose": "wild-type chromophore at 0.90 A — the sharpest look at what the barrel made",
+   "purpose": "the sharpest look at a chromophore, at 0.90 A — in a folding variant, not in the wild-type protein",
    "read": {
     "method": "x-ray diffraction",
     "chainsInFile": 1,
@@ -41,7 +41,7 @@
    "id": "1GFL",
    "entry": "1GFL",
    "chains": "A",
-   "purpose": "wild-type GFP, one subunit: the chromophore written as three ordinary residues",
+   "purpose": "the jellyfish protein bar one cloning artifact: the chromophore written as three ordinary residues",
    "read": {
     "method": "x-ray diffraction",
     "chainsInFile": 2,
