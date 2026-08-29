@@ -146,6 +146,44 @@ const F = Ribbon.frames(P, Ribbon.smooth(P, ss, 1, SMOOTH_W), ss);
     ok(`the frame rotates with the helix — 100 deg per residue (worst error ${worst.toFixed(1)} deg), not alternating`);
 }
 
+/* ---- a DEPOSITED helix does not whip round ------------------------- */
+/* The test above is on a helix that is exactly ideal, and every version of
+   frames() has passed it. A deposited helix frays at both ends and a HELIX
+   record folds the 3-10 turn beside it into the same run, so the bisector
+   there is not radial to anything. Insulin's B chain gave steps of 61, 75,
+   98 ... 87, 172, 68, 113, 158 deg: the band whipped round its own axis
+   between two residues, which is the crease the bench showed.
+
+   So perturb the ideal helix by a realistic amount and require the frame to
+   keep ONE rate. 0.5 A of displacement per Ca is about what a terminal
+   residue moves off an ideal helix; the fit in regulariseHelices() is what
+   makes this survivable, and removing it puts the 60-to-170 spread straight
+   back. The tolerance is on the SPREAD of the steps, not on 100 degrees,
+   because a fitted rate is allowed to be the structure's own. */
+{
+  /* Deterministic pseudo-noise: this is a checker, so the same perturbation
+     every run. */
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648 - 0.5;
+  const Q = P.map((p, i) => {
+    const k = (i < 3 || i > 20) ? 1.0 : 0.35;    // ends fray hardest
+    return [p[0] + rnd()*k, p[1] + rnd()*k, p[2] + rnd()*k];
+  });
+  const G = Ribbon.frames(Q, Ribbon.smooth(Q, ss, 1), ss);
+  const steps = [];
+  for (let i = 1; i < Q.length - 1; i++) {
+    const d = G[i].n[0]*G[i+1].n[0] + G[i].n[1]*G[i+1].n[1] + G[i].n[2]*G[i+1].n[2];
+    steps.push(Math.acos(Math.max(-1, Math.min(1, d))) * 180 / Math.PI);
+  }
+  const lo = Math.min(...steps), hi = Math.max(...steps);
+  if (hi - lo > 45)
+    fail('frame', `on a perturbed helix the frame steps range ${lo.toFixed(0)}-${hi.toFixed(0)} deg — ` +
+         `the band reverses over one residue somewhere, which draws as a crease. ` +
+         `regulariseHelices() fits one twist rate per run and is what holds this`);
+  else
+    ok(`a frayed helix still turns at one rate (steps ${lo.toFixed(0)}-${hi.toFixed(0)} deg) — no crease`);
+}
+
 /* ---- a strand lies flat and does not roll --------------------------- */
 /* The mirror of the cylinder test, and it exists because the two want
    OPPOSITE treatment from the same line of code. A helix's frame must be free

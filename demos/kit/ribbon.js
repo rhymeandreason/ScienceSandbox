@@ -638,7 +638,106 @@ const RibbonLib = (() => {
       prev = nrm;
       out.push({ t, n: nrm });
     }
+    regulariseHelices(out, ss);
     return out;
+  }
+
+  /* A HELIX'S TWIST RATE BELONGS TO THE HELIX, NOT TO EACH RESIDUE.
+
+     The bisector is the right radial direction on an IDEAL helix, and
+     check-ribbon.js's ideal one turns 100 deg per residue to within 0.0.
+     A deposited helix is not ideal. Insulin's B chain, from its own HELIX
+     records, gave steps of 61, 75, 98, 97, ... 87, 172, 68, 113, 158 deg:
+     the middle is a helix and the frayed ends and the 3-10 turn the record
+     folds in with it are not. Each of those outliers is a place where the
+     band whips round its own axis between two residues, which is what the
+     creases on the bench were. Nothing about them is a spline artefact, so
+     nothing downstream of the frame can remove them.
+
+     So fit the twist instead of trusting it. Along each helical run, carry
+     a rotation-minimising frame (parallel transport by double reflection,
+     Wang et al. 2008 — it has no twist of its own, so whatever twist comes
+     out is the bisector's), read each residue's bisector as an angle in
+     that frame, unwrap it near the running estimate, and least-squares a
+     straight line through the angles. The band then turns at ONE rate per
+     helix, set by the whole run rather than by its worst pair.
+
+     WHAT THIS IS NOT ALLOWED TO DO is impose 100 deg. The rate is fitted,
+     so a 3-10 turn drawn as a helix comes out at its own ~120, a wound-open
+     terminus at whatever it is, and a distorted helix stays distorted --
+     the ribbon still reports the structure. What it cannot do is reverse
+     over one residue.
+
+     Runs under MIN are left alone: three residues carry no rate worth
+     fitting, and a two-residue 'helix' fitted from a single step would
+     invent one. */
+  const HELIX_FIT_MIN = 5;
+
+  function regulariseHelices(F, ss) {
+    for (let a = 0; a < F.length; ) {
+      if ((ss[a] || 'C') !== 'H') { a++; continue; }
+      let b = a;
+      while (b + 1 < F.length && (ss[b + 1] || 'C') === 'H') b++;
+      if (b - a + 1 >= HELIX_FIT_MIN) fitRun(F, a, b);
+      a = b + 1;
+    }
+  }
+
+  function fitRun(F, a, b) {
+    /* The transported frame. u is carried across each tangent step by the
+       rotation that takes t[i-1] onto t[i] and nothing else; v completes it.
+       Seeded from the run's own first bisector so the fitted angles start
+       near zero and the run's opening face is the measured one. */
+    const U = [], V = [];
+    let u = F[a].n.slice();
+    for (let i = a; i <= b; i++) {
+      if (i > a) {
+        const t0 = F[i - 1].t, t1 = F[i].t;
+        const ax = cross(t0, t1), s = len(ax), c = dot(t0, t1);
+        if (s > 1e-9) {                       // Rodrigues about the turn axis
+          const k = norm(ax), ang = Math.atan2(s, c);
+          const cs = Math.cos(ang), sn = Math.sin(ang), kd = dot(k, u);
+          u = [u[0]*cs + (k[1]*u[2]-k[2]*u[1])*sn + k[0]*kd*(1-cs),
+               u[1]*cs + (k[2]*u[0]-k[0]*u[2])*sn + k[1]*kd*(1-cs),
+               u[2]*cs + (k[0]*u[1]-k[1]*u[0])*sn + k[2]*kd*(1-cs)];
+        }
+      }
+      const t = F[i].t, pr = dot(u, t);
+      u = norm([u[0] - t[0]*pr, u[1] - t[1]*pr, u[2] - t[2]*pr]);
+      U.push(u.slice());
+      V.push(cross(t, u));
+    }
+
+    /* Bisector angles in that frame, unwrapped toward the rate so far. The
+       first step has no estimate to lean on, so it takes an alpha helix's
+       100 deg as its guess; every later one uses the mean of the steps
+       already unwrapped, which is what lets a 3-10 run settle on its own. */
+    const TAU = 2 * Math.PI, GUESS = 100 * Math.PI / 180;
+    const th = [];
+    for (let k = 0; k < U.length; k++) {
+      const nk = F[a + k].n;
+      let x = Math.atan2(dot(nk, V[k]), dot(nk, U[k]));
+      if (k > 0) {
+        const rate = k === 1 ? GUESS : (th[k - 1] - th[0]) / (k - 1);
+        const want = th[k - 1] + rate;
+        x += Math.round((want - x) / TAU) * TAU;
+      }
+      th.push(x);
+    }
+
+    /* Least squares th ~ p + q*k, then rewrite every normal from the fit. */
+    const m = th.length;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let k = 0; k < m; k++) { sx += k; sy += th[k]; sxx += k*k; sxy += k*th[k]; }
+    const den = m*sxx - sx*sx;
+    if (Math.abs(den) < 1e-9) return;
+    const q = (m*sxy - sx*sy) / den, p = (sy - q*sx) / m;
+    for (let k = 0; k < m; k++) {
+      const c = Math.cos(p + q*k), s = Math.sin(p + q*k);
+      F[a + k].n = norm([U[k][0]*c + V[k][0]*s,
+                         U[k][1]*c + V[k][1]*s,
+                         U[k][2]*c + V[k][2]*s]);
+    }
   }
 
   /* ---------------- geometry ---------------- */
