@@ -773,10 +773,9 @@
   const PROTEINS = [
     {
       key: 'atp-synthase', name: 'ATP synthase', dir: 'proteins/atp-synthase',
-      blurb: 'A rotor spun by protons falling across a membrane, wringing ATP '
-           + 'out of ADP and phosphate. The only enzyme most students meet '
-           + 'that is literally a motor, and it turns over a hundred times a '
-           + 'second.',
+      blurb: 'The enzyme that makes ATP, built into the inner membrane of the '
+           + 'mitochondrion. Protons falling across the membrane spin its rotor, '
+           + 'and each turn assembles ATP from ADP and phosphate.',
       does: 'enzyme',
       pipeline: 'trace',
       /* NO PROTEIN-WIDE FIT, because this collection is two kinds of thing.
@@ -821,9 +820,10 @@
     },
     {
       key: 'napump', name: 'Na⁺/K⁺-ATPase', dir: 'proteins/napump',
-      blurb: 'The pump that keeps every animal cell electrically alive: three '
-           + 'sodiums out, two potassiums in, one ATP a turn, and about a '
-           + 'fifth of the energy you spend at rest.',
+      blurb: 'The sodium-potassium pump, in the membrane of every animal cell. '
+           + 'It spends one ATP to push three sodium ions out and pull two '
+           + 'potassium ions in, which is what keeps a cell electrically charged '
+           + 'and costs about a fifth of the energy you use at rest.',
       does: 'enzyme',
       pipeline: 'trace',
       /* NOT SUPERPOSED, AND IT MUST NOT BE. Both are baked from their OPM
@@ -870,8 +870,10 @@
     },
     {
       key: 'prion', name: 'Prion protein', dir: 'proteins/prion',
-      blurb: 'One sequence, two shapes: the healthy human fold and the disease '
-           + 'fold, as deposited. The stack is the reason it spreads.',
+      blurb: 'The prion protein, carried on the surface of nerve cells, whose '
+           + 'normal job is still unknown. One sequence folds two ways, and the '
+           + 'misfolded form stacks into fibres that template their own shape '
+           + 'onto healthy copies.',
       /* NOT A HEDGE. PrP-C's normal job is genuinely unsettled — copper
          binding, signalling, myelin maintenance are all proposed and none
          settled — and a collection that guessed would be teaching one of
@@ -912,9 +914,10 @@
     },
     {
       key: 'amylase', name: 'α-Amylase', dir: 'amylase',
-      blurb: 'The enzyme in your saliva that starts on starch before you have '
-           + 'swallowed. One long trough, four subsites, and a drug sitting in '
-           + 'it that the enzyme cannot cut.',
+      blurb: 'The enzyme in saliva and pancreatic juice that breaks starch down '
+           + 'into sugars. It starts on the long chains before you have '
+           + 'swallowed, cutting them along a trough that grips four sugars at a '
+           + 'time.',
       /* EC 3.2.1.1, in the file's own COMPND record. */
       does: 'enzyme',
       /* Its own pipeline: `amylase/tools/` bakes the site measurements, the
@@ -959,9 +962,10 @@
     },
     {
       key: 'hexokinase', name: 'Hexokinase', dir: 'proteins/hexokinase',
-      blurb: 'Step one of glycolysis, and the enzyme shuts around its sugar to '
-           + 'do it. Two lobes hinge together over the glucose, which is what '
-           + 'keeps the ATP from being spent on a molecule of water.',
+      blurb: 'The enzyme that begins glycolysis, in every cell that burns '
+           + 'glucose. It attaches a phosphate to the sugar, closing its two '
+           + 'lobes around it so the ATP is not spent on a molecule of water '
+           + 'instead.',
       /* EC 2.7.1.1, on the COMPND record of all four depositions. */
       does: 'enzyme',
       /* TWO BENCHES, AND THE DERIVED ONE IS THIS REGISTRY'S. `hexokinase-test`
@@ -1037,9 +1041,10 @@
     },
     {
       key: 'hemoglobin', name: 'Haemoglobin', dir: 'hemoglobin',
-      blurb: 'Four myoglobins that learned to talk to each other. One oxygen '
-           + 'binding pulls the whole tetramer into the shape that binds the '
-           + 'next three more easily.',
+      blurb: 'The oxygen carrier in red blood cells: four chains, each holding '
+           + 'one iron. Binding one oxygen changes the shape of the whole '
+           + 'tetramer, so the next three bind more easily and all four are '
+           + 'released together in tissue.',
       does: 'oxygen carrier',
       /* NOT THIS REGISTRY'S PIPELINE, and that is the whole of the entry. Its
          bakes feed hemoglobin-lab's folding trajectory and are made by
@@ -1129,9 +1134,10 @@
     },
     {
       key: 'collagen', name: 'Collagen', dir: 'proteins/collagen',
-      blurb: 'Three chains wound into a rope, Gly-X-Y over and over, a third '
-           + 'of the protein in you. Every third residue is glycine because '
-           + 'nothing with a side chain fits where the chains meet.',
+      blurb: 'The structural protein of skin, bone and tendon, and about a third '
+           + 'of the protein in your body. Three chains wind into a rope with a '
+           + 'glycine at every third position, because nothing larger fits where '
+           + 'the chains meet.',
       /* IT HOLDS. The first entry here that catalyses nothing and carries
          nothing: collagen is material, and what it does is not chemistry. */
       does: 'structural',
@@ -1194,9 +1200,9 @@
     },
     {
       key: 'rnase', name: 'Ribonuclease A', dir: 'proteins/rnase',
-      blurb: '124 residues that cut RNA, and the most-studied enzyme of the '
-           + 'twentieth century. The protein Anfinsen unfolded and watched '
-           + 'come back.',
+      blurb: 'Ribonuclease A, an enzyme from cow pancreas that cuts RNA. '
+           + 'Anfinsen unfolded it and watched it fold back on its own, which is '
+           + 'how we know a sequence carries the instructions for its own shape.',
       /* EC 3.1.27.5, in the file's own COMPND record. */
       does: 'enzyme',
       pipeline: 'trace',
@@ -1218,9 +1224,10 @@
     },
     {
       key: 'insulin', name: 'Insulin', dir: 'proteins/insulin',
-      blurb: 'A hormone cut out of a bigger protein: two short chains stapled '
-           + 'by three disulfides. It works as one molecule and is stored six '
-           + 'at a time around two zincs.',
+      blurb: 'The hormone that tells cells to take up glucose, made in the '
+           + 'pancreas and cut out of a longer chain. Two short chains stapled '
+           + 'by three disulfides, stored six at a time around a pair of zinc '
+           + 'ions.',
       /* No EC anywhere, and that is the point of the word: insulin is read,
          not run. `hormone` was added to DOES for it. */
       does: 'hormone',
@@ -1257,9 +1264,10 @@
     },
     {
       key: 'myoglobin', name: 'Myoglobin', dir: 'proteins/myoglobin',
-      blurb: 'One iron atom, wrapped in 153 residues. The first protein '
-           + 'structure ever solved, and still the clearest binding site '
-           + 'there is.',
+      blurb: 'The oxygen store of muscle: one chain wrapped around one iron. It '
+           + 'was the first protein structure anyone ever solved, and it is '
+           + 'still the clearest look at how a molecule is held in a binding '
+           + 'site.',
       does: 'oxygen carrier',
       pipeline: 'trace',
       /* THE DEFAULT AND THE REFERENCE ARE DIFFERENT VARIANTS HERE, and that is
@@ -1323,9 +1331,9 @@
     },
     {
       key: 'ferritin', name: 'Ferritin', dir: 'proteins/ferritin',
-      blurb: 'A hollow ball of 24 identical parts. Iron is poisonous loose in '
-           + 'a cell and essential to it, so ferritin oxidises it at the way '
-           + 'in and keeps the mineral behind a wall of protein.',
+      blurb: 'The iron store of the cell, a hollow shell built from 24 identical '
+           + 'subunits. Loose iron is toxic and iron is essential, so ferritin '
+           + 'oxidises it on the way in and keeps the mineral walled inside.',
       /* IT KEEPS. `storage` is the sixth word, and the wishlist reserved it
          for this row before ferritin was pulled: the job is holding a
          reactive thing somewhere it cannot do harm, and none of the other
