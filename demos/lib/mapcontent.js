@@ -158,21 +158,51 @@
     { id:'polymers', name:'Monomers & polymers', door:'carbon', rank:1, state:'built', away:1, host:'macromolecule-lab',
       alt:'polymer · monomer · macromolecule',
       claim:'Four classes of macromolecule, each one a chain of repeating units.' },
-    { id:'glycolysis', name:'Glycolysis', door:'energy', rank:1, state:'built', away:1, host:'glycolysis-lab',
+    { id:'glycolysis', name:'Glycolysis', door:'energy', rank:1, state:'built', host:'glycolysis-lab',
       claim:'Ten steps split one sugar in two, spending two ATP to make four.' },
     /* BOTH NAMES IN `alt`, and neither is optional: a textbook picks one and a
        student arrives holding whichever it was. The card is called Krebs
        because krebs-lab is. */
-    { id:'krebs', name:'The Krebs cycle', door:'energy', rank:1, state:'built', away:1, host:'krebs-lab',
+    { id:'krebs', name:'The Krebs cycle', door:'energy', rank:1, state:'built', host:'krebs-lab',
       alt:'krebs · krebs cycle · citric acid cycle · tca cycle · tricarboxylic acid cycle',
       claim:'Eight steps take two carbons off as CO₂ and hand the electrons to NADH, rebuilding the molecule they started from.' },
     /* The concept the two pathway lessons both stop short of, and the one that
        actually makes the ATP. `alt` carries the electron transport chain
        because a reader asking for it is asking for this card until the ETC
        lesson exists. */
-    { id:'chemios', name:'Chemiosmosis', door:'energy', rank:2, state:'engine', away:1, host:'atp-synthase/',
+    { id:'chemios', name:'Chemiosmosis', door:'energy', rank:2, state:'engine', host:'atp-synthase/',
       alt:'chemiosmosis · atp synthase · electron transport chain · oxidative phosphorylation · proton gradient',
       claim:'Food pays to pump protons out of the mitochondrion; they fall back in through a rotary motor, and that fall is what makes the ATP.' },
+    /* The currency card, and the one the other eight hang their cost off.
+       `chemios` already claims `atp synthase` in its own alt; a reader typing
+       the bare word wants the molecule, not the motor. */
+    { id:'atp', name:'ATP', door:'energy', rank:1, state:'built', host:'molecule-viewer · glycolysis-lab',
+      alt:'atp · adp · energy currency · phosphate',
+      claim:'A phosphate is held on under strain; letting it go is what pays for work elsewhere.' },
+    /* What the pathways actually move. Fermentation's whole ledger is this one
+       quantity, and the cycle hands its electrons here rather than to ATP. */
+    { id:'redox', name:'Electron carriers', door:'energy', rank:2, state:'built', host:'glycolysis-lab · krebs-lab · fermentation-lab',
+      alt:'nad · nadh · fad · fadh2 · redox · oxidation · reduction',
+      claim:'NAD⁺ and FAD carry electrons from food to the chain that spends them.' },
+    /* glycolysis-lab's coupling box IS this card: the figure, the two curves and
+       the reversibility verdict. `enzyme` is the protein door's and stays there
+       — this is the thermodynamics, not the catalyst. */
+    { id:'coupling', name:'Energy coupling', door:'energy', rank:2, state:'built', host:'glycolysis-lab',
+      alt:'coupled reaction · endergonic · exergonic · free energy',
+      claim:'An uphill reaction runs by being tied to a steeper downhill one.' },
+    { id:'ferment', name:'Fermentation', door:'energy', rank:2, state:'built', host:'fermentation-lab',
+      alt:'fermentation · anaerobic · lactate · lactic acid · ethanol · alcoholic',
+      claim:'With no O₂, pyruvate is spent to empty the carriers, so glycolysis can keep running.' },
+    /* krebs-lab calls it the Bridge and numbers it before step 1. Its own card
+       because it is where the carbon count drops from three to two, which is
+       what the cycle's CO₂ claim rests on. */
+    { id:'bridge', name:'Pyruvate oxidation', door:'energy', rank:3, state:'built', host:'krebs-lab',
+      alt:'pyruvate oxidation · bridge reaction · acetyl coa · pyruvate dehydrogenase',
+      claim:'Pyruvate loses a carbon as CO₂ and the rest is handed to CoA.' },
+    /* The modal sim inside glycolysis-lab, which no card pointed at. */
+    { id:'massaction', name:'Mass action', door:'energy', rank:3, state:'built', host:'glycolysis-lab',
+      alt:'equilibrium · mass action · le chatelier · concentration',
+      claim:'A reversible step runs whichever way the amounts on each side push it.' },
     { id:'geometry', name:'Molecular geometry', door:'carbon', rank:2, state:'built', away:1, host:'molecule-builder',
       alt:'geometry · vsepr · bond angle',
       claim:'Electron pairs push each other apart, and that is what sets the shape.' },
@@ -502,11 +532,11 @@
     /* Rank 2 on pumps because it IS the Na/K pump's physics run backwards: a
        gradient driving a machine in a membrane rather than a machine spending
        ATP to build one. */
-    ['v:atp',        { chemios: 1, pumps: 2 }],
+    ['v:atp',        { chemios: 1, atp: 1, pumps: 2 }],
     ['v:krebs',      { krebs: 1, glycolysis: 2 }],
     /* Rank 2 on krebs and not 3: Complex II IS step six, so this film finishes
        the cycle's own story rather than only following it. */
-    ['v:etc',        { chemios: 1, krebs: 2 }],
+    ['v:etc',        { chemios: 1, redox: 2, krebs: 2 }],
 
     ['p:hemoglobin', { cooperat: 1, levels: 1, folding: 2 }],
     ['p:myoglobin',  { binding: 1,  folding: 1 }],
