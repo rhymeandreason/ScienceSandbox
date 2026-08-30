@@ -19,6 +19,13 @@ demos/questions-cms.html
 # IS deployed — door-map.html reads it — but nothing that writes it is.
 demos/map-cms.html
 
+# The clip shelf, same reason and the same kind of endpoint (/api/clips, also
+# only in tools/dev-server.js). It reaches the network and shells out to ffmpeg,
+# neither of which a Vercel function here does. What it WRITES is deployed:
+# nodegraph/clips/*.mp4 and their posters are what a student sees, and
+# nodegraph/clips.js is the registry the map reads.
+demos/clip-shelf.html
+
 # ---------------------------------------------------------------------------
 # Everything below is about a CLI deploy (`vercel --prod` from a laptop), which
 # uploads the WORKING TREE. `.vercelignore` is the only list it consults - a

@@ -180,7 +180,7 @@ const SEARCH = ['.', '..', 'lib', 'css', 'docs', 'tests', 'attic', 'tools', 'fol
                 'proteins', 'proteins/tools',
                 'hemoglobin', 'hemoglobin/tools', 'massaction', 'diffusion',
                 'sickle', 'sickle/tools', 'membrane', 'membrane/tools',
-                'kit', 'reaction', 'coupling', 'lobes', 'dna', 'ask', 'capillary', 'water',
+                'kit', 'nodegraph', 'reaction', 'coupling', 'lobes', 'dna', 'ask', 'capillary', 'water',
                 'molecule-builder'];
 const exists = n => SEARCH.some(d => fs.existsSync(path.join(ROOT, d, norm(n))));
 
