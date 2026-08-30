@@ -337,7 +337,20 @@
     background: var(--paper); border: 1px dashed var(--line); color: var(--ink);
     width: max-content;
   }
-  .node.theme.unlit .name { font-size: 1rem; }
+  /* A MARK IS A MAP LABEL. Below k=1 it counter-scales, so a name stays the
+     size the reader is actually looking at while the card it will become
+     scales with the rest of the world. Everything inside a mark is sized in
+     em off `--markk` so the ground, the dot and the tracking follow the
+     name instead of being left behind by it. The cap is why the labels do
+     not eventually eat the map: full compensation at k=0.18 would stack
+     them on top of each other, and past ~0.4 a label may shrink. */
+  .node.card.unlit, .node.theme.unlit {
+    font-size: calc(1rem * var(--markk, 1));
+    padding: 0.85em 1em 0.9em;
+  }
+  .node.card.unlit .name { font-size: 0.6em; }
+  .node.card.unlit .name::before { width: 0.7em; height: 0.7em; }
+  .node.theme.unlit .name { font-size: 1em; }
   .node.theme.unlit .claim { display: none; }
   .node.question.unlit { width: max-content; max-width: 26rem; }
   /* a mark hovers the way a question does: card ground, line border, ink */
@@ -1107,8 +1120,14 @@ function showHint() {
                      ' lit · → so what · ← why' + fan;
 }
 
+const MARKK_MAX = 2.4;
+let markk = 1;
+
 const applyView = () => {
   showHint();
+  /* the marks' counter-scale, capped — see .node.card.unlit */
+  markk = view.k < 1 ? Math.min(1 / view.k, MARKK_MAX) : 1;
+  world.style.setProperty('--markk', markk.toFixed(3));
   const zoomed = view.k > 1;
   world.style.zoom = zoomed ? view.k : 1;
   const t = zoomed ? view.k : 1;
@@ -1183,8 +1202,16 @@ canvas.addEventListener('wheel', e => {
 
 let focused = null;
 
+/* A MARK IS MEASURED AT THE SIZE IT REACHES WHEN FULLY COUNTER-SCALED, not
+   at the size it happens to be right now. The spacing is baked once and the
+   reader zooms freely through it, so sizing marks at the current zoom put
+   seventeen labels on top of each other at the zoom the map opens on. Only
+   the marks grow: a lit card is a card, and it is already the bigger box. */
 function measure() {
-  for (const n of nodes) n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+  for (const n of nodes) {
+    const grow = n.on ? 1 : MARKK_MAX / markk;
+    n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2 * grow;
+  }
   wake(0.4);
 }
 
