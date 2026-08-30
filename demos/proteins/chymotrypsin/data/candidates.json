@@ -1,0 +1,46 @@
+{
+ "structures": [
+  {
+   "id": "uncut",
+   "entry": "2CGA",
+   "chains": "A",
+   "purpose": "the zymogen: one chain of 245, folded and inert",
+   "default": true,
+   "baked": "chymotrypsin-uncut.json",
+   "read": {
+    "method": "x-ray diffraction",
+    "chainsInFile": 2,
+    "residues": 245,
+    "declared": 245,
+    "ec": null,
+    "baked": "chymotrypsin-uncut.json"
+   }
+  },
+  {
+   "id": "cut",
+   "entry": "4CHA",
+   "chains": "A,B,C",
+   "purpose": "the enzyme: the same molecule as three chains, working",
+   "default": false,
+   "baked": "chymotrypsin-cut.json",
+   "read": {
+    "method": "x-ray diffraction",
+    "chainsInFile": 6,
+    "residues": 239,
+    "declared": 241,
+    "ec": "3.4.21.1",
+    "baked": "chymotrypsin-cut.json"
+   }
+  }
+ ],
+ "sites": [
+  {
+   "id": "triad",
+   "label": "catalytic triad"
+  },
+  {
+   "id": "newterm",
+   "label": "new N-terminus"
+  }
+ ]
+}

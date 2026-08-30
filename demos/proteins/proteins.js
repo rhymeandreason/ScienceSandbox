@@ -1041,6 +1041,83 @@
       ],
     },
     {
+      key: 'chymotrypsin', name: 'Chymotrypsin', dir: 'proteins/chymotrypsin',
+      blurb: 'A digestive enzyme that cuts other proteins, which is why it is '
+           + 'made switched off. The pancreas ships it as one inert chain and '
+           + 'the intestine turns it on by cutting it, so the cell that built '
+           + 'it is never digested by it.',
+      /* EC 3.4.21.1, on 4CHA's COMPND. 2CGA carries none and should not: it
+         is the zymogen, and an entry for a molecule that catalyses nothing
+         yet has no reaction to name. */
+      does: 'enzyme',
+      /* TWO STATES OF ONE MOLECULE, so they are superposed — and on the WHOLE
+         chain, which is legitimate here for a reason almost no other pair in
+         this collection can claim: both entries use chymotrypsinogen
+         numbering, so residue 57 is His57 in both files and the fit is a
+         match on residue number rather than a sequence alignment. Nothing
+         hinges, either. The fold is one fold; what the pair is about is a
+         chain severed inside it. */
+      fit: { on: 'uncut', by: 'the alpha-carbons they share, by residue number' },
+      fitWhy: 'the cut is four missing residues in an unchanged fold, and it is '
+            + 'only legible if the two open in the same frame',
+      /* Two barrels, and their extents come out 44 x 39 x 37 — close enough
+         that a solved basis flips between re-bakes. Turned on the bench and
+         pasted. */
+      view: { by: 'human', shared: true,
+              why: 'the cut ends and the triad have to be visible at once, '
+                 + 'which is a framing no solved basis knows to look for',
+              basis: [[-0.3043, -0.8608, -0.408],
+                      [-0.9507, 0.3014, 0.0732],
+                      [0.06, 0.4101, -0.91]] },
+      /* A CHAIN-COUNT CLAIM, which is backbone. An SES would render the two
+         states as one indistinguishable blob: the three chains are packed
+         against each other exactly where the one chain used to run, so the
+         outside of the enzyme is very nearly the outside of the zymogen. The
+         difference is only visible as ribbon. */
+      surface: { bake: false,
+                 why: 'the claim is a chain count, and a surface hides where '
+                    + 'one chain ends and the next begins' },
+      /* The bench's index of what it may draw. It survived review — the two
+         structures and the two sites are what the page reads to build its
+         buttons — so it is a committed artefact rather than scaffolding. */
+      keeps: ['candidates.json'],
+      variants: [
+        { id: 'uncut', default: true,
+          purpose: 'the zymogen: one chain of 245, folded and inert',
+          species: 'cow',
+          chains: 'A',
+          source: { kind: 'rcsb', id: '2CGA' },
+          read: {
+            method: "x-ray diffraction",
+            chainsInFile: 2,
+            residues: 245,
+            declared: 245,
+            ec: null,
+            baked: "chymotrypsin-uncut.json" } },
+        /* THREE CHAINS AND STILL ONE MOLECULE, which is the entry. Trypsin
+           cuts 15-16 and makes the enzyme; chymotrypsin then excises the
+           dipeptides 14-15 and 147-148 from its own kind, leaving 13 / 131 /
+           97. Nothing falls off because two of the five disulfides that were
+           already there now cross a chain boundary.
+
+           THE FILE HOLDS THE MOLECULE TWICE, A/B/C and E/F/G. Only the first
+           is drawn: a lookup by residue number alone would collect both and
+           draw the triad twice, 30 A apart. */
+        { id: 'cut',
+          purpose: 'the enzyme: the same molecule as three chains, working',
+          species: 'cow',
+          chains: 'A,B,C',
+          source: { kind: 'rcsb', id: '4CHA' },
+          read: {
+            method: "x-ray diffraction",
+            chainsInFile: 6,
+            residues: 239,
+            declared: 241,
+            ec: "3.4.21.1",
+            baked: "chymotrypsin-cut.json" } },
+      ],
+    },
+    {
       key: 'hemoglobin', name: 'Haemoglobin', dir: 'hemoglobin',
       blurb: 'The oxygen carrier in red blood cells: four chains, each holding '
            + 'one iron. Binding one oxygen changes the shape of the whole '
