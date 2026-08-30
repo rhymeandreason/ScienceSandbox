@@ -373,6 +373,10 @@
         <div class="path">proteins/hexokinase/hexokinase-test.html <span class="badge">test</span></div>
         <div class="desc">Hexokinase open and shut, superposed on the lobe that holds still so switching swings the other one: the large lobe moves 0.85 Å where the small one moves 5.68, which is what an 18.58° hinge measures as</div>
       </a>
+      <a class="card test" href="proteins/chymotrypsin/chymotrypsin-test.html">
+        <div class="path">proteins/chymotrypsin/chymotrypsin-test.html <span class="badge">test</span></div>
+        <div class="desc">A zymogen cut into an enzyme: chymotrypsinogen's one chain of 245 against α-chymotrypsin's 13 / 131 / 97, superposed on shared numbering. The triad is already built in the zymogen (2.75 Å); what the cut makes is Ile16 onto Asp194</div>
+      </a>
       <a class="card test" href="hexokinase/closure-test.html">
         <div class="path">hexokinase/closure-test.html <span class="badge">test</span></div>
         <div class="desc">Step 1's enzyme at protein scale — the 18.6° domain closure, scrubbable</div>
@@ -513,10 +517,6 @@
         <div class="path">questions-cms.html <span class="badge">internal tool</span></div>
         <div class="desc">Curate questions.js: rank each question against the lessons it names, fix wording, link and unlink lessons, then export the file</div>
       </a>
-      <a class="card test" href="tests/door-map.html">
-        <div class="path">tests/door-map.html <span class="badge">test</span></div>
-        <div class="desc">One door — &ldquo;why is water the foundation of life?&rdquo; — opened into modules and the questions between them. The module table lives in the page; nothing links out to a lesson yet. The door opens on four running molecules, and any other module card with a sim behind it goes live on the click that opens it — four at a time, the rest keeping a still of their last frame (kit/card-stage.js)</div>
-      </a>
       <a class="card test" href="tests/question-composer.html?q=Why%20is%20water%20the%20foundation%20of%20life%3F">
         <div class="path">tests/question-composer.html?q=… <span class="badge">test</span></div>
         <div class="desc">A DOOR AS A SAVED QUERY. Each link below opens the map on one door&rsquo;s question, through the same path a reader&rsquo;s own typing takes &mdash; no DOORS, no start(), no own-door filter. If these read as well as the composed door does, that node kind can go.<br><br>
@@ -544,7 +544,7 @@
       </a>
       <a class="card prototype" href="tests/question-composer.html">
         <div class="path">tests/question-composer.html <span class="badge">prototype</span></div>
-        <div class="desc">The door map, entered by typing. The reader&rsquo;s words become the root card, wired through the authored question they matched (solid, ranked) plus the modules the wording reached on its own (dashed). Gemini embeddings over lib/mapcontent-vectors.json through api/find.js, with word matching as the no-key fallback; a keyword that names a card opens it before any embedding runs. Rebased on door-map, and the one to work in</div>
+        <div class="desc">The door map, entered by typing. The reader&rsquo;s words become the root card, wired through the authored question they matched (solid, ranked) plus the modules the wording reached on its own (dashed). Gemini embeddings over lib/mapcontent-vectors.json through api/find.js, with word matching as the no-key fallback; a keyword that names a card opens it before any embedding runs. The map page</div>
       </a>
       <a class="card test" href="tests/cards-cluster.html">
         <div class="path">tests/cards-cluster.html <span class="badge">test</span></div>
