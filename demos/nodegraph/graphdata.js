@@ -111,7 +111,12 @@
   /* ---- macromolecule bridges ------------------------------------------ */
   { id:'dehydration', type:'process', unit:'macro', occursAt:1, name:'Dehydration synthesis',
     claim:'Monomers join by losing a water molecule. Every polymer bond is built this way.' },
-  { id:'hydrolysis', type:'process', unit:'macro', occursAt:1, name:'Hydrolysis',
+  /* `nudge` shifts a node right by whole columns, display only: nothing
+     downstream of hydrolysis exists yet, so the layering has no reason to
+     move it off the water cluster, and its question was landing on the
+     water-mol/hbond line. Remove when cellular respiration gives digestion
+     real rightward edges. */
+  { id:'hydrolysis', type:'process', unit:'macro', occursAt:1, nudge:2, name:'Hydrolysis',
     claim:'Water is added back to break the bond. Digestion is this, run enzymatically.' },
   { id:'phospholipid', type:'structure', unit:'macro', level:1, name:'Phospholipid',
     claim:'A charged head on two oily tails.' },
@@ -161,14 +166,15 @@
   { id:'optimal-cond', type:'concept', unit:'proteins', name:'Optimal conditions',
     claim:'Every enzyme has a pH and temperature where its shape holds, and a cliff past them.' },
 
+  /* Haemoglobin and the sickle story are NOT nodes here: individual
+     proteins are SPECIMENS, spawned from proteins/proteins.js and placed
+     by graphcontent.js — the registry stays the single source of what we
+     hold. The sickle chain's card content lives on point-mutation and on
+     the haemoglobin specimen's own variants. */
   { id:'point-mutation', type:'concept', unit:'proteins', name:'Point mutation',
-    claim:'One base changed, one amino acid swapped.' },
-  { id:'hemoglobin', type:'structure', unit:'proteins', level:2, name:'Hemoglobin',
-    claim:'Four chains, four hemes, one oxygen carrier.' },
-  { id:'sickle', type:'structure', unit:'proteins', level:4, name:'Sickled cell',
-    claim:'Hemoglobin fibres deform the whole cell. Glu→Val put a hydrophobic patch on the surface.' },
+    claim:'One base changed, one amino acid swapped. Glu→Val on hemoglobin is enough to sickle a cell.' },
   { id:'nat-select', type:'process', unit:'proteins', emergesAt:8, name:'Natural selection',
-    claim:'Carriers resist malaria, so the allele persists. Populations evolve; individuals never do.' },
+    claim:'Sickle carriers resist malaria, so the allele persists. Populations evolve; individuals never do.' },
 
   /* ---- themes ---------------------------------------------------------- */
   { id:'structfunc', type:'theme', unit:'themes', name:'Structure ↔ Function',
@@ -333,15 +339,14 @@
     ['q-fever',     'answers',         'optimal-cond',  1],
     ['q-fever',     'answers',         'denaturation',  2],
 
-    /* the showcase path: mutation to phenotype to evolution */
+    /* the showcase path: mutation to phenotype to evolution. The middle of
+       the chain (fibres, the sickled cell) is the haemoglobin specimen's
+       story; the graph carries the two ends. */
     ['q-sickle',    'answers',         'point-mutation',1],
     /* the hop that makes Glu→Val explicable: charged versus nonpolar */
     ['q-sickle',    'answers',         'r-group',       2],
     ['point-mutation','alters',        'primary',       1],
-    ['hemoglobin',  'instance-of',     'quaternary',    1],
-    ['point-mutation','transforms-into','sickle',       1],
-    ['hemoglobin',  'part-of',         'sickle',        1],
-    ['sickle',      'evidence-for',    'nat-select',    1],
+    ['point-mutation','evidence-for',  'nat-select',    1],
 
     /* THE THEME'S FAN — every card whose claim is shape-explains-function.
        Themes are the sanctioned exception to the rank-1 budget: the fan IS
@@ -352,7 +357,6 @@
     ['bilayer',      'instance-of',    'structfunc',    2],
     ['ice-density',  'instance-of',    'structfunc',    2],
     ['dna-structure','instance-of',    'structfunc',    2],
-    ['hemoglobin',   'instance-of',    'structfunc',    2],
     ['enzyme',       'instance-of',    'structfunc',    2],
   ];
 

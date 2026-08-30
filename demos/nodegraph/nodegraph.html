@@ -37,6 +37,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../molecule-builder/molecule-builder.css">
+<link rel="stylesheet" href="../kit/proteinbox.css">
 <style>
   :root {
     --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
@@ -222,6 +223,59 @@
     color: var(--dot, var(--muted)); font-weight: 600; margin-right: 0.05rem;
   }
 
+  /* ---- a specimen card -------------------------------------------------
+     The composer's, verbatim in spirit: the concept card inverted. Name
+     serif and leading, claim demoted to a caption, provenance quiet and
+     tabular, EC class as the tag. No dot. */
+  .node.card.specimen .name {
+    font-family: var(--serif); font-size: 1.1rem; line-height: 1.2;
+    font-weight: 400; letter-spacing: -0.01em; text-transform: none;
+    color: var(--ink); display: block;
+  }
+  .node.card.specimen .name::before { display: none; }
+  .node.card.specimen .claim {
+    font-family: var(--ui); font-size: 0.72rem; line-height: 1.4;
+    color: var(--muted); margin-top: 0.5rem; letter-spacing: 0;
+    -webkit-line-clamp: 3;
+  }
+  .node.card.specimen .thumb { margin-top: 0.55rem; }
+  .node.card.specimen .prov {
+    font-family: var(--ui); font-size: 0.63rem; line-height: 1.35;
+    color: #9a9ca3; margin-top: 0.35rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .node.card.specimen .tag {
+    display: inline-flex; align-items: baseline; gap: 0.4rem;
+    margin-top: 0.3rem; border: 0; padding: 0;
+    font-family: var(--sans); font-size: 0.56rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
+  }
+  .node.card.specimen .tag span {
+    letter-spacing: 0.08em; color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .node.card.unlit .prov { display: none; }
+
+  /* the lesson opener rides inside the thumb, bottom-left over the picture */
+  .node.card .lesson {
+    position: absolute; left: 8px; bottom: 8px;
+    font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); cursor: pointer;
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 0.3rem 0.5rem; box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
+    transition: opacity .18s ease, color .15s, border-color .15s;
+  }
+  .node.card .lesson:hover { color: var(--ink); border-color: var(--ink); }
+  .node.card .opens .lesson { position: static; }
+
+  /* a card's controls belong to the card being WORKED ON: everywhere else
+     they are faded, not removed, so nothing reflows on focus. The composer
+     gates on apparent size; here the focused card is the one being worked
+     on, which is simpler and the same idea. */
+  .node:not(.hub) .pbox-rep,
+  .node:not(.hub) .pbox-play,
+  .node:not(.hub) .lesson,
+  .node:not(.hub) .mb-dims { opacity: 0; pointer-events: none; }
+
   /* a hub reads bigger before it is clicked: five or more rank-1 edges */
   .node.card.big { width: 22rem; }
   .node.card.big .claim { font-size: 1.2rem; line-height: 1.24; -webkit-line-clamp: 5; }
@@ -328,6 +382,50 @@
     background: var(--card); border-color: var(--line); color: var(--ink);
   }
 
+  /* ---- the lesson, over the map (kit/modal.js reads this markup) ------- */
+  .modal {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; align-items: center; justify-content: center;
+    padding: clamp(0.75rem, 2.5vw, 2rem);
+  }
+  .modal[hidden] { display: none; }
+  .modal .mback {
+    position: absolute; inset: 0;
+    background: rgba(20, 22, 26, 0.55);
+    animation: mfade .2s ease-out;
+  }
+  .modal .mcard {
+    position: relative;
+    display: flex; flex-direction: column;
+    width: min(1280px, 100%); height: min(860px, 100%);
+    background: var(--card); border-radius: 6px; overflow: hidden;
+    box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .5);
+    animation: mrise .24s cubic-bezier(.2, .9, .3, 1);
+  }
+  @keyframes mfade { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes mrise { from { opacity: 0; transform: translateY(12px) scale(.99) }
+                     to   { opacity: 1; transform: none } }
+  @media (prefers-reduced-motion: reduce) {
+    .modal .mback, .modal .mcard { animation: none; }
+  }
+  .modal .mhead {
+    flex: none; display: flex; align-items: center; gap: 1rem;
+    padding: 0.7rem 0.6rem 0.7rem 1.1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .modal .mhead > span:first-child {
+    flex: 1;
+    font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+  }
+  .modal .mclose {
+    font-family: var(--sans); font-size: 1.35rem; line-height: 1;
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 0.2rem 0.5rem;
+  }
+  .modal .mclose:hover { color: var(--ink); }
+  #lessonframe { flex: 1; width: 100%; border: 0; display: block; }
+
   .hint {
     position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 5;
     font-size: 0.7rem; letter-spacing: 0.06em; color: var(--muted);
@@ -368,6 +466,20 @@
 </div>
 <div class="hint" id="hint"></div>
 
+<!-- The lesson, over the map. The iframe is empty until it opens and emptied
+     on close: a lesson is its own WebGL context and about a megabyte of
+     trajectory, and neither should be paid by a reader who never opened it. -->
+<div id="lessonmodal" class="modal" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="lessontitle">
+    <div class="mhead">
+      <span id="lessontitle">the lesson</span>
+      <button class="mclose" aria-label="Close">&times;</button>
+    </div>
+    <iframe id="lessonframe" title="lesson" allow="fullscreen"></iframe>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
@@ -379,9 +491,16 @@
 <script src="../lib/covalent-drag.js"></script>
 <script src="../lib/ionic-drag.js"></script>
 <script src="../water/watersim.js"></script>
+<script src="../proteins/proteins.js"></script>   <!-- the specimen registry: p: placements name keys in it -->
+<script src="../kit/modal.js"></script>
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/molbox.js"></script>
 <script src="../molecule-builder/molecule-builder.js"></script>
+<script src="../kit/ribbon.js"></script>
+<script src="../kit/proteinbox.js"></script>      <!-- after every library it reads -->
+<script src="../kit/surface.js"></script>         <!-- SurfLib, on demand -->
+<script src="../hemoglobin/hbfold.js"></script>   <!-- the fold, on demand -->
+<script src="../hemoglobin/foldplay.js"></script>
 <script src="graphdata.js"></script>
 <script src="graphcontent.js"></script>
 <script>
@@ -431,8 +550,11 @@ for (const n of nodes)
 const CONTENT = (window.GraphContent || {}).CONTENT || [];
 const PLACED = new Map(((window.GraphContent || {}).PLACEMENTS || []));
 const BY_CONTENT = new Map(CONTENT.map(c => [c.id, c]));
+const INLINE = { water: 1, build: 1, molbox: 1, protein: 1 };
+const BUTTON = { lesson: 1 };
 const ON_NODE = new Map();
 for (const [cid, ranks] of PLACED) {
+  if (cid.startsWith('p:')) continue;          // specimens: their own pass below
   const item = BY_CONTENT.get(cid);
   if (!item) { console.warn('placement names missing content:', cid); continue; }
   for (const [nid, rank] of Object.entries(ranks)) {
@@ -442,10 +564,50 @@ for (const [cid, ranks] of PLACED) {
 }
 for (const list of ON_NODE.values()) list.sort((a, b) => a.rank - b.rank);
 
+/* a card mounts its best-ranked INLINE item and no more; a specimen carries
+   its own render, because a card that IS content does not look it up */
 const viewFor = n => {
-  const placed = ON_NODE.get(n.id);
-  return placed ? placed[0].item : null;
+  if (n.type === 'specimen') return { kind: 'protein', protein: n.protein, variant: n.variant };
+  const placed = (ON_NODE.get(n.id) || []).filter(x => INLINE[x.item.kind]);
+  return placed.length ? placed[0].item : null;
 };
+const opensFor = n => (ON_NODE.get(n.id) || [])
+  .filter(x => BUTTON[x.item.kind]).map(x => x.item);
+
+/* ---- specimens ----------------------------------------------------------
+   Spawned from proteins/proteins.js, the registry of what we hold — a `p:`
+   placement says WHERE one hangs and nothing else. The card prints only
+   what `read` carries (the baker's half), so it cannot claim what a re-bake
+   no longer holds. The edge is instance-of, which is also what places a
+   specimen one column right of the concept it exemplifies. */
+const SPEC = (window.ProteinLib && window.ProteinLib.PROTEINS) || [];
+for (const id of PLACED.keys())
+  if (id.startsWith('p:') && !SPEC.some(p => 'p:' + p.key === id))
+    console.warn('placement names no such protein:', id);
+for (const p of SPEC) {
+  const row = PLACED.get('p:' + p.key);
+  if (!row) continue;                          // unplaced: not on the map yet
+  const v = p.variants.find(x => x.default) || p.variants[0];
+  const ribbon = v && (v.bake ? v.bake.trace : v.read && v.read.baked);
+  if (!ribbon) { console.warn(p.key + ': no baked ribbon'); continue; }
+  const ec = v.read.ec || null;
+  const cls = ec ? (ProteinLib.EC_CLASS || [])[Number(ec.split('.')[0])] : null;
+  const n = {
+    id: 'p:' + p.key, type: 'specimen', level: 2, unit: 'proteins', deg: 0,
+    name: p.name, claim: p.blurb, does: p.does,
+    protein: p.key, variant: v.id,
+    species: v.species, method: v.read.method,
+    residues: v.read.residues, declared: v.read.declared,
+    ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
+  };
+  nodes.push(n); byId[n.id] = n;
+  for (const [nid, rank] of Object.entries(row)) {
+    const m = byId[nid];
+    if (!m) { console.warn('specimen placed on missing node:', n.id, nid); continue; }
+    links.push({ a: n, b: m, type: 'instance-of', rank });
+    n.deg++; m.deg++;
+  }
+}
 
 /* ---- edge grammar -------------------------------------------------------
    The type dictionaries below drive BOTH the x-layering and the why/so-what
@@ -531,6 +693,11 @@ for (let pass = 0; pass < 12; pass++) {
   }
   if (!changed) break;
 }
+/* authored column nudges apply after the algorithm has spoken, and before
+   anything (question anchors, neighbour means) reads the layers */
+for (const n of nodes)
+  if (n.nudge && layerOf.has(n)) layerOf.set(n, layerOf.get(n) + n.nudge);
+
 /* a node with NO ordering edges (induced-fit, the themes) has no place on
    the explanation axis of its own — it sits at the mean of its neighbours */
 for (const n of nodes) {
@@ -620,6 +787,27 @@ function paintNode(n) {
     el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' +
                    '<div class="claim">' + esc(n.claim) + '</div>' +
                    '<div class="chips"></div>';
+  } else if (n.type === 'specimen') {
+    /* the composer's specimen card, inverted from a concept's: the NAME is
+       the card, because a specimen is a thing and its blurb is a label on
+       it. No dot — a specimen belongs to every concept that names it. The
+       prov line is read from the baker's half of the registry. */
+    el.className = 'node card unlit specimen';
+    const tag = n.does === 'enzyme' && n.ecClass
+      ? '<div class="tag" title="' + esc(n.ecDoes || '') + '">' + esc(n.ecClass)
+        + '<span>EC ' + esc(n.ec) + '</span></div>'
+      : n.does === 'enzyme' ? '<div class="tag">enzyme</div>' : '';
+    const prov = [
+      n.method,
+      n.residues != null && n.declared != null
+        ? n.residues + ' of ' + n.declared + ' residues' : null,
+      n.species,
+    ].filter(Boolean).map(esc).join(' · ');
+    el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' + tag +
+                   '<div class="thumb"><span class="ph"></span></div>' +
+                   '<div class="claim">' + esc(n.claim) + '</div>' +
+                   '<div class="prov">' + prov + '</div>' +
+                   '<div class="chips"></div>';
   } else {
     el.className = 'node card unlit ' + n.type +
                    (n.big ? ' big' : '') +
@@ -629,13 +817,17 @@ function paintNode(n) {
     n.tint = tint;
     const tags = scaleTag(n) +
       (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '');
+    /* an opener rides inside the thumb, bottom-left over the picture */
+    const opens = opensFor(n).map(c =>
+      '<button type="button" class="lesson" data-open="' + esc(c.id) + '">open lesson</button>').join('');
     el.innerHTML = '<div class="name">' +
                      (n.type === 'process' ? '<span class="run">→</span>' : '') +
                      esc(n.name) + '</div>' +
                    '<div class="claim">' + esc(n.claim) + '</div>' +
                    /* a thumb is a promise a picture is coming, so only cards
                       with a view get one; it stays hidden while fogged */
-                   (viewFor(n) ? '<div class="thumb"><span class="ph"></span></div>' : '') +
+                   (viewFor(n) ? '<div class="thumb"><span class="ph"></span>' + opens + '</div>'
+                               : opens ? '<div class="opens">' + opens + '</div>' : '') +
                    (tags ? '<div class="tags">' + tags + '</div>' : '') +
                    '<div class="chips"></div>';
   }
@@ -730,6 +922,19 @@ function goLive(n) {
       return MoleculeBuilder.create({ mount: thumb, recipe: view.recipe,
                                       fill: true, zoomOnComplete: true });
 
+    if (view.kind === 'protein')
+      /* proteinbox owns the molecule (trace, surface, fold, its two
+         controls); a specimen names a registry key and the box resolves the
+         files itself, an r: item names files directly. base because
+         nodegraph/ is a directory down. */
+      return Proteinbox.create(view.protein
+        ? { mount: thumb, base: '../', protein: view.protein, variant: view.variant }
+        : { mount: thumb,
+            trace: '../' + view.trace,
+            chains: view.chains,
+            surface: view.surface ? '../' + view.surface : null,
+            fold: view.fold ? '../' + view.fold : null });
+
     /* a water sim: card-stage owns the shell, watersim is the physics */
     let sim = null;
     const box = CardStage.create({
@@ -821,7 +1026,9 @@ function step() {
   let moved = 0;
   for (const n of nodes) {
     n.vx += (n.tx - n.x) * 0.12;
-    n.vy += (n.ty - n.y) * (lvOf(n) ? 0.05 : 0.015);
+    /* a question holds its anchor harder than a concept holds its mean:
+       shoved off it, it reads as attached to whatever it drifted near */
+    n.vy += (n.ty - n.y) * (n.type === 'question' ? 0.07 : lvOf(n) ? 0.05 : 0.015);
     const v = Math.hypot(n.vx, n.vy);
     if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
     if (n === dragNode || n.pinned) continue;
@@ -893,8 +1100,10 @@ const applyView = () => {
 let dragNode = null, dragging = null, last = null, travel = 0;
 
 canvas.addEventListener('pointerdown', e => {
-  /* a card's own controls keep their pointer — every control must be here */
-  if (e.target.closest('.chip, .mb-dims')) return;
+  /* a card's own controls keep their pointer — every control must be here.
+     The symptom of a missing entry is a button that renders and does
+     nothing while the card behind it opens. */
+  if (e.target.closest('.chip, .mb-dims, .pbox-rep, .pbox-play, .lesson')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
@@ -980,7 +1189,26 @@ function renderChips(n) {
   box.innerHTML = parts.join('');
 }
 
+/* the lesson behind a card, opened over the map; src set on show and
+   cleared on hide, so the lesson's context belongs to the moment it is open */
+const lessonFrame = document.getElementById('lessonframe');
+const lessonTitle = document.getElementById('lessontitle');
+const lessonModal = Modal.create({
+  el: 'lessonmodal',
+  onShow: c => {
+    lessonTitle.textContent = c.name || 'the lesson';
+    lessonFrame.src = '../' + c.href;
+  },
+  onHide: () => { lessonFrame.src = 'about:blank'; },
+});
+
 document.addEventListener('click', e => {
+  const open = e.target.closest('.lesson[data-open]');
+  if (open) {
+    const c = BY_CONTENT.get(open.dataset.open);
+    if (c) lessonModal.show(c);
+    return;
+  }
   const b = e.target.closest('.chip');
   if (!b) return;
   const n = nodes.find(m => m.el.contains(b));
@@ -1058,6 +1286,7 @@ function stepWalk(dir) {
 }
 
 addEventListener('keydown', e => {
+  if (Modal.anyOpen()) return;             // the modal's Esc is the modal's
   if (e.key === 'Escape') { clearFocus(); return; }
   if (e.key === 'ArrowRight') { e.preventDefault(); stepWalk('onward'); }
   if (e.key === 'ArrowLeft')  { e.preventDefault(); stepWalk('why'); }
