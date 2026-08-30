@@ -1004,6 +1004,93 @@ Roughly: eight viewer configurations, six custom animations, four interactive wi
 
 ---
 
+We have a library of protein examples, how would you integrate them on the graph?
+
+The instinct will be to hang each protein off `Protein` as an example. That gives you a fan of leaf nodes nobody visits, and it wastes the library — because a protein's value in the graph isn't that it's an example of protein, it's that it's the best available demonstration of something specific.
+
+## Each protein is an exemplar of a property, not of the class
+
+The edge should say what the protein demonstrates:
+
+```
+Hemoglobin --canonical-example-of--> Quaternary Structure     rank 1
+Hemoglobin --canonical-example-of--> Allosteric Regulation    rank 1
+Hemoglobin --evidence-for--> Point Mutation → Phenotype       rank 1
+Hemoglobin --instance-of--> Transport Protein                 rank 2
+
+```
+
+Four different concepts, four different jobs, one node. The `instance-of Protein` edge is the least interesting of them and probably rank 3.
+
+That means the integration task isn't "attach the library," it's "for each concept node, which protein demonstrates it best." Work from the concept side, not the library side.
+
+## Canonical vs additional
+
+Worth typing the distinction. For each concept, exactly one protein gets `canonical-example-of` at rank 1 — the one that shows up by default. Others get `example-of` at rank 2, available when someone wants more.
+
+This matters because a library of 200 proteins will otherwise produce a concept node with 30 examples, which is the same hairball problem in a different costume. One canonical example is a curatorial decision worth making deliberately.
+
+## Coverage as an audit
+
+Turn the library inward: for every concept node in the protein unit, is there a canonical exemplar? The gaps are informative.
+
+| Concept | Canonical |
+| --- | --- |
+| Quaternary Structure | Hemoglobin |
+| Active Site / Specificity | Lysozyme |
+| Induced Fit | Adenylate kinase |
+| Fibrous / Structural | Collagen |
+| Motor / Conformational change | Myosin |
+| Membrane channel selectivity | Aquaporin |
+| Antibody / Variable region | IgG |
+| Disulfide bridges | Insulin |
+| Misfolding | Prion or amyloid |
+| Feedback inhibition | ATCase |
+| Secondary structure — α-helix | Keratin or myoglobin |
+| Secondary structure — β-sheet | Silk fibroin or GFP barrel |
+
+Run that list against your library and whatever's missing is a real gap in the unit, not just in the collection. Conversely, proteins in the library with no concept to attach to are candidates for leaving unattached — a protein that isn't the best demonstration of anything doesn't need a node.
+
+## Metadata worth carrying
+
+Whatever the library has, these four do the most work in a graph:
+
+* **PDB ID** — so viewer edges can be parameterized
+
+* **Function class** — enzyme, transport, structural, motor, receptor, defence
+
+* **Organism / ubiquity** — human, bacterial, universal
+
+* **Size** — a rough residue count, because scale intuition is poor and hemoglobin vs titin is instructive
+
+Ubiquity is underrated. Marking which proteins are near-universal across life turns the library into evidence for common ancestry — cytochrome c, ATP synthase, ribosomal proteins, histones. That's a whole bridge into the evolution unit that costs one attribute.
+
+## The pairs are worth more than the singles
+
+The highest-value structures in the library are contrasts, not individuals:
+
+* **HbA vs HbS** — one residue, whole phenotype. Your showcase path.
+
+* **Open vs closed adenylate kinase** — induced fit, visibly
+
+* **Folded vs denatured lysozyme** — denaturation
+
+* **Oxy vs deoxy hemoglobin** — allostery
+
+* **Wild-type vs mutant enzyme** — if the library has any
+
+Model these as a `contrasts-with` edge between two protein nodes, with the viewer configured to show both. If your library is organized as a flat list, adding these pairings is probably the single highest-value curation pass you could do on it.
+
+## Where it connects out
+
+A few library proteins earn rank-1 edges into other units, and these are the ones that make the library pay for itself beyond the protein unit:
+
+ATP synthase → chemiosmosis, respiration · Rubisco → photosynthesis · DNA polymerase → replication · Ribosome → translation · Restriction enzymes → biotechnology · Cytochrome c → both the ETC and molecular phylogeny
+
+Cytochrome c is the standout — the same molecule serving as a respiration mechanism and as evidence for evolutionary relatedness. Two units, one node, and the edge between them is exactly the kind of connection a linear syllabus can't make.
+
+---
+
 What is your ideal content set for Macromolecules?
 
 Working from the macromolecules nodes — Polymer, Dehydration Synthesis/Hydrolysis, Functional Group, the four classes and their monomers. Protein is already served by its own set, so this unit's job is the *shared pattern* and the places it breaks. Roughly 25 pieces.
