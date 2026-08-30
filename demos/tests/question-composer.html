@@ -798,10 +798,12 @@
     display: flex; gap: 0.7rem; align-items: baseline;
     padding: 0.6rem 1.1rem; cursor: pointer;
     color: rgba(242,240,234,.45);
-    font-family: var(--serif); font-size: 0.95rem; line-height: 1.6;
+    font-family: var(--serif); font-size: 1.2rem; line-height: 1.6;
     transition: color .18s ease;
   }
   .modal.video .mcues li:hover { color: rgba(242,240,234,.72); }
+  /* Not a cue: no padding, no hover, no pointer. Its height is set from JS. */
+  .modal.video .mcues li.pad { padding: 0; pointer-events: none; }
   /* The lit line is the only one at full strength, so the column can be read
      at a glance without hunting for where the video is. */
   .modal.video .mcues li.on { color: #f4f2ec; }
@@ -1295,14 +1297,54 @@ function renderCues() {
     cueList.appendChild(li);
     cueEls.push(li);
   }
+  /* A TAIL, so the last cue can still reach the top. Without it the column
+     runs out of scroll and the final few lines sit wherever they happen to
+     land, which breaks the one promise the alignment makes. Sized in pixels
+     from the list's height, because a percentage padding resolves against
+     WIDTH and would be silently wrong. */
+  const pad = document.createElement('li');
+  pad.className = 'pad';
+  pad.setAttribute('aria-hidden', 'true');
+  cueList.appendChild(pad);
+  sizePad();
+
   // Straight back to where the video is, so switching track never loses the
   // place. Instant rather than smooth: the list was just rebuilt, and animating
   // a scroll from the top of a list the reader never saw is motion for nothing.
   if (player && player.getCurrentTime) {
     litAt(player.getCurrentTime());
-    if (cueEls[lit]) cueEls[lit].scrollIntoView({ block: 'nearest' });
+    scrollLit();
   }
 }
+
+function sizePad() {
+  const pad = cueList.querySelector('.pad');
+  const last = cueEls[cueEls.length - 1];
+  if (!pad || !last) return;
+  pad.style.height = Math.max(0, cueList.clientHeight - last.offsetHeight) + 'px';
+}
+
+/* The lit line goes to the TOP of the column, not merely into view: the reader
+   is looking at one place, and a line that lands anywhere in a tall column is a
+   line they have to find.
+
+   Written as a scrollTop rather than scrollIntoView, which walks up the tree
+   and can scroll an ancestor as well. And INSTANT rather than smooth, which is
+   a measured decision and not a preference: `behavior: 'smooth'` is a no-op on
+   this container in some browsers — a raw `scrollTo({behavior:'smooth'})`
+   moved it not at all while `scrollTop =` moved it fine — so a smooth call
+   fails by silently not scrolling, which reads exactly like the alignment
+   being broken. A tween of our own would want rAF, which a backgrounded tab
+   does not run. */
+function scrollLit() {
+  const el = cueEls[lit];
+  if (!el) return;
+  cueList.scrollTop += el.getBoundingClientRect().top
+                     - cueList.getBoundingClientRect().top;
+}
+
+// The tail is a pixel height, so it is wrong the moment the window changes.
+addEventListener('resize', () => { sizePad(); scrollLit(); });
 
 function pickTrack(id) {
   const t = tracks.find(x => x.id === id) || tracks[0];
@@ -1368,9 +1410,7 @@ function litAt(t) {
   const el = cueEls[i];
   if (!el) return;
   el.classList.add('on');
-  /* nearest, so following the video never yanks the column while the reader is
-     scrolled somewhere else on purpose. */
-  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  scrollLit();
 }
 
 /* No API: the video still plays and the column still reads, it just does not
