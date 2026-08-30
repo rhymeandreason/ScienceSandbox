@@ -507,6 +507,57 @@
      same card, so the line is the only thing saying which is which. */
   path.nearline { stroke-dasharray: 5 5; opacity: 0.5; }
 
+  /* ---- the lesson, over the map ---------------------------------------
+     kit/modal.js owns opening, closing, focus and the Esc stack, and says the
+     markup and the look are the page's. `.modal[hidden]` is the one rule it
+     requires. A lesson is a PAGE rather than a readout, so this card is as
+     large as the viewport allows and the iframe fills it — the sheet-of-paper
+     modals in css/pathways.css are sized for a paragraph and a list. */
+  .modal {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; align-items: center; justify-content: center;
+    padding: clamp(0.75rem, 2.5vw, 2rem);
+  }
+  .modal[hidden] { display: none; }
+  .modal .mback {
+    position: absolute; inset: 0;
+    background: rgba(20, 22, 26, 0.55);
+    animation: mfade .2s ease-out;
+  }
+  .modal .mcard {
+    position: relative;
+    display: flex; flex-direction: column;
+    width: min(1280px, 100%); height: min(860px, 100%);
+    background: var(--card); border-radius: 6px; overflow: hidden;
+    box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .5);
+    animation: mrise .24s cubic-bezier(.2, .9, .3, 1);
+  }
+  @keyframes mfade { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes mrise { from { opacity: 0; transform: translateY(12px) scale(.99) }
+                     to   { opacity: 1; transform: none } }
+  @media (prefers-reduced-motion: reduce) {
+    .modal .mback, .modal .mcard { animation: none; }
+  }
+  .modal .mhead {
+    flex: none; display: flex; align-items: center; gap: 1rem;
+    padding: 0.7rem 0.6rem 0.7rem 1.1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .modal .mhead > span:first-child {
+    flex: 1;
+    font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+  }
+  .modal .mclose {
+    font-family: var(--sans); font-size: 1.35rem; line-height: 1;
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; padding: 0.2rem 0.5rem;
+  }
+  .modal .mclose:hover { color: var(--ink); }
+  /* The lesson brings its own scrolling and its own chrome, so the frame is
+     the whole card below the head and carries no border of its own. */
+  #lessonframe { flex: 1; width: 100%; border: 0; display: block; }
+
 </style>
 </head>
 <body>
