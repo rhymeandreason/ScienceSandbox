@@ -366,9 +366,13 @@ function expand(n, carry = true) {
     .sort((a, b) => rankFrom(n, a) - rankFrom(n, b));
   if (!pending.length) { n.done = true; refreshMeta(n); return; }
 
+  /* a theme is a query over the whole map, not a place being read: it deals
+     its ENTIRE fan, every rank, because "show me everything where shape is
+     the explanation" answered five cards at a time is not an answer */
   const wave = [];
   for (const m of pending) {
-    if (wave.length >= SHOW && rankFrom(n, m) !== rankFrom(n, wave[wave.length - 1])) break;
+    if (n.type !== 'theme' &&
+        wave.length >= SHOW && rankFrom(n, m) !== rankFrom(n, wave[wave.length - 1])) break;
     wave.push(m);
   }
 

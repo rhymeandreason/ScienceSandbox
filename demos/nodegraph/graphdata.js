@@ -191,10 +191,16 @@
   ];
 
   const EDGES = [
-    /* chemistry chain into water */
+    /* chemistry chain into water. Polarity fans wide on purpose: the doc's
+       argument for it being a NODE is that hydrophobic, solvent and
+       amphipathic all need it and none can reach a fact buried in water's
+       card. */
     ['electroneg',  'prerequisite-of', 'polarity',    1],
     ['covalent',    'prerequisite-of', 'polarity',    1],
     ['polarity',    'prerequisite-of', 'hbond',       1],
+    ['polarity',    'prerequisite-of', 'hydrophobic', 1],
+    ['polarity',    'prerequisite-of', 'solvent',     2],
+    ['polarity',    'prerequisite-of', 'amphipathic', 2],
     /* water's polarity is card content on water-mol; the concept describes it */
     ['polarity',    'describes',       'water-mol',   2],
 
@@ -202,6 +208,7 @@
     ['water-mol',   'causes',          'hbond',       1],
     ['water-mol',   'instance-of',     'structfunc',  1],
     ['q-medium',    'answers',         'water-mol',   1],
+    ['q-medium',    'answers',         'solvent',     2],
 
     /* hbond, the mechanism hub: fans to the properties at rank 1 */
     ['hbond',       'causes',          'cohesion',    1],
@@ -212,22 +219,31 @@
     ['hbond',       'causes',          'ice-density', 1],
     ['hbond',       'causes',          'ionization',  2],
 
-    /* each property carries its consequence, never water-mol directly */
+    /* each property carries its consequence, never water-mol directly.
+       A question answers TWO concepts where it can: one concept is a
+       caption, two is a crossing. */
     ['cohesion',    'causes',          'transpiration', 1],
     ['q-tree',      'answers',         'transpiration', 1],
+    ['q-tree',      'answers',         'cohesion',      2],
     ['spec-heat',   'causes',          'temp-buffer',   1],
     ['evap-cool',   'causes',          'thermoreg',     1],
     ['q-sweat',     'answers',         'thermoreg',     1],
+    ['q-sweat',     'answers',         'evap-cool',     2],
     ['solvent',     'enables',         'osmosis',       1],
     ['ice-density', 'causes',          'overwinter',    1],
     ['q-lakes',     'answers',         'ice-density',   1],
+    ['q-lakes',     'answers',         'overwinter',    2],
     ['ionization',  'causes',          'buffers',       1],
+    /* pH reaching into the enzyme subtree: the doc's property table names
+       enzyme pH optima as ionization's biology */
+    ['ionization',  'prerequisite-of', 'optimal-cond',  2],
 
     /* the edge that justifies the project: one cause, three structures */
     ['hydrophobic', 'causes',          'bilayer',       1],
     ['hydrophobic', 'part-of',         'rgroup-inter',  1],
     ['hydrophobic', 'contributes-to',  'dna-structure', 2],
     ['q-membrane',  'answers',         'bilayer',       1],
+    ['q-membrane',  'answers',         'hydrophobic',   2],
 
     /* amphipathic: the generalization, so it isn't rediscovered three times */
     ['phospholipid','instance-of',     'amphipathic',   1],
@@ -239,11 +255,14 @@
     ['hydrolysis',  'consumes',        'water-mol',     1],
     ['dehydration', 'contrasts-with',  'hydrolysis',    1],
     ['dehydration', 'produces',        'peptide-bond',  1],
+    ['hydrolysis',  'consumes',        'peptide-bond',  2],   /* digestion, literally */
     ['q-collagen',  'answers',         'hydrolysis',    1],
+    ['q-collagen',  'answers',         'amino-acid',    2],
 
     /* protein spine: two levels, two separate causes */
     ['gene-seq',    'determines',      'primary',       1],
     ['q-which',     'answers',         'gene-seq',      1],
+    ['q-which',     'answers',         'primary',       2],
     ['amino-acid',  'part-of',         'primary',       1],
     ['peptide-bond','part-of',         'primary',       2],
     ['r-group',     'part-of',         'amino-acid',    1],
@@ -260,16 +279,23 @@
        rgroup-inter causes tertiary), so the sequence reads without the
        1°-then-2°-then-3° timeline misconception ever being asserted.
 
-       Tertiary holds six rank-1 edges, one over the soft budget, and the
-       ladder is why: rgroup-inter in (the hinge), func out (the payoff),
-       denaturation in (the destroys/preserves pair), q-machine in (the
-       entry), secondary in and quaternary out (the ladder). Everything
-       else is one step in — primary reaches tertiary through the hinge,
-       the enzyme subtree opens through func, the theme is enrichment. */
+       Tertiary holds seven rank-1 edges, over the soft budget and under
+       the ~8 hairball line: rgroup-inter in (the hinge), func out (the
+       payoff), denaturation in (the destroys/preserves pair), q-machine
+       in (the entry), secondary in and quaternary out (the ladder), and
+       the secondary contrast below. Everything else is one step in —
+       primary reaches tertiary through the hinge, the enzyme subtree
+       opens through func, the theme is enrichment. */
     ['rgroup-inter','causes',          'tertiary',      1],
     ['primary',     'determines',      'secondary',     1],
     ['primary',     'determines',      'tertiary',      2],
     ['secondary',   'part-of',         'tertiary',      1],
+    /* the unit's central misconception: one continuous folding process.
+       Different causes — backbone H-bonds vs side chains — so the pair
+       is held apart explicitly. Takes tertiary to seven rank-1 edges,
+       still under the ~8 hairball line, and a contrast is the one edge
+       type worth the overage. */
+    ['secondary',   'contrasts-with',  'tertiary',      1],
     ['tertiary',    'part-of',         'quaternary',    1],
     ['tertiary',    'causes',          'func',          1],
     ['tertiary',    'instance-of',     'structfunc',    2],
@@ -282,6 +308,7 @@
     ['q-machine',   'answers',         'folding',       1],
     ['q-machine',   'answers',         'tertiary',      1],
     ['q-machine',   'answers',         'func',          2],
+    ['folding',     'contrasts-with',  'denaturation',  2],
 
     /* denaturation: the destroys/preserves pair is what makes irreversibility comprehensible */
     ['denaturation','destroys',        'tertiary',      1],
@@ -289,6 +316,7 @@
     ['denaturation','preserves',       'primary',       1],
     ['denaturation','contrasts-with',  'hydrolysis',    1],   /* cooking is not digestion */
     ['q-egg',       'answers',         'denaturation',  1],
+    ['q-egg',       'answers',         'folding',       2],
 
     /* enzyme subtree, hanging off tertiary structure */
     ['enzyme',      'instance-of',     'func',          1],
@@ -299,17 +327,33 @@
     ['enzyme',      'lowers',          'activation-e',  1],
     ['active-site', 'causes',          'specificity',   1],
     ['q-substrate', 'answers',         'specificity',   1],
+    ['q-substrate', 'answers',         'active-site',   2],
     ['induced-fit', 'describes',       'active-site',   2],
     ['optimal-cond','explained-by',    'tertiary',      2],   /* heat unfolds, it doesn't poison */
     ['q-fever',     'answers',         'optimal-cond',  1],
+    ['q-fever',     'answers',         'denaturation',  2],
 
     /* the showcase path: mutation to phenotype to evolution */
     ['q-sickle',    'answers',         'point-mutation',1],
+    /* the hop that makes Glu→Val explicable: charged versus nonpolar */
+    ['q-sickle',    'answers',         'r-group',       2],
     ['point-mutation','alters',        'primary',       1],
     ['hemoglobin',  'instance-of',     'quaternary',    1],
     ['point-mutation','transforms-into','sickle',       1],
     ['hemoglobin',  'part-of',         'sickle',        1],
     ['sickle',      'evidence-for',    'nat-select',    1],
+
+    /* THE THEME'S FAN — every card whose claim is shape-explains-function.
+       Themes are the sanctioned exception to the rank-1 budget: the fan IS
+       the view, and the page deals a theme's whole fan regardless of rank.
+       So rank here is read from the INSTANCE's side only, and tertiary's
+       (above) stays 2 to protect that card's own budget. */
+    ['active-site',  'instance-of',    'structfunc',    1],
+    ['bilayer',      'instance-of',    'structfunc',    2],
+    ['ice-density',  'instance-of',    'structfunc',    2],
+    ['dna-structure','instance-of',    'structfunc',    2],
+    ['hemoglobin',   'instance-of',    'structfunc',    2],
+    ['enzyme',       'instance-of',    'structfunc',    2],
   ];
 
   global.GraphData = { UNITS, CHEM_TINT, LADDER, NODES, EDGES };
