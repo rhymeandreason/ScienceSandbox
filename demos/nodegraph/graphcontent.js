@@ -88,7 +88,32 @@
     ['p:amylase',    { enzyme: 1, specificity: 2 }],
     ['p:rnase',      { denaturation: 1, folding: 1 }],   /* Anfinsen: it refolds itself */
     ['p:prion',      { folding: 1, denaturation: 2 }],
-    ['p:myoglobin',  { func: 1 }],
+    /* the α-helix canonical, and the first tertiary structure ever solved */
+    ['p:myoglobin',  { func: 1, secondary: 1 }],
+
+    /* Worked from the CONCEPT side, not the library side: for each concept,
+       which protein demonstrates it best. Exactly one canonical per concept
+       at rank 1, the rest at 2 — otherwise a concept collects thirty
+       examples, which is the hairball again in a different costume. */
+    /* the CLOSED form on purpose: the default 1IG8 is open, which is the
+       state induced fit has not happened in yet */
+    ['p:hexokinase@3B8A', { 'induced-fit': 1, enzyme: 2 }],
+    /* the catalytic triad, and a pocket that picks side chains by shape */
+    ['p:chymotrypsin',    { 'active-site': 1, specificity: 1 }],
+    /* three disulfides holding 51 residues in two chains together */
+    ['p:insulin',         { disulfide: 1, quaternary: 2 }],
+    /* Gly-X-Y is the sequence that permits the triple helix, and the `oi`
+       variant is a second point mutation to set beside sickle */
+    ['p:collagen',        { primary: 2, 'point-mutation': 2 }],
+    /* the β-barrel, to set against myoglobin's helices */
+    ['p:gfp',             { secondary: 2 }],
+    /* quaternary structure that is not haemoglobin: 24 identical subunits */
+    ['p:ferritin',        { quaternary: 2 }],
+
+    /* atp-synthase and napump stay UNPLACED. Both are outbound bridges —
+       chemiosmosis, active transport — and neither unit exists yet. Per
+       Biology-Node-Graph.md that is a gap in the units, not in the library:
+       a protein with no concept to attach to does not need a node. */
   ];
 
   global.GraphContent = { CONTENT, PLACEMENTS };

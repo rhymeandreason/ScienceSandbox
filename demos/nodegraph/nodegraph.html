@@ -595,18 +595,32 @@ const opensFor = n => (ON_NODE.get(n.id) || [])
 
 /* ---- specimens ----------------------------------------------------------
    Spawned from proteins/proteins.js, the registry of what we hold — a `p:`
-   placement says WHERE one hangs and nothing else. The card prints only
-   what `read` carries (the baker's half), so it cannot claim what a re-bake
-   no longer holds. The edge is instance-of, which is also what places a
-   specimen one column right of the concept it exemplifies. */
+   placement says WHERE one hangs and WHICH STRUCTURE it hangs there. The
+   card prints only what `read` carries (the baker's half), so it cannot
+   claim what a re-bake no longer holds. The edge is instance-of, which is
+   also what places a specimen one column right of the concept it
+   exemplifies.
+
+   `p:<key>` takes the registry's default variant; `p:<key>@<variant>` names
+   one. An exemplar has to be able to show the thing it is an exemplar OF —
+   hexokinase demonstrates induced fit, and its default is the OPEN form,
+   which is the state induced fit has not happened in yet. One card per
+   protein either way: the node id is the key, never the variant. */
 const SPEC = (window.ProteinLib && window.ProteinLib.PROTEINS) || [];
+const specKey = id => id.slice(2).split('@')[0];
+const specWant = id => id.slice(2).split('@')[1] || null;
 for (const id of PLACED.keys())
-  if (id.startsWith('p:') && !SPEC.some(p => 'p:' + p.key === id))
+  if (id.startsWith('p:') && !SPEC.some(p => p.key === specKey(id)))
     console.warn('placement names no such protein:', id);
 for (const p of SPEC) {
-  const row = PLACED.get('p:' + p.key);
+  const ids = [...PLACED.keys()].filter(k => k.startsWith('p:') && specKey(k) === p.key);
+  if (ids.length > 1) console.warn(p.key + ': placed more than once, using ' + ids[0]);
+  const row = PLACED.get(ids[0]);
   if (!row) continue;                          // unplaced: not on the map yet
-  const v = p.variants.find(x => x.default) || p.variants[0];
+  const want = specWant(ids[0]);
+  const asked = want && p.variants.find(x => x.id === want);
+  if (want && !asked) console.warn(ids[0] + ': no such variant, using the default');
+  const v = asked || p.variants.find(x => x.default) || p.variants[0];
   const ribbon = v && (v.bake ? v.bake.trace : v.read && v.read.baked);
   if (!ribbon) { console.warn(p.key + ': no baked ribbon'); continue; }
   const ec = v.read.ec || null;
@@ -626,6 +640,18 @@ for (const p of SPEC) {
     links.push({ a: n, b: m, type: 'instance-of', rank, spine: rank === 1 });
     n.deg++; m.deg++;
   }
+}
+
+/* the reachability pass above ran before these existed, so specimens get
+   their own. A protein placed only at rank 2 — collagen, gfp and ferritin
+   are each the SECOND exemplar of their concept — would otherwise float
+   unattached the moment the spine view hides everything but rank 1. */
+for (const n of nodes) {
+  if (n.type !== 'specimen') continue;
+  const mine = linksOf(n);
+  if (mine.some(l => l.spine)) continue;
+  const best = Math.min(...mine.map(l => l.rank));
+  for (const l of mine) if (l.rank === best) l.spine = true;
 }
 
 /* ---- edge grammar -------------------------------------------------------
