@@ -4,14 +4,30 @@
      graphdata.js is the content (two units: water, proteins, plus the
      macromolecule bridges).
 
-       * edges are TYPED and DIRECTED, and the type is drawn on the edge
-         when a card is focused — "causes" vs "contrasts-with" is the content
-       * rank is on the edge (1 spine / 2 enrichment / 3 on request), and
-         expanding a card deals whole bands, lowest first
-       * the scale ladder is a persistent left gutter; focusing a card lights
-         the rung it sits at (level), runs at (occursAt), or emerges at
-       * anything-to-anything: no bipartite rule. Questions are one node type
-         among six. -->
+     THE CANVAS HAS SEMANTIC AXES, and that is the design:
+
+       * X is explanatory order, computed by topological layering over the
+         directed edge types. Chemistry prerequisites sit far left,
+         consequences right, so every causal arrow points rightward and
+         reading direction IS explanation direction.
+       * Y is the scale ladder. Leveled nodes sit in horizontal bands
+         (molecule low, ecosystem high) aligned with the gutter ruler;
+         concepts, which have no level, settle at the mean of their
+         neighbours. part-of edges therefore run vertically and causal
+         edges horizontally — the doc's two axes are the screen's two.
+       * The layout is BAKED from the data, identical every load, so
+         spatial memory can form. The relax only resolves overlaps; it
+         never invents position.
+
+     THE WHOLE MAP EXISTS FROM LOAD; exploration is light, not creation.
+     Unvisited nodes render as dim marks — fog of war — and clicking
+     illuminates. A theme lights its instances; the spine dims rank 2/3;
+     no reveal special cases. A focused card offers its neighbours grouped
+     by direction (why · so what · contrast — the doc's direction of
+     learning), and arrow keys walk rank-1 edges with the camera.
+
+     Kept from the composer, as technique only: the card design language,
+     the scale()/zoom split, pan/drag/pin, focus dimming. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -78,7 +94,7 @@
   #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
   #canvas.panning { cursor: grabbing; }
   /* geometricPrecision: #world is zoomed above k=1, and whole-pixel glyph
-     advances rewrap headings as k moves. Same rule as the composer. */
+     advances rewrap headings as k moves. */
   #world { position: absolute; top: 0; left: 0; transform-origin: 0 0;
            text-rendering: geometricPrecision; -webkit-text-size-adjust: none; }
   #edges { position: absolute; overflow: visible; pointer-events: none; }
@@ -89,19 +105,19 @@
     paint-order: stroke; stroke: var(--paper); stroke-width: 3px;
   }
   #edges text.on { opacity: 0.95; }
+  #edges line.band { stroke: #eeebe2; stroke-width: 1; }
 
   /* ---- the scale gutter ------------------------------------------------
-     The ladder is an attribute, and this rail is what the attribute buys:
-     a persistent "you are here" for the axis students get lost on. Top is
-     ecosystem, bottom is molecule, because up is bigger. */
+     No longer a legend: a RULER. Each rung is pinned to its band's world
+     y, repositioned on every pan and zoom, so the label and the cards at
+     that scale are always level with each other. */
   .gutter {
-    position: fixed; left: clamp(0.9rem, 2vw, 1.6rem); top: 50%; z-index: 5;
-    transform: translateY(-50%);
-    display: flex; flex-direction: column; gap: 0.32rem;
-    pointer-events: none; user-select: none;
+    position: fixed; left: clamp(0.9rem, 2vw, 1.6rem); top: 0; bottom: 0;
+    z-index: 5; pointer-events: none; user-select: none;
   }
   .gutter .rung {
-    display: flex; align-items: center; gap: 0.5rem;
+    position: absolute; transform: translateY(-50%);
+    display: flex; align-items: center; gap: 0.5rem; white-space: nowrap;
     font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase;
     color: #c9c5ba; transition: color .18s;
   }
@@ -116,11 +132,6 @@
     margin-left: 0.15rem;
   }
   .gutter .rung:not(.on) .how { display: none; }
-  .gutter .none {
-    margin-top: 0.55rem; font-size: 0.55rem; letter-spacing: 0.14em;
-    text-transform: uppercase; color: #c9c5ba; transition: color .18s;
-  }
-  .gutter .none.on { color: var(--ink); }
 
   /* ---- nodes ----------------------------------------------------------- */
 
@@ -134,9 +145,6 @@
   }
   .node.dragging { cursor: grabbing; box-shadow: 0 10px 26px rgba(20,22,26,.12); }
 
-  /* concept / structure / process share the card frame; the tag row says
-     which they are, because conflating a thing with what it does is half
-     the course's difficulty. */
   .node.card {
     width: 17.5rem;
     padding: 0.85rem 1rem 0.9rem;
@@ -171,32 +179,24 @@
   }
   .node.card .tag.scale  { color: var(--accent); border-color: #cfdcd7; }
   .node.card .tag.chem   { color: #8a5cc0; border-color: #ded2ef; }
-  .node.card .meta {
-    font-size: 0.55rem; letter-spacing: 0.16em; text-transform: uppercase;
-    color: var(--spark); margin-top: 0.45rem; min-height: 0.7rem;
-  }
 
-  /* ---- type carried by form, not by a tag ------------------------------
-     A structure keeps the full white card: it is a thing you can look at,
-     and the future home of a live box. A concept is connective tissue and
-     sits frameless on the paper. A process wears its unit tint as a
-     running bar down the left, with an arrow on its name. Chemistry is a
-     door out of biology, so it is dashed, the composer's "not here". */
-  .node.card.concept { background: transparent; border-color: transparent; }
+  /* ---- type carried by form, not by a tag ------------------------------ */
+  /* every card is opaque — paper, not transparent — so an edge line never
+     runs under its text; only the WHITE ground is reserved for structures */
+  .node.card.concept { background: var(--paper); border-color: transparent; }
   .node.card.concept:hover,
   .node.card.concept.hub { background: var(--card); border-color: var(--line); }
-  .node.card.chem { background: transparent; border: 1px dashed #cdbfe3; }
+  .node.card.chem { background: var(--paper); border: 1px dashed #cdbfe3; }
   .node.card.process { border-left: 3px solid var(--dot, var(--line)); }
   .node.card.process .name .run {
     color: var(--dot, var(--muted)); font-weight: 600; margin-right: 0.05rem;
   }
 
-  /* a hub reads bigger before it is clicked: five or more rank-1 edges,
-     counted from the data at load, so authoring an edge promotes the card */
+  /* a hub reads bigger before it is clicked: five or more rank-1 edges */
   .node.card.big { width: 22rem; }
   .node.card.big .claim { font-size: 1.2rem; line-height: 1.24; -webkit-line-clamp: 5; }
 
-  /* the open card grows, same bargain as the composer */
+  /* the open card grows */
   .node.card.hub { width: 30rem; padding: 1.5rem 1.7rem 1.55rem; }
   .node.card.hub .claim {
     font-size: 1.6rem; line-height: 1.2; margin-top: 0.55rem;
@@ -204,7 +204,6 @@
   }
   .node.card.hub .name { font-size: 0.68rem; letter-spacing: 0.2em; }
 
-  /* a theme is a deliberate hub: dark, the way the composer's door is */
   .node.theme {
     width: 20rem; padding: 1.15rem 1.35rem 1.2rem;
     background: var(--ink); border: 1px solid var(--ink);
@@ -218,28 +217,83 @@
     font-family: var(--ui); font-size: 0.72rem; color: #b6b2a8;
     margin-top: 0.4rem;
   }
-  .node.theme .meta {
-    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--spark); margin-top: 0.45rem; min-height: 0.7rem;
-  }
 
+  /* an anchoring question is a door, and it reads at door size: twice the
+     card claim, ink, never fogged */
   .node.question {
-    width: 15rem;
-    padding: 0.5rem 0.65rem;
-    background: transparent;
+    width: 26rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--paper);
     border: 1px solid transparent;
-    font-family: var(--serif); font-size: 1rem; line-height: 1.25; color: var(--muted);
+    font-family: var(--serif); font-size: 2rem; line-height: 1.15;
+    letter-spacing: -0.015em; color: var(--ink);
     text-align: center;
   }
-  .node.question .meta {
-    font-family: var(--sans);
-    font-size: 0.52rem; letter-spacing: 0.16em; text-transform: uppercase;
-    color: var(--spark); margin-top: 0.25rem;
-  }
   .node.question.hub {
-    width: 18rem; padding: 0.9rem 1rem 0.95rem;
-    font-size: 1.22rem; line-height: 1.22; color: var(--ink);
+    width: 28rem; padding: 0.9rem 1rem 0.95rem;
   }
+
+  /* ---- fog of war ------------------------------------------------------
+     An unlit node is a MARK: dot and name on the paper, claim withheld.
+     The map's shape is always visible; its content is earned by walking
+     to it. Same element, so lighting never relayouts the world. */
+  /* a mark's ground hugs its title — the full card width would blank out
+     edges far beyond the text it is protecting */
+  .node.card.unlit {
+    background: var(--paper); border-color: transparent;
+    width: max-content;
+  }
+  .node.card.unlit .claim, .node.card.unlit .tags { display: none; }
+  .node.card.unlit .name { color: #b7b3a8; }
+  .node.card.unlit .name::before { opacity: 0.45; }
+  .node.card.unlit.process { border-left-color: transparent; }
+  .node.theme.unlit {
+    background: var(--paper); border: 1px dashed var(--line); color: var(--muted);
+    width: max-content;
+  }
+  .node.theme.unlit .name { font-size: 1rem; }
+  .node.theme.unlit .claim { display: none; }
+  .node.question.unlit { width: max-content; max-width: 26rem; }
+  /* a mark hovers the way a question does: card ground, line border, ink */
+  .node.card.unlit:hover,
+  .node.theme.unlit:hover,
+  .node.question.unlit:hover {
+    background: var(--card); border-color: var(--line); border-style: solid;
+  }
+  .node.card.unlit:hover .name { color: var(--muted); }
+  .node.card.unlit:hover .name::before { opacity: 1; }
+  .node.theme.unlit:hover { color: var(--ink); }
+  .node.question.unlit:hover { color: var(--ink); }
+
+  /* a focused card's neighbours present themselves the same way: a mark in
+     the first hop takes the card ground and full-strength text, so the
+     offer reads as an offer rather than as fog that happens to be near */
+  .focusing .node.card.unlit.lit {
+    background: var(--card); border-color: var(--line);
+  }
+  .focusing .node.card.unlit.lit .name { color: var(--muted); }
+  .focusing .node.card.unlit.lit .name::before { opacity: 1; }
+  .focusing .node.theme.unlit.lit {
+    background: var(--card); border-style: solid; border-color: var(--line);
+    color: var(--ink);
+  }
+  .focusing .node.question.unlit.lit { color: var(--ink); }
+
+  /* the focused card's neighbour groups: the direction of learning */
+  .node .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
+  .node .chips:empty { display: none; }
+  .chip {
+    font-family: var(--sans); font-size: 0.55rem; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+    background: var(--card); border: 1px solid #cfdcd7; border-radius: 2px;
+    padding: 0.28rem 0.5rem; cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .chip:hover { border-color: var(--accent); }
+  .chip.contrast { color: var(--spark); border-color: #f2cdbd; }
+  .chip.contrast:hover { border-color: var(--spark); }
+  .node.question .chips { justify-content: center; }
+  .node.theme .chip { background: transparent; }
 
   .node:hover { border-color: var(--accent); }
   .node.question:hover { background: var(--card); border-color: var(--line); color: var(--ink); }
@@ -268,7 +322,7 @@
 
 <header class="mast">
   <a class="logo" href="../index.html">kodo<em>lab</em><span class="dot">.</span></a>
-  <span class="title">Bio 101 node graph — two units, typed edges, the scale ladder</span>
+  <span class="title">Bio 101 node graph — cause runs right, scale runs up</span>
   <span class="spacer"></span>
   <button class="btn" id="spinebtn">Spine</button>
   <button class="btn" id="reset">Start over</button>
@@ -316,93 +370,157 @@ for (const [from, type, to, rank] of EDGES) {
 }
 
 const neighbours = n => links.flatMap(l => l.a === n ? [l.b] : l.b === n ? [l.a] : []);
-const rankFrom = (from, other) => {
-  const l = links.find(l => (l.a === from && l.b === other) || (l.b === from && l.a === other));
-  return l ? l.rank : 9;
-};
+const linksOf = n => links.filter(l => l.a === n || l.b === n);
 
-/* every node's best edge is promoted to its rank-1 band, so nothing is
-   unreachable from its own side of the map (the composer's densify rule) */
+/* every node's best edge is promoted to rank 1, so nothing is unreachable
+   from its own side of the map */
 for (const n of nodes) {
-  const mine = links.filter(l => l.a === n || l.b === n);
+  const mine = linksOf(n);
   if (!mine.length) { console.warn('orphan node:', n.id); continue; }
   const best = Math.min(...mine.map(l => l.rank));
   if (best > 1) for (const l of mine) if (l.rank === best) l.rank = 1;
 }
 
-/* hub weight is read from the data, not authored: five rank-1 edges is the
-   soft budget, so a card at or past it is by definition a mechanism hinge */
+/* hub weight is read from the data: five rank-1 edges is the soft budget,
+   so a card at or past it is by definition a mechanism hinge */
 for (const n of nodes)
-  n.big = links.filter(l => (l.a === n || l.b === n) && l.rank === 1).length >= 5;
+  n.big = linksOf(n).filter(l => l.rank === 1).length >= 5;
 
-const live = [], liveLinks = [];
-let alpha = 0, settled = true;
-const wake = a => { alpha = Math.max(alpha, a); settled = false; };
+/* ---- edge grammar -------------------------------------------------------
+   The type dictionaries below drive BOTH the x-layering and the why/so-what
+   grouping, so the layout and the affordances cannot disagree.
 
-/* ---- reveal ------------------------------------------------------------ */
+   FORWARD: a explains / becomes / builds b — a sits left of b.
+   BACKWARD: a acts on / instantiates b — b sits left of a.
+   Everything else (contrasts-with, describes, answers, preserves, lowers)
+   imposes no order. instance-of into a THEME is exempted: a theme is a
+   view over the map, not a station on the explanation. */
+const FORWARD = {
+  'prerequisite-of': 1, 'causes': 1, 'determines': 1, 'enables': 1,
+  'produces': 1, 'alters': 1, 'transforms-into': 1, 'evidence-for': 1,
+  'part-of': 1, 'contributes-to': 1,
+};
+const BACKWARD = { 'consumes': 1, 'destroys': 1, 'explained-by': 1, 'instance-of': 1 };
 
-function show(n, depth, y, x, ty) {
-  if (n.visible) return;
-  n.ty = ty;
-  n.visible = true;
-  n.depth = depth;
-  n.tx = x;
-  n.x = x; n.y = y;
+/* the ordering constraint a link imposes: [earlier, later], or null */
+function ordered(l) {
+  if (l.type === 'instance-of' && l.b.type === 'theme') return null;
+  if (FORWARD[l.type])  return [l.a, l.b];
+  if (BACKWARD[l.type]) return [l.b, l.a];
+  return null;
+}
+
+/* which side of the reading a neighbour sits on, seen from n:
+   'why' is upstream (what explains this), 'onward' is downstream (what
+   this makes possible), 'contrast' is beside. answers counts as why from
+   the concept's side — the question is the motivation. */
+function groupOf(l, n) {
+  if (l.type === 'contrasts-with') return 'contrast';
+  const o = ordered(l);
+  if (o) return o[1] === n ? 'why' : 'onward';
+  if (l.type === 'answers') return n === l.b ? 'why' : 'onward';
+  return n === l.b ? 'why' : 'onward';
+}
+
+/* ---- x: explanatory order ----------------------------------------------
+   Longest-path layering over the ordering constraints, with a cycle guard
+   (a cycle here is a data bug: usually a causes edge typed backwards).
+   Nodes with no upstream constraint are then pulled RIGHT to just before
+   their first consequence, so an active site does not sit beside
+   electronegativity merely because nothing points at it. Questions are
+   exempt: a question is a door, placed just left of its best answer. */
+const inCons = new Map(nodes.map(n => [n, []]));
+const outCons = new Map(nodes.map(n => [n, []]));
+for (const l of links) {
+  const o = ordered(l);
+  if (!o || o[0].type === 'question' || o[1].type === 'question') continue;
+  inCons.get(o[1]).push(o[0]);
+  outCons.get(o[0]).push(o[1]);
+}
+const layerOf = new Map();
+function layer(n, stack = new Set()) {
+  if (layerOf.has(n)) return layerOf.get(n);
+  if (stack.has(n)) { console.warn('ordering cycle at', n.id); return 0; }
+  stack.add(n);
+  const ins = inCons.get(n);
+  const v = ins.length ? Math.max(...ins.map(m => layer(m, stack) + 1)) : 0;
+  stack.delete(n);
+  layerOf.set(n, v);
+  return v;
+}
+for (const n of nodes) if (n.type !== 'question') layer(n);
+/* pull sourceless nodes right, to just before their first consequence —
+   IGNORING consequences whose only constraint is this node (they trail
+   it, so using them is circular: active-site was held at 0 by
+   specificity, whose position came from active-site) — then re-propagate
+   the longest path so the trailers follow. */
+for (const n of nodes) {
+  if (n.type === 'question' || inCons.get(n).length) continue;
+  const anchored = outCons.get(n).filter(m =>
+    inCons.get(m).some(p => p !== n));
+  if (anchored.length)
+    layerOf.set(n, Math.max(0, Math.min(...anchored.map(m => layerOf.get(m))) - 1));
+}
+for (let pass = 0; pass < 12; pass++) {
+  let changed = false;
+  for (const n of nodes) {
+    if (n.type === 'question' || !inCons.get(n).length) continue;
+    const v = Math.max(...inCons.get(n).map(m => layerOf.get(m) + 1));
+    if (v > layerOf.get(n)) { layerOf.set(n, v); changed = true; }
+  }
+  if (!changed) break;
+}
+/* a node with NO ordering edges (induced-fit, the themes) has no place on
+   the explanation axis of its own — it sits at the mean of its neighbours */
+for (const n of nodes) {
+  if (n.type === 'question') continue;
+  if (inCons.get(n).length || outCons.get(n).length) continue;
+  const ns = neighbours(n).filter(m => m.type !== 'question');
+  if (ns.length)
+    layerOf.set(n, ns.reduce((s, m) => s + layerOf.get(m), 0) / ns.length);
+}
+for (const n of nodes) {
+  if (n.type !== 'question') continue;
+  const ans = linksOf(n).filter(l => l.type === 'answers').map(l => l.a === n ? l.b : l.a);
+  n.lx = ans.length ? Math.min(...ans.map(m => layerOf.get(m))) - 0.7 : 0;
+}
+const COLW = 430;
+for (const n of nodes) n.tx = (n.type === 'question' ? n.lx : layerOf.get(n)) * COLW;
+
+/* ---- y: the scale ladder ------------------------------------------------
+   Bands from the ladder, top is ecosystem because up is bigger. Bands
+   nothing occupies stay thin — present on the ruler, not spent on screen.
+   A leveled node sits in its band; a levelless one (concepts, themes,
+   questions) settles at the mean of its neighbours, iterated, which is
+   what lets polarity float between the water and protein shelves. */
+const lvOf = n => n.level || n.occursAt || n.emergesAt || 0;
+const used = new Set(nodes.map(lvOf).filter(Boolean));
+const bandCentre = {}, bandEdge = [];
+{
+  let y = 0;
+  for (let lv = 10; lv >= 1; lv--) {
+    const h = used.has(lv) ? 660 : 130;
+    bandEdge.push(y);
+    bandCentre[lv] = y + h / 2;
+    y += h;
+  }
+  bandEdge.push(y);
+}
+for (const n of nodes) n.ty = lvOf(n) ? bandCentre[lvOf(n)] : bandCentre[2];
+for (let pass = 0; pass < 6; pass++)
+  for (const n of nodes) {
+    if (lvOf(n)) continue;
+    const ns = neighbours(n);
+    if (ns.length) n.ty = ns.reduce((s, m) => s + m.ty, 0) / ns.length;
+  }
+
+/* start positions: the semantic target plus a deterministic nudge, so
+   stacked cards separate the same way every load */
+nodes.forEach((n, i) => {
+  n.x = n.tx;
+  n.y = n.ty + ((i * 137) % 97 - 48) * 2.2;
   n.vx = n.vy = 0;
-  paintNode(n);
-  live.push(n);
-  for (const l of links) {
-    if (l.painted || !l.a.visible || !l.b.visible) continue;
-    paintLink(l);
-    liveLinks.push(l);
-  }
-}
-
-const SHOW = 5;
-
-/* whole bands only: the cut never lands inside a rank */
-function expand(n, carry = true) {
-  const pending = neighbours(n).filter(m => !m.visible)
-    .sort((a, b) => rankFrom(n, a) - rankFrom(n, b));
-  if (!pending.length) { n.done = true; refreshMeta(n); return; }
-
-  /* a theme is a query over the whole map, not a place being read: it deals
-     its ENTIRE fan, every rank, because "show me everything where shape is
-     the explanation" answered five cards at a time is not an answer */
-  const wave = [];
-  for (const m of pending) {
-    if (n.type !== 'theme' &&
-        wave.length >= SHOW && rankFrom(n, m) !== rankFrom(n, wave[wave.length - 1])) break;
-    wave.push(m);
-  }
-
-  const mark = live.length;
-  const REACH = 560;
-  const STEP = k => k === 'question' ? 200 : 250;
-  wave.forEach((m, i) => {
-    const t = wave.length === 1 ? 0 : (i / (wave.length - 1)) * 2 - 1;
-    const y = n.y + (i - (wave.length - 1) / 2) * STEP(m.type);
-    const x = n.x + REACH - Math.abs(t) * 70;
-    show(m, n.depth + 1, y, x, y);
-  });
-  n.done = true;
-
-  /* a question alone is a dead end: it carries its far side with it */
-  if (carry)
-    for (const q of wave) if (q.type === 'question') expand(q, false);
-
-  wake(0.6);
-  follow = [n, ...live.slice(mark)];
-  followFrames = 900;
-  for (const m of live) refreshMeta(m);
-}
-
-function refreshMeta(n) {
-  const el = n.el && n.el.querySelector('.meta');
-  if (!el) return;
-  const hidden = neighbours(n).filter(m => !m.visible).length;
-  el.textContent = hidden ? '+' + hidden + (hidden === 1 ? ' edge' : ' edges') : '';
-}
+});
 
 /* ---- DOM --------------------------------------------------------------- */
 
@@ -421,15 +539,15 @@ function scaleTag(n) {
 function paintNode(n) {
   const el = document.createElement('div');
   if (n.type === 'question') {
-    el.className = 'node question';
-    el.innerHTML = '<span>' + esc(n.text) + '</span><div class="meta"></div>';
+    el.className = 'node question unlit';
+    el.innerHTML = '<span>' + esc(n.text) + '</span><div class="chips"></div>';
   } else if (n.type === 'theme') {
-    el.className = 'node theme';
+    el.className = 'node theme unlit';
     el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' +
                    '<div class="claim">' + esc(n.claim) + '</div>' +
-                   '<div class="meta"></div>';
+                   '<div class="chips"></div>';
   } else {
-    el.className = 'node card ' + n.type +
+    el.className = 'node card unlit ' + n.type +
                    (n.big ? ' big' : '') +
                    (n.subject === 'chemistry' ? ' chem' : '');
     const tint = n.subject === 'chemistry' ? CHEM_TINT : (UNITS[n.unit] || {}).tint;
@@ -442,78 +560,106 @@ function paintNode(n) {
                      esc(n.name) + '</div>' +
                    '<div class="claim">' + esc(n.claim) + '</div>' +
                    (tags ? '<div class="tags">' + tags + '</div>' : '') +
-                   '<div class="meta"></div>';
+                   '<div class="chips"></div>';
   }
   n.el = el;
   world.appendChild(el);
   n.r = Math.hypot(el.offsetWidth, el.offsetHeight) / 2;
-  refreshMeta(n);
 }
 
-/* the type in reading words, on the edge, shown when a card is focused */
 const wordFor = t => t.replace(/-/g, ' ');
 
 function paintLink(l) {
-  l.painted = true;
   const contrast = l.type === 'contrasts-with';
   l.el = document.createElementNS(NS, 'path');
   l.el.setAttribute('fill', 'none');
-  l.el.setAttribute('stroke', contrast ? '#e2643a' : '#1f5f4f');
-  l.el.setAttribute('stroke-width', l.rank === 1 ? '1.4' : '1');
-  l.el.setAttribute('stroke-opacity', l.rank === 1 ? '.4' : '.2');
   if (l.rank >= 3) l.el.setAttribute('stroke-dasharray', '3 4');
   svg.appendChild(l.el);
-
-  /* the arrowhead rides the MIDPOINT, not the end: paths run card centre to
-     card centre, so an end marker is always underneath the target card.
-     contrasts-with is symmetric and gets none. */
   if (!contrast) {
     l.arrow = document.createElementNS(NS, 'polygon');
     l.arrow.setAttribute('points', '-3,-3.5 4,0 -3,3.5');
-    l.arrow.setAttribute('fill', '#1f5f4f');
-    l.arrow.setAttribute('fill-opacity', l.rank === 1 ? '.55' : '.35');
     svg.appendChild(l.arrow);
   }
-
   l.label = document.createElementNS(NS, 'text');
   l.label.setAttribute('text-anchor', 'middle');
   l.label.textContent = wordFor(l.type);
   svg.appendChild(l.label);
 }
 
-/* ---- relax ------------------------------------------------------------- */
+/* the one place an edge's resting style is decided. Focus overlays it and
+   clearFocus routes back through here, so the states cannot drift. */
+function edgeRefresh(l) {
+  const contrast = l.type === 'contrasts-with';
+  const hide = spine && l.rank > 1;
+  l.el.style.display = hide ? 'none' : '';
+  l.label.style.display = hide ? 'none' : '';
+  if (l.arrow) l.arrow.style.display = hide ? 'none' : '';
+  if (hide) return;
+  const colour = contrast ? '#e2643a' : '#1f5f4f';
+  const both = l.a.on && l.b.on, any = l.a.on || l.b.on;
+  const op = both ? (l.rank === 1 ? 0.4 : 0.2) : any ? 0.12 : 0.05;
+  l.el.setAttribute('stroke', colour);
+  l.el.setAttribute('stroke-width', l.rank === 1 ? '1.4' : '1');
+  l.el.setAttribute('stroke-opacity', op);
+  if (l.arrow) {
+    l.arrow.setAttribute('fill', colour);
+    l.arrow.setAttribute('fill-opacity', both ? (l.rank === 1 ? 0.55 : 0.35) : any ? 0.12 : 0.05);
+  }
+  l.label.classList.toggle('on', spine && l.rank === 1 && both);
+}
+
+/* ---- light ------------------------------------------------------------- */
+
+function light(n) {
+  if (n.on) return;
+  n.on = true;
+  n.el.classList.remove('unlit');
+  n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+  for (const l of linksOf(n)) edgeRefresh(l);
+  wake(0.5);
+}
+
+function unlightAll() {
+  for (const n of nodes) { n.on = false; n.el.classList.add('unlit'); }
+}
+
+/* ---- relax --------------------------------------------------------------
+   Overlap resolution only. X is pinned hard to the layer column, y is
+   pulled to the band (leveled) or gently to the neighbour mean
+   (levelless), links align y between their endpoints, and repulsion does
+   the rest. No spring invents an x. */
+let alpha = 0, settled = true;
+const wake = a => { alpha = Math.max(alpha, a); settled = false; };
 
 function step() {
-  const REPEL = 20000, SPRING = 0.012, COLUMN = 0.10, VMAX = 16;
-  for (const n of live) { n.vx *= 0.76; n.vy *= 0.76; }
+  const REPEL = 22000, VMAX = 16;
+  for (const n of nodes) { n.vx *= 0.76; n.vy *= 0.76; }
 
-  for (let i = 0; i < live.length; i++) {
-    const a = live[i];
-    for (let j = i + 1; j < live.length; j++) {
-      const b = live[j];
+  for (let i = 0; i < nodes.length; i++) {
+    const a = nodes[i];
+    for (let j = i + 1; j < nodes.length; j++) {
+      const b = nodes[j];
       let dx = b.x - a.x, dy = b.y - a.y;
       let d2 = dx * dx + dy * dy;
       if (d2 < 1) { dx = (i - j) || 1; dy = 1; d2 = 2; }
       const d = Math.sqrt(d2), ux = dx / d, uy = dy / d;
       const near = a.r + b.r;
-      const f = REPEL / d2 + (d < near * 1.15 ? (near * 1.15 - d) * 0.45 : 0);
+      const f = REPEL / d2 + (d < near * 1.1 ? (near * 1.1 - d) * 0.5 : 0);
       a.vx -= ux * f; a.vy -= uy * f;
       b.vx += ux * f; b.vy += uy * f;
     }
   }
 
-  for (const l of liveLinks) {
-    const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y;
-    const d = Math.hypot(dx, dy) || 1;
-    const f = (d - 420) * SPRING;
-    l.a.vx += (dx / d) * f; l.a.vy += (dy / d) * f;
-    l.b.vx -= (dx / d) * f; l.b.vy -= (dy / d) * f;
+  for (const l of links) {
+    const dy = l.b.y - l.a.y;
+    const f = dy * 0.004;                     /* y alignment only */
+    l.a.vy += f; l.b.vy -= f;
   }
 
   let moved = 0;
-  for (const n of live) {
-    n.vx += (n.tx - n.x) * COLUMN;
-    if (n.ty !== undefined) n.vy += (n.ty - n.y) * 0.04;
+  for (const n of nodes) {
+    n.vx += (n.tx - n.x) * 0.12;
+    n.vy += (n.ty - n.y) * (lvOf(n) ? 0.05 : 0.015);
     const v = Math.hypot(n.vx, n.vy);
     if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
     if (n === dragNode || n.pinned) continue;
@@ -526,9 +672,9 @@ function step() {
 }
 
 function draw() {
-  for (const n of live) n.el.style.transform =
+  for (const n of nodes) n.el.style.transform =
     'translate(-50%,-50%) translate(' + n.x.toFixed(1) + 'px,' + n.y.toFixed(1) + 'px)';
-  for (const l of liveLinks) {
+  for (const l of links) {
     const x1 = l.a.x, y1 = l.a.y, x2 = l.b.x, y2 = l.b.y;
     const bend = Math.abs(x2 - x1) * 0.42 + 30;
     const s1 = x2 >= x1 ? bend : -bend;
@@ -536,13 +682,11 @@ function draw() {
       'C' + (x1 + s1).toFixed(1) + ',' + y1.toFixed(1) +
       ' ' + (x2 - s1).toFixed(1) + ',' + y2.toFixed(1) +
       ' ' + x2.toFixed(1) + ',' + y2.toFixed(1));
-    /* the cubic's midpoint, not the chord's: the label sits on its own line */
     const mx = (x1 + 3 * (x1 + s1) + 3 * (x2 - s1) + x2) / 8;
     const my = (y1 + 3 * y1 + 3 * y2 + y2) / 8;
     l.label.setAttribute('x', mx.toFixed(1));
     l.label.setAttribute('y', (my - 8).toFixed(1));
     if (l.arrow) {
-      /* tangent of the cubic at t = 0.5, so the head lies along the curve */
       const deg = Math.atan2(1.5 * (y2 - y1), 1.5 * (x2 - x1 - s1)) * 180 / Math.PI;
       l.arrow.setAttribute('transform',
         'translate(' + mx.toFixed(1) + ',' + my.toFixed(1) + ') rotate(' + deg.toFixed(1) + ')');
@@ -553,9 +697,8 @@ function draw() {
 let follow = null, followFrames = 0;
 function followStep() {
   if (!follow || followFrames-- <= 0) { follow = null; return; }
-  const subject = follow[0];
-  view.x += (innerWidth * 0.5 - subject.x * view.k - view.x) * 0.05;
-  view.y += (innerHeight / 2 - subject.y * view.k - view.y) * 0.05;
+  view.x += (innerWidth * 0.5 - follow.x * view.k - view.x) * 0.05;
+  view.y += (innerHeight / 2 - follow.y * view.k - view.y) * 0.05;
   applyView();
 }
 
@@ -566,35 +709,36 @@ function frame() {
 }
 requestAnimationFrame(frame);
 
-/* ---- pan, zoom, drag, focus -------------------------------------------- */
+/* ---- pan, zoom, drag ---------------------------------------------------- */
 
 const canvas = document.getElementById('canvas');
 const hint = document.getElementById('hint');
-let view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.7 };
+let view = { x: 0, y: 0, k: 0.6 };
 
-/* out is scale(), in is zoom — the composer's split, for the same Safari
-   rasterisation reason. The two agree exactly at k = 1. */
 const applyView = () => {
-  hint.textContent = 'k ' + view.k.toFixed(2) + ' · ' + live.length + '/' + nodes.length +
-                     ' nodes · ' + liveLinks.length + '/' + links.length + ' edges';
+  const lit = nodes.filter(n => n.on).length;
+  hint.textContent = 'k ' + view.k.toFixed(2) + ' · ' + lit + '/' + nodes.length +
+                     ' lit · → so what · ← why';
   const zoomed = view.k > 1;
   world.style.zoom = zoomed ? view.k : 1;
   const t = zoomed ? view.k : 1;
   world.style.transform =
     'translate(' + (view.x / t) + 'px,' + (view.y / t) + 'px)' +
     (zoomed ? '' : ' scale(' + view.k + ')');
+  placeGutter();
 };
-applyView();
 
 let dragNode = null, dragging = null, last = null, travel = 0;
 
 canvas.addEventListener('pointerdown', e => {
+  /* a card's own controls keep their pointer — every control must be here */
+  if (e.target.closest('.chip')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
   follow = null;
   if (hit) {
-    dragNode = live.find(n => n.el === hit);
+    dragNode = nodes.find(n => n.el === hit);
     hit.classList.add('dragging');
     dragging = 'node';
     wake(0.3);
@@ -619,7 +763,7 @@ function endDrag(e) {
   const click = travel <= 5;
   if (dragging === 'node') {
     dragNode.el.classList.remove('dragging');
-    if (click) { expand(dragNode); focus(dragNode); }
+    if (click) { light(dragNode); focus(dragNode); }
     else dragNode.pinned = true;
     dragNode = null;
   } else if (dragging === 'pan' && click && focused) {
@@ -635,49 +779,88 @@ canvas.addEventListener('pointercancel', endDrag);
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   follow = null;
-  const k = Math.min(2.5, Math.max(0.2, view.k * Math.exp(-e.deltaY * 0.0015)));
+  const k = Math.min(2.5, Math.max(0.18, view.k * Math.exp(-e.deltaY * 0.0015)));
   view.x = e.clientX - (e.clientX - view.x) * (k / view.k);
   view.y = e.clientY - (e.clientY - view.y) * (k / view.k);
   view.k = k;
   applyView();
 }, { passive: false });
 
+/* ---- focus and the direction chips -------------------------------------- */
+
 let focused = null;
 
 function measure() {
-  for (const m of live) m.r = Math.hypot(m.el.offsetWidth, m.el.offsetHeight) / 2;
+  for (const n of nodes) n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
   wake(0.4);
 }
 
+/* a theme's fan is dealt whole — a theme is a query, not a place */
+function renderChips(n) {
+  const box = n.el.querySelector('.chips');
+  if (!box) return;
+  if (n.type === 'theme') {
+    const dark = neighbours(n).filter(m => !m.on);
+    box.innerHTML = dark.length
+      ? '<button class="chip" data-g="all">show all ' + neighbours(n).length + '</button>' : '';
+    return;
+  }
+  const count = g => linksOf(n)
+    .filter(l => groupOf(l, n) === g)
+    .map(l => l.a === n ? l.b : l.a)
+    .filter(m => !m.on).length;
+  const parts = [];
+  const why = count('why'), on = count('onward'), c = count('contrast');
+  if (why) parts.push('<button class="chip" data-g="why">why · ' + why + '</button>');
+  if (on)  parts.push('<button class="chip" data-g="onward">so what · ' + on + '</button>');
+  if (c)   parts.push('<button class="chip contrast" data-g="contrast">contrast · ' + c + '</button>');
+  box.innerHTML = parts.join('');
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('.chip');
+  if (!b) return;
+  const n = nodes.find(m => m.el.contains(b));
+  if (!n) return;
+  for (const l of linksOf(n)) {
+    if (b.dataset.g !== 'all' && groupOf(l, n) !== b.dataset.g) continue;
+    light(l.a === n ? l.b : l.a);
+  }
+  measure();
+  focus(n);
+});
+
 function focus(n) {
   focused = n;
-  if (!follow || follow[0] !== n) { follow = [n]; followFrames = 900; }
+  follow = n; followFrames = 700;
   document.body.classList.add('focusing');
-  for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
+  for (const m of nodes) m.el.classList.remove('lit', 'hub', 'hop2');
+  for (const m of nodes) { const c = m.el.querySelector('.chips'); if (c) c.innerHTML = ''; }
 
-  const hop1 = new Set(neighbours(n).filter(m => m.visible));
+  const hop1 = new Set(neighbours(n));
   const hop2 = new Set();
   for (const m of hop1) for (const o of neighbours(m))
-    if (o.visible && o !== n && !hop1.has(o)) hop2.add(o);
+    if (o !== n && !hop1.has(o) && o.on) hop2.add(o);
 
   n.el.classList.add('lit', 'hub');
   for (const m of hop1) m.el.classList.add('lit');
   for (const m of hop2) m.el.classList.add('lit', 'hop2');
 
+  renderChips(n);
   measure();
   gutterLight(n);
 
-  for (const l of liveLinks) {
+  for (const l of links) {
     const first = l.a === n || l.b === n;
     const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
+    if (spine && l.rank > 1) continue;          /* hidden stays hidden */
     l.el.setAttribute('stroke-opacity', first ? '.85' : second ? '.4' : '.06');
-    if (first || second) l.el.setAttribute('stroke', '#e2643a');
-    else l.el.setAttribute('stroke', l.type === 'contrasts-with' ? '#e2643a' : '#1f5f4f');
+    l.el.setAttribute('stroke', first || second ? '#e2643a'
+      : l.type === 'contrasts-with' ? '#e2643a' : '#1f5f4f');
     if (l.arrow) {
       l.arrow.setAttribute('fill', first || second ? '#e2643a' : '#1f5f4f');
-      l.arrow.setAttribute('fill-opacity', first ? '.95' : second ? '.55' : '.08');
+      l.arrow.setAttribute('fill-opacity', first ? '.95' : second ? '.55' : '.06');
     }
-    /* the edge TYPE is the content, and focus is when it is read */
     l.label.classList.toggle('on', first || (spine && l.rank === 1));
   }
 }
@@ -685,86 +868,99 @@ function focus(n) {
 function clearFocus() {
   focused = null;
   document.body.classList.remove('focusing');
-  for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
+  for (const m of nodes) {
+    m.el.classList.remove('lit', 'hub', 'hop2');
+    const c = m.el.querySelector('.chips'); if (c) c.innerHTML = '';
+  }
   measure();
   gutterLight(null);
-  for (const l of liveLinks) {
-    l.el.setAttribute('stroke', l.type === 'contrasts-with' ? '#e2643a' : '#1f5f4f');
-    l.el.setAttribute('stroke-opacity', l.rank === 1 ? '.4' : '.2');
-    if (l.arrow) {
-      l.arrow.setAttribute('fill', '#1f5f4f');
-      l.arrow.setAttribute('fill-opacity', l.rank === 1 ? '.55' : '.35');
-    }
-    l.label.classList.toggle('on', spine && l.rank === 1);
-  }
+  for (const l of links) edgeRefresh(l);
 }
 
-addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
+/* ---- the walk ------------------------------------------------------------
+   Arrow keys step along rank-1 edges from the focused card: → onward,
+   ← why. The doc's QA test, playable: if the spine is coherent, holding
+   → reads as a course. */
+function stepWalk(dir) {
+  if (!focused) return;
+  const cands = linksOf(focused)
+    .filter(l => groupOf(l, focused) === dir)
+    .sort((a, b) => a.rank - b.rank)
+    .map(l => l.a === focused ? l.b : l.a);
+  if (!cands.length) return;
+  const to = cands[0];
+  light(to);
+  focus(to);
+}
 
-/* ---- the spine ----------------------------------------------------------
-   The doc's QA view: reveal everything, draw only the rank-1 edges, and see
-   whether the skeleton reads as a course. Hairballs and orphans are visible
-   here and nowhere else. A visual filter only — the demoted edges still
-   spring in the relax, so toggling does not relayout the map. */
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') { clearFocus(); return; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); stepWalk('onward'); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); stepWalk('why'); }
+});
+
+/* ---- the spine ----------------------------------------------------------- */
+
 let spine = false;
 const spineBtn = document.getElementById('spinebtn');
 
 function setSpine(on) {
   spine = on;
   spineBtn.classList.toggle('on', on);
-  if (on) {
-    clearFocus();
-    /* reveal the whole graph: walk expand until nothing hidden remains */
-    let guard = nodes.length + 5;
-    while (guard-- > 0) {
-      const n = live.find(m => neighbours(m).some(o => !o.visible));
-      if (!n) break;
-      expand(n, false);
-    }
-    follow = null;
-  }
-  for (const l of liveLinks) {
-    const hide = on && l.rank > 1;
-    l.el.style.display = hide ? 'none' : '';
-    l.label.style.display = hide ? 'none' : '';
-    if (l.arrow) l.arrow.style.display = hide ? 'none' : '';
-    /* the audit is read, not squinted at: every spine edge says its type */
-    l.label.classList.toggle('on', on && !hide);
-  }
-  wake(0.8);
-  if (on) { draw(); centre(); }
+  clearFocus();
+  if (on) for (const n of nodes) light(n);
+  for (const l of links) edgeRefresh(l);
+  if (on) { measure(); centre(nodes); }
 }
 spineBtn.addEventListener('click', () => setSpine(!spine));
 
-/* ---- the gutter --------------------------------------------------------- */
+/* ---- the gutter ruler ---------------------------------------------------- */
 
 const gutter = document.getElementById('gutter');
-for (const [lv, name] of [...LADDER].reverse()) {
+const rungs = {};
+for (const [lv, name] of LADDER) {
   const r = document.createElement('div');
-  r.className = 'rung'; r.dataset.level = lv;
+  r.className = 'rung';
   r.innerHTML = '<i></i><span>' + esc(name) + '</span><span class="how"></span>';
   gutter.appendChild(r);
+  rungs[lv] = r;
 }
-const noRung = document.createElement('div');
-noRung.className = 'none'; noRung.textContent = 'no level · a concept';
-gutter.appendChild(noRung);
+
+function placeGutter() {
+  for (const [lv, r] of Object.entries(rungs)) {
+    const y = bandCentre[lv] * view.k + view.y;
+    r.style.top = y.toFixed(1) + 'px';
+    r.style.display = y < 70 || y > innerHeight - 40 ? 'none' : '';
+  }
+}
 
 function gutterLight(n) {
-  for (const r of gutter.querySelectorAll('.rung')) {
+  for (const r of Object.values(rungs)) {
     r.classList.remove('on');
     r.querySelector('.how').textContent = '';
     r.style.removeProperty('--tint');
   }
-  noRung.classList.remove('on');
-  if (!n || n.type === 'question' || n.type === 'theme') return;
-  const lv = n.level || n.occursAt || n.emergesAt;
-  if (!lv) { noRung.classList.add('on'); return; }
-  const r = gutter.querySelector('.rung[data-level="' + lv + '"]');
-  if (!r) return;
+  if (!n) return;
+  const lv = lvOf(n);
+  if (!lv) return;
+  const r = rungs[lv];
   r.classList.add('on');
   if (n.tint) r.style.setProperty('--tint', n.tint);
   r.querySelector('.how').textContent =
     n.occursAt ? 'occurs here' : n.emergesAt ? 'emerges here' : '';
+}
+
+/* faint band boundaries drawn in world space, so the shelves read even
+   where no ruler label is on screen */
+{
+  const x0 = -900, x1 = Math.max(...nodes.map(n => n.tx)) + 900;
+  for (const y of bandEdge) {
+    const ln = document.createElementNS(NS, 'line');
+    ln.setAttribute('class', 'band');
+    ln.setAttribute('x1', x0); ln.setAttribute('x2', x1);
+    ln.setAttribute('y1', y);  ln.setAttribute('y2', y);
+    svg.insertBefore(ln, svg.firstChild);
+  }
 }
 
 /* unit tints in the legend, read from the data so they cannot drift */
@@ -774,20 +970,21 @@ document.getElementById('tints').innerHTML =
     esc(u.name) + '</span>').join('') +
   '<span><i style="background:' + CHEM_TINT + '"></i>Chemistry</span>';
 
-/* ---- start -------------------------------------------------------------- */
+/* ---- start --------------------------------------------------------------- */
 
 let touched = false;
 canvas.addEventListener('pointerdown', () => { touched = true; });
 canvas.addEventListener('wheel', () => { touched = true; });
-addEventListener('resize', () => { if (!touched) centre(); });
+addEventListener('resize', () => { applyView(); if (!touched) centre(); });
 
-function centre() {
-  if (!live.length) return;
-  const xs = live.map(n => n.x), ys = live.map(n => n.y);
-  const pad = 260;
+function centre(set) {
+  const list = set || nodes.filter(n => n.on);
+  if (!list.length) return;
+  const xs = list.map(n => n.x), ys = list.map(n => n.y);
+  const pad = 300;
   const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad;
   const y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
-  const k = Math.min(0.85, Math.max(0.35,
+  const k = Math.min(0.9, Math.max(0.3,
     Math.min(innerWidth / (x1 - x0), innerHeight / (y1 - y0))));
   view = {
     k,
@@ -797,34 +994,26 @@ function centre() {
   applyView();
 }
 
+for (const n of nodes) paintNode(n);
+for (const l of links) paintLink(l);
+
 function start() {
-  follow = null;
   spine = false;
   spineBtn.classList.remove('on');
-  for (const n of live) n.el.remove();
-  for (const l of liveLinks) {
-    l.el.remove(); l.label.remove();
-    if (l.arrow) { l.arrow.remove(); l.arrow = null; }
-    l.painted = false;
-  }
-  live.length = 0; liveLinks.length = 0;
-  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
-  clearFocus();
-
-  /* the map opens on two ANCHORING QUESTIONS, one per unit — the doc's
-     "start with the questions" rule made visible. Each deals its rank-1
-     answers, and each answer deals its own band, so both units open as a
-     neighbourhood rather than a stranded card. */
-  const roots = [byId['q-medium'], byId['q-machine']];
-  show(roots[0], 0, 0, 0, 0);
-  show(roots[1], 0, 1600, 0, 1600);
-  for (const r of roots) {
-    const before = live.length;
-    expand(r, false);
-    for (const m of live.slice(before)) if (m.type !== 'question') expand(m, false);
-  }
   follow = null;
-  wake(0.8);
+  clearFocus();
+  unlightAll();
+  /* the doors: both anchoring questions and their rank-1 answers lit,
+     everything else fog */
+  for (const q of ['q-medium', 'q-machine']) {
+    const n = byId[q];
+    light(n);
+    for (const l of linksOf(n)) if (l.rank === 1) light(l.a === n ? l.b : l.a);
+  }
+  for (const l of links) edgeRefresh(l);
+  measure();
+  wake(1);
+  for (let i = 0; i < 240; i++) step();   /* pre-settle, so load is calm */
   draw();
   centre();
 }
