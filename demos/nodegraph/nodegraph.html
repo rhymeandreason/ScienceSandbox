@@ -244,11 +244,9 @@
     width: max-content;
   }
   .node.card.unlit .claim, .node.card.unlit .tags { display: none; }
-  .node.card.unlit .name { color: #b7b3a8; }
-  .node.card.unlit .name::before { opacity: 0.45; }
   .node.card.unlit.process { border-left-color: transparent; }
   .node.theme.unlit {
-    background: var(--paper); border: 1px dashed var(--line); color: var(--muted);
+    background: var(--paper); border: 1px dashed var(--line); color: var(--ink);
     width: max-content;
   }
   .node.theme.unlit .name { font-size: 1rem; }
@@ -260,24 +258,15 @@
   .node.question.unlit:hover {
     background: var(--card); border-color: var(--line); border-style: solid;
   }
-  .node.card.unlit:hover .name { color: var(--muted); }
-  .node.card.unlit:hover .name::before { opacity: 1; }
-  .node.theme.unlit:hover { color: var(--ink); }
-  .node.question.unlit:hover { color: var(--ink); }
-
-  /* a focused card's neighbours present themselves the same way: a mark in
-     the first hop takes the card ground and full-strength text, so the
-     offer reads as an offer rather than as fog that happens to be near */
+  /* a focused card's neighbours present themselves: a mark in the hops
+     takes the card ground, so the offer reads as an offer rather than as
+     fog that happens to be near */
   .focusing .node.card.unlit.lit {
     background: var(--card); border-color: var(--line);
   }
-  .focusing .node.card.unlit.lit .name { color: var(--muted); }
-  .focusing .node.card.unlit.lit .name::before { opacity: 1; }
   .focusing .node.theme.unlit.lit {
     background: var(--card); border-style: solid; border-color: var(--line);
-    color: var(--ink);
   }
-  .focusing .node.question.unlit.lit { color: var(--ink); }
 
   /* the focused card's neighbour groups: the direction of learning */
   .node .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
@@ -840,7 +829,7 @@ function focus(n) {
   const hop1 = new Set(neighbours(n));
   const hop2 = new Set();
   for (const m of hop1) for (const o of neighbours(m))
-    if (o !== n && !hop1.has(o) && o.on) hop2.add(o);
+    if (o !== n && !hop1.has(o)) hop2.add(o);
 
   n.el.classList.add('lit', 'hub');
   for (const m of hop1) m.el.classList.add('lit');
