@@ -4,11 +4,6 @@
      graphdata.js is the content (two units: water, proteins, plus the
      macromolecule bridges).
 
-     A FRESH ENGINE on the composer's design language, not a copy of it —
-     ConceptMap.md's rule. No WebGL, no search: skeleton first, so the node
-     structure can settle before material attaches. What is different from
-     the composer's model:
-
        * edges are TYPED and DIRECTED, and the type is drawn on the edge
          when a card is focused — "causes" vs "contrasts-with" is the content
        * rank is on the edge (1 spine / 2 enrichment / 3 on request), and
@@ -16,7 +11,7 @@
        * the scale ladder is a persistent left gutter; focusing a card lights
          the rung it sits at (level), runs at (occursAt), or emerges at
        * anything-to-anything: no bipartite rule. Questions are one node type
-         among six, not the crossing every path must take. -->
+         among six. -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -773,11 +768,18 @@ function start() {
   for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
   clearFocus();
 
-  /* two roots, one per unit: the water cause and the protein monomer.
-     Water opens one band; the protein root waits for its click. */
-  show(byId['water-mol'], 0, 0, 0, 0);
-  show(byId['amino-acid'], 0, 900, 0, 900);
-  expand(byId['water-mol']);
+  /* the map opens on two ANCHORING QUESTIONS, one per unit — the doc's
+     "start with the questions" rule made visible. Each deals its rank-1
+     answers, and each answer deals its own band, so both units open as a
+     neighbourhood rather than a stranded card. */
+  const roots = [byId['q-medium'], byId['q-machine']];
+  show(roots[0], 0, 0, 0, 0);
+  show(roots[1], 0, 1600, 0, 1600);
+  for (const r of roots) {
+    const before = live.length;
+    expand(r, false);
+    for (const m of live.slice(before)) if (m.type !== 'question') expand(m, false);
+  }
   follow = null;
   wake(0.8);
   draw();

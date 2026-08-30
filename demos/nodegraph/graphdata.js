@@ -262,7 +262,11 @@
 
     /* folding is the process, tertiary is the result: one direction only */
     ['folding',     'produces',        'tertiary',      1],
+    /* the unit's anchoring question, and one of the map's two entry points:
+       it lands on the spine (fold, shape, payoff), not on one card */
     ['q-machine',   'answers',         'folding',       1],
+    ['q-machine',   'answers',         'tertiary',      1],
+    ['q-machine',   'answers',         'func',          2],
 
     /* denaturation: the destroys/preserves pair is what makes irreversibility comprehensible */
     ['denaturation','destroys',        'tertiary',      1],
