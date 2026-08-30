@@ -73,6 +73,7 @@
     transition: color .15s, border-color .15s;
   }
   .btn:hover { color: var(--accent); border-color: var(--accent); }
+  .btn.on { color: var(--paper); background: var(--accent); border-color: var(--accent); }
 
   #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
   #canvas.panning { cursor: grabbing; }
@@ -269,6 +270,7 @@
   <a class="logo" href="../index.html">kodo<em>lab</em><span class="dot">.</span></a>
   <span class="title">Bio 101 node graph — two units, typed edges, the scale ladder</span>
   <span class="spacer"></span>
+  <button class="btn" id="spinebtn">Spine</button>
   <button class="btn" id="reset">Start over</button>
 </header>
 
@@ -672,7 +674,7 @@ function focus(n) {
       l.arrow.setAttribute('fill-opacity', first ? '.95' : second ? '.55' : '.08');
     }
     /* the edge TYPE is the content, and focus is when it is read */
-    l.label.classList.toggle('on', first);
+    l.label.classList.toggle('on', first || (spine && l.rank === 1));
   }
 }
 
@@ -689,11 +691,46 @@ function clearFocus() {
       l.arrow.setAttribute('fill', '#1f5f4f');
       l.arrow.setAttribute('fill-opacity', l.rank === 1 ? '.55' : '.35');
     }
-    l.label.classList.remove('on');
+    l.label.classList.toggle('on', spine && l.rank === 1);
   }
 }
 
 addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
+
+/* ---- the spine ----------------------------------------------------------
+   The doc's QA view: reveal everything, draw only the rank-1 edges, and see
+   whether the skeleton reads as a course. Hairballs and orphans are visible
+   here and nowhere else. A visual filter only — the demoted edges still
+   spring in the relax, so toggling does not relayout the map. */
+let spine = false;
+const spineBtn = document.getElementById('spinebtn');
+
+function setSpine(on) {
+  spine = on;
+  spineBtn.classList.toggle('on', on);
+  if (on) {
+    clearFocus();
+    /* reveal the whole graph: walk expand until nothing hidden remains */
+    let guard = nodes.length + 5;
+    while (guard-- > 0) {
+      const n = live.find(m => neighbours(m).some(o => !o.visible));
+      if (!n) break;
+      expand(n, false);
+    }
+    follow = null;
+  }
+  for (const l of liveLinks) {
+    const hide = on && l.rank > 1;
+    l.el.style.display = hide ? 'none' : '';
+    l.label.style.display = hide ? 'none' : '';
+    if (l.arrow) l.arrow.style.display = hide ? 'none' : '';
+    /* the audit is read, not squinted at: every spine edge says its type */
+    l.label.classList.toggle('on', on && !hide);
+  }
+  wake(0.8);
+  if (on) { draw(); centre(); }
+}
+spineBtn.addEventListener('click', () => setSpine(!spine));
 
 /* ---- the gutter --------------------------------------------------------- */
 
@@ -758,6 +795,8 @@ function centre() {
 
 function start() {
   follow = null;
+  spine = false;
+  spineBtn.classList.remove('on');
   for (const n of live) n.el.remove();
   for (const l of liveLinks) {
     l.el.remove(); l.label.remove();

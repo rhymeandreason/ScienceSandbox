@@ -252,16 +252,31 @@
     ['hbond',       'part-of',         'rgroup-inter',  2],   /* R-group H-bonds, the other kind */
     ['disulfide',   'part-of',         'rgroup-inter',  2],
     ['vdw',         'part-of',         'rgroup-inter',  3],
+    /* THE LEVELS LADDER IS A RANK-1 CHAIN: primary determines secondary,
+       secondary part-of tertiary, tertiary part-of quaternary. Two edge
+       types on purpose — the first hop is information (the sequence says
+       WHERE local structure forms), the next two are composition. The
+       mechanisms feed in from the side (hbond causes secondary,
+       rgroup-inter causes tertiary), so the sequence reads without the
+       1°-then-2°-then-3° timeline misconception ever being asserted.
+
+       Tertiary holds six rank-1 edges, one over the soft budget, and the
+       ladder is why: rgroup-inter in (the hinge), func out (the payoff),
+       denaturation in (the destroys/preserves pair), q-machine in (the
+       entry), secondary in and quaternary out (the ladder). Everything
+       else is one step in — primary reaches tertiary through the hinge,
+       the enzyme subtree opens through func, the theme is enrichment. */
     ['rgroup-inter','causes',          'tertiary',      1],
-    ['primary',     'determines',      'tertiary',      1],
-    ['secondary',   'part-of',         'tertiary',      2],
+    ['primary',     'determines',      'secondary',     1],
+    ['primary',     'determines',      'tertiary',      2],
+    ['secondary',   'part-of',         'tertiary',      1],
     ['tertiary',    'part-of',         'quaternary',    1],
     ['tertiary',    'causes',          'func',          1],
-    ['tertiary',    'instance-of',     'structfunc',    1],
+    ['tertiary',    'instance-of',     'structfunc',    2],
     ['quaternary',  'causes',          'func',          2],
 
     /* folding is the process, tertiary is the result: one direction only */
-    ['folding',     'produces',        'tertiary',      1],
+    ['folding',     'produces',        'tertiary',      2],
     /* the unit's anchoring question, and one of the map's two entry points:
        it lands on the spine (fold, shape, payoff), not on one card */
     ['q-machine',   'answers',         'folding',       1],
@@ -277,13 +292,15 @@
 
     /* enzyme subtree, hanging off tertiary structure */
     ['enzyme',      'instance-of',     'func',          1],
-    ['tertiary',    'contains',        'active-site',   1],
+    /* part-of, not `contains` flipped the other way: one containment type,
+       the ladder's, so the vocabulary stays small enough to trust */
+    ['active-site', 'part-of',         'tertiary',      2],
     ['active-site', 'part-of',         'enzyme',        1],
     ['enzyme',      'lowers',          'activation-e',  1],
     ['active-site', 'causes',          'specificity',   1],
     ['q-substrate', 'answers',         'specificity',   1],
     ['induced-fit', 'describes',       'active-site',   2],
-    ['optimal-cond','explained-by',    'tertiary',      1],   /* heat unfolds, it doesn't poison */
+    ['optimal-cond','explained-by',    'tertiary',      2],   /* heat unfolds, it doesn't poison */
     ['q-fever',     'answers',         'optimal-cond',  1],
 
     /* the showcase path: mutation to phenotype to evolution */
