@@ -124,10 +124,10 @@ for (const page of PAGES) {
 
   const have = new Set(Object.keys(sandbox.MolLib.MOLECULES));
 
-  /* A page's spec names do not all live in the page any more. door-map.html
-   * keeps its card table in lib/mapcontent.js — CONTENT, not a library: no
-   * behaviour, no scene, and the spec names it draws are in there. Without this
-   * the gate silently stopped covering that page (5 referenced fell to 1).
+  /* A page's spec names do not all live in the page any more. The map pages
+   * keep their card tables in lib/mapcontent.js — CONTENT, not a library: no
+   * behaviour, no scene, and the spec names they draw are in there. Without
+   * this the gate silently stopped covering them (5 referenced fell to 1).
    *
    * A NAMED list, not "every script that is not a mol-*.js". That was the first
    * try and it read scene.js and residues.js too, where the word `glycine`

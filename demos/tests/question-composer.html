@@ -10,10 +10,10 @@
 
      A concept card goes LIVE the moment it is REVEALED, not on a click. The map's
      whole claim is that a concept is a thing you can look at, and a placeholder
-     asks the reader to take that on faith until they click. `VIEWS` below says
-     which concepts have something to show; the ones with no entry grow no
-     picture box at all, and the ones that do show a loading state until the
-     stage mounts.
+     asks the reader to take that on faith until they click. `CONTENT` and
+     `PLACEMENTS` in mapcontent.js say what each concept has to show; a concept
+     with no INLINE content grows no picture box at all, and the ones that do
+     show a loading state until the stage mounts.
 
      They have to RUN rather than be pre-rendered as stills: most are water
      sims, and a freshly spawned one is molecules at random positions, so a
@@ -462,6 +462,65 @@
   }
   .node.concept.specimen.hub .claim { font-size: 0.85rem; margin-top: 0.7rem; }
 
+  /* ---- a video card ----------------------------------------------------
+     Same chassis as every other card — width, border, hover, the .hub growth —
+     so it sits in a fan and reads as belonging to the map. Three things make
+     it a video and they are the three that carry across the whole zoom range:
+     16:9 rather than 4:3, a dark ground rather than paper, and a credit line.
+     At k 0.4 the shape alone says it, before a word is legible. */
+  .node.concept.video { padding-top: 0.9rem; }
+  .node.concept.video .thumb.poster {
+    aspect-ratio: 16 / 9; margin-top: 0; background: #0e0f11; border-color: #0e0f11;
+  }
+  .node.concept.video .thumb.poster img {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  /* The play mark is the affordance; the button under it is the hit target and
+     only appears when the card is near, like every other control here. */
+  .node.concept.video .play {
+    position: absolute; left: 50%; top: 50%; width: 2.6rem; height: 2.6rem;
+    transform: translate(-50%, -50%);
+    border-radius: 50%; background: rgba(14,15,17,.55);
+    border: 1px solid rgba(255,255,255,.75);
+    transition: background .15s;
+  }
+  .node.concept.video .play::after {
+    content: ''; position: absolute; left: 56%; top: 50%;
+    transform: translate(-50%, -50%);
+    border: 0.5rem solid transparent; border-left: 0.8rem solid #fff;
+  }
+  .node.concept.video:hover .play { background: rgba(14,15,17,.8); }
+  /* Full bleed and invisible. NOT gated on `.near` like the card's other
+     controls: a video card has nothing to show but its poster, so zooming in
+     first would be a step that buys the reader nothing. */
+  .node.concept.video .playhit {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    padding: 0; border: 0; background: none; cursor: pointer;
+    font-size: 0; color: transparent;
+  }
+  .node.concept.video .playhit:focus-visible {
+    outline: 2px solid var(--spark); outline-offset: -3px;
+  }
+  .node.concept.video .name {
+    font-family: var(--serif); font-size: 0.95rem; font-weight: 400;
+    letter-spacing: 0; text-transform: none; color: var(--ink);
+    margin-top: 0.6rem;
+  }
+  .node.concept.video .name::before { display: none; }
+  /* Somebody else's work, and the card says so at the same weight the
+     specimen cards give a deposition's provenance. */
+  .node.concept.video .prov {
+    font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted); margin-top: 0.3rem;
+  }
+  .node.concept.video.hub .name { font-size: 1.5rem; }
+  .node.concept.video.hub .prov { font-size: 0.7rem; margin-top: 0.5rem; }
+
+  /* An opener with no picture to sit over needs a row of its own rather than
+     absolute position against the whole card. */
+  .node.concept .opens { margin: 0.65rem 0 0.1rem; }
+  .node.concept .opens .lesson { position: static; }
+
   /* ---- the title card -------------------------------------------------
      Only for `?q=`. The question is known before any fetch, so the second the
      corpus and the embedding take can be spent READING it rather than looking
@@ -554,6 +613,214 @@
     cursor: pointer; padding: 0.2rem 0.5rem;
   }
   .modal .mclose:hover { color: var(--ink); }
+
+  /* A VIDEO is 16:9 and a lesson is a sheet, so the card sizes to the content
+     rather than the two sharing one box with the wrong shape for one of them.
+     Black behind it: the letterbox belongs to the film, not to the paper. */
+  .modal.video .mcard { background: #0e0f11; }
+  .modal.video .mhead { border-bottom-color: rgba(255,255,255,.12); }
+  .modal.video .mhead > span:first-child { color: #f2f0ea; }
+  .modal.video .mclose { color: rgba(242,240,234,.6); }
+  .modal.video .mclose:hover { color: #fff; }
+  .modal.video .credit {
+    font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(242,240,234,.55);
+  }
+  /* THE VIDEO SETS THE HEIGHT and the column scrolls inside it. `.mcues` has
+     `overflow-y`, which zeroes its automatic minimum size, so 19 cues do not
+     drag the card taller than the picture — and `max-height` is what stops a
+     wide window from pushing the header off the top of the screen. */
+  .modal.video .mcard { width: min(1400px, 100%); height: auto;
+                        max-height: min(820px, 100%); }
+  /* The column is ABSOLUTE so it cannot size the row. A row flex container
+     takes its cross-axis height from the tallest item's content, and 19 cues
+     are taller than the picture — which held the card at its max height with a
+     band of dead black under the video. Out of flow, the video is the only
+     thing left to measure, so the card hugs it and the cues scroll in the gap
+     the margin leaves. */
+  .modal.video .mbody { position: relative; flex: 1; min-height: 0;
+                        overflow: hidden; }
+  .modal.video .mvideo { margin-right: 21rem; }
+  /* ---- our own player chrome -------------------------------------------
+     `controls=0` takes YouTube's bar away, and on its own that is not enough:
+     the title, the logo and the share button still fade in over the picture on
+     hover, which is the covering-the-science problem again in another form. So
+     the frame takes no pointer events at all and everything below is ours. The
+     cost is real and paid on purpose: fullscreen and the native scrubber are
+     gone, so we owe the reader a replacement for each. */
+  .modal.video .mstage { position: relative; }
+  .modal.video #videoframe, .modal.video #videoframe iframe { pointer-events: none; }
+  .modal.video .mtap {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    padding: 0; border: 0; background: none; cursor: pointer;
+  }
+  /* A SCRIM, not a picture. Mid-video this stands in front of YouTube's
+     paused overlay for the half second it takes to fade, and throwing the
+     title card over a 0:41 scene would be its own wrong. `.first` is the
+     pre-play state, where the poster IS the right image and the frame behind
+     it has nothing in it yet. */
+  .modal.video .mcover {
+    position: absolute; inset: 0; pointer-events: none;
+    background-color: rgba(14, 15, 17, .96);
+    background-position: center; background-size: cover;
+    background-repeat: no-repeat;
+    opacity: 0; transition: opacity .18s ease;
+  }
+  .modal.video .mcover.first { background-color: #0e0f11; }
+  .modal.video .mcard.covered .mcover { opacity: 1; }
+
+  /* The paused mark, centred. Only while paused, so a playing video is picture
+     and nothing else. */
+  .modal.video .mbig {
+    position: absolute; left: 50%; top: 50%; width: 3.4rem; height: 3.4rem;
+    transform: translate(-50%, -50%); pointer-events: none;
+    border-radius: 50%; background: rgba(14,15,17,.5);
+    border: 1px solid rgba(255,255,255,.7);
+    opacity: 0; transition: opacity .18s ease;
+  }
+  .modal.video .mbig::after {
+    content: ''; position: absolute; left: 56%; top: 50%;
+    transform: translate(-50%, -50%);
+    border: 0.62rem solid transparent; border-left: 1rem solid #fff;
+  }
+  /* Only while the cover is up. After that YouTube draws its own glyph on a
+     pause, and two play marks over one frame is worse than either. */
+  .modal.video .mcard.covered .mbig { opacity: 1; }
+
+  .modal.video .mctl {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.55rem 0.9rem 0.7rem;
+  }
+  .modal.video .mctl button {
+    flex: none; width: 1.1rem; height: 1.1rem; padding: 0;
+    background: none; border: 0; cursor: pointer; position: relative;
+  }
+  .modal.video .mplay::before {
+    content: ''; position: absolute; left: 2px; top: 50%;
+    transform: translateY(-50%);
+    border: 0.42rem solid transparent; border-left: 0.62rem solid rgba(242,240,234,.75);
+  }
+  /* Two bars, drawn from one element and its border, so pause needs no glyph. */
+  .modal.video .mcard.playing .mplay::before {
+    border: 0; width: 0.28rem; height: 0.82rem; left: 1px;
+    background: rgba(242,240,234,.75);
+    box-shadow: 0.42rem 0 0 rgba(242,240,234,.75);
+  }
+  .modal.video .mctl button:hover::before { border-left-color: #fff; background-color: #fff; }
+  .modal.video .mfull::before {
+    content: ''; position: absolute; inset: 2px;
+    border: 1px solid rgba(242,240,234,.75); border-radius: 1px;
+  }
+  .modal.video .mfull:hover::before { border-color: #fff; }
+  .modal.video .mtime {
+    flex: none; font-family: var(--sans); font-size: 0.6rem;
+    letter-spacing: 0.06em; color: rgba(242,240,234,.75);
+    font-variant-numeric: tabular-nums;
+  }
+  .modal.video .mtime.dim { color: rgba(242,240,234,.4); }
+  /* Padded above and below so the 2px line is a 14px hit target: a scrubber
+     the reader has to aim at is one they will miss. */
+  .modal.video .mbar {
+    flex: 1; height: 2px; cursor: pointer;
+    background: rgba(255,255,255,.16);
+    border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+    background-clip: padding-box;
+  }
+  .modal.video .mbar i {
+    display: block; height: 100%; width: 0; background: var(--spark);
+  }
+
+  /* `height: auto` is load-bearing: the IFrame API stamps width="640"
+     height="360" ATTRIBUTES on the iframe it builds, and a presentational
+     height beats `aspect-ratio` — the player came out 1030x356 in a box that
+     wanted 1030x579. */
+  #videoframe, #videoframe iframe {
+    display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0;
+  }
+
+  /* ---- the caption column ----------------------------------------------
+     The reason this modal is not simply a 16:9 box. YouTube's own captions
+     burn over the picture, and these videos PRINT their key terms on screen —
+     the caption lands on top of the word it is explaining. So captions are off
+     in the player and the text is here, beside it, where it can also be longer
+     than a caption line and clickable. */
+  .modal.video .mside {
+    position: absolute; inset: 0 0 0 auto; width: 21rem;
+    display: flex; flex-direction: column; min-height: 0;
+    border-left: 1px solid rgba(255,255,255,.1);
+  }
+  /* TWO TRACKS, and which one is showing is a fact about whose words these
+     are. The source under the switch is not decoration: the narration is the
+     video author's writing carried across, and a column of it with no name on
+     it reads as ours. */
+  .modal.video .mtracks {
+    flex: none; display: flex; align-items: center; gap: 0.35rem;
+    padding: 0.7rem 1rem 0.6rem;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .modal.video .mtracks button {
+    font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.14em;
+    text-transform: uppercase; cursor: pointer;
+    color: rgba(242,240,234,.45);
+    background: none; border: 1px solid rgba(255,255,255,.14);
+    border-radius: 3px; padding: 0.3rem 0.5rem;
+    transition: color .15s, border-color .15s;
+  }
+  .modal.video .mtracks button:hover { color: rgba(242,240,234,.8); }
+  .modal.video .mtracks button[aria-pressed="true"] {
+    color: #f4f2ec; border-color: rgba(255,255,255,.45);
+  }
+  .modal.video .mtracks .src {
+    margin-left: auto;
+    font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: rgba(242,240,234,.35);
+  }
+  /* Underlined rather than coloured: the column is already two greys and a
+     lit line, and a third colour here would read as another state. */
+  .modal.video .mtracks .src a,
+  .modal.video .credit a {
+    color: inherit; text-decoration: underline;
+    text-underline-offset: 2px; text-decoration-color: rgba(242,240,234,.3);
+  }
+  .modal.video .mtracks .src a:hover,
+  .modal.video .credit a:hover { color: #f4f2ec; text-decoration-color: currentColor; }
+  .modal.video .mcues {
+    flex: 1; min-height: 0;
+    margin: 0; padding: 0.6rem 0 1.2rem; list-style: none;
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  .modal.video .mcues li {
+    display: flex; gap: 0.7rem; align-items: baseline;
+    padding: 0.5rem 1rem; cursor: pointer;
+    color: rgba(242,240,234,.4);
+    font-family: var(--ui); font-size: 0.78rem; line-height: 1.5;
+    transition: color .18s ease;
+  }
+  .modal.video .mcues li:hover { color: rgba(242,240,234,.72); }
+  /* The lit line is the only one at full strength, so the column can be read
+     at a glance without hunting for where the video is. */
+  .modal.video .mcues li.on { color: #f4f2ec; }
+  .modal.video .mcues li.on .at { color: var(--spark); }
+  .modal.video .mcues .at {
+    flex: none; width: 2.4rem;
+    font-family: var(--sans); font-size: 0.62rem; letter-spacing: 0.06em;
+    color: rgba(242,240,234,.35);
+  }
+  /* A step number ties the line to the lesson's own ten, which is the same
+     numbering glycolysis-lab teaches. */
+  .modal.video .mcues .st {
+    flex: none; font-family: var(--sans); font-size: 0.55rem;
+    letter-spacing: 0.1em; color: rgba(242,240,234,.3);
+  }
+  /* Narrow: the column goes back into flow, under the video. */
+  @media (max-width: 900px) {
+    .modal.video .mbody { display: flex; flex-direction: column;
+                          overflow-y: auto; }
+    .modal.video .mvideo { margin-right: 0; }
+    .modal.video .mside { position: static; width: auto; flex: 1 1 auto;
+                          border-left: 0;
+                          border-top: 1px solid rgba(255,255,255,.1); }
+  }
   /* The lesson brings its own scrolling and its own chrome, so the frame is
      the whole card below the head and carries no border of its own. */
   #lessonframe { flex: 1; width: 100%; border: 0; display: block; }
@@ -604,6 +871,56 @@
   </div>
 </div>
 
+<!-- The video, over the map. A SECOND modal rather than the lesson's with a
+     different src: the two share nothing but the word "opens". A lesson is a
+     page we own, sized as a sheet, carrying its own chrome; a video is 16:9,
+     somebody else's, and its header has to say whose. kit/modal.js stacks
+     them, which is what it was built for. -->
+<div id="videomodal" class="modal video" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="videotitle">
+    <div class="mhead">
+      <span id="videotitle">the video</span>
+      <span id="videocredit" class="credit"></span>
+      <button class="mclose" aria-label="Close">&times;</button>
+    </div>
+    <div class="mbody">
+      <!-- A PLACEHOLDER, not the player. YouTube's IFrame API replaces this
+           node with its own iframe, and destroying the player takes that
+           iframe with it — which is what stops playback and ends the
+           third-party connection when the card closes. `mount()` puts a fresh
+           placeholder back. With no API (offline, blocked), `plain()` writes a
+           bare iframe here instead and the column simply does not follow. -->
+      <div class="mvideo">
+        <div class="mstage">
+          <div id="videoframe"></div>
+          <!-- A PAUSED player draws YouTube's own overlay: title, avatar,
+               "More videos", logo. pointer-events stops the HOVER chrome and
+               not that one, so the poster covers the frame whenever the video
+               is not running. It doubles as the loading state. -->
+          <div class="mcover"></div>
+          <!-- OUR click target. The frame below it is pointer-events:none, so
+               YouTube's hover chrome never appears over the picture; this is
+               what gives the click back. -->
+          <button type="button" class="mtap" id="videotap" aria-label="Play or pause"></button>
+          <span class="mbig" aria-hidden="true"></span>
+        </div>
+        <div class="mctl">
+          <button type="button" class="mplay" id="videoplay" aria-label="Play"></button>
+          <span class="mtime" id="videotime">0:00</span>
+          <div class="mbar" id="videobar"><i></i></div>
+          <span class="mtime dim" id="videodur">0:00</span>
+          <button type="button" class="mfull" id="videofull" aria-label="Fullscreen"></button>
+        </div>
+      </div>
+      <div class="mside">
+        <div class="mtracks" id="videotracks"></div>
+        <ol class="mcues" id="videocues"></ol>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="legend">
   <span id="fps">— fps</span>
   <span><i class="b"></i>built</span>
@@ -645,8 +962,8 @@
 <script src="../lib/covalent-drag.js"></script>
 <script src="../lib/ionic-drag.js"></script>
 <script src="../water/watersim.js"></script>
-<script src="../proteins/proteins.js"></script>   <!-- SPECIMENS resolve their keys here -->
-<script src="../lib/mapcontent.js"></script>   <!-- DOORS, CONCEPTS, QUESTIONS, VIEWS -->
+<script src="../proteins/proteins.js"></script>   <!-- PLACEMENTS' p: rows resolve their keys here -->
+<script src="../lib/mapcontent.js"></script>   <!-- DOORS, CONCEPTS, QUESTIONS, CONTENT, PLACEMENTS -->
 <script src="../kit/modal.js"></script>
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/molbox.js"></script>
@@ -658,7 +975,7 @@
 <script src="../hemoglobin/foldplay.js"></script>  <!-- the ss-from-bonds rule, shared with hemoglobin-lab -->
 <script>
 /* ---- the content ------------------------------------------------------
-   DOORS, CONCEPTS, QUESTIONS and VIEWS all live in lib/mapcontent.js now, so
+   DOORS, CONCEPTS, QUESTIONS, CONTENT and PLACEMENTS all live in lib/mapcontent.js now, so
    they can be edited somewhere better than an HTML file — map-cms.html reads
    and writes that file through the dev server. What is left in this page is
    what DRAWS them, which is the only thing a page should hold.
@@ -669,7 +986,38 @@
    text appeared once per concept and a re-wording in one of them split that node
    in two. `mapcontent.js`'s header has the argument. */
 
-const { DOORS, CONCEPTS, QUESTIONS, SPECIMENS, VIEWS } = MapContent;
+const { DOORS, CONCEPTS, QUESTIONS, CONTENT, PLACEMENTS } = MapContent;
+
+/* ---- content, resolved ------------------------------------------------
+   PLACEMENTS is content-major — one row per unit, carrying the rank it has on
+   each concept. The page needs it both ways round: by content id, to build the
+   video and specimen cards, and by concept, to ask a card what it shows. Both
+   indexes are built once here rather than by scanning the table at each card,
+   which is what keeps a reveal free of work proportional to the whole map. */
+const BY_ID = new Map(CONTENT.map(c => [c.id, c]));
+const PLACED = new Map(PLACEMENTS.map(([id, ranks, opt]) => [id, { ranks, opt }]));
+/* concept id -> [{ item, rank }], best rank first. A card mounts ONE inline
+   box, so the sort is what decides which — not table order, which would make
+   it an accident of authoring. */
+const ON_CONCEPT = new Map();
+for (const [id, { ranks }] of PLACED) {
+  const item = BY_ID.get(id);
+  if (!item) continue;                 // `p:` rows resolve from the registry
+  for (const [cid, rank] of Object.entries(ranks || {})) {
+    if (!ON_CONCEPT.has(cid)) ON_CONCEPT.set(cid, []);
+    ON_CONCEPT.get(cid).push({ item, rank });
+  }
+}
+for (const list of ON_CONCEPT.values()) list.sort((a, b) => a.rank - b.rank);
+
+const INLINE = { water: 1, build: 1, molbox: 1, protein: 1 };
+/* Node kinds that are a CARD: same frame, same controls gate, same search
+   index, whatever each one holds. A specimen and a video are cards that ARE
+   content; a concept is a card that shows some. */
+const CARDKIND = { concept: 1, protein: 1, video: 1 };
+/* Content a card OPENS rather than draws. A lesson is a button under the
+   thumb; a video is its own card, so it is not here. */
+const BUTTON = { lesson: 1 };
 const DOOR = DOORS.find(d => d.open) || DOORS[0];
 
 /* ---- graph ------------------------------------------------------------
@@ -696,12 +1044,12 @@ for (const m of CONCEPTS) {
   if (m.door === DOOR.id) links.push({ a: door, b: n, rank: m.rank });
 }
 
-/* SPECIMENS — a protein is a LEAF: it hangs off concepts and off questions and
-   never off another specimen, which is what keeps the map layered even though
-   a concept may now reach one directly, with no question between.
+/* PROTEIN SPECIMENS — a protein is a LEAF: it hangs off concepts and off questions and
+   never off another leaf, which is what keeps the map layered even though a
+   concept may now reach one directly, with no question between.
 
    THE REGISTRY IS THE LIST. Every protein in proteins/proteins.js gets a node;
-   `SPECIMENS` only says where one SITS, and which variant it sits as. So adding
+   a `p:` PLACEMENT only says where one SITS, and which variant it sits as. So adding
    a protein is a one-file edit, and a protein nobody has placed yet still has a
    home — its own door — rather than being invisible until someone remembers a
    second table exists.
@@ -710,12 +1058,12 @@ for (const m of CONCEPTS) {
    chosen variant's baked trace is resolved, because a card draws one structure
    and the registry already says which. */
 const SPEC = (window.ProteinLib && window.ProteinLib.PROTEINS) || [];
-const PLACED = new Map((SPECIMENS || []).map(([key, ranks, opt]) => [key, { ranks, opt }]));
-for (const key of PLACED.keys())
-  if (!SPEC.some(p => p.key === key)) console.warn(`[composer] SPECIMENS names no such protein \`${key}\``);
+for (const id of PLACED.keys())
+  if (id.startsWith('p:') && !SPEC.some(p => 'p:' + p.key === id))
+    console.warn(`[composer] PLACEMENTS names no such protein \`${id}\``);
 
 for (const p of SPEC) {
-  const { ranks = {}, opt } = PLACED.get(p.key) || {};
+  const { ranks = {}, opt } = PLACED.get('p:' + p.key) || {};
   const v = (opt && opt.variant && p.variants.find(x => x.id === opt.variant))
     || p.variants.find(x => x.default) || p.variants[0];
   if (opt && opt.variant && (!v || v.id !== opt.variant))
@@ -769,6 +1117,30 @@ for (const p of SPEC) {
   links.push(...edges);
 }
 
+/* VIDEO — a card of its own, hanging off the concepts that placed it, exactly
+   as a specimen does. A leaf: it never links to another leaf.
+
+   It gets a card rather than a chip on someone else's because a video HAS a
+   card's worth of content — a poster, a title, and somebody else's name, which
+   is not optional. Costs no WebGL context, so unlike an inline box the map can
+   hold as many as it is given. */
+for (const c of CONTENT) {
+  if (c.kind !== 'video') continue;
+  const { ranks = {} } = PLACED.get(c.id) || {};
+  const n = { ...c, kind: 'video', deg: 0 };
+  const edges = [];
+  for (const [cid, rank] of Object.entries(ranks)) {
+    const m = byId[cid];
+    if (!m) continue;                    // a concept the map does not draw yet
+    edges.push({ a: m, b: n, rank });
+    n.deg++; m.deg++;
+  }
+  if (!edges.length) continue;           // placed nowhere the map can reach
+  byId[n.id] = n;
+  nodes.push(n);
+  links.push(...edges);
+}
+
 /* One node per question, however many concepts name it — which is what makes a
    question the crossing rather than a leaf on each card. The row already IS one
    per question, so nothing here has to dedupe by text any more. */
@@ -804,9 +1176,9 @@ const rankFrom = (from, other) => {
 };
 
 /* ---- what a card has to show -------------------------------------------
-   `VIEWS` is in lib/mapcontent.js with the rest of the content: which concepts
-   have something to SHOW and what. Three kinds, and the page knows how to build
-   each one:
+   `CONTENT` and `PLACEMENTS` are in lib/mapcontent.js with the rest of the
+   content: the units a concept can show, and where each one sits. Four INLINE
+   kinds, and the page knows how to build each one:
 
      water  — card-stage.js + water/watersim.js.
      build  — molecule-builder.js, which brings its own ORTHOGRAPHIC stage.
@@ -836,16 +1208,386 @@ const lessonFrame = document.getElementById('lessonframe');
 const lessonTitle = document.getElementById('lessontitle');
 const lessonModal = Modal.create({
   el: 'lessonmodal',
-  onShow: v => {
-    lessonTitle.textContent = v.name;
-    lessonFrame.src = '../' + v.lesson;
+  onShow: c => {
+    lessonTitle.textContent = c.name || 'the lesson';
+    lessonFrame.src = '../' + c.href;
   },
   onHide: () => { lessonFrame.src = 'about:blank'; },
 });
 
-function protein(thumb, view, id, name) {
+/* ---- the video, over the map -----------------------------------------
+   youtube-nocookie, and the parameters are built here rather than authored in
+   mapcontent.js: the table holds the video's ID, which is the fact, and every
+   option below is this page's decision about how a card plays one.
+
+     cc_load_policy 0 — THE POINT OF THE COLUMN. These videos print their key
+                        terms on the picture, and a burned-in caption lands on
+                        top of the word it is explaining. The param is the
+                        documented way to ask; a reader whose account defaults
+                        captions on can still override it, which is what
+                        `unloadModule` on ready is for.
+     rel 0            — the end screen offers more of this channel rather than
+                        the whole of YouTube. A map is not a place to be
+                        recommended out of.
+     modestbranding 1 — the card already says whose work it is.
+     autoplay 1       — the reader clicked play. */
+const YT_VARS = {
+  rel: 0, modestbranding: 1, autoplay: 1, playsinline: 1,
+  cc_load_policy: 0, iv_load_policy: 3,
+  /* No YouTube bar. The strip under the picture is ours, and the frame takes
+     no pointer events, so the title and logo never fade in over the animation
+     either. `plain()` keeps the native controls, because with no API there is
+     nothing to drive a replacement with. */
+  controls: 0,
+};
+const ytSrc = (id, api) =>
+  'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?' +
+  new URLSearchParams({ ...YT_VARS, ...(api ? { enablejsapi: 1, origin: location.origin } : {}) });
+
+/* The API is loaded ON FIRST OPEN and never before: it is a third-party script,
+   and a map nobody has opened a video on should not have fetched one. Resolves
+   to null rather than throwing when it cannot load — offline, blocked, no
+   network — and the caller falls back to a plain iframe. */
+let ytReady = null;
+function loadYT() {
+  if (ytReady) return ytReady;
+  ytReady = new Promise(resolve => {
+    if (window.YT && window.YT.Player) return resolve(window.YT);
+    const t = setTimeout(() => resolve(null), 6000);
+    window.onYouTubeIframeAPIReady = () => { clearTimeout(t); resolve(window.YT); };
+    const el = document.createElement('script');
+    el.src = 'https://www.youtube.com/iframe_api';
+    el.onerror = () => { clearTimeout(t); resolve(null); };
+    document.head.appendChild(el);
+  });
+  return ytReady;
+}
+
+const cueList = document.getElementById('videocues');
+const trackBar = document.getElementById('videotracks');
+let player = null, tracks = [], cues = [], cueEls = [], lit = -1, ticker = 0;
+
+/* Which track the reader last chose, kept for the session only. A default that
+   followed them across visits would need storage this page does not otherwise
+   touch, and the default matters more than the memory: the video's OWN words
+   are what a reader watching somebody else's video should get first. */
+let trackPref = 'narration';
+
+
+const mmss = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+
+function renderCues() {
+  cueList.textContent = ''; cueEls = []; lit = -1;
+  for (const q of cues) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="at">' + mmss(q.t) + '</span>' +
+                   '<span class="tx">' + esc(q.text) + '</span>' +
+                   (q.step ? '<span class="st">' + q.step + '</span>' : '');
+    // Reading ahead is what the column is for, so a line is a seek target.
+    li.addEventListener('click', () => {
+      if (player && player.seekTo) { player.seekTo(q.t, true); player.playVideo(); }
+    });
+    cueList.appendChild(li);
+    cueEls.push(li);
+  }
+  // Straight back to where the video is, so switching track never loses the
+  // place. Instant rather than smooth: the list was just rebuilt, and animating
+  // a scroll from the top of a list the reader never saw is motion for nothing.
+  if (player && player.getCurrentTime) {
+    litAt(player.getCurrentTime());
+    if (cueEls[lit]) cueEls[lit].scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function pickTrack(id) {
+  const t = tracks.find(x => x.id === id) || tracks[0];
+  if (!t) return;
+  trackPref = t.id;
+  cues = t.cues || [];
+  for (const b of trackBar.querySelectorAll('button'))
+    b.setAttribute('aria-pressed', String(b.dataset.track === t.id));
+  const src = trackBar.querySelector('.src');
+  if (src) src.innerHTML = t.sourceUrl
+    ? '<a href="' + esc(t.sourceUrl) + '" target="_blank" rel="noopener noreferrer">'
+      + esc(t.source || '') + '</a>'
+    : esc(t.source || '');
+  renderCues();
+}
+
+/* TWO TRACKS, and the default is the video's own. The narration is the film's
+   author writing about their own film, and a reader watching somebody else's
+   work should hear it in their words; ours is the same beats rewritten for a
+   Bio 101 reader, which is a summary and says so. The switch is only drawn
+   when there is more than one, so a single-track video shows no chrome. */
+function renderTracks() {
+  trackBar.textContent = '';
+  trackBar.hidden = tracks.length < 2;
+  if (trackBar.hidden) return;
+  for (const t of tracks) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.track = t.id;
+    b.textContent = t.label || t.id;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => pickTrack(t.id));
+    trackBar.appendChild(b);
+  }
+  const src = document.createElement('span');
+  src.className = 'src';
+  trackBar.appendChild(src);
+}
+
+/* Fetched per open and not cached: a video is opened once in a session far
+   more often than twice, and the file is a couple of KB. An empty column is a
+   fine failure — the video still plays. */
+async function loadCues(c) {
+  tracks = []; cues = []; cueEls = []; lit = -1;
+  cueList.textContent = ''; trackBar.textContent = ''; trackBar.hidden = true;
+  if (!c.captions) return;
+  try {
+    const doc = await fetch('../' + c.captions).then(r => r.json());
+    tracks = doc.tracks || [];
+  } catch (e) { return; }
+  renderTracks();
+  pickTrack(trackPref);
+}
+
+/* Which line is now. Linear from the last one rather than a search over all of
+   them: playback moves forward, and a seek is the only jump. */
+function litAt(t) {
+  let i = cues.length - 1;
+  while (i > 0 && cues[i].t > t) i--;
+  if (i === lit) return;
+  if (cueEls[lit]) cueEls[lit].classList.remove('on');
+  lit = i;
+  const el = cueEls[i];
+  if (!el) return;
+  el.classList.add('on');
+  /* nearest, so following the video never yanks the column while the reader is
+     scrolled somewhere else on purpose. */
+  el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+/* No API: the video still plays and the column still reads, it just does not
+   follow. Better than no video. */
+function plain(c) {
+  /* Native controls come back with the player, so ours would be a second set
+     that does nothing. */
+  const strip = document.querySelector('.mctl');
+  if (strip) strip.hidden = true;
+  const box = document.querySelector('.mstage');
+  box.innerHTML = '';
+  const f = document.createElement('iframe');
+  f.id = 'videoframe';
+  f.title = 'video';
+  f.allow = 'autoplay; encrypted-media; picture-in-picture';
+  f.allowFullscreen = true;
+  f.referrerPolicy = 'strict-origin-when-cross-origin';
+  f.src = ytSrc(c.src, false).replace('controls=0', 'controls=1');
+  box.appendChild(f);
+}
+
+/* WHERE THE CAPTIONS ACTUALLY GO OFF, and the whole reason the cue column can
+   exist. `cc_load_policy=0` only ASKS: a reader whose YouTube account defaults
+   captions on gets them anyway, and these videos print their key terms on the
+   picture, so the burned-in line lands on top of the word it is explaining.
+
+   Two calls because neither is documented and only their combination was
+   observed to clear the render. The getters keep reporting a live track
+   afterwards, so `getOption` cannot be used to check the result — the picture
+   is the only test. Retried on a delay as well as on the module event: the
+   module can load after the event that announced the last one. */
+function killCaptions(p) {
+  const go = () => {
+    try { p.setOption('captions', 'track', {}); } catch (e) {}
+    for (const m of ['captions', 'cc']) { try { p.unloadModule(m); } catch (e) {} }
+  };
+  go();
+  setTimeout(go, 1200);
+}
+
+/* ---- our own transport -----------------------------------------------
+   Every one of these exists because `controls=0` took YouTube's away. The
+   modal card carries `playing` / `paused` so the CSS can draw the state in two
+   places at once (the strip's button and the big centre mark) from one fact. */
+const vCard = () => document.querySelector('#videomodal .mcard');
+const vPlay = document.getElementById('videoplay');
+const vTap  = document.getElementById('videotap');
+const vBar  = document.getElementById('videobar');
+const vFill = vBar.querySelector('i');
+const vTime = document.getElementById('videotime');
+const vDur  = document.getElementById('videodur');
+
+function setPlaying(on) {
+  const card = vCard();
+  if (!card) return;
+  card.classList.toggle('playing', on);
+  card.classList.toggle('paused', !on);
+  vPlay.setAttribute('aria-label', on ? 'Pause' : 'Play');
+}
+
+/* THE COVER IS THE PRE-PLAY STATE ONLY, and that limit is a measured result
+   rather than a preference.
+
+   YouTube draws its own overlay — big glyph, title, avatar, "More videos",
+   logo — on every pause AND every seek, and it does not fade on a timer we can
+   wait out: measured at +0.5s, +2s and +8s after a resume, it was still up at
+   two and gone by eight. Covering it would mean hiding several seconds of the
+   film every time the reader touches a cue, which costs more than the chrome.
+
+   So the cover does the one job it can do cleanly: it hides the player's
+   start-up, where there is nothing behind it worth seeing anyway. Once the
+   picture has moved it never comes back, and a pause shows YouTube's own UI,
+   which is what a paused embed looks like. */
+function setCovered(on) {
+  const card = vCard();
+  if (card) card.classList.toggle('covered', on);
+}
+
+function toggle() {
+  if (!player || !player.getPlayerState) return;
+  const YT = window.YT;
+  if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
+  else player.playVideo();
+}
+vPlay.addEventListener('click', toggle);
+vTap.addEventListener('click', toggle);
+
+/* Seek from anywhere on the track, including the transparent padding that
+   makes a 2px line catchable. */
+vBar.addEventListener('click', e => {
+  if (!player || !player.getDuration) return;
+  const r = vBar.getBoundingClientRect();
+  const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  player.seekTo(f * player.getDuration(), true);
+  player.playVideo();
+});
+
+/* Ours, because the native button went with the rest of the chrome. The iframe
+   itself is what goes fullscreen, so the strip and the column stay behind. */
+document.getElementById('videofull').addEventListener('click', () => {
+  const f = player && player.getIframe && player.getIframe();
+  if (f && f.requestFullscreen) f.requestFullscreen();
+});
+
+function paintTime() {
+  if (!player || !player.getCurrentTime) return;
+  const t = player.getCurrentTime(), d = player.getDuration() || 0;
+  vTime.textContent = mmss(t);
+  vDur.textContent = mmss(d);
+  vFill.style.width = d ? (t / d * 100) + '%' : '0';
+  /* Lifted by the PICTURE moving rather than by the player reporting PLAYING,
+     which it does while its start-up card is still on screen. */
+  if (t >= 0.55) {
+    setCovered(false);
+    // The poster has done its job once the video is running; every later
+    // cover is a scrim over a frame the reader has already seen.
+    const cv = document.querySelector('.mcover');
+    if (cv && cv.classList.contains('first')) {
+      cv.classList.remove('first');
+      cv.style.backgroundImage = '';
+    }
+  }
+  litAt(t);
+}
+
+function mount(c) {
+  loadYT().then(YT => {
+    if (!videoModal.isOpen()) return;          // closed while the script loaded
+    if (!YT) return plain(c);
+    player = new YT.Player('videoframe', {
+      /* The API builds its iframe against www.youtube.com unless told
+         otherwise, which would quietly undo the nocookie host `plain()` uses. */
+      host: 'https://www.youtube-nocookie.com',
+      videoId: c.src,
+      playerVars: YT_VARS,
+      events: {
+        onReady: e => { killCaptions(e.target); e.target.playVideo(); },
+        // Fires whenever a module loads, which is the only moment the
+        // captions one can be taken away. It can fire more than once, and
+        // killCaptions is safe to repeat.
+        onApiChange: e => killCaptions(e.target),
+        onStateChange: e => {
+          clearInterval(ticker);
+          /* BUFFERING is not PAUSED. YouTube fires it after PLAYING and again
+             on every seek, and treating it as a stop threw the poster over a
+             running video for as long as the buffer took. The state is left
+             exactly as it was and the ticker stops, which is all buffering
+             actually means here. */
+          if (e.data === YT.PlayerState.BUFFERING) return;
+          setPlaying(e.data === YT.PlayerState.PLAYING);
+          /* THE END SCREEN IS THE LAST PIECE OF CHROME. `rel=0` narrows it to
+             this channel but does not remove it, and a grid of thumbnails over
+             the final frame is exactly what the reader came here to get away
+             from. Rewinding to the start puts frame 0 back and never lets it
+             draw. */
+          if (e.data === YT.PlayerState.ENDED) {
+            e.target.seekTo(0, true);
+            e.target.pauseVideo();
+            paintTime();
+            return;
+          }
+          if (e.data !== YT.PlayerState.PLAYING) { paintTime(); return; }
+          ticker = setInterval(paintTime, 250);
+        },
+      },
+    });
+  });
+}
+
+const videoModal = Modal.create({
+  el: 'videomodal',
+  onShow: c => {
+    document.getElementById('videotitle').textContent = c.name;
+    /* A link in the MODAL and plain text on the card. On the card, every click
+       is the map's — zoom, drag, or open the video — and one that leaves the
+       site would be competing with all three. Here the reader has already
+       watched it, and going to find more is the reasonable next thing. */
+    const credit = document.getElementById('videocredit');
+    const label = esc(c.credit) + (c.year ? ' · ' + esc(String(c.year)) : '');
+    credit.innerHTML = c.creditUrl
+      ? '<a href="' + esc(c.creditUrl) + '" target="_blank" rel="noopener noreferrer">'
+        + label + '</a>'
+      : label;
+    const cover = document.querySelector('.mcover');
+    if (cover) {
+      cover.classList.add('first');
+      cover.style.backgroundImage = 'url("../' + c.poster + '")';
+    }
+    setPlaying(false);
+    setCovered(true);             // and stays up until the picture moves
+    loadCues(c);
+    mount(c);
+  },
+  /* DESTROYING the player is what stops it. A hidden iframe keeps playing and
+     keeps talking to YouTube, so closing the card has to end both — and the
+     placeholder has to come back, because destroy() takes the node with it. */
+  onHide: () => {
+    clearInterval(ticker); ticker = 0;
+    if (player && player.destroy) player.destroy();
+    player = null; lit = -1;
+    setPlaying(false);
+    setCovered(true);
+    vFill.style.width = '0'; vTime.textContent = '0:00'; vDur.textContent = '0:00';
+    /* destroy() takes the iframe with it, so the STAGE is rebuilt — the frame
+       placeholder, our click target and the paused mark. Only the stage: the
+       strip below has live listeners bound to its nodes, and rebuilding
+       `.mvideo` would silently drop every one of them. */
+    const stage = document.querySelector('.mstage');
+    if (stage) stage.innerHTML =
+      '<div id="videoframe"></div>' +
+      '<div class="mcover"></div>' +
+      '<button type="button" class="mtap" id="videotap" aria-label="Play or pause"></button>' +
+      '<span class="mbig" aria-hidden="true"></span>';
+    document.getElementById('videotap').addEventListener('click', toggle);
+    const strip = document.querySelector('.mctl');
+    if (strip) strip.hidden = false;
+  },
+});
+
+function protein(thumb, view) {
   /* Two callers, one box. A SPECIMEN names a protein and lets the registry
-     answer; a concept's VIEWS entry names files directly, because the ones it
+     answer; an `r:` content item names files directly, because the ones it
      draws (a chain-B fold, a lesson-tier surface) have no role in the registry.
      `base` is this page's own fact: paths are repo-relative and tests/ is a
      directory down. */
@@ -857,17 +1599,6 @@ function protein(thumb, view, id, name) {
         surface: view.surface ? '../' + view.surface : null,
         fold: view.fold ? '../' + view.fold : null });
 
-  if (view.lesson) {
-    const open = document.createElement('button');
-    open.type = 'button';
-    open.className = 'lesson';
-    open.textContent = 'open lesson';
-    open.addEventListener('click', e => {
-      e.stopPropagation();
-      lessonModal.show({ name: name || 'the lesson', lesson: view.lesson });
-    });
-    thumb.appendChild(open);
-  }
   return box;
 }
 
@@ -1000,21 +1731,39 @@ function goLiveSoon(n) {
 
 // The click that opens a card is the click that starts it. A card asked twice
 // for its picture is a card the reader never sees move.
-/* What a node draws. A concept names its view in mapcontent.js; a SPECIMEN
-   carries its own, because the file it draws is the registry's answer and
-   restating it in VIEWS would be a second source for the same fact. */
+/* What a node draws. A concept draws the best-ranked INLINE item placed on it,
+   and only one however many are placed: a live box is a WebGL context and the
+   pool below rations four across the whole map. A specimen and a video carry
+   their own, because a card that IS a piece of content does not look its
+   content up. */
 /* A thumb is a PROMISE that a picture is coming, so a card with no view has no
    box: an empty grey rectangle appearing on click is something the reader has
    to read as meaning anything at all. The `.ph` inside is the loading state
    until the stage mounts over it. */
 function thumbHTML(n) {
-  return viewFor(n) ? '<div class="thumb"><span class="ph"></span></div>' : '';
+  /* An opener rides INSIDE the thumb, bottom-left over the picture, which is
+     where it has always sat. A card with an opener and no picture is not a
+     thing the map holds today, and when it is, the button needs a row of its
+     own rather than absolute position against the whole card. */
+  const opens = opensFor(n).map(c =>
+    '<button type="button" class="lesson" data-open="' + esc(c.id) + '">open lesson</button>').join('');
+  if (viewFor(n)) return '<div class="thumb"><span class="ph"></span>' + opens + '</div>';
+  return opens ? '<div class="opens">' + opens + '</div>' : '';
 }
 
 function viewFor(n) {
   if (n.kind === 'protein') return { kind: 'protein', protein: n.protein, variant: n.variant };
-  return VIEWS[n.id];
+  if (n.kind === 'video') return null;      // a poster is markup, not a stage
+  const placed = ON_CONCEPT.get(n.id) || [];
+  const hit = placed.find(x => INLINE[x.item.kind]);
+  return hit ? hit.item : null;
 }
+
+/* The content a card OPENS: buttons under its thumb, in rank order. A video is
+   not here — it is a card of its own, out on the map where its poster and its
+   credit have room. */
+const opensFor = n => (n.kind === 'concept' ? ON_CONCEPT.get(n.id) || [] : [])
+  .filter(x => BUTTON[x.item.kind]).map(x => x.item);
 
 function goLive(n) {
   const view = viewFor(n);
@@ -1050,7 +1799,7 @@ function goLive(n) {
                                       fill: true, zoomOnComplete: true });
     }
 
-    if (view.kind === 'protein') return protein(thumb, view, n.id, n.name);
+    if (view.kind === 'protein') return protein(thumb, view);
 
     let sim = null;
     const box = CardStage.create({
@@ -1202,9 +1951,9 @@ function refreshMeta(n) {
   if (!el) return;
   const hidden = neighbours(n).filter(m => !m.visible).length;
   if (n.kind === 'door') { el.textContent = hidden ? '+' + hidden + ' concepts' : DOOR.label; return; }
-  /* A specimen's hidden neighbours are CONCEPTS — the concepts that hold it —
-     not questions, and the card said "+1 question" over two of them. */
-  const noun = n.kind === 'protein'
+  /* A leaf's hidden neighbours are CONCEPTS — the concepts that hold it — not
+     questions, and the card said "+1 question" over two of them. */
+  const noun = n.kind === 'protein' || n.kind === 'video'
     ? (hidden === 1 ? ' concept' : ' concepts')
     : (hidden === 1 ? ' question' : ' questions');
   el.textContent = n.done || !hidden ? '' : '+' + hidden + noun;
@@ -1262,6 +2011,30 @@ function paintNode(n) {
                    '<div class="claim">' + n.claim + '</div>' +
                    '<div class="prov">' + prov + '</div>' +
                    '<div class="meta"></div>';
+  } else if (n.kind === 'video') {
+    /* A concept card leads with its claim and a specimen with its name; a video
+       leads with its PICTURE, because the picture is the thing being offered
+       and the title is a label on it. 16:9 and a dark ground, which is what
+       separates it from a molecule at a zoom where no text is legible yet.
+
+       The poster is local and the iframe does not exist until the card is
+       opened, so a map at rest makes no request to YouTube. */
+    el.className = 'node concept video';
+    el.innerHTML = '<div class="thumb poster">' +
+                     '<img src="../' + esc(n.poster) + '" alt="" loading="lazy">' +
+                     '<span class="play" aria-hidden="true"></span>' +
+                     /* The whole poster is the button, not a chip in the
+                        corner: the play mark already says what a click does,
+                        and a second control saying it again is one the reader
+                        has to aim at. A real <button> rather than a click
+                        handler on the div, so it keeps a tab stop and a name. */
+                     '<button type="button" class="playhit" data-open="' + esc(n.id) + '">' +
+                       'Play video</button>' +
+                   '</div>' +
+                   '<div class="name">' + esc(n.name) + '</div>' +
+                   '<div class="prov">' + esc(n.credit) +
+                     (n.year ? ' · ' + esc(String(n.year)) : '') + '</div>' +
+                   '<div class="meta"></div>';
   } else if (n.ask) {
     /* textContent and not innerHTML: this text is typed by the reader. */
     /* The sentence and nothing else. A label saying "you asked" over the
@@ -1276,6 +2049,17 @@ function paintNode(n) {
     el.className = 'node question';
     el.innerHTML = '<span>' + n.text + '</span>';
   }
+  /* Delegated, and on the card rather than the button: a card is repainted and
+     a listener per button is a listener per repaint. `stopPropagation` because
+     the card's own click zooms it, and an opener is not a request to zoom. */
+  el.addEventListener('click', e => {
+    const b = e.target.closest('[data-open]');
+    if (!b || !el.contains(b)) return;
+    e.stopPropagation();
+    const c = BY_ID.get(b.dataset.open);
+    if (c) (c.kind === 'video' ? videoModal : lessonModal).show(c);
+  });
+
   n.el = el;
   world.appendChild(el);
   n.r = Math.hypot(el.offsetWidth, el.offsetHeight) / 2;
@@ -1481,7 +2265,7 @@ function markNear() {
   for (const n of live) {
     // Specimens too: the card is a concept card, wears the same controls, and
     // skipping it left a surface toggle sitting at opacity 0 forever.
-    if (!n.el || (n.kind !== 'concept' && n.kind !== 'protein')) continue;
+    if (!n.el || !CARDKIND[n.kind]) continue;
     const f = n.el.classList.contains('hub') ? HUB_RATIO : 1;
     n.el.classList.toggle('near', view.k * f >= CONTROLS_AT);
   }
@@ -1524,10 +2308,14 @@ let lastHit = null, lastHitAt = 0;
 canvas.addEventListener('pointerdown', e => {
   /* A card's own control keeps its pointer. Without this the canvas captures
      the pointer on the way down, the button never sees the pointerup, and the
-     click that reaches it is the card's — so the toggle looked dead while the
-     card behind it opened. Both controls, since the builder's 3D/2D sits in a
-     card the same way. */
-  if (e.target.closest('.pbox-rep, .pbox-play, .lesson, .mb-dims')) return;
+     click that reaches it is the card's — so the control looked dead while the
+     card behind it opened.
+
+     EVERY CONTROL A CARD CARRIES HAS TO BE IN THIS LIST. It is the one place
+     that knows they exist, nothing links a new control to it, and the symptom
+     is a button that renders perfectly and does nothing. `.playhit` is the
+     video poster, which is a control covering the whole picture. */
+  if (e.target.closest('.pbox-rep, .pbox-play, .lesson, .playhit, .mb-dims')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
@@ -1677,7 +2465,7 @@ function centre() {
      than by a decision. Below 0.5 the claim on a card is unreadable, which
      makes the map a diagram of itself — so the opening view is 0.5 and what
      does not fit is off screen, waiting to be panned to. */
-  /* DIVERGES from door-map's centre(): the composer is a fixed band across the
+  /* A fixed band across the top rather than centring on the whole window: the
      top, and centring on the whole window puts cards under it — measured, the
      root card landed there, which is the one card that must be visible. So the
      frame is the window BELOW the box, and the fit is solved against that
@@ -1844,7 +2632,7 @@ function openFrom(q) {
      them deal the same one, stacked. start() never sees it because the door is
      already visible by the time anything expands. The composer's root is the
      typed question; the door is not part of the shape it opens. */
-  for (const m of fan) expand(m, (n, x) => x.kind === 'question' || x.kind === 'protein', onward);
+  for (const m of fan) expand(m, (n, x) => x.kind === 'question' || x.kind === 'protein' || x.kind === 'video', onward);
   for (const m of live) refreshMeta(m);
   follow = null;
   touched = false;
@@ -2279,7 +3067,7 @@ const norm = t => t.toLowerCase().normalize('NFKD')
    registry name is the British spelling. Drop the key and an American student
    cannot type the flagship card. The key is namespaced (`p:hemoglobin`), so the
    bare half is what gets matched. */
-const CARDS = nodes.filter(n => n.kind === 'concept' || n.kind === 'protein');
+const CARDS = nodes.filter(n => CARDKIND[n.kind]);
 const NAMED = CARDS.map(m => ({
   m,
   key: norm(m.name),

@@ -19,7 +19,7 @@
  *  ribbon stays up until they land, and the loop runs only while the fold is
  *  showing. The page adds the third gate — whether the controls are reachable
  *  at this zoom at all — because only the page knows how big its card is on
- *  screen. door-map does that with `.near`.
+ *  screen. The door map does that with `.near`.
  *
  *  ONE DECODED SURFACE ACROSS EVERY BOX, for the same reason kit/card-stage.js
  *  rations contexts: 360 KB of quantised mesh becomes several MB of GPU

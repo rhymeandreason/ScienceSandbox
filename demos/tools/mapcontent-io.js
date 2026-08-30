@@ -6,7 +6,8 @@
  *  it, validate every rule its header states, splice ONE array back in.
  *
  *  Two arrays are rewritable, QUESTIONS and CONCEPTS, and each is spliced
- *  on its own. The header, DOORS and VIEWS are carried across untouched,
+ *  on its own. The header, DOORS, CONTENT and PLACEMENTS are carried across
+ *  untouched,
  *  so the prose that states the curation rules cannot be lost to a save.
  *
  *  A save that carries only one of them leaves the other exactly as it was
@@ -40,7 +41,11 @@ function parse(src) {
   }
   return {
     doors: c.DOORS,
-    views: c.VIEWS || {},
+    /* Concept ids that some content is placed on — what the CMS needs to warn
+       that deleting a concept would orphan a placement it cannot rewrite. The
+       tables themselves are not editable here, so the ids are the whole of it. */
+    placed: [...new Set((c.PLACEMENTS || [])
+      .flatMap(([, ranks]) => Object.keys(ranks || {})))],
     // Copied rather than handed over, so a caller mutating what it got back
     // cannot reach into the parsed file and change it underneath.
     rows: c.QUESTIONS.map(([text, ranks]) => ({ text, concepts: { ...ranks } })),

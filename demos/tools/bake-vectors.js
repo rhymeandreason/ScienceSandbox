@@ -78,7 +78,7 @@ const sha = s => crypto.createHash('sha256').update(s, 'utf8').digest('hex').sli
  * question is still drawn, and the crossing between them is simply gone. That is
  * the one thing the map exists to do, and nothing was checking it. */
 function integrity() {
-  const { DOORS, CONCEPTS, QUESTIONS, SPECIMENS, VIEWS } = require(SRC).MapContent;
+  const { DOORS, CONCEPTS, QUESTIONS, CONTENT, PLACEMENTS } = require(SRC).MapContent;
   const ids = new Set(CONCEPTS.map(m => m.id));
   const doors = new Set(DOORS.map(d => d.id));
   const bad = [];
@@ -98,17 +98,33 @@ function integrity() {
     ? (keys ? keys.has(id.slice(2)) : true)
     : ids.has(id);
 
-  for (const [key, ranks, opt] of (SPECIMENS || [])) {
-    if (keys && !keys.has(key)) bad.push(`SPECIMENS names no such protein \`${key}\``);
-    /* A row exists to pick a placement or a variant, so a variant it names has
-       to be there: the page falls back to the default, which draws a different
-       deposition than the row asked for and looks entirely correct. */
-    if (byKey && opt && opt.variant && byKey.has(key)
-        && !byKey.get(key).variants.some(v => v.id === opt.variant))
-      bad.push(`specimen \`${key}\` names no such variant \`${opt.variant}\``);
+  /* A placement points at two things and either can go missing without a
+     symptom: the CONTENT row it places, and the concepts it places it on. A
+     `p:` row is the exception — its content lives in the other registry. */
+  const CONTENT_IDS = new Set((CONTENT || []).map(c => c.id));
+  for (const [cid, ranks, opt] of (PLACEMENTS || [])) {
+    if (cid.startsWith('p:')) {
+      const key = cid.slice(2);
+      if (keys && !keys.has(key)) bad.push(`PLACEMENTS names no such protein \`${cid}\``);
+      /* A row exists to pick a placement or a variant, so a variant it names
+         has to be there: the page falls back to the default, which draws a
+         different deposition than the row asked for and looks entirely
+         correct. */
+      if (byKey && opt && opt.variant && byKey.has(key)
+          && !byKey.get(key).variants.some(v => v.id === opt.variant))
+        bad.push(`specimen \`${cid}\` names no such variant \`${opt.variant}\``);
+    } else if (!CONTENT_IDS.has(cid)) {
+      bad.push(`PLACEMENTS places no such content \`${cid}\``);
+    }
     for (const id of Object.keys(ranks))
-      if (!ids.has(id)) bad.push(`specimen \`${key}\` sits under no such concept \`${id}\``);
+      if (!ids.has(id)) bad.push(`\`${cid}\` sits under no such concept \`${id}\``);
   }
+
+  /* Content nobody placed is content the map cannot reach — it draws no card
+     and appears nowhere, which is invisible from the page. */
+  const placedIds = new Set((PLACEMENTS || []).map(([cid]) => cid));
+  for (const c of (CONTENT || []))
+    if (!placedIds.has(c.id)) bad.push(`content \`${c.id}\` is placed on nothing`);
 
   /* Every registry entry is drawn now, so a variant with no baked ribbon is a
      protein missing from the map rather than a row somebody left out. */
@@ -121,9 +137,6 @@ function integrity() {
   for (const [text, ranks] of QUESTIONS)
     for (const id of Object.keys(ranks))
       if (!known(id)) bad.push(`question names no such ${id.startsWith('p:') ? 'protein' : 'concept'} \`${id}\`: ${text}`);
-
-  for (const id of Object.keys(VIEWS || {}))
-    if (!ids.has(id)) bad.push(`VIEWS names no such concept \`${id}\``);
 
   for (const m of CONCEPTS)
     if (m.door && !doors.has(m.door)) bad.push(`concept \`${m.id}\` sits on no such door \`${m.door}\``);

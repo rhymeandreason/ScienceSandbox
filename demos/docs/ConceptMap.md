@@ -1,12 +1,12 @@
-<!-- KIND: rulebook, scoped — load before touching the map's content (lib/mapcontent.js, and tools/bake-vectors.js which derives from it), any of the card pages (tests/question-composer.html, tests/door-map.html, tests/cards-cluster.html), the stage layer under them (kit/card-stage.js, kit/molbox.js, kit/proteinbox.js, molecule-builder/molecule-builder.js as a mounted box), or the composer's search (api/find.js). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. The last section is an ARGUMENT rather than a rule and can be skipped during a build. Nothing here applies to a lesson that draws one stage of its own. -->
+<!-- KIND: rulebook, scoped — load before touching the map's content (lib/mapcontent.js, and tools/bake-vectors.js which derives from it), any of the card pages (tests/question-composer.html, tests/cards-cluster.html), the stage layer under them (kit/card-stage.js, kit/molbox.js, kit/proteinbox.js, molecule-builder/molecule-builder.js as a mounted box), or the composer's search (api/find.js). The invariants section is the load-bearing half and every item in it is a failure that ships looking fine. The last section is an ARGUMENT rather than a rule and can be skipped during a build. Nothing here applies to a lesson that draws one stage of its own. -->
 
-# Cards, the stage concepts, and door-map
+# Cards, the stage concepts, and the door map
 
 ## **Goal**
 
 Exploration by **connecting questions through biology concepts**. A door opens onto concepts; a shared QUESTION is the crossing from one concept to the next, which is what makes the map a map rather than a list. Typing your own question is a second way in, needing no door. Specimens — real deposited structures — hang off the concepts that hold them.
 
-**`tests/question-composer.html` is the page to work in.** `tests/door-map.html` is the same engine without the box, kept as the plainer version and as the thing the composer is rebased onto.
+**`tests/question-composer.html` is the page.** One page, one renderer — a second copy of the same engine without the text box was kept for a while as the plainer version, and it is gone.
 
 **Bipartite, with one exception.** Concepts never link to concepts, and a question is always the crossing between them. A concept reaches a SPECIMEN directly, with no question between; that survives because a specimen is a leaf and never links onward.
 
@@ -14,14 +14,13 @@ Exploration by **connecting questions through biology concepts**. A door opens o
 
 **Content** — what the map says, and nothing that draws it:
 
-* **`lib/mapcontent.js`** — `DOORS`, `CONCEPTS`, `QUESTIONS` (question-major, rank on the EDGE), `SPECIMENS`, `VIEWS`. Its own header is the rulebook for what each field means.
+* **`lib/mapcontent.js`** — `DOORS`, `CONCEPTS`, `QUESTIONS` (question-major, rank on the EDGE), `CONTENT`, `PLACEMENTS` (content-major, rank on the EDGE). Its own header is the rulebook for what each field means.
 * **`lib/mapcontent-vectors.json`** — the map's searchable text embedded once, by `tools/bake-vectors.js`: every authored question, and every concept's own `claim` as `Name. claim.`. Re-bake when either TEXT changes; `--check` is also the map's integrity checker.
-* **`proteins/proteins.js`** — not map content. The registry of which structures we hold and which file plays which role for each. `SPECIMENS` names keys in it.
+* **`proteins/proteins.js`** — not map content. The registry of which structures we hold and which file plays which role for each. `PLACEMENTS`' `p:` rows name keys in it.
 
 **Pages**:
 
 * **`tests/question-composer.html`** — the map entered by typing, and the one to work in.
-* **`tests/door-map.html`** — the map with no box.
 * **`tests/cards-cluster.html`** — the stage bench: 9 cards, 3 kinds, budget of 4.
 * **`map-cms.html`** — edits `lib/mapcontent.js` through the dev server's `/api/mapcontent`, on two screens that save independently. Not served in production.
 
@@ -107,28 +106,46 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
 10. **`molecule-builder.html` does NOT use the concept.** It has its own shell. It keeps its own copy of the 900ms turn, and the checker fails if the two numbers diverge.
 
-11. **A concept's neighbours include ITS DOOR.** `door-map`'s `start()` never sees it, because the door is visible before anything expands. Anything that roots the map on a node OTHER than the door must filter the door out of every concept's wave (`expand`'s `keep`) — otherwise each concept deals the same 29rem door node and they stack on it. `question-composer` hit this on its first run.
+11. **A concept's neighbours include ITS DOOR.** `start()` never sees it, because the door is visible before anything expands. Anything that roots the map on a node OTHER than the door must filter the door out of every concept's wave (`expand`'s `keep`) — otherwise each concept deals the same 29rem door node and they stack on it. `question-composer` hit this on its first run.
 
-12. **`function draw()` is taken.** The map's `draw()` is what positions every node from the rAF loop, and a second `function draw` at the page's top scope silently REPLACES it: function declarations redeclare without error, so every card stays at the origin with opacity 1 and nothing logs. Adding page-level UI to a copy of door-map is exactly when this happens. `question-composer` shipped it and it read as a physics bug for two rounds.
+12. **`function draw()` is taken.** The map's `draw()` is what positions every node from the rAF loop, and a second `function draw` at the page's top scope silently REPLACES it: function declarations redeclare without error, so every card stays at the origin with opacity 1 and nothing logs. Adding page-level UI over the map's engine is exactly when this happens. `question-composer` shipped it and it read as a physics bug for two rounds.
 
 13. **The asked card is a root and never a wave.** Its links make it a genuine neighbour of every concept it reached, so `start()` will otherwise deal the reader's last question into the door's own map as though someone had authored it. Filtered in `expand()`, because every path that reveals a card goes through that one.
 
 14. **Declaration order inside the composer's own block bites too.** Invariant 14's dead-zone throw is not only about `start()` calling into the block from above: the block is \~500 lines and a `const` near its top touching one declared near its bottom is the same throw, with the same symptom — a blank page and one error, because the script aborts and nothing after the throwing line initializes. It has happened three times in this file (`ASKED`, `ASKED_URL`, and `expand()`'s filter). `document.getElementById` costs a lookup and has no dead zone.
 
-15. **`expand()` runs before the page's own additions exist.** `start()` is called at the bottom of the map's script, so anything appended below it has NOT initialized yet. Invariant 13's filter tests a PROPERTY (`!m.ask`) and not the `ASKED` binding for exactly this reason: touching that `const` from `expand()` is a temporal-dead-zone throw during load, which aborts the whole script and leaves the page blank with one error. Same shape as the `draw()` collision in 12 — appending to a copy of door-map is when both happen.
+15. **`expand()` runs before the page's own additions exist.** `start()` is called at the bottom of the map's script, so anything appended below it has NOT initialized yet. Invariant 13's filter tests a PROPERTY (`!m.ask`) and not the `ASKED` binding for exactly this reason: touching that `const` from `expand()` is a temporal-dead-zone throw during load, which aborts the whole script and leaves the page blank with one error. Same shape as the `draw()` collision in 12 — appending below the engine is when both happen.
 
 ## **Card kinds**
 
 | KIND | CONCEPT | PAGES |
 | --- | --- | --- |
-| `water` | card-stage + `water/watersim.js` | composer, door-map, cards-cluster |
-| `build` | `molecule-builder.js` (ortho, own context) | composer, door-map, cards-cluster |
+| `water` | card-stage + `water/watersim.js` | composer, cards-cluster |
+| `build` | `molecule-builder.js` (ortho, own context) | composer, cards-cluster |
 | `molbox` | `kit/molbox.js` | cards-cluster, membrane-lab |
-| `protein` | `kit/proteinbox.js` | composer, door-map |
+| `protein` | `kit/proteinbox.js` | composer |
+| `lesson` | an opener under the thumb, `#lessonmodal` | composer |
+| `video` | a card of its own, `#videomodal` | composer |
 
-A `VIEWS` entry picks the kind for a CONCEPT's card. A SPECIMEN is always `protein` and has no `VIEWS` entry at all — `viewFor()` hands the box a protein key instead of paths.
+**How a kind is PLACED is the kind's own business, and the three ways are not interchangeable.** The first four are INLINE: they mount a live box in a concept card's thumb, cost a WebGL context, and a card takes its rank 1 inline item and no more, because the pool rations four across the whole map. `lesson` is a BUTTON — a lesson has no still of its own worth showing, and the card it hangs off is the picture. `video` is a CARD, its own node hanging off the concepts that placed it, exactly as a specimen does: a poster, a title and somebody else's name is a card's worth of content rather than a chip in a corner. A specimen is always `protein` and has no `CONTENT` row at all — `viewFor()` hands the box a protein key instead of paths.
 
-**`kit/proteinbox.js` owns the molecule; the page owns the map.** The box knows about the trace, the surface and the fold, draws its own two controls, and — given `protein:` / `variant:` — reads `proteins/proteins.js` to find those three files itself. Which files a CONCEPT's card names is `VIEWS`; the lesson button and its modal are the page's, because a box has no opinion about what is behind the card it sits on. `rendering-modules.md` has the module.
+### The caption column
+
+**The video's own captions are turned off, and the text sits beside it instead.** These animations print their key terms on the picture (`Glucose`, `Pyruvate`, the ATP counter), and a burned-in caption lands on top of the word it is explaining. So the player runs with captions off and the cues are a column down the right of the modal, lit line following playback, click a line to seek.
+
+**Turning them off takes more than the parameter.** `cc_load_policy=0` only asks: a reader whose YouTube account defaults captions on gets them anyway, and that is exactly the reader this is for. `killCaptions()` calls `setOption('captions','track',{})` and `unloadModule` on both module names, on `onReady` and again on every `onApiChange` and once more on a delay, because the captions module does not exist when the player is ready and can load after the event that announced the last one. None of it is documented, the getters keep reporting a live track afterwards, and **the picture is the only test** that it worked.
+
+**The player chrome is ours too.** `controls=0` takes YouTube's bar away and does not finish the job: the title, avatar, logo and share button still fade in over the picture on hover, and a PAUSED player draws its own overlay carrying all of them plus "More videos". So the frame is `pointer-events: none`, the poster covers it whenever the video is not running, and the strip under it (play/pause, elapsed, scrubber, fullscreen) is the page's own. The end screen is killed by rewinding to 0 on `ENDED`, which puts frame 0 back and never lets the thumbnail grid draw. Two traps: **`BUFFERING` is not `PAUSED`** — YouTube fires it after `PLAYING` and on every seek, and treating it as a stop throws the poster over a running video for as long as the buffer takes; and `destroy()` takes the iframe with it, so only `.mstage` is rebuilt on close, never `.mvideo`, whose strip has live listeners bound to its nodes.
+
+**The cue file is authored, and it carries TWO tracks.** YouTube publishes no caption text a page can read: the Data API's `captions.download` is owner-only OAuth, `timedtext` serves an empty body to a plain request, and the only track on the glycolysis video is auto-generated ASR, which renders "phosphofructokinase" as noise. So the file is `{ tracks: [{ id, label, source, sourceUrl, cues: [{ t, text, step }] }] }`.
+
+**A video that is not ours leads with its own words**, credited and linked, because putting our sentences where its author's were is its own kind of misrepresentation. The second track is the same beats rewritten for a Bio 101 reader, and it is labelled as a summary. The column prints the source of whichever is showing: a column of somebody else's writing with no name on it reads as ours. `step` is the lesson's own numbering, so a cue and `glycolysis-lab`'s ten steps cannot drift apart.
+
+**Layout note that cost an hour.** The column is `position: absolute` inside `.mbody`. A row flex container takes its cross-axis height from the tallest item's content, and 19 cues are taller than a 16:9 picture, so in flow the column held the card at its max height with a band of dead black under the video. And `#videoframe` needs an explicit `height: auto`: the IFrame API stamps `width="640" height="360"` **attributes** on the iframe it builds, and a presentational height beats `aspect-ratio`.
+
+**Two modals, not one parameterised modal.** A lesson and a video share the word "opens" and nothing else: a lesson is same-origin, a page we own, sized as a sheet, carrying `chrome=bare`; a video is 16:9, third-party, autoplaying, and its header has to say whose work it is. `kit/modal.js` stacks independent dialogs, which is what it was built for. A video's `src` is a bare YouTube id and the page builds a `youtube-nocookie` embed from it, so **the map at rest makes no third-party request** — the poster is a local file for the same reason, and clearing the frame on hide is what stops playback rather than merely hiding it.
+
+**`kit/proteinbox.js` owns the molecule; the page owns the map.** The box knows about the trace, the surface and the fold, draws its own two controls, and — given `protein:` / `variant:` — reads `proteins/proteins.js` to find those three files itself. Which files a CONCEPT's card names is an `r:` row in `CONTENT`; the openers and their modals are the page's, because a box has no opinion about what is behind the card it sits on. A lesson is its own content item rather than a field on a picture that happens to share the card. `rendering-modules.md` has the module.
 
 **A protein card is angstroms, and its own scene** — which is what lets it be, since every other card on the page is a spec in the small-molecule family (MolecularGeometry.md 1.5). It draws from a trace baked by `tools/bake-trace.js`: Ca plus the DEPOSITED secondary structure, centred, 12 KB for a tetramer against the 453 KB PDB it came from. **Three things a protein card can show, and only the first is free.** Ribbon is the default and the only one fetched at reveal. The other two are gated the same way, and the gates are the design:
 
@@ -162,24 +179,24 @@ Small molecules go to the builder (flat view draws the electrons); molecules wit
 
 ## **question-composer: the map entered by typing**
 
-**It is a REBASE of `tests/door-map.html`, not a fork left to drift** — and it is the one to work in. The first copy was taken from a dirty working tree and was \~175 lines behind within the day: it missed `goLiveSoon()` (card startup queued for quiet frames instead of created mid-wave) and `cardsQuiet()` (sims paused during pan and zoom), and it still carried the protein card inline after `kit/proteinbox.js` had taken it out of door-map. Both pages now run the same engine. Re-do the rebase the same way rather than porting functions across: take door-map as it stands, then re-apply the composer's own code, which is **four insertions plus a set of edits inside the engine**.
+**One copy of the engine, and that is the point.** This page was for a while a rebase of a boxless twin, and the twin drifted the moment it was taken — \~175 lines behind within the day, missing `goLiveSoon()` (card startup queued for quiet frames rather than created mid-wave) and `cardsQuiet()` (sims paused during pan and zoom), and still carrying the protein card inline after `kit/proteinbox.js` had taken it out. Keeping two copies in step is a cost on every engine change forever. **Do not take another copy to try something in.**
 
-Insertions: the CSS block, the `.composer` markup, the `SPECIMENS` node loop (in the graph construction, after `CONCEPTS` and before `QUESTIONS`), and everything after `start();`.
+**What is the composer's own, over the engine, is still worth knowing as a shape**: the CSS block, the `.composer` markup, the specimen and video node loops (in the graph construction, after `CONCEPTS` and before `QUESTIONS`), and everything after `start();`.
 
 Edits, and this list grows every time the composer gains a kind or a control — check it against the diff rather than trusting it:
 
 | where | what |
 | --- | --- |
 | `expand()` | the `!m.ask` filter |
-| `paintNode()` | the `n.ask` branch and the `kind === 'protein'` branch |
+| `paintNode()` | the `n.ask` branch, and the `protein` and `video` branches |
 | `paintLink()` | the `l.near` branch |
 | `centre()` | the composer's band across the top |
-| `markNear()` | specimens count as cards |
-| `refreshMeta()` | a specimen's hidden neighbours are concepts |
+| `markNear()` | `CARDKIND` — specimens and videos count as cards |
+| `refreshMeta()` | a leaf's hidden neighbours are concepts, not questions |
 | `goLive()` / `goLiveSoon()` | both go through `viewFor()` |
-| the protein card | `protein:`/`variant:` when a specimen, paths when a `VIEWS` entry |
+| the protein card | `protein:`/`variant:` when a specimen, paths when an `r:` content row |
 
-`tests/question-composer.html` is door-map with a text box, and the claim is that **the typed question becomes a temporary door**. `openFrom(q)` composes the same three levels `start()` does, rooted on a question instead of one of the written doors: the question, every concept that answers it, then each of those concepts' best band. It reuses `show` / `expand` / `centre` and keeps start()'s own-door rule, so a crossing does not haul its far side in.
+The claim the text box makes is that **the typed question becomes a temporary door**. `openFrom(q)` composes the same three levels `start()` does, rooted on a question instead of one of the written doors: the question, every concept that answers it, then each of those concepts' best band. It reuses `show` / `expand` / `centre` and keeps start()'s own-door rule, so a crossing does not haul its far side in.
 
 **Content is in the corpus, not only questions about it.** A concept used to be reachable only through a question somebody had written for it, so `geometry`, `covalent` and `ionic` — no questions filed — could not be found at all, and `what is a buffer` was a miss with Acids & pH sitting right there. Every concept's `claim` is now a row of its own. **A claim never becomes a hit**: a hit is a row the reader opens and `openAsk()` takes one as the authored question it matched, so a claim arrives as a discovered (dashed) edge, which is what a proximity to the content itself is.
 
@@ -206,7 +223,7 @@ The card prints both wordings (*the map words it as "…"*), because the reader 
 
 **Weight rare words, not all words.** Plain token counting made `water` worth as much as `curly`, and `water` is in nearly every concept on a water door, so questions attached to Polarity for saying "water" at all. Concept scores are IDF-weighted over the query.
 
-**`centre()` diverges from door-map's**: the composer is a fixed band across the top, and centring on the whole window put the root card underneath it.
+**`centre()` aims at a fixed band across the top** rather than the whole window, which is where centring put the root card underneath the composer.
 
 ### Keywords are not questions
 
@@ -316,7 +333,7 @@ So a discovered concept must clear a floor AND be corroborated: two near questio
 | a concept's `name` or `claim`, or a new / deleted concept | **yes** |
 | a question's ranks, or which concepts it names | no |
 | a concept's `rank`, `state`, `door`, `host` | no |
-| `VIEWS`, `DOORS`, `SPECIMENS` | no |
+| `CONTENT`, `PLACEMENTS`, `DOORS` | no |
 
 A concept's NAME is in its baked text, so renaming a card re-bakes it — the name is what a reader typing `polarity` matches against. Everything in the "no" rows is read live from `mapcontent.js` at load.
 
@@ -343,15 +360,17 @@ BROKEN: 1 bad reference(s) in lib/mapcontent.js
   question names no such concept `polarityy`: Why do water molecules stick to each other?
 ```
 
-It checks question rows, `VIEWS` keys and each concept's `door` against the ids that actually exist, and notes concepts with no questions without failing on them — a planned card waiting for questions is a normal thing to commit. It fails `--check` and only warns a bake, because the page reads `mapcontent.js` live and never reads the `concepts` the bake writes: a broken reference does not corrupt a vector, it breaks the map.
+It checks question rows, every `PLACEMENTS` row (both halves: the content it places and the concepts it places it on), content nobody placed, and each concept's `door` against the ids that actually exist, and notes concepts with no questions without failing on them — a planned card waiting for questions is a normal thing to commit. It fails `--check` and only warns a bake, because the page reads `mapcontent.js` live and never reads the `concepts` the bake writes: a broken reference does not corrupt a vector, it breaks the map.
 
-### SPECIMENS — a protein is an object, not a concept
+### CONTENT and PLACEMENTS — a concept is a claim, content is what makes it visible
 
-`SPECIMENS` in `lib/mapcontent.js` names a protein by its `key` in `proteins/proteins.js`, the concepts it sits under with a rank on each, and optionally which variant to draw. That is everything it stores: no path, no filename, no restatement of what the protein is. The registry says what we hold; the map says where it belongs and which deposition it means.
+**One concept can have many.** `VIEWS` was keyed by concept and could hold exactly one entry per card, so glycolysis could have a molecule or a video and never both. `CONTENT` is content-major — one row per unit, `id` namespaced by kind — and `PLACEMENTS` says where each one sits, carrying the rank it has on each concept. Same split, and for the same reason, as `QUESTIONS`: the thing is one object however many concepts point at it.
 
-**A concept reaches a specimen directly, with no question between**, and that is the one place the map is no longer bipartite. It survives because **a specimen is a LEAF**: it hangs off concepts and off questions and never off another specimen, so the graph stays layered and the fan, the bands and the relax are untouched. `expand`'s tail already only re-expands questions, so a specimen never drags a second neighbourhood in.
+**A `p:` row is the exception that proves the table.** It places a protein whose entry lives in `proteins/proteins.js`, and nothing in `CONTENT` restates what that protein is. Every entry in that registry is drawn whether or not it has a row here; without one it hangs off the Proteins door at the back rank. So adding a protein stays a one-file edit, and `PLACEMENTS` is an override rather than a second registry to keep in step. Its third element picks a variant, and that is the whole of what it stores: no path, no filename. The registry says what we hold; the map says where it belongs and which deposition it means.
 
-**Rank means what it means everywhere else** — 1 shows the specimen when the card opens, 2 is one step in. Reusing it rather than inventing a rule is what lets a specimen be authored like everything else here.
+**A concept reaches a specimen or a video directly, with no question between**, and that is the one place the map is no longer bipartite. It survives because **both are LEAVES**: they hang off concepts and off questions and never off each other, so the graph stays layered and the fan, the bands and the relax are untouched. `expand`'s tail only re-expands questions, so a leaf never drags a second neighbourhood in.
+
+**Rank means what it means everywhere else** — 1 is what the card opens with, 2 is one step in. Reusing it rather than inventing a rule is what lets content be authored like everything else here. For inline content it also breaks the tie, since a card can only afford one live box.
 
 A question reaches one by naming it in its own row, namespaced so a key can never collide with a concept id:
 
@@ -367,19 +386,19 @@ A question reaches one by naming it in its own row, namespaced so a key can neve
 
 **The surface is the CARD tier, never the lesson's.** Hemoglobin's card bake is 362 KB against 1.5 MB for the same structure at 0.7 A, and a 280 px thumb cannot show the difference — `tools/bake-card-surface.js` exists for exactly this.
 
-**The MAP names the pair, the BOX finds the files.** `SPECIMENS` stores a protein key and optionally a variant id, and that is all it stores; `kit/proteinbox.js` takes `protein:` / `variant:` / `base:` and reads `proteins/proteins.js` itself. Nothing on the page resolves a path. A page that reconstructed `2HHB.card.surf.bin` from a stem would be standing a convention where a fact already is, and it would go on working right up until one file was named differently.
+**The MAP names the pair, the BOX finds the files.** A `p:` placement stores a protein key and optionally a variant id, and that is all it stores; `kit/proteinbox.js` takes `protein:` / `variant:` / `base:` and reads `proteins/proteins.js` itself. Nothing on the page resolves a path. A page that reconstructed `2HHB.card.surf.bin` from a stem would be standing a convention where a fact already is, and it would go on working right up until one file was named differently.
 
-Which deposition a card shows is the map's decision — 2HHB or sickle 2HBS is a different claim — and which files are behind it is the registry's. An explicit path still wins, because a concept's `VIEWS` entry names files the registry has no role for (a chain-B fold, a lesson-tier surface).
+Which deposition a card shows is the map's decision — 2HHB or sickle 2HBS is a different claim — and which files are behind it is the registry's. An explicit path still wins, because an `r:` content row names files the registry has no role for (a chain-B fold, a lesson-tier surface).
 
 **Two conventions for finding the ribbon, and the registry means both.** A protein on its own pipeline carries a `bake` block naming every artefact by role, and that block is authoritative: hemoglobin's 2HBS has no `trace` in it because the entry is deposited for a SURFACE — a contact between tetramers is a claim about skin — so no ribbon exists and the box says so instead of drawing an empty frame. A protein on the shared `trace` pipeline has no `bake` block at all and `read.baked` IS its trace, which is four of the six. Reading `read.baked` unconditionally hands 2HBS's quaternary json to a ribbon drawer; both files apply the same rule, and 21 of the 22 variants resolve to a file that exists.
 
 The toggle then follows the registry's judgement for free: four of the six have no `card` role because a skin teaches nothing about them, and for the pump it hides the site that is the whole point of the E1/E2 pair. Amylase's card surface was baked and RECORDED as a role, since a file in `data/` the registry does not name is exactly what `proteins/check-proteins.js` exists to catch.
 
-**`viewFor()` is the one place that decides what a node draws.** A concept hands over the paths its `VIEWS` entry names; a specimen hands over `{protein, variant}` and lets the box resolve. Two callers, one box, and no third place where a filename could be wrong.
+**`viewFor()` is the one place that decides what a node draws.** A concept hands over the best-ranked INLINE item placed on it; a specimen hands over `{protein, variant}` and lets the box resolve; a video hands over nothing, because a poster is markup rather than a stage. Two callers, one box, and no third place where a filename could be wrong.
 
 **`refreshMeta` knows two nouns now.** A specimen's hidden neighbours are the concepts that hold it, and the card said "+1 question" over two concepts.
 
-The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is Futura and Futura is a DISPLAY face here: it carries the logo, the buttons and the uppercase letterspaced labels, and it is unreadable as running text at 11px. Prose set in sans takes `--ui`; a label keeps `--sans`. This is the composer's own `:root`, so door-map is unchanged and a rebase carries it across with the rest of the CSS block.
+The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is Futura and Futura is a DISPLAY face here: it carries the logo, the buttons and the uppercase letterspaced labels, and it is unreadable as running text at 11px. Prose set in sans takes `--ui`; a label keeps `--sans`. This is the composer's own `:root`.
 
 **`--check` covers the new keys**: a protein renamed in `proteins/proteins.js` drops its edges exactly the way a renamed concept id did, and the checker names it. It loads `proteins/proteins.js` softly, so a checkout without `proteins/` still gets its questions checked.
 
@@ -389,13 +408,13 @@ The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is
 
 ### A new KIND of node is a page change
 
-`DOORS` / `CONCEPTS` / `QUESTIONS` / `SPECIMENS` / `VIEWS` are data, and a sixth table is not. The page says what a kind is in several places: `paintNode`'s branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, `markNear()`, and the composer's `QNODES` and `CARDS`.
+`DOORS` / `CONCEPTS` / `QUESTIONS` / `CONTENT` / `PLACEMENTS` are data, and a sixth table is not. The page says what a kind is in several places: `paintNode`'s branches, `expand`'s `STEP` per kind, `band()`, the rank-promotion loop, `CARDKIND`, and the composer's `QNODES` and `CARDS`.
 
 **`markNear()` is the one that hides.** It skipped anything that was not `kind === 'concept'`, so a specimen never took `.near` at any zoom and its surface toggle sat at opacity 0 forever — present in the DOM, queryable, invisible. Nothing throws and nothing is missing from the page; the control is simply always faded. A kind check that GATES A CLASS fails this way rather than loudly, which is why it is worth listing separately from the ones that draw.
 
-**A named card is focused**, the way a clicked one is. `openCard()` calls `focus()`, so the card takes `.hub` and its 34rem width — otherwise the root is a default 17.5rem card at apparent 0.85, just under `CONTROLS_AT`, and the toggle is hidden for that reason as well. Naming a card is asking to work on it. A kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js` — cheap for a leaf, as `SPECIMENS` turned out to be, and not cheap for anything that questions must cross THROUGH.
+**A named card is focused**, the way a clicked one is. `openCard()` calls `focus()`, so the card takes `.hub` and its 34rem width — otherwise the root is a default 17.5rem card at apparent 0.85, just under `CONTROLS_AT`, and the toggle is hidden for that reason as well. Naming a card is asking to work on it. A kind that draws, fans and crosses like the others is an edit to each of those, not a row in `mapcontent.js` — cheap for a leaf, as specimens and videos both turned out to be, and not cheap for anything that questions must cross THROUGH.
 
-**Gated on `lib/mapcontent.js`, not on the page.** `question-composer.html` is still test status, and the usual reason a test page skips a gate is that it has no audience — which stops holding the moment the link is shared. What the hook protects is the MAP: a question with no vector is an unreachable card, and a renamed concept id drops every edge pointing at it, which bites `door-map` just as hard and has nothing to do with embeddings.
+**Gated on `lib/mapcontent.js`, not on the page.** `question-composer.html` is still test status, and the usual reason a test page skips a gate is that it has no audience — which stops holding the moment the link is shared. What the hook protects is the MAP: a question with no vector is an unreachable card, and a renamed concept id drops every edge pointing at it, which has nothing to do with embeddings.
 
 The check belongs in the hook rather than beside `tools/check-handedness.js` because it is offline: `--check` embeds nothing and only compares hashes. Only the fix needs the key, which is what `--no-verify` is for. The pattern covers `lib/mapcontent.js`, `lib/mapcontent-vectors.json` and `tools/bake-vectors.js`.
 

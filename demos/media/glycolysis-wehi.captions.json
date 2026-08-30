@@ -1,0 +1,191 @@
+{
+  "tracks": [
+    {
+      "id": "narration",
+      "label": "Narration",
+      "source": "WEHI",
+      "cues": [
+        {
+          "t": 0,
+          "text": "The sweet, energetic glucose molecule is the energy source providing power for your living cells. Glucose from the food you eat is slowly broken down into two pyruvate molecules, extracting energy in a sequence of enzyme reactions called glycolysis."
+        },
+        {
+          "t": 26,
+          "text": "The glycolysis pathway requires energy to begin, delivered by chemical fuel ATP."
+        },
+        {
+          "t": 36,
+          "text": "The primary source of ATP in your cells is mitochondria. Deep inside mitochondria, chemical reactions of aerobic respiration consume oxygen from the air you breathe to generate vast amounts of ATP."
+        },
+        {
+          "t": 60,
+          "text": "The surface of mitochondria is covered with pores that flow with ATP. Sitting on this abundant supply of ATP is the first enzyme of the glycolysis pathway."
+        },
+        {
+          "t": 81,
+          "step": 1,
+          "text": "The reaction of the first enzyme transfers a phosphate group from ATP to glucose, creating glucose 6-phosphate."
+        },
+        {
+          "t": 95,
+          "step": 2,
+          "text": "The second enzyme rearranges glucose 6-phosphate into its isomer, fructose 6-phosphate."
+        },
+        {
+          "t": 108,
+          "step": 3,
+          "text": "The third enzyme uses a second molecule of ATP, creating fructose 1,6-bisphosphate. The six-carbon sugar is now ready to be broken apart."
+        },
+        {
+          "t": 126,
+          "step": 4,
+          "text": "The fourth enzyme cuts the molecule in half, creating two three-carbon sugars, each with a single phosphate attached."
+        },
+        {
+          "t": 141,
+          "step": 5,
+          "text": "The sugar products are isomers of each other. One product is ready to continue with the glycolysis pathway; the sugar isomer dihydroxyacetone phosphate must first be converted before continuing to the sixth enzyme."
+        },
+        {
+          "t": 163,
+          "step": 6,
+          "text": "The sixth enzyme adds a second phosphate to glyceraldehyde 3-phosphate, creating 1,3-bisphosphoglycerate while two electrons are transferred to NAD+, which is reduced to NADH."
+        },
+        {
+          "t": 187,
+          "text": "Halfway through glycolysis, the cell has consumed two ATP molecules breaking down glucose and is now ready to capture energy in return."
+        },
+        {
+          "t": 202,
+          "step": 7,
+          "text": "The seventh enzyme transfers a phosphate group to ADP, creating chemical fuel ATP."
+        },
+        {
+          "t": 214,
+          "step": 8,
+          "text": "The eighth enzyme rearranges the phosphate from the end of the molecule to the middle."
+        },
+        {
+          "t": 223,
+          "step": 9,
+          "text": "The ninth enzyme catalyzes dehydration, increasing the potential energy in preparation for the final glycolysis reaction."
+        },
+        {
+          "t": 237,
+          "step": 10,
+          "text": "The tenth enzyme transfers the remaining phosphate group to ADP, producing ATP and the three-carbon sugar pyruvate. Glycolysis finally produces a net gain in ATP."
+        },
+        {
+          "t": 251,
+          "text": "The glycolysis pathway breaks down glucose into two molecules of pyruvate, gaining two ATP and two NADH in the process."
+        },
+        {
+          "t": 269,
+          "text": "Glycolysis releases only a small fraction of glucose's potential energy."
+        },
+        {
+          "t": 278,
+          "text": "The product of glycolysis, pyruvate, enters the mitochondria through the same pore that ATP uses to exit, then is transported into the interior."
+        },
+        {
+          "t": 291,
+          "text": "The gateway to mitochondrial respiration is a huge multi-enzyme complex that links pyruvate to aerobic respiration, yielding 15 times more ATP than created by glycolysis alone."
+        }
+      ],
+      "sourceUrl": "https://www.wehi.edu.au/topic/biology-101/"
+    },
+    {
+      "id": "notes",
+      "label": "Notes",
+      "source": "kodolab",
+      "cues": [
+        {
+          "t": 0,
+          "text": "Glucose carries the energy your cells run on. Glycolysis takes it apart in ten enzyme steps and ends with two pyruvate."
+        },
+        {
+          "t": 26,
+          "text": "The pathway has to spend energy before it earns any. The first payments come out of ATP."
+        },
+        {
+          "t": 36,
+          "text": "Most of a cell's ATP is made in mitochondria, where respiration burns the oxygen you breathe."
+        },
+        {
+          "t": 60,
+          "text": "Pores across the mitochondrial surface pour that ATP out. Glycolysis starts right on top of the supply."
+        },
+        {
+          "t": 81,
+          "step": 1,
+          "text": "Hexokinase moves a phosphate from ATP onto glucose. Glucose-6-phosphate cannot cross back out, so the sugar is now trapped inside the cell."
+        },
+        {
+          "t": 95,
+          "step": 2,
+          "text": "An isomerase rearranges it into fructose-6-phosphate. No atoms gained, none lost, only shuffled."
+        },
+        {
+          "t": 108,
+          "step": 3,
+          "text": "A second ATP is spent. Fructose-1,6-bisphosphate now has a handle on each end, ready to be broken in half."
+        },
+        {
+          "t": 126,
+          "step": 4,
+          "text": "Aldolase cuts the six-carbon sugar into two three-carbon halves, each keeping one phosphate."
+        },
+        {
+          "t": 141,
+          "step": 5,
+          "text": "The two halves are isomers and only one continues. The other is converted into it, so both go on."
+        },
+        {
+          "t": 163,
+          "step": 6,
+          "text": "The payoff begins. A phosphate goes on, and two electrons come off onto NAD+, which becomes NADH."
+        },
+        {
+          "t": 187,
+          "text": "Halfway. Two ATP spent, nothing earned yet. Everything from here is return."
+        },
+        {
+          "t": 202,
+          "step": 7,
+          "text": "The first ATP back: a phosphate is handed straight to ADP."
+        },
+        {
+          "t": 214,
+          "step": 8,
+          "text": "The phosphate shifts from the end of the molecule to the middle. Position is what makes the next step possible."
+        },
+        {
+          "t": 223,
+          "step": 9,
+          "text": "A water is pulled out. The bond left behind holds far more energy than the one before it."
+        },
+        {
+          "t": 237,
+          "step": 10,
+          "text": "The last phosphate goes to ADP. What is left is pyruvate, and glycolysis is finally ahead."
+        },
+        {
+          "t": 251,
+          "text": "Per glucose: two pyruvate, two ATP net, two NADH."
+        },
+        {
+          "t": 269,
+          "text": "Most of the energy in glucose is still locked inside pyruvate. Glycolysis only opened it."
+        },
+        {
+          "t": 278,
+          "text": "Pyruvate enters the mitochondrion through the same pore ATP leaves by."
+        },
+        {
+          "t": 291,
+          "text": "Inside, a giant enzyme complex hands pyruvate to aerobic respiration, which yields around fifteen times more ATP."
+        }
+      ]
+    }
+  ]
+}

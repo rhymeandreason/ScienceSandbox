@@ -257,7 +257,7 @@
 <script src="lib/fx.js"></script>
 <script src="lib/annotate.js"></script>
 <script src="kit/ribbon.js"></script>
-<script src="hemoglobin/foldplay.js"></script>   <!-- the ss-from-bonds rule, shared with door-map -->
+<script src="hemoglobin/foldplay.js"></script>   <!-- the ss-from-bonds rule, shared with the door map -->
 <script src="lib/residues.js"></script>
 <script src="hemoglobin/hbfold.js"></script>
 <script>
@@ -2239,7 +2239,7 @@ new ResizeObserver(() => { resize(); if (fold) seek(u); }).observe(canvas);
    exactly where the bonds arrive, which is the claim act 2 is making.
 
    THE RULE ITSELF IS hemoglobin/foldplay.js. It moved there the moment a
-   door-map card wanted to play this fold: a card is exactly where a second
+   map card wanted to play this fold: a card is exactly where a second
    copy would drift unwatched — still looking like a fold, quietly asserting
    something this page does not. `covers` is built once per trajectory, and
    `ssFor` is the per-frame answer. */

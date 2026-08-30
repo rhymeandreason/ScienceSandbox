@@ -81,7 +81,7 @@ Only used for hemoglobin, which has a special baked folding animation. A traject
 * `create(THREE, fold, opts)` → `{ mesh, seek(t), tick(dt), dispose() }`. `opts.rate` is REBUILDS PER SECOND (24 default), not frames: the cost of a frame is `RibbonLib.build`'s spline work, measured at 7.9ms for a 2.5k-triangle card ribbon and 2.5ms once rebuilds are on their own clock. `rate: 0` for a caller that is scrubbing rather than playing.
 * `dispose()` before every rebuild is not optional — the triangle count depends on the path, so there is no fixed buffer to update, and a frame that does not release the old geometry leaks it on the GPU.
 
-**Two consumers, which is why it exists**: `hemoglobin-lab.html` (act 2) and door-map's protein card. What stays in the lesson is its level 1 — an extended chain blended into the trajectory through rigid per-residue frames — because that is a mechanism for the story that page tells, not a property of the fold.
+**Two consumers, which is why it exists**: `hemoglobin-lab.html` (act 2) and the door map's protein card. What stays in the lesson is its level 1 — an extended chain blended into the trajectory through rigid per-residue frames — because that is a mechanism for the story that page tells, not a property of the fold.
 
 **`tools/bake-trace.js`** (baker, not a module)
 

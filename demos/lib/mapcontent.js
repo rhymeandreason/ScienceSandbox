@@ -1,10 +1,12 @@
 /* =====================================================================
  *  mapcontent.js — the door map's content, and nothing that draws it.
- *  Loaded as a classic script BEFORE tests/door-map.html's own script;
- *  exposes window.MapContent = { DOORS, CONCEPTS, QUESTIONS, VIEWS }.
+ *  Loaded as a classic script BEFORE tests/question-composer.html's own
+ *  script;
+ *  exposes window.MapContent = { DOORS, CONCEPTS, QUESTIONS, CONTENT,
+ *  PLACEMENTS }.
  *
  *  This is CONTENT, not code: no behaviour, no DOM, nothing to call.
- *  It is split out of door-map.html so it can be edited somewhere better
+ *  It is split out of the page so it can be edited somewhere better
  *  than an HTML file — map-cms.html reads and writes it through the dev
  *  server's /api/mapcontent, the same path questions-cms.html uses.
  *
@@ -73,11 +75,10 @@
  *  node and leads nowhere. 28 of these are still that, which is where the
  *  editorial work is.
  *
- *  VIEWS — which concepts have something to SHOW, and what. A concept with
- *  no entry grows no picture box at all; a stand-in that is not that
- *  concept's own subject is worse than no picture. The water scenarios'
- *  `frame` blocks are TUNING rather than curriculum — they are what
- *  water/watersim.js's step() takes.
+ *  CONTENT and PLACEMENTS — the units a concept can show, and where each
+ *  one sits. Content-major and split in two for the same reason QUESTIONS is
+ *  question-major: the thing is one object however many concepts point at it.
+ *  Their own headers, below, carry the rest.
  * ===================================================================== */
 (function (global) {
   'use strict';
@@ -241,106 +242,211 @@
   ];
 
   /* ---------------------------------------------------------------------
-   *  SPECIMENS — WHERE a protein sits, and nothing else. The list of proteins
-   *  is proteins/proteins.js and this table does not repeat it: every entry
-   *  there is drawn whether or not it has a row here. A row moves one under
-   *  particular concepts; without one, the protein hangs off the Proteins door
-   *  at the back rank, which is the honest place for a structure nobody has
-   *  filed under a concept yet. So adding a protein is a one-file edit, and
-   *  this table is an override rather than a second registry to keep in step.
+   *  CONTENT — the units a concept can SHOW. A concept is a claim; content is
+   *  a thing that makes the claim visible, and one concept can have many. That
+   *  is why this is content-major with a placement table beside it rather than
+   *  a map keyed by concept: `VIEWS` was concept-keyed and could hold exactly
+   *  one entry per card, so glycolysis could have a molecule or a video and
+   *  never both.
    *
-   *  `key` is that file's key and nothing here restates what the protein IS.
-   *  A specimen is a LEAF — it hangs off concepts and questions and never off
-   *  another specimen, which is what keeps the map layered.
+   *  `id` is namespaced by kind so nothing collides with a concept id, and so
+   *  a placement row says what it is placing:
    *
-   *  RANK MEANS WHAT IT MEANS EVERYWHERE ELSE: 1 shows the specimen when the
-   *  card opens, 2 is one step in. Reusing it rather than inventing a rule is
-   *  what lets a specimen be authored like everything else on this map.
+   *      w: water sim   b: builder   m: molbox
+   *      r: protein drawn ON a concept card   p: a protein SPECIMEN
+   *      l: lesson      v: video
    *
-   *  A question reaches one by naming it in its own row, namespaced so a key
-   *  can never collide with a concept id:
+   *  HOW A KIND IS PLACED IS THE KIND'S OWN BUSINESS, and the three ways are
+   *  not interchangeable:
    *
-   *      ['Why do proteins bury their greasy parts?',
-   *       { hydrophob:1, folding:2, 'p:myoglobin':2 }]
+   *    INLINE  (water, build, molbox, r-protein) mounts a live 3D box in the
+   *            concept card's thumb. It costs a WebGL context, browsers cap
+   *            those near 8-16, so the page rations them — a card takes the
+   *            rank 1 inline item and no more.
+   *    BUTTON  (lesson) is an opener under the thumb. A lesson has no still of
+   *            its own worth showing; the card it hangs off is the picture.
+   *    CARD    (video, p-protein) is its OWN node on the map, hanging off the
+   *            concepts that placed it, the way a specimen already did. A video
+   *            has a poster, a running time and someone else's name on it —
+   *            that is a card's worth of content, not a chip in a corner.
    *
-   *  A third element picks the VARIANT, by its id in that protein's entry;
-   *  omitted, the registry's own default is drawn. Which deposition a card
-   *  shows is the MAP's decision — 2HHB or sickle 2HBS is a different claim —
-   *  and the paths behind it are the registry's, which kit/proteinbox.js reads
-   *  for itself from `protein:` and `variant:`.
+   *  A concept with no inline content grows no picture box at all: a stand-in
+   *  that is not that concept's own subject is worse than no picture.
    *
-   *  PLACEHOLDER CONTENT. Which specimen belongs under which concept, and at
-   *  what rank, is the same editorial judgement as every other rank here.
-   *  These six are a starting guess, not a decision.
+   *  The water scenarios' `frame` blocks are TUNING rather than curriculum —
+   *  they are what water/watersim.js's step() takes.
+   *
+   *  A VIDEO is somebody else's work. `credit` is not decoration and is
+   *  printed on the card: `src` is a YouTube id, and the page builds a
+   *  youtube-nocookie embed from it so an unopened card makes no third-party
+   *  request. `poster` is a LOCAL still for the same reason: a remote
+   *  thumbnail would put the map's resting state on someone else's server and
+   *  break the card the day the video moves.
+   *
+   *  `captions` names a local file of `{ tracks: [{ id, label, source,
+   *  cues: [{ t, text, step }] }] }`. It is authored rather than fetched:
+   *  YouTube publishes no caption text a page can read (the Data API's
+   *  captions.download is owner-only, and timedtext serves nothing to a plain
+   *  request), and the only track on the glycolysis video is auto-generated
+   *  ASR, which renders enzyme names as noise.
+   *
+   *  A video that is not ours leads with ITS OWN words, credited. A second
+   *  track carrying the same beats for a Bio 101 reader is a summary and is
+   *  labelled as one. Which is showing is a fact the column prints, because a
+   *  column of somebody else's writing with no name on it reads as ours.
    * ------------------------------------------------------------------- */
-  const SPECIMENS = [
-    ['hemoglobin', { cooperat: 1, levels: 1, folding: 2 }],
-    ['myoglobin',  { binding: 1,  folding: 1 }],
-    ['napump',     { pumps: 1,    osmosis: 2 }],
-    ['amylase',    { enzyme: 1,   polymers: 1 }],
-    ['rnase',      { denature: 1, folding: 1 }],   // Anfinsen: it refolds itself
-    ['prion',      { folding: 1,  denature: 2, levels: 2 }],
-  ];
+  const CONTENT = [
 
-  const VIEWS = {
-  hbond:     { kind:'water', waters:16,
-               frame:{ showHbonds:true, tempEnabled:true, temperature:22 } },
-  solvation: { kind:'water', waters:14, salt:1,
-               frame:{ showHbonds:true, tempEnabled:true, temperature:22 } },
-  ice:       { kind:'water', waters:16,
-               frame:{ showHbonds:true, tempEnabled:true, temperature:-8,
-                       freezeEnabled:true } },
-  heat:      { kind:'water', waters:16,
-               frame:{ showHbonds:true, tempEnabled:true, temperature:85 } },
-  /* The bonding builder rather than a picture of a water: this card's claim is
+  /* ---- inline: water ---- */
+  { id:'w:hbond', kind:'water', waters:16,
+    frame:{ showHbonds:true, tempEnabled:true, temperature:22 } },
+  { id:'w:solvation', kind:'water', waters:14, salt:1,
+    frame:{ showHbonds:true, tempEnabled:true, temperature:22 } },
+  { id:'w:ice', kind:'water', waters:16,
+    frame:{ showHbonds:true, tempEnabled:true, temperature:-8, freezeEnabled:true } },
+  { id:'w:heat', kind:'water', waters:16,
+    frame:{ showHbonds:true, tempEnabled:true, temperature:85 } },
+
+  /* ---- inline: the bonding builder ----
+     A picture of a water would not do for `polarity`: that card's claim is
      about the uneven SHARE, and the builder's flat view is the one that draws
-     every valence electron. Every builder card here passes `fill:true`, so it
-     opens finished and STAYS in that flat view — the turn is the concept's
+     every valence electron. Every builder item here is passed `fill:true` by
+     the page, so it opens finished and STAYS flat — the turn is the concept's
      reward for a molecule the student assembled, and a card the page built has
-     not earned it. Turning it is the reader's, through the control.
-     Same recipe as `covalent` below, on purpose and not by accident: the two
-     concepts make different claims about the same molecule. */
-  polarity:  { kind:'build', recipe:'water' },
-  covalent:  { kind:'build', recipe:'water' },
-  geometry:  { kind:'build', recipe:'methane' },
-  ionic:     { kind:'build', recipe:'nacl' },
-
+     not earned it. Turning it is the reader's, through the control. */
+  { id:'b:water', kind:'build', recipe:'water' },
+  { id:'b:methane', kind:'build', recipe:'methane' },
+  { id:'b:nacl', kind:'build', recipe:'nacl' },
   /* The proton actually moving, which is what a pH is. The recipe hands HCl's
      hydrogen to a water and leaves chloride holding the pair — the mechanism
-     the card's buffer claim is made of, though not a buffer itself. Named here
-     rather than left blank because a proton changing hands is the thing, and no
-     still of a species says it. */
-  acids:     { kind:'build', recipe:'hcl' },
+     the buffer claim is made of, though not a buffer itself. Named rather than
+     left blank because a proton changing hands is the thing, and no still of a
+     species says it. */
+  { id:'b:hcl', kind:'build', recipe:'hcl' },
 
+  /* ---- inline: one molecule, turning ---- */
+  /* One phospholipid, which is the whole of "their tails avoid water": the head
+     and the two tails are visible as different things in one picture. The same
+     spec membrane-lab puts in its inset, for the same reason. */
+  { id:'m:popc', kind:'molbox', spec:'popc' },
+  /* The sugar the ten steps split. A card cannot show ten steps, but it can
+     show the thing they happen to, and glucose is unambiguous. */
+  { id:'m:glucose', kind:'molbox', spec:'glucose' },
+
+  /* ---- inline: a protein drawn on a CONCEPT card ----
+     Not a specimen. These name files directly because what they draw — a
+     chain-B fold, a lesson-tier surface — has no role in proteins/proteins.js,
+     which is a registry of structures rather than of illustrations. */
   /* The tetramer, as a ribbon. `levels` claims four levels of structure on one
      molecule, and a Ca ribbon is the only picture that shows three of them at
      once: the chain, the helices it folds into, and four of those packed. The
      trace is baked (tools/bake-trace.js) and its secondary structure is the
      deposited HELIX records, not a guess. */
-  levels:    { kind:'protein', trace:'hemoglobin/data/2HHB.trace.json',
-               surface:'hemoglobin/data/2HHB.card.surf.bin',
-               /* `chrome=bare` is the LESSON's parameter, not the map's: the map
-                  asks for a mode and hemoglobin-lab decides what it means. */
-               lesson:'hemoglobin-lab.html?chrome=bare' },
-
+  { id:'r:levels', kind:'protein',
+    trace:'hemoglobin/data/2HHB.trace.json',
+    surface:'hemoglobin/data/2HHB.card.surf.bin' },
   /* ONE chain of the same tetramer, because this card's claim is about one
      chain finding one shape — four of them would be the level above, which is
-     the card next door. Same trace file, so nothing is baked twice. */
-  folding:   { kind:'protein', trace:'hemoglobin/data/2HHB.trace.json', chains:'B',
-               fold:'hemoglobin/data/2HHB-B.fold.bin' },
-  /* No `surface` here on purpose: the card-tier bake is the whole tetramer, and
-     a card drawing chain B would show a skin around three chains it is not
+     the card next door. Same trace file, so nothing is baked twice.
+     No `surface` on purpose: the card-tier bake is the whole tetramer, and a
+     card drawing chain B would show a skin around three chains it is not
      claiming. A one-chain bake is a bake, not a flag. */
+  { id:'r:folding', kind:'protein',
+    trace:'hemoglobin/data/2HHB.trace.json', chains:'B',
+    fold:'hemoglobin/data/2HHB-B.fold.bin' },
 
-  /* One phospholipid, which is the whole of "their tails avoid water": the head
-     and the two tails are visible as different things in one picture. The same
-     spec membrane-lab puts in its inset, for the same reason. */
-  bilayer:   { kind:'molbox', spec:'popc' },
+  /* ---- button: a lesson, opened over the map ----
+     `chrome=bare` is the LESSON's parameter, not the map's: the map asks for a
+     mode and hemoglobin-lab decides what it means. Its own content item now,
+     rather than a field smuggled inside a protein view — a lesson is not a
+     property of a picture that happens to sit on the same card. */
+  { id:'l:hemoglobin', kind:'lesson', name:'Levels of structure',
+    href:'hemoglobin-lab.html?chrome=bare' },
 
-  /* The sugar the ten steps split. A card cannot show ten steps, but it can
-     show the thing they happen to, and glucose is unambiguous. */
-  glycolysis:{ kind:'molbox', spec:'glucose' },
-};
+  /* ---- card: a video ---- */
+  { id:'v:glycolysis', kind:'video', src:'1VrRl0UTlA8',
+    name:'Glycolysis',
+    /* WEHI is a medical research institute, and wehi.tv is one team inside it.
+       The card names the institute and links to the collection this video
+       belongs to, so a reader who wants more has somewhere to go that is not
+       a YouTube channel. */
+    credit:'WEHI', year:2021,
+    creditUrl:'https://www.wehi.edu.au/topic/biology-101/',
+    poster:'media/glycolysis-wehi.jpg',
+    /* TWO TRACKS in one file, and the default is `narration`: the video's own
+       words, because putting our sentences where its author's were is its own
+       kind of misrepresentation on work that is not ours. `notes` is the same
+       beats rewritten for a Bio 101 reader, reachable from the switch. The
+       column names the source of whichever is showing. `step` is the lesson's
+       own numbering, so a cue and glycolysis-lab's ten steps cannot drift. */
+    captions:'media/glycolysis-wehi.captions.json' },
+];
 
-  global.MapContent = { DOORS, CONCEPTS, QUESTIONS, SPECIMENS, VIEWS };
+  /* ---------------------------------------------------------------------
+   *  PLACEMENTS — WHERE a unit of content sits, and nothing else. One row per
+   *  content item, carrying the rank it has on each concept that shows it:
+   *
+   *      ['v:glycolysis', { glycolysis:1 }]
+   *        the content       the concepts, and the rank it has ON EACH
+   *
+   *  RANK MEANS WHAT IT MEANS EVERYWHERE ELSE ON THIS MAP: 1 is what the card
+   *  opens with, 2 is one step in. Reusing it rather than inventing a rule is
+   *  what lets content be authored like everything else here. For inline
+   *  content it also breaks the tie — a card mounts its rank 1 item, since it
+   *  can only afford one live box.
+   *
+   *  PROTEINS ARE THE EXCEPTION THAT PROVES THE TABLE. A `p:` row places a
+   *  protein whose entry lives in proteins/proteins.js, and nothing here
+   *  restates what that protein IS. Every entry in that registry is drawn
+   *  whether or not it has a row here; without one it hangs off the Proteins
+   *  door at the back rank, which is the honest place for a structure nobody
+   *  has filed yet. So adding a protein stays a one-file edit, and this table
+   *  is an override rather than a second registry to keep in step.
+   *
+   *  A third element picks a protein VARIANT by its id in that protein's
+   *  entry; omitted, the registry's own default is drawn. Which deposition a
+   *  card shows is the MAP's decision — 2HHB or sickle 2HBS is a different
+   *  claim — and the paths behind it are the registry's, which
+   *  kit/proteinbox.js reads for itself.
+   *
+   *  A specimen and a video are both LEAVES: they hang off concepts and off
+   *  questions and never off each other, which is what keeps the map layered.
+   *
+   *  PLACEHOLDER CONTENT. Which specimen belongs under which concept, and at
+   *  what rank, is the same editorial judgement as every other rank here.
+   *  The six protein rows are a starting guess, not a decision.
+   * ------------------------------------------------------------------- */
+  const PLACEMENTS = [
+    ['w:hbond',      { hbond: 1 }],
+    ['w:solvation',  { solvation: 1 }],
+    ['w:ice',        { ice: 1 }],
+    ['w:heat',       { heat: 1 }],
+
+    /* Same recipe on two concepts, on purpose and not by accident: the two
+       make different claims about the same molecule. Which is a thing the old
+       concept-keyed table could only express by repeating the object. */
+    ['b:water',      { polarity: 1, covalent: 1 }],
+    ['b:methane',    { geometry: 1 }],
+    ['b:nacl',       { ionic: 1 }],
+    ['b:hcl',        { acids: 1 }],
+
+    ['m:popc',       { bilayer: 1 }],
+    ['m:glucose',    { glycolysis: 1 }],
+
+    ['r:levels',     { levels: 1 }],
+    ['r:folding',    { folding: 1 }],
+
+    ['l:hemoglobin', { levels: 1 }],
+
+    ['v:glycolysis', { glycolysis: 1 }],
+
+    ['p:hemoglobin', { cooperat: 1, levels: 1, folding: 2 }],
+    ['p:myoglobin',  { binding: 1,  folding: 1 }],
+    ['p:napump',     { pumps: 1,    osmosis: 2 }],
+    ['p:amylase',    { enzyme: 1,   polymers: 1 }],
+    ['p:rnase',      { denature: 1, folding: 1 }],   // Anfinsen: it refolds itself
+    ['p:prion',      { folding: 1,  denature: 2, levels: 2 }],
+  ];
+
+  global.MapContent = { DOORS, CONCEPTS, QUESTIONS, CONTENT, PLACEMENTS };
 })(this);

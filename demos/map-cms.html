@@ -15,7 +15,7 @@
      captions into crossings, and a tool that did not show the number would hide
      the only thing worth watching.
 
-     It does NOT edit DOORS, CONCEPTS or VIEWS. mapcontent-io.js splices only the
+     It does NOT edit DOORS, CONTENT or PLACEMENTS. mapcontent-io.js splices only the
      QUESTIONS array back, so a save cannot touch a concept's claim or the prose
      that states the curation rules. -->
 <html lang="en">
@@ -185,7 +185,7 @@
   <a class="logo" href="admin.html">kodo<em>lab</em><span class="dot">.</span></a>
   <span class="title">map — questions and crossings</span>
   <span class="spacer"></span>
-  <a class="btn" href="tests/door-map.html">Open the map</a>
+  <a class="btn" href="tests/question-composer.html">Open the map</a>
 </header>
 
 <div class="tabs">
@@ -241,7 +241,7 @@
    is what the save is checked against, so two editors cannot silently
    overwrite each other. */
 
-let rows = [], base = '', concepts = [], doors = [], viewIds = [];
+let rows = [], base = '', concepts = [], doors = [], placedIds = [];
 let writable = false, mtimeMs = null;
 
 const $ = id => document.getElementById(id);
@@ -421,7 +421,7 @@ function rowEl(r, i) {
       if (r.concepts && id_in(r, m.id)) continue;
       const o = document.createElement('option');
       o.value = m.id;
-      o.textContent = m.name + (viewIds.includes(m.id) ? ' ◍' : '');
+      o.textContent = m.name + (placedIds.includes(m.id) ? ' ◍' : '');
       g.appendChild(o);
     }
     if (g.children.length) add.appendChild(g);
@@ -470,7 +470,7 @@ function fillFilters() {
   for (const m of concepts) {
     const o = document.createElement('option');
     o.value = m.id;
-    o.textContent = m.name + (viewIds.includes(m.id) ? ' ◍' : '');
+    o.textContent = m.name + (placedIds.includes(m.id) ? ' ◍' : '');
     msel.appendChild(o);
   }
 
@@ -644,7 +644,7 @@ function crowEl(m, i) {
   qn.className = 'qn';
   const n = rows.filter(r => id_in(r, m.id)).length;
   qn.textContent = n + (n === 1 ? ' question' : ' questions')
-                 + (viewIds.includes(m.id) ? ' · ◍ has a card' : '');
+                 + (placedIds.includes(m.id) ? ' · ◍ has a card' : '');
   mid.appendChild(qn);
   el.appendChild(mid);
 
@@ -695,9 +695,9 @@ function crowEl(m, i) {
         + '. Unlink those first — deleting it would drop the crossings.', 'bad');
       return;
     }
-    if (viewIds.includes(m.id)
-        && !confirm('“' + (m.name || m.id) + '” has a VIEWS entry, which this cannot remove.\n\n'
-                  + 'Delete the concept and leave the orphan entry for a hand edit?')) return;
+    if (placedIds.includes(m.id)
+        && !confirm('“' + (m.name || m.id) + '” has content placed on it, which this cannot remove.\n\n'
+                  + 'Delete the concept and leave the orphan placement for a hand edit?')) return;
     if (!m.fresh && !confirm('Delete “' + (m.name || m.id) + '”?')) return;
     draft.splice(i, 1);
     say('');
@@ -750,7 +750,7 @@ async function load() {
     rows = data.rows;
     concepts = data.concepts;
     doors = data.doors;
-    viewIds = data.views || [];
+    placedIds = data.placed || [];
     mtimeMs = data.mtimeMs;
     writable = !!data.writable;
     // The concepts screen edits a COPY. `concepts` stays the read-only lookup the
@@ -774,7 +774,8 @@ async function load() {
       new Function('global', src)(sb);
       const c = sb.MapContent;
       rows = c.QUESTIONS.map(([text, m]) => ({ text, concepts: { ...m } }));
-      concepts = c.CONCEPTS; doors = c.DOORS; viewIds = Object.keys(c.VIEWS || {});
+      concepts = c.CONCEPTS; doors = c.DOORS;
+      placedIds = [...new Set((c.PLACEMENTS || []).flatMap(([, r]) => Object.keys(r || {})))];
       draft = c.CONCEPTS.map(m => ({ ...m }));
       base = snapshot(); cbase = csnapshot();
     } catch (e2) { say('could not read mapcontent.js: ' + e2.message, 'bad'); }
