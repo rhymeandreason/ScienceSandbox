@@ -1,0 +1,295 @@
+/* =====================================================================
+ *  graphdata.js — the node graph's content, and nothing that draws it.
+ *  Loaded before nodegraph.html's own script; exposes
+ *  window.GraphData = { UNITS, LADDER, NODES, EDGES }.
+ *
+ *  Two units built end to end (water, proteins) plus the macromolecule
+ *  bridges between them, per docs/Biology-Node-Graph.md. The schema is
+ *  that doc's, cut to v1:
+ *
+ *  NODES — typed. `type` is one of:
+ *      concept    a reusable idea (Polarity, Specificity)
+ *      structure  a thing that physically exists (Water molecule, Tertiary)
+ *      process    something that happens (Folding, Transpiration)
+ *      question   an anchoring question; `text`, no claim
+ *      theme      a deliberate high-degree hub (Structure–Function)
+ *  Structure and process are split from concept on purpose: half of
+ *  biology's difficulty is conflating an object with what it does.
+ *
+ *  `level` is the scale ladder integer (LADDER below), on the node as an
+ *  ATTRIBUTE, not as edges — the ladder is the axis nodes sit on, not a
+ *  parallel skeleton. A process carries `occursAt` instead (it has no
+ *  size, it has a location), an emergent property `emergesAt`, and a
+ *  concept carries nothing: null level is correct, not missing.
+ *
+ *  `unit` picks the tint (UNITS). `subject:'chemistry'` marks a
+ *  cross-subject prerequisite — the edges students stall on, flagged so
+ *  the map can offer a bridge instead of a dead end.
+ *
+ *  EDGES — [from, type, to, rank]. Directed; the type reads left to
+ *  right ("polarity prerequisite-of hbond"). Rank is intrinsic strength:
+ *      1  the spine; what expanding a card deals first
+ *      2  enrichment, one step in
+ *      3  true, surfaced on request
+ *  Soft budget: about five rank-1 edges per node, enforced while
+ *  authoring. The one deliberate exception is hbond, the water unit's
+ *  mechanism hub — every property routes through it.
+ *
+ *  ROUTING RULE (the water lesson): a consequence attaches to the
+ *  property that causes it, never to water-mol directly. Attach to the
+ *  most specific node that fits.
+ * ===================================================================== */
+(function (global) {
+  'use strict';
+
+  const UNITS = {
+    water:    { name: 'Water',          tint: '#2f7fb5' },
+    macro:    { name: 'Macromolecules', tint: '#5f6672' },
+    proteins: { name: 'Proteins',       tint: '#c2553a' },
+    themes:   { name: 'Themes',         tint: '#c08a1e' },
+  };
+
+  /* Chemistry is not a unit: it is another SUBJECT, and its nodes wear
+     this tint so the crossing out of biology is visible. */
+  const CHEM_TINT = '#8a5cc0';
+
+  const LADDER = [
+    [1,  'molecule'], [2, 'macromolecule'], [3, 'organelle'], [4, 'cell'],
+    [5,  'tissue'],   [6, 'organ'],         [7, 'organism'],  [8, 'population'],
+    [9,  'community'],[10,'ecosystem'],
+  ];
+
+  const NODES = [
+
+  /* ---- chemistry prerequisites (cross-subject) ------------------------ */
+  { id:'electroneg', type:'concept', unit:'water', subject:'chemistry', name:'Electronegativity',
+    claim:'Some atoms pull shared electrons harder than others.' },
+  { id:'covalent', type:'concept', unit:'water', subject:'chemistry', name:'Covalent bond',
+    claim:'Two atoms share a pair of electrons, and both count them as their own.' },
+  { id:'polarity', type:'concept', unit:'water', subject:'chemistry', name:'Polarity',
+    claim:'Unequal sharing gives a molecule a positive end and a negative end.' },
+
+  /* ---- water: cause → mechanism → properties → consequences ----------- */
+  { id:'water-mol', type:'structure', unit:'water', level:1, name:'Water molecule',
+    claim:'Oxygen pulls the shared electrons harder, and the 104.5° bend means the pulls never cancel.' },
+  { id:'hbond', type:'concept', unit:'water', name:'Hydrogen bonding',
+    claim:'The + hydrogen of one molecule attracts the − oxygen of the next.' },
+
+  { id:'cohesion', type:'concept', unit:'water', name:'Cohesion & adhesion',
+    claim:'Water sticks to itself, and to any surface it can hydrogen-bond to.' },
+  { id:'spec-heat', type:'concept', unit:'water', name:'High specific heat',
+    claim:'Heating water spends most of the energy breaking H-bonds, not raising the temperature.' },
+  { id:'evap-cool', type:'concept', unit:'water', name:'Evaporative cooling',
+    claim:'The fastest molecules escape first, and they take their energy with them.' },
+  { id:'solvent', type:'concept', unit:'water', name:'Solvent properties',
+    claim:'Water surrounds anything polar or charged, shell by shell, until it is dissolved.' },
+  { id:'hydrophobic', type:'concept', unit:'water', name:'The hydrophobic effect',
+    claim:'Water pushes nonpolar molecules together to protect its own H-bond network.' },
+  { id:'ice-density', type:'concept', unit:'water', name:'Ice density anomaly',
+    claim:'The frozen lattice holds molecules farther apart than the liquid does.' },
+  { id:'ionization', type:'concept', unit:'water', name:'Ionization & pH',
+    claim:'Water splits into H⁺ and OH⁻ in tiny amounts, and pH counts them.' },
+
+  { id:'transpiration', type:'process', unit:'water', occursAt:7, name:'Transpiration',
+    claim:'An unbroken column of water is pulled from root to leaf.' },
+  { id:'temp-buffer', type:'concept', unit:'water', name:'Temperature buffering',
+    claim:'Cells and lakes change temperature slowly, because their water resists it.' },
+  { id:'thermoreg', type:'process', unit:'water', occursAt:7, name:'Thermoregulation',
+    claim:'Sweat evaporates, and the evaporation carries body heat away.' },
+  { id:'osmosis', type:'process', unit:'water', occursAt:4, name:'Osmosis',
+    claim:'Water crosses a membrane toward the saltier side, with nothing pushing it.' },
+  { id:'overwinter', type:'process', unit:'water', occursAt:10, name:'Aquatic overwintering',
+    claim:'Ice floats, so a lake freezes from the top and life persists below.' },
+  { id:'buffers', type:'concept', unit:'water', name:'Buffers',
+    claim:'A buffer trades protons back and forth, so pH barely moves.' },
+
+  { id:'amphipathic', type:'concept', unit:'water', name:'Amphipathic',
+    claim:'One molecule with a polar region and a nonpolar region, so water sorts it into an inside and an outside.' },
+  { id:'dna-structure', type:'structure', unit:'macro', level:2, name:'DNA structure',
+    claim:'Charged backbone facing the water, stacked bases hiding from it.' },
+
+  /* ---- macromolecule bridges ------------------------------------------ */
+  { id:'dehydration', type:'process', unit:'macro', occursAt:1, name:'Dehydration synthesis',
+    claim:'Monomers join by losing a water molecule. Every polymer bond is built this way.' },
+  { id:'hydrolysis', type:'process', unit:'macro', occursAt:1, name:'Hydrolysis',
+    claim:'Water is added back to break the bond. Digestion is this, run enzymatically.' },
+  { id:'phospholipid', type:'structure', unit:'macro', level:1, name:'Phospholipid',
+    claim:'A charged head on two oily tails.' },
+  { id:'bilayer', type:'structure', unit:'macro', level:2, name:'Phospholipid bilayer',
+    claim:'Phospholipids sheet up on their own, tails in, heads out. Nothing bonds them together.' },
+
+  /* ---- proteins: the spine is the levels of structure ----------------- */
+  { id:'gene-seq', type:'concept', unit:'proteins', name:'Gene sequence',
+    claim:'The order of bases that spells out the order of amino acids.' },
+  { id:'amino-acid', type:'structure', unit:'proteins', level:1, name:'Amino acid',
+    claim:'Twenty kinds, and only the side chain differs between them.' },
+  { id:'r-group', type:'structure', unit:'proteins', level:1, name:'R-group',
+    claim:'The side chain: nonpolar, polar, acidic or basic. This classification is the real content.' },
+  { id:'peptide-bond', type:'structure', unit:'proteins', level:1, name:'Peptide bond',
+    claim:'The covalent link between amino acids, and it survives cooking.' },
+  { id:'primary', type:'structure', unit:'proteins', level:2, name:'Primary structure',
+    claim:'The sequence of amino acids, written by the gene.' },
+  { id:'secondary', type:'structure', unit:'proteins', level:2, name:'Secondary structure',
+    claim:'Helices and sheets, held by backbone H-bonds. The side chains play no part.' },
+  { id:'tertiary', type:'structure', unit:'proteins', level:2, name:'Tertiary structure',
+    claim:'The overall 3D shape, driven entirely by the side chains.' },
+  { id:'quaternary', type:'structure', unit:'proteins', level:2, name:'Quaternary structure',
+    claim:'Several folded chains packed into one machine.' },
+  { id:'rgroup-inter', type:'concept', unit:'proteins', name:'R-group interactions',
+    claim:'The side chains are what fold the protein: five forces, very different strengths.' },
+  { id:'disulfide', type:'structure', unit:'proteins', level:1, name:'Disulfide bridge',
+    claim:'A covalent staple between two cysteines, roughly twenty times the other folding forces.' },
+  { id:'vdw', type:'concept', unit:'proteins', name:'Van der Waals',
+    claim:'Weak, everywhere, and only additive when surfaces already fit.' },
+  { id:'folding', type:'process', unit:'proteins', occursAt:1, name:'Protein folding',
+    claim:'The chain finds one shape out of astronomically many, while still leaving the ribosome.' },
+  { id:'denaturation', type:'process', unit:'proteins', occursAt:1, name:'Denaturation',
+    claim:'Heat or acid unfolds the shape without breaking a single covalent bond.' },
+  { id:'func', type:'concept', unit:'proteins', name:'Protein function',
+    claim:'What a protein does is what its shape lets it do.' },
+
+  { id:'enzyme', type:'structure', unit:'proteins', level:2, name:'Enzyme',
+    claim:'A protein that lowers the barrier and comes out the other side unchanged.' },
+  { id:'active-site', type:'structure', unit:'proteins', level:2, name:'Active site',
+    claim:'A pocket in the tertiary structure where the substrate fits.' },
+  { id:'specificity', type:'concept', unit:'proteins', name:'Specificity',
+    claim:'One enzyme, one substrate, because the pocket has one shape.' },
+  { id:'induced-fit', type:'concept', unit:'proteins', name:'Induced fit',
+    claim:'Binding tightens the fit. The pocket is not rigid.' },
+  { id:'activation-e', type:'concept', unit:'proteins', subject:'chemistry', name:'Activation energy',
+    claim:'The barrier a reaction has to clear before it can run downhill.' },
+  { id:'optimal-cond', type:'concept', unit:'proteins', name:'Optimal conditions',
+    claim:'Every enzyme has a pH and temperature where its shape holds, and a cliff past them.' },
+
+  { id:'point-mutation', type:'concept', unit:'proteins', name:'Point mutation',
+    claim:'One base changed, one amino acid swapped.' },
+  { id:'hemoglobin', type:'structure', unit:'proteins', level:2, name:'Hemoglobin',
+    claim:'Four chains, four hemes, one oxygen carrier.' },
+  { id:'sickle', type:'structure', unit:'proteins', level:4, name:'Sickled cell',
+    claim:'Hemoglobin fibres deform the whole cell. Glu→Val put a hydrophobic patch on the surface.' },
+  { id:'nat-select', type:'process', unit:'proteins', emergesAt:8, name:'Natural selection',
+    claim:'Carriers resist malaria, so the allele persists. Populations evolve; individuals never do.' },
+
+  /* ---- themes ---------------------------------------------------------- */
+  { id:'structfunc', type:'theme', unit:'themes', name:'Structure ↔ Function',
+    claim:'Show me everything where a shape is the explanation.' },
+
+  /* ---- anchoring questions --------------------------------------------
+     Every non-question node must sit on a path answering at least one. */
+  { id:'q-medium',   type:'question', text:'Why is water the medium of life?' },
+  { id:'q-tree',     type:'question', text:'Why can a tree be a hundred metres tall?' },
+  { id:'q-lakes',    type:'question', text:'Why do lakes freeze from the top down?' },
+  { id:'q-membrane', type:'question', text:'Why does a membrane assemble itself?' },
+  { id:'q-sweat',    type:'question', text:'Why does sweating cool you down?' },
+  { id:'q-sickle',   type:'question', text:'Why does changing one amino acid out of 146 cause sickle cell disease?' },
+  { id:'q-fever',    type:'question', text:'Why is a fever above 40 °C dangerous?' },
+  { id:'q-egg',      type:'question', text:'Why can’t you un-cook an egg?' },
+  { id:'q-machine',  type:'question', text:'How does a floppy chain become a machine with a specific job?' },
+  { id:'q-substrate',type:'question', text:'Why does an enzyme only act on one substrate?' },
+  { id:'q-collagen', type:'question', text:'Why does eating protein not directly become your protein?' },
+  { id:'q-which',    type:'question', text:'What decides which amino acid goes where?' },
+  ];
+
+  const EDGES = [
+    /* chemistry chain into water */
+    ['electroneg',  'prerequisite-of', 'polarity',    1],
+    ['covalent',    'prerequisite-of', 'polarity',    1],
+    ['polarity',    'prerequisite-of', 'hbond',       1],
+    /* water's polarity is card content on water-mol; the concept describes it */
+    ['polarity',    'describes',       'water-mol',   2],
+
+    /* water-mol: five rank-1 edges, and it stays legible */
+    ['water-mol',   'causes',          'hbond',       1],
+    ['water-mol',   'instance-of',     'structfunc',  1],
+    ['q-medium',    'answers',         'water-mol',   1],
+
+    /* hbond, the mechanism hub: fans to the properties at rank 1 */
+    ['hbond',       'causes',          'cohesion',    1],
+    ['hbond',       'causes',          'spec-heat',   1],
+    ['hbond',       'causes',          'evap-cool',   1],
+    ['hbond',       'causes',          'solvent',     1],
+    ['hbond',       'causes',          'hydrophobic', 1],
+    ['hbond',       'causes',          'ice-density', 1],
+    ['hbond',       'causes',          'ionization',  2],
+
+    /* each property carries its consequence, never water-mol directly */
+    ['cohesion',    'causes',          'transpiration', 1],
+    ['q-tree',      'answers',         'transpiration', 1],
+    ['spec-heat',   'causes',          'temp-buffer',   1],
+    ['evap-cool',   'causes',          'thermoreg',     1],
+    ['q-sweat',     'answers',         'thermoreg',     1],
+    ['solvent',     'enables',         'osmosis',       1],
+    ['ice-density', 'causes',          'overwinter',    1],
+    ['q-lakes',     'answers',         'ice-density',   1],
+    ['ionization',  'causes',          'buffers',       1],
+
+    /* the edge that justifies the project: one cause, three structures */
+    ['hydrophobic', 'causes',          'bilayer',       1],
+    ['hydrophobic', 'part-of',         'rgroup-inter',  1],
+    ['hydrophobic', 'contributes-to',  'dna-structure', 2],
+    ['q-membrane',  'answers',         'bilayer',       1],
+
+    /* amphipathic: the generalization, so it isn't rediscovered three times */
+    ['phospholipid','instance-of',     'amphipathic',   1],
+    ['phospholipid','part-of',         'bilayer',       1],
+    ['amphipathic', 'describes',       'bilayer',       2],
+
+    /* water is the reagent in the universal reaction */
+    ['dehydration', 'produces',        'water-mol',     1],
+    ['hydrolysis',  'consumes',        'water-mol',     1],
+    ['dehydration', 'contrasts-with',  'hydrolysis',    1],
+    ['dehydration', 'produces',        'peptide-bond',  1],
+    ['q-collagen',  'answers',         'hydrolysis',    1],
+
+    /* protein spine: two levels, two separate causes */
+    ['gene-seq',    'determines',      'primary',       1],
+    ['q-which',     'answers',         'gene-seq',      1],
+    ['amino-acid',  'part-of',         'primary',       1],
+    ['peptide-bond','part-of',         'primary',       2],
+    ['r-group',     'part-of',         'amino-acid',    1],
+    ['r-group',     'causes',          'rgroup-inter',  1],
+    ['hbond',       'causes',          'secondary',     1],   /* backbone, not R-group */
+    ['hbond',       'part-of',         'rgroup-inter',  2],   /* R-group H-bonds, the other kind */
+    ['disulfide',   'part-of',         'rgroup-inter',  2],
+    ['vdw',         'part-of',         'rgroup-inter',  3],
+    ['rgroup-inter','causes',          'tertiary',      1],
+    ['primary',     'determines',      'tertiary',      1],
+    ['secondary',   'part-of',         'tertiary',      2],
+    ['tertiary',    'part-of',         'quaternary',    1],
+    ['tertiary',    'causes',          'func',          1],
+    ['tertiary',    'instance-of',     'structfunc',    1],
+    ['quaternary',  'causes',          'func',          2],
+
+    /* folding is the process, tertiary is the result: one direction only */
+    ['folding',     'produces',        'tertiary',      1],
+    ['q-machine',   'answers',         'folding',       1],
+
+    /* denaturation: the destroys/preserves pair is what makes irreversibility comprehensible */
+    ['denaturation','destroys',        'tertiary',      1],
+    ['denaturation','destroys',        'quaternary',    2],
+    ['denaturation','preserves',       'primary',       1],
+    ['denaturation','contrasts-with',  'hydrolysis',    1],   /* cooking is not digestion */
+    ['q-egg',       'answers',         'denaturation',  1],
+
+    /* enzyme subtree, hanging off tertiary structure */
+    ['enzyme',      'instance-of',     'func',          1],
+    ['tertiary',    'contains',        'active-site',   1],
+    ['active-site', 'part-of',         'enzyme',        1],
+    ['enzyme',      'lowers',          'activation-e',  1],
+    ['active-site', 'causes',          'specificity',   1],
+    ['q-substrate', 'answers',         'specificity',   1],
+    ['induced-fit', 'describes',       'active-site',   2],
+    ['optimal-cond','explained-by',    'tertiary',      1],   /* heat unfolds, it doesn't poison */
+    ['q-fever',     'answers',         'optimal-cond',  1],
+
+    /* the showcase path: mutation to phenotype to evolution */
+    ['q-sickle',    'answers',         'point-mutation',1],
+    ['point-mutation','alters',        'primary',       1],
+    ['hemoglobin',  'instance-of',     'quaternary',    1],
+    ['point-mutation','transforms-into','sickle',       1],
+    ['hemoglobin',  'part-of',         'sickle',        1],
+    ['sickle',      'evidence-for',    'nat-select',    1],
+  ];
+
+  global.GraphData = { UNITS, CHEM_TINT, LADDER, NODES, EDGES };
+})(this);

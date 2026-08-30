@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<!-- Bio 101 node graph — typed nodes, typed ranked edges, and the scale
+     ladder as a first-class axis. docs/Biology-Node-Graph.md is the design;
+     graphdata.js is the content (two units: water, proteins, plus the
+     macromolecule bridges).
+
+     A FRESH ENGINE on the composer's design language, not a copy of it —
+     ConceptMap.md's rule. No WebGL, no search: skeleton first, so the node
+     structure can settle before material attaches. What is different from
+     the composer's model:
+
+       * edges are TYPED and DIRECTED, and the type is drawn on the edge
+         when a card is focused — "causes" vs "contrasts-with" is the content
+       * rank is on the edge (1 spine / 2 enrichment / 3 on request), and
+         expanding a card deals whole bands, lowest first
+       * the scale ladder is a persistent left gutter; focusing a card lights
+         the rung it sits at (level), runs at (occursAt), or emerges at
+       * anything-to-anything: no bipartite rule. Questions are one node type
+         among six, not the crossing every path must take. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bio 101 node graph</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --ui: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --serif: 'Literata', Georgia, serif;
+
+    --paper:  #faf8f4;
+    --ink:    #14161a;
+    --muted:  #6d6f76;
+    --line:   #e4e0d7;
+    --card:   #ffffff;
+    --accent: #1f5f4f;
+    --spark:  #e2643a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    margin: 0;
+    overflow: hidden;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- chrome --------------------------------------------------------- */
+
+  .mast {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; align-items: baseline; gap: 1rem;
+    padding: 1.1rem clamp(1rem, 3vw, 2rem) 0.9rem;
+    pointer-events: none;
+  }
+  .mast > * { pointer-events: auto; }
+  .logo {
+    font-size: 1.5rem; font-weight: 500; letter-spacing: -0.04em;
+    margin: 0; text-transform: lowercase; text-decoration: none; color: inherit;
+  }
+  .logo em { font-style: normal; color: var(--accent); }
+  .logo .dot { color: var(--spark); }
+  .mast .title { font-family: var(--serif); font-size: 0.95rem; color: var(--muted); }
+  .mast .spacer { flex: 1; pointer-events: none; }
+
+  .btn {
+    font-family: var(--sans); font-size: 0.68rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 0.45rem 0.75rem; cursor: pointer;
+    transition: color .15s, border-color .15s;
+  }
+  .btn:hover { color: var(--accent); border-color: var(--accent); }
+
+  #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
+  #canvas.panning { cursor: grabbing; }
+  /* geometricPrecision: #world is zoomed above k=1, and whole-pixel glyph
+     advances rewrap headings as k moves. Same rule as the composer. */
+  #world { position: absolute; top: 0; left: 0; transform-origin: 0 0;
+           text-rendering: geometricPrecision; -webkit-text-size-adjust: none; }
+  #edges { position: absolute; overflow: visible; pointer-events: none; }
+  #edges text {
+    font-family: var(--sans); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    fill: var(--muted); opacity: 0; transition: opacity .18s;
+    paint-order: stroke; stroke: var(--paper); stroke-width: 3px;
+  }
+  #edges text.on { opacity: 0.95; }
+
+  /* ---- the scale gutter ------------------------------------------------
+     The ladder is an attribute, and this rail is what the attribute buys:
+     a persistent "you are here" for the axis students get lost on. Top is
+     ecosystem, bottom is molecule, because up is bigger. */
+  .gutter {
+    position: fixed; left: clamp(0.9rem, 2vw, 1.6rem); top: 50%; z-index: 5;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 0.32rem;
+    pointer-events: none; user-select: none;
+  }
+  .gutter .rung {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.58rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: #c9c5ba; transition: color .18s;
+  }
+  .gutter .rung i {
+    width: 14px; height: 2px; background: var(--line); flex: none;
+    transition: background .18s, width .18s;
+  }
+  .gutter .rung.on { color: var(--ink); }
+  .gutter .rung.on i { background: var(--tint, var(--accent)); width: 22px; }
+  .gutter .rung .how {
+    font-size: 0.52rem; color: var(--spark); letter-spacing: 0.1em;
+    margin-left: 0.15rem;
+  }
+  .gutter .rung:not(.on) .how { display: none; }
+  .gutter .none {
+    margin-top: 0.55rem; font-size: 0.55rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #c9c5ba; transition: color .18s;
+  }
+  .gutter .none.on { color: var(--ink); }
+
+  /* ---- nodes ----------------------------------------------------------- */
+
+  .node {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    cursor: zoom-in;
+    user-select: none;
+    border-radius: 4px;
+    transition: border-color .15s, box-shadow .15s, opacity .18s;
+  }
+  .node.dragging { cursor: grabbing; box-shadow: 0 10px 26px rgba(20,22,26,.12); }
+
+  /* concept / structure / process share the card frame; the tag row says
+     which they are, because conflating a thing with what it does is half
+     the course's difficulty. */
+  .node.card {
+    width: 17.5rem;
+    padding: 0.85rem 1rem 0.9rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    text-align: left;
+  }
+  .node.card .name {
+    font-size: 0.6rem; font-weight: 500; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted);
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  /* the dot is the UNIT; chemistry nodes wear the cross-subject tint */
+  .node.card .name::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--dot, var(--line)); flex: none;
+  }
+  .node.card .claim {
+    font-family: var(--serif); font-size: 1rem; line-height: 1.28;
+    color: var(--ink); margin-top: 0.35rem; letter-spacing: -0.005em;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .node.card .tags {
+    display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem;
+  }
+  .node.card .tag {
+    font-size: 0.52rem; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 2px;
+    padding: 0.14rem 0.34rem;
+  }
+  .node.card .tag.scale  { color: var(--accent); border-color: #cfdcd7; }
+  .node.card .tag.chem   { color: #8a5cc0; border-color: #ded2ef; }
+  .node.card .meta {
+    font-size: 0.55rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--spark); margin-top: 0.45rem; min-height: 0.7rem;
+  }
+
+  /* the open card grows, same bargain as the composer */
+  .node.card.hub { width: 30rem; padding: 1.5rem 1.7rem 1.55rem; }
+  .node.card.hub .claim {
+    font-size: 1.6rem; line-height: 1.2; margin-top: 0.55rem;
+    letter-spacing: -0.012em; -webkit-line-clamp: 6;
+  }
+  .node.card.hub .name { font-size: 0.68rem; letter-spacing: 0.2em; }
+
+  /* a theme is a deliberate hub: dark, the way the composer's door is */
+  .node.theme {
+    width: 20rem; padding: 1.15rem 1.35rem 1.2rem;
+    background: var(--ink); border: 1px solid var(--ink);
+    color: var(--paper); text-align: center;
+  }
+  .node.theme .name {
+    font-family: var(--serif); font-size: 1.35rem; line-height: 1.15;
+    letter-spacing: -0.015em;
+  }
+  .node.theme .claim {
+    font-family: var(--ui); font-size: 0.72rem; color: #b6b2a8;
+    margin-top: 0.4rem;
+  }
+  .node.theme .meta {
+    font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--spark); margin-top: 0.45rem; min-height: 0.7rem;
+  }
+
+  .node.question {
+    width: 15rem;
+    padding: 0.5rem 0.65rem;
+    background: transparent;
+    border: 1px solid transparent;
+    font-family: var(--serif); font-size: 1rem; line-height: 1.25; color: var(--muted);
+    text-align: center;
+  }
+  .node.question .meta {
+    font-family: var(--sans);
+    font-size: 0.52rem; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--spark); margin-top: 0.25rem;
+  }
+  .node.question.hub {
+    width: 18rem; padding: 0.9rem 1rem 0.95rem;
+    font-size: 1.22rem; line-height: 1.22; color: var(--ink);
+  }
+
+  .node:hover { border-color: var(--accent); }
+  .node.question:hover { background: var(--card); border-color: var(--line); color: var(--ink); }
+
+  .focusing .node { opacity: 0.18; pointer-events: none; }
+  .focusing .node.lit { opacity: 1; pointer-events: auto; }
+  .focusing .node.hop2 { opacity: 1; }
+  .focusing .node.question.lit {
+    background: var(--card); border-color: var(--line); color: var(--ink);
+  }
+
+  .hint {
+    position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 5;
+    font-size: 0.7rem; letter-spacing: 0.06em; color: var(--muted);
+  }
+  .legend {
+    position: fixed; left: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 5;
+    display: flex; gap: 1.1rem; font-size: 0.68rem; letter-spacing: 0.05em;
+    color: var(--muted); align-items: center;
+  }
+  .legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 0.4rem; }
+  .legend svg { vertical-align: -2px; margin-right: 0.35rem; }
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <a class="logo" href="../index.html">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="title">Bio 101 node graph — two units, typed edges, the scale ladder</span>
+  <span class="spacer"></span>
+  <button class="btn" id="reset">Start over</button>
+</header>
+
+<nav class="gutter" id="gutter" aria-label="scale ladder"></nav>
+
+<div id="canvas">
+  <div id="world">
+    <svg id="edges" width="1" height="1"></svg>
+  </div>
+</div>
+
+<div class="legend">
+  <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#1f5f4f" stroke-width="1.6"/><polygon points="12,1 18,4 12,7" fill="#1f5f4f"/></svg>rank 1</span>
+  <span><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#1f5f4f" stroke-width="1" opacity=".45"/></svg>rank 2</span>
+  <span><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#1f5f4f" stroke-width="1" stroke-dasharray="3 3" opacity=".45"/></svg>rank 3</span>
+  <span><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#e2643a" stroke-width="1.4"/></svg>contrasts with</span>
+  <span id="tints"></span>
+</div>
+<div class="hint" id="hint"></div>
+
+<script src="graphdata.js"></script>
+<script>
+'use strict';
+
+const { UNITS, CHEM_TINT, LADDER, NODES, EDGES } = GraphData;
+
+/* ---- graph ------------------------------------------------------------- */
+
+const world = document.getElementById('world');
+const svg = document.getElementById('edges');
+const NS = 'http://www.w3.org/2000/svg';
+
+const nodes = [], links = [], byId = {};
+for (const spec of NODES) {
+  const n = { ...spec, deg: 0 };
+  nodes.push(n); byId[n.id] = n;
+}
+for (const [from, type, to, rank] of EDGES) {
+  const a = byId[from], b = byId[to];
+  if (!a || !b) { console.warn('edge names a missing node:', from, type, to); continue; }
+  links.push({ a, b, type, rank });
+  a.deg++; b.deg++;
+}
+
+const neighbours = n => links.flatMap(l => l.a === n ? [l.b] : l.b === n ? [l.a] : []);
+const rankFrom = (from, other) => {
+  const l = links.find(l => (l.a === from && l.b === other) || (l.b === from && l.a === other));
+  return l ? l.rank : 9;
+};
+
+/* every node's best edge is promoted to its rank-1 band, so nothing is
+   unreachable from its own side of the map (the composer's densify rule) */
+for (const n of nodes) {
+  const mine = links.filter(l => l.a === n || l.b === n);
+  if (!mine.length) { console.warn('orphan node:', n.id); continue; }
+  const best = Math.min(...mine.map(l => l.rank));
+  if (best > 1) for (const l of mine) if (l.rank === best) l.rank = 1;
+}
+
+const live = [], liveLinks = [];
+let alpha = 0, settled = true;
+const wake = a => { alpha = Math.max(alpha, a); settled = false; };
+
+/* ---- reveal ------------------------------------------------------------ */
+
+function show(n, depth, y, x, ty) {
+  if (n.visible) return;
+  n.ty = ty;
+  n.visible = true;
+  n.depth = depth;
+  n.tx = x;
+  n.x = x; n.y = y;
+  n.vx = n.vy = 0;
+  paintNode(n);
+  live.push(n);
+  for (const l of links) {
+    if (l.painted || !l.a.visible || !l.b.visible) continue;
+    paintLink(l);
+    liveLinks.push(l);
+  }
+}
+
+const SHOW = 5;
+
+/* whole bands only: the cut never lands inside a rank */
+function expand(n, carry = true) {
+  const pending = neighbours(n).filter(m => !m.visible)
+    .sort((a, b) => rankFrom(n, a) - rankFrom(n, b));
+  if (!pending.length) { n.done = true; refreshMeta(n); return; }
+
+  const wave = [];
+  for (const m of pending) {
+    if (wave.length >= SHOW && rankFrom(n, m) !== rankFrom(n, wave[wave.length - 1])) break;
+    wave.push(m);
+  }
+
+  const mark = live.length;
+  const REACH = 560;
+  const STEP = k => k === 'question' ? 200 : 250;
+  wave.forEach((m, i) => {
+    const t = wave.length === 1 ? 0 : (i / (wave.length - 1)) * 2 - 1;
+    const y = n.y + (i - (wave.length - 1) / 2) * STEP(m.type);
+    const x = n.x + REACH - Math.abs(t) * 70;
+    show(m, n.depth + 1, y, x, y);
+  });
+  n.done = true;
+
+  /* a question alone is a dead end: it carries its far side with it */
+  if (carry)
+    for (const q of wave) if (q.type === 'question') expand(q, false);
+
+  wake(0.6);
+  follow = [n, ...live.slice(mark)];
+  followFrames = 900;
+  for (const m of live) refreshMeta(m);
+}
+
+function refreshMeta(n) {
+  const el = n.el && n.el.querySelector('.meta');
+  if (!el) return;
+  const hidden = neighbours(n).filter(m => !m.visible).length;
+  el.textContent = hidden ? '+' + hidden + (hidden === 1 ? ' edge' : ' edges') : '';
+}
+
+/* ---- DOM --------------------------------------------------------------- */
+
+const esc = t => String(t == null ? '' : t)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+const rungName = lv => (LADDER.find(r => r[0] === lv) || [0, '?'])[1];
+
+function scaleTag(n) {
+  if (n.level)     return '<span class="tag scale">' + esc(rungName(n.level)) + '</span>';
+  if (n.occursAt)  return '<span class="tag scale">occurs at ' + esc(rungName(n.occursAt)) + '</span>';
+  if (n.emergesAt) return '<span class="tag scale">emerges at ' + esc(rungName(n.emergesAt)) + '</span>';
+  return '';
+}
+
+function paintNode(n) {
+  const el = document.createElement('div');
+  if (n.type === 'question') {
+    el.className = 'node question';
+    el.innerHTML = '<span>' + esc(n.text) + '</span><div class="meta"></div>';
+  } else if (n.type === 'theme') {
+    el.className = 'node theme';
+    el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' +
+                   '<div class="claim">' + esc(n.claim) + '</div>' +
+                   '<div class="meta"></div>';
+  } else {
+    el.className = 'node card ' + n.type;
+    const tint = n.subject === 'chemistry' ? CHEM_TINT : (UNITS[n.unit] || {}).tint;
+    if (tint) el.style.setProperty('--dot', tint);
+    n.tint = tint;
+    el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' +
+                   '<div class="claim">' + esc(n.claim) + '</div>' +
+                   '<div class="tags">' +
+                     '<span class="tag">' + esc(n.type) + '</span>' +
+                     scaleTag(n) +
+                     (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '') +
+                   '</div>' +
+                   '<div class="meta"></div>';
+  }
+  n.el = el;
+  world.appendChild(el);
+  n.r = Math.hypot(el.offsetWidth, el.offsetHeight) / 2;
+  refreshMeta(n);
+}
+
+/* the type in reading words, on the edge, shown when a card is focused */
+const wordFor = t => t.replace(/-/g, ' ');
+
+function paintLink(l) {
+  l.painted = true;
+  const contrast = l.type === 'contrasts-with';
+  l.el = document.createElementNS(NS, 'path');
+  l.el.setAttribute('fill', 'none');
+  l.el.setAttribute('stroke', contrast ? '#e2643a' : '#1f5f4f');
+  l.el.setAttribute('stroke-width', l.rank === 1 ? '1.4' : '1');
+  l.el.setAttribute('stroke-opacity', l.rank === 1 ? '.4' : '.2');
+  if (l.rank >= 3) l.el.setAttribute('stroke-dasharray', '3 4');
+  svg.appendChild(l.el);
+
+  /* the arrowhead rides the MIDPOINT, not the end: paths run card centre to
+     card centre, so an end marker is always underneath the target card.
+     contrasts-with is symmetric and gets none. */
+  if (!contrast) {
+    l.arrow = document.createElementNS(NS, 'polygon');
+    l.arrow.setAttribute('points', '-3,-3.5 4,0 -3,3.5');
+    l.arrow.setAttribute('fill', '#1f5f4f');
+    l.arrow.setAttribute('fill-opacity', l.rank === 1 ? '.55' : '.35');
+    svg.appendChild(l.arrow);
+  }
+
+  l.label = document.createElementNS(NS, 'text');
+  l.label.setAttribute('text-anchor', 'middle');
+  l.label.textContent = wordFor(l.type);
+  svg.appendChild(l.label);
+}
+
+/* ---- relax ------------------------------------------------------------- */
+
+function step() {
+  const REPEL = 20000, SPRING = 0.012, COLUMN = 0.10, VMAX = 16;
+  for (const n of live) { n.vx *= 0.76; n.vy *= 0.76; }
+
+  for (let i = 0; i < live.length; i++) {
+    const a = live[i];
+    for (let j = i + 1; j < live.length; j++) {
+      const b = live[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 1) { dx = (i - j) || 1; dy = 1; d2 = 2; }
+      const d = Math.sqrt(d2), ux = dx / d, uy = dy / d;
+      const near = a.r + b.r;
+      const f = REPEL / d2 + (d < near * 1.15 ? (near * 1.15 - d) * 0.45 : 0);
+      a.vx -= ux * f; a.vy -= uy * f;
+      b.vx += ux * f; b.vy += uy * f;
+    }
+  }
+
+  for (const l of liveLinks) {
+    const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const f = (d - 420) * SPRING;
+    l.a.vx += (dx / d) * f; l.a.vy += (dy / d) * f;
+    l.b.vx -= (dx / d) * f; l.b.vy -= (dy / d) * f;
+  }
+
+  let moved = 0;
+  for (const n of live) {
+    n.vx += (n.tx - n.x) * COLUMN;
+    if (n.ty !== undefined) n.vy += (n.ty - n.y) * 0.04;
+    const v = Math.hypot(n.vx, n.vy);
+    if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
+    if (n === dragNode || n.pinned) continue;
+    const dx = n.vx * alpha, dy = n.vy * alpha;
+    n.x += dx; n.y += dy;
+    moved = Math.max(moved, Math.abs(dx), Math.abs(dy));
+  }
+  alpha *= 0.985;
+  if (alpha < 0.05 && moved < 0.05) { settled = true; alpha = 0; }
+}
+
+function draw() {
+  for (const n of live) n.el.style.transform =
+    'translate(-50%,-50%) translate(' + n.x.toFixed(1) + 'px,' + n.y.toFixed(1) + 'px)';
+  for (const l of liveLinks) {
+    const x1 = l.a.x, y1 = l.a.y, x2 = l.b.x, y2 = l.b.y;
+    const bend = Math.abs(x2 - x1) * 0.42 + 30;
+    const s1 = x2 >= x1 ? bend : -bend;
+    l.el.setAttribute('d', 'M' + x1.toFixed(1) + ',' + y1.toFixed(1) +
+      'C' + (x1 + s1).toFixed(1) + ',' + y1.toFixed(1) +
+      ' ' + (x2 - s1).toFixed(1) + ',' + y2.toFixed(1) +
+      ' ' + x2.toFixed(1) + ',' + y2.toFixed(1));
+    /* the cubic's midpoint, not the chord's: the label sits on its own line */
+    const mx = (x1 + 3 * (x1 + s1) + 3 * (x2 - s1) + x2) / 8;
+    const my = (y1 + 3 * y1 + 3 * y2 + y2) / 8;
+    l.label.setAttribute('x', mx.toFixed(1));
+    l.label.setAttribute('y', (my - 8).toFixed(1));
+    if (l.arrow) {
+      /* tangent of the cubic at t = 0.5, so the head lies along the curve */
+      const deg = Math.atan2(1.5 * (y2 - y1), 1.5 * (x2 - x1 - s1)) * 180 / Math.PI;
+      l.arrow.setAttribute('transform',
+        'translate(' + mx.toFixed(1) + ',' + my.toFixed(1) + ') rotate(' + deg.toFixed(1) + ')');
+    }
+  }
+}
+
+let follow = null, followFrames = 0;
+function followStep() {
+  if (!follow || followFrames-- <= 0) { follow = null; return; }
+  const subject = follow[0];
+  view.x += (innerWidth * 0.5 - subject.x * view.k - view.x) * 0.05;
+  view.y += (innerHeight / 2 - subject.y * view.k - view.y) * 0.05;
+  applyView();
+}
+
+function frame() {
+  if (!settled) { step(); draw(); }
+  followStep();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---- pan, zoom, drag, focus -------------------------------------------- */
+
+const canvas = document.getElementById('canvas');
+const hint = document.getElementById('hint');
+let view = { x: innerWidth * 0.25, y: innerHeight / 2, k: 0.7 };
+
+/* out is scale(), in is zoom — the composer's split, for the same Safari
+   rasterisation reason. The two agree exactly at k = 1. */
+const applyView = () => {
+  hint.textContent = 'k ' + view.k.toFixed(2) + ' · ' + live.length + '/' + nodes.length +
+                     ' nodes · ' + liveLinks.length + '/' + links.length + ' edges';
+  const zoomed = view.k > 1;
+  world.style.zoom = zoomed ? view.k : 1;
+  const t = zoomed ? view.k : 1;
+  world.style.transform =
+    'translate(' + (view.x / t) + 'px,' + (view.y / t) + 'px)' +
+    (zoomed ? '' : ' scale(' + view.k + ')');
+};
+applyView();
+
+let dragNode = null, dragging = null, last = null, travel = 0;
+
+canvas.addEventListener('pointerdown', e => {
+  const hit = e.target.closest('.node');
+  last = { x: e.clientX, y: e.clientY };
+  travel = 0;
+  follow = null;
+  if (hit) {
+    dragNode = live.find(n => n.el === hit);
+    hit.classList.add('dragging');
+    dragging = 'node';
+    wake(0.3);
+  } else {
+    dragging = 'pan';
+    canvas.classList.add('panning');
+  }
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  const dx = e.clientX - last.x, dy = e.clientY - last.y;
+  last = { x: e.clientX, y: e.clientY };
+  travel += Math.hypot(dx, dy);
+  if (dragging === 'pan') { view.x += dx; view.y += dy; applyView(); }
+  else { dragNode.x += dx / view.k; dragNode.y += dy / view.k; dragNode.vx = dragNode.vy = 0;
+         wake(0.3); }
+});
+
+function endDrag(e) {
+  const click = travel <= 5;
+  if (dragging === 'node') {
+    dragNode.el.classList.remove('dragging');
+    if (click) { expand(dragNode); focus(dragNode); }
+    else dragNode.pinned = true;
+    dragNode = null;
+  } else if (dragging === 'pan' && click && focused) {
+    clearFocus();
+  }
+  canvas.classList.remove('panning');
+  dragging = null;
+  if (e && canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  follow = null;
+  const k = Math.min(2.5, Math.max(0.2, view.k * Math.exp(-e.deltaY * 0.0015)));
+  view.x = e.clientX - (e.clientX - view.x) * (k / view.k);
+  view.y = e.clientY - (e.clientY - view.y) * (k / view.k);
+  view.k = k;
+  applyView();
+}, { passive: false });
+
+let focused = null;
+
+function measure() {
+  for (const m of live) m.r = Math.hypot(m.el.offsetWidth, m.el.offsetHeight) / 2;
+  wake(0.4);
+}
+
+function focus(n) {
+  focused = n;
+  if (!follow || follow[0] !== n) { follow = [n]; followFrames = 900; }
+  document.body.classList.add('focusing');
+  for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
+
+  const hop1 = new Set(neighbours(n).filter(m => m.visible));
+  const hop2 = new Set();
+  for (const m of hop1) for (const o of neighbours(m))
+    if (o.visible && o !== n && !hop1.has(o)) hop2.add(o);
+
+  n.el.classList.add('lit', 'hub');
+  for (const m of hop1) m.el.classList.add('lit');
+  for (const m of hop2) m.el.classList.add('lit', 'hop2');
+
+  measure();
+  gutterLight(n);
+
+  for (const l of liveLinks) {
+    const first = l.a === n || l.b === n;
+    const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
+    l.el.setAttribute('stroke-opacity', first ? '.85' : second ? '.4' : '.06');
+    if (first || second) l.el.setAttribute('stroke', '#e2643a');
+    else l.el.setAttribute('stroke', l.type === 'contrasts-with' ? '#e2643a' : '#1f5f4f');
+    if (l.arrow) {
+      l.arrow.setAttribute('fill', first || second ? '#e2643a' : '#1f5f4f');
+      l.arrow.setAttribute('fill-opacity', first ? '.95' : second ? '.55' : '.08');
+    }
+    /* the edge TYPE is the content, and focus is when it is read */
+    l.label.classList.toggle('on', first);
+  }
+}
+
+function clearFocus() {
+  focused = null;
+  document.body.classList.remove('focusing');
+  for (const m of live) m.el.classList.remove('lit', 'hub', 'hop2');
+  measure();
+  gutterLight(null);
+  for (const l of liveLinks) {
+    l.el.setAttribute('stroke', l.type === 'contrasts-with' ? '#e2643a' : '#1f5f4f');
+    l.el.setAttribute('stroke-opacity', l.rank === 1 ? '.4' : '.2');
+    if (l.arrow) {
+      l.arrow.setAttribute('fill', '#1f5f4f');
+      l.arrow.setAttribute('fill-opacity', l.rank === 1 ? '.55' : '.35');
+    }
+    l.label.classList.remove('on');
+  }
+}
+
+addEventListener('keydown', e => { if (e.key === 'Escape') clearFocus(); });
+
+/* ---- the gutter --------------------------------------------------------- */
+
+const gutter = document.getElementById('gutter');
+for (const [lv, name] of [...LADDER].reverse()) {
+  const r = document.createElement('div');
+  r.className = 'rung'; r.dataset.level = lv;
+  r.innerHTML = '<i></i><span>' + esc(name) + '</span><span class="how"></span>';
+  gutter.appendChild(r);
+}
+const noRung = document.createElement('div');
+noRung.className = 'none'; noRung.textContent = 'no level · a concept';
+gutter.appendChild(noRung);
+
+function gutterLight(n) {
+  for (const r of gutter.querySelectorAll('.rung')) {
+    r.classList.remove('on');
+    r.querySelector('.how').textContent = '';
+    r.style.removeProperty('--tint');
+  }
+  noRung.classList.remove('on');
+  if (!n || n.type === 'question' || n.type === 'theme') return;
+  const lv = n.level || n.occursAt || n.emergesAt;
+  if (!lv) { noRung.classList.add('on'); return; }
+  const r = gutter.querySelector('.rung[data-level="' + lv + '"]');
+  if (!r) return;
+  r.classList.add('on');
+  if (n.tint) r.style.setProperty('--tint', n.tint);
+  r.querySelector('.how').textContent =
+    n.occursAt ? 'occurs here' : n.emergesAt ? 'emerges here' : '';
+}
+
+/* unit tints in the legend, read from the data so they cannot drift */
+document.getElementById('tints').innerHTML =
+  Object.values(UNITS).map(u =>
+    '<span style="margin-right:1.1rem"><i style="background:' + u.tint + '"></i>' +
+    esc(u.name) + '</span>').join('') +
+  '<span><i style="background:' + CHEM_TINT + '"></i>Chemistry</span>';
+
+/* ---- start -------------------------------------------------------------- */
+
+let touched = false;
+canvas.addEventListener('pointerdown', () => { touched = true; });
+canvas.addEventListener('wheel', () => { touched = true; });
+addEventListener('resize', () => { if (!touched) centre(); });
+
+function centre() {
+  if (!live.length) return;
+  const xs = live.map(n => n.x), ys = live.map(n => n.y);
+  const pad = 260;
+  const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad;
+  const y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
+  const k = Math.min(0.85, Math.max(0.35,
+    Math.min(innerWidth / (x1 - x0), innerHeight / (y1 - y0))));
+  view = {
+    k,
+    x: innerWidth / 2 - (x0 + x1) / 2 * k,
+    y: innerHeight / 2 - (y0 + y1) / 2 * k,
+  };
+  applyView();
+}
+
+function start() {
+  follow = null;
+  for (const n of live) n.el.remove();
+  for (const l of liveLinks) {
+    l.el.remove(); l.label.remove();
+    if (l.arrow) { l.arrow.remove(); l.arrow = null; }
+    l.painted = false;
+  }
+  live.length = 0; liveLinks.length = 0;
+  for (const n of nodes) { n.visible = false; n.done = false; n.pinned = false; }
+  clearFocus();
+
+  /* two roots, one per unit: the water cause and the protein monomer.
+     Water opens one band; the protein root waits for its click. */
+  show(byId['water-mol'], 0, 0, 0, 0);
+  show(byId['amino-acid'], 0, 900, 0, 900);
+  expand(byId['water-mol']);
+  follow = null;
+  wake(0.8);
+  draw();
+  centre();
+}
+document.getElementById('reset').addEventListener('click', start);
+start();
+</script>
+</body>
+</html>
