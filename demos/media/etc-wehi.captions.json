@@ -1,0 +1,154 @@
+{
+  "tracks": [
+    {
+      "id": "narration",
+      "label": "Narration",
+      "source": "WEHI",
+      "sourceUrl": "https://www.wehi.edu.au/topic/biology-101/",
+      "cues": [
+        {
+          "t": 0,
+          "text": "The center of activity that brings your cells to life is found inside the dynamic mitochondria organelle."
+        },
+        {
+          "t": 10,
+          "text": "The inner mitochondrial membrane is coated with enzymes that catalyze the chemical reactions of respiration, working in sequence to generate the electron transport chain."
+        },
+        {
+          "t": 25,
+          "text": "The first step in the electron transport chain is performed by enzyme Complex I. Complex I receives electrons from coenzyme NADH, a substrate produced by the citric acid cycle."
+        },
+        {
+          "t": 36,
+          "text": "The catalytic mechanism of enzyme Complex I connects two different kinds of reaction. Coenzyme NADH is oxidized at one end of the enzyme, releasing two electrons that hop through the interior to coenzyme Q, which is reduced."
+        },
+        {
+          "t": 67,
+          "text": "Traveling among membrane lipids, coenzyme Q carries electrons to the next step in the electron transport chain."
+        },
+        {
+          "t": 81,
+          "text": "The movement of charged electrons through Complex I makes it bend in shape, transmitting energy for pumping four protons across the membrane."
+        },
+        {
+          "t": 103,
+          "text": "The second step of the electron transport chain is performed by enzyme Complex III. The mechanism of Complex III separates electrons from coenzyme Q, passing one electron to cytochrome c, which is reduced."
+        },
+        {
+          "t": 130,
+          "text": "A complete reaction cycle of enzyme Complex III transports four protons across the membrane. Traveling within the intermembrane space, reduced cytochrome c carries the electron to the final step in the electron transport chain."
+        },
+        {
+          "t": 142,
+          "text": "The destination for electron transport is a molecule of oxygen held inside enzyme Complex IV."
+        },
+        {
+          "t": 161,
+          "text": "Reduced cytochrome c delivers electrons that transfer to the reaction center of enzyme Complex IV."
+        },
+        {
+          "t": 171,
+          "text": "A molecule of oxygen from the air you breathe is captured, split, and reduced."
+        },
+        {
+          "t": 180,
+          "text": "The separated oxygen atoms accept electrons and pick up protons, creating two molecules of water."
+        },
+        {
+          "t": 211,
+          "text": "The substrate providing electrons to enzyme Complex I is coenzyme NADH, a product of the citric acid cycle."
+        },
+        {
+          "t": 223,
+          "step": 6,
+          "text": "A second supply of electrons for the electron transport chain is from step six of the citric acid cycle, performed by enzyme Complex II."
+        },
+        {
+          "t": 231,
+          "step": 6,
+          "text": "Enzyme Complex II catalyzes oxidation of succinate, releasing two electrons which hop through the enzyme to coenzyme Q, which is reduced."
+        },
+        {
+          "t": 250,
+          "step": 6,
+          "text": "Traveling through the membrane, coenzyme Q carries the electron to enzyme Complex III of the electron transport chain."
+        }
+      ]
+    },
+    {
+      "id": "notes",
+      "label": "Notes",
+      "source": "kodolab",
+      "cues": [
+        {
+          "t": 0,
+          "text": "Everything here happens in the inner membrane, the folded one. Its folds are why a mitochondrion has far more of this surface than its size suggests."
+        },
+        {
+          "t": 10,
+          "text": "A chain in the sense of a relay, not a queue. Electrons are handed down a series of complexes, losing a little energy at each pass, and that energy pumps protons."
+        },
+        {
+          "t": 25,
+          "text": "Complex I is the entry point for everything the Krebs cycle harvested. NADH arrives loaded and leaves as NAD⁺, ready to go round again."
+        },
+        {
+          "t": 36,
+          "text": "The electrons do not travel through open space. They hop between metal centres spaced close enough to jump, which is why the protein has to be this big."
+        },
+        {
+          "t": 67,
+          "text": "Coenzyme Q is small and greasy, so it dissolves in the bilayer and ferries electrons sideways between complexes that never touch."
+        },
+        {
+          "t": 81,
+          "text": "This is the conversion the whole chain exists for: electron energy becomes a shape change, and the shape change pushes protons uphill against their own gradient."
+        },
+        {
+          "t": 103,
+          "text": "Complex III splits the traffic. Q carries two electrons, cytochrome c takes one at a time, so the complex runs a cycle to make the handover work."
+        },
+        {
+          "t": 130,
+          "text": "Cytochrome c is tiny and water-soluble, and it works on the outside face of the membrane rather than inside it. A different kind of courier for a different space."
+        },
+        {
+          "t": 142,
+          "text": "Here is the answer to why you breathe. Oxygen is not fuel and it is not being burned; it is sitting at the end of the line waiting to accept the spent electrons."
+        },
+        {
+          "t": 161,
+          "text": "Four electrons have to be gathered before the chemistry can happen, so Complex IV holds them and waits."
+        },
+        {
+          "t": 171,
+          "text": "The O=O bond is split. Doing this without releasing a half-reduced oxygen radical is the hard part, and the complex holds the intermediates to prevent it."
+        },
+        {
+          "t": 180,
+          "text": "Oxygen plus electrons plus protons makes water. This is where the water you produce from breathing comes from, and it is the reason a chain can keep running at all: the end has to be emptied."
+        },
+        {
+          "t": 211,
+          "step": 3,
+          "text": "Three NADH per turn of the cycle, each worth about ten protons through the chain. That is where the ATP yield actually comes from."
+        },
+        {
+          "t": 223,
+          "step": 6,
+          "text": "Complex II is the cycle's step six. The same protein belongs to both pathways, which is the plainest evidence that the cycle and the chain are one machine."
+        },
+        {
+          "t": 231,
+          "step": 6,
+          "text": "These electrons come in lower in energy, so they skip Complex I and its four protons. FADH₂ is worth less ATP than NADH for exactly this reason."
+        },
+        {
+          "t": 250,
+          "step": 6,
+          "text": "Both entry points converge on the same Q pool, and from there the route is identical."
+        }
+      ]
+    }
+  ]
+}

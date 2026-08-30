@@ -160,6 +160,19 @@
       claim:'Four classes of macromolecule, each one a chain of repeating units.' },
     { id:'glycolysis', name:'Glycolysis', door:'energy', rank:1, state:'built', away:1, host:'glycolysis-lab',
       claim:'Ten steps split one sugar in two, spending two ATP to make four.' },
+    /* BOTH NAMES IN `alt`, and neither is optional: a textbook picks one and a
+       student arrives holding whichever it was. The card is called Krebs
+       because krebs-lab is. */
+    { id:'krebs', name:'The Krebs cycle', door:'energy', rank:1, state:'built', away:1, host:'krebs-lab',
+      alt:'krebs · krebs cycle · citric acid cycle · tca cycle · tricarboxylic acid cycle',
+      claim:'Eight steps take two carbons off as CO₂ and hand the electrons to NADH, rebuilding the molecule they started from.' },
+    /* The concept the two pathway lessons both stop short of, and the one that
+       actually makes the ATP. `alt` carries the electron transport chain
+       because a reader asking for it is asking for this card until the ETC
+       lesson exists. */
+    { id:'chemios', name:'Chemiosmosis', door:'energy', rank:2, state:'engine', away:1, host:'atp-synthase/',
+      alt:'chemiosmosis · atp synthase · electron transport chain · oxidative phosphorylation · proton gradient',
+      claim:'Food pays to pump protons out of the mitochondrion; they fall back in through a rotary motor, and that fall is what makes the ATP.' },
     { id:'geometry', name:'Molecular geometry', door:'carbon', rank:2, state:'built', away:1, host:'molecule-builder',
       alt:'geometry · vsepr · bond angle',
       claim:'Electron pairs push each other apart, and that is what sets the shape.' },
@@ -232,9 +245,17 @@
     ['Why can you digest starch but not cellulose?',            { polymers:1 }],
     ['What makes a fat saturated?',                             { polymers:2, bilayer:1 }],
     ['How is a polymer built?',                                 { polymers:2, condense:1 }],
-    ['Why can’t you sprint a marathon?',                        { glycolysis:1 }],
-    ['Where does the CO₂ you exhale come from?',                { glycolysis:1 }],
-    ['Why do red blood cells have no mitochondria?',            { glycolysis:2 }],
+    ['Why can’t you sprint a marathon?',                        { glycolysis:1, chemios:2 }],
+    /* GLYCOLYSIS MAKES NO CO₂. This row pointed only at glycolysis, which was
+       simply wrong: every carbon you breathe out leaves in the bridge step or
+       in the cycle. Rank 1 on krebs is where the answer is. */
+    ['Where does the CO₂ you exhale come from?',                { krebs:1, glycolysis:2 }],
+    ['Why do red blood cells have no mitochondria?',            { glycolysis:2, krebs:2, chemios:2 }],
+    ['If glycolysis makes so little ATP, where does the rest come from?',
+                                                                { glycolysis:1, krebs:1, chemios:1 }],
+    ['What do NADH and FADH₂ actually carry?',                  { krebs:1, chemios:1 }],
+    ['Why do you need oxygen if it never touches your food?',   { chemios:1, krebs:2 }],
+    ['How does a proton gradient make ATP?',                    { chemios:1, pumps:2 }],
     ['How do salmon cross from salt water to fresh?',           { osmosis:1 }],
     ['How do hibernating animals burn fat as heat?',            { bilayer:3 }],
     ['Why do egg whites turn opaque and solid?',                { denature:1 }],
@@ -379,7 +400,46 @@
        beats rewritten for a Bio 101 reader, reachable from the switch. The
        column names the source of whichever is showing. `step` is the lesson's
        own numbering, so a cue and glycolysis-lab's ten steps cannot drift. */
-    captions:'media/glycolysis-wehi.captions.json' },
+    captions:'media/glycolysis-wehi.captions.json',
+    /* `tags` says what KIND OF THING a piece of content is, which is not what
+       it is about — that is the concepts it is placed on. Nothing reads it
+       yet. */
+    tags:['mesoscale animation'] },
+
+  { id:'v:atp', kind:'video', src:'OT5AXGS1aL8',
+    name:'Synthesis of ATP',
+    /* Two names on it, and both are printed: the animator and the composer.
+       The score is not decoration on this one — the film has no dialogue for
+       most of its run and the music is carrying the mechanism's rhythm. */
+    credit:'Drew Berry & Franc Tétaz, WEHI', year:2018,
+    creditUrl:'https://www.wehi.edu.au/topic/biology-101/',
+    poster:'media/atp-wehi.jpg',
+    captions:'media/atp-wehi.captions.json',
+    tags:['mesoscale animation'] },
+
+  { id:'v:krebs', kind:'video', src:'aV-kI_ep1Rk',
+    /* BOTH NAMES, because the film and the lesson disagree: it is titled the
+       citric acid cycle and krebs-lab is called the Krebs cycle. A reader who
+       knows only one of them still has to see that this is that. */
+    name:'The Krebs cycle (citric acid cycle)',
+    credit:'Drew Berry, WEHI', year:2020,
+    creditUrl:'https://www.wehi.edu.au/topic/biology-101/',
+    poster:'media/krebs-wehi.jpg',
+    /* `step` here is krebs-lab's own numbering — 'Bridge' then 1-8, which is
+       what its STEPS table calls them, so a cue and the lesson cannot drift. */
+    captions:'media/krebs-wehi.captions.json',
+    tags:['mesoscale animation'] },
+
+  { id:'v:etc', kind:'video', src:'nmoLoiFakxY',
+    name:'The electron transport chain',
+    credit:'Drew Berry, WEHI', year:2019,
+    creditUrl:'https://www.wehi.edu.au/topic/biology-101/',
+    poster:'media/etc-wehi.jpg',
+    /* The `step` values here are KREBS-LAB's, not this film's: its last three
+       beats are the cycle's step six, because Complex II belongs to both
+       pathways. A cue carries the step of the lesson it points INTO. */
+    captions:'media/etc-wehi.captions.json',
+    tags:['mesoscale animation'] },
 ];
 
   /* ---------------------------------------------------------------------
@@ -439,6 +499,14 @@
     ['l:hemoglobin', { levels: 1 }],
 
     ['v:glycolysis', { glycolysis: 1 }],
+    /* Rank 2 on pumps because it IS the Na/K pump's physics run backwards: a
+       gradient driving a machine in a membrane rather than a machine spending
+       ATP to build one. */
+    ['v:atp',        { chemios: 1, pumps: 2 }],
+    ['v:krebs',      { krebs: 1, glycolysis: 2 }],
+    /* Rank 2 on krebs and not 3: Complex II IS step six, so this film finishes
+       the cycle's own story rather than only following it. */
+    ['v:etc',        { chemios: 1, krebs: 2 }],
 
     ['p:hemoglobin', { cooperat: 1, levels: 1, folding: 2 }],
     ['p:myoglobin',  { binding: 1,  folding: 1 }],

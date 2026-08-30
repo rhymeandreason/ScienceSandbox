@@ -444,8 +444,11 @@
     color: var(--faint, #9a9ca3); margin-top: 0.35rem;
     font-variant-numeric: tabular-nums;
   }
-  /* An enzyme, marked by its EC class rather than by the word. */
-  .node.concept.specimen .tag {
+  /* WHAT KIND OF THING this is, which is not what it is about: an enzyme by
+     its EC class rather than by the word, a video by its form. Shared, so a
+     specimen and a video cannot say the same kind of thing two ways. */
+  .node.concept.specimen .tag,
+  .node.concept.video .tag {
     display: inline-flex; align-items: baseline; gap: 0.4rem;
     margin-top: 0.3rem;
     font-family: var(--sans); font-size: 0.56rem; font-weight: 500;
@@ -455,7 +458,8 @@
     letter-spacing: 0.08em; color: var(--muted); font-variant-numeric: tabular-nums;
   }
   .node.concept.specimen.hub .prov { font-size: 0.75rem; margin-top: 0.5rem; }
-  .node.concept.specimen.hub .tag { font-size: 0.62rem; }
+  .node.concept.specimen.hub .tag,
+  .node.concept.video.hub .tag { font-size: 0.62rem; }
   /* Opened, the name takes the size the claim would have had. */
   .node.concept.specimen.hub .name {
     font-size: 1.9rem; line-height: 1.18; letter-spacing: -0.015em;
@@ -2077,6 +2081,10 @@ function paintNode(n) {
                        'Play video</button>' +
                    '</div>' +
                    '<div class="name">' + esc(n.name) + '</div>' +
+                   /* The FORM, above whose work it is: a reader deciding
+                      whether to spend three minutes wants to know it is an
+                      animation before they know who made it. */
+                   (n.tags || []).map(t => '<div class="tag">' + esc(t) + '</div>').join('') +
                    '<div class="prov">' + esc(n.credit) +
                      (n.year ? ' · ' + esc(String(n.year)) : '') + '</div>' +
                    '<div class="meta"></div>';

@@ -1,0 +1,115 @@
+{
+  "tracks": [
+    {
+      "id": "narration",
+      "label": "Narration",
+      "source": "WEHI",
+      "sourceUrl": "https://www.wehi.edu.au/topic/biology-101/",
+      "cues": [
+        {
+          "t": 2,
+          "text": "All life on Earth depends on this tiny, energetic molecule: adenosine triphosphate, or ATP."
+        },
+        {
+          "t": 14,
+          "text": "ATP drives biochemical activity inside your living cells and is a key building block of DNA and RNA."
+        },
+        {
+          "t": 25,
+          "text": "Generating ATP for your living cells are mitochondria, electrochemical batteries that convert energy from the food you eat and oxygen from the air you breathe into ATP."
+        },
+        {
+          "t": 35,
+          "text": "So, where does your ATP come from?"
+        },
+        {
+          "t": 40,
+          "text": "Deep inside your mitochondria, rows of molecular motors generate ATP, the molecule essential to all life on Earth."
+        },
+        {
+          "t": 53,
+          "text": "Enzymes bring together reactants to form a chemical bond, converting mechanical energy into chemical energy."
+        },
+        {
+          "t": 64,
+          "text": "A ring of enzymes works in step, creating three molecules of ATP with each cycle."
+        },
+        {
+          "t": 77,
+          "text": "Inside the molecular motor, a rotating axle powers the sequence."
+        },
+        {
+          "t": 88,
+          "text": "The axle is attached to a rotary molecular motor moved by the force of protons pushing from the other side of the membrane."
+        },
+        {
+          "t": 95,
+          "text": "A difference in proton concentration propels the molecular mechanism."
+        },
+        {
+          "t": 108,
+          "text": "Synthesis of ATP."
+        },
+        {
+          "t": 112,
+          "text": "ATP drives biochemical activity inside your living cells and is a key building block of DNA and RNA."
+        }
+      ]
+    },
+    {
+      "id": "notes",
+      "label": "Notes",
+      "source": "kodolab",
+      "cues": [
+        {
+          "t": 2,
+          "text": "ATP is the cell's spendable energy. Three phosphates in a row, and the bond to the last one is what gets broken to pay for work."
+        },
+        {
+          "t": 14,
+          "text": "It pays for almost everything a cell does, and the same molecule minus two phosphates is a letter in DNA and RNA."
+        },
+        {
+          "t": 25,
+          "text": "Mitochondria make most of it. Food supplies the electrons, oxygen accepts them at the end, and the energy released in between is what this film is about."
+        },
+        {
+          "t": 35,
+          "text": "The question the animation answers: not what ATP does, but where it is physically assembled."
+        },
+        {
+          "t": 40,
+          "text": "In the inner mitochondrial membrane, packed with ATP synthase. Each one is a machine, and there are thousands per mitochondrion."
+        },
+        {
+          "t": 53,
+          "text": "The catalytic head holds ADP and a phosphate close enough, in the right orientation, for the bond to form. Squeezing them together IS the catalysis."
+        },
+        {
+          "t": 64,
+          "text": "Three catalytic sites around the head, each in a different state at any moment: one binding, one making the bond, one releasing. Three ATP per full turn."
+        },
+        {
+          "t": 77,
+          "text": "The head does not turn. A central stalk turns inside it, and its asymmetry is what forces each site through the three states in order."
+        },
+        {
+          "t": 88,
+          "text": "The stalk is driven by a rotor in the membrane. Protons crossing the membrane through the rotor make it spin, the way water turns a wheel."
+        },
+        {
+          "t": 95,
+          "text": "The gradient is the stored energy. Respiration spends food to pump protons out; they fall back in through this motor, and that fall is what pays for the bond."
+        },
+        {
+          "t": 108,
+          "text": "Mechanical energy into chemical energy, which is a thing almost no other enzyme does."
+        },
+        {
+          "t": 112,
+          "text": "You make roughly your own body weight in ATP a day, and hold only a few grams of it at a time. It is spent about as fast as this machine makes it."
+        }
+      ]
+    }
+  ]
+}
