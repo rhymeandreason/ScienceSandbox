@@ -66,13 +66,11 @@ Two that are not any one file's:
 
 ### The caption column
 
-**Captions are off in the player and the text sits beside it.** These animations print their key terms on the picture (`Glucose`, `Pyruvate`, the ATP counter), and a burned-in caption lands on top of the word it is explaining. So the cues run down a column to the right of the modal, lit line following playback, click a line to seek. `cc_load_policy=0` only asks, because a reader whose YouTube account defaults captions on overrides it and that is exactly the reader this is for. The API's getters keep reporting a live track after it is killed, so **the picture is the only test** that it worked.
+**Captions are off in the player and the text sits beside it.** 
 
-**The player chrome is ours as far as it goes, and the limit is measured.** `controls=0`, a `pointer-events: none` frame and our own strip give a clean picture on a straight watch-through. It does not survive interaction: YouTube draws its own overlay on every pause AND every seek, a cue click included, and it does not fade on a timer worth waiting out. Measured after a resume, it was still up at +2s and gone by +8s. Covering it would black out several seconds of film every time a reader touches a cue, which costs more than the chrome does. **So the cover is the pre-play state only.** Removing this properly means hosting the file, which needs the author's permission. Do not re-attempt covering it.
+**The player chrome is ours as far as it goes, and the limit is measured.** 
 
-**The cue file is authored, and it carries two tracks.** YouTube publishes no caption text a page can read: the Data API's `captions.download` is owner-only OAuth, `timedtext` serves an empty body to a plain request, and the only track on the glycolysis video is auto-generated ASR, which renders enzyme names as noise.
-
-**A video that is not ours leads with its own words**, credited and linked, because putting our sentences where its author's were is its own kind of misrepresentation. The second track is the same beats rewritten for a Bio 101 reader and is labelled a summary. The column prints the source of whichever is showing: a column of somebody else's writing with no name on it reads as ours. `step` is the lesson's own numbering, so a cue and `glycolysis-lab`'s ten steps cannot drift apart.
+**The cue file is authored, and it carries two tracks.** The first track is exactly the transcript from the Youtube video, which the human does separately via Gemini. The second track is the same beats rewritten for a Bio 101 reader and is labelled a summary. 
 
 **Two modals, not one parameterised modal.** A lesson and a video share the word "opens" and nothing else: a lesson is same-origin, a page we own, sized as a sheet, carrying `chrome=bare`; a video is 16:9, third-party, autoplaying, and its header has to say whose work it is. **The map at rest makes no third-party request** — a video's `src` is a bare id and the embed is built from it, and the poster is a local file for the same reason.
 
@@ -108,7 +106,7 @@ The alternative was the map injecting a stylesheet through `contentDocument`, wh
 
 ## **question-composer: the map entered by typing**
 
-**One copy of the engine, and that is the point.** This page was for a while a rebase of a boxless twin, and the twin drifted the moment it was taken — ~175 lines behind within the day, and still carrying the protein card inline after `kit/proteinbox.js` had taken it out. Keeping two copies in step is a cost on every engine change forever. **Do not take another copy to try something in.**
+**One copy of the engine, and that is the point.** This page was for a while a rebase of a boxless twin, and the twin drifted the moment it was taken — \~175 lines behind within the day, and still carrying the protein card inline after `kit/proteinbox.js` had taken it out. Keeping two copies in step is a cost on every engine change forever. **Do not take another copy to try something in.**
 
 The claim the text box makes is that **the typed question becomes a temporary door**. `openFrom(q)` composes the same three levels `start()` does, rooted on a question instead of one of the written doors, and keeps start()'s own-door rule so a crossing does not haul its far side in.
 
@@ -181,7 +179,7 @@ Measured, one link per door: water lands on the same three cards `start()` compo
 
 It fires on the LATER of the graph being composed and a beat long enough to read the sentence. Whichever is slower is the one that matters, because a fast load should not flash the question away and a slow one should not add a wait on top of a wait. Every path out lowers the intro, including the query that reaches nothing and the corpus that will not load — chrome that never comes back is worse than the map it was hiding, which is why a missing corpus THROWS rather than returning past the reveal.
 
-**The question is on screen before any fetch returns**, because `?q=` carries it: the card is up at ~46ms against ~490ms for its own embedding. **And the three requests go out together** — corpus, endpoint config and the query's embedding were serial and none needs the one before it. The POST is fired before the GET has said the endpoint is up, because a wasted POST on a keyless checkout costs nothing while waiting for permission costs a round trip on every load that works.
+**The question is on screen before any fetch returns**, because `?q=` carries it: the card is up at \~46ms against \~490ms for its own embedding. **And the three requests go out together** — corpus, endpoint config and the query's embedding were serial and none needs the one before it. The POST is fired before the GET has said the endpoint is up, because a wasted POST on a keyless checkout costs nothing while waiting for permission costs a round trip on every load that works.
 
 **Start over** reloads the query instead of opening water: arriving on a saved query makes that query the starting point.
 
@@ -271,13 +269,13 @@ The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is
 
 * **Screenshots with 4 live contexts come back blank** in the probe tab — the compositor does not pick up four WebGL layers. Verify with `readPixels` or `snapshot()` instead, and ask the human to look in Safari.
 
-* Checkers: `node tools/check-pages.js`, `tools/check-docs.js`, `tools/bake-vectors.js --check` (the map's own — vectors AND references), `proteins/check-proteins.js`, `kit/check-kit.js`, `molecule-builder/check-molecule-builder.js`, `check-molecules.js` (slow, ~2min). The pre-commit hook gates each; silence means it ran and passed.
+* Checkers: `node tools/check-pages.js`, `tools/check-docs.js`, `tools/bake-vectors.js --check` (the map's own — vectors AND references), `proteins/check-proteins.js`, `kit/check-kit.js`, `molecule-builder/check-molecule-builder.js`, `check-molecules.js` (slow, \~2min). The pre-commit hook gates each; silence means it ran and passed.
 
 * `check-docs.js` treats any backticked path as a claim the file exists, and resolves it from `demos/` — so a checker outside `demos/tools/` needs its directory (`proteins/check-proteins.js`, not the bare name). Write a former filename in italics, not in backticks. This doc has broken that rule four times now and the checker caught every one.
 
 ## **Considered**
 
-1. **NOT recommended: a card-view registry.** I proposed it, then measured: after deleting `mol`, `build` and `molbox` are one-line calls and only the ~12 lines of WaterSim seeding are duplicated. That is a vocabulary, not an implementation (Modules.md's own test). If it bothers you, the honest home is a `WaterSim.scene(root, {waters, salt})` helper in the module that owns the physics.
+1. **NOT recommended: a card-view registry.** I proposed it, then measured: after deleting `mol`, `build` and `molbox` are one-line calls and only the \~12 lines of WaterSim seeding are duplicated. That is a vocabulary, not an implementation (Modules.md's own test). If it bothers you, the honest home is a `WaterSim.scene(root, {waters, salt})` helper in the module that owns the physics.
 
 ## **Where this is going**
 
@@ -291,4 +289,4 @@ The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is
 
 * **Hand-authored rank.** It does two jobs that separate under density — *what opens this card* stays editorial, *which four of two hundred questions* cannot be answered by hand. Human curation will be in selecting the content to add; ranking will become an AI feature that is either live or baked, and right now the human is curating the examples. The plan is the `said` / `read` split this repo already runs on `proteins/proteins.js`: authored ranks are the human's half and are never overwritten, generated ranks are derived and regenerable, and `--check` fails a generated one sitting where an authored one was. The authored edges become the eval set, and **the ones carrying a different rank on different cards** are the subset that matters, because they are the only evidence that rank belongs to the edge and not to the question.
 * **The absolute floor.** It was calibrated against the corpus as it stood. As the corpus densifies the nearest neighbour gets closer for EVERY query, off-map ones included, so the floor drifts without anything being wrong. It has to become relative, or be recalibrated at every significant growth. The fixture is what would catch that.
-* **The shipped corpus.** ~2 KB a question: comfortable to ~500, awkward past ~1500. Quantising to int8 buys 4x. Past that, search moves server-side — which is why `api/find.js` returns a VECTOR rather than results, so that flip is a change in one file.
+* **The shipped corpus.** \~2 KB a question: comfortable to \~500, awkward past \~1500. Quantising to int8 buys 4x. Past that, search moves server-side — which is why `api/find.js` returns a VECTOR rather than results, so that flip is a change in one file.
