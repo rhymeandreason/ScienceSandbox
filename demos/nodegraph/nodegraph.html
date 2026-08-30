@@ -196,13 +196,16 @@
   .node.card.big { width: 22rem; }
   .node.card.big .claim { font-size: 1.2rem; line-height: 1.24; -webkit-line-clamp: 5; }
 
-  /* the open card grows */
-  .node.card.hub { width: 30rem; padding: 1.5rem 1.7rem 1.55rem; }
+  /* the open card steps up one size, not to a poster: there is no picture
+     to make room for yet, so the growth only has to say "you are here" */
+  .node.card.hub { width: 21rem; padding: 1.05rem 1.2rem 1.1rem; }
   .node.card.hub .claim {
-    font-size: 1.6rem; line-height: 1.2; margin-top: 0.55rem;
-    letter-spacing: -0.012em; -webkit-line-clamp: 6;
+    font-size: 1.2rem; line-height: 1.24; margin-top: 0.45rem;
+    letter-spacing: -0.008em; -webkit-line-clamp: 6;
   }
-  .node.card.hub .name { font-size: 0.68rem; letter-spacing: 0.2em; }
+  .node.card.hub .name { font-size: 0.64rem; letter-spacing: 0.19em; }
+  .node.card.big.hub { width: 24rem; }
+  .node.card.big.hub .claim { font-size: 1.35rem; }
 
   .node.theme {
     width: 20rem; padding: 1.15rem 1.35rem 1.2rem;
@@ -468,13 +471,23 @@ for (const n of nodes) {
   if (ns.length)
     layerOf.set(n, ns.reduce((s, m) => s + layerOf.get(m), 0) / ns.length);
 }
+/* a question is anchored to its RANK-1 answer — the door hangs at its own
+   door frame, not at the mean of everything it opens. Among several rank-1
+   answers, the earliest layer wins: the question enters the story where
+   the story starts. */
 for (const n of nodes) {
   if (n.type !== 'question') continue;
-  const ans = linksOf(n).filter(l => l.type === 'answers').map(l => l.a === n ? l.b : l.a);
-  n.lx = ans.length ? Math.min(...ans.map(m => layerOf.get(m))) - 0.7 : 0;
+  const aLinks = linksOf(n).filter(l => l.type === 'answers');
+  if (!aLinks.length) { n.anchor = null; continue; }
+  const bestRank = Math.min(...aLinks.map(l => l.rank));
+  n.anchor = aLinks.filter(l => l.rank === bestRank)
+    .map(l => l.a === n ? l.b : l.a)
+    .sort((a, b) => layerOf.get(a) - layerOf.get(b))[0];
 }
 const COLW = 430;
-for (const n of nodes) n.tx = (n.type === 'question' ? n.lx : layerOf.get(n)) * COLW;
+for (const n of nodes) n.tx =
+  ((n.type === 'question' ? (n.anchor ? layerOf.get(n.anchor) - 0.7 : 0)
+                          : layerOf.get(n))) * COLW;
 
 /* ---- y: the scale ladder ------------------------------------------------
    Bands from the ladder, top is ecosystem because up is bigger. Bands
@@ -498,10 +511,13 @@ const bandCentre = {}, bandEdge = [];
 for (const n of nodes) n.ty = lvOf(n) ? bandCentre[lvOf(n)] : bandCentre[2];
 for (let pass = 0; pass < 6; pass++)
   for (const n of nodes) {
-    if (lvOf(n)) continue;
+    if (lvOf(n) || n.type === 'question') continue;
     const ns = neighbours(n);
     if (ns.length) n.ty = ns.reduce((s, m) => s + m.ty, 0) / ns.length;
   }
+/* after the concepts settle: a question sits level with its anchor */
+for (const n of nodes)
+  if (n.type === 'question' && n.anchor) n.ty = n.anchor.ty;
 
 /* start positions: the semantic target plus a deterministic nudge, so
    stacked cards separate the same way every load */
