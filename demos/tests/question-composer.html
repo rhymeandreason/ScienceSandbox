@@ -640,7 +640,7 @@
      the margin leaves. */
   .modal.video .mbody { position: relative; flex: 1; min-height: 0;
                         overflow: hidden; }
-  .modal.video .mvideo { margin-right: 21rem; }
+  .modal.video .mvideo { margin-right: 24rem; }
   /* ---- our own player chrome -------------------------------------------
      `controls=0` takes YouTube's bar away, and on its own that is not enough:
      the title, the logo and the share button still fade in over the picture on
@@ -745,7 +745,7 @@
      in the player and the text is here, beside it, where it can also be longer
      than a caption line and clickable. */
   .modal.video .mside {
-    position: absolute; inset: 0 0 0 auto; width: 21rem;
+    position: absolute; inset: 0 0 0 auto; width: 24rem;
     display: flex; flex-direction: column; min-height: 0;
     border-left: 1px solid rgba(255,255,255,.1);
   }
@@ -789,11 +789,16 @@
     margin: 0; padding: 0.6rem 0 1.2rem; list-style: none;
     overflow-y: auto; overscroll-behavior: contain;
   }
+  /* SERIF, and larger than a caption. This column is the only running prose
+     on the page a reader actually reads through, several sentences at a time
+     against a dark ground — which is what Literata is for and what a 0.78rem
+     system-ui was fighting. The timecode and the step number stay in `--sans`
+     below: those are labels, not prose. */
   .modal.video .mcues li {
     display: flex; gap: 0.7rem; align-items: baseline;
-    padding: 0.5rem 1rem; cursor: pointer;
-    color: rgba(242,240,234,.4);
-    font-family: var(--ui); font-size: 0.78rem; line-height: 1.5;
+    padding: 0.6rem 1.1rem; cursor: pointer;
+    color: rgba(242,240,234,.45);
+    font-family: var(--serif); font-size: 0.95rem; line-height: 1.6;
     transition: color .18s ease;
   }
   .modal.video .mcues li:hover { color: rgba(242,240,234,.72); }
