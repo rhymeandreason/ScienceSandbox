@@ -36,6 +36,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../molecule-builder/molecule-builder.css">
 <style>
   :root {
     --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
@@ -168,6 +169,35 @@
     display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
     overflow: hidden;
   }
+  /* 4:3 and a RATIO on purpose (the composer's rule): the card sets the
+     width, the picture follows, so the closed thumb and the open one are
+     the same frame at two sizes. The `.ph` shimmer is the loading state
+     until the stage mounts; a still of the last frame stands in when the
+     pool takes the context back. */
+  .node.card .thumb {
+    position: relative; overflow: hidden;
+    width: 100%; aspect-ratio: 4 / 3; margin: 0.65rem 0 0.25rem;
+    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+  }
+  .node.card .thumb .ph {
+    position: absolute; inset: 0;
+    background: linear-gradient(100deg,
+      #eceae4 30%, #f6f4ef 48%, #eceae4 66%) 0 0 / 300% 100%;
+    animation: thumb-shimmer 1.5s linear infinite;
+  }
+  @keyframes thumb-shimmer { to { background-position: -300% 0; } }
+  @media (prefers-reduced-motion: reduce) {
+    .node.card .thumb .ph { animation: none; }
+  }
+  .node.card .thumb.mounted { background: #f2f0ea; }
+  .node.card .thumb.mounted .ph { display: none; }
+  .node.card .thumb > canvas { display: block; width: 100%; height: 100%; }
+  .node.card .thumb .still {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain;
+  }
+  .node.card.unlit .thumb { display: none; }
+
   .node.card .tags {
     display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem;
   }
@@ -198,6 +228,7 @@
 
   /* the open card steps up one size, not to a poster: there is no picture
      to make room for yet, so the growth only has to say "you are here" */
+  .node.hub { box-shadow: 0 14px 34px -12px rgba(20,22,26,.22); }
   .node.card.hub { width: 21rem; padding: 1.05rem 1.2rem 1.1rem; }
   .node.card.hub .claim {
     font-size: 1.2rem; line-height: 1.24; margin-top: 0.45rem;
@@ -337,7 +368,22 @@
 </div>
 <div class="hint" id="hint"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-solvation.js"></script>  <!-- registers the family-A water the sims and the molbox both draw -->
+<script src="../lib/scene.js"></script>
+<script src="../lib/fx.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../lib/covalent-drag.js"></script>
+<script src="../lib/ionic-drag.js"></script>
+<script src="../water/watersim.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/molbox.js"></script>
+<script src="../molecule-builder/molecule-builder.js"></script>
 <script src="graphdata.js"></script>
+<script src="graphcontent.js"></script>
 <script>
 'use strict';
 
@@ -377,6 +423,29 @@ for (const n of nodes) {
    so a card at or past it is by definition a mechanism hinge */
 for (const n of nodes)
   n.big = linksOf(n).filter(l => l.rank === 1).length >= 5;
+
+/* ---- content: what a card can show --------------------------------------
+   graphcontent.js is optional — the map is a working page without it. A
+   node mounts its best-ranked inline item and no more: a live box is a
+   WebGL context and the pool rations four across the whole map. */
+const CONTENT = (window.GraphContent || {}).CONTENT || [];
+const PLACED = new Map(((window.GraphContent || {}).PLACEMENTS || []));
+const BY_CONTENT = new Map(CONTENT.map(c => [c.id, c]));
+const ON_NODE = new Map();
+for (const [cid, ranks] of PLACED) {
+  const item = BY_CONTENT.get(cid);
+  if (!item) { console.warn('placement names missing content:', cid); continue; }
+  for (const [nid, rank] of Object.entries(ranks)) {
+    if (!byId[nid]) { console.warn('placement names missing node:', cid, nid); continue; }
+    (ON_NODE.get(nid) || ON_NODE.set(nid, []).get(nid)).push({ item, rank });
+  }
+}
+for (const list of ON_NODE.values()) list.sort((a, b) => a.rank - b.rank);
+
+const viewFor = n => {
+  const placed = ON_NODE.get(n.id);
+  return placed ? placed[0].item : null;
+};
 
 /* ---- edge grammar -------------------------------------------------------
    The type dictionaries below drive BOTH the x-layering and the why/so-what
@@ -564,6 +633,9 @@ function paintNode(n) {
                      (n.type === 'process' ? '<span class="run">→</span>' : '') +
                      esc(n.name) + '</div>' +
                    '<div class="claim">' + esc(n.claim) + '</div>' +
+                   /* a thumb is a promise a picture is coming, so only cards
+                      with a view get one; it stays hidden while fogged */
+                   (viewFor(n) ? '<div class="thumb"><span class="ph"></span></div>' : '') +
                    (tags ? '<div class="tags">' + tags + '</div>' : '') +
                    '<div class="chips"></div>';
   }
@@ -613,6 +685,90 @@ function edgeRefresh(l) {
   l.label.classList.toggle('on', spine && l.rank === 1 && both);
 }
 
+/* ---- the stages ---------------------------------------------------------
+   Four live boxes across the whole map, card-stage.js's budget. onEvict
+   fires while the box is live, which is the only moment a still can be
+   taken — a card that goes quiet must not go blank. */
+const stages = CardStage.pool({
+  limit: 4,
+  onEvict: (id, box) => {
+    const n = byId[id];
+    const thumb = n && n.el && n.el.querySelector('.thumb');
+    if (!thumb) return;
+    const png = box.snapshot ? box.snapshot() : null;
+    thumb.classList.remove('mounted');
+    if (!png) return;
+    const img = document.createElement('img');
+    img.className = 'still'; img.alt = ''; img.src = png;
+    thumb.appendChild(img);
+    thumb.classList.add('mounted');
+  },
+});
+
+function goLive(n) {
+  const view = viewFor(n);
+  const thumb = view && n.el && n.el.querySelector('.thumb');
+  if (!thumb) return;
+  if (stages.has(n.id)) {                 // re-front, and resume if paused
+    const box = stages.acquire(n.id, null);
+    if (box.start) box.start();
+    return;
+  }
+  stages.acquire(n.id, () => {
+    thumb.querySelectorAll('.still').forEach(el => el.remove());
+    thumb.classList.add('mounted');
+
+    if (view.kind === 'molbox')
+      /* no inset frame, no leader: the card is the frame. Spin, because the
+         point is that the thing is 3D. */
+      return Molbox.create({ mount: thumb, spec: MolLib.MOLECULES[view.spec],
+                             spin: true });
+
+    if (view.kind === 'build')
+      /* the bonding builder, opened finished and flat — the view that draws
+         the electrons. zoomOnComplete because a card is a close-up. */
+      return MoleculeBuilder.create({ mount: thumb, recipe: view.recipe,
+                                      fill: true, zoomOnComplete: true });
+
+    /* a water sim: card-stage owns the shell, watersim is the physics */
+    let sim = null;
+    const box = CardStage.create({
+      mount: thumb,
+      cam: { theta: 0.5, phi: 1.15, r: 26 },
+      step: () => { if (sim) sim.step(Object.assign(
+        { solvent: sim.salt.length > 0 }, view.frame)); },
+      onDestroy: () => { sim = null; },
+    });
+    sim = WaterSim.create(THREE, box.root);
+    for (let i = 0; i < view.waters; i++) sim.spawn();
+    for (let i = 0; i < (view.salt || 0); i++) sim.addSalt('nacl');
+    if (view.salt) sim.assignShells();
+    box.draw();
+    return box;
+  });
+  reDensify();                  // a card mounted while zoomed in opens sharp
+}
+
+/* the canvas measures its unzoomed layout box, so the device ratio carries
+   the zoom — idle only, since resizing a drawing buffer reallocates it */
+let densityTimer = 0;
+function reDensify() {
+  const px = Math.min(devicePixelRatio * view.k, 3);
+  for (const id of stages.keys()) {
+    const box = stages.get(id);
+    const stage = box && box.stage;
+    if (!stage || !stage.renderer) continue;
+    if (stage.renderer.getPixelRatio() === px) continue;
+    stage.renderer.setPixelRatio(px);
+    stage.resize();
+    if (box.draw) box.draw();
+  }
+}
+const densifySoon = () => {
+  clearTimeout(densityTimer);
+  densityTimer = setTimeout(reDensify, 180);
+};
+
 /* ---- light ------------------------------------------------------------- */
 
 function light(n) {
@@ -621,6 +777,7 @@ function light(n) {
   n.el.classList.remove('unlit');
   n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
   for (const l of linksOf(n)) edgeRefresh(l);
+  goLive(n);                    // a lit card shows its subject, not a promise
   wake(0.5);
 }
 
@@ -737,7 +894,7 @@ let dragNode = null, dragging = null, last = null, travel = 0;
 
 canvas.addEventListener('pointerdown', e => {
   /* a card's own controls keep their pointer — every control must be here */
-  if (e.target.closest('.chip')) return;
+  if (e.target.closest('.chip, .mb-dims')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
@@ -789,6 +946,7 @@ canvas.addEventListener('wheel', e => {
   view.y = e.clientY - (e.clientY - view.y) * (k / view.k);
   view.k = k;
   applyView();
+  densifySoon();                 // the canvases follow the zoom, once it stops
 }, { passive: false });
 
 /* ---- focus and the direction chips -------------------------------------- */
@@ -838,6 +996,7 @@ document.addEventListener('click', e => {
 function focus(n) {
   focused = n;
   follow = n; followFrames = 700;
+  if (n.on) goLive(n);          // the clicked card re-fronts in the pool
   document.body.classList.add('focusing');
   for (const m of nodes) m.el.classList.remove('lit', 'hub', 'hop2');
   for (const m of nodes) { const c = m.el.querySelector('.chips'); if (c) c.innerHTML = ''; }
@@ -1007,6 +1166,7 @@ function start() {
   spineBtn.classList.remove('on');
   follow = null;
   clearFocus();
+  stages.clear();               // fogged cards must not hold contexts
   unlightAll();
   /* the doors: both anchoring questions and their rank-1 answers lit,
      everything else fog */
