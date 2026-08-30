@@ -180,6 +180,26 @@
     color: var(--spark); margin-top: 0.45rem; min-height: 0.7rem;
   }
 
+  /* ---- type carried by form, not by a tag ------------------------------
+     A structure keeps the full white card: it is a thing you can look at,
+     and the future home of a live box. A concept is connective tissue and
+     sits frameless on the paper. A process wears its unit tint as a
+     running bar down the left, with an arrow on its name. Chemistry is a
+     door out of biology, so it is dashed, the composer's "not here". */
+  .node.card.concept { background: transparent; border-color: transparent; }
+  .node.card.concept:hover,
+  .node.card.concept.hub { background: var(--card); border-color: var(--line); }
+  .node.card.chem { background: transparent; border: 1px dashed #cdbfe3; }
+  .node.card.process { border-left: 3px solid var(--dot, var(--line)); }
+  .node.card.process .name .run {
+    color: var(--dot, var(--muted)); font-weight: 600; margin-right: 0.05rem;
+  }
+
+  /* a hub reads bigger before it is clicked: five or more rank-1 edges,
+     counted from the data at load, so authoring an edge promotes the card */
+  .node.card.big { width: 22rem; }
+  .node.card.big .claim { font-size: 1.2rem; line-height: 1.24; -webkit-line-clamp: 5; }
+
   /* the open card grows, same bargain as the composer */
   .node.card.hub { width: 30rem; padding: 1.5rem 1.7rem 1.55rem; }
   .node.card.hub .claim {
@@ -313,6 +333,11 @@ for (const n of nodes) {
   if (best > 1) for (const l of mine) if (l.rank === best) l.rank = 1;
 }
 
+/* hub weight is read from the data, not authored: five rank-1 edges is the
+   soft budget, so a card at or past it is by definition a mechanism hinge */
+for (const n of nodes)
+  n.big = links.filter(l => (l.a === n || l.b === n) && l.rank === 1).length >= 5;
+
 const live = [], liveLinks = [];
 let alpha = 0, settled = true;
 const wake = a => { alpha = Math.max(alpha, a); settled = false; };
@@ -403,17 +428,19 @@ function paintNode(n) {
                    '<div class="claim">' + esc(n.claim) + '</div>' +
                    '<div class="meta"></div>';
   } else {
-    el.className = 'node card ' + n.type;
+    el.className = 'node card ' + n.type +
+                   (n.big ? ' big' : '') +
+                   (n.subject === 'chemistry' ? ' chem' : '');
     const tint = n.subject === 'chemistry' ? CHEM_TINT : (UNITS[n.unit] || {}).tint;
     if (tint) el.style.setProperty('--dot', tint);
     n.tint = tint;
-    el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' +
+    const tags = scaleTag(n) +
+      (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '');
+    el.innerHTML = '<div class="name">' +
+                     (n.type === 'process' ? '<span class="run">→</span>' : '') +
+                     esc(n.name) + '</div>' +
                    '<div class="claim">' + esc(n.claim) + '</div>' +
-                   '<div class="tags">' +
-                     '<span class="tag">' + esc(n.type) + '</span>' +
-                     scaleTag(n) +
-                     (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '') +
-                   '</div>' +
+                   (tags ? '<div class="tags">' + tags + '</div>' : '') +
                    '<div class="meta"></div>';
   }
   n.el = el;
