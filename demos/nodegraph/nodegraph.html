@@ -458,7 +458,7 @@
 </div>
 
 <div class="legend">
-  <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#1f5f4f" stroke-width="1.6"/><polygon points="12,1 18,4 12,7" fill="#1f5f4f"/></svg>rank 1</span>
+  <span><svg width="22" height="8"><line x1="0" y1="4" x2="22" y2="4" stroke="#1f5f4f" stroke-width="2.2"/><polygon points="12,1 18,4 12,7" fill="#1f5f4f"/></svg>rank 1</span>
   <span><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#1f5f4f" stroke-width="1" opacity=".45"/></svg>rank 2</span>
   <span><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#1f5f4f" stroke-width="1" stroke-dasharray="3 3" opacity=".45"/></svg>rank 3</span>
   <span><svg width="22" height="6"><line x1="0" y1="3" x2="22" y2="3" stroke="#e2643a" stroke-width="1.4"/></svg>contrasts with</span>
@@ -529,13 +529,19 @@ for (const [from, type, to, rank] of EDGES) {
 const neighbours = n => links.flatMap(l => l.a === n ? [l.b] : l.b === n ? [l.a] : []);
 const linksOf = n => links.filter(l => l.a === n || l.b === n);
 
-/* every node's best edge is promoted to rank 1, so nothing is unreachable
-   from its own side of the map */
+/* RANK IS AUTHORED AND NEVER REWRITTEN. It draws the edge, orders a fan for
+   the walk, and sizes a hub, so a node that rewrites it is falsifying all
+   three. Reachability is a separate claim and gets its own field: the spine
+   view keeps only rank 1, and a node whose best edge is rank 2 would be
+   stranded there, so `spine` also marks each node's own best edge. Doing
+   this by promoting rank was what erased the map's only rank-3 edge — vdw
+   part-of rgroup-inter, and rank 3 is exactly the claim it wants to make. */
+for (const l of links) l.spine = l.rank === 1;
 for (const n of nodes) {
   const mine = linksOf(n);
   if (!mine.length) { console.warn('orphan node:', n.id); continue; }
   const best = Math.min(...mine.map(l => l.rank));
-  if (best > 1) for (const l of mine) if (l.rank === best) l.rank = 1;
+  if (best > 1) for (const l of mine) if (l.rank === best) l.spine = true;
 }
 
 /* hub weight is read from the data: five rank-1 edges is the soft budget,
@@ -604,7 +610,7 @@ for (const p of SPEC) {
   for (const [nid, rank] of Object.entries(row)) {
     const m = byId[nid];
     if (!m) { console.warn('specimen placed on missing node:', n.id, nid); continue; }
-    links.push({ a: n, b: m, type: 'instance-of', rank });
+    links.push({ a: n, b: m, type: 'instance-of', rank, spine: rank === 1 });
     n.deg++; m.deg++;
   }
 }
@@ -615,13 +621,20 @@ for (const p of SPEC) {
 
    FORWARD: a explains / becomes / builds b — a sits left of b.
    BACKWARD: a acts on / instantiates b — b sits left of a.
-   Everything else (contrasts-with, describes, answers, preserves, lowers)
+   Everything else (contrasts-with, describes, answers, preserves)
    imposes no order. instance-of into a THEME is exempted: a theme is a
-   view over the map, not a station on the explanation. */
+   view over the map, not a station on the explanation.
+
+   CONTAINMENT IS TWO RELATIONS, and they point opposite ways. `part-of`
+   BUILDS: amino acids make a primary structure, phospholipids make a
+   bilayer, so the part is read first. `contains` ZOOMS IN: you meet the
+   enzyme and then look inside it for the pocket, so the whole is read
+   first. One type for both put the entire enzyme subtree six columns
+   LEFT of the enzyme and left the walk with nowhere to go from it. */
 const FORWARD = {
   'prerequisite-of': 1, 'causes': 1, 'determines': 1, 'enables': 1,
   'produces': 1, 'alters': 1, 'transforms-into': 1, 'evidence-for': 1,
-  'part-of': 1, 'contributes-to': 1,
+  'part-of': 1, 'contains': 1, 'contributes-to': 1, 'lowers': 1,
 };
 const BACKWARD = { 'consumes': 1, 'destroys': 1, 'explained-by': 1, 'instance-of': 1 };
 
@@ -649,7 +662,7 @@ function groupOf(l, n) {
    Longest-path layering over the ordering constraints, with a cycle guard
    (a cycle here is a data bug: usually a causes edge typed backwards).
    Nodes with no upstream constraint are then pulled RIGHT to just before
-   their first consequence, so an active site does not sit beside
+   their first consequence, so a disulfide bridge does not sit beside
    electronegativity merely because nothing points at it. Questions are
    exempt: a question is a door, placed just left of its best answer. */
 const inCons = new Map(nodes.map(n => [n, []]));
@@ -674,9 +687,9 @@ function layer(n, stack = new Set()) {
 for (const n of nodes) if (n.type !== 'question') layer(n);
 /* pull sourceless nodes right, to just before their first consequence —
    IGNORING consequences whose only constraint is this node (they trail
-   it, so using them is circular: active-site was held at 0 by
-   specificity, whose position came from active-site) — then re-propagate
-   the longest path so the trailers follow. */
+   it, so using them is circular: point-mutation would be held at 0 by
+   nat-select, whose position comes from point-mutation) — then
+   re-propagate the longest path so the trailers follow. */
 for (const n of nodes) {
   if (n.type === 'question' || inCons.get(n).length) continue;
   const anchored = outCons.get(n).filter(m =>
@@ -859,7 +872,7 @@ function paintLink(l) {
    clearFocus routes back through here, so the states cannot drift. */
 function edgeRefresh(l) {
   const contrast = l.type === 'contrasts-with';
-  const hide = spine && l.rank > 1;
+  const hide = spine && !l.spine;
   l.el.style.display = hide ? 'none' : '';
   l.label.style.display = hide ? 'none' : '';
   if (l.arrow) l.arrow.style.display = hide ? 'none' : '';
@@ -868,13 +881,13 @@ function edgeRefresh(l) {
   const both = l.a.on && l.b.on, any = l.a.on || l.b.on;
   const op = both ? (l.rank === 1 ? 0.4 : 0.2) : any ? 0.12 : 0.05;
   l.el.setAttribute('stroke', colour);
-  l.el.setAttribute('stroke-width', l.rank === 1 ? '1.4' : '1');
+  l.el.setAttribute('stroke-width', l.rank === 1 ? '2.2' : '1');
   l.el.setAttribute('stroke-opacity', op);
   if (l.arrow) {
     l.arrow.setAttribute('fill', colour);
     l.arrow.setAttribute('fill-opacity', both ? (l.rank === 1 ? 0.55 : 0.35) : any ? 0.12 : 0.05);
   }
-  l.label.classList.toggle('on', spine && l.rank === 1 && both);
+  l.label.classList.toggle('on', spine && l.spine && both);
 }
 
 /* ---- the stages ---------------------------------------------------------
@@ -1084,10 +1097,18 @@ const canvas = document.getElementById('canvas');
 const hint = document.getElementById('hint');
 let view = { x: 0, y: 0, k: 0.6 };
 
-const applyView = () => {
+/* the fan readout is the walk's only affordance: without it, ↑/↓ at a
+   seven-way hub is invisible */
+function showHint() {
   const lit = nodes.filter(n => n.on).length;
+  const fan = walk && walk.cands.length > 1
+    ? ' · ↕ ' + (walk.ix + 1) + '/' + walk.cands.length : '';
   hint.textContent = 'k ' + view.k.toFixed(2) + ' · ' + lit + '/' + nodes.length +
-                     ' lit · → so what · ← why';
+                     ' lit · → so what · ← why' + fan;
+}
+
+const applyView = () => {
+  showHint();
   const zoomed = view.k > 1;
   world.style.zoom = zoomed ? view.k : 1;
   const t = zoomed ? view.k : 1;
@@ -1223,6 +1244,8 @@ document.addEventListener('click', e => {
 
 function focus(n) {
   focused = n;
+  walk = null;                  // a click lands off the fan; goWalk restores its own
+  showHint();
   follow = n; followFrames = 700;
   if (n.on) goLive(n);          // the clicked card re-fronts in the pool
   document.body.classList.add('focusing');
@@ -1242,23 +1265,31 @@ function focus(n) {
   measure();
   gutterLight(n);
 
+  /* Distance from the focused card is carried by OPACITY ALONE. Focus used
+     to wash both hops red, which spent the only colour the edges have:
+     red means contrasts-with, and a card whose neighbours all went red
+     could not be read for rank either. So route through edgeRefresh for
+     the resting colour, width and dash, then dim — and scale the dimming
+     by rank, so the spine still separates from the enrichment inside a
+     focused neighbourhood. */
   for (const l of links) {
     const first = l.a === n || l.b === n;
     const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
-    if (spine && l.rank > 1) continue;          /* hidden stays hidden */
-    l.el.setAttribute('stroke-opacity', first ? '.85' : second ? '.4' : '.06');
-    l.el.setAttribute('stroke', first || second ? '#e2643a'
-      : l.type === 'contrasts-with' ? '#e2643a' : '#1f5f4f');
-    if (l.arrow) {
-      l.arrow.setAttribute('fill', first || second ? '#e2643a' : '#1f5f4f');
-      l.arrow.setAttribute('fill-opacity', first ? '.95' : second ? '.55' : '.06');
-    }
-    l.label.classList.toggle('on', first || (spine && l.rank === 1));
+    if (spine && !l.spine) continue;            /* hidden stays hidden */
+    edgeRefresh(l);
+    const near = first ? 0.85 : second ? 0.4 : 0;
+    const byRank = l.rank === 1 ? 1 : l.rank === 2 ? 0.6 : 0.45;
+    l.el.setAttribute('stroke-opacity', near ? (near * byRank).toFixed(2) : '.06');
+    if (l.arrow) l.arrow.setAttribute('fill-opacity',
+      near ? (near * byRank * 1.1).toFixed(2) : '.06');
+    l.label.classList.toggle('on', first || (spine && l.spine));
   }
 }
 
 function clearFocus() {
   focused = null;
+  walk = null;
+  showHint();
   document.body.classList.remove('focusing');
   for (const m of nodes) {
     m.el.classList.remove('lit', 'hub', 'hop2');
@@ -1270,19 +1301,95 @@ function clearFocus() {
 }
 
 /* ---- the walk ------------------------------------------------------------
-   Arrow keys step along rank-1 edges from the focused card: → onward,
-   ← why. The doc's QA test, playable: if the spine is coherent, holding
-   → reads as a course. */
+   Arrow keys step from the focused card: → onward, ← why, ↑/↓ to take a
+   different branch out of the same fan. The doc's QA test, playable: if the
+   spine is coherent, holding → reads as a course.
+
+   Three rules are what make it read as one course rather than wander.
+
+   ONLY AN EDGE THAT IMPOSES AN ORDER IS A STEP. groupOf() falls through to
+   a→b for the types the grammar says order nothing, which is fine for
+   grouping a card's chips and fatal for a walk: `denaturation preserves
+   primary` became a forward step and the walk fell into
+   tertiary→denaturation→primary→secondary→tertiary. So the walk reads
+   ordered() directly, plus `answers`, which is the door into a card.
+   describes and preserves stay on the chips and are not stations.
+
+   A SPECIMEN AND A THEME ARE DESTINATIONS. Their rank is authored from
+   their own side, the asymmetry graphdata.js calls out for the theme fan:
+   `p:prion instance-of folding` rank 1 says prion is the best thing we hold
+   for folding, not that folding's next word is prion. Walking onward used
+   to land on it and stop dead two hops from the unit's own question. They
+   are still walkable the other way — from the specimen back up to what it
+   exemplifies — and a theme still deals its whole fan from its chip.
+
+   A FAN LEADS WITH ITS LONGEST ARM. hbond deals seven rank-1 properties and
+   array order used to pick, so → off the mechanism hub stopped at
+   transpiration and the other six were unreachable by walking at all. Now
+   equal ranks are broken by how far each branch carries, so the hub runs to
+   the bilayer and the fold, and the rest are one ↓ away. */
+
+/* the direction a walk step reads this link, or null if it is not a step */
+function walkDir(l, n) {
+  if (l.type === 'answers') return n === l.b ? 'why' : 'onward';
+  const o = ordered(l);
+  if (!o) return null;
+  return o[1] === n ? 'why' : 'onward';
+}
+const station = n => n.type !== 'specimen' && n.type !== 'theme';
+
+/* how far a branch carries: the longest rank-1 chain onward from it. No
+   memo — 64 nodes, and only a keypress asks. The seen guard is for a data
+   bug the layering pass would already have warned about. */
+function reach(n, dir, seen = new Set()) {
+  if (seen.has(n)) return 0;
+  seen.add(n);
+  let best = 0;
+  for (const l of linksOf(n)) {
+    const m = l.a === n ? l.b : l.a;
+    if (l.rank !== 1 || walkDir(l, n) !== dir || !station(m)) continue;
+    best = Math.max(best, 1 + reach(m, dir, seen));
+  }
+  seen.delete(n);
+  return best;
+}
+
+/* the fan out of n in one direction, best arm first */
+function walkCands(n, dir) {
+  const out = [];
+  for (const l of linksOf(n)) {
+    const m = l.a === n ? l.b : l.a;
+    if (walkDir(l, n) !== dir || !station(m)) continue;
+    out.push({ m, rank: l.rank, far: reach(m, dir) });
+  }
+  out.sort((a, b) => a.rank - b.rank || b.far - a.far ||
+                     a.m.tx - b.m.tx || (a.m.id < b.m.id ? -1 : 1));
+  return out.map(x => x.m);
+}
+
+/* the fan the current card was reached through, so ↑/↓ can re-pick from it */
+let walk = null;
+
+function goWalk() {
+  const fan = walk;             /* focus() drops the fan; the walk keeps it */
+  light(fan.cands[fan.ix]);
+  focus(fan.cands[fan.ix]);
+  walk = fan;
+  showHint();
+}
+
 function stepWalk(dir) {
   if (!focused) return;
-  const cands = linksOf(focused)
-    .filter(l => groupOf(l, focused) === dir)
-    .sort((a, b) => a.rank - b.rank)
-    .map(l => l.a === focused ? l.b : l.a);
+  const cands = walkCands(focused, dir);
   if (!cands.length) return;
-  const to = cands[0];
-  light(to);
-  focus(to);
+  walk = { from: focused, dir, cands, ix: 0 };
+  goWalk();
+}
+
+function stepBranch(d) {
+  if (!walk || walk.cands.length < 2) return;
+  walk.ix = (walk.ix + d + walk.cands.length) % walk.cands.length;
+  goWalk();
 }
 
 addEventListener('keydown', e => {
@@ -1290,6 +1397,8 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') { clearFocus(); return; }
   if (e.key === 'ArrowRight') { e.preventDefault(); stepWalk('onward'); }
   if (e.key === 'ArrowLeft')  { e.preventDefault(); stepWalk('why'); }
+  if (e.key === 'ArrowDown')  { e.preventDefault(); stepBranch(1); }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); stepBranch(-1); }
 });
 
 /* ---- the spine ----------------------------------------------------------- */
@@ -1402,7 +1511,7 @@ function start() {
   for (const q of ['q-medium', 'q-machine']) {
     const n = byId[q];
     light(n);
-    for (const l of linksOf(n)) if (l.rank === 1) light(l.a === n ? l.b : l.a);
+    for (const l of linksOf(n)) if (l.spine) light(l.a === n ? l.b : l.a);
   }
   for (const l of links) edgeRefresh(l);
   measure();

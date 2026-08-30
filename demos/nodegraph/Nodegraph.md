@@ -4,11 +4,11 @@ The whole placement is computed once at load from the data, in this order — no
 
 **X — explanatory order** (`layerOf`):
 
-1. Every directed edge type declares an ordering or stays silent. FORWARD types (`prerequisite-of`, `causes`, `determines`, `produces`, `part-of`, …) put the source left of the target; BACKWARD types (`consumes`, `destroys`, `explained-by`, `instance-of`) invert that — an instance comes after its class. `contrasts-with`, `describes`, `answers` impose nothing, and `instance-of` into a theme is exempt.
+1. Every directed edge type declares an ordering or stays silent. FORWARD types (`prerequisite-of`, `causes`, `determines`, `produces`, `part-of`, `contains`, `lowers`, …) put the source left of the target; containment is two of those and they point opposite ways — `part-of` builds, so the part reads first, while `contains` zooms in, so the whole does; BACKWARD types (`consumes`, `destroys`, `explained-by`, `instance-of`) invert that — an instance comes after its class. `contrasts-with`, `describes`, `answers` impose nothing, and `instance-of` into a theme is exempt.
 
 2. **Longest-path layering** over those constraints: a node's layer is one more than the deepest constraint feeding it; unconstrained sources sit at 0. A cycle would be a data bug and warns.
 
-3. **Pull-right pass**: a node with no upstream constraint (active-site) is pulled to one column before its first *independently anchored* consequence — ignoring followers whose only constraint is the node itself, which was circular — then layers re-propagate so the followers move too.
+3. **Pull-right pass**: a node with no upstream constraint (a disulfide bridge, a gene sequence) is pulled to one column before its first *independently anchored* consequence — ignoring followers whose only constraint is the node itself, which was circular — then layers re-propagate so the followers move too.
 
 4. Nodes with **no ordering edges at all** (induced-fit, the theme) take the mean of their neighbours' layers.
 

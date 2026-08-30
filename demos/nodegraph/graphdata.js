@@ -326,10 +326,14 @@
 
     /* enzyme subtree, hanging off tertiary structure */
     ['enzyme',      'instance-of',     'func',          1],
-    /* part-of, not `contains` flipped the other way: one containment type,
-       the ladder's, so the vocabulary stays small enough to trust */
-    ['active-site', 'part-of',         'tertiary',      2],
-    ['active-site', 'part-of',         'enzyme',        1],
+    /* CONTAINS, not part-of: the two containment relations point opposite
+       ways on the explanation axis. part-of builds (amino acids make a
+       primary structure), contains zooms in (you meet the enzyme, then
+       look inside for the pocket). Typed as part-of, the whole enzyme
+       subtree sat six columns left of the enzyme and the walk dead-ended
+       there — reading the pocket as a prerequisite for the protein. */
+    ['tertiary',    'contains',        'active-site',   2],
+    ['enzyme',      'contains',        'active-site',   1],
     ['enzyme',      'lowers',          'activation-e',  1],
     ['active-site', 'causes',          'specificity',   1],
     ['q-substrate', 'answers',         'specificity',   1],
