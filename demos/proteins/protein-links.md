@@ -4,7 +4,7 @@
 
 Three sources each, where three exist:
 
-* **PDB-101 Molecule of the Month** — ~600 words, Goodsell illustrations, names the PDB ids it draws, so it lines up with each entry's `source` in `proteins.js`.
+* **PDB-101 Molecule of the Month** — \~600 words, Goodsell illustrations, names the PDB ids it draws, so it lines up with each entry's `source` in `proteins.js`.
 * **Nobel Facts** *(nobelprize.org)* — a paragraph and a portrait. Marked **Nobel** below. Popular-information pages exist only for recent prizes (2008 GFP has one; 1962, 1972, 1997 return 404), so Facts is the consistent choice. Three proteins here have no Nobel: collagen, hexokinase, ferritin.
 * **One long read** — only where one is better than the summary.
 
@@ -35,7 +35,7 @@ No Nobel.
 
 * [MotM #105: Ribonuclease A](https://pdb101.rcsb.org/motm/105)
 * **Nobel: Chemistry 1972**, shared with Moore and Stein, for sequence and conformation in ribonuclease. [Anfinsen, Facts](https://www.nobelprize.org/prizes/chemistry/1972/anfinsen/facts/)
-* [The Thermodynamic Hypothesis of Protein Folding](https://www.jbc.org/article/S0021-9258(19)56522-X/fulltext) — JBC Classic, two pages, sequence determines structure
+* [The Thermodynamic Hypothesis of Protein Folding](https://www.jbc.org/article/S0021-9258\(19\)56522-X/fulltext) — JBC Classic, two pages, sequence determines structure
 
 ## Insulin
 
@@ -59,13 +59,13 @@ No Nobel.
 
 * [MotM #72: ATP Synthase](https://pdb101.rcsb.org/motm/72) — two rotary motors coupled
 * **Nobel: Chemistry 1997**, half shared by Boyer and Walker for the enzymatic mechanism of ATP synthesis; Skou took the other half the same year. [Boyer, Facts](https://www.nobelprize.org/prizes/chemistry/1997/boyer/facts/) · [Walker, Facts](https://www.nobelprize.org/prizes/chemistry/1997/walker/facts/)
-* [Direct observation of the rotation of F1-ATPase](https://www.cell.com/fulltext/S0092-8674(00)81142-3) — 120° steps, occasional backstep
+* [Direct observation of the rotation of F1-ATPase](https://www.cell.com/fulltext/S0092-8674\(00\)81142-3) — 120° steps, occasional backstep
 
 ## Na⁺/K⁺-ATPase
 
 * [MotM #118: Sodium-Potassium Pump](https://pdb101.rcsb.org/motm/118)
 * **Nobel: Chemistry 1997**, the half beside Boyer and Walker, for the first ion-transporting enzyme. [Skou, Facts](https://www.nobelprize.org/prizes/chemistry/1997/skou/facts/)
-* [Jens Skou, Nobel Prize in Chemistry](https://www.mayoclinicproceedings.org/article/S0025-6196(13)00283-8/fulltext) — crab nerve membranes, and insisting a protein spans the bilayer before that was allowed
+* [Jens Skou, Nobel Prize in Chemistry](https://www.mayoclinicproceedings.org/article/S0025-6196\(13\)00283-8/fulltext) — crab nerve membranes, and insisting a protein spans the bilayer before that was allowed
 
 ## Hexokinase
 
@@ -87,3 +87,17 @@ No Nobel, no narrative. The weakest field of the eleven.
 
 * [MotM #35: Ferritin and Transferrin](https://pdb101.rcsb.org/motm/35)
 * [Structural biology of ferritin nanocages](https://febs.onlinelibrary.wiley.com/doi/full/10.1002/1873-3468.70302) — FEBS Letters 2026, CC-BY
+
+Other sources in general
+
+1. PDB-101 Molecule of the Month — <https://pdb101.rcsb.org/motm/motm-by-date>
+
+2. PDBj Molecule of the Month (mirror + own features) — <https://pdbj.org/mom>
+
+3. Proteopedia — [https://proteopedia.org](https://proteopedia.org/) (featured: <https://proteopedia.org/wiki/index.php/Main_Page>)
+
+4. Protein Spotlight (UniProt, monthly since 2000, one writer, great comics) — [https://www.proteinspotlight.org](https://www.proteinspotlight.org/)
+
+5. Goodsell Molecular Landscapes — <https://pdb101.rcsb.org/sci-art/goodsell-gallery>
+
+6. EMDB (cryo-EM maps) — <https://www.ebi.ac.uk/emdb/>
