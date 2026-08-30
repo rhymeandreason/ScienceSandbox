@@ -1,4 +1,3 @@
-
 Initial Prompt: I am building a node-graph navigator for browsing concepts, questions, and content. Everything can be connected, there are no limits on type of connection. There can be groups, and connections can be ranked. There can also be a level above, called Subject if you need. Our topic is Biology 101, how would you organize the material?
 
 ## The core recommendation
@@ -1140,5 +1139,67 @@ The unit's real value is outbound, so these earn their place more than a sixth p
 ## Where the effort goes
 
 This is the unit where you can lean hardest on existing footage — capillary action, water striders, freezing, sweating are all real, filmable, and probably already available. One good molecular sandbox plus three animations plus assembled video covers most of it. Build the sandbox well and parameterize it; six property nodes can point at the same module with different temperature, solute, and surface settings.
+
+---
+
+How would you tackle Chemistry?
+
+Chemistry is a different kind of problem from the units so far, because you're not building a course — you're building the minimum substrate that biology needs. Get the scope wrong in either direction and you either strand students at every cross-subject edge or you build a chemistry course nobody asked for.
+
+## The scoping rule
+
+Include a chemistry node if and only if at least two Biology nodes have a rank-1 `prerequisite-of` edge pointing at it.
+
+Run that over what you've built and it produces a surprisingly small set. Electronegativity is needed by polarity, by bond types, by redox. Redox is needed by respiration, photosynthesis, and electron carriers. Meanwhile orbital hybridization is needed by nothing in Bio 101, despite appearing in every general chemistry chapter of every biology textbook.
+
+That test is what keeps this at \~30 nodes rather than 150.
+
+## The set
+
+**Atomic** — Atom · Electron · Valence Shell · Isotope **Bonding** — Electronegativity · Covalent · Polar Covalent · Ionic · Hydrogen Bond · Van der Waals **Reaction** — Chemical Reaction · Activation Energy · Catalyst · Equilibrium · Redox (oxidation, reduction, electron carrier) **Solution** — Solution · Concentration · Diffusion Gradient · Acid/Base · pH · Buffer **Energy** — Energy · Free Energy · Exergonic/Endergonic · Entropy **Organic** — Carbon Skeleton · Functional Group · Isomer
+
+Isotopes make the cut only because of radiometric dating and tracer experiments — Meselson–Stahl, Calvin's carbon labelling. That's a legitimate two-node justification, but it's the marginal case.
+
+## The three that carry everything
+
+Most of the cross-subject traffic runs through a handful of nodes, and I'd build these properly before anything else:
+
+**Electronegativity.** Upstream of polarity, which is upstream of water, membranes, solubility, and protein folding. Probably the highest-degree node in the entire graph once you count downstream paths.
+
+**Redox.** The biggest omission in most Bio 101 treatments, as flagged in the respiration unit. Students learn "electrons move to oxygen" without ever learning what oxidation means, and then photosynthesis is incomprehensible. One well-built node fixes both energy units.
+
+**Free energy and spontaneity.** Why ATP hydrolysis "releases" energy, why coupled reactions work, why entropy doesn't forbid life. Needed by respiration, photosynthesis, transport, and folding.
+
+## Carbon deserves special handling
+
+`Carbon Skeleton` isn't quite a chemistry prerequisite in the same way — it's more the enabling premise of organic chemistry existing at all. Four bonds, stable chains, branching, rings. It sits at the boundary and I'd place it in Chemistry with a rank-1 edge into `Macromolecules`, so the "why carbon" question has somewhere to land.
+
+`Functional Group` is genuinely dual — it's chemistry, and it's the organizing device of your macromolecules unit. I'd keep one node, place it in Chemistry, and let the biology side reference it rather than duplicating. Same node/card judgment as polarity.
+
+## Structural treatment
+
+Chemistry nodes should be **shallower and more instrumental** than biology nodes. A chemistry card's job is to unblock, not to teach the subject:
+
+* Shorter cards, one clear definition, one worked example
+
+* Every node carries `needed-for` edges pointing back into biology, so the reader always sees why they're here
+
+* No internal chemistry-only subtrees — no reaction kinetics, no thermodynamics beyond free energy sign
+
+* Scale level null for most of them; these are concepts, not objects
+
+The `needed-for` reverse edges matter more than they look. "You're learning electronegativity because water, membranes, and enzymes all depend on it" is the difference between a detour and a prerequisite.
+
+## Where it goes wrong
+
+**Scope creep upward.** Someone will want the periodic table, then electron configuration, then orbitals. Apply the two-consumer test and most of it fails.
+
+**Chemistry as a gate.** Don't force a linear chemistry unit before biology unlocks. That's the textbook chapter-1 problem, and it's why students bounce off. Let them start at a biology question and pull chemistry in when they hit the edge — which is precisely what your graph is for.
+
+**Duplicating polarity.** You'll be tempted to have a chemistry `Polarity` and a biology "water is polar." Don't. One node, cross-subject, with the water-specific fact as card content.
+
+## Ranking caution
+
+A model ranking chemistry for a biology course will import general-chemistry importance weights — stoichiometry, moles, the periodic table all rank high in chemistry and are nearly irrelevant here. The discriminating question has to be explicitly downstream-scoped: *how many rank-1 biology paths pass through this node?* Ask it unscoped and you'll get a chemistry syllabus.
 
 ---
