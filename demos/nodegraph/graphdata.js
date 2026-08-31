@@ -615,6 +615,25 @@
   { id:'q-autumn',   type:'question', qtype:'anchor', text:'Why do leaves change colour in autumn?' },
   { id:'q-plantmito', type:'question', qtype:'bridging', text:'If plants make sugar, why do they also need mitochondria?' },
   { id:'q-o2',       type:'question', qtype:'anchor', text:'Where does the oxygen you breathe come from?' },
+  /* EXTENSION: the answer is not on the card it points at, it is inside that
+     card's kinds. `kind` names WHICH member answers it, matched on the kinds
+     name — clicking deals the fan and draws the question straight to that one,
+     so the door lands on the detail rather than on the fan. A tag with no kind
+     to land on is the failure this field exists to make impossible. */
+  { id:'q-sunburn',  type:'question', qtype:'extension', kind:'Ultraviolet',
+    text:'Why does sunburn cause mutations?' },
+  { id:'q-uracil',   type:'question', qtype:'extension', kind:'Uracil',
+    text:'Why does RNA use uracil where DNA uses thymine?' },
+  { id:'q-hair',     type:'question', qtype:'extension', kind:'α-helix',
+    text:'Why does hair stretch and spring back?' },
+  { id:'q-digest',   type:'question', qtype:'extension', kind:'Hydrolase',
+    text:'What kind of enzyme does digestion?' },
+  { id:'q-babies',   type:'question', qtype:'extension', kind:'Stabilising',
+    text:'Why are human babies rarely very large or very small?' },
+  { id:'q-off',      type:'question', qtype:'extension', kind:'Repressor',
+    text:'How does a cell hold a gene switched off?' },
+  { id:'q-psii',     type:'question', qtype:'extension', kind:'Photosystem II',
+    text:'Why does the chain start at photosystem II?' },
   ];
 
   const EDGES = [
@@ -906,6 +925,14 @@
     ['replication',      'causes',          'mutation',       1],
     ['mutagen',          'causes',          'mutation',       1],
     ['q-sunburn',        'answers',         'mutagen',        1],
+    /* the extension doors. Each is off the map until it is asked, so these
+       edges name where it lands rather than placing anything. */
+    ['q-uracil',         'answers',         'nucleotide',     1],
+    ['q-hair',           'answers',         'secondary',      1],
+    ['q-digest',         'answers',         'enzyme',         1],
+    ['q-babies',         'answers',         'nat-select',     1],
+    ['q-off',            'answers',         'transcription-factor', 1],
+    ['q-psii',           'answers',         'photosystem',    1],
 
     /* THE QUESTION STUDENTS MOST WANT ANSWERED, and the one most often cut
        for time. Rank 1 on purpose. */

@@ -57,7 +57,7 @@ that one over there uses" without also claiming which is read first.
 | type | what it is | walkable? |
 | --- | --- | --- |
 | `concept` `structure` `process` | the skeleton | yes |
-| `question` | a door. `qtype` is `anchor` (opens a unit, large) or `bridging` (joins two already open, small) | via `answers` |
+| `question` | a door. `qtype` is `anchor` (opens a unit, large), `bridging` (joins two already open, small) or `extension` (small, italic, blue) | via `answers` |
 | `theme` | a saved query over the map. Its fan is dealt whole regardless of rank | no |
 | `evidence` | how we know. Meselson–Stahl, Hershey–Chase | no |
 | `specimen` | spawned from `proteins/proteins.js` by a `p:` placement | no |
@@ -114,6 +114,52 @@ tertiary structure it is an instance of.
 y pulled to the median (questions 0.07, levelled 0.09, levelless 0.06),
 repulsion, a weak y-alignment along edges, deterministic jitter. No spring
 invents a position. Dragging pins a card out of it.
+
+## Extension questions, and the ask bar
+
+**An extension question is not on the map.** It is a query, and a query has no
+seat: it arrives at whatever it asked about and leaves with it. `graphdata.js`
+authors it like any other question, and the page pulls it out **before layout**
+(`QUERIES`), keeping only `anchorId`. Leaving them in cost nothing visible and
+moved every neighbour they repelled. The degree they added is given back, or
+the card they answer reads one link heavier than it is.
+
+**Its answer is inside its target's `kinds`, and it names which**, in `kind`,
+matched on the kinds name. Asking one opens the card, deals the fan, and spawns
+the question as a satellite of the member that answers it. The pill stays in
+the chain: a reader who arrived by query and one who clicked "what kinds are
+there?" are looking at the same thing, and a second way of drawing it would say
+they are not.
+
+Being a satellite is what makes it free: it rides its target, is skipped by the
+relax, and pushes nothing. `dropQuery` runs from `collapseKinds`, so the fan
+and the question that opened it leave together.
+
+It is styled as a different ACT, not a smaller one: italic, and a blue no unit
+owns. Hover and focus both repaint a question in ink, so the colour is restated
+after those rules or they win.
+
+**The bar is the only way to reach one**, bottom centre. It holds every
+question, not only the deferred ones — asking an anchor or bridging question
+focuses the card it already has. The placeholder rotates through them, so the
+bar shows what it accepts rather than describing it; Enter on an empty field
+takes the offer, typing filters, ArrowDown opens the list grouped by unit.
+A query arrives from wherever the reader was, which may be the whole map at
+0.30, so `follow` carries a zoom and centres the CHAIN rather than the question
+— following either end puts the rest against a screen edge.
+
+**Not built yet**: the fuzzy match onto a typed question (Gemini), and the same
+field as a keyword search over the cards. Until then a typed miss reddens the
+bar rather than failing silently.
+
+### The test for tagging one
+
+`kind` is what enforces it. *Why does sunburn cause mutations?* lands on
+`mutagen`'s Ultraviolet. *Why does eating fat give more energy than eating
+sugar?* was tagged extension and had to be given back: `fatty-acid`'s own claim
+already says the tail is the energy, and saturated / unsaturated / trans is a
+different question. **If no member is THE answer, the question is not an
+extension.**
 
 ## Kinds: detail that failed the node test
 

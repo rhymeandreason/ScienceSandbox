@@ -51,6 +51,9 @@
     --card:   #ffffff;
     --accent: #1f5f4f;
     --spark:  #e2643a;
+    /* the extension door: a blue that belongs to no unit, so it reads as a
+       kind of question rather than as a region */
+    --ext:    #2f5fb5;
   }
 
   * { box-sizing: border-box; }
@@ -172,6 +175,64 @@
     background: var(--ink); border-style: solid; border-color: var(--ink);
     color: var(--paper);
   }
+
+  /* ---- the ask bar -----------------------------------------------------
+     The extension questions live here instead of on the map, so this is the
+     only way to reach one. Bottom centre: the masthead holds the readings of
+     the map, and this is the reader's own line. */
+  .askbar {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: clamp(1rem, 3vh, 1.8rem); z-index: 8;
+    width: min(34rem, calc(100vw - 8rem));
+  }
+  .askrow {
+    display: flex; align-items: stretch;
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    box-shadow: 0 14px 34px -18px rgba(20, 22, 26, .3);
+    transition: border-color .15s;
+  }
+  .askbar:focus-within .askrow, .askbar.open .askrow { border-color: var(--ext); }
+  /* a miss is said by the bar rather than by an alert: the fuzzy match is not
+     built yet, and a dead Enter with no answer reads as a broken field */
+  .askbar.miss .askrow { border-color: var(--spark); }
+  #askinput {
+    flex: 1; min-width: 0; font-family: var(--serif); font-size: 1rem;
+    color: var(--ink); background: none; border: 0; outline: none;
+    padding: 0.6rem 0.85rem;
+  }
+  /* the placeholder is a QUESTION being offered, not a label, so it carries
+     the extension door's italic and steps back in colour */
+  #askinput::placeholder { color: var(--muted); font-style: italic; opacity: 1; }
+  .askcaret {
+    font-size: 0.7rem; color: var(--muted); line-height: 1;
+    background: none; border: 0; border-left: 1px solid var(--line);
+    padding: 0 0.7rem; cursor: pointer; transition: color .15s;
+  }
+  .askcaret:hover { color: var(--ext); }
+  .asklist {
+    position: absolute; left: 0; right: 0; bottom: calc(100% + 0.4rem);
+    max-height: 46vh; overflow-y: auto;
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    box-shadow: 0 14px 34px -12px rgba(20, 22, 26, .28);
+    padding: 0.25rem 0;
+  }
+  .asklist[hidden] { display: none; }
+  .askgroup {
+    font-family: var(--sans); font-size: 0.52rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    padding: 0.55rem 0.7rem 0.25rem;
+    border-top: 1px solid var(--line); margin-top: 0.3rem;
+  }
+  .asklist .askgroup:first-child { border-top: 0; margin-top: 0; }
+  .askopt {
+    font-family: var(--serif); font-size: 0.85rem; color: var(--ink);
+    display: block; width: 100%; text-align: left;
+    background: none; border: 0; cursor: pointer; padding: 0.34rem 0.7rem;
+  }
+  /* the same italic blue the door wears on the map, so a row and the card it
+     produces are recognisably the same object */
+  .askopt.ext { font-style: italic; color: var(--ext); }
+  .askopt:hover, .askopt.on { background: var(--paper); }
 
   /* ---- the scale gutter ------------------------------------------------
      No longer a legend: a RULER. Each rung is pinned to its band's world
@@ -541,14 +602,19 @@
      in view, so it reads at the scale of the cards it sits between rather
      than competing with the unit it is inside. Narrower too, or a short
      question sets one enormous line. */
-  .node.question.bridging {
+  .node.question.bridging, .node.question.extension {
     width: 19rem; max-width: 19rem;
     font-size: 1.25rem; line-height: 1.2; letter-spacing: -0.008em;
     color: var(--muted);
   }
+  /* AN EXTENSION DOOR OPENS ONTO A FAN, not onto a claim, so it is marked as
+     a different act rather than a smaller one: italic and blue, a colour no
+     unit owns. Clicking it deals the kinds of the card it answers into. */
+  .node.question.extension { font-style: italic; }
   /* a fogged question is sized by max-content against a max-width, so the
      narrower cap has to be restated here or the fog rule's 26rem wins */
-  .node.question.unlit.bridging { max-width: 19rem; }
+  .node.question.unlit.bridging,
+  .node.question.unlit.extension { max-width: 19rem; }
   .node.question.hub {
     width: 28rem; padding: 0.9rem 1rem 0.95rem;
   }
@@ -633,6 +699,13 @@
   .focusing .node.question.lit {
     background: var(--card); border-color: var(--line); color: var(--ink);
   }
+  /* the blue is the extension door's identity, so it outlives hover and
+     focus — both of which repaint a question in ink. Stated after them
+     rather than at the type rule, which they would otherwise win. */
+  .node.question.extension,
+  .node.question.extension:hover,
+  .focusing .node.question.extension.lit { color: var(--ext); }
+  .node.question.extension:hover { border-color: var(--ext); }
 
   /* ---- the lesson, over the map (kit/modal.js reads this markup) ------- */
   .modal {
@@ -729,6 +802,18 @@
 
 <div class="hint" id="hint"></div>
 
+<!-- the ask bar: every question on the map is reachable from here, and the
+     extension ones are reachable ONLY from here -->
+<div class="askbar" id="askbar">
+  <div class="asklist" id="asklist" role="listbox" hidden></div>
+  <div class="askrow">
+    <input id="askinput" type="text" autocomplete="off" spellcheck="false"
+           aria-label="ask a question of the map">
+    <button type="button" class="askcaret" id="askcaret"
+            aria-label="all the questions">&#9662;</button>
+  </div>
+</div>
+
 <!-- The lesson, over the map. The iframe is empty until it opens and emptied
      on close: a lesson is its own WebGL context and about a megabyte of
      trajectory, and neither should be paid by a reader who never opened it. -->
@@ -791,6 +876,26 @@ for (const [from, type, to, rank] of EDGES) {
   if (!a || !b) { console.warn('edge names a missing node:', from, type, to); continue; }
   links.push({ a, b, type, rank });
   a.deg++; b.deg++;
+}
+
+/* ---- the deferred doors -------------------------------------------------
+   AN EXTENSION QUESTION IS NOT ON THE MAP. It is a query, and a query has no
+   seat: it arrives at whatever it asked about and leaves with it. So the node
+   and its `answers` edge are pulled out here, BEFORE layout — they are
+   authored in graphdata.js like anything else, and `anchorId` is all that
+   survives into the page. Leaving them in cost nothing visible and moved
+   every neighbour they repelled. */
+const QUERIES = nodes.filter(n => n.type === 'question' && n.qtype === 'extension');
+for (const q of QUERIES) {
+  const answers = links.filter(l => (l.a === q || l.b === q) && l.type === 'answers');
+  const best = answers.sort((a, b) => a.rank - b.rank)[0];
+  q.anchorId = best ? (best.a === q ? best.b.id : best.a.id) : null;
+  if (!q.anchorId) console.warn('extension question answers nothing:', q.id);
+  /* the degree was counted when the edge was built, and degree sizes hubs —
+     so give it back, or every extension's answer reads one link heavier */
+  for (const l of links) if (l.a === q || l.b === q) { l.a.deg--; l.b.deg--; }
+  links = links.filter(l => l.a !== q && l.b !== q);
+  nodes.splice(nodes.indexOf(q), 1);
 }
 
 const neighbours = n => links.flatMap(l => l.a === n ? [l.b] : l.b === n ? [l.a] : []);
@@ -1584,9 +1689,20 @@ function draw() {
   }
 }
 
-let follow = null, followFrames = 0;
+let follow = null, followFrames = 0, followK = 0;
 function followStep() {
-  if (!follow || followFrames-- <= 0) { follow = null; return; }
+  if (!follow || followFrames-- <= 0) { follow = null; followK = 0; return; }
+  /* a QUERY arrives from wherever the reader happened to be, which may be the
+     whole map at 0.3 — where the card it lands on is a smudge. So a follow
+     can carry a zoom, eased on the same frames as the pan. Clicking a card
+     sets no `followK` and the zoom is left exactly as the reader had it. */
+  if (followK && Math.abs(followK - view.k) > 0.002) {
+    const k = view.k + (followK - view.k) * 0.06;
+    /* zoom about the screen centre, which is where the pan is taking it */
+    view.x = innerWidth / 2 - (innerWidth / 2 - view.x) * (k / view.k);
+    view.y = innerHeight / 2 - (innerHeight / 2 - view.y) * (k / view.k);
+    view.k = k;
+  }
   view.x += (innerWidth * 0.5 - follow.x * view.k - view.x) * 0.05;
   view.y += (innerHeight / 2 - follow.y * view.k - view.y) * 0.05;
   applyView();
@@ -1685,24 +1801,57 @@ function zoomAt(k, cx, cy) {
   densifySoon();                 // the canvases follow the zoom, once it stops
 }
 
-/* A Mac trackpad's two-finger scroll IS a wheel event, so zooming on every
-   wheel made the map's most common gesture do its least wanted thing: the
-   scroll pans, and only a pinch zooms. Chrome reports a pinch as a wheel with
-   ctrlKey set (no ctrl is held); Safari reports it as its own gesture events
-   instead, so both paths are here and only one ever fires. Ctrl/cmd-scroll
-   zooms too, which is what a mouse wheel is left with. deltaMode 1 counts
-   lines, and Firefox is where that shows up. */
+/* A Mac trackpad's two-finger scroll IS a wheel event, and so is a mouse
+   wheel's click, so the handler has to tell them apart: the trackpad pans and
+   the wheel zooms, which is what each one is for.
+
+   NO SINGLE EVENT SAYS WHICH. Safari sends a mouse notch as deltaY 4.0002,
+   wheelDeltaY -12 — fractional, not a multiple of 120, and the same shape a
+   swipe arrives in. What separates them is the STREAM: a notch is one or two
+   events, a two-finger scroll is a long burst with a momentum tail behind it.
+   So the BURST is what gets classified, the verdict carries to the next one,
+   and it is remembered across loads, because otherwise a trackpad reader pays
+   the wrong first flick on every visit. The map opens assuming a wheel.
+
+   The two zooms are metered differently: a notch is a step, so it moves k by
+   a fixed ratio, while a pinch or a ctrl-scroll is continuous. */
+const BURST_GAP = 120;      // ms of quiet that ends a burst
+const BURST_PAN = 8;        // events in one burst that only fingers produce
+let burstAt = 0, burstN = 0, shortRun = 0;
+let trackpad = false;
+try { trackpad = localStorage.getItem('nodegraph.trackpad') === '1'; } catch (_) {}
+const setTrackpad = on => {
+  trackpad = on;
+  try { localStorage.setItem('nodegraph.trackpad', on ? '1' : '0'); } catch (_) {}
+};
+
 canvas.addEventListener('wheel', e => {
   e.preventDefault();
   follow = null;
-  const s = e.deltaMode === 1 ? 16 : 1;
-  if (e.ctrlKey || e.metaKey)
-    zoomAt(view.k * Math.exp(-e.deltaY * s * 0.01), e.clientX, e.clientY);
+  const s = e.deltaMode === 1 ? 16 : 1;             // deltaMode 1 counts lines
+  const now = performance.now();
+
+  if (now - burstAt < BURST_GAP) burstN++;
   else {
+    /* the burst that just ended: two stubby ones in a row mean the fingers
+       left and a wheel took over */
+    shortRun = burstN && burstN <= 2 ? shortRun + 1 : 0;
+    if (shortRun >= 2 && trackpad) setTrackpad(false);
+    burstN = 1;
+  }
+  burstAt = now;
+  if (burstN >= BURST_PAN && !trackpad) setTrackpad(true);
+
+  if (e.ctrlKey || e.metaKey)                       // pinch, in Chrome's dialect
+    zoomAt(view.k * Math.exp(-e.deltaY * s * 0.01), e.clientX, e.clientY);
+  else if (trackpad || e.deltaX !== 0) {
     view.x -= e.deltaX * s;
     view.y -= e.deltaY * s;
     applyView();
     densifySoon();
+  } else {
+    const steps = e.wheelDeltaY ? Math.sign(e.wheelDeltaY) : -Math.sign(e.deltaY);
+    zoomAt(view.k * Math.exp(steps * 0.14), e.clientX, e.clientY);
   }
 }, { passive: false });
 
@@ -2307,13 +2456,15 @@ function dropPill(host) {
    on itself or on anything it produced */
 function syncPill(n) {
   const family = pillHost &&
-    (n === pillHost || n === pillHost.pill || (pillHost.sats || []).includes(n));
+    (n === pillHost || n === pillHost.pill || n === pillHost.query ||
+     (pillHost.sats || []).includes(n));
   if (family) return;
   if (pillHost) dropPill(pillHost);
   pillHost = (n && n.kinds) ? makePill(n) : null;
 }
 
 function collapseKinds(host) {
+  dropQuery(host);
   dropNodes(host.sats); dropLinks(host.satLinks);
   host.sats = null; host.satLinks = null;
   if (host.pill) host.pill.el.textContent = host.pill.label;
@@ -2375,6 +2526,222 @@ function toggleKinds(host) {
   pill.el.textContent = 'hide the ' + count;
   draw();
 }
+
+/* ---- asking ---------------------------------------------------------------
+   A QUERY ARRIVES, IT DOES NOT LIVE HERE. Asking an extension question opens
+   the card it lands on, deals that card's kinds, and spawns the question
+   itself beside the member that answers it — as a satellite, so it rides
+   whatever it is attached to and pushes nothing on the map out of place.
+
+   The pill stays in the chain. A reader who arrives by query and one who
+   arrived by clicking "what kinds are there?" are looking at the same thing,
+   and a second way of drawing it would say they are not. */
+
+function dropQuery(host) {
+  if (!host || !host.query) return;
+  const q = host.query;
+  dropLinks(links.filter(l => l.a === q || l.b === q));
+  dropNodes([q]);
+  q.el = null;
+  host.query = null;
+}
+
+function spawnQuery(q, host) {
+  if (host.query && host.query !== q) dropQuery(host);
+  if (host.query === q) return;
+
+  /* the member that answers it, or the card itself when the question is
+     about the whole fan rather than one of it */
+  const target = (q.kind && (host.sats || []).find(s => s.name === q.kind)) || host;
+  q.satellite = true; q.pinned = true; q.host = target;
+  q.on = true; q.deg = 0; q.vx = 0; q.vy = 0;
+  q.x = target.x; q.y = target.y;
+  nodes.push(q); byId[q.id] = q;
+  paintNode(q);
+  q.el.classList.add('lit');
+  /* below its answer, and left of it, so the question reads before the card
+     it points at rather than out of the card's own reading order */
+  q.dx = -(target.el.offsetWidth / 2 + q.el.offsetWidth / 2 + 30);
+  q.dy = target.el.offsetHeight / 2 + q.el.offsetHeight / 2 + 26;
+  q.r = Math.hypot(q.el.offsetWidth, q.el.offsetHeight) / 2;
+
+  const l = { a: q, b: target, type: 'answers', rank: 1, spine: true };
+  links.push(l); paintLink(l); edgeRefresh(l);
+  host.query = q;
+  draw();
+}
+
+/* the one entry point: everything that asks goes through here, so the bar,
+   the list and anything later that fuzzy-matches all land the same way */
+function askQuestion(q) {
+  if (!q) return;
+  if (q.qtype !== 'extension') { light(q); focus(q); return; }
+  const host = byId[q.anchorId];
+  if (!host) { console.warn('query has nowhere to land:', q.id); return; }
+  light(host);
+  focus(host);                         /* syncPill grows the pill from here */
+  if (host.kinds && !host.sats) toggleKinds(host);
+  spawnQuery(q, host);
+  /* the fan and the question were born after focus lit the neighbourhood */
+  for (const m of [q, host.pill, ...(host.sats || [])])
+    if (m && m.el) m.el.classList.add('lit');
+  /* CENTRE THE ANSWER, NOT THE QUESTION. The question sits below its member
+     and the card sits above the fan, so following either one puts the rest of
+     the chain against an edge. `follow` only ever reads x and y, so a midpoint
+     is a legal thing to hand it. */
+  const chain = [q, host, host.pill, ...(host.sats || [])].filter(Boolean);
+  follow = { x: chain.reduce((t, m) => t + m.x, 0) / chain.length,
+             y: chain.reduce((t, m) => t + m.y, 0) / chain.length };
+  followFrames = 700;
+  followK = Math.max(view.k, 0.85);    /* readable, and never a zoom OUT */
+  wake(0.4);
+}
+
+/* ---- the ask bar ----------------------------------------------------------
+   Every question is reachable from here, not only the deferred ones: an
+   anchor or bridging question is already a card, so asking one focuses it
+   where it sits. The placeholder rotates so the bar shows what it accepts
+   rather than describing it. */
+const askBar = document.getElementById('askbar');
+const askIn = document.getElementById('askinput');
+const askList = document.getElementById('asklist');
+const askCaret = document.getElementById('askcaret');
+
+const ASKABLE = NODES.filter(n => n.type === 'question').map(n => byId[n.id]);
+
+/* the unit a question belongs to is DERIVED, the same way the highlight menu
+   derives it: a deferred one has no edges left, so it reads `anchorId`. */
+function unitOfQuestion(q) {
+  if (q.qtype === 'extension') { const h = byId[q.anchorId]; return h && h.unit; }
+  const l = linksOf(q).find(x => x.rank === 1);
+  const other = l && (l.a === q ? l.b : l.a);
+  return other && other.unit;
+}
+
+/* SORTED BY UNIT, because the list is grouped by it: a heading starts where
+   the unit changes, so an unsorted list prints Genetics four times. Within a
+   unit the extensions lead — they are the rows with nowhere else to be found.
+   The unit order is UNITS' own, which is the order the map is taught in. */
+const UNIT_ORDER = Object.keys(UNITS);
+ASKABLE.sort((a, b) => {
+  const ua = UNIT_ORDER.indexOf(unitOfQuestion(a)), ub = UNIT_ORDER.indexOf(unitOfQuestion(b));
+  if (ua !== ub) return (ua < 0 ? 99 : ua) - (ub < 0 ? 99 : ub);
+  const ea = a.qtype === 'extension' ? 0 : 1, eb = b.qtype === 'extension' ? 0 : 1;
+  return ea - eb || a.text.localeCompare(b.text);
+});
+
+let suggestion = 0, rotateTimer = null;
+function rotate() {
+  if (document.activeElement === askIn || askIn.value) return;
+  suggestion = (suggestion + 1) % ASKABLE.length;
+  askIn.placeholder = ASKABLE[suggestion].text;
+}
+function startRotate() { stopRotate(); rotateTimer = setInterval(rotate, 5000); }
+function stopRotate() { if (rotateTimer) clearInterval(rotateTimer); rotateTimer = null; }
+askIn.placeholder = ASKABLE[0].text;
+startRotate();
+
+let listOpen = false, cursor = -1;
+function renderList(filter) {
+  const f = (filter || '').trim().toLowerCase();
+  const rows = ASKABLE.filter(q => !f || q.text.toLowerCase().includes(f));
+  askList.innerHTML = '';
+  if (!rows.length) {
+    askList.innerHTML = '<div class="askgroup">nothing matches yet</div>';
+    return rows;
+  }
+  let group = null;
+  rows.forEach((q, i) => {
+    const u = unitOfQuestion(q);
+    if (u !== group) {
+      group = u;
+      const h = document.createElement('div');
+      h.className = 'askgroup';
+      h.textContent = (UNITS[u] && UNITS[u].name) || 'elsewhere';
+      askList.appendChild(h);
+    }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'askopt' + (q.qtype === 'extension' ? ' ext' : '') +
+                  (i === cursor ? ' on' : '');
+    b.dataset.q = q.id;
+    b.textContent = q.text;
+    askList.appendChild(b);
+  });
+  return rows;
+}
+
+/* the list is grouped by unit, so the rows are not in ASKABLE's order — the
+   keyboard cursor has to walk what is DRAWN */
+const drawnRows = () => [...askList.querySelectorAll('.askopt')];
+
+function openList(filter) {
+  listOpen = true; askList.hidden = false; askBar.classList.add('open');
+  renderList(filter);
+}
+function closeList() {
+  listOpen = false; askList.hidden = true; askBar.classList.remove('open');
+  cursor = -1;
+}
+
+function ask(id) {
+  const q = byId[id];
+  if (!q) return;
+  closeList();
+  askIn.value = '';
+  askIn.blur();
+  startRotate();
+  askQuestion(q);
+}
+
+askIn.addEventListener('focus', stopRotate);
+askIn.addEventListener('blur', startRotate);
+askIn.addEventListener('input', () => {
+  cursor = -1;
+  if (askIn.value.trim()) openList(askIn.value); else closeList();
+});
+askIn.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (!listOpen) { openList(askIn.value); cursor = 0; }
+    else cursor = Math.min(cursor + 1, drawnRows().length - 1);
+    renderList(askIn.value);
+    const on = askList.querySelector('.askopt.on');
+    if (on) on.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+  if (e.key === 'ArrowUp' && listOpen) {
+    e.preventDefault();
+    cursor = Math.max(cursor - 1, 0);
+    renderList(askIn.value);
+    const on = askList.querySelector('.askopt.on');
+    if (on) on.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+  if (e.key === 'Escape') { closeList(); askIn.blur(); return; }
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  /* an empty field asks whatever the placeholder is offering: the rotation
+     is a suggestion, and Enter is how you take it */
+  if (!askIn.value.trim()) { ask(ASKABLE[suggestion].id); return; }
+  const rows = drawnRows();
+  const pick = cursor >= 0 ? rows[cursor] : rows[0];
+  /* no match is not an error yet — the fuzzy match is the next piece of
+     work, and until it lands the bar says so rather than doing nothing */
+  if (pick) ask(pick.dataset.q);
+  else { askBar.classList.add('miss'); setTimeout(() => askBar.classList.remove('miss'), 600); }
+});
+askCaret.addEventListener('click', () => {
+  if (listOpen) { closeList(); return; }
+  openList(askIn.value); askIn.focus();
+});
+askList.addEventListener('click', e => {
+  const b = e.target.closest('.askopt');
+  if (b) ask(b.dataset.q);
+});
+document.addEventListener('pointerdown', e => {
+  if (listOpen && !askBar.contains(e.target)) closeList();
+});
 
 /* ---- the gutter ruler ---------------------------------------------------- */
 
