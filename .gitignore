@@ -22,3 +22,6 @@ node_modules/
 # of them mmCIF, which is the only format its human structures are published
 # in. prep.js's header carries the curl loop.
 demos/proteins/atp-synthase/data/src/
+
+# Source PNGs for media/; the committed webps are what pages load.
+demos/media/screenshots/
