@@ -21,8 +21,8 @@
 
      THE WHOLE MAP EXISTS FROM LOAD; exploration is light, not creation.
      Unvisited nodes render as dim marks — fog of war — and clicking
-     illuminates. A theme lights its instances; the spine dims rank 2/3;
-     no reveal special cases. A focused card offers its neighbours grouped
+     illuminates. A theme lights its instances and a unit lights its
+     chapter; no reveal special cases. A focused card offers its neighbours grouped
      by direction (why · so what · contrast — the doc's direction of
      learning), and arrow keys walk rank-1 edges with the camera.
 
@@ -625,6 +625,8 @@
   <label class="hilite">Highlight
     <select id="hilite">
       <option value="">off</option>
+      <!-- one option per unit, appended at load from UNITS -->
+      <optgroup label="by unit" id="hiliteunits"></optgroup>
       <optgroup label="by weight">
         <option value="carries">what carries the map</option>
         <option value="through">most paths through</option>
@@ -636,7 +638,6 @@
       <optgroup label="by theme" id="hilitethemes"></optgroup>
     </select>
   </label>
-  <button class="btn" id="spinebtn">Spine</button>
   <button class="btn" id="reset">Start over</button>
 </header>
 
@@ -719,9 +720,9 @@ const linksOf = n => links.filter(l => l.a === n || l.b === n);
 
 /* RANK IS AUTHORED AND NEVER REWRITTEN. It draws the edge, orders a fan for
    the walk, and sizes a hub, so a node that rewrites it is falsifying all
-   three. Reachability is a separate claim and gets its own field: the spine
-   view keeps only rank 1, and a node whose best edge is rank 2 would be
-   stranded there, so `spine` also marks each node's own best edge. Doing
+   three. Reachability is a separate claim and gets its own field: `spine`
+   is rank 1 plus, for a node whose best edge is rank 2 or 3, that best edge,
+   so nothing on the map is unreachable by a rank-1 walk. Doing
    this by promoting rank was what erased the map's only rank-3 edge — vdw
    part-of rgroup-inter, and rank 3 is exactly the claim it wants to make. */
 for (const l of links) l.spine = l.rank === 1;
@@ -848,8 +849,7 @@ for (const [cid, ranks] of PLACED) {
 /* the reachability pass above ran before these existed, so specimens and
    content cards get their own. A protein placed only at rank 2 — collagen,
    gfp and ferritin are each the SECOND exemplar of their concept — would
-   otherwise float unattached the moment the spine view hides everything but
-   rank 1. */
+   otherwise carry no spine edge at all and be unreachable. */
 for (const n of nodes) {
   if (n.type !== 'specimen' && n.type !== 'content') continue;
   const mine = linksOf(n);
@@ -1220,24 +1220,34 @@ function paintLink(l) {
 
 /* the one place an edge's resting style is decided. Focus overlays it and
    clearFocus routes back through here, so the states cannot drift. */
+/* The current highlight's picks, or null. Edges read it too: a highlighted
+   group with its interior edges dropped is a scatter of dots, and what a
+   unit looks like IS its wiring. Declared here because edgeRefresh closes
+   over it and runs before applyHighlight ever does. */
+let hiNodes = null;
+
 function edgeRefresh(l) {
   const contrast = LATERAL[l.type];
-  const hide = spine && !l.spine;
-  l.el.style.display = hide ? 'none' : '';
-  l.label.style.display = hide ? 'none' : '';
-  if (l.arrow) l.arrow.style.display = hide ? 'none' : '';
-  if (hide) return;
   const colour = contrast ? '#e2643a' : '#1f5f4f';
   const both = l.a.on && l.b.on, any = l.a.on || l.b.on;
-  const op = both ? (l.rank === 1 ? 0.4 : 0.2) : any ? 0.12 : 0.05;
+  let op = both ? (l.rank === 1 ? 0.4 : 0.2) : any ? 0.12 : 0.05;
+  let arrowOp = both ? (l.rank === 1 ? 0.55 : 0.35) : any ? 0.12 : 0.05;
+  /* INSIDE THE HIGHLIGHT, an edge is drawn as if both ends were lit, so the
+     group's shape survives the fog it is lying over. Everything else falls
+     back further than the fog alone, which is the same 0.28 the unpicked
+     marks take. */
+  if (hiNodes) {
+    const inside = hiNodes.has(l.a) && hiNodes.has(l.b);
+    op = inside ? (l.rank === 1 ? 0.55 : 0.28) : op * 0.3;
+    arrowOp = inside ? (l.rank === 1 ? 0.7 : 0.4) : arrowOp * 0.3;
+  }
   l.el.setAttribute('stroke', colour);
   l.el.setAttribute('stroke-width', l.rank === 1 ? '2.2' : '1');
   l.el.setAttribute('stroke-opacity', op);
   if (l.arrow) {
     l.arrow.setAttribute('fill', colour);
-    l.arrow.setAttribute('fill-opacity', both ? (l.rank === 1 ? 0.55 : 0.35) : any ? 0.12 : 0.05);
+    l.arrow.setAttribute('fill-opacity', arrowOp);
   }
-  l.label.classList.toggle('on', spine && l.spine && both);
 }
 
 /* ---- the stages ---------------------------------------------------------
@@ -1351,6 +1361,15 @@ function light(n) {
 
 function unlightAll() {
   for (const n of nodes) { n.on = false; n.el.classList.add('unlit'); }
+}
+
+/* the single-card inverse. A fogged card must not keep a WebGL context, so
+   the stage goes back to the pool — same rule start() applies wholesale. */
+function unlight(n) {
+  if (!n.on) return;
+  n.on = false;
+  n.el.classList.add('unlit');
+  if (stages.has(n.id)) stages.release(n.id);
 }
 
 /* ---- relax --------------------------------------------------------------
@@ -1602,16 +1621,9 @@ function renderChips(n) {
       ? '<button class="chip" data-g="all">show all ' + neighbours(n).length + '</button>' : '';
     return;
   }
-  const count = g => linksOf(n)
-    .filter(l => groupOf(l, n) === g)
-    .map(l => l.a === n ? l.b : l.a)
-    .filter(m => !m.on).length;
-  const parts = [];
-  const why = count('why'), on = count('onward'), c = count('contrast');
-  if (why) parts.push('<button class="chip" data-g="why">why · ' + why + '</button>');
-  if (on)  parts.push('<button class="chip" data-g="onward">so what · ' + on + '</button>');
-  if (c)   parts.push('<button class="chip contrast" data-g="contrast">contrast · ' + c + '</button>');
-  box.innerHTML = parts.join('');
+  /* a card deals no chips: focusing it already presents its neighbourhood,
+     and the row of three read as controls competing with the card's text. */
+  box.innerHTML = '';
 }
 
 /* the lesson behind a card, opened over the map; src set on show and
@@ -1688,14 +1700,13 @@ function focus(n) {
   for (const l of links) {
     const first = l.a === n || l.b === n;
     const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
-    if (spine && !l.spine) continue;            /* hidden stays hidden */
     edgeRefresh(l);
     const near = first ? 0.85 : second ? 0.4 : 0;
     const byRank = l.rank === 1 ? 1 : l.rank === 2 ? 0.6 : 0.45;
     l.el.setAttribute('stroke-opacity', near ? (near * byRank).toFixed(2) : '.06');
     if (l.arrow) l.arrow.setAttribute('fill-opacity',
       near ? (near * byRank * 1.1).toFixed(2) : '.06');
-    l.label.classList.toggle('on', first || (spine && l.spine));
+    l.label.classList.toggle('on', first);
   }
 }
 
@@ -1904,6 +1915,21 @@ const HILITE_KEY = { through: 'wThrough', degree: 'wDeg', carries: 'wAll' };
    theme arrives with its own option and cannot be forgotten here. Kept in
    their own group because this is a different question from the weights:
    `all of the above` unions the four measures and stops there. */
+/* A UNIT IS THE COARSEST SAVED QUERY: the chapter, the thing the coloured
+   dot already says on every card. Generated from UNITS so a new unit cannot
+   be forgotten here, and only units that actually have nodes are offered. */
+{
+  const group = document.getElementById('hiliteunits');
+  const held = new Set(nodes.map(n => n.unit));
+  for (const key of Object.keys(UNITS)) {
+    if (!held.has(key)) continue;
+    const opt = document.createElement('option');
+    opt.value = 'unit:' + key;
+    opt.textContent = UNITS[key].name.toLowerCase();
+    group.appendChild(opt);
+  }
+}
+
 {
   const group = document.getElementById('hilitethemes');
   for (const t of nodes.filter(n => n.type === 'theme')) {
@@ -1917,6 +1943,19 @@ const HILITE_KEY = { through: 'wThrough', degree: 'wDeg', carries: 'wAll' };
 /* one mode's picks. `bridge` is a threshold rather than a top-N because
    touching three units means something on its own; the others are ranked. */
 function picksFor(mode) {
+  /* A QUESTION CARRIES NO UNIT and must not: a bridging one joins two by
+     definition, and authoring one unit on it would pick a side. So the door
+     is derived — a question joins the unit it answers INTO at rank 1, which
+     puts an anchoring question in exactly one unit and a bridging one in
+     both, without either being written down twice. */
+  if (mode.startsWith('unit:')) {
+    const u = mode.slice(5);
+    const own = nodes.filter(n => n.unit === u);
+    const inside = new Set(own);
+    const doors = nodes.filter(n => n.type === 'question' &&
+      linksOf(n).some(l => l.rank === 1 && inside.has(l.a === n ? l.b : l.a)));
+    return own.concat(doors);
+  }
   if (mode.startsWith('theme:')) {
     const t = byId[mode.slice(6)];
     return t ? [t, ...neighbours(t)] : [];
@@ -1930,7 +1969,11 @@ function applyHighlight() {
   const mode = hiliteSel.value;
   for (const n of nodes) n.el.classList.remove('hi');
   document.body.classList.toggle('highlighting', !!mode);
-  if (!mode) return;
+  if (!mode) {
+    hiNodes = null;
+    for (const l of links) edgeRefresh(l);
+    return;
+  }
   /* `all` is the UNION, not a fifth metric: a card earns the highlight by
      any one of the four readings, which is the widest honest answer to
      "which of these matter". */
@@ -1938,6 +1981,16 @@ function applyHighlight() {
     ? new Set(['carries', 'through', 'degree', 'bridge'].flatMap(picksFor))
     : picksFor(mode);
   for (const n of pick) n.el.classList.add('hi');
+  hiNodes = new Set(pick);
+  /* PICKING A GROUP CLOSES WHAT IS NOT IN IT. A card left open from an
+     earlier trail reads as part of the answer, and half a dozen of them
+     scattered over a highlighted unit is the loudest thing on screen while
+     being exactly the wrong claim. Opened cards inside the pick stay open;
+     nothing is opened FOR the reader, because exploration is light and this
+     menu is a reading of the map, not a click. */
+  for (const n of nodes) if (n.on && !hiNodes.has(n)) unlight(n);
+  for (const l of links) edgeRefresh(l);
+  measure();
 
   /* PICKING A THEME IS PICKING ITS CARD. A theme is a query and choosing it
      from the menu should do what clicking it does, so it lights, focuses,
@@ -1945,6 +1998,40 @@ function applyHighlight() {
      dark card somewhere on a nine-thousand-pixel map. Focus outranks the
      highlight while it lasts, which is why Escape drops back to the
      at-a-glance version instead of clearing it. */
+  /* A UNIT IS A BAND, NOT A BLOB. X is explanatory order, so a chapter runs
+     the width of the map — proteins spans 11k px — and centre()'s bounding
+     box would either clip or floor out at a zoom where it clips anyway. So
+     frame the INTERQUARTILE box: where the bulk of the chapter sits, with
+     the far outliers left off-screen still highlighted for whoever pans out
+     to them. No focus either — opening one card picks a winner out of
+     thirty, and the answer to "where is proteins" is the shape of the group.
+     Floor is lower than centre()'s: at 0.22 a card is a dot, and the dots
+     are what the question was asking about. */
+  if (mode.startsWith('unit:')) {
+    follow = null;
+    if (!pick.length) return;
+    /* quantiles need a population; under about eight nodes they just drop
+       members, so a small unit gets its true box. */
+    const lo = pick.length >= 8 ? 0.15 : 0, hi = pick.length >= 8 ? 0.85 : 1;
+    const band = (axis, f) => {
+      const v = pick.map(n => n[axis]).sort((p, q) => p - q);
+      return v[Math.round((v.length - 1) * f)];
+    };
+    const x0 = band('x', lo), x1 = band('x', hi);
+    const y0 = band('y', lo), y1 = band('y', hi);
+    const pad = 320;
+    const k = Math.max(0.22, Math.min(0.7,
+      Math.min(innerWidth / (x1 - x0 + 2 * pad),
+               innerHeight / (y1 - y0 + 2 * pad))));
+    view = {
+      k,
+      x: innerWidth / 2 - (x0 + x1) / 2 * k,
+      y: innerHeight / 2 - (y0 + y1) / 2 * k,
+    };
+    applyView();
+    return;
+  }
+
   if (mode.startsWith('theme:')) {
     const t = byId[mode.slice(6)];
     if (!t) return;
@@ -2099,21 +2186,6 @@ function toggleKinds(host) {
   draw();
 }
 
-/* ---- the spine ----------------------------------------------------------- */
-
-let spine = false;
-const spineBtn = document.getElementById('spinebtn');
-
-function setSpine(on) {
-  spine = on;
-  spineBtn.classList.toggle('on', on);
-  clearFocus();
-  if (on) for (const n of nodes) light(n);
-  for (const l of links) edgeRefresh(l);
-  if (on) { measure(); centre(nodes); }
-}
-spineBtn.addEventListener('click', () => setSpine(!spine));
-
 /* ---- the gutter ruler ---------------------------------------------------- */
 
 const gutter = document.getElementById('gutter');
@@ -2191,9 +2263,11 @@ for (const n of nodes) paintNode(n);
 for (const l of links) paintLink(l);
 
 function start() {
-  spine = false;
-  spineBtn.classList.remove('on');
   follow = null;
+  hiliteSel.value = '';
+  hiNodes = null;
+  document.body.classList.remove('highlighting');
+  for (const n of nodes) n.el.classList.remove('hi');
   clearFocus();
   stages.clear();               // fogged cards must not hold contexts
   unlightAll();

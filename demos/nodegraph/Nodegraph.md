@@ -75,8 +75,9 @@ there too.
 `hbond` is the sanctioned exception.
 
 **Rank is authored and never rewritten.** Reachability is a separate field,
-`l.spine`, so the Spine view can keep a node's best edge without falsifying the
-rank that draws it, orders the walk and sizes hubs. Promoting rank in place is
+`l.spine` — rank 1 plus each node's own best edge — so a node whose best edge
+is rank 2 is still reachable without falsifying the rank that draws it, orders
+the walk and sizes hubs. Promoting rank in place is
 what once erased the map's only rank-3 edge.
 
 **A theme's rank is read from the instance's side only** — `p:prion instance-of
@@ -143,12 +144,38 @@ Run these in the console. Every one has caught a real bug.
 
 * **No ordering cycle.** `ordered()` on every edge, compare `layerOf`.
 * **No walk loop.** Hold → from all nodes; none may revisit.
-* **Nothing stranded** in Spine view (no edge with `l.spine`).
+* **Nothing stranded** — no node with zero `l.spine` edges.
 * **Every concept reaches a question** within ~6 hops.
 * **No hairball** over 8 rank-1 edges except `hbond`.
 * **Placements resolve** — no content id or node id that does not exist.
 * **Claims are not clipped** — `scrollHeight > clientHeight` on `.claim`.
   About 95 characters on a normal card, 130 on a hub.
+
+## Highlight: the saved queries
+
+One `<select>` in the masthead, three groups, all generated from the data so a
+new unit or theme cannot be forgotten there. **By unit** is the chapter — the
+same grouping the card's coloured dot already carries — and it lights the
+unit's nodes and frames their bounding box. **By weight** reads the map's own
+shape (carries / through / degree / bridge, and `all` as their union). **By
+theme** is a cross-unit query and behaves like clicking the theme card: light,
+focus, and a camera framing wide enough to reach the fan.
+
+Choosing a mode CLOSES every open card outside the picks and releases its
+stage; cards inside stay open, and nothing is opened for the reader, because
+exploration is light and the menu is a reading rather than a click.
+
+A question carries no `unit` and must not — a bridging one joins two by
+definition. So a unit's doors are derived: a question joins the unit its
+rank-1 answers are in, which puts an anchoring question in one unit and a
+bridging one in both.
+
+Highlight lies over the fog. Marks respond, and so do EDGES: an edge with
+both ends in the picks draws as though both were lit, everything else falls
+below the fog. A group with its interior wiring dropped is a scatter of dots,
+and what a unit looks like is how it is wired. Focus outranks the whole
+overlay, so Escape drops back to the at-a-glance version rather than clearing
+it.
 
 ## Adding a unit
 
