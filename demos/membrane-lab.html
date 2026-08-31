@@ -2802,7 +2802,13 @@ function tick(dt) {
   if (!osmoEl.hidden) paintOsmo();
 }
 
-go(0);
+/* ---- ?step=N, the same jump as a URL. Clamped, so ?step=99 opens the last
+ * step rather than an empty stage. 1-based over STEPS, matching krebs-lab:
+ * ?step=3 is osmosis, which is what the node graph's osmosis card links to. */
+go((() => {
+  const m = /[?&]step=(\d+)/.exec(location.search);
+  return m ? Math.max(1, Math.min(STEPS.length, +m[1])) - 1 : 0;
+})());
 L.start();
 </script>
 </body>

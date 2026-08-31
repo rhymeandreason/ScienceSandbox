@@ -165,19 +165,22 @@ const LESSONS = {
     page: 'demos/membrane-lab.html',
     chapter: 'membrane',
     param: 'step',
-    deepLink: false,
+    deepLink: true,           // reads ?step= at startup
+    // `at` IS THE URL NUMBER, not the index: 1-based, like glycolysis-lab
+    // and krebs-lab. These were 0-based ordinals while deepLink was false
+    // and nothing sent them anywhere.
     targets: [
-      { id: 'step-bilayer', kind: 'step', at: 0, title: 'the bilayer',
+      { id: 'step-bilayer', kind: 'step', at: 1, title: 'the bilayer',
         what: 'the phospholipid bilayer itself, heads facing the water on both sides and oily tails hiding in the middle' },
-      { id: 'step-through', kind: 'step', at: 1, title: 'what gets through',
+      { id: 'step-through', kind: 'step', at: 2, title: 'what gets through',
         what: 'which molecules cross a membrane unaided, why oily things pass and charged things do not, and why size is not the rule' },
-      { id: 'step-osmosis', kind: 'step', at: 2, title: 'osmosis',
+      { id: 'step-osmosis', kind: 'step', at: 3, title: 'osmosis',
         what: 'osmosis, water moving toward the saltier side, and what hypertonic, hypotonic and isotonic do to a cell' },
-      { id: 'step-channel', kind: 'step', at: 3, title: 'a channel',
+      { id: 'step-channel', kind: 'step', at: 4, title: 'a channel',
         what: 'a channel protein letting one specific thing through without spending energy, and how it stays selective' },
-      { id: 'step-pump',    kind: 'step', at: 4, title: 'the pump',
+      { id: 'step-pump',    kind: 'step', at: 5, title: 'the pump',
         what: 'a pump spending ATP to move ions against their gradient, uphill, which diffusion cannot do' },
-      { id: 'step-rest',    kind: 'step', at: 5, title: 'a cell at rest',
+      { id: 'step-rest',    kind: 'step', at: 6, title: 'a cell at rest',
         what: 'active and passive transport side by side, and the voltage a resting cell holds across its membrane' },
     ],
   },

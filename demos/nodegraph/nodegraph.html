@@ -239,12 +239,15 @@
      the same frame at two sizes. The `.ph` shimmer is the loading state
      until the stage mounts; a still of the last frame stands in when the
      pool takes the context back. */
-  .node.card .thumb {
+  /* SCOPED TO `.node`, NOT `.node.card`: a question is not a card, and when
+     one gained a lesson every rule here missed it — the raw 1600px still laid
+     out at its natural size and the door became eleven hundred pixels tall. */
+  .node .thumb {
     position: relative; overflow: hidden;
     width: 100%; aspect-ratio: 4 / 3; margin: 0.65rem 0 0.25rem;
     background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
   }
-  .node.card .thumb .ph {
+  .node .thumb .ph {
     position: absolute; inset: 0;
     background: linear-gradient(100deg,
       #eceae4 30%, #f6f4ef 48%, #eceae4 66%) 0 0 / 300% 100%;
@@ -252,16 +255,16 @@
   }
   @keyframes thumb-shimmer { to { background-position: -300% 0; } }
   @media (prefers-reduced-motion: reduce) {
-    .node.card .thumb .ph { animation: none; }
+    .node .thumb .ph { animation: none; }
   }
-  .node.card .thumb.mounted { background: #f2f0ea; }
-  .node.card .thumb.mounted .ph { display: none; }
-  .node.card .thumb > canvas { display: block; width: 100%; height: 100%; }
-  .node.card .thumb .still {
+  .node .thumb.mounted { background: #f2f0ea; }
+  .node .thumb.mounted .ph { display: none; }
+  .node .thumb > canvas { display: block; width: 100%; height: 100%; }
+  .node .thumb .still {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: contain;
   }
-  .node.card.unlit .thumb { display: none; }
+  .node.unlit .thumb { display: none; }
 
   /* a video's credit: printed, small, and the only outbound link on a card */
   .node.card .credit {
@@ -272,7 +275,7 @@
   .node.card .credit a:hover { color: var(--accent); border-bottom-color: var(--accent); }
   .node.card.unlit .credit { display: none; }
   /* a poster fills its frame; the generated stills are 16:9 in a 4:3 thumb */
-  .node.card .thumb .still.poster { object-fit: cover; }
+  .node .thumb .still.poster { object-fit: cover; }
 
   .node.card .tags {
     display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem;
@@ -286,7 +289,6 @@
     border: 1px solid var(--line); border-radius: 2px;
     padding: 0.14em 0.34em;
   }
-  .node.card .tag.scale  { color: var(--accent); border-color: #cfdcd7; }
   .node.card .tag.chem   { color: #8a5cc0; border-color: #ded2ef; }
 
   /* ---- type carried by form, not by a tag ------------------------------ */
@@ -437,23 +439,50 @@
      then never be lit or focused, and while it stayed unlit its opener was
      display:none. Nothing to click, and clicking did nothing. The name is
      also just truer: this button opens a film as often as a lesson. */
-  .node.card .opener {
+  .node .opener {
     font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted); cursor: pointer;
     background: var(--card); border: 1px solid var(--line); border-radius: 3px;
     padding: 0.3rem 0.5rem; box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
     transition: opacity .18s ease, color .15s, border-color .15s;
   }
-  .node.card .opener:hover { color: var(--ink); border-color: var(--ink); }
-  .node.card > .opens { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
+  .node .opener:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* THE PRIMARY PILL. When the lesson had its own card, that card was the
+     loudest thing on the paper and its filled button was the only solid one
+     on the map. The lesson now rides its concept, so the pill inherits that
+     job: filled, in the concept's own region tint, pill-shaped so it reads
+     as an action rather than one more tag. It is the concept card's whole
+     call to action, so unlike the other controls it does not fade on a card
+     that is merely open rather than focused. */
+  .node .opener.primary {
+    background: var(--dot, var(--accent)); color: var(--card);
+    border-color: transparent; border-radius: 999px;
+    padding: 0.45em 0.95em; font-size: 0.58rem; font-weight: 500;
+    opacity: 1; pointer-events: auto;
+    box-shadow: 0 6px 18px -8px rgba(20, 22, 26, 0.55);
+  }
+  .node .opener.primary:hover {
+    background: var(--ink); color: var(--card); border-color: transparent;
+  }
+  /* fogged, a card is a mark: no thumb, no claim, and no button either */
+  .node.unlit > .opens { display: none; }
+  .node > .opens { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
 
   /* a card's controls belong to the card being WORKED ON: everywhere else
      they are faded, not removed, so nothing reflows on focus. The composer
      gates on apparent size; here the focused card is the one being worked
-     on, which is simpler and the same idea. */
+     on, which is simpler and the same idea.
+
+     THE TWO EXCLUSIONS ARE OPENERS THAT ARE THE CARD'S WHOLE PURPOSE, not
+     controls on it: the lesson pill (`.primary`) and a film card's play
+     button (`.content`, which sets its own `opacity: 1` above). Both are
+     written as exclusions here rather than as louder rules elsewhere —
+     every one of those selectors ties this one on specificity, so whichever
+     came later in the file silently won. */
   .node:not(.hub) .pbox-rep,
   .node:not(.hub) .pbox-play,
-  .node:not(.hub) .opener,
+  .node:not(.hub):not(.content) .opener:not(.primary),
   .node:not(.hub) .mb-dims { opacity: 0; pointer-events: none; }
 
   /* a hub reads bigger before it is clicked: five or more rank-1 edges */
@@ -586,6 +615,13 @@
   .chip.contrast { color: var(--spark); border-color: #f2cdbd; }
   .chip.contrast:hover { border-color: var(--spark); }
   .node.question .chips { justify-content: center; }
+  /* a question that holds a lesson: the picture and the pill sit under the
+     words, centred like the chips, and the type comes down because a 2rem
+     question over a screenshot is a poster rather than a card */
+  .node.question .thumb { margin-top: 0.8rem; }
+  .node.question > .opens { justify-content: center; margin-top: 0.6rem; }
+  .node.question.haslesson { font-size: 1.5rem; }
+  .node.question.haslesson.lit { background: var(--card); border-color: var(--line); }
   .node.theme .chip { background: transparent; }
 
   .node:hover { border-color: var(--accent); }
@@ -788,13 +824,15 @@ const CONTENT = (window.GraphContent || {}).CONTENT || [];
 const PLACED = new Map(((window.GraphContent || {}).PLACEMENTS || []));
 const BY_CONTENT = new Map(CONTENT.map(c => [c.id, c]));
 /* INLINE rides the node: a molbox, a water sim, a builder or a ribbon IS the
-   card's own subject drawn, so it belongs in the card's thumb.
-   CARD is the other kind. A film and a lesson are their own objects and get
-   their own card, the way a specimen does — riding on the concept they
-   competed with its claim for one thumb and one row of buttons, and
-   glycolysis carried both at once. */
-const INLINE = { water: 1, build: 1, molbox: 1, protein: 1 };
-const CARD = { video: 1, lesson: 1 };
+   card's own subject drawn, so it belongs in the card's thumb. A LESSON IS
+   INLINE TOO, and it is the one that wins the thumb — it arrives as a
+   screenshot rather than a live box, so the old objection (two live things
+   competing for one thumb, which is what glycolysis carried) is gone, and
+   what a reader wants from a concept that HAS a lesson is the lesson.
+   CARD is the other kind: a film is somebody else's object and keeps its
+   own card, the way a specimen does. */
+const INLINE = { water: 1, build: 1, molbox: 1, protein: 1, lesson: 1 };
+const CARD = { video: 1 };
 const ON_NODE = new Map();
 for (const [cid, ranks] of PLACED) {
   if (cid.startsWith('p:')) continue;          // specimens: their own pass below
@@ -806,10 +844,24 @@ for (const [cid, ranks] of PLACED) {
     (ON_NODE.get(nid) || ON_NODE.set(nid, []).get(nid)).push({ item, rank });
   }
 }
-for (const list of ON_NODE.values()) list.sort((a, b) => a.rank - b.rank);
+/* rank first, then a lesson ahead of a live box at the same rank: `folding`
+   places both at 1, and the tie has to break the same way every load or the
+   card's face depends on source order. */
+for (const list of ON_NODE.values())
+  list.sort((a, b) => a.rank - b.rank ||
+                      (b.item.kind === 'lesson') - (a.item.kind === 'lesson'));
+
+for (const c of CONTENT)
+  if (c.kind === 'lesson' && !c.shot) console.warn('lesson has no shot:', c.id);
 
 /* a card mounts its best-ranked INLINE item and no more; a specimen carries
    its own render, because a card that IS content does not look it up */
+/* the lesson a concept holds, if any — the opener under its thumb */
+const lessonFor = n => {
+  const placed = (ON_NODE.get(n.id) || []).find(x => x.item.kind === 'lesson');
+  return placed ? placed.item : null;
+};
+
 const viewFor = n => {
   if (n.type === 'specimen') return { kind: 'protein', protein: n.protein, variant: n.variant };
   const placed = (ON_NODE.get(n.id) || []).filter(x => INLINE[x.item.kind]);
@@ -1144,15 +1196,6 @@ nodes.forEach((n, i) => {
 const esc = t => String(t == null ? '' : t)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const rungName = lv => (LADDER.find(r => r[0] === lv) || [0, '?'])[1];
-
-function scaleTag(n) {
-  if (n.level)     return '<span class="tag scale">' + esc(rungName(n.level)) + '</span>';
-  if (n.occursAt)  return '<span class="tag scale">occurs at ' + esc(rungName(n.occursAt)) + '</span>';
-  if (n.emergesAt) return '<span class="tag scale">emerges at ' + esc(rungName(n.emergesAt)) + '</span>';
-  return '';
-}
-
 function paintNode(n) {
   const el = document.createElement('div');
   if (n.type === 'question') {
@@ -1160,7 +1203,19 @@ function paintNode(n) {
        that are already open. Both are questions, so both are doors, but they
        are not the same size of door. */
     el.className = 'node question unlit ' + (n.qtype || 'anchor');
-    el.innerHTML = '<span>' + esc(n.text) + '</span><div class="chips"></div>';
+    /* A QUESTION CAN CARRY A LESSON. Where a lesson is a whole unit rather
+       than one claim — water-lab is — no concept card is the right host, and
+       the door is. The question keeps its own shape and gains a picture and
+       the pill under it, the same two things a concept card gains. */
+    const qLesson = lessonFor(n);
+    if (qLesson) el.classList.add('haslesson');
+    el.innerHTML = '<span>' + esc(n.text) + '</span>' +
+                   (qLesson
+                     ? '<div class="thumb"><span class="ph"></span></div>' +
+                       '<div class="opens"><button type="button" ' +
+                       'class="opener primary" data-open="' + esc(qLesson.id) +
+                       '">view lesson</button></div>' : '') +
+                   '<div class="chips"></div>';
   } else if (n.type === 'theme') {
     el.className = 'node theme unlit';
     el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' +
@@ -1223,7 +1278,10 @@ function paintNode(n) {
     const tint = n.subject === 'chemistry' ? CHEM_TINT : (UNITS[n.unit] || {}).tint;
     if (tint) el.style.setProperty('--dot', tint);
     n.tint = tint;
-    const tags = scaleTag(n) +
+    /* no scale tag: the gutter is the ruler, and a card at a rung sits level
+       with that rung's label already */
+    const lesson = lessonFor(n);
+    const tags =
       (n.type === 'evidence' ? '<span class="tag eviD">evidence</span>' : '') +
       (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '');
     el.innerHTML = '<div class="name">' +
@@ -1233,6 +1291,14 @@ function paintNode(n) {
                    /* a thumb is a promise a picture is coming, so only cards
                       with a view get one; it stays hidden while fogged */
                    (viewFor(n) ? '<div class="thumb"><span class="ph"></span></div>' : '') +
+                   /* THE LESSON'S OWN CARD IS GONE, so this button is the
+                      only way into it and does not fade with the card's
+                      other controls. Under the thumb, because it is what
+                      the picture above it is a picture OF. */
+                   (lesson
+                     ? '<div class="opens"><button type="button" ' +
+                       'class="opener primary" data-open="' + esc(lesson.id) +
+                       '">view lesson</button></div>' : '') +
                    (tags ? '<div class="tags">' + tags + '</div>' : '') +
                    '<div class="chips"></div>';
   }
@@ -1316,6 +1382,22 @@ function goLive(n) {
   const view = viewFor(n);
   const thumb = view && n.el && n.el.querySelector('.thumb');
   if (!thumb) return;
+  /* A LESSON'S THUMB IS A PICTURE. It costs no context and never needs
+     reclaiming, so it is written straight in and the pool of four stays for
+     the boxes that are actually running something. */
+  if (view.kind === 'lesson') {
+    if (!thumb.classList.contains('mounted')) {
+      const img = document.createElement('img');
+      /* no loading="lazy": inside a transformed #world the intersection
+         never resolves and the image stays at zero. The card being lit IS
+         the laziness — nothing is fetched for a node still in the fog. */
+      img.className = 'still shot'; img.alt = '';
+      img.src = '../' + view.shot;
+      thumb.appendChild(img);
+      thumb.classList.add('mounted');
+    }
+    return;
+  }
   if (stages.has(n.id)) {                 // re-front, and resume if paused
     const box = stages.acquire(n.id, null);
     if (box.start) box.start();
@@ -2382,17 +2464,28 @@ function start() {
   unlightAll();
   /* the doors: both anchoring questions and their rank-1 answers lit,
      everything else fog */
+  const doors = [];
   for (const q of ['q-medium', 'q-machine']) {
     const n = byId[q];
-    light(n);
-    for (const l of linksOf(n)) if (l.spine) light(l.a === n ? l.b : l.a);
+    light(n); doors.push(n);
+    for (const l of linksOf(n)) if (l.spine) {
+      const m = l.a === n ? l.b : l.a;
+      light(m); doors.push(m);
+    }
   }
+  /* AND EVERY LESSON, out of the fog at load. The lessons are the featured
+     work and the reason the map exists, so a reader who never explores still
+     sees all of them; they cost no stage, being screenshots. Not added to
+     `doors`, because the camera below frames the opening, and seven cards
+     spread over three units would pull it back to a zoom nothing is legible
+     at. They are lit where they stand, for whoever pans. */
+  for (const n of nodes) if (lessonFor(n)) light(n);
   for (const l of links) edgeRefresh(l);
   measure();
   wake(1);
   for (let i = 0; i < 240; i++) step();   /* pre-settle, so load is calm */
   draw();
-  centre();
+  centre(doors);
 }
 document.getElementById('reset').addEventListener('click', start);
 start();

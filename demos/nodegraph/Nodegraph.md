@@ -61,7 +61,7 @@ that one over there uses" without also claiming which is read first.
 | `theme` | a saved query over the map. Its fan is dealt whole regardless of rank | no |
 | `evidence` | how we know. Meselson–Stahl, Hershey–Chase | no |
 | `specimen` | spawned from `proteins/proteins.js` by a `p:` placement | no |
-| `content` | a film or a lesson, spawned from `graphcontent.js` | no |
+| `content` | a film, spawned from `graphcontent.js`. A LESSON IS NOT ONE: it rides its concept | no |
 | `ask` / `satellite` | the kinds pill and what it reveals | no |
 
 Everything after the first row is a **destination, not a station**: `station()`
@@ -151,6 +151,53 @@ Run these in the console. Every one has caught a real bug.
 * **Claims are not clipped** — `scrollHeight > clientHeight` on `.claim`.
   About 95 characters on a normal card, 130 on a hub.
 
+## Content: inline or its own card
+
+`graphcontent.js` splits two ways in `nodegraph.html`. **INLINE** rides the
+node — a molbox, a water sim, a builder, a ribbon, and a LESSON — and lands in
+the card's thumb. **CARD** spawns its own node, which today is only a film,
+somebody else's object hanging off the concept it illustrates.
+
+A lesson is inline because it arrives as a **screenshot** (`shot:`, required),
+not a live box, so it cannot compete with a running sim for the thumb — which
+is what put lessons on their own cards in the first place, back when
+glycolysis carried both. Where a concept holds both, **the lesson wins the
+thumb**: the tie-break is explicit in the sort, because rank alone leaves the
+card's face depending on source order. Under it goes `.opener.primary`, the
+map's one filled pill, in the concept's own region tint. It is the only way
+into the lesson now, so it does not fade with the card's other controls.
+
+One lesson can be **several doors**: `l:krebs`/`l:pyrox` are both krebs-lab,
+and `l:membrane`/`l:osmosis` are both membrane-lab, differing in `shot` and in
+a `?step=` on the href. A second row is what buys the right picture and the
+right entry point, since a card shows one screenshot and links one place.
+
+**`?step=N` is 1-based over the lesson's own `STEPS`,** in krebs-lab and
+membrane-lab alike, clamped so a bad number opens the last step rather than an
+empty stage. Adding a door to a lesson that has no such parameter means adding
+one there first — it is four lines and additive, and the no-parameter default
+must stay exactly what it was.
+
+**A question can host a lesson.** Where a lesson is a whole unit rather than
+one claim — water-lab is — no concept card is the right host, and hanging it
+on one would say the lesson is about that one claim. The anchoring question is
+the unit's door, so `l:water` sits on `q-medium`. The question keeps its own
+shape and gains the same two things a concept card gains, a thumb and the pill,
+plus a `haslesson` class that brings the 2rem type down to card scale.
+
+**Every lesson card is lit at load**, not fogged — they are the featured work,
+so a reader who never explores still sees all seven. The opening camera does
+NOT frame them: they span three units and 10,000px, and fitting them needs
+k≈0.14, well under `centre()`'s 0.3 floor and unreadable. `start()` therefore
+collects the doors it lights into a list and passes THAT to `centre()`, so the
+opening view is unchanged and the lessons are simply already out of the fog
+for whoever pans.
+
+A lesson thumb spends **no stage**: it is an `<img>` written straight in, and
+the pool of four stays for boxes that are actually running something. No
+`loading="lazy"` — inside a transformed `#world` the intersection never
+resolves and the image stays at zero width. The card being lit is the laziness.
+
 ## Highlight: the saved queries
 
 One `<select>` in the masthead, three groups, all generated from the data so a
@@ -196,6 +243,18 @@ this node** — not page count.
   guard swallowed every click on the card.
 * Testing an opener with `element.click()`. It skips pointerdown and sails past
   the guard that is actually broken. **Use real clicks.**
+* **`.node.card`-scoped rules, when the thing is not a card.** Every `.thumb`
+  and `.opener` rule was written for cards; the first question to carry a
+  lesson matched none of them, so the raw 1600px still laid out at natural
+  size and the door came out 1142px tall. They are scoped to `.node` now.
+* **Ties in the control-fade rule.** `.node:not(.hub) .opener` is three
+  classes, and so is every rule trying to hold an opener visible — so the
+  winner was whichever sat later in the file, and widening one selector
+  silently blanked the film cards' play buttons. The fade now names its
+  exceptions (`:not(.primary)`, `:not(.content)`) instead of being out-shouted.
+* `loading="lazy"` on anything inside `#world`. The transform defeats the
+  intersection test and the image silently never loads — `naturalWidth` is 0
+  while `complete` is false and nothing errors.
 * Anything computed **before specimens and content cards push their links** is
   scoring a different graph. `n.big` still does.
 * A node created after `focus()` has run needs `.lit` explicitly, or it sits at

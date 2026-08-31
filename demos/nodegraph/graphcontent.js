@@ -69,25 +69,71 @@
     { id: 'm:atp',       kind: 'molbox', spec: 'atp' },
     { id: 'm:nadh',      kind: 'molbox', spec: 'nadh' },
 
-    /* ---- button: the lesson behind the card -----------------------------
+    /* ---- the lesson behind the card -----------------------------
+       A lesson RIDES ITS CONCEPT: `shot` is the concept card's thumb and
+       the opener under it is that card's call to action. `shot` is not
+       optional — a lesson with no screenshot has nothing to sit under, and
+       the page says so in the console.
+
        hemoglobin-lab IS the folding lesson (folding-lab is deprecated):
        a β chain folds 1→3, the heme settles, the chains dock.
        `chrome=bare` is hemoglobin-lab's own parameter and the pathway
        lessons do not read one, so they open with their full chrome. */
     { id: 'l:hemoglobin', kind: 'lesson', name: 'How a chain folds',
       blurb: 'All four levels on one molecule: a β chain folds, the heme settles into the pocket, then the other three chains dock.',
+      shot: 'media/kodo-folding.webp',
       href: 'hemoglobin-lab.html?chrome=bare' },
     { id: 'l:glycolysis', kind: 'lesson', name: 'Ten steps in five stages',
       blurb: 'Every step drawn as molecules, with the sugar splitting in front of you.',
+      shot: 'media/kodo-glycolysis.webp',
       href: 'glycolysis-lab.html' },
     { id: 'l:krebs', kind: 'lesson', name: 'Around the cycle',
       blurb: 'Eight steps around the ring, played twice for the ×2, and where every carbon ends up.',
-      href: 'krebs-lab.html' },
+      shot: 'media/kodo-krebs.webp',
+      /* step 2 is citrate synthase: `done = step - 1` over a STEPS whose
+         first entry is the bridge, so 2 is the cycle's own first step. The
+         intro and the bridge are skipped because pyr-ox's card is the door
+         to those, and this card's concept is the ring. */
+      href: 'krebs-lab.html?step=2' },
+    /* THE SAME LESSON, ENTERED AT THE BRIDGE. krebs-lab opens with pyruvate
+       oxidation before the eight steps, so pyr-ox's lesson is that page —
+       but a card shows one screenshot and links one place, and dropping a
+       reader at the cycle's start when they asked about the bridge is the
+       wrong step and the wrong picture. `?step=1` is krebs-lab's own jump
+       (1 is the bridge, clamped there), so a second row is a second door,
+       not a second lesson. `name` follows the page: the heading carries
+       both words, and "the bridge" is the one that says what it does. */
+    { id: 'l:pyrox', kind: 'lesson', name: 'The bridge',
+      blurb: 'Pyruvate dehydrogenase strips one carbon off as CO₂ and hands the other two to coenzyme A, between glycolysis in the cytosol and the cycle in the matrix.',
+      shot: 'media/kodo-pyruvateoxidation.webp',
+      href: 'krebs-lab.html?step=1' },
+    /* ON THE QUESTION, NOT A CONCEPT. water-lab is the whole unit rather
+       than one claim inside it — h-bonds, ice, temperature, salt dissolving
+       — so no single concept card is the right host, and hanging it on one
+       would say the lesson is about that one. The anchoring question IS the
+       unit's door, and the lesson is what is behind it. */
+    { id: 'l:water', kind: 'lesson', name: 'Why water behaves the way it does',
+      blurb: 'The shape of one molecule, then everything that follows from it: hydrogen bonds, why ice floats, why water resists heating, and what happens when salt goes in.',
+      shot: 'media/kodo-water.webp',
+      href: 'water-lab.html' },
     { id: 'l:membrane', kind: 'lesson', name: 'What gets through, and what it costs',
       blurb: 'Five steps: the bilayer, oxygen crossing freely, a channel choosing, a pump spending ATP, then the two side by side.',
+      shot: 'media/kodo-membrane.webp',
       href: 'membrane-lab.html' },
+    /* THE SAME LESSON AT ITS OSMOSIS STEP, the way l:pyrox enters krebs-lab
+       at the bridge. `?step=3` is membrane-lab's own jump, 1-based over its
+       STEPS. Osmosis sits in the WATER unit while the lesson is the cell's,
+       which is the point of a second door: the reader arriving from water
+       gets the step about water, not the bilayer. */
+    { id: 'l:osmosis', kind: 'lesson', name: 'Water crossing both ways',
+      blurb: 'The net flow is a headcount, not a pull: every water walks at random, and more water on one side means more of it wanders out.',
+      shot: 'media/kodo-osmosis.webp',
+      href: 'membrane-lab.html?step=3' },
     { id: 'l:fermentation', kind: 'lesson', name: 'Where pyruvate goes without O₂',
       blurb: 'Two branches on tabs, and a NAD⁺ ledger carried in from glycolysis that lands on zero.',
+      /* the LACTATE branch: one step, and the one a reader meets first,
+         in their own legs */
+      shot: 'media/kodo-fermentation-lactate.webp',
       href: 'fermentation-lab.html' },
 
     /* ---- video: somebody else's work ------------------------------------
@@ -159,10 +205,16 @@
 
     ['l:glycolysis',   { glycolysis: 1 }],
     ['l:krebs',        { krebs: 1 }],
+    ['l:pyrox',        { 'pyr-ox': 1 }],
     ['l:fermentation', { fermentation: 1 }],
     /* the featured membrane lesson, on the hinge rather than on the bilayer:
-       what it teaches is what crosses and what that costs */
-    ['l:membrane',     { 'selective-perm': 1, 'active-transport': 2 }],
+       what it teaches is what crosses and what that costs. ONE PLACEMENT: it
+       also sat on active-transport at rank 2, which put the same screenshot
+       and the same pill on two cards a short walk apart, and a reader who
+       met it twice learned nothing the second time. */
+    ['l:membrane',     { 'selective-perm': 1 }],
+    ['l:water',        { 'q-medium': 1 }],
+    ['l:osmosis',      { osmosis: 1 }],
 
     /* ---- specimens ------------------------------------------------------
        A `p:` row places a protein whose entry lives in proteins/proteins.js;
