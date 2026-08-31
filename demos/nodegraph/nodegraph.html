@@ -416,13 +416,20 @@
      to make room for yet, so the growth only has to say "you are here" */
   .node.hub { box-shadow: 0 14px 34px -12px rgba(20,22,26,.22); }
   .node.card.hub { width: 21rem; padding: 1.05rem 1.2rem 1.1rem; }
-  .node.card.hub .claim {
+  .node.card:not(.content).hub .claim {
     font-size: 1.2rem; line-height: 1.24; margin-top: 0.45rem;
     letter-spacing: -0.008em; -webkit-line-clamp: 6;
   }
-  .node.card.hub .name { font-size: 0.64rem; letter-spacing: 0.19em; }
+  .node.card:not(.content).hub .name { font-size: 0.64rem; letter-spacing: 0.19em; }
   .node.card.big.hub { width: 24rem; }
   .node.card.big.hub .claim { font-size: 1.35rem; }
+  /* a content card is already at the size its own kind sets, so focusing one
+     must not step it up again: the card would resize under the click that
+     opened it. */
+  .node.card.content.hub { padding: 0.85rem 1rem 0.9rem; box-shadow: none; }
+  .node.card.content.lesson.hub {
+    box-shadow: 0 10px 30px -14px rgba(20, 22, 26, 0.3);
+  }
 
   .node.theme {
     width: 20rem; padding: 1.15rem 1.35rem 1.2rem;
