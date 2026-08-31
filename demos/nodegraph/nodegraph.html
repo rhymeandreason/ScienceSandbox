@@ -109,16 +109,51 @@
   #edges text.on { opacity: 0.95; }
   #edges line.band { stroke: #eeebe2; stroke-width: 1; }
 
-  .hilite {
+  /* the highlight picker. A native <select> cannot carry a unit's colour, and
+     that colour is the whole point of the unit rows, so the menu is ours and
+     the <select> stays as the value: every reader of hiliteSel.value and every
+     `change` listener is untouched. */
+  .hilite { position: relative; margin-right: 0.9rem; }
+  .hilite select { display: none; }
+  .hbtn {
     font-family: var(--ui); font-size: 0.7rem; letter-spacing: 0.04em;
-    color: var(--muted); margin-right: 0.9rem;
-    display: inline-flex; align-items: center; gap: 0.45rem;
+    color: var(--ink); background: var(--card);
+    border: 1px solid var(--line); border-radius: 3px;
+    padding: 0.35rem 0.55rem; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 0.5rem; min-width: 9rem;
+    transition: border-color .15s;
   }
-  .hilite select {
-    font-family: var(--ui); font-size: 0.7rem; color: var(--ink);
+  .hbtn:hover, .hilite.open .hbtn { border-color: var(--accent); }
+  .hbtn .hlabel { flex: 1; text-align: left; }
+  .hbtn .caret { color: var(--muted); font-size: 0.55rem; line-height: 1; }
+  .hdot {
+    width: 7px; height: 7px; border-radius: 50%; flex: none;
+    display: inline-block;
+  }
+  .hmenu {
+    position: absolute; top: calc(100% + 0.35rem); right: 0; z-index: 20;
+    min-width: 13rem; max-height: 62vh; overflow-y: auto;
     background: var(--card); border: 1px solid var(--line); border-radius: 3px;
-    padding: 0.25rem 0.4rem; cursor: pointer;
+    box-shadow: 0 14px 34px -12px rgba(20, 22, 26, .28);
+    padding: 0.25rem 0;
   }
+  .hmenu[hidden] { display: none; }
+  /* the rule rides on the heading, so every group is divided from what is
+     above it and the first one is divided from the `all` row */
+  .hmenu .hgroup {
+    font-family: var(--sans); font-size: 0.52rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    padding: 0.55rem 0.7rem 0.25rem;
+    border-top: 1px solid var(--line); margin-top: 0.3rem;
+  }
+  .hmenu .hopt {
+    font-family: var(--ui); font-size: 0.72rem; color: var(--ink);
+    display: flex; align-items: center; gap: 0.5rem; width: 100%;
+    background: none; border: 0; text-align: left; cursor: pointer;
+    padding: 0.32rem 0.7rem;
+  }
+  .hmenu .hopt:hover { background: var(--paper); }
+  .hmenu .hopt[aria-selected="true"] { color: var(--accent); }
 
   /* ---- highlight ------------------------------------------------------
      A reading of the map's own shape, laid over the fog. Only MARKS respond:
@@ -622,9 +657,16 @@
   <a class="logo" href="../index.html">kodo<em>lab</em><span class="dot">.</span></a>
   <span class="title">Biology</span>
   <span class="spacer"></span>
-  <label class="hilite">Highlight
+  <div class="hilite" id="hilitewrap">
+    <button type="button" class="hbtn" id="hilitebtn"
+            aria-haspopup="listbox" aria-expanded="false">
+      <span class="hdot" id="hilitedot" hidden></span>
+      <span class="hlabel" id="hilitelabel">all</span>
+      <span class="caret">&#9660;</span>
+    </button>
+    <div class="hmenu" id="hilitemenu" role="listbox" hidden></div>
     <select id="hilite">
-      <option value="">off</option>
+      <option value="">all</option>
       <!-- one option per unit, appended at load from UNITS -->
       <optgroup label="by unit" id="hiliteunits"></optgroup>
       <optgroup label="by weight">
@@ -637,7 +679,7 @@
       <!-- one option per theme, appended at load from the data -->
       <optgroup label="by theme" id="hilitethemes"></optgroup>
     </select>
-  </label>
+  </div>
   <button class="btn" id="reset">Start over</button>
 </header>
 
@@ -1926,6 +1968,7 @@ const HILITE_KEY = { through: 'wThrough', degree: 'wDeg', carries: 'wAll' };
     const opt = document.createElement('option');
     opt.value = 'unit:' + key;
     opt.textContent = UNITS[key].name.toLowerCase();
+    opt.dataset.tint = UNITS[key].tint;   // the custom menu draws the dot
     group.appendChild(opt);
   }
 }
@@ -2056,6 +2099,71 @@ function applyHighlight() {
   }
 }
 hiliteSel.addEventListener('change', applyHighlight);
+
+/* ---- the highlight menu -------------------------------------------------
+   Built from the <select> AFTER the unit and theme options exist, so the
+   generated-from-data rule holds for the menu too and nothing is authored
+   twice. Clicking a row writes the value and fires `change`, which is the
+   only thing the rest of the file knows about. */
+const hiliteWrap  = document.getElementById('hilitewrap');
+const hiliteBtn   = document.getElementById('hilitebtn');
+const hiliteMenu  = document.getElementById('hilitemenu');
+const hiliteLabel = document.getElementById('hilitelabel');
+const hiliteDot   = document.getElementById('hilitedot');
+
+for (const el of hiliteSel.children) {
+  if (el.tagName === 'OPTGROUP') {
+    if (!el.children.length) continue;
+    const h = document.createElement('div');
+    h.className = 'hgroup'; h.textContent = el.label;
+    hiliteMenu.appendChild(h);
+    for (const opt of el.children) hiliteMenu.appendChild(hiliteRow(opt));
+  } else hiliteMenu.appendChild(hiliteRow(el));
+}
+
+function hiliteRow(opt) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'hopt'; b.setAttribute('role', 'option');
+  b.dataset.value = opt.value;
+  if (opt.dataset.tint) {
+    const d = document.createElement('span');
+    d.className = 'hdot'; d.style.background = opt.dataset.tint;
+    b.appendChild(d);
+  }
+  b.appendChild(document.createTextNode(opt.textContent));
+  return b;
+}
+
+function syncHilite() {
+  const opt = hiliteSel.selectedOptions[0];
+  hiliteLabel.textContent = opt ? opt.textContent : 'all';
+  const tint = opt && opt.dataset.tint;
+  hiliteDot.hidden = !tint;
+  if (tint) hiliteDot.style.background = tint;
+  for (const row of hiliteMenu.querySelectorAll('.hopt'))
+    row.setAttribute('aria-selected', row.dataset.value === hiliteSel.value);
+}
+
+function openHilite(on) {
+  hiliteMenu.hidden = !on;
+  hiliteWrap.classList.toggle('open', on);
+  hiliteBtn.setAttribute('aria-expanded', on);
+}
+
+hiliteBtn.addEventListener('click', () => openHilite(hiliteMenu.hidden));
+hiliteMenu.addEventListener('click', e => {
+  const row = e.target.closest('.hopt');
+  if (!row) return;
+  hiliteSel.value = row.dataset.value;
+  hiliteSel.dispatchEvent(new Event('change'));
+  openHilite(false);
+});
+document.addEventListener('pointerdown', e => {
+  if (!hiliteWrap.contains(e.target)) openHilite(false);
+}, true);
+addEventListener('keydown', e => { if (e.key === 'Escape') openHilite(false); });
+hiliteSel.addEventListener('change', syncHilite);
+syncHilite();
 
 /* ---- kinds: detail that failed the node test -----------------------------
    THE CHAIN IS card → pill → kinds. The pill is a node rather than another
@@ -2265,6 +2373,7 @@ for (const l of links) paintLink(l);
 function start() {
   follow = null;
   hiliteSel.value = '';
+  syncHilite();
   hiNodes = null;
   document.body.classList.remove('highlighting');
   for (const n of nodes) n.el.classList.remove('hi');
