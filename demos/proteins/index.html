@@ -93,7 +93,7 @@
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:4px;
     overflow:hidden;display:flex;flex-direction:column;
-    transition:border-color .18s,transform .18s,box-shadow .18s}
+    transition:border-color .18s,transform .18s,box-shadow .18s;cursor:pointer}
   .card:hover{border-color:var(--accent);transform:translateY(-3px);
     box-shadow:0 10px 26px rgba(20,22,26,.07)}
   /* The stage is the top of the card and has a fixed height: a grid whose
@@ -127,8 +127,6 @@
      rather than in a field a reader has to go looking for. */
   .fact.predicted{background:var(--spark);border-color:var(--spark);color:#faf8f4}
 
-  h2{font-size:0.7rem;letter-spacing:0.16em;text-transform:uppercase;
-    color:var(--muted);font-weight:600;margin:0 0 0.5rem}
   .vars{list-style:none;margin:0 0 1.4rem;padding:0;font-size:0.8rem;
     line-height:1.5}
   /* A grid, not a flex row: the id keeps its column, the purpose takes what
@@ -141,6 +139,8 @@
     color:var(--muted);font-size:0.75rem}
   /* The extra bakes sit under the purpose, quiet: they are what a page CAN
      ask for, not what this one is showing. */
+  .vars .cover{grid-column:2;font-size:0.7rem;font-weight:400;color:var(--ink-3,#7a7268)}
+  .vars .cover b{font-weight:600}
   .vars .bakes{grid-column:2;font-size:0.66rem;letter-spacing:0.1em;
     text-transform:uppercase;color:var(--muted);font-weight:600;opacity:.7;
     margin-top:1px}
@@ -262,11 +262,7 @@ function card(p) {
      true of prion's half a protein and misleading of amylase, which is short
      one residue because its N-terminus is a modified pyroglutamate that rides
      on a HETATM line. A count says both without deciding where the line is. */
-  const facts = [
-    v.species,
-    r.method,
-    r.declared ? `${r.residues} of ${r.declared} residues` : `${r.residues} residues`,
-  ].filter(Boolean);
+  const facts = [v.species, r.method].filter(Boolean);
 
   el.innerHTML = `
     <div class="stage" data-key="${p.key}"></div>
@@ -275,13 +271,24 @@ function card(p) {
       <p class="does"></p>
       <p class="blurb"></p>
       <div class="facts"></div>
-      <h2>${p.variants.length} structure${p.variants.length === 1 ? '' : 's'}</h2>
       <ul class="vars"></ul>
       <div class="links">
         <a class="open" href="${benchOf(p)}">open the bench &rarr;</a>
         ${lessonOf(p) ? `<a class="open lesson" href="${lessonOf(p)}">the lesson &rarr;</a>` : ''}
       </div>
     </div>`;
+
+  /* THE WHOLE CARD IS THE LINK to its bench. The stage is included, so the
+     handler has to tell a click from the end of a drag that turned the
+     molecule: a pointer that moved more than a few px is the reader steering,
+     not choosing. Anchors keep their own destination. */
+  let down = null;
+  el.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+  el.addEventListener('click', e => {
+    if (e.target.closest('a')) return;
+    if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+    location.href = benchOf(p);
+  });
 
   el.querySelector('.name').textContent = p.name;
   /* WHAT IT DOES, the registry's word for it. `unknown` draws nothing: on a
@@ -314,14 +321,31 @@ function card(p) {
   }
 
   const list = el.querySelector('.vars');
-  for (const w of p.variants) {
+  /* The default first: it is the one drawn above and the one whose coverage
+     is printed, so it should not be third in its own list. The rest keep the
+     registry's order. */
+  const ordered = [v, ...p.variants.filter(w => w !== v)];
+  for (const w of ordered) {
     const li = document.createElement('li');
-    if (w.default) li.className = 'def';
+    if (w === v) li.className = 'def';
     const id = document.createElement('span');
     id.className = 'id'; id.textContent = w.source ? w.source.id : w.id;
     const what = document.createElement('span');
     what.textContent = w.purpose;
     li.append(id, what);
+    /* HOW MUCH OF THE PROTEIN THIS FILE ACTUALLY HOLDS, under the variant it
+       belongs to rather than as a chip, because it is a fact about one
+       structure and not about the protein. "Amino acids", not "residues": the
+       benches teach the structural word, a browse page should not need it. */
+    if (w === v) {
+      const cov = document.createElement('span');
+      cov.className = 'cover';
+      const rr = w.read;
+      cov.innerHTML = rr.declared
+        ? `<b>${rr.residues}</b> of ${rr.declared} amino acids · ${Math.round(rr.residues / rr.declared * 100)}%`
+        : `<b>${rr.residues}</b> amino acids`;
+      li.appendChild(cov);
+    }
     /* WHAT ELSE IS BAKED FOR THIS VARIANT, where a protein's files are made in
        more than one shape. A surface is 1.5 MB and a fold is 830 KB — the two
        most expensive things in the repo — and a collection page that showed
