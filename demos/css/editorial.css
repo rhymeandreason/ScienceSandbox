@@ -1,0 +1,113 @@
+/* =============================================================================
+   editorial.css — the homepage's system, as an opt-in retheme.
+
+   LOAD ORDER. After main.css and sandbox.css, before the page's own sheet:
+
+       <link rel="stylesheet" href="css/main.css">
+       <link rel="stylesheet" href="css/sandbox.css">
+       <link rel="stylesheet" href="css/editorial.css">   <!-- opt in -->
+
+   A page that does not link this file is unchanged. That is the point: the
+   sketchbook and this coexist while the lessons convert one at a time.
+
+   It works almost entirely by re-pointing main.css's SEMANTIC and TYPE tokens,
+   because both sandbox.css and every lesson already read through those. Reach
+   for a rule below the token blocks only where the shape itself is wrong for
+   this system — a 2px drawn edge or a wobbly radius survives no repaint.
+
+   The 3D canvas is `alpha:true`, so the stage paper is CSS. Retoning --paper
+   here is what moves it; no renderer knows this file exists.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap');
+
+/* -----------------------------------------------------------------------------
+   1. SEMANTIC — the homepage's paper, ink and two accents.
+   The primitives in main.css keep their values; nothing outside a role changes.
+   -------------------------------------------------------------------------- */
+:root {
+  --paper-white: #faf8f4;
+  --paper-card:  #ffffff;
+  --rule-line:   #e4e0d7;
+  --ink-900:     #14161a;
+  --ink-500:     #6d6f76;
+  --green-700:   #1f5f4f;   /* accent */
+  --orange-500:  #e2643a;   /* spark, the warm counterpoint */
+
+  --surface-page:   var(--paper-white);
+  --surface-rule:   transparent;      /* this paper is flat; see §3 */
+  --surface-raised: var(--paper-white);
+  --surface-card:   var(--paper-card);
+  --border-hair:    var(--rule-line);
+  --border-strong:  var(--ink-900);
+
+  --text-strong:  var(--ink-900);
+  --text-body:    #3a3d44;
+  --text-dim:     #55585f;
+  --text-muted:   var(--ink-500);
+  --text-inverse: var(--paper-white);
+
+  --accent: var(--green-700);
+  --spark:  var(--orange-500);
+
+  --focus-ring: 2px solid var(--green-700);
+}
+
+/* -----------------------------------------------------------------------------
+   2. TYPE — Futura where the machine has it, Jost as the geometric stand-in.
+   The two hands die here: --font-shout and --font-aside are what the marker
+   headings and the margin scrawl resolve through, so pointing them at the
+   editorial pair converts every page that uses them without touching one.
+   -------------------------------------------------------------------------- */
+:root {
+  --font-ui:        'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+  --font-editorial: 'Literata', Georgia, serif;
+  --font-shout:     var(--font-ui);
+  --font-aside:     var(--font-editorial);
+
+  --tracking-wide: .02em;
+
+  /* Even corners and a hairline edge. Every radius collapses toward the
+     homepage's 4px; the pill stays a pill. */
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+
+  --shadow-raise: 0 1px 2px rgba(20,22,26,.06), 0 10px 26px -12px rgba(20,22,26,.22);
+  --shadow-panel: 0 10px 26px -10px rgba(20,22,26,.16);
+  --shadow-press: 0 1px 1px rgba(20,22,26,.10);
+}
+
+/* A geometric sans sets tighter than Nunito at the same size, and the display
+   steps are where that reads as loose. Headings only; body text is untouched. */
+:root {
+  --tracking-tight: -.03em;
+}
+
+/* -----------------------------------------------------------------------------
+   3. SHAPE — the handful of places a token cannot reach.
+   -------------------------------------------------------------------------- */
+
+/* The dotted grid printed on the sandbox paper. --surface-rule is transparent
+   above, so the gradient already draws nothing; the image is dropped as well
+   so the browser stops compositing a full-stage layer for it every frame. */
+#stage, .stage, body { background-image: none }
+
+/* The 2px drawn line is the sketchbook's signature. One hairline replaces it
+   wherever a component states it in px, which a token cannot intercept. */
+.btn { border-width: 1px }
+
+.btn:hover:not([disabled]) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-inverse);
+}
+
+/* Micro-labels are the masthead's device: uppercase, letterspaced, quiet. */
+.label, .caps, h2.section {
+  font-family: var(--font-ui);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: .22em;
+  font-size: var(--text-2xs);
+}
