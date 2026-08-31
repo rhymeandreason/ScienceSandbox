@@ -126,3 +126,66 @@
 /* The display face, where a page wants the site's voice rather than prose:
    the masthead's micro-caps and any large numeral a lesson reads out. */
 .caps, .label, h2.section { font-family: var(--font-display) }
+
+/* -----------------------------------------------------------------------------
+   4. PATHWAY CHROME
+   pathways.css is SHARED with krebs-lab, which has not opted in, so its
+   sketchbook pieces are converted here rather than there: a page that links
+   this file gets the editorial version, and one that does not is untouched.
+   This is why the <link> goes LAST on a pathway lesson.
+   -------------------------------------------------------------------------- */
+
+/* The running ledger was a pinned yellow sticky — paper, a fold, a tilt. In
+   this system it is a card lying flat on the page. The tilt has to be undone
+   in three places, because the note ARRIVES rotated: the rule, the keyframe it
+   animates to, and the fold drawn on ::after. */
+.sticky {
+  background: var(--surface-card);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--radius-md);
+  transform: none;
+  box-shadow: var(--shadow-panel);
+}
+.sticky::after { display: none }
+#ledger.pin { animation-name: ledger-rise }
+@keyframes ledger-rise {
+  from { opacity: 0; transform: translateY(-10px) }
+  to   { opacity: 1; transform: none }
+}
+
+/* Off yellow, --muted and --hair resolve honestly again, so the heading and
+   the rules stop needing the low-alpha ink pathways.css mixes for them. */
+.sticky .lhead {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: .22em;
+  color: var(--text-muted);
+}
+.sticky .row { font-family: var(--font-ui); color: var(--text-body) }
+.sticky .row .v { font-family: var(--font-display); font-weight: 600 }
+.sticky .row.net,
+.sticky .row.prod,
+.sticky .row.carb { border-top: 1px solid var(--border-hair) }
+
+/* The step's heading, and the rail it sits under. A 20px letterspaced marker
+   was the page saying its own step number loudly; the micro-cap says it once. */
+/* The camera's bottom reserve is a DECLARED --barh, so restyling this cannot
+   re-frame the molecule — but it can walk the words up under it. The 20px
+   marker overflowed pathways.css's 15px box downward and sat clear of the
+   subject; a 12px cap in the same box does not, so the line box keeps the
+   marker's height and the element's stays 15. */
+#stephead {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .22em;
+  line-height: 24px;
+  color: var(--text-dim);
+}
+#stephead em { font-family: var(--font-display); color: var(--text-muted) }
+
+/* The rail's numbers and the tooltip's marker: hairline, even corners. */
+.rnum,
+#stepsbody .rdot { border-width: 1px }
+.infobtn { border-width: 1px }
+.modal .mkick { font-family: var(--font-display); letter-spacing: .22em }
