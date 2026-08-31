@@ -92,11 +92,9 @@
   min-width:62px;text-align:right}
 
 .massaction .ma-ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.massaction .ma-ctl button{font-family:var(--font-sans);font-weight:600;font-size:12.5px;
-  padding:7px 13px;border-radius:var(--radius-md);border:1px solid var(--ink);
-  background:none;color:var(--ink);cursor:pointer}
-.massaction .ma-ctl button:hover{background:var(--ink);color:var(--paper)}
-.massaction .ma-ctl button.on{background:var(--ink);color:var(--paper)}
+/* main.css's .pill--ghost. These are the demo's controls, not its invitation:
+   hollow is what the component already says, and the shape, hover and focus
+   ring stop being this file's business. */
 
 .massaction .ma-text{font-size:13px;line-height:1.55;color:#5a5346;margin:13px 0 0}
 .massaction .ma-text b{color:var(--ink)}

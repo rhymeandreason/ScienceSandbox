@@ -212,9 +212,9 @@ function create(opts) {
           + `</label>`
         : '')
     + `<div class="ma-ctl">`
-    +   `<button class="ma-addA">Add 15 <span class="ma-lbA"></span></button>`
-    +   `<button class="ma-addB">Add 15 <span class="ma-lbB"></span></button>`
-    +   `<button class="ma-reset">Reset</button>`
+    +   `<button class="ma-addA pill pill--ghost">Add 15 <span class="ma-lbA"></span></button>`
+    +   `<button class="ma-addB pill pill--ghost">Add 15 <span class="ma-lbB"></span></button>`
+    +   `<button class="ma-reset pill pill--ghost">Reset</button>`
     + `</div>`
     + `<p class="ma-text"></p>`;
 
