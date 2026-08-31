@@ -49,6 +49,7 @@
     cell:     { name: 'Cell & membrane', tint: '#9c4f76' },
     genetics: { name: 'Molecular genetics', tint: '#33418f' },
     resp:     { name: 'Respiration',    tint: '#2e7d63' },
+    photo:    { name: 'Photosynthesis',  tint: '#6e9a2e' },
     themes:   { name: 'Themes',         tint: '#c08a1e' },
   };
 
@@ -393,6 +394,57 @@
   { id:'hershey-chase', type:'evidence', unit:'genetics', name:'Hershey–Chase',
     claim:'Label the phage protein and the phage DNA separately, and only the DNA goes into the cell.' },
 
+  /* ---- photosynthesis --------------------------------------------------
+     MOSTLY A REUSE TEST. Seven of this unit's nine dependencies were built
+     by earlier units: chemiosmosis, the transport chain, redox, the proton
+     gradient, ATP synthase, enzyme catalysis and the chloroplast. What is
+     genuinely new is a compartment and a carrier, and both are declared as
+     versions of things already on the map rather than as fresh mechanisms.
+
+     THE CARRIERS ARE THE SPINE AGAIN, not the stages: the light reactions
+     load ATP and NADPH, the Calvin cycle spends them. Same shape as
+     respiration, which is the transfer the reader is meant to notice.
+
+     NO CALVIN INTERMEDIATES. RuBP and 3-PGA are the Krebs-intermediate trap
+     in a new costume: named molecules with diagram real estate and nothing
+     downstream. Photolysis gets two sentences in most textbooks and carries
+     the whole oxygen story, so it is the one at rank 1. */
+  { id:'light-energy', type:'concept', unit:'photo', name:'Light energy',
+    claim:'Photons arrive in fixed sizes. A pigment either absorbs one whole or does not absorb it.' },
+  { id:'pigment', type:'concept', unit:'photo', name:'Pigment',
+    claim:'A molecule that absorbs some wavelengths and reflects the rest. You see the wavelengths it threw away.' },
+  { id:'chlorophyll', type:'structure', unit:'photo', level:1, name:'Chlorophyll',
+    claim:'Absorbs red and blue hard, green barely at all. Plants are green because green is the light they waste.' },
+  { id:'accessory-pigment', type:'structure', unit:'photo', level:1, name:'Accessory pigments',
+    claim:'Carotenoids catch wavelengths chlorophyll misses. They are there all summer, masked, until chlorophyll breaks down.' },
+  { id:'photosystem', type:'structure', unit:'photo', level:2, name:'Photosystem',
+    claim:'A few hundred pigments funnelling energy to one pair of chlorophylls that lets an electron go.' },
+  { id:'photolysis', type:'process', unit:'photo', occursAt:3, name:'Photolysis',
+    claim:'Water is split to replace the electron the photosystem lost. The oxygen is what is left over.' },
+
+  { id:'thylakoid', type:'structure', unit:'photo', level:3, name:'Thylakoid',
+    claim:'A flattened sac inside the chloroplast. It is a sealed compartment, which is the only reason a gradient can build.' },
+
+  { id:'light-reactions', type:'process', unit:'photo', occursAt:3, name:'Light reactions',
+    claim:'Light drives electrons down a chain, protons pile up in the sac, and the turbine makes ATP. You have seen this before.' },
+  { id:'nadph', type:'structure', unit:'photo', level:1, name:'NADPH',
+    claim:'The reduced carrier the light reactions load. Same job as NADH, spent building sugar instead of making ATP.' },
+
+  { id:'calvin', type:'process', unit:'photo', occursAt:3, name:'Calvin cycle',
+    claim:'Spends the ATP and NADPH to build sugar from CO₂. It runs in daylight; it just does not need photons directly.' },
+  { id:'carbon-fixation', type:'concept', unit:'photo', name:'Carbon fixation',
+    claim:'Carbon from the air is bolted onto a molecule and becomes solid. A tree is mostly rebuilt atmosphere.' },
+  { id:'rubisco', type:'structure', unit:'photo', level:2, name:'Rubisco',
+    claim:'The enzyme that grabs the CO₂. The most abundant protein on Earth, and notoriously sloppy.' },
+
+  { id:'stomata', type:'structure', unit:'photo', level:5, name:'Stomata',
+    claim:'Pores in the leaf. Open for CO₂ and water escapes; shut to keep water and the carbon supply stops.' },
+  { id:'photorespiration', type:'process', unit:'photo', occursAt:3, name:'Photorespiration',
+    claim:'Rubisco grabs O₂ by mistake and the plant spends energy undoing it. Worse when it is hot and the pores are shut.' },
+
+  { id:'photosynthesis', type:'process', unit:'photo', occursAt:4, name:'Photosynthesis',
+    claim:'Light energy into chemical bonds, using water and air. Respiration read backwards, and the source of both.' },
+
   /* ---- themes ---------------------------------------------------------- */
   { id:'structfunc', type:'theme', unit:'themes', name:'Structure ↔ Function',
     claim:'Show me everything where a shape is the explanation.' },
@@ -439,6 +491,11 @@
   { id:'q-copy',     type:'question', text:'How does a copy get made without errors piling up?' },
   { id:'q-universal',type:'question', text:'Why is the code the same in bacteria and in you?' },
   { id:'q-gene',     type:'question', text:'What is a gene, actually?' },
+  { id:'q-treemass', type:'question', text:'Where does the mass of a tree come from?' },
+  { id:'q-green',    type:'question', text:'Why are plants green?' },
+  { id:'q-autumn',   type:'question', text:'Why do leaves change colour in autumn?' },
+  { id:'q-plantmito',type:'question', text:'If plants make sugar, why do they also need mitochondria?' },
+  { id:'q-o2',       type:'question', text:'Where does the oxygen you are breathing come from?' },
   ];
 
   const EDGES = [
@@ -596,6 +653,76 @@
     ['q-sickle',    'answers',         'r-group',       2],
     ['point-mutation','alters',        'primary',       1],
     ['point-mutation','evidence-for',  'nat-select',    1],
+
+    /* ---- photosynthesis --------------------------------------------------
+       THE REUSE EDGES FIRST, because they are the argument for the unit.
+       Every one of these says "you have met this already", and each is what
+       makes the second half of the unit nearly free. */
+    ['light-reactions',  'instance-of',    'chemiosmosis',    1],
+    ['nadph',            'analogous-to',   'carriers',        1],
+    ['thylakoid',        'analogous-to',   'mitochondrion',   1],
+    ['rubisco',          'instance-of',    'enzyme',          1],
+    ['redox',            'prerequisite-of','photosynthesis',  1],
+    ['chloroplast',      'contains',       'thylakoid',       1],
+
+    /* light: pigments, and the green misconception the unit turns on */
+    ['light-energy',     'prerequisite-of','photosystem',     1],
+    ['chlorophyll',      'instance-of',    'pigment',         1],
+    ['accessory-pigment','instance-of',    'pigment',         1],
+    ['chlorophyll',      'part-of',        'photosystem',     1],
+    ['pigment',          'enables',        'photosystem',     2],
+    ['q-green',          'answers',        'pigment',         1],
+    ['q-green',          'answers',        'chlorophyll',     2],
+    ['q-autumn',         'answers',        'accessory-pigment', 1],
+    ['q-autumn',         'answers',        'chlorophyll',     2],
+
+    /* PHOTOLYSIS IS RANK 1, against every textbook's page count. It carries
+       the electron-replacement problem AND the whole oxygen story: the O₂
+       you breathe comes off split WATER, never off the CO₂. */
+    ['photosystem',      'causes',         'photolysis',      1],
+    ['photolysis',       'produces',       'oxygen',          1],
+    ['q-o2',             'answers',        'photolysis',      1],
+    ['q-o2',             'answers',        'oxygen',          2],
+
+    ['photosystem',      'part-of',        'light-reactions', 1],
+    ['thylakoid',        'enables',        'light-reactions', 1],
+    ['light-reactions',  'produces',       'nadph',           1],
+    /* `supplies`, which orders nothing — see the note in nodegraph.html's
+       edge grammar. The ATP this makes is the ATP node respiration already
+       built, twenty columns to the left. */
+    ['light-reactions',  'supplies',       'atp',             2],
+    ['light-reactions',  'precedes',       'calvin',          2],
+
+    /* carbon, and the best question in the unit: almost everyone says soil */
+    ['calvin',           'consumes',       'nadph',           1],
+    ['carbon-fixation',  'part-of',        'calvin',          1],
+    ['rubisco',          'enables',        'carbon-fixation', 1],
+    /* THE LOOP CLOSES, AND IT IS A LOOP. The sugar photosynthesis builds is
+       the sugar respiration burns, so written as `produces` this edge ran
+       calvin → glucose → glycolysis → carriers → etc → chemiosmosis →
+       light-reactions → nadph → calvin and took the layering with it: every
+       node on the map went circular. The claim is true and it is not an
+       explanatory order, which is the same thing fermentation's NAD⁺ and
+       active transport's ATP each turned out to be. */
+    ['calvin',           'supplies',       'glucose',         1],
+    ['q-treemass',       'answers',        'carbon-fixation', 1],
+    ['q-treemass',       'answers',        'calvin',          2],
+
+    /* the trade-off, and it reaches back into the water unit: the same pore
+       that lets carbon in is the one transpiration pulls water out of */
+    ['stomata',          'enables',        'carbon-fixation', 2],
+    ['stomata',          'contrasts-with', 'transpiration',   2],
+    ['rubisco',          'causes',         'photorespiration', 2],
+    ['photorespiration', 'contrasts-with', 'carbon-fixation', 2],
+
+    /* THE RECIPROCAL PAIR. Not chapters eight and nine: one system seen
+       twice, and the reader who crosses this edge has most of both units. */
+    ['photosynthesis',   'contains',       'light-reactions', 1],
+    ['photosynthesis',   'contains',       'calvin',          1],
+    ['photosynthesis',   'contrasts-with', 'respiration',     1],
+    ['photosynthesis',   'instance-of',    'energyflow',      1],
+    ['q-plantmito',      'answers',        'photosynthesis',  1],
+    ['q-plantmito',      'answers',        'respiration',     2],
 
     /* ---- molecular genetics ----------------------------------------------
        THE HINGE, and it reaches back: base pairing IS hydrogen bonding, the

@@ -823,10 +823,16 @@ for (const n of nodes) {
 
    FORWARD: a explains / becomes / builds b — a sits left of b.
    BACKWARD: a acts on / instantiates b — b sits left of a.
-   Everything else (contrasts-with, describes, answers, preserves, spends)
-   imposes no order. `spends` is deliberate: a resource claim is not an
-   explanatory order, and typing active transport's ATP cost as one closes a
-   loop through chemiosmosis. instance-of into a THEME is exempted: a theme is a
+   Everything else (contrasts-with, describes, answers, preserves, spends,
+   supplies) imposes no order.
+
+   `spends` and `supplies` are the deliberate pair, and the map has now
+   earned them three times: active transport's ATP, fermentation's recycled
+   NAD⁺, and the sugar the Calvin cycle hands to glycolysis. A RESOURCE
+   CLAIM IS NOT AN EXPLANATORY ORDER. Biology's resources genuinely go round
+   in loops and the explanation axis is a DAG, so any edge that says "this
+   makes the stuff that one over there uses" has to be able to say it
+   without also claiming which is read first. instance-of into a THEME is exempted: a theme is a
    view over the map, not a station on the explanation.
 
    CONTAINMENT IS TWO RELATIONS, and they point opposite ways. `part-of`
@@ -841,6 +847,12 @@ const FORWARD = {
   'part-of': 1, 'contains': 1, 'contributes-to': 1, 'lowers': 1, 'precedes': 1,
   'necessitates': 1,
 };
+/* LATERAL types sit BESIDE the reading rather than along it, so they impose
+   no order, wear the contrast colour and carry no arrowhead. `contrasts-with`
+   holds two things apart; `analogous-to` says two things are the same move in
+   different systems, which is what NADPH is to NADH. Opposite claims, same
+   geometry: neither one is a step. */
+const LATERAL = { 'contrasts-with': 1, 'analogous-to': 1 };
 const BACKWARD = {
   'consumes': 1, 'destroys': 1, 'explained-by': 1, 'instance-of': 1,
   /* a film hangs off what it illustrates, so it lands to the right of it */
@@ -860,7 +872,7 @@ function ordered(l) {
    this makes possible), 'contrast' is beside. answers counts as why from
    the concept's side — the question is the motivation. */
 function groupOf(l, n) {
-  if (l.type === 'contrasts-with') return 'contrast';
+  if (LATERAL[l.type]) return 'contrast';
   const o = ordered(l);
   if (o) return o[1] === n ? 'why' : 'onward';
   if (l.type === 'answers') return n === l.b ? 'why' : 'onward';
@@ -1137,7 +1149,7 @@ function paintNode(n) {
 const wordFor = t => t.replace(/-/g, ' ');
 
 function paintLink(l) {
-  const contrast = l.type === 'contrasts-with';
+  const contrast = LATERAL[l.type];
   l.el = document.createElementNS(NS, 'path');
   l.el.setAttribute('fill', 'none');
   if (l.rank >= 3) l.el.setAttribute('stroke-dasharray', '3 4');
@@ -1156,7 +1168,7 @@ function paintLink(l) {
 /* the one place an edge's resting style is decided. Focus overlays it and
    clearFocus routes back through here, so the states cannot drift. */
 function edgeRefresh(l) {
-  const contrast = l.type === 'contrasts-with';
+  const contrast = LATERAL[l.type];
   const hide = spine && !l.spine;
   l.el.style.display = hide ? 'none' : '';
   l.label.style.display = hide ? 'none' : '';
