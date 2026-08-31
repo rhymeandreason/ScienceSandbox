@@ -46,6 +46,7 @@
     water:    { name: 'Water',          tint: '#2f7fb5' },
     macro:    { name: 'Macromolecules', tint: '#5f6672' },
     proteins: { name: 'Proteins',       tint: '#c2553a' },
+    resp:     { name: 'Respiration',    tint: '#2e7d63' },
     themes:   { name: 'Themes',         tint: '#c08a1e' },
   };
 
@@ -111,12 +112,7 @@
   /* ---- macromolecule bridges ------------------------------------------ */
   { id:'dehydration', type:'process', unit:'macro', occursAt:1, name:'Dehydration synthesis',
     claim:'Monomers join by losing a water molecule. Every polymer bond is built this way.' },
-  /* `nudge` shifts a node right by whole columns, display only: nothing
-     downstream of hydrolysis exists yet, so the layering has no reason to
-     move it off the water cluster, and its question was landing on the
-     water-mol/hbond line. Remove when cellular respiration gives digestion
-     real rightward edges. */
-  { id:'hydrolysis', type:'process', unit:'macro', occursAt:1, nudge:2, name:'Hydrolysis',
+  { id:'hydrolysis', type:'process', unit:'macro', occursAt:1, name:'Hydrolysis',
     claim:'Water is added back to break the bond. Digestion is this, run enzymatically.' },
   { id:'phospholipid', type:'structure', unit:'macro', level:1, name:'Phospholipid',
     claim:'A charged head on two oily tails.' },
@@ -176,9 +172,60 @@
   { id:'nat-select', type:'process', unit:'proteins', emergesAt:8, name:'Natural selection',
     claim:'Sickle carriers resist malaria, so the allele persists. Populations evolve; individuals never do.' },
 
+  /* ---- respiration ----------------------------------------------------
+     THE STAGES ARE NOT THE SPINE. A four-node chain is what gets memorised
+     and it is exactly the model that produces a student who can recite the
+     stages and cannot say why oxygen is needed. The through-line is the
+     ELECTRON CARRIERS: the first three stages strip electrons off glucose
+     and load them, the last cashes them in. So `carriers` is the hub at
+     rank 1 with every stage, and the stages carry `precedes` at rank 2 —
+     the sequence is real, it is just not the explanation. */
+  { id:'redox', type:'concept', unit:'resp', subject:'chemistry', name:'Redox',
+    claim:'Oxidation is losing electrons, reduction is gaining them. Always both at once.' },
+
+  { id:'glucose', type:'structure', unit:'resp', level:1, name:'Glucose',
+    claim:'Six carbons holding electrons at high energy. Everything below is the story of taking them.' },
+  { id:'pyruvate', type:'structure', unit:'resp', level:1, name:'Pyruvate',
+    claim:'Three carbons, and the fork in the road: with oxygen it goes on, without it does not.' },
+  { id:'acetyl-coa', type:'structure', unit:'resp', level:1, name:'Acetyl-CoA',
+    claim:'Two carbons on a carrier, and the doorway into the cycle.' },
+  { id:'atp', type:'structure', unit:'resp', level:1, name:'ATP',
+    claim:'The cell spends this, not glucose. A rechargeable battery, recharged about your body weight a day.' },
+  { id:'oxygen', type:'structure', unit:'resp', level:1, name:'Oxygen',
+    claim:'It never touches the glucose. It waits at the end of the chain and takes the spent electrons.' },
+
+  { id:'carriers', type:'concept', unit:'resp', name:'Electron carriers',
+    claim:'NAD⁺ and FAD collect the electrons stripped off glucose and hand them to the chain. The pool is small, so it has to be given back.' },
+  { id:'proton-gradient', type:'concept', unit:'resp', name:'Proton gradient',
+    claim:'The chain pumps H⁺ to one side. The imbalance itself is stored energy, and it is what the cell actually banks.' },
+  { id:'chemiosmosis', type:'concept', unit:'resp', occursAt:3, name:'Chemiosmosis',
+    claim:'Protons fall back through a turbine, and the turbine makes ATP. Learned once here, used again in photosynthesis.' },
+  { id:'substrate-phos', type:'concept', unit:'resp', name:'Substrate-level phosphorylation',
+    claim:'An enzyme hands a phosphate straight to ADP. Direct, and a small fraction of the total.' },
+  { id:'oxidative-phos', type:'concept', unit:'resp', name:'Oxidative phosphorylation',
+    claim:'ATP made from the gradient instead of by hand. This is where almost all of it comes from.' },
+
+  { id:'mitochondrion', type:'structure', unit:'resp', level:3, name:'Mitochondrion',
+    claim:'Two membranes, and the inner one is folded because the chain lives in it. Area is the point.' },
+
+  { id:'respiration', type:'process', unit:'resp', occursAt:4, name:'Cellular respiration',
+    claim:'Glucose is taken apart one pair of electrons at a time, and the energy is banked as ATP.' },
+  { id:'glycolysis', type:'process', unit:'resp', occursAt:4, name:'Glycolysis',
+    claim:'Glucose splits into two pyruvate in the cytosol. Two ATP spent, four made, two carriers loaded.' },
+  { id:'pyr-ox', type:'process', unit:'resp', occursAt:3, name:'Pyruvate oxidation',
+    claim:'One carbon leaves as CO₂ and the rest becomes acetyl-CoA. The first carbon you breathe out.' },
+  { id:'krebs', type:'process', unit:'resp', occursAt:3, name:'Krebs cycle',
+    claim:'Two more carbons leave as CO₂ and the carriers are loaded. The named intermediates are not the point.' },
+  { id:'etc', type:'process', unit:'resp', occursAt:3, name:'Electron transport chain',
+    claim:'Electrons fall from carrier to carrier, and every drop pumps protons across the membrane.' },
+  { id:'fermentation', type:'process', unit:'resp', occursAt:4, name:'Fermentation',
+    claim:'No oxygen, so the chain stops and the carriers stay full. Fermentation empties them so glycolysis can keep going.' },
+
   /* ---- themes ---------------------------------------------------------- */
   { id:'structfunc', type:'theme', unit:'themes', name:'Structure ↔ Function',
     claim:'Show me everything where a shape is the explanation.' },
+  { id:'energyflow', type:'theme', unit:'themes', name:'Energy Flow',
+    claim:'Show me everything where the question is where the energy went.' },
 
   /* ---- anchoring questions --------------------------------------------
      Every non-question node must sit on a path answering at least one. */
@@ -194,6 +241,11 @@
   { id:'q-substrate',type:'question', text:'Why does an enzyme only act on one substrate?' },
   { id:'q-collagen', type:'question', text:'Why does eating protein not directly become your protein?' },
   { id:'q-which',    type:'question', text:'What decides which amino acid goes where?' },
+  { id:'q-food',     type:'question', text:'Where does the energy in food actually go?' },
+  { id:'q-breathe',  type:'question', text:'Why do you breathe out the carbon you ate?' },
+  { id:'q-oxygen',   type:'question', text:'Why do you need oxygen, if it never touches the glucose?' },
+  { id:'q-battery',  type:'question', text:'If a mitochondrion is a battery, what is the voltage?' },
+  { id:'q-burn',     type:'question', text:'Why do your muscles burn when you sprint?' },
   ];
 
   const EDGES = [
@@ -352,6 +404,86 @@
     ['point-mutation','alters',        'primary',       1],
     ['point-mutation','evidence-for',  'nat-select',    1],
 
+    /* ---- respiration -----------------------------------------------------
+       THE CARRIER SPINE. Every stage touches `carriers` at rank 1 and the
+       stages touch each other at rank 2, so expanding a stage deals the
+       mechanism before the running order. */
+    ['redox',       'prerequisite-of', 'carriers',    1],
+    ['redox',       'prerequisite-of', 'respiration', 1],
+    ['glycolysis',  'produces',        'carriers',    1],
+    ['pyr-ox',      'produces',        'carriers',    1],
+    ['krebs',       'produces',        'carriers',    1],
+    ['carriers',    'enables',         'etc',         1],
+
+    /* the carbon, which is the other half of what a stage does */
+    ['glycolysis',  'consumes',        'glucose',     1],
+    ['glycolysis',  'produces',        'pyruvate',    1],
+    ['pyr-ox',      'consumes',        'pyruvate',    1],
+    ['pyr-ox',      'produces',        'acetyl-coa',  1],
+    ['krebs',       'consumes',        'acetyl-coa',  1],
+
+    /* the running order: real, and deliberately rank 2 */
+    ['glycolysis',  'precedes',        'pyr-ox',      2],
+    ['pyr-ox',      'precedes',        'krebs',       2],
+    ['krebs',       'precedes',        'etc',         2],
+    ['respiration', 'contains',        'glycolysis',  2],
+    ['respiration', 'contains',        'pyr-ox',      3],
+    ['respiration', 'contains',        'krebs',       2],
+    ['respiration', 'contains',        'etc',         2],
+
+    /* cashing the carriers in */
+    ['etc',         'produces',        'proton-gradient', 1],
+    ['etc',         'consumes',        'oxygen',          1],
+    ['proton-gradient', 'enables',     'chemiosmosis',    1],
+    ['chemiosmosis','produces',        'atp',             1],
+    /* the misconception this unit exists to break: oxygen does not burn the
+       sugar, it sits at the end of the chain mopping up spent electrons.
+       A contrast, because the wrong model is what has to be held apart. */
+    ['oxygen',      'contrasts-with',  'glucose',         1],
+    ['substrate-phos','contrasts-with','oxidative-phos',  1],
+    ['glycolysis',  'instance-of',     'substrate-phos',  2],
+    ['chemiosmosis','instance-of',     'oxidative-phos',  1],
+
+    /* CHEMIOSMOSIS IS NOT A RESPIRATION DETAIL. It needs a membrane a proton
+       cannot cross, which is the bilayer from the water unit doing work five
+       chapters later. This is the edge that pays the water unit back. */
+    ['bilayer',     'prerequisite-of', 'chemiosmosis',    1],
+    ['mitochondrion','contains',       'etc',             1],
+    ['mitochondrion','contains',       'krebs',           2],
+    ['mitochondrion','enables',        'chemiosmosis',    2],
+
+    /* the bridge OUT of the protein unit the doc names and the map lacked:
+       the whole pathway is enzyme-catalysed, and it is what gives the walk
+       somewhere to go from `enzyme` */
+    ['enzyme',      'enables',         'respiration',     1],
+    ['enzyme',      'enables',         'glycolysis',      2],
+    /* digestion's rightward edge, which is what the hydrolysis nudge stood
+       in for until this unit existed */
+    ['hydrolysis',  'produces',        'glucose',         2],
+
+    /* fermentation is the NEGATIVE CONTROL for the carrier story: it makes
+       no ATP of its own, it empties the pool so glycolysis can keep running */
+    ['fermentation','contrasts-with',  'respiration',     1],
+    ['fermentation','consumes',        'pyruvate',        1],
+    /* NOT `enables glycolysis`, which is what recycling NAD⁺ feels like and
+       which closed a cycle on the explanation axis: glycolysis → pyruvate →
+       fermentation → glycolysis. Stating the mechanism instead of the
+       feedback puts fermentation on the carrier spine, which is its whole
+       job here — the negative control for what happens when the pool cannot
+       be emptied. */
+    ['fermentation','produces',        'carriers',        1],
+
+    ['q-food',      'answers',         'respiration',     1],
+    ['q-food',      'answers',         'atp',             2],
+    ['q-breathe',   'answers',         'krebs',           1],
+    ['q-breathe',   'answers',         'pyr-ox',          2],
+    ['q-oxygen',    'answers',         'oxygen',          1],
+    ['q-oxygen',    'answers',         'etc',             2],
+    ['q-battery',   'answers',         'proton-gradient', 1],
+    ['q-battery',   'answers',         'chemiosmosis',    2],
+    ['q-burn',      'answers',         'fermentation',    1],
+    ['q-burn',      'answers',         'carriers',        2],
+
     /* THE THEME'S FAN — every card whose claim is shape-explains-function.
        Themes are the sanctioned exception to the rank-1 budget: the fan IS
        the view, and the page deals a theme's whole fan regardless of rank.
@@ -362,6 +494,14 @@
     ['ice-density',  'instance-of',    'structfunc',    2],
     ['dna-structure','instance-of',    'structfunc',    2],
     ['enzyme',       'instance-of',    'structfunc',    2],
+
+    /* Energy Flow's fan, read from the instance's side like structfunc's */
+    ['respiration',  'instance-of',    'energyflow',    1],
+    ['chemiosmosis', 'instance-of',    'energyflow',    1],
+    ['carriers',     'instance-of',    'energyflow',    1],
+    ['atp',          'instance-of',    'energyflow',    1],
+    ['fermentation', 'instance-of',    'energyflow',    2],
+    ['redox',        'instance-of',    'energyflow',    2],
   ];
 
   global.GraphData = { UNITS, CHEM_TINT, LADDER, NODES, EDGES };

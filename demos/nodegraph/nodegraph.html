@@ -32,7 +32,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bio 101 node graph</title>
+<title>Biology 101 node graph</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
@@ -199,14 +199,28 @@
   }
   .node.card.unlit .thumb { display: none; }
 
+  /* a video's credit: printed, small, and the only outbound link on a card */
+  .node.card .credit {
+    font-size: 0.55rem; letter-spacing: 0.06em; color: var(--muted);
+    margin-top: 0.3rem;
+  }
+  .node.card .credit a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .node.card .credit a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .node.card.unlit .credit { display: none; }
+  /* a poster fills its frame; the generated stills are 16:9 in a 4:3 thumb */
+  .node.card .thumb .still.poster { object-fit: cover; }
+
   .node.card .tags {
     display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem;
   }
+  /* em, not rem: a tag shows through the fog on specimen and content marks,
+     so it has to ride the mark's counter-scale the way the name does. Left
+     in rem it stayed 8px and rendered at five on screen. */
   .node.card .tag {
-    font-size: 0.52rem; font-weight: 500; letter-spacing: 0.14em;
+    font-size: 0.52em; font-weight: 500; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted);
     border: 1px solid var(--line); border-radius: 2px;
-    padding: 0.14rem 0.34rem;
+    padding: 0.14em 0.34em;
   }
   .node.card .tag.scale  { color: var(--accent); border-color: #cfdcd7; }
   .node.card .tag.chem   { color: #8a5cc0; border-color: #ded2ef; }
@@ -247,7 +261,7 @@
   .node.card.specimen .tag {
     display: inline-flex; align-items: baseline; gap: 0.4rem;
     margin-top: 0.3rem; border: 0; padding: 0;
-    font-family: var(--sans); font-size: 0.56rem; font-weight: 500;
+    font-family: var(--sans); font-size: 0.56em; font-weight: 500;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
   }
   .node.card.specimen .tag span {
@@ -255,17 +269,87 @@
   }
   .node.card.unlit .prov { display: none; }
 
-  /* the lesson opener rides inside the thumb, bottom-left over the picture */
-  .node.card .lesson {
-    position: absolute; left: 8px; bottom: 8px;
+  /* ---- a content card: a film or a lesson ------------------------------
+     The specimen card's shape. Its opener is the card's whole purpose, so
+     it does NOT fade with the rest of a card's controls. */
+  .node.card.content { width: 15rem; }
+  .node.card.content .name {
+    font-family: var(--serif); font-size: 1.05rem; line-height: 1.2;
+    font-weight: 400; letter-spacing: -0.01em; text-transform: none;
+    color: var(--ink); display: block;
+  }
+  .node.card.content .name::before { display: none; }
+  .node.card.content .tag {
+    display: inline-block; margin-top: 0.4em;
+    font-size: 0.52em; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 2px; padding: 0.14em 0.34em;
+  }
+  .node.card.content .thumb { margin-top: 0.55rem; }
+  .node.card.content .opens { margin-top: 0.5rem; }
+  .node.card.content .opener { opacity: 1; pointer-events: auto; }
+
+  /* ---- A LESSON OUTRANKS EVERYTHING AROUND IT --------------------------
+     The lessons are the featured work and a film is somebody else's, so the
+     lesson card is the loudest thing on the paper: wider, its name at the
+     size of a claim, a rule down the left in its own region's tint, and an
+     opener that is filled rather than outlined. It is the only solid button
+     on the map, which is the whole point of a call to action. */
+  .node.card.content.lesson {
+    width: 19rem;
+    border-color: var(--line);
+    border-left: 3px solid var(--dot, var(--accent));
+    box-shadow: 0 10px 30px -14px rgba(20, 22, 26, 0.3);
+  }
+  .node.card.content.lesson .name { font-size: 1.4em; line-height: 1.16; }
+  .node.card.content.lesson .tag {
+    color: var(--dot, var(--accent)); border-color: currentColor;
+  }
+  .node.card.content.lesson .claim {
+    font-family: var(--serif); font-size: 0.82em; line-height: 1.34;
+    color: var(--muted); margin-top: 0.5em;
+  }
+  .node.card.content.lesson .opener {
+    background: var(--dot, var(--accent)); color: var(--card);
+    border-color: transparent; padding: 0.5em 0.85em; font-size: 0.6em;
+    box-shadow: none;
+  }
+  .node.card.content.lesson .opener:hover {
+    background: var(--ink); color: var(--card); border-color: transparent;
+  }
+  /* fogged, a lesson still reads as the biggest mark in its neighbourhood:
+     white ground and its region's rule, against everything else's bare text.
+     Back to max-content, though — the open card's 19rem left half the mark
+     as empty paper. */
+  .node.card.content.lesson.unlit {
+    width: max-content;
+    border-left: 3px solid var(--dot, var(--accent));
+    background: var(--card);
+  }
+  .node.card.content.lesson.unlit .name { font-size: 0.95em; }
+  /* THE TAG SURVIVES THE FOG. Everything else on a content card is withheld
+     like any other mark, but a fogged film with its tag hidden is bare serif
+     text and reads as one more concept: the one thing a reader needs from
+     across the map is that this is a film, or a lesson. */
+  .node.card.content.unlit .name { display: inline; }
+  .node.card.content.unlit .tag { margin: 0 0 0 0.45rem; vertical-align: 0.12em; }
+  .node.card.content.unlit .opens { display: none; }
+
+  /* THE BUTTON IS `.opener`, NOT `.lesson`. A content card wears its kind as
+     a class, so a lesson card was itself `.lesson` — which the pointerdown
+     guard read as "that is a button, do not start a drag". The card could
+     then never be lit or focused, and while it stayed unlit its opener was
+     display:none. Nothing to click, and clicking did nothing. The name is
+     also just truer: this button opens a film as often as a lesson. */
+  .node.card .opener {
     font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted); cursor: pointer;
     background: var(--card); border: 1px solid var(--line); border-radius: 3px;
     padding: 0.3rem 0.5rem; box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
     transition: opacity .18s ease, color .15s, border-color .15s;
   }
-  .node.card .lesson:hover { color: var(--ink); border-color: var(--ink); }
-  .node.card .opens .lesson { position: static; }
+  .node.card .opener:hover { color: var(--ink); border-color: var(--ink); }
+  .node.card > .opens { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.5rem; }
 
   /* a card's controls belong to the card being WORKED ON: everywhere else
      they are faded, not removed, so nothing reflows on focus. The composer
@@ -273,7 +357,7 @@
      on, which is simpler and the same idea. */
   .node:not(.hub) .pbox-rep,
   .node:not(.hub) .pbox-play,
-  .node:not(.hub) .lesson,
+  .node:not(.hub) .opener,
   .node:not(.hub) .mb-dims { opacity: 0; pointer-events: none; }
 
   /* a hub reads bigger before it is clicked: five or more rank-1 edges */
@@ -456,7 +540,7 @@
 
 <header class="mast">
   <a class="logo" href="../index.html">kodo<em>lab</em><span class="dot">.</span></a>
-  <span class="title">Bio 101 node graph — cause runs right, scale runs up</span>
+  <span class="title">Biology</span>
   <span class="spacer"></span>
   <button class="btn" id="spinebtn">Spine</button>
   <button class="btn" id="reset">Start over</button>
@@ -498,6 +582,9 @@
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/mol-solvation.js"></script>  <!-- registers the family-A water the sims and the molbox both draw -->
+<script src="../lib/skel.js"></script>           <!-- mol-pathways and mol-krebs both require it -->
+<script src="../lib/mol-pathways.js"></script>   <!-- glucose, pyruvate, ATP, NADH -->
+<script src="../lib/mol-krebs.js"></script>      <!-- acetyl-CoA -->
 <script src="../lib/scene.js"></script>
 <script src="../lib/fx.js"></script>
 <script src="../lib/atomkit.js"></script>
@@ -569,13 +656,20 @@ for (const n of nodes)
 const CONTENT = (window.GraphContent || {}).CONTENT || [];
 const PLACED = new Map(((window.GraphContent || {}).PLACEMENTS || []));
 const BY_CONTENT = new Map(CONTENT.map(c => [c.id, c]));
+/* INLINE rides the node: a molbox, a water sim, a builder or a ribbon IS the
+   card's own subject drawn, so it belongs in the card's thumb.
+   CARD is the other kind. A film and a lesson are their own objects and get
+   their own card, the way a specimen does — riding on the concept they
+   competed with its claim for one thumb and one row of buttons, and
+   glycolysis carried both at once. */
 const INLINE = { water: 1, build: 1, molbox: 1, protein: 1 };
-const BUTTON = { lesson: 1 };
+const CARD = { video: 1, lesson: 1 };
 const ON_NODE = new Map();
 for (const [cid, ranks] of PLACED) {
   if (cid.startsWith('p:')) continue;          // specimens: their own pass below
   const item = BY_CONTENT.get(cid);
   if (!item) { console.warn('placement names missing content:', cid); continue; }
+  if (CARD[item.kind]) continue;               // its own card: the pass below
   for (const [nid, rank] of Object.entries(ranks)) {
     if (!byId[nid]) { console.warn('placement names missing node:', cid, nid); continue; }
     (ON_NODE.get(nid) || ON_NODE.set(nid, []).get(nid)).push({ item, rank });
@@ -590,8 +684,7 @@ const viewFor = n => {
   const placed = (ON_NODE.get(n.id) || []).filter(x => INLINE[x.item.kind]);
   return placed.length ? placed[0].item : null;
 };
-const opensFor = n => (ON_NODE.get(n.id) || [])
-  .filter(x => BUTTON[x.item.kind]).map(x => x.item);
+
 
 /* ---- specimens ----------------------------------------------------------
    Spawned from proteins/proteins.js, the registry of what we hold — a `p:`
@@ -642,12 +735,35 @@ for (const p of SPEC) {
   }
 }
 
-/* the reachability pass above ran before these existed, so specimens get
-   their own. A protein placed only at rank 2 — collagen, gfp and ferritin
-   are each the SECOND exemplar of their concept — would otherwise float
-   unattached the moment the spine view hides everything but rank 1. */
+/* ---- content cards ------------------------------------------------------
+   A film and a lesson are their own objects, so each is its own card, the
+   same shape as a specimen. `illustrates` is BACKWARD, which puts the card
+   one column right of what it illustrates — the concept is the station, the
+   film is the thing hanging off it. No level: a film is not at a scale, so
+   it settles at its neighbours' y like any levelless node. */
+for (const [cid, ranks] of PLACED) {
+  const item = BY_CONTENT.get(cid);
+  if (!item || !CARD[item.kind]) continue;
+  const n = { ...item, type: 'content', deg: 0 };
+  nodes.push(n); byId[n.id] = n;
+  for (const [nid, rank] of Object.entries(ranks)) {
+    const m = byId[nid];
+    if (!m) { console.warn('content placed on missing node:', n.id, nid); continue; }
+    /* the card wears the tint of the FIRST region it illustrates, so a lesson
+       reads as belonging to its unit rather than floating between them */
+    if (!n.tint) n.tint = (UNITS[m.unit] || {}).tint;
+    links.push({ a: n, b: m, type: 'illustrates', rank, spine: rank === 1 });
+    n.deg++; m.deg++;
+  }
+}
+
+/* the reachability pass above ran before these existed, so specimens and
+   content cards get their own. A protein placed only at rank 2 — collagen,
+   gfp and ferritin are each the SECOND exemplar of their concept — would
+   otherwise float unattached the moment the spine view hides everything but
+   rank 1. */
 for (const n of nodes) {
-  if (n.type !== 'specimen') continue;
+  if (n.type !== 'specimen' && n.type !== 'content') continue;
   const mine = linksOf(n);
   if (mine.some(l => l.spine)) continue;
   const best = Math.min(...mine.map(l => l.rank));
@@ -673,9 +789,13 @@ for (const n of nodes) {
 const FORWARD = {
   'prerequisite-of': 1, 'causes': 1, 'determines': 1, 'enables': 1,
   'produces': 1, 'alters': 1, 'transforms-into': 1, 'evidence-for': 1,
-  'part-of': 1, 'contains': 1, 'contributes-to': 1, 'lowers': 1,
+  'part-of': 1, 'contains': 1, 'contributes-to': 1, 'lowers': 1, 'precedes': 1,
 };
-const BACKWARD = { 'consumes': 1, 'destroys': 1, 'explained-by': 1, 'instance-of': 1 };
+const BACKWARD = {
+  'consumes': 1, 'destroys': 1, 'explained-by': 1, 'instance-of': 1,
+  /* a film hangs off what it illustrates, so it lands to the right of it */
+  'illustrates': 1,
+};
 
 /* the ordering constraint a link imposes: [earlier, later], or null */
 function ordered(l) {
@@ -860,6 +980,26 @@ function paintNode(n) {
                    '<div class="claim">' + esc(n.claim) + '</div>' +
                    '<div class="prov">' + prov + '</div>' +
                    '<div class="chips"></div>';
+  } else if (n.type === 'content') {
+    /* the specimen card's shape, for the same reason: this card IS a thing,
+       so its name leads and its claim is a label on it. A film carries its
+       still and its credit; a lesson carries neither and says so. */
+    el.className = 'node card unlit content ' + n.kind;
+    if (n.tint) el.style.setProperty('--dot', n.tint);
+    el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' +
+                   '<div class="tag">' + (n.kind === 'video' ? 'film' : 'lesson') + '</div>' +
+                   (n.blurb ? '<div class="claim">' + esc(n.blurb) + '</div>' : '') +
+                   (n.poster
+                     ? '<div class="thumb mounted"><img class="still poster" alt="" src="../' +
+                       esc(n.poster) + '"></div>' : '') +
+                   (n.credit
+                     ? '<div class="credit"><a href="' + esc(n.creditUrl) +
+                       '" target="_blank" rel="noopener">' + esc(n.credit) + '</a>' +
+                       (n.year ? ' · ' + n.year : '') + '</div>' : '') +
+                   '<div class="opens"><button type="button" class="opener" data-open="' +
+                     esc(n.id) + '">' + (n.kind === 'video' ? 'play' : 'open lesson') +
+                   '</button></div>' +
+                   '<div class="chips"></div>';
   } else {
     el.className = 'node card unlit ' + n.type +
                    (n.big ? ' big' : '') +
@@ -869,17 +1009,13 @@ function paintNode(n) {
     n.tint = tint;
     const tags = scaleTag(n) +
       (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '');
-    /* an opener rides inside the thumb, bottom-left over the picture */
-    const opens = opensFor(n).map(c =>
-      '<button type="button" class="lesson" data-open="' + esc(c.id) + '">open lesson</button>').join('');
     el.innerHTML = '<div class="name">' +
                      (n.type === 'process' ? '<span class="run">→</span>' : '') +
                      esc(n.name) + '</div>' +
                    '<div class="claim">' + esc(n.claim) + '</div>' +
                    /* a thumb is a promise a picture is coming, so only cards
                       with a view get one; it stays hidden while fogged */
-                   (viewFor(n) ? '<div class="thumb"><span class="ph"></span>' + opens + '</div>'
-                               : opens ? '<div class="opens">' + opens + '</div>' : '') +
+                   (viewFor(n) ? '<div class="thumb"><span class="ph"></span></div>' : '') +
                    (tags ? '<div class="tags">' + tags + '</div>' : '') +
                    '<div class="chips"></div>';
   }
@@ -1169,7 +1305,7 @@ canvas.addEventListener('pointerdown', e => {
   /* a card's own controls keep their pointer — every control must be here.
      The symptom of a missing entry is a button that renders and does
      nothing while the card behind it opens. */
-  if (e.target.closest('.chip, .mb-dims, .pbox-rep, .pbox-play, .lesson')) return;
+  if (e.target.closest('.chip, .mb-dims, .pbox-rep, .pbox-play, .opener')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
@@ -1271,13 +1407,19 @@ const lessonModal = Modal.create({
   el: 'lessonmodal',
   onShow: c => {
     lessonTitle.textContent = c.name || 'the lesson';
-    lessonFrame.src = '../' + c.href;
+    /* youtube-nocookie, and the parameters are built here rather than
+       authored, so a row carries the id and nothing about playback */
+    lessonFrame.src = c.kind === 'video'
+      ? 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(c.src) +
+        '?rel=0&modestbranding=1&playsinline=1&autoplay=1'
+      : '../' + c.href;
   },
   onHide: () => { lessonFrame.src = 'about:blank'; },
 });
 
 document.addEventListener('click', e => {
-  const open = e.target.closest('.lesson[data-open]');
+  if (e.target.closest('.credit a')) return;   // the credit goes out, not in
+  const open = e.target.closest('.opener[data-open]');
   if (open) {
     const c = BY_CONTENT.get(open.dataset.open);
     if (c) lessonModal.show(c);
@@ -1389,7 +1531,8 @@ function walkDir(l, n) {
   if (!o) return null;
   return o[1] === n ? 'why' : 'onward';
 }
-const station = n => n.type !== 'specimen' && n.type !== 'theme';
+const station = n =>
+  n.type !== 'specimen' && n.type !== 'theme' && n.type !== 'content';
 
 /* how far a branch carries: the longest rank-1 chain onward from it. No
    memo — 64 nodes, and only a keypress asks. The seen guard is for a data

@@ -59,11 +59,71 @@
       trace: 'hemoglobin/data/2HHB.trace.json', chains: 'B',
       fold: 'hemoglobin/data/2HHB-B.fold.bin' },
 
+    /* ---- molbox: the respiration molecules, spun ------------------------
+       mol-pathways.js and mol-krebs.js already hold every one of these for
+       molecule-viewer, so a carrier card draws the actual molecule rather
+       than describing it. */
+    { id: 'm:glucose',   kind: 'molbox', spec: 'glucose' },
+    { id: 'm:pyruvate',  kind: 'molbox', spec: 'pyruvate' },
+    { id: 'm:acetylcoa', kind: 'molbox', spec: 'acetylcoa' },
+    { id: 'm:atp',       kind: 'molbox', spec: 'atp' },
+    { id: 'm:nadh',      kind: 'molbox', spec: 'nadh' },
+
     /* ---- button: the lesson behind the card -----------------------------
        hemoglobin-lab IS the folding lesson (folding-lab is deprecated):
-       a β chain folds 1→3, the heme settles, the chains dock. */
+       a β chain folds 1→3, the heme settles, the chains dock.
+       `chrome=bare` is hemoglobin-lab's own parameter and the pathway
+       lessons do not read one, so they open with their full chrome. */
     { id: 'l:hemoglobin', kind: 'lesson', name: 'How a chain folds',
+      blurb: 'All four levels on one molecule: a β chain folds, the heme settles into the pocket, then the other three chains dock.',
       href: 'hemoglobin-lab.html?chrome=bare' },
+    { id: 'l:glycolysis', kind: 'lesson', name: 'Ten steps in five stages',
+      blurb: 'Every step drawn as molecules, with the sugar splitting in front of you.',
+      href: 'glycolysis-lab.html' },
+    { id: 'l:krebs', kind: 'lesson', name: 'Around the cycle',
+      blurb: 'Eight steps around the ring, played twice for the ×2, and where every carbon ends up.',
+      href: 'krebs-lab.html' },
+    { id: 'l:fermentation', kind: 'lesson', name: 'Where pyruvate goes without O₂',
+      blurb: 'Two branches on tabs, and a NAD⁺ ledger carried in from glycolysis that lands on zero.',
+      href: 'fermentation-lab.html' },
+
+    /* ---- video: somebody else's work ------------------------------------
+       RE-DECLARED, not read from lib/mapcontent.js. The composer is being
+       deprecated and the nodegraph is not going to inherit a dependency on
+       it, so these four rows are copied and the copy is the cost.
+
+       `credit` is not decoration and is printed on the card. `src` is a
+       YouTube id and the page builds a youtube-nocookie embed from it, so a
+       card nobody opened makes no third-party request; `poster` is a LOCAL
+       still for the same reason, and because a remote thumbnail would break
+       the card the day the video moves.
+
+       No `captions` here: the composer authored two-track caption files for
+       all four, and this page has nothing that reads them yet. Naming a
+       field nothing reads is how a claim goes stale. */
+    { id: 'v:glycolysis', kind: 'video', src: '1VrRl0UTlA8',
+      name: 'Glycolysis',
+      credit: 'WEHI', year: 2021,
+      creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
+      poster: 'media/glycolysis-wehi.jpg' },
+    { id: 'v:krebs', kind: 'video', src: 'aV-kI_ep1Rk',
+      /* both names: the film says citric acid cycle, krebs-lab says Krebs */
+      name: 'The Krebs cycle (citric acid cycle)',
+      credit: 'Drew Berry, WEHI', year: 2020,
+      creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
+      poster: 'media/krebs-wehi.jpg' },
+    { id: 'v:etc', kind: 'video', src: 'nmoLoiFakxY',
+      name: 'The electron transport chain',
+      credit: 'Drew Berry, WEHI', year: 2019,
+      creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
+      poster: 'media/etc-wehi.jpg' },
+    { id: 'v:atp', kind: 'video', src: 'OT5AXGS1aL8',
+      name: 'Synthesis of ATP',
+      /* two names on it, and both are printed: the film has no dialogue for
+         most of its run and the score is carrying the mechanism's rhythm */
+      credit: 'Drew Berry & Franc Tétaz, WEHI', year: 2018,
+      creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
+      poster: 'media/atp-wehi.jpg' },
   ];
 
   const PLACEMENTS = [
@@ -77,6 +137,26 @@
     ['r:tertiary',   { tertiary: 1 }],
     ['r:folding',    { folding: 1 }],
     ['l:hemoglobin', { folding: 1 }],
+
+    /* ---- respiration ----------------------------------------------------
+       A film goes on the node whose subject it IS, not on the umbrella:
+       the ETC film goes on `etc`, never on `respiration`. Generic
+       parent-node attachment is how these degrade into a pile of links
+       nobody clicks. */
+    ['m:glucose',    { glucose: 1 }],
+    ['m:pyruvate',   { pyruvate: 1 }],
+    ['m:acetylcoa',  { 'acetyl-coa': 1 }],
+    ['m:atp',        { atp: 1 }],
+    ['m:nadh',       { carriers: 1 }],
+
+    ['v:glycolysis', { glycolysis: 1 }],
+    ['v:krebs',      { krebs: 1 }],
+    ['v:etc',        { etc: 1, 'proton-gradient': 2 }],
+    ['v:atp',        { chemiosmosis: 1, atp: 2 }],
+
+    ['l:glycolysis',   { glycolysis: 1 }],
+    ['l:krebs',        { krebs: 1 }],
+    ['l:fermentation', { fermentation: 1 }],
 
     /* ---- specimens ------------------------------------------------------
        A `p:` row places a protein whose entry lives in proteins/proteins.js;
@@ -109,11 +189,13 @@
     ['p:gfp',             { secondary: 2 }],
     /* quaternary structure that is not haemoglobin: 24 identical subunits */
     ['p:ferritin',        { quaternary: 2 }],
+    /* the turbine itself, now that chemiosmosis exists to hang it on */
+    ['p:atp-synthase',    { chemiosmosis: 1, etc: 2 }],
 
-    /* atp-synthase and napump stay UNPLACED. Both are outbound bridges —
-       chemiosmosis, active transport — and neither unit exists yet. Per
-       Biology-Node-Graph.md that is a gap in the units, not in the library:
-       a protein with no concept to attach to does not need a node. */
+    /* napump stays UNPLACED: it is the membrane unit's bridge and that unit
+       does not exist yet. Per Biology-Node-Graph.md that is a gap in the
+       units, not in the library — a protein with no concept to attach to
+       does not need a node. */
   ];
 
   global.GraphContent = { CONTENT, PLACEMENTS };
