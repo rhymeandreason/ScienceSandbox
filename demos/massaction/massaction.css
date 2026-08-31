@@ -91,7 +91,7 @@
 .massaction .ma-slider b{font-family:var(--font-slab);font-size:13px;color:var(--ink);
   min-width:62px;text-align:right}
 
-.massaction .ma-ctl{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.massaction .ma-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
 /* main.css's .pill--ghost. These are the demo's controls, not its invitation:
    hollow is what the component already says, and the shape, hover and focus
    ring stop being this file's business. */

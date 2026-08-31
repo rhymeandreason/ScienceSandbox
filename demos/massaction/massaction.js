@@ -212,8 +212,12 @@ function create(opts) {
           + `</label>`
         : '')
     + `<div class="ma-ctl">`
-    +   `<button class="ma-addA pill pill--ghost">Add 15 <span class="ma-lbA"></span></button>`
-    +   `<button class="ma-addB pill pill--ghost">Add 15 <span class="ma-lbB"></span></button>`
+    // EACH ADD WEARS THE SPECIES IT SPAWNS, off COL itself rather than a
+    // repeated hex: press the blue one and blue dots arrive. --pill-fill is
+    // the only hook .pill asks for. --sm so the solid pair comes out at
+    // .pill--ghost's 34px and the row sits straight with Reset.
+    +   `<button class="ma-addA pill pill--sm" style="--pill-fill:${COL[0]}">Add 15 <span class="ma-lbA"></span></button>`
+    +   `<button class="ma-addB pill pill--sm" style="--pill-fill:${COL[1]}">Add 15 <span class="ma-lbB"></span></button>`
     +   `<button class="ma-reset pill pill--ghost">Reset</button>`
     + `</div>`
     + `<p class="ma-text"></p>`;
