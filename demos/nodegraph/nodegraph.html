@@ -434,6 +434,19 @@
     letter-spacing: -0.015em; color: var(--ink);
     text-align: center;
   }
+  /* A BRIDGING QUESTION IS A SMALLER DOOR. An anchor opens a unit and should
+     be findable from across the map; a bridging one joins two units already
+     in view, so it reads at the scale of the cards it sits between rather
+     than competing with the unit it is inside. Narrower too, or a short
+     question sets one enormous line. */
+  .node.question.bridging {
+    width: 19rem; max-width: 19rem;
+    font-size: 1.25rem; line-height: 1.2; letter-spacing: -0.008em;
+    color: var(--muted);
+  }
+  /* a fogged question is sized by max-content against a max-width, so the
+     narrower cap has to be restated here or the fog rule's 26rem wins */
+  .node.question.unlit.bridging { max-width: 19rem; }
   .node.question.hub {
     width: 28rem; padding: 0.9rem 1rem 0.95rem;
   }
@@ -1073,7 +1086,10 @@ function scaleTag(n) {
 function paintNode(n) {
   const el = document.createElement('div');
   if (n.type === 'question') {
-    el.className = 'node question unlit';
+    /* an anchoring question is the door into a unit; a bridging one links two
+       that are already open. Both are questions, so both are doors, but they
+       are not the same size of door. */
+    el.className = 'node question unlit ' + (n.qtype || 'anchor');
     el.innerHTML = '<span>' + esc(n.text) + '</span><div class="chips"></div>';
   } else if (n.type === 'theme') {
     el.className = 'node theme unlit';

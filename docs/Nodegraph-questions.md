@@ -56,13 +56,25 @@ How can a sunburn cause cancer years later?
 
 Why do fruits go sweet and then rot?
 
-**Bridges worth adding**
+Why are some people lactose intolerant?
+
+Why can cyanide kill in minutes?
+
+Why does meat get tender if you marinate it in pineapple?
+
+Why does a cut apple go brown, and why does lemon juice stop it?
+
+How do detergents get stains out in cold water?
+
+**Bridges questions worth adding**
 
 Why is ATP the currency and not glucose directly?
 
 Why is glycolysis 10 steps instead of one?
 
 Why does a gradient store energy at all?
+
+Why do enzymes need helpers like vitamins and metal ions?
 
 ## How to write Anchor questions
 
