@@ -1,29 +1,179 @@
-**Summary of how the baked placement is determined**
+<!-- KIND: rulebook. Load whole before touching graphdata.js, graphcontent.js
+     or nodegraph.html. Biology-Node-Graph.md is the conceptual truth for what
+     the graph is FOR; this is how it is built and what breaks it. -->
 
-The whole placement is computed once at load from the data, in this order — no randomness, so the same map every session:
+# Working on the node graph
 
-**X — explanatory order** (`layerOf`):
+Three files. **`graphdata.js` is the skeleton** — nodes and typed, ranked
+edges, and nothing that draws. **`graphcontent.js` is the material** attached
+to it, separate because the two evolve at different speeds. **`nodegraph.html`
+is the page**, and it holds no curriculum.
 
-1. Every directed edge type declares an ordering or stays silent. FORWARD types (`prerequisite-of`, `causes`, `determines`, `produces`, `part-of`, `contains`, `lowers`, …) put the source left of the target; containment is two of those and they point opposite ways — `part-of` builds, so the part reads first, while `contains` zooms in, so the whole does; BACKWARD types (`consumes`, `destroys`, `explained-by`, `instance-of`) invert that — an instance comes after its class. `contrasts-with`, `describes`, `answers` impose nothing, and `instance-of` into a theme is exempt.
+Content is **re-declared here, never shared with `lib/mapcontent.js`** — the
+questions-composer is being deprecated and the nodegraph is not inheriting a
+dependency on it. Copying a curated row is the accepted cost.
 
-2. **Longest-path layering** over those constraints: a node's layer is one more than the deepest constraint feeding it; unconstrained sources sit at 0. A cycle would be a data bug and warns.
+## The two axes are semantic
 
-3. **Pull-right pass**: a node with no upstream constraint (a disulfide bridge, a gene sequence) is pulled to one column before its first *independently anchored* consequence — ignoring followers whose only constraint is the node itself, which was circular — then layers re-propagate so the followers move too.
+**X is explanatory order**, computed from the edge types. **Y is the scale
+ladder**, from each node's `level`. So `part-of` edges run vertically and
+causal edges horizontally, and reading direction is explanation direction.
 
-4. Nodes with **no ordering edges at all** (induced-fit, the theme) take the mean of their neighbours' layers.
+## Edge grammar
 
-5. Authored **`nudge`** shifts apply last (hydrolysis +2, a display hint until respiration gives it real rightward edges).
+Every edge type is in exactly one of four groups, declared in `nodegraph.html`:
 
-6. Layer × 430px = x target.
+* **FORWARD** — `prerequisite-of` `causes` `determines` `enables` `produces`
+  `alters` `transforms-into` `evidence-for` `part-of` `contains`
+  `contributes-to` `lowers` `precedes` `necessitates`. Source sits left.
+* **BACKWARD** — `consumes` `destroys` `explained-by` `instance-of`
+  `illustrates`. Target sits left; an instance comes after its class.
+* **LATERAL** — `contrasts-with` `analogous-to`. Beside the reading: no order,
+  no arrowhead, contrast colour, never a walk step. One holds two things
+  apart, the other says they are the same move in different systems.
+* **Ordering nothing** — `describes` `answers` `preserves` `spends` `supplies`.
 
-**Y — the scale ladder**: levels 1–10 become horizontal bands, ecosystem at top; bands nothing occupies stay thin. A leveled node (or `occursAt`/`emergesAt`) targets its band's centre; levelless concepts settle at the mean of their neighbours' y, iterated six passes. Specimens carry level 2, so they sit on the macromolecule shelf.
+**Containment is two relations pointing opposite ways.** `part-of` BUILDS, so
+the part reads first (amino acids make a primary structure). `contains` ZOOMS
+IN, so the whole reads first (you meet the enzyme, then look inside for the
+pocket). One type for both put the entire enzyme subtree six columns left of
+the enzyme.
 
-**Questions**: anchored to their rank-1 answer (earliest layer among ties) — 0.7 columns left of it, same y.
+### A resource claim is not an explanatory order
 
-**Then the relax**, which only resolves overlap: x pinned hard to the column (0.12), y pulled to the target (questions 0.07, leveled 0.05, concepts 0.015), pairwise repulsion with a hard shove on actual overlap, a weak y-alignment along edges, and a deterministic per-index jitter to break stacked ties the same way every load. Dragging pins a card out of it permanently.
+The map has learned this three times: fermentation recycling NAD⁺, active
+transport spending ATP, and the Calvin cycle handing sugar to glycolysis. Each
+was typed as `enables` or `produces` and each closed a cycle — the last one
+made **every node on the map** circular.
 
-So: edge types make the x-axis, the ladder makes the y-axis, physics only does spacing.
+Biology's resources genuinely go round in loops and the explanation axis is a
+DAG. `spends` and `supplies` exist so an edge can say "this makes the stuff
+that one over there uses" without also claiming which is read first.
 
-Features:
+**A cycle is always a data bug.** The page warns; the check below catches it.
 
-Satellites are cards that are added to a card via a button on the card like “What kinds are there?"
+## Node types
+
+| type | what it is | walkable? |
+| --- | --- | --- |
+| `concept` `structure` `process` | the skeleton | yes |
+| `question` | a door. `qtype` is `anchor` (opens a unit, large) or `bridging` (joins two already open, small) | via `answers` |
+| `theme` | a saved query over the map. Its fan is dealt whole regardless of rank | no |
+| `evidence` | how we know. Meselson–Stahl, Hershey–Chase | no |
+| `specimen` | spawned from `proteins/proteins.js` by a `p:` placement | no |
+| `content` | a film or a lesson, spawned from `graphcontent.js` | no |
+| `ask` / `satellite` | the kinds pill and what it reveals | no |
+
+Everything after the first row is a **destination, not a station**: `station()`
+excludes them so the walk never steps onto one. Adding a type means adding it
+there too.
+
+## Rank, and the spine flag
+
+`1` is the spine, `2` enrichment, `3` surfaced on request. Soft budget of about
+**five rank-1 edges per node**; past ~8 is a hairball wanting a hinge node.
+`hbond` is the sanctioned exception.
+
+**Rank is authored and never rewritten.** Reachability is a separate field,
+`l.spine`, so the Spine view can keep a node's best edge without falsifying the
+rank that draws it, orders the walk and sizes hubs. Promoting rank in place is
+what once erased the map's only rank-3 edge.
+
+**A theme's rank is read from the instance's side only** — `p:prion instance-of
+folding` rank 1 says prion is the best thing we hold for folding, not that
+folding's next word is prion.
+
+## Placement, computed once at load
+
+No randomness, same map every session, so spatial memory can form.
+
+**X:**
+
+1. Longest-path layering over the ordering constraints.
+2. **Pull-right**: a node with no upstream constraint is pulled to one column
+   before its first *independently anchored* consequence.
+3. **Median tightening**: a node with slack moves to the median of its rank-1
+   neighbours, clamped to its own legal range. Longest-path puts everything as
+   far LEFT as constraints allow, which is wrong for a node merely *mentioned*
+   early — glucose sat nine columns from the glycolysis that consumes it.
+   Rank 1 is what makes it safe: a node with one late consumer and two early
+   causes stays early.
+4. Authored `nudge` last. Nothing uses it now.
+5. Layer × 430px.
+
+**Y:** levels 1–10 become bands, ecosystem at top, unoccupied bands stay thin.
+Then every node settles at the **median of its rank-1 neighbours**, with a
+levelled one clamped back into its own band. The ladder says which rung, the
+edges say where along it. Without this a membrane protein sat below the
+tertiary structure it is an instance of.
+
+**Questions** anchor 0.7 columns left of their rank-1 answer.
+
+**Then the relax, which only resolves overlap**: x pinned to the column (0.12),
+y pulled to the median (questions 0.07, levelled 0.09, levelless 0.06),
+repulsion, a weak y-alignment along edges, deterministic jitter. No spring
+invents a position. Dragging pins a card out of it.
+
+## Kinds: detail that failed the node test
+
+**Reusable concepts get nodes. Facts about one thing get cards.** A `kinds`
+array on a node is the enumeration that fails that test — UV and benzene route
+nowhere and nobody arrives at one alone.
+
+**Only where the members are NOT already nodes.** `organelle` gets no pill
+because nucleus, ribosome, mitochondrion, chloroplast and cell wall are already
+cards hanging off it; a fan would add leftovers and leave a reader asking why
+five members are cards and five are not. Where the members *are* nodes, the
+chips already lead there and going deeper wants a lesson.
+
+The chain is **card → pill → kinds**. The pill is a node because as a chip it
+read as one more navigation control and what it does is not navigation. It
+grows on focus and goes when focus leaves that card's family.
+
+**None of it is baked**, and that is deliberate. A satellite is a leaf with one
+edge to one parent: its position says nothing beyond "below this card", and
+nobody remembers the seat of something they have never seen. They are pinned,
+skipped by the relax's repulsion and link pull, and ride their host — so
+opening one moves nothing else on the map. Measured: **0.0px** of skeleton
+drift.
+
+## What must pass before you commit
+
+Run these in the console. Every one has caught a real bug.
+
+* **No ordering cycle.** `ordered()` on every edge, compare `layerOf`.
+* **No walk loop.** Hold → from all nodes; none may revisit.
+* **Nothing stranded** in Spine view (no edge with `l.spine`).
+* **Every concept reaches a question** within ~6 hops.
+* **No hairball** over 8 rank-1 edges except `hbond`.
+* **Placements resolve** — no content id or node id that does not exist.
+* **Claims are not clipped** — `scrollHeight > clientHeight` on `.claim`.
+  About 95 characters on a normal card, 130 on a hub.
+
+## Adding a unit
+
+Questions first, then nodes, then edges, then the QA walk, then content. Do not
+attach material before the skeleton settles or you will stop restructuring.
+
+Every unit doc has a **ranking caution**, and it is always the same failure:
+named molecules with diagram real estate outrank constraints that carry the
+explanation. Krebs intermediates over chemiosmosis, Calvin intermediates over
+photolysis, the replication enzyme roster over complementarity. The
+discriminating question is **how many rank-1 paths in this graph pass through
+this node** — not page count.
+
+## Traps that ship looking fine
+
+* A **class name collision** between a node's kind and a control's class. A
+  lesson card was `.lesson` and so was the opener button, so the pointerdown
+  guard swallowed every click on the card.
+* Testing an opener with `element.click()`. It skips pointerdown and sails past
+  the guard that is actually broken. **Use real clicks.**
+* Anything computed **before specimens and content cards push their links** is
+  scoring a different graph. `n.big` still does.
+* A node created after `focus()` has run needs `.lit` explicitly, or it sits at
+  18% and looks like a rendering bug.
+* `rem` inside a mark. Marks counter-scale below k=1 and a `rem` child does not,
+  so it renders at 5px on screen.
+* The browser tool's console buffer does not clear on navigate. A fresh tab is
+  the only trustworthy read.
