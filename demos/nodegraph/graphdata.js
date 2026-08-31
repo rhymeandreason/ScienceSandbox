@@ -523,12 +523,21 @@
      the whole oxygen story, so it is the one at rank 1. */
   { id:'light-energy', type:'concept', unit:'photo', name:'Light energy',
     claim:'Photons arrive in fixed sizes. A pigment either absorbs one whole or does not absorb it.' },
+  /* CHLOROPHYLL KEEPS ITS CARD AND THE REST ARE THE FAN, which is the one
+     place the map lets a class split that way: chlorophyll is `part-of
+     photosystem` at rank 1 and answers a question of its own, and none of the
+     others carries anything downstream. Accessory pigments were a card and are
+     now the fan they always described. */
   { id:'pigment', type:'concept', unit:'photo', name:'Pigment',
-    claim:'A molecule that absorbs some wavelengths and reflects the rest. You see the wavelengths it threw away.' },
+    claim:'A molecule that absorbs some wavelengths and reflects the rest. You see the wavelengths it threw away.',
+    kinds:[
+      ['Carotenoid', 'Orange and yellow. Catches what chlorophyll misses, and is there all summer, masked.'],
+      ['Anthocyanin', 'Red and purple, and mostly made fresh rather than unmasked. Also most red flowers and fruit.'],
+      ['Phycobilin', 'Red algae and cyanobacteria. Catches the blue-green that is all that reaches any depth.'],
+      ['Retinal', 'The one in your own eye. A pigment absorbing light is not a plant idea.'],
+    ] },
   { id:'chlorophyll', type:'structure', unit:'photo', level:1, name:'Chlorophyll',
     claim:'Absorbs red and blue hard, green barely at all. Plants are green because green is the light they waste.' },
-  { id:'accessory-pigment', type:'structure', unit:'photo', level:1, name:'Accessory pigments',
-    claim:'Carotenoids catch wavelengths chlorophyll misses. They are there all summer, masked, until chlorophyll breaks down.' },
   { id:'photosystem', type:'structure', unit:'photo', level:2, name:'Photosystem',
     claim:'A few hundred pigments funnelling energy to one pair of chlorophylls that lets an electron go.',
     kinds:[
@@ -612,7 +621,7 @@
   { id:'q-universal', type:'question', qtype:'anchor', text:'Why is the code the same in bacteria and in you?' },
   { id:'q-treemass', type:'question', qtype:'anchor', text:'Where does the mass of a tree come from?' },
   { id:'q-green',    type:'question', qtype:'anchor', text:'Why are plants green?' },
-  { id:'q-autumn',   type:'question', qtype:'anchor', text:'Why do leaves change colour in autumn?' },
+
   { id:'q-plantmito', type:'question', qtype:'bridging', text:'If plants make sugar, why do they also need mitochondria?' },
   { id:'q-o2',       type:'question', qtype:'anchor', text:'Where does the oxygen you breathe come from?' },
   /* EXTENSION: the answer is not on the card it points at, it is inside that
@@ -634,6 +643,8 @@
     text:'How does a cell hold a gene switched off?' },
   { id:'q-psii',     type:'question', qtype:'extension', kind:'Photosystem II',
     text:'Why does the chain start at photosystem II?' },
+  { id:'q-autumn',   type:'question', qtype:'extension', kind:'Carotenoid',
+    text:'Why do leaves change colour in autumn?' },
   ];
 
   const EDGES = [
@@ -804,13 +815,14 @@
     /* light: pigments, and the green misconception the unit turns on */
     ['light-energy',     'prerequisite-of','photosystem',     1],
     ['chlorophyll',      'instance-of',    'pigment',         1],
-    ['accessory-pigment','instance-of',    'pigment',         1],
     ['chlorophyll',      'part-of',        'photosystem',     1],
     ['pigment',          'enables',        'photosystem',     2],
     ['q-green',          'answers',        'pigment',         1],
     ['q-green',          'answers',        'chlorophyll',     2],
-    ['q-autumn',         'answers',        'accessory-pigment', 1],
-    ['q-autumn',         'answers',        'chlorophyll',     2],
+    /* the autumn question lands on Carotenoid: what changes is not the
+       carotenoid, it is the chlorophyll going, and the fan is where that
+       sits now */
+    ['q-autumn',         'answers',        'pigment',         1],
 
     /* PHOTOLYSIS IS RANK 1, against every textbook's page count. It carries
        the electron-replacement problem AND the whole oxygen story: the O₂

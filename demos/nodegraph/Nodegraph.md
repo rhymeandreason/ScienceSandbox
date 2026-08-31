@@ -173,6 +173,15 @@ cards hanging off it; a fan would add leftovers and leave a reader asking why
 five members are cards and five are not. Where the members *are* nodes, the
 chips already lead there and going deeper wants a lesson.
 
+**One member may keep its card when it alone carries something downstream.**
+`pigment` fans Carotenoid, Anthocyanin, Phycobilin and Retinal while
+`chlorophyll` stays a node, because chlorophyll is `part-of photosystem` at
+rank 1 and answers a question of its own and none of the others reaches
+anything. That is the split `organelle` forbids, allowed because it is one card
+against a fan rather than five against five: the reader asks why chlorophyll is
+different, and the map's answer is the edge leaving it. **Accessory pigments
+used to be a card here** — a card whose whole claim was the fan it named.
+
 The chain is **card → pill → kinds**. The pill is a node because as a chip it
 read as one more navigation control and what it does is not navigation. It
 grows on focus and goes when focus leaves that card's family.
