@@ -23,3 +23,7 @@ The whole placement is computed once at load from the data, in this order — no
 **Then the relax**, which only resolves overlap: x pinned hard to the column (0.12), y pulled to the target (questions 0.07, leveled 0.05, concepts 0.015), pairwise repulsion with a hard shove on actual overlap, a weak y-alignment along edges, and a deterministic per-index jitter to break stacked ties the same way every load. Dragging pins a card out of it permanently.
 
 So: edge types make the x-axis, the ladder makes the y-axis, physics only does spacing.
+
+Features:
+
+Satellites are cards that are added to a card via a button on the card like “What kinds are there?"

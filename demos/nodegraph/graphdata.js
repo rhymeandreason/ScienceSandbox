@@ -161,7 +161,13 @@
   { id:'amino-acid', type:'structure', unit:'proteins', level:1, name:'Amino acid',
     claim:'Twenty kinds, and only the side chain differs between them.' },
   { id:'r-group', type:'structure', unit:'proteins', level:1, name:'R-group',
-    claim:'The side chain: nonpolar, polar, acidic or basic. Those four categories decide how the chain folds.' },
+    claim:'The side chain: nonpolar, polar, acidic or basic. Those four categories decide how the chain folds.',
+    kinds:[
+      ['Nonpolar', 'Greasy. Buried in the core away from water, and what holds the fold together.'],
+      ['Polar', 'Wet. Sits on the surface and hydrogen-bonds to water and to other side chains.'],
+      ['Acidic', 'Negative at cell pH. Aspartate and glutamate.'],
+      ['Basic', 'Positive at cell pH. Lysine, arginine, histidine.'],
+    ] },
   { id:'peptide-bond', type:'structure', unit:'proteins', level:1, name:'Peptide bond',
     claim:'The covalent link between amino acids, and it survives cooking.' },
   { id:'primary', type:'structure', unit:'proteins', level:2, name:'Primary structure',
@@ -183,7 +189,18 @@
   { id:'denaturation', type:'process', unit:'proteins', occursAt:1, name:'Denaturation',
     claim:'Heat or acid unfolds the shape while the peptide bonds hold. The sequence survives, everything built on it does not.' },
   { id:'func', type:'concept', unit:'proteins', name:'Protein function',
-    claim:'A protein works by having one shape that fits one thing. Function is the fit.' },
+    claim:'A protein works by having one shape that fits one thing. Function is the fit.',
+    /* Enzyme is also a node, and appears here anyway: four of these five are
+       nowhere on the map, so the fan is mostly new material and leaving the
+       best-known one out would make it a strange, incomplete answer. The
+       organelle case is the opposite way round, and gets no fan. */
+    kinds:[
+      ['Enzyme', 'Lowers a barrier and comes out unchanged.'],
+      ['Structural', 'Holds things up. Collagen, keratin, the cytoskeleton.'],
+      ['Transport', 'Carries or admits. Haemoglobin, channels, pumps.'],
+      ['Receptor', 'Binds a signal and changes shape, so a message crosses a membrane.'],
+      ['Motor', 'Turns ATP into movement. Myosin, kinesin, the flagellar motor.'],
+    ] },
 
   { id:'enzyme', type:'structure', unit:'proteins', level:2, name:'Enzyme',
     claim:'A protein that lowers the barrier and comes out the other side unchanged.' },
@@ -204,7 +221,12 @@
      hold. The sickle chain's card content lives on point-mutation and on
      the haemoglobin specimen's own variants. */
   { id:'point-mutation', type:'concept', unit:'proteins', name:'Point mutation',
-    claim:'One base changed, one amino acid swapped. Glu→Val on hemoglobin is enough to sickle a cell.' },
+    claim:'One base changed, one amino acid swapped. Glu→Val on hemoglobin is enough to sickle a cell.',
+    kinds:[
+      ['Silent', 'The codon changed and the amino acid did not. Most third-base changes are this.'],
+      ['Missense', 'One amino acid swapped for another. Sickle cell is a missense mutation.'],
+      ['Nonsense', 'A stop codon appears early and the chain is cut off where it stands.'],
+    ] },
   { id:'nat-select', type:'process', unit:'proteins', emergesAt:8, name:'Natural selection',
     claim:'Heritable variation plus unequal survival, repeated. Populations evolve; individuals never do.' },
 
@@ -262,7 +284,13 @@
     claim:'The crowded solution filling the cell, packed so densely with protein that a molecule can barely turn around.' },
 
   { id:'organelle', type:'structure', unit:'cell', level:3, name:'Organelle',
-    claim:'A room with its own chemistry, and its own membrane to keep it that way.' },
+    claim:'A room with its own chemistry, and its own membrane to keep it that way.',
+    /* NO `kinds` HERE, and the reason is the rule for the whole mechanism:
+       nucleus, ribosome, mitochondrion, chloroplast and cell wall are already
+       nodes hanging off this card. A fan would add only the leftovers and
+       leave a reader asking why five members are cards and five are not.
+       `kinds` is for a category whose members are NOT on the map. Where they
+       are, the chips already lead there, and going deeper wants a lesson. */ },
   { id:'nucleus', type:'structure', unit:'cell', level:3, name:'Nucleus',
     claim:'The DNA, kept apart from the machinery that reads it.' },
   { id:'ribosome', type:'structure', unit:'cell', level:3, name:'Ribosome',
@@ -343,7 +371,16 @@
     claim:'One very long DNA molecule wound onto protein spools, so two metres of it fits in a nucleus.' },
 
   { id:'replication', type:'process', unit:'genetics', occursAt:3, name:'DNA replication',
-    claim:'The strands separate and each one templates a new partner. One molecule becomes two.' },
+    claim:'The strands separate and each one templates a new partner. One molecule becomes two.',
+    /* five tidy job descriptions with no downstream degree in Bio 101, which
+       is exactly why they are content here and not nodes */
+    kinds:[
+      ['Helicase', 'Unwinds the double helix and holds the two strands apart.'],
+      ['DNA polymerase', 'Adds bases to the new strand, and checks the last one it added.'],
+      ['Primase', 'Lays a short RNA start, because polymerase cannot begin from nothing.'],
+      ['Ligase', 'Seals the nicks between the lagging strand\u2019s backward pieces.'],
+      ['Topoisomerase', 'Cuts and rejoins ahead of the fork so the helix does not knot.'],
+    ] },
   { id:'semiconservative', type:'concept', unit:'genetics', name:'Semiconservative',
     claim:'Every new molecule keeps one old strand. The original is never discarded, only shared out.' },
   { id:'proofreading', type:'concept', unit:'genetics', name:'Proofreading',
@@ -373,6 +410,17 @@
 
   { id:'mutation', type:'concept', unit:'genetics', name:'Mutation',
     claim:'Any change to the sequence. Most do nothing, some are harmful, and a few are the raw material of evolution.' },
+  /* The map had exactly one cause of mutation, `replication causes mutation`,
+     which quietly said every mutation is a copying error. This is the other
+     half. UV, benzene and gamma rays are not each a node: they route nowhere
+     and nobody arrives at one alone, so they are this card's `kinds`. */
+  { id:'mutagen', type:'concept', unit:'genetics', name:'Mutagen',
+    claim:'Something from outside that damages the sequence. The other way a mutation happens, besides miscopying.',
+    kinds:[
+      ['Ultraviolet', 'Fuses two neighbouring thymines into a kink the copying enzyme reads wrong.'],
+      ['Chemical', 'Benzene, aflatoxin, tobacco tar. Some mimic a base, some jam themselves between them.'],
+      ['Ionising radiation', 'X-rays and gamma rays cut the backbone outright, sometimes both strands at once.'],
+    ] },
   { id:'frameshift', type:'concept', unit:'genetics', name:'Frameshift',
     claim:'Insert or delete one base and the frame shifts. Everything downstream is nonsense.' },
 
@@ -780,7 +828,11 @@
     ['frameshift',       'explained-by',    'reading-frame',  1],
     ['point-mutation',   'alters',          'r-group',        2],
     ['mutation',         'prerequisite-of', 'nat-select',     1],
-    ['replication',      'causes',          'mutation',       2],
+    /* the two sources of mutation, as a pair rather than one an afterthought:
+       your own copying, and the world */
+    ['replication',      'causes',          'mutation',       1],
+    ['mutagen',          'causes',          'mutation',       1],
+    ['q-sunburn',        'answers',         'mutagen',        1],
 
     /* THE QUESTION STUDENTS MOST WANT ANSWERED, and the one most often cut
        for time. Rank 1 on purpose. */
