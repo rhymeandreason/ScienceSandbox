@@ -99,7 +99,11 @@
   { id:'temp-buffer', type:'concept', unit:'water', name:'Temperature buffering',
     claim:'Cells and lakes change temperature slowly. Heat breaks H-bonds before it speeds molecules up.' },
   { id:'thermoreg', type:'process', unit:'water', occursAt:7, name:'Thermoregulation',
-    claim:'Keeping body temperature steady while the outside moves. Sweat evaporates and takes the heat.' },
+    claim:'Keeping body temperature steady while the outside moves. Sweat evaporates and takes the heat.',
+    kinds:[
+      ['Endotherm', 'Heats itself from its own metabolism. Steady, and it costs most of what you eat.'],
+      ['Ectotherm', 'Takes its heat from outside. Cheap to run, and slow on a cold morning.'],
+    ] },
   { id:'osmosis', type:'process', unit:'water', occursAt:4, name:'Osmosis',
     claim:'Water diffusing down its own gradient, from where there is more of it to where there is less.' },
   { id:'overwinter', type:'process', unit:'water', occursAt:10, name:'Aquatic overwintering',
@@ -129,7 +133,15 @@
      aggregate, not a polymer, and that exception is the content. */
   { id:'functional-group', type:'concept', unit:'macro', subject:'chemistry',
     name:'Functional group',
-    claim:'A small cluster of atoms that behaves the same way whatever carbon skeleton it is bolted to.' },
+    claim:'A small cluster of atoms that behaves the same way whatever carbon skeleton it is bolted to.',
+    kinds:[
+      ['Hydroxyl', 'OH. Makes the molecule polar, which is why sugars and alcohols dissolve.'],
+      ['Carbonyl', 'C=O. At the end of a chain it is an aldehyde, in the middle a ketone.'],
+      ['Carboxyl', 'COOH. Gives up its proton, so it is an acid. Every amino acid carries one.'],
+      ['Amino', 'NH₂. Takes a proton up, so it is a base. The other end of an amino acid.'],
+      ['Phosphate', 'PO₄. Negative, and where ATP holds the energy it is about to spend.'],
+      ['Methyl', 'CH₃. Nonpolar and unreactive, and a tag that switches genes quiet.'],
+    ] },
   { id:'polymer', type:'concept', unit:'macro', name:'Polymer',
     claim:'Monomers joined into a chain by one bond, repeated. Three of the four classes are built this way.' },
 
@@ -143,12 +155,24 @@
     claim:'The same glucose linked β. One flipped bond, and no enzyme you own will touch it.' },
 
   { id:'fatty-acid', type:'structure', unit:'macro', level:1, name:'Fatty acid',
-    claim:'A long hydrocarbon tail with an acid group on the end. The tail is the energy.' },
+    claim:'A long hydrocarbon tail with an acid group on the end. The tail is the energy.',
+    kinds:[
+      ['Saturated', 'No double bonds, so the tails are straight and pack tight. Solid at room temperature.'],
+      ['Unsaturated', 'A double bond kinks the tail and stops it packing. Oils, and membrane fluidity.'],
+      ['Trans', 'A double bond with the kink straightened out by processing, so it packs like a saturated one.'],
+    ] },
   { id:'triglyceride', type:'structure', unit:'macro', level:2, name:'Triglyceride',
     claim:'Three fatty acids on a glycerol. Not a polymer: no repeating unit, no chain.' },
 
   { id:'nucleotide', type:'structure', unit:'macro', level:1, name:'Nucleotide',
-    claim:'Phosphate, sugar, base. The phosphate is why the backbone is charged.' },
+    claim:'Phosphate, sugar, base. The phosphate is why the backbone is charged.',
+    kinds:[
+      ['Adenine', 'A purine, two rings. Pairs with thymine in DNA and with uracil in RNA.'],
+      ['Thymine', 'A pyrimidine, one ring. DNA only, and two hydrogen bonds to adenine.'],
+      ['Guanine', 'A purine. Three hydrogen bonds to cytosine, which makes it the stronger pair.'],
+      ['Cytosine', 'A pyrimidine, and guanine\u2019s partner in both DNA and RNA.'],
+      ['Uracil', 'Thymine without its methyl. RNA uses it; DNA does not, which helps repair spot damage.'],
+    ] },
   { id:'protein-class', type:'structure', unit:'macro', level:2, name:'Protein',
     claim:'Amino acids in a chain. The only class whose monomers come in twenty kinds.' },
 
@@ -173,7 +197,12 @@
   { id:'primary', type:'structure', unit:'proteins', level:2, name:'Primary structure',
     claim:'The sequence of amino acids, written by the gene.' },
   { id:'secondary', type:'structure', unit:'proteins', level:2, name:'Secondary structure',
-    claim:'Helices and sheets, held by backbone H-bonds. The side chains play no part.' },
+    claim:'Helices and sheets, held by backbone H-bonds. The side chains play no part.',
+    kinds:[
+      ['α-helix', 'The backbone coils, hydrogen-bonded four residues along. Keratin is almost all of it.'],
+      ['β-sheet', 'Strands lie alongside each other and bond across. Silk, and the barrel in GFP.'],
+      ['Turn', 'A short reversal so the chain can fold back on itself. Usually glycine or proline.'],
+    ] },
   { id:'tertiary', type:'structure', unit:'proteins', level:2, name:'Tertiary structure',
     claim:'The overall 3D shape, driven entirely by the side chains.' },
   { id:'quaternary', type:'structure', unit:'proteins', level:2, name:'Quaternary structure',
@@ -203,7 +232,15 @@
     ] },
 
   { id:'enzyme', type:'structure', unit:'proteins', level:2, name:'Enzyme',
-    claim:'A protein that lowers the barrier and comes out the other side unchanged.' },
+    claim:'A protein that lowers the barrier and comes out the other side unchanged.',
+    kinds:[
+      ['Oxidoreductase', 'Moves electrons. The dehydrogenases that load NAD⁺ are these.'],
+      ['Transferase', 'Moves a group from one molecule to another. Hexokinase moves a phosphate.'],
+      ['Hydrolase', 'Breaks a bond using water. Amylase, and most of digestion.'],
+      ['Lyase', 'Breaks a bond without water, and often leaves a double bond behind.'],
+      ['Isomerase', 'Rearranges a molecule into its isomer, adding and removing nothing.'],
+      ['Ligase', 'Joins two molecules together, and spends ATP to do it.'],
+    ] },
   { id:'active-site', type:'structure', unit:'proteins', level:2, name:'Active site',
     claim:'A pocket in the tertiary structure where the substrate fits.' },
   { id:'specificity', type:'concept', unit:'proteins', name:'Specificity',
@@ -228,7 +265,12 @@
       ['Nonsense', 'A stop codon appears early and the chain is cut off where it stands.'],
     ] },
   { id:'nat-select', type:'process', unit:'proteins', emergesAt:8, name:'Natural selection',
-    claim:'Heritable variation plus unequal survival, repeated. Populations evolve; individuals never do.' },
+    claim:'Heritable variation plus unequal survival, repeated. Populations evolve; individuals never do.',
+    kinds:[
+      ['Directional', 'One extreme is favoured and the whole population shifts that way.'],
+      ['Stabilising', 'The middle is favoured and both extremes are trimmed. Birth weight is the classic case.'],
+      ['Disruptive', 'Both extremes beat the middle, which is how one population can split in two.'],
+    ] },
 
   /* ---- cell & membrane ------------------------------------------------
      THE HINGE IS SELECTIVE PERMEABILITY. Hung straight off the bilayer,
@@ -279,7 +321,13 @@
   { id:'prokaryote', type:'structure', unit:'cell', level:4, name:'Prokaryote',
     claim:'A cell with no nucleus and no internal compartments, small enough that it does not need them.' },
   { id:'eukaryote', type:'structure', unit:'cell', level:4, name:'Eukaryote',
-    claim:'A cell that keeps its DNA in a nucleus and divides its chemistry among membrane-bound compartments, which is what lets it be large.' },
+    claim:'A cell that keeps its DNA in a nucleus and divides its chemistry among membrane-bound compartments, which is what lets it be large.',
+    kinds:[
+      ['Animal', 'No wall and no chloroplast. Its shape comes from the cytoskeleton alone.'],
+      ['Plant', 'Cellulose wall, chloroplasts, and one big vacuole holding the cell rigid.'],
+      ['Fungal', 'A wall like a plant\u2019s but built from chitin, and no chloroplast.'],
+      ['Protist', 'Everything else with a nucleus. A dustbin category, and mostly single cells.'],
+    ] },
   { id:'cytoplasm', type:'structure', unit:'cell', level:4, name:'Cytoplasm',
     claim:'The crowded solution filling the cell, packed so densely with protein that a molecule can barely turn around.' },
 
@@ -349,7 +397,11 @@
   { id:'etc', type:'process', unit:'resp', occursAt:3, name:'Electron transport chain',
     claim:'Electrons fall from carrier to carrier, and every drop pumps protons across the membrane.' },
   { id:'fermentation', type:'process', unit:'resp', occursAt:4, name:'Fermentation',
-    claim:'No oxygen, so the chain stops and the carriers stay full. Fermentation empties them so glycolysis can keep going.' },
+    claim:'No oxygen, so the chain stops and the carriers stay full. Fermentation empties them so glycolysis can keep going.',
+    kinds:[
+      ['Lactate', 'One step. Pyruvate takes the electrons back, and your muscles feel it.'],
+      ['Ethanol', 'Two steps, and a carbon leaves as CO₂. Yeast does this, which is bread and beer.'],
+    ] },
 
   /* ---- molecular genetics ---------------------------------------------
      COMPLEMENTARITY IS THE HINGE. A-T and G-C is why replication is
@@ -402,7 +454,12 @@
   { id:'genetic-code', type:'concept', unit:'genetics', name:'The genetic code',
     claim:'Which triplet means which amino acid. Nearly identical in every organism alive.' },
   { id:'codon', type:'concept', unit:'genetics', name:'Codon',
-    claim:'Three bases, one amino acid. Sixty-four triplets for twenty amino acids, so most have spares.' },
+    claim:'Three bases, one amino acid. Sixty-four triplets for twenty amino acids, so most have spares.',
+    kinds:[
+      ['Start', 'AUG. Marks where translation begins, and sets the frame for everything after it.'],
+      ['Stop', 'UAA, UAG, UGA. No amino acid at all. The ribosome lets go.'],
+      ['Sense', 'The other sixty. Each names one amino acid, and most amino acids answer to several.'],
+    ] },
   { id:'trna', type:'structure', unit:'genetics', level:2, name:'tRNA',
     claim:'An adaptor: one end pairs with the codon, the other carries the matching amino acid.' },
   { id:'reading-frame', type:'concept', unit:'genetics', name:'Reading frame',
@@ -427,7 +484,11 @@
   { id:'gene-expression', type:'concept', unit:'genetics', name:'Gene expression',
     claim:'Which genes a cell is currently reading. Every cell holds the same genome and runs a different part of it.' },
   { id:'transcription-factor', type:'structure', unit:'genetics', level:2, name:'Transcription factor',
-    claim:'A protein that binds near a gene and changes how often it is read. A dial, not a switch.' },
+    claim:'A protein that binds near a gene and changes how often it is read. A dial, not a switch.',
+    kinds:[
+      ['Activator', 'Binds and makes the gene easier to read, so more of the protein gets made.'],
+      ['Repressor', 'Binds and gets in the way, so the gene is read less. Rarely off, just quieter.'],
+    ] },
   { id:'differentiation', type:'process', unit:'genetics', occursAt:4, name:'Differentiation',
     claim:'A neuron and a liver cell hold identical DNA. They differ in which of it is switched on.' },
   { id:'central-dogma', type:'concept', unit:'genetics', name:'The central dogma',
@@ -466,7 +527,11 @@
   { id:'accessory-pigment', type:'structure', unit:'photo', level:1, name:'Accessory pigments',
     claim:'Carotenoids catch wavelengths chlorophyll misses. They are there all summer, masked, until chlorophyll breaks down.' },
   { id:'photosystem', type:'structure', unit:'photo', level:2, name:'Photosystem',
-    claim:'A few hundred pigments funnelling energy to one pair of chlorophylls that lets an electron go.' },
+    claim:'A few hundred pigments funnelling energy to one pair of chlorophylls that lets an electron go.',
+    kinds:[
+      ['Photosystem II', 'First in the chain despite the name. It splits water and starts the electrons moving.'],
+      ['Photosystem I', 'Second. Another photon re-energises the electrons, and NADPH gets loaded.'],
+    ] },
   { id:'photolysis', type:'process', unit:'photo', occursAt:3, name:'Photolysis',
     claim:'Water is split to replace the electron the photosystem lost. The oxygen is what is left over.' },
 
@@ -481,7 +546,12 @@
   { id:'calvin', type:'process', unit:'photo', occursAt:3, name:'Calvin cycle',
     claim:'Spends the ATP and NADPH to build sugar from CO₂. It runs in daylight; it just does not need photons directly.' },
   { id:'carbon-fixation', type:'concept', unit:'photo', name:'Carbon fixation',
-    claim:'Rubisco attaches CO₂ from the air onto a sugar, and that carbon is now plant. A tree is mostly rebuilt atmosphere.' },
+    claim:'Rubisco attaches CO₂ from the air onto a sugar, and that carbon is now plant. A tree is mostly rebuilt atmosphere.',
+    kinds:[
+      ['C3', 'Rubisco fixes carbon straight into the Calvin cycle. Most plants, and it struggles in heat.'],
+      ['C4', 'Carbon is caught in one cell and handed to another, so rubisco never meets much oxygen.'],
+      ['CAM', 'Pores open at night and the carbon is held until morning. Cacti, in deserts.'],
+    ] },
   { id:'rubisco', type:'structure', unit:'photo', level:2, name:'Rubisco',
     claim:'The most abundant protein on Earth, and the enzyme that fixes CO₂ onto sugar. It is slow, and it binds O₂ by mistake often.' },
 
