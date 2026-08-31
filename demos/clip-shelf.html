@@ -101,13 +101,32 @@
     font-family: var(--serif); font-size: 1rem; line-height: 1.28;
     margin-top: 0.35rem; letter-spacing: -0.005em;
   }
+  /* The clip's OWN ratio, set per card from w/h — a portrait clip is drawn
+     portrait here, so what the shelf shows is the footage rather than a crop
+     of it. The map's thumb is 4:3 and stays that way; `.crop` below is the
+     small companion that shows what that costs. */
   .thumb {
-    position: relative; overflow: hidden; width: 100%; aspect-ratio: 4 / 3;
+    position: relative; overflow: hidden; width: 100%;
     margin: 0.65rem 0 0.25rem; background: #eceae4;
     border: 1px solid var(--line); border-radius: 3px;
   }
   .thumb video, .thumb img {
     position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  }
+  /* What the node map will actually show: the same clip in the map's 4:3
+     thumb, under the row's `fit`. Small on purpose — it is a check, not the
+     subject. Without it, `fit` is a field nothing on this page can judge. */
+  .crop {
+    position: relative; overflow: hidden; width: 7rem; aspect-ratio: 4 / 3;
+    flex: none; background: #eceae4; border: 1px solid var(--line);
+    border-radius: 3px;
+  }
+  .crop video { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .aside { display: flex; gap: 0.6rem; align-items: flex-start; margin-top: 0.5rem; }
+  .aside .meta { margin-top: 0; }
+  .crop-label {
+    font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 0.2rem;
   }
   .meta { font-size: 0.7rem; color: var(--muted); line-height: 1.45; margin-top: 0.4rem; }
   .meta a { color: var(--accent); }
@@ -230,18 +249,31 @@ function draw() {
     const card = document.createElement('div');
     card.className = 'card';
     const kb = Math.round(c.bytes / 1024);
+    // object-fit: fill on the big one, because the box already IS the clip's
+    // ratio — nothing to letterbox and nothing to crop.
+    const src = 'nodegraph/clips/' + esc(c.slug) + '.mp4';
+    const poster = 'nodegraph/clips/' + esc(c.slug) + '.jpg';
+    const fit = c.fit === 'contain' ? 'contain' : 'cover';
     card.innerHTML = `
       <div class="name">${esc(c.id)}</div>
       <div class="claim">${esc(c.caption || c.title)}</div>
-      <div class="thumb">
-        <video src="nodegraph/clips/${esc(c.slug)}.mp4"
-               poster="nodegraph/clips/${esc(c.slug)}.jpg"
-               style="object-fit:${c.fit === 'contain' ? 'contain' : 'cover'}"
-               autoplay loop muted playsinline></video>
+      <div class="thumb" style="aspect-ratio:${c.w} / ${c.h}">
+        <video src="${src}" poster="${poster}"
+               style="object-fit:fill" autoplay loop muted playsinline></video>
       </div>
-      <div class="meta">
-        ${esc(c.title)} · ${c.w}×${c.h} · ${c.seconds}s · ${kb} KB · ${esc(c.fetched)}<br>
-        ${c.credit ? esc(c.credit) + ' · ' : ''}${c.page ? `<a href="${esc(c.page)}" target="_blank" rel="noopener">giphy</a>` : 'local file'}
+      <div class="aside">
+        <div>
+          <div class="crop-label">map 4:3 · ${esc(fit)}</div>
+          <div class="crop">
+            <video src="${src}" poster="${poster}"
+                   style="object-fit:${esc(fit)}" autoplay loop muted playsinline></video>
+          </div>
+        </div>
+        <div class="meta">
+          ${esc(c.title)}<br>${c.w}×${c.h} · ${c.seconds}s · ${kb} KB<br>
+          ${esc(c.fetched)}<br>
+          ${c.credit ? esc(c.credit) + ' · ' : ''}${c.page ? `<a href="${esc(c.page)}" target="_blank" rel="noopener">giphy</a>` : 'local file'}
+        </div>
       </div>
       <div class="row">
         <button class="ghost" data-fit="${esc(c.slug)}">flip fit</button>
