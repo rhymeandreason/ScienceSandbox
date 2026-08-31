@@ -270,6 +270,21 @@
     color: var(--dot, var(--muted)); font-weight: 600; margin-right: 0.05rem;
   }
 
+  /* THE PILL IS A NODE, so it is a node's shape: sitting on the paper below
+     the card it belongs to, with the question written on it. It is the only
+     rounded thing on the map, which is what makes opening one feel like an
+     event rather than another chip. */
+  .node.askpill {
+    padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer;
+    background: var(--card); border: 1px solid var(--dot, var(--accent));
+    color: var(--dot, var(--accent));
+    font-family: var(--sans); font-size: 0.62rem; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
+    box-shadow: 0 6px 18px -10px rgba(20,22,26,.35);
+    transition: background .15s, color .15s;
+  }
+  .node.askpill:hover { background: var(--dot, var(--accent)); color: var(--card); }
+
   /* a revealed kind: a small card, no dot, no chips. It is a leaf and it
      says so by being visibly lighter than the card it hangs off. */
   .node.card.satellite {
@@ -282,8 +297,6 @@
   .node.card.satellite .claim {
     font-size: 0.8em; line-height: 1.3; -webkit-line-clamp: 4;
   }
-  .chip.ask { color: var(--ink); border-color: #c9c4b6; font-style: italic; }
-  .chip.ask:hover { border-color: var(--ink); }
 
   /* ---- a specimen card -------------------------------------------------
      The composer's, verbatim in spirit: the concept card inverted. Name
@@ -1146,6 +1159,10 @@ function paintNode(n) {
                    '<div class="claim">' + esc(n.claim) + '</div>' +
                    '<div class="prov">' + prov + '</div>' +
                    '<div class="chips"></div>';
+  } else if (n.type === 'ask') {
+    el.className = 'node askpill';
+    el.dataset.host = n.host.id;
+    el.textContent = n.label;
   } else if (n.type === 'satellite') {
     el.className = 'node card satellite';
     if (n.tint) el.style.setProperty('--dot', n.tint);
@@ -1492,7 +1509,7 @@ canvas.addEventListener('pointerdown', e => {
   /* a card's own controls keep their pointer — every control must be here.
      The symptom of a missing entry is a button that renders and does
      nothing while the card behind it opens. */
-  if (e.target.closest('.chip, .mb-dims, .pbox-rep, .pbox-play, .opener')) return;
+  if (e.target.closest('.chip, .mb-dims, .pbox-rep, .pbox-play, .opener, .askpill')) return;
   const hit = e.target.closest('.node');
   last = { x: e.clientX, y: e.clientY };
   travel = 0;
@@ -1616,11 +1633,6 @@ function renderChips(n) {
   if (why) parts.push('<button class="chip" data-g="why">why · ' + why + '</button>');
   if (on)  parts.push('<button class="chip" data-g="onward">so what · ' + on + '</button>');
   if (c)   parts.push('<button class="chip contrast" data-g="contrast">contrast · ' + c + '</button>');
-  /* the card's own question, which is not navigation: it reveals detail that
-     failed the node test rather than moving you to another card */
-  if (n.kinds)
-    parts.push('<button class="chip ask">' +
-      (n.sats ? 'hide the ' + n.kinds.length : 'what kinds are there?') + '</button>');
   box.innerHTML = parts.join('');
 }
 
@@ -1644,6 +1656,8 @@ const lessonModal = Modal.create({
 
 document.addEventListener('click', e => {
   if (e.target.closest('.credit a')) return;   // the credit goes out, not in
+  const ask = e.target.closest('.askpill');
+  if (ask) { toggleKinds(byId[ask.dataset.host]); return; }
   const open = e.target.closest('.opener[data-open]');
   if (open) {
     const c = BY_CONTENT.get(open.dataset.open);
@@ -1654,7 +1668,6 @@ document.addEventListener('click', e => {
   if (!b) return;
   const n = nodes.find(m => m.el.contains(b));
   if (!n) return;
-  if (b.classList.contains('ask')) { toggleKinds(n); return; }
   for (const l of linksOf(n)) {
     if (b.dataset.g !== 'all' && groupOf(l, n) !== b.dataset.g) continue;
     light(l.a === n ? l.b : l.a);
@@ -1683,6 +1696,7 @@ function focus(n) {
   for (const m of hop2) m.el.classList.add('lit', 'hop2');
 
   renderChips(n);
+  syncPill(n);
   measure();
   gutterLight(n);
 
@@ -1710,6 +1724,7 @@ function focus(n) {
 function clearFocus() {
   focused = null;
   walk = null;
+  syncPill(null);
   showHint();
   document.body.classList.remove('focusing');
   for (const m of nodes) {
@@ -1762,7 +1777,7 @@ function walkDir(l, n) {
    explanation walks through */
 const station = n => n.type !== 'specimen' && n.type !== 'theme' &&
                      n.type !== 'content' && n.type !== 'evidence' &&
-                     n.type !== 'satellite';
+                     n.type !== 'satellite' && n.type !== 'ask';
 
 /* how far a branch carries: the longest rank-1 chain onward from it. No
    memo — 64 nodes, and only a keypress asks. The seen guard is for a data
@@ -1978,85 +1993,131 @@ function applyHighlight() {
 hiliteSel.addEventListener('change', applyHighlight);
 
 /* ---- kinds: detail that failed the node test -----------------------------
-   NOT BAKED, and that is the one invariant here worth arguing about. The map
-   is laid out once so spatial memory can form, but a satellite is a leaf with
-   exactly one edge to exactly one parent: its position carries no information
-   beyond "beside this card", and nobody remembers the seat of something they
-   have never seen. Reserving room for a hundred of them would cost real
-   geometry in a map already tight in y, to protect a memory that cannot form.
+   THE CHAIN IS card → pill → kinds. The pill is a node rather than another
+   chip in the card's row, because as a chip it read as one more navigation
+   control among three and the thing it does is not navigation. As a node
+   hanging off the card it is an event, and the kinds then hang off IT, so
+   the map says plainly that these arrived through a question.
 
-   So they are made on reveal, stacked one column right the way a specimen
-   sits, PINNED, and skipped by the relax's repulsion and its link pull, so
-   revealing them moves nothing else on the map. The skeleton stays identical
-   every load, which is the half of the invariant that was ever load-bearing. */
-function toggleKinds(n) {
-  if (n.sats) {
-    for (const sat of n.sats) {
-      sat.el.remove();
-      nodes.splice(nodes.indexOf(sat), 1);
-      delete byId[sat.id];
-    }
-    for (const l of n.satLinks) { l.el.remove(); l.label.remove(); if (l.arrow) l.arrow.remove(); }
-    links = links.filter(l => !n.satLinks.includes(l));
-    n.sats = null; n.satLinks = null;
-  } else {
-    /* A FAN BELOW, not a column. Five stacked vertically reached 551px down
-       into a map that is tight in y and roomy in x; the same five on an arc
-       are shallower and spread the overlap sideways instead of driving all of
-       it through whatever sits directly underneath.
+   NOTHING HERE IS BAKED, and that is the one invariant worth arguing over.
+   The map is laid out once so spatial memory can form, but a satellite is a
+   leaf with one edge to one parent: its position says nothing beyond "below
+   this card", and nobody remembers the seat of something they have never
+   seen. Reserving room for sixty-four of them would cost real geometry to
+   protect a memory that cannot form. So they are made on reveal, PINNED,
+   and skipped by the relax's repulsion and its link pull, which is why
+   opening one moves nothing else on the map.
 
-       The radius is whichever is larger: far enough that adjacent cards do
-       not touch along the arc, or far enough to clear the host itself. */
-    const GAP = 18;
-    n.sats = []; n.satLinks = [];
-    n.kinds.forEach(([name, claim], i) => {
-      const sat = {
-        id: n.id + '::' + i, type: 'satellite', satellite: true, pinned: true,
-        name, claim, unit: n.unit, tint: n.tint, deg: 0, on: true, host: n,
-        dx: 0, dy: 0, x: n.x, y: n.y, vx: 0, vy: 0,
-      };
-      nodes.push(sat); byId[sat.id] = sat;
-      paintNode(sat);
-      sat.tx = sat.x; sat.ty = sat.y;
-      sat.r = Math.hypot(sat.el.offsetWidth, sat.el.offsetHeight) / 2;
-      const l = { a: sat, b: n, type: 'instance-of', rank: 2, spine: false };
-      links.push(l); n.satLinks.push(l); paintLink(l); edgeRefresh(l);
-      n.sats.push(sat);
-    });
-    const count = n.sats.length;
-    const wide = Math.max(...n.sats.map(x => x.el.offsetWidth));
-    const tall = Math.max(...n.sats.map(x => x.el.offsetHeight));
-    const span = Math.min(150, count * 34) * Math.PI / 180;
-    const step = count > 1 ? span / (count - 1) : 0;
-    const place = (reach) => n.sats.forEach((sat, i) => {
-      const a = -span / 2 + i * step;          /* 0 points straight down */
-      sat.dx = reach * Math.sin(a);
-      sat.dy = reach * Math.cos(a);
-    });
-    /* THE RADIUS CHECKS ITSELF. Spacing by width alone along the chord is not
-       enough: on an arc, adjacent cards are separated diagonally, so a taller
-       card (a kind with a longer line) still collides vertically at a radius
-       the width formula called clear. Rather than a cleverer formula, push
-       the fan out until the boxes genuinely miss each other. */
-    const clash = () => {
-      for (let i = 0; i < count; i++) for (let j = i + 1; j < count; j++) {
-        const a = n.sats[i], b = n.sats[j];
-        if (Math.abs(a.dx - b.dx) < (a.el.offsetWidth + b.el.offsetWidth) / 2 + GAP &&
-            Math.abs(a.dy - b.dy) < (a.el.offsetHeight + b.el.offsetHeight) / 2 + GAP)
-          return true;
-      }
-      return false;
+   The pill follows the focus: focusing a card with `kinds` grows it,
+   focusing anything outside that card's own family takes it away again. */
+let pillHost = null;
+
+function makePill(host) {
+  const pill = {
+    id: host.id + '::ask', type: 'ask', satellite: true, pinned: true,
+    host, label: 'What kinds are there?', unit: host.unit, tint: host.tint,
+    deg: 0, on: true, dx: 0, dy: 0, x: host.x, y: host.y, vx: 0, vy: 0,
+  };
+  nodes.push(pill); byId[pill.id] = pill;
+  paintNode(pill);
+  /* focus decided what to light before this existed. It is always family of
+     the focused card, so it is always lit. */
+  pill.el.classList.add('lit');
+  pill.dy = host.el.offsetHeight / 2 + pill.el.offsetHeight / 2 + 34;
+  pill.tx = pill.x; pill.ty = pill.y;
+  pill.r = Math.hypot(pill.el.offsetWidth, pill.el.offsetHeight) / 2;
+  const l = { a: pill, b: host, type: 'asks', rank: 2, spine: false };
+  links.push(l); paintLink(l); edgeRefresh(l);
+  l.label.style.display = 'none';        /* the pill says it; the line need not */
+  host.pill = pill; host.pillLink = l;
+  return host;
+}
+
+function dropNodes(list) {
+  for (const m of list) { m.el.remove(); nodes.splice(nodes.indexOf(m), 1); delete byId[m.id]; }
+}
+function dropLinks(list) {
+  for (const l of list) { l.el.remove(); l.label.remove(); if (l.arrow) l.arrow.remove(); }
+  links = links.filter(l => !list.includes(l));
+}
+
+function dropPill(host) {
+  if (host.sats) collapseKinds(host);
+  if (!host.pill) return;
+  dropNodes([host.pill]); dropLinks([host.pillLink]);
+  host.pill = null; host.pillLink = null;
+}
+
+/* the pill belongs to whichever card is being worked on, and survives a click
+   on itself or on anything it produced */
+function syncPill(n) {
+  const family = pillHost &&
+    (n === pillHost || n === pillHost.pill || (pillHost.sats || []).includes(n));
+  if (family) return;
+  if (pillHost) dropPill(pillHost);
+  pillHost = (n && n.kinds) ? makePill(n) : null;
+}
+
+function collapseKinds(host) {
+  dropNodes(host.sats); dropLinks(host.satLinks);
+  host.sats = null; host.satLinks = null;
+  if (host.pill) host.pill.el.textContent = host.pill.label;
+}
+
+/* THE KINDS HANG OFF THE PILL, not off the card, so the reading is that a
+   question produced them. Fanned rather than stacked: five in a column ran
+   551px down into a map that is tight in y and roomy in x. */
+function toggleKinds(host) {
+  if (!host || !host.pill) return;
+  if (host.sats) { collapseKinds(host); draw(); return; }
+
+  const GAP = 18, pill = host.pill;
+  host.sats = []; host.satLinks = [];
+  host.kinds.forEach(([name, claim], i) => {
+    const sat = {
+      id: host.id + '::' + i, type: 'satellite', satellite: true, pinned: true,
+      name, claim, unit: host.unit, tint: host.tint, deg: 0, on: true, host: pill,
+      dx: 0, dy: 0, x: pill.x, y: pill.y, vx: 0, vy: 0,
     };
-    let reach = Math.max(count > 1 ? (wide + GAP) / (2 * Math.sin(step / 2)) : 0,
-                         n.el.offsetHeight / 2 + tall / 2 + GAP);
-    place(reach);
-    for (let guard = 0; guard < 40 && clash(); guard++) place(reach *= 1.06);
-  }
-  /* focus worked out what to light before these existed, so it has to run
-     again or the new cards sit at the 18% every non-neighbour gets. The
-     camera is left where it was: expanding a card is not a reason to move. */
-  if (focused === n) { const keep = follow; focus(n); follow = keep; }
-  else renderChips(n);
+    nodes.push(sat); byId[sat.id] = sat;
+    paintNode(sat);
+    sat.el.classList.add('lit');
+    sat.tx = sat.x; sat.ty = sat.y;
+    sat.r = Math.hypot(sat.el.offsetWidth, sat.el.offsetHeight) / 2;
+    const l = { a: sat, b: pill, type: 'instance-of', rank: 2, spine: false };
+    links.push(l); host.satLinks.push(l); paintLink(l); edgeRefresh(l);
+    host.sats.push(sat);
+  });
+
+  const count = host.sats.length;
+  const wide = Math.max(...host.sats.map(x => x.el.offsetWidth));
+  const tall = Math.max(...host.sats.map(x => x.el.offsetHeight));
+  const span = Math.min(150, count * 34) * Math.PI / 180;
+  const step = count > 1 ? span / (count - 1) : 0;
+  const place = (reach) => host.sats.forEach((sat, i) => {
+    const a = -span / 2 + i * step;             /* 0 points straight down */
+    sat.dx = reach * Math.sin(a);
+    sat.dy = reach * Math.cos(a);
+  });
+  /* THE RADIUS CHECKS ITSELF. Spacing by width along the chord is not enough:
+     on an arc adjacent cards are separated diagonally, so a taller card still
+     collides vertically at a radius the width formula called clear. Rather
+     than a cleverer formula, push the fan out until the boxes really miss. */
+  const clash = () => {
+    for (let a = 0; a < count; a++) for (let b = a + 1; b < count; b++) {
+      const p = host.sats[a], q = host.sats[b];
+      if (Math.abs(p.dx - q.dx) < (p.el.offsetWidth + q.el.offsetWidth) / 2 + GAP &&
+          Math.abs(p.dy - q.dy) < (p.el.offsetHeight + q.el.offsetHeight) / 2 + GAP)
+        return true;
+    }
+    return false;
+  };
+  let reach = Math.max(count > 1 ? (wide + GAP) / (2 * Math.sin(step / 2)) : 0,
+                       pill.el.offsetHeight / 2 + tall / 2 + GAP);
+  place(reach);
+  for (let guard = 0; guard < 40 && clash(); guard++) place(reach *= 1.06);
+
+  pill.el.textContent = 'hide the ' + count;
   draw();
 }
 
