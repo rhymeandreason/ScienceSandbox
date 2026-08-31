@@ -397,11 +397,14 @@
   { id:'etc', type:'process', unit:'resp', occursAt:3, name:'Electron transport chain',
     claim:'Electrons fall from carrier to carrier, and every drop pumps protons across the membrane.' },
   { id:'fermentation', type:'process', unit:'resp', occursAt:4, name:'Fermentation',
-    claim:'No oxygen, so the chain stops and the carriers stay full. Fermentation empties them so glycolysis can keep going.',
-    kinds:[
-      ['Lactate', 'One step. Pyruvate takes the electrons back, and your muscles feel it.'],
-      ['Ethanol', 'Two steps, and a carbon leaves as CO₂. Yeast does this, which is bread and beer.'],
-    ] },
+    claim:'No oxygen, so the chain stops and the carriers stay full. Fermentation empties them so glycolysis can keep going.' },
+  /* The two branches are NODES, not a kinds fan. Each is a molecule a reader
+     already knows from outside biology, and holding them apart IS the lesson:
+     one step or two, and whether a carbon leaves. A pill hid both. */
+  { id:'lactate', type:'structure', unit:'resp', level:1, name:'Lactate',
+    claim:'A dead end. Pyruvate takes its own electrons back, and your muscles feel it.' },
+  { id:'ethanol', type:'structure', unit:'resp', level:1, name:'Ethanol',
+    claim:'Two carbons; the third leaves as CO₂. Yeast’s exit, and it is bread and beer.' },
 
   /* ---- molecular genetics ---------------------------------------------
      COMPLEMENTARITY IS THE HINGE. A-T and G-C is why replication is
@@ -1115,6 +1118,10 @@
        job here — the negative control for what happens when the pool cannot
        be emptied. */
     ['fermentation','produces',        'carriers',        1],
+    /* the two branches: same job, different exit */
+    ['fermentation','produces',        'lactate',         1],
+    ['fermentation','produces',        'ethanol',         1],
+    ['lactate',     'contrasts-with',  'ethanol',         1],
 
     ['q-food',      'answers',         'respiration',     1],
     ['q-food',      'answers',         'atp',             2],
