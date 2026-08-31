@@ -46,6 +46,7 @@
     water:    { name: 'Water',          tint: '#2f7fb5' },
     macro:    { name: 'Macromolecules', tint: '#5f6672' },
     proteins: { name: 'Proteins',       tint: '#c2553a' },
+    cell:     { name: 'Cell & membrane', tint: '#9c4f76' },
     resp:     { name: 'Respiration',    tint: '#2e7d63' },
     themes:   { name: 'Themes',         tint: '#c08a1e' },
   };
@@ -72,9 +73,9 @@
 
   /* ---- water: cause → mechanism → properties → consequences ----------- */
   { id:'water-mol', type:'structure', unit:'water', level:1, name:'Water molecule',
-    claim:'Oxygen pulls the shared electrons harder, and the 104.5° bend means the pulls never cancel.' },
+    claim:'Two hydrogens on one oxygen, held at 104.5°. The bend is why the pull toward oxygen does not cancel out.' },
   { id:'hbond', type:'concept', unit:'water', name:'Hydrogen bonding',
-    claim:'The + hydrogen of one molecule attracts the − oxygen of the next.' },
+    claim:'A hydrogen bonded to oxygen or nitrogen carries a partial +, and it is pulled toward the partial − on the next O or N.' },
 
   { id:'cohesion', type:'concept', unit:'water', name:'Cohesion & adhesion',
     claim:'Water sticks to itself, and to any surface it can hydrogen-bond to.' },
@@ -96,9 +97,9 @@
   { id:'temp-buffer', type:'concept', unit:'water', name:'Temperature buffering',
     claim:'Cells and lakes change temperature slowly, because their water resists it.' },
   { id:'thermoreg', type:'process', unit:'water', occursAt:7, name:'Thermoregulation',
-    claim:'Sweat evaporates, and the evaporation carries body heat away.' },
+    claim:'Keeping body temperature steady while the outside moves. Sweat evaporates and takes the heat.' },
   { id:'osmosis', type:'process', unit:'water', occursAt:4, name:'Osmosis',
-    claim:'Water crosses a membrane toward the saltier side, with nothing pushing it.' },
+    claim:'Water diffusing down its own gradient, from where there is more of it to where there is less.' },
   { id:'overwinter', type:'process', unit:'water', occursAt:10, name:'Aquatic overwintering',
     claim:'Ice floats, so a lake freezes from the top and life persists below.' },
   { id:'buffers', type:'concept', unit:'water', name:'Buffers',
@@ -107,7 +108,7 @@
   { id:'amphipathic', type:'concept', unit:'water', name:'Amphipathic',
     claim:'One molecule with a polar region and a nonpolar region, so water sorts it into an inside and an outside.' },
   { id:'dna-structure', type:'structure', unit:'macro', level:2, name:'DNA structure',
-    claim:'Charged backbone facing the water, stacked bases hiding from it.' },
+    claim:'Two antiparallel strands, paired base to base and twisted. Backbone outside, bases stacked in.' },
 
   /* ---- macromolecule bridges ------------------------------------------ */
   { id:'dehydration', type:'process', unit:'macro', occursAt:1, name:'Dehydration synthesis',
@@ -175,7 +176,7 @@
   { id:'folding', type:'process', unit:'proteins', occursAt:1, name:'Protein folding',
     claim:'The chain finds one shape out of astronomically many, while still leaving the ribosome.' },
   { id:'denaturation', type:'process', unit:'proteins', occursAt:1, name:'Denaturation',
-    claim:'Heat or acid unfolds the shape without breaking a single covalent bond.' },
+    claim:'Heat or acid unfolds the shape while the peptide bonds hold. The sequence survives, everything built on it does not.' },
   { id:'func', type:'concept', unit:'proteins', name:'Protein function',
     claim:'What a protein does is what its shape lets it do.' },
 
@@ -188,7 +189,7 @@
   { id:'induced-fit', type:'concept', unit:'proteins', name:'Induced fit',
     claim:'Binding tightens the fit. The pocket is not rigid.' },
   { id:'activation-e', type:'concept', unit:'proteins', subject:'chemistry', name:'Activation energy',
-    claim:'The barrier a reaction has to clear before it can run downhill.' },
+    claim:'The hump a reaction has to get over before it can happen, however favourable the outcome.' },
   { id:'optimal-cond', type:'concept', unit:'proteins', name:'Optimal conditions',
     claim:'Every enzyme has a pH and temperature where its shape holds, and a cliff past them.' },
 
@@ -200,7 +201,73 @@
   { id:'point-mutation', type:'concept', unit:'proteins', name:'Point mutation',
     claim:'One base changed, one amino acid swapped. Glu→Val on hemoglobin is enough to sickle a cell.' },
   { id:'nat-select', type:'process', unit:'proteins', emergesAt:8, name:'Natural selection',
-    claim:'Sickle carriers resist malaria, so the allele persists. Populations evolve; individuals never do.' },
+    claim:'Heritable variation plus unequal survival, repeated. Populations evolve; individuals never do.' },
+
+  /* ---- cell & membrane ------------------------------------------------
+     THE HINGE IS SELECTIVE PERMEABILITY. Hung straight off the bilayer,
+     the membrane collects fifteen rank-1 edges; routed through the hinge the
+     causal story is one sentence, the bilayer's greasy middle is what makes
+     some things cross and others not, and every transport mechanism below is
+     a workaround for that one fact.
+
+     ORGANELLE IS A REAL INTERMEDIATE, not a label. Nine organelles hanging
+     off `cell` is the same hairball in a different costume, and only the
+     four with downstream traffic keep rank 1. */
+  { id:'hydrophobic-core', type:'structure', unit:'cell', level:2, name:'Hydrophobic core',
+    claim:'The tails meet in the middle, and that greasy layer is the whole barrier.' },
+  { id:'selective-perm', type:'concept', unit:'cell', name:'Selective permeability',
+    claim:'Small and nonpolar crosses the greasy middle. Charged or large does not. Every transport mechanism is a way around that.' },
+  { id:'fluid-mosaic', type:'concept', unit:'cell', name:'Fluid mosaic',
+    claim:'Not a wall. A two-dimensional fluid, with proteins drifting in it like boats.' },
+  { id:'membrane-protein', type:'structure', unit:'cell', level:2, name:'Membrane protein',
+    /* The inversion is the whole definition and it is easy to state
+       backwards: a soluble protein buries its greasy residues INSIDE, a
+       membrane protein turns them OUT to face the tails. Saying its middle
+       is greasy describes the soluble one. */
+    claim:'Sits in the bilayer, greasy where it meets the tails. It carries, signals, and catalyses.' },
+
+  { id:'simple-diffusion', type:'process', unit:'cell', occursAt:4, name:'Simple diffusion',
+    claim:'Molecules spread because they move at random. At equilibrium the net flow stops, the motion does not.' },
+  { id:'tonicity', type:'concept', unit:'cell', name:'Tonicity',
+    claim:'Hypotonic, isotonic, hypertonic: a description of the solution outside, and a prediction about the cell.' },
+  { id:'facilitated-diff', type:'process', unit:'cell', occursAt:4, name:'Facilitated diffusion',
+    claim:'Downhill and free, but through a protein. The protein opens a path, it does not push.' },
+  { id:'channel-protein', type:'structure', unit:'cell', level:2, name:'Channel protein',
+    claim:'A hole with a shape. Open it and the right ion falls through on its own.' },
+  { id:'carrier-protein', type:'structure', unit:'cell', level:2, name:'Carrier protein',
+    claim:'Binds its passenger, changes shape, lets go on the other side.' },
+  { id:'active-transport', type:'process', unit:'cell', occursAt:4, name:'Active transport',
+    claim:'Uphill, against the gradient, and it costs ATP every time.' },
+  { id:'electrochem-grad', type:'concept', unit:'cell', name:'Electrochemical gradient',
+    claim:'Pump something across and hold it there. The imbalance is now stored energy.' },
+  { id:'bulk-transport', type:'process', unit:'cell', occursAt:4, name:'Endo- and exocytosis',
+    claim:'Too big for any protein, so the membrane wraps around it and pinches off.' },
+
+  { id:'cell-theory', type:'concept', unit:'cell', name:'Cell theory',
+    claim:'Every living thing is cells, and every cell comes from a cell.' },
+  { id:'cell', type:'structure', unit:'cell', level:4, name:'Cell',
+    claim:'The smallest thing that is alive. Nothing inside it is.' },
+  { id:'sa-v', type:'concept', unit:'cell', name:'Surface area to volume',
+    claim:'Double the width and volume grows eightfold while surface grows fourfold. The inside outruns its supply line.' },
+  { id:'prokaryote', type:'structure', unit:'cell', level:4, name:'Prokaryote',
+    claim:'No nucleus, no compartments. Small enough not to need them.' },
+  { id:'eukaryote', type:'structure', unit:'cell', level:4, name:'Eukaryote',
+    claim:'Big, and only workable because the inside is divided into rooms.' },
+  { id:'cytoplasm', type:'structure', unit:'cell', level:4, name:'Cytoplasm',
+    claim:'Not empty, and not water. Packed so densely a protein can barely turn around.' },
+
+  { id:'organelle', type:'structure', unit:'cell', level:3, name:'Organelle',
+    claim:'A room with its own chemistry, and its own membrane to keep it that way.' },
+  { id:'nucleus', type:'structure', unit:'cell', level:3, name:'Nucleus',
+    claim:'The DNA, kept apart from the machinery that reads it.' },
+  { id:'ribosome', type:'structure', unit:'cell', level:3, name:'Ribosome',
+    claim:'Where the chain is made. In every cell alive, which is the point.' },
+  { id:'chloroplast', type:'structure', unit:'cell', level:3, name:'Chloroplast',
+    claim:'Two membranes and stacked discs, running the reaction that fills the atmosphere.' },
+  { id:'cell-wall', type:'structure', unit:'cell', level:3, name:'Cell wall',
+    claim:'Outside the membrane, and rigid. A plant cell in fresh water swells until the wall says no.' },
+  { id:'endosymbiosis', type:'concept', unit:'cell', name:'Endosymbiotic theory',
+    claim:'Mitochondria and chloroplasts were free-living bacteria. Their own DNA and ribosomes are the receipt.' },
 
   /* ---- respiration ----------------------------------------------------
      THE STAGES ARE NOT THE SPINE. A four-node chain is what gets memorised
@@ -214,7 +281,7 @@
     claim:'Oxidation is losing electrons, reduction is gaining them. Always both at once.' },
 
   { id:'glucose', type:'structure', unit:'macro', level:1, name:'Glucose',
-    claim:'Six carbons holding electrons at high energy. Everything below is the story of taking them.' },
+    claim:'A six-carbon sugar, and the cell\u2019s default fuel. Its electrons are what respiration is after.' },
   { id:'pyruvate', type:'structure', unit:'resp', level:1, name:'Pyruvate',
     claim:'Three carbons, and the fork in the road: with oxygen it goes on, without it does not.' },
   { id:'acetyl-coa', type:'structure', unit:'resp', level:1, name:'Acetyl-CoA',
@@ -280,6 +347,12 @@
   { id:'q-starch',   type:'question', text:'Why can you digest starch but not cellulose?' },
   { id:'q-fat',      type:'question', text:'Why does eating fat give more energy than eating sugar?' },
   { id:'q-oil',      type:'question', text:'Why does oil refuse to mix into your blood?' },
+  { id:'q-boundary', type:'question', text:'Why does a cell need a boundary at all?' },
+  { id:'q-burst',    type:'question', text:'Why does a cell in pure water burst, and one in seawater shrivel?' },
+  { id:'q-cross',    type:'question', text:'Why can oxygen cross a membrane freely but glucose needs help?' },
+  { id:'q-small',    type:'question', text:'Why is a cell small?' },
+  { id:'q-rooms',    type:'question', text:'Why does a eukaryote bother with compartments?' },
+  { id:'q-mitodna',  type:'question', text:'Why does a mitochondrion have its own DNA?' },
   ];
 
   const EDGES = [
@@ -485,6 +558,85 @@
     ['q-fat',            'answers',         'fatty-acid',     1],
     ['q-fat',            'answers',         'carriers',       2],
 
+    /* ---- cell & membrane -------------------------------------------------
+       The bilayer is already built by the water and macromolecule units, so
+       this unit starts INSIDE it: the core, the hinge, and then four ways
+       around the hinge. */
+    ['bilayer',          'contains',        'hydrophobic-core', 1],
+    ['hydrophobic-core', 'causes',          'selective-perm',   1],
+    ['fluid-mosaic',     'describes',       'bilayer',          1],
+    ['selective-perm',   'necessitates',    'membrane-protein', 1],
+    ['membrane-protein', 'instance-of',     'tertiary',         2],
+    ['q-boundary',       'answers',         'selective-perm',   1],
+    ['q-boundary',       'answers',         'bilayer',          2],
+
+    /* four ways past the barrier, all of them hanging off the hinge */
+    ['selective-perm',   'causes',          'simple-diffusion', 1],
+    ['selective-perm',   'causes',          'facilitated-diff', 1],
+    ['selective-perm',   'causes',          'active-transport', 1],
+    ['selective-perm',   'causes',          'bulk-transport',   2],
+    ['q-cross',          'answers',         'selective-perm',   1],
+    ['q-cross',          'answers',         'facilitated-diff', 2],
+
+    /* THE MOST-FAILED CONCEPT IN BIO 101, and nearly every failure is the
+       same one: describing osmosis as solute pulling water. It is water
+       diffusing down its OWN gradient, so it is typed as a case of simple
+       diffusion and not as a mechanism of its own. */
+    ['osmosis',          'explained-by',    'simple-diffusion', 1],
+    ['osmosis',          'causes',          'tonicity',         1],
+    ['cell-wall',        'contrasts-with',  'bilayer',          1],
+    ['q-burst',          'answers',         'tonicity',         1],
+    ['q-burst',          'answers',         'osmosis',          2],
+
+    /* helped is not powered: the unit's other reliable misconception */
+    ['facilitated-diff', 'contrasts-with',  'active-transport', 1],
+    ['channel-protein',  'enables',         'facilitated-diff', 1],
+    ['carrier-protein',  'enables',         'facilitated-diff', 2],
+    ['channel-protein',  'contrasts-with',  'carrier-protein',  2],
+    ['channel-protein',  'instance-of',     'structfunc',       2],
+    ['membrane-protein', 'instance-of',     'structfunc',       2],
+
+    /* `spends`, which orders NOTHING on purpose. Active transport costs ATP
+       and ATP is made by chemiosmosis, which this unit's gradient explains,
+       so typing the cost as an ordering would close the loop
+       chemiosmosis → atp → active-transport → gradient → chemiosmosis.
+       The same shape as fermentation recycling NAD⁺: a resource claim is
+       not an explanatory order. */
+    ['active-transport', 'spends',          'atp',              1],
+    ['active-transport', 'produces',        'electrochem-grad', 1],
+    ['active-transport', 'instance-of',     'energyflow',       2],
+    /* THE PAYOFF, and the edge this unit exists to close. A proton gradient
+       is active transport storing energy, introduced here two nodes before
+       respiration spends it. */
+    ['electrochem-grad', 'prerequisite-of', 'chemiosmosis',     1],
+
+    /* the cell, with organelle as a real rung rather than a label */
+    ['cell-theory',      'prerequisite-of', 'cell',             1],
+    ['sa-v',             'determines',      'cell',             1],
+    ['sa-v',             'causes',          'organelle',        2],
+    ['q-small',          'answers',         'sa-v',             1],
+    ['q-small',          'answers',         'cell',             2],
+    ['bilayer',          'part-of',         'cell',             2],
+    ['prokaryote',       'instance-of',     'cell',             1],
+    ['eukaryote',        'instance-of',     'cell',             1],
+    ['prokaryote',       'contrasts-with',  'eukaryote',        1],
+    ['cell',             'contains',        'cytoplasm',        2],
+    ['eukaryote',        'contains',        'organelle',        1],
+    ['q-rooms',          'answers',         'organelle',        1],
+    ['q-rooms',          'answers',         'eukaryote',        2],
+
+    /* only the four organelles with downstream traffic keep rank 1 */
+    ['organelle',        'contains',        'nucleus',          1],
+    ['organelle',        'contains',        'ribosome',         1],
+    ['organelle',        'contains',        'mitochondrion',    1],
+    ['organelle',        'contains',        'chloroplast',      1],
+    ['organelle',        'contains',        'cell-wall',        2],
+    ['mitochondrion',    'evidence-for',    'endosymbiosis',    1],
+    ['chloroplast',      'evidence-for',    'endosymbiosis',    2],
+    ['ribosome',         'evidence-for',    'endosymbiosis',    2],
+    ['q-mitodna',        'answers',         'endosymbiosis',    1],
+    ['q-mitodna',        'answers',         'mitochondrion',    2],
+
     /* ---- respiration -----------------------------------------------------
        THE CARRIER SPINE. Every stage touches `carriers` at rank 1 and the
        stages touch each other at rank 2, so expanding a stage deals the
@@ -526,9 +678,13 @@
     ['chemiosmosis','instance-of',     'oxidative-phos',  1],
 
     /* CHEMIOSMOSIS IS NOT A RESPIRATION DETAIL. It needs a membrane a proton
-       cannot cross, which is the bilayer from the water unit doing work five
-       chapters later. This is the edge that pays the water unit back. */
-    ['bilayer',     'prerequisite-of', 'chemiosmosis',    1],
+       cannot cross, and that is the water unit doing work five chapters
+       later. This was a direct bilayer edge spanning sixteen columns, which
+       by the doc's own audit is the signature of missing intermediates: the
+       membrane unit IS those intermediates, so the claim is now a path
+       (bilayer → core → hinge → active transport → gradient → chemiosmosis)
+       and what stays here is the hinge, as enrichment. */
+    ['selective-perm', 'prerequisite-of', 'chemiosmosis',  2],
     ['mitochondrion','contains',       'etc',             1],
     ['mitochondrion','contains',       'krebs',           2],
     ['mitochondrion','enables',        'chemiosmosis',    2],

@@ -776,8 +776,10 @@ for (const n of nodes) {
 
    FORWARD: a explains / becomes / builds b — a sits left of b.
    BACKWARD: a acts on / instantiates b — b sits left of a.
-   Everything else (contrasts-with, describes, answers, preserves)
-   imposes no order. instance-of into a THEME is exempted: a theme is a
+   Everything else (contrasts-with, describes, answers, preserves, spends)
+   imposes no order. `spends` is deliberate: a resource claim is not an
+   explanatory order, and typing active transport's ATP cost as one closes a
+   loop through chemiosmosis. instance-of into a THEME is exempted: a theme is a
    view over the map, not a station on the explanation.
 
    CONTAINMENT IS TWO RELATIONS, and they point opposite ways. `part-of`
@@ -790,6 +792,7 @@ const FORWARD = {
   'prerequisite-of': 1, 'causes': 1, 'determines': 1, 'enables': 1,
   'produces': 1, 'alters': 1, 'transforms-into': 1, 'evidence-for': 1,
   'part-of': 1, 'contains': 1, 'contributes-to': 1, 'lowers': 1, 'precedes': 1,
+  'necessitates': 1,
 };
 const BACKWARD = {
   'consumes': 1, 'destroys': 1, 'explained-by': 1, 'instance-of': 1,
@@ -953,11 +956,34 @@ const bandCentre = {}, bandEdge = [];
   bandEdge.push(y);
 }
 for (const n of nodes) n.ty = lvOf(n) ? bandCentre[lvOf(n)] : bandCentre[2];
-for (let pass = 0; pass < 6; pass++)
+
+/* WITHIN A BAND, ORDER BY THE GRAPH. Which rung a node sits on is its scale
+   and is not negotiable, but its height ON that rung used to be left to
+   repulsion and a jitter — so a membrane protein could sit below the
+   tertiary structure it is an instance of, while the selective permeability
+   that necessitates it was a whole band above and the edge crossed
+   everything in between. Every node now settles at the MEDIAN of its rank-1
+   neighbours; a leveled one is then clamped back into its own band. The
+   ladder still says which rung, the edges say where along it. */
+const BAND_PAD = 110;
+const bandLo = {}, bandHi = {};
+for (const lv of used) {
+  bandLo[lv] = bandCentre[lv] - 330 + BAND_PAD;
+  bandHi[lv] = bandCentre[lv] + 330 - BAND_PAD;
+}
+for (let pass = 0; pass < 12; pass++)
   for (const n of nodes) {
-    if (lvOf(n) || n.type === 'question') continue;
-    const ns = neighbours(n);
-    if (ns.length) n.ty = ns.reduce((s, m) => s + m.ty, 0) / ns.length;
+    if (n.type === 'question') continue;
+    let ns = linksOf(n).filter(l => l.rank === 1).map(l => (l.a === n ? l.b : l.a));
+    if (!ns.length) ns = neighbours(n);
+    ns = ns.filter(m => m.type !== 'question');
+    if (!ns.length) continue;
+    const ys = ns.map(m => m.ty).sort((a, b) => a - b);
+    const mid = ys.length % 2
+      ? ys[(ys.length - 1) / 2]
+      : (ys[ys.length / 2 - 1] + ys[ys.length / 2]) / 2;
+    const lv = lvOf(n);
+    n.ty = lv ? Math.max(bandLo[lv], Math.min(bandHi[lv], mid)) : mid;
   }
 /* after the concepts settle: a question sits level with its anchor */
 for (const n of nodes)
@@ -1216,9 +1242,8 @@ function unlightAll() {
 
 /* ---- relax --------------------------------------------------------------
    Overlap resolution only. X is pinned hard to the layer column, y is
-   pulled to the band (leveled) or gently to the neighbour mean
-   (levelless), links align y between their endpoints, and repulsion does
-   the rest. No spring invents an x. */
+   pulled to the median the layout computed, links align y between their
+   endpoints, and repulsion does the rest. No spring invents an x. */
 let alpha = 0, settled = true;
 const wake = a => { alpha = Math.max(alpha, a); settled = false; };
 
@@ -1252,7 +1277,12 @@ function step() {
     n.vx += (n.tx - n.x) * 0.12;
     /* a question holds its anchor harder than a concept holds its mean:
        shoved off it, it reads as attached to whatever it drifted near */
-    n.vy += (n.ty - n.y) * (n.type === 'question' ? 0.07 : lvOf(n) ? 0.05 : 0.015);
+    /* firmer than it was, on both counts: the y target used to be a band
+       centre or a neighbour mean, and holding loosely to a vague target was
+       right. It is a median now, so holding it is worth more than the room
+       repulsion gets — swept 0.05/0.015 through 0.16/0.13 and this is the
+       floor of the card-overlap curve. */
+    n.vy += (n.ty - n.y) * (n.type === 'question' ? 0.07 : lvOf(n) ? 0.09 : 0.06);
     const v = Math.hypot(n.vx, n.vy);
     if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
     if (n === dragNode || n.pinned) continue;

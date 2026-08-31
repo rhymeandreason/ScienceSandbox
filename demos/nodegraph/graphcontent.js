@@ -83,6 +83,9 @@
     { id: 'l:krebs', kind: 'lesson', name: 'Around the cycle',
       blurb: 'Eight steps around the ring, played twice for the ×2, and where every carbon ends up.',
       href: 'krebs-lab.html' },
+    { id: 'l:membrane', kind: 'lesson', name: 'What gets through, and what it costs',
+      blurb: 'Five steps: the bilayer, oxygen crossing freely, a channel choosing, a pump spending ATP, then the two side by side.',
+      href: 'membrane-lab.html' },
     { id: 'l:fermentation', kind: 'lesson', name: 'Where pyruvate goes without O₂',
       blurb: 'Two branches on tabs, and a NAD⁺ ledger carried in from glycolysis that lands on zero.',
       href: 'fermentation-lab.html' },
@@ -157,6 +160,9 @@
     ['l:glycolysis',   { glycolysis: 1 }],
     ['l:krebs',        { krebs: 1 }],
     ['l:fermentation', { fermentation: 1 }],
+    /* the featured membrane lesson, on the hinge rather than on the bilayer:
+       what it teaches is what crosses and what that costs */
+    ['l:membrane',     { 'selective-perm': 1, 'active-transport': 2 }],
 
     /* ---- specimens ------------------------------------------------------
        A `p:` row places a protein whose entry lives in proteins/proteins.js;
@@ -192,10 +198,10 @@
     /* the turbine itself, now that chemiosmosis exists to hang it on */
     ['p:atp-synthase',    { chemiosmosis: 1, etc: 2 }],
 
-    /* napump stays UNPLACED: it is the membrane unit's bridge and that unit
-       does not exist yet. Per Biology-Node-Graph.md that is a gap in the
-       units, not in the library — a protein with no concept to attach to
-       does not need a node. */
+    /* the pump itself, now that the membrane unit exists to hang it on. Its
+       E1 default is the inward-facing state, which is the one that has just
+       bound its sodium. Every registry protein is now placed. */
+    ['p:napump',          { 'active-transport': 1, 'carrier-protein': 2 }],
   ];
 
   global.GraphContent = { CONTENT, PLACEMENTS };
