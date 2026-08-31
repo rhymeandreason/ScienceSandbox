@@ -865,6 +865,42 @@ for (let pass = 0; pass < 12; pass++) {
   }
   if (!changed) break;
 }
+/* MEDIAN TIGHTENING. Longest-path layering puts every node as far LEFT as
+   its constraints allow, which is right for a node whose story starts there
+   and wrong for one that is merely reachable early: glucose sat at column 5
+   with six columns of slack, nine away from the glycolysis that consumes it,
+   because digestion happens to mention it first.
+
+   So each node with slack moves to the median of its RANK-1 neighbours,
+   clamped to the range its own constraints still allow. Rank 1 is what makes
+   this safe to apply everywhere: bilayer has one late consumer
+   (chemiosmosis, sixteen columns right) and two early rank-1 causes, so its
+   median stays early and the water unit does not get torn apart chasing it.
+   The clamp is what keeps it legal, so no edge can reverse. */
+for (let pass = 0; pass < 4; pass++) {
+  let moved = false;
+  for (const n of nodes) {
+    if (n.type === 'question') continue;
+    const ins = inCons.get(n), outs = outCons.get(n);
+    if (!outs.length) continue;                   /* a sink has nowhere to go */
+    const lo = ins.length ? Math.max(...ins.map(m => layerOf.get(m) + 1)) : 0;
+    const hi = Math.min(...outs.map(m => layerOf.get(m))) - 1;
+    if (hi <= lo) continue;                       /* no slack to spend */
+    let near = linksOf(n).filter(l => l.rank === 1)
+      .map(l => (l.a === n ? l.b : l.a))
+      .filter(m => m.type !== 'question' && layerOf.has(m))
+      .map(m => layerOf.get(m));
+    if (!near.length) continue;
+    near.sort((a, b) => a - b);
+    const mid = near.length % 2
+      ? near[(near.length - 1) / 2]
+      : (near[near.length / 2 - 1] + near[near.length / 2]) / 2;
+    const want = Math.round(Math.min(hi, Math.max(lo, mid)));
+    if (want !== layerOf.get(n)) { layerOf.set(n, want); moved = true; }
+  }
+  if (!moved) break;
+}
+
 /* authored column nudges apply after the algorithm has spoken, and before
    anything (question anchors, neighbour means) reads the layers */
 for (const n of nodes)

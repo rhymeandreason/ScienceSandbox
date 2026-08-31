@@ -119,6 +119,36 @@
   { id:'bilayer', type:'structure', unit:'macro', level:2, name:'Phospholipid bilayer',
     claim:'Phospholipids sheet up on their own, tails in, heads out. Nothing bonds them together.' },
 
+  /* ---- macromolecules: the shared pattern, and where it breaks --------
+     This unit's job is not the four classes one at a time. It is that ONE
+     reaction builds every polymer in biology and one reverse reaction takes
+     them all apart, plus the one class that does not play: a lipid is an
+     aggregate, not a polymer, and that exception is the content. */
+  { id:'functional-group', type:'concept', unit:'macro', subject:'chemistry',
+    name:'Functional group',
+    claim:'A small cluster of atoms that behaves the same way whatever carbon skeleton it is bolted to.' },
+  { id:'polymer', type:'concept', unit:'macro', name:'Polymer',
+    claim:'Monomers joined into a chain by one bond, repeated. Three of the four classes are built this way.' },
+
+  { id:'monosaccharide', type:'structure', unit:'macro', level:1, name:'Monosaccharide',
+    claim:'One sugar unit. Same formula, different shape, and the shape is what an enzyme reads.' },
+  { id:'polysaccharide', type:'structure', unit:'macro', level:2, name:'Polysaccharide',
+    claim:'Sugars in a chain, for storage or for structure. Which one depends on how the link is turned.' },
+  { id:'starch', type:'structure', unit:'macro', level:2, name:'Starch',
+    claim:'Glucose linked α, which your enzymes can open. This is why bread is food.' },
+  { id:'cellulose', type:'structure', unit:'macro', level:2, name:'Cellulose',
+    claim:'The same glucose linked β. One flipped bond, and no enzyme you own will touch it.' },
+
+  { id:'fatty-acid', type:'structure', unit:'macro', level:1, name:'Fatty acid',
+    claim:'A long hydrocarbon tail with an acid group on the end. The tail is the energy.' },
+  { id:'triglyceride', type:'structure', unit:'macro', level:2, name:'Triglyceride',
+    claim:'Three fatty acids on a glycerol. Not a polymer: no repeating unit, no chain.' },
+
+  { id:'nucleotide', type:'structure', unit:'macro', level:1, name:'Nucleotide',
+    claim:'Phosphate, sugar, base. The phosphate is why the backbone is charged.' },
+  { id:'protein-class', type:'structure', unit:'macro', level:2, name:'Protein',
+    claim:'Amino acids in a chain. The only class whose monomers come in twenty kinds.' },
+
   /* ---- proteins: the spine is the levels of structure ----------------- */
   { id:'gene-seq', type:'concept', unit:'proteins', name:'Gene sequence',
     claim:'The order of bases that spells out the order of amino acids.' },
@@ -183,7 +213,7 @@
   { id:'redox', type:'concept', unit:'resp', subject:'chemistry', name:'Redox',
     claim:'Oxidation is losing electrons, reduction is gaining them. Always both at once.' },
 
-  { id:'glucose', type:'structure', unit:'resp', level:1, name:'Glucose',
+  { id:'glucose', type:'structure', unit:'macro', level:1, name:'Glucose',
     claim:'Six carbons holding electrons at high energy. Everything below is the story of taking them.' },
   { id:'pyruvate', type:'structure', unit:'resp', level:1, name:'Pyruvate',
     claim:'Three carbons, and the fork in the road: with oxygen it goes on, without it does not.' },
@@ -246,6 +276,10 @@
   { id:'q-oxygen',   type:'question', text:'Why do you need oxygen, if it never touches the glucose?' },
   { id:'q-battery',  type:'question', text:'If a mitochondrion is a battery, what is the voltage?' },
   { id:'q-burn',     type:'question', text:'Why do your muscles burn when you sprint?' },
+  { id:'q-four',     type:'question', text:'Why are there only four kinds of macromolecule?' },
+  { id:'q-starch',   type:'question', text:'Why can you digest starch but not cellulose?' },
+  { id:'q-fat',      type:'question', text:'Why does eating fat give more energy than eating sugar?' },
+  { id:'q-oil',      type:'question', text:'Why does oil refuse to mix into your blood?' },
   ];
 
   const EDGES = [
@@ -403,6 +437,53 @@
     ['q-sickle',    'answers',         'r-group',       2],
     ['point-mutation','alters',        'primary',       1],
     ['point-mutation','evidence-for',  'nat-select',    1],
+
+    /* ---- macromolecules --------------------------------------------------
+       ONE REACTION, FOUR CLASSES. dehydration already reaches peptide-bond
+       and water-mol from the protein unit; here it reaches the pattern
+       itself, so the thing a reader learns is the repeat, not four
+       chemistries that happen to rhyme. */
+    ['functional-group', 'prerequisite-of', 'polymer',        1],
+    ['functional-group', 'prerequisite-of', 'monosaccharide', 2],
+    ['dehydration',      'produces',        'polymer',        1],
+    ['hydrolysis',       'consumes',        'polymer',        1],
+    ['q-four',           'answers',         'polymer',        1],
+    ['q-four',           'answers',         'functional-group', 2],
+
+    /* the three that are polymers, and the one that is not */
+    ['polysaccharide',   'instance-of',     'polymer',        1],
+    ['protein-class',    'instance-of',     'polymer',        1],
+    ['dna-structure',    'instance-of',     'polymer',        1],
+    /* THE PLACE THE PATTERN BREAKS, and the reason the unit is not just a
+       list: three fatty acids on a glycerol is an aggregate, not a chain. */
+    ['triglyceride',     'contrasts-with',  'polymer',        1],
+
+    /* monomer into class, one per row */
+    ['monosaccharide',   'part-of',         'polysaccharide', 1],
+    ['glucose',          'instance-of',     'monosaccharide', 1],
+    ['amino-acid',       'part-of',         'protein-class',  1],
+    ['nucleotide',       'part-of',         'dna-structure',  1],
+    ['fatty-acid',       'part-of',         'triglyceride',   1],
+
+    /* starch vs cellulose: one flipped bond, and the whole of why you can
+       eat bread and not grass. The highest-value edge in the unit. */
+    ['polysaccharide',   'contains',        'starch',         1],
+    ['polysaccharide',   'contains',        'cellulose',      1],
+    ['starch',           'contrasts-with',  'cellulose',      1],
+    ['hydrolysis',       'consumes',        'starch',         1],
+    ['q-starch',         'answers',         'cellulose',      1],
+    ['q-starch',         'answers',         'starch',         2],
+
+    /* polarity sorts the classes, which is the water unit reaching forward */
+    ['polarity',         'determines',      'triglyceride',   2],
+    ['hydrophobic',      'causes',          'triglyceride',   2],
+    ['q-oil',            'answers',         'triglyceride',   1],
+    ['q-oil',            'answers',         'fatty-acid',     2],
+    /* the bridge into respiration: a fatty acid tail is more reduced than a
+       sugar, so there is more to strip off it */
+    ['fatty-acid',       'prerequisite-of', 'carriers',       2],
+    ['q-fat',            'answers',         'fatty-acid',     1],
+    ['q-fat',            'answers',         'carriers',       2],
 
     /* ---- respiration -----------------------------------------------------
        THE CARRIER SPINE. Every stage touches `carriers` at rank 1 and the
