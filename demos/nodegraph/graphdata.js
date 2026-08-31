@@ -398,6 +398,12 @@
     claim:'Show me everything where a shape is the explanation.' },
   { id:'energyflow', type:'theme', unit:'themes', name:'Energy Flow',
     claim:'Show me everything where the question is where the energy went.' },
+  /* THE DISCRIMINATING TEST IS ON THE CARD, because it is what decides
+     membership: a codon means an amino acid by convention, not by any
+     chemical necessity, and that is what separates information from plain
+     causation. Everything tagged below has to pass it. */
+  { id:'infoflow', type:'theme', unit:'themes', name:'Information Flow',
+    claim:'Show me everything where the meaning is in the encoding and not in the chemistry.' },
 
   /* ---- anchoring questions --------------------------------------------
      Every non-question node must sit on a path answering at least one. */
@@ -896,6 +902,42 @@
     ['atp',          'instance-of',    'energyflow',    1],
     ['fermentation', 'instance-of',    'energyflow',    2],
     ['redox',        'instance-of',    'energyflow',    2],
+
+    /* INFORMATION FLOW'S FAN. Almost entirely a tagging pass over nodes that
+       were already built: what was missing was the tag, not the material.
+       Rank is read from the instance's side, as with the other themes, so
+       rank 1 is reserved for the three cards whose whole point IS the
+       encoding and everything else stays at 2 to protect its own budget. */
+    /* tRNA is the canonical exemplar: one end reads a codon, the other holds
+       an amino acid, and nothing chemically relates the two ends. The
+       association is imposed, which is the theme in one molecule. */
+    ['trna',          'instance-of',    'infoflow',      1],
+    ['genetic-code',  'instance-of',    'infoflow',      1],
+    /* where the information is, is itself a convention */
+    ['reading-frame', 'instance-of',    'infoflow',      1],
+    ['base-pairing',  'instance-of',    'infoflow',      2],
+    ['dna-structure', 'instance-of',    'infoflow',      2],
+    ['replication',   'instance-of',    'infoflow',      2],
+    ['transcription', 'instance-of',    'infoflow',      2],
+    ['codon',         'instance-of',    'infoflow',      2],
+    ['mutation',      'instance-of',    'infoflow',      2],
+    ['gene-expression','instance-of',   'infoflow',      2],
+    ['transcription-factor','instance-of','infoflow',    2],
+    ['primary',       'instance-of',    'infoflow',      2],
+    ['func',          'instance-of',    'infoflow',      2],
+    /* shape as recognition: an enzyme reading its substrate */
+    ['specificity',   'instance-of',    'infoflow',      2],
+    /* DUAL-THEMED on purpose. A gradient is stored energy and it is also a
+       signal, and it is the one node in the course that is plainly both. */
+    ['electrochem-grad','instance-of',  'infoflow',      2],
+    ['electrochem-grad','instance-of',  'energyflow',    2],
+
+    /* THE PAIRING, and the reason themes are nodes rather than tags: energy
+       degrades and cannot be copied, information can be copied without loss.
+       A cell spends the first to preserve the second, which is what
+       proofreading and repair ARE. No other edge on the map says this, and
+       none could if a theme were a tag. */
+    ['infoflow',      'contrasts-with', 'energyflow',    1],
   ];
 
   global.GraphData = { UNITS, CHEM_TINT, LADDER, NODES, EDGES };
