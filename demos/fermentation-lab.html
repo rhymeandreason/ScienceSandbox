@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/pathways.css">
 <link rel="stylesheet" href="kit/enzyme-blob.css">
 <link rel="stylesheet" href="energy/energy.css">
+<link rel="stylesheet" href="css/editorial.css">  <!-- opt in to the homepage system; LAST of the shared sheets -->
 <style>
   /* WHAT THIS PAGE OWNS. Everything else is pathways.css.
 
@@ -27,9 +28,9 @@
      one bar says. */
   #branchtabs{display:flex;gap:6px;position:absolute;right:22px;top:50%;
     transform:translateY(-50%)}
-  .btab{font-family:var(--font-sans);font-weight:600;font-size:13px;
+  .btab{font-family:var(--font-ui);font-weight:600;font-size:13px;
     letter-spacing:.3px;color:var(--muted);background:transparent;
-    border:2px solid var(--hair);border-radius:var(--radius);
+    border:1px solid var(--hair);border-radius:var(--radius);
     padding:6px 15px;cursor:pointer}
   .btab:hover{color:var(--ink);border-color:var(--ink)}
   .btab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);
@@ -48,15 +49,16 @@
   #railbar{padding-bottom:24px}
   /* THE CLOSING LINE IS NOT A CONTROL: same slot, same place, nothing to press.
      The lesson is over and this says what it showed. */
-  #actbtn.done{background:transparent;border-color:transparent;color:var(--ink);
-    font-family:var(--font-marker);font-size:19px;cursor:default;box-shadow:none}
+  #actbtn.done{background:transparent;border-color:transparent;color:var(--text-strong);
+    font-family:var(--font-editorial);font-size:19px;font-weight:600;
+    letter-spacing:-.01em;cursor:default;box-shadow:none}
 
   /* THE VERDICT LINE, where glycolysis's ledger puts its net total. Not a row:
      it has no number and no right-hand column, and it is the sentence the two
      rows above it add up to. Same dashed rule they are separated by. */
-  .sticky .lsquare{border-top:1.5px dashed rgba(60,50,28,.3);
+  .sticky .lsquare{border-top:1px solid var(--border-hair);
     margin-top:7px;padding-top:8px;
-    font-family:var(--font-marker);font-size:15px;line-height:1.25;
+    font-family:var(--font-editorial);font-size:14px;line-height:1.35;
     color:var(--nad)}
 
   /* THE CLOSING TALLY: one row, three cells. Two steps do not make a 2×2. */
