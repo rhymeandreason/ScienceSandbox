@@ -285,3 +285,83 @@
   line-height: 1.4;
   margin-top: 8px;
 }
+
+/* -----------------------------------------------------------------------------
+   5. THE ENERGY CARD, THE NOTE, AND THE MODALS
+   Same reason as §4: pathways.css and energy/energy.css are shared with
+   fermentation-lab, so the conversion lives here.
+   -------------------------------------------------------------------------- */
+
+/* The coupling box was the second sheet of paper — ruled, tilted, with a
+   lifted corner. Flat card, like the ledger. */
+#couplebox {
+  background: var(--surface-card);
+  background-image: none;
+  border: 1px solid var(--border-hair);
+  border-radius: var(--radius-md);
+  transform: none;
+  box-shadow: var(--shadow-panel);
+}
+#couplebox::after { display: none }
+
+/* The verdict headings. Serif caps at 14/1px was a third heading device; they
+   are labels, so they take the micro-cap and keep only their colour. */
+.note .nhead,
+.eff .eh,
+.massaction .ma-net span {
+  font-family: var(--font-display);
+  font-size: var(--cap-sm);
+  font-weight: var(--cap-weight);
+  letter-spacing: var(--cap-track);
+}
+.modal h2, .massaction .ma-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--text-strong);
+}
+
+/* Prose in a card is prose. */
+.note .nbody,
+.modal .mtext,
+.modal .msub,
+.massaction .ma-sub {
+  font-family: var(--font-editorial);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-body);
+}
+.note .nbody b, .modal .mtext b,
+.modal .msub b, .massaction .ma-sub b { color: var(--text-strong) }
+
+/* The door to the mass-action demo. #4f5bd5 into #7b3fe4 on hover was two
+   colours the system does not have; it is the page's one link, so it takes
+   the accent and a hairline underline. */
+.note .minfo {
+  font-family: var(--font-ui);
+  color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.note .minfo:hover { color: var(--spark) }
+
+/* Panels inside a card: the tinted box and the modal's own shell. */
+.eff {
+  background: transparent;
+  border: 1px solid var(--border-hair);
+  border-radius: var(--radius-md);
+}
+.eff .e { font-family: var(--font-editorial); color: var(--text-dim) }
+.modal .mcard {
+  background: var(--surface-page);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--radius-md);
+  box-shadow: 0 30px 70px -28px rgba(20, 22, 26, .35);
+}
+
+/* The rail's paper. The dotted grid is the sketchbook's; the bar is the same
+   flat page as the stage. */
+#railbar { background-image: none }
+.rnum { font-family: var(--font-display); font-weight: var(--cap-weight) }
+.rnum.rend { font-family: var(--font-display); letter-spacing: var(--cap-track) }
