@@ -86,18 +86,18 @@
   { id:'evap-cool', type:'concept', unit:'water', name:'Evaporative cooling',
     claim:'The fastest molecules escape first, and they take their energy with them.' },
   { id:'solvent', type:'concept', unit:'water', name:'Solvent properties',
-    claim:'Water surrounds anything polar or charged, shell by shell, until it is dissolved.' },
+    claim:'Water surrounds a charged particle and pulls it off its neighbours. Once every ion has a shell, the solid is gone.' },
   { id:'hydrophobic', type:'concept', unit:'water', name:'The hydrophobic effect',
     claim:'Water pushes nonpolar molecules together to protect its own H-bond network.' },
   { id:'ice-density', type:'concept', unit:'water', name:'Ice density anomaly',
     claim:'The frozen lattice holds molecules farther apart than the liquid does.' },
   { id:'ionization', type:'concept', unit:'water', name:'Ionization & pH',
-    claim:'Water splits into H⁺ and OH⁻ in tiny amounts, and pH counts them.' },
+    claim:'A few hundred million water molecules, and one has split into H⁺ and OH⁻. pH is the exponent on that count.' },
 
   { id:'transpiration', type:'process', unit:'water', occursAt:7, name:'Transpiration',
-    claim:'An unbroken column of water is pulled from root to leaf.' },
+    claim:'Water evaporating at the leaf pulls the column up behind it. Nothing pushes from the roots.' },
   { id:'temp-buffer', type:'concept', unit:'water', name:'Temperature buffering',
-    claim:'Cells and lakes change temperature slowly, because their water resists it.' },
+    claim:'Cells and lakes change temperature slowly. Heat breaks H-bonds before it speeds molecules up.' },
   { id:'thermoreg', type:'process', unit:'water', occursAt:7, name:'Thermoregulation',
     claim:'Keeping body temperature steady while the outside moves. Sweat evaporates and takes the heat.' },
   { id:'osmosis', type:'process', unit:'water', occursAt:4, name:'Osmosis',
@@ -108,7 +108,7 @@
     claim:'A buffer trades protons back and forth, so pH barely moves.' },
 
   { id:'amphipathic', type:'concept', unit:'water', name:'Amphipathic',
-    claim:'One molecule with a polar region and a nonpolar region, so water sorts it into an inside and an outside.' },
+    claim:'One end dissolves in water, the other cannot. Every membrane and micelle follows from that split.' },
   { id:'dna-structure', type:'structure', unit:'macro', level:2, name:'DNA structure',
     claim:'Two antiparallel strands, paired base to base and twisted. Backbone outside, bases stacked in.' },
 
@@ -120,7 +120,7 @@
   { id:'phospholipid', type:'structure', unit:'macro', level:1, name:'Phospholipid',
     claim:'A charged head on two oily tails.' },
   { id:'bilayer', type:'structure', unit:'macro', level:2, name:'Phospholipid bilayer',
-    claim:'Phospholipids sheet up on their own, tails in, heads out. Nothing bonds them together.' },
+    claim:'Tails cannot face water, so they close into a double sheet with heads out. Water is what holds it together.' },
 
   /* ---- macromolecules: the shared pattern, and where it breaks --------
      This unit's job is not the four classes one at a time. It is that ONE
@@ -161,7 +161,7 @@
   { id:'amino-acid', type:'structure', unit:'proteins', level:1, name:'Amino acid',
     claim:'Twenty kinds, and only the side chain differs between them.' },
   { id:'r-group', type:'structure', unit:'proteins', level:1, name:'R-group',
-    claim:'The side chain: nonpolar, polar, acidic or basic. This classification is the real content.' },
+    claim:'The side chain: nonpolar, polar, acidic or basic. Those four categories decide how the chain folds.' },
   { id:'peptide-bond', type:'structure', unit:'proteins', level:1, name:'Peptide bond',
     claim:'The covalent link between amino acids, and it survives cooking.' },
   { id:'primary', type:'structure', unit:'proteins', level:2, name:'Primary structure',
@@ -171,7 +171,7 @@
   { id:'tertiary', type:'structure', unit:'proteins', level:2, name:'Tertiary structure',
     claim:'The overall 3D shape, driven entirely by the side chains.' },
   { id:'quaternary', type:'structure', unit:'proteins', level:2, name:'Quaternary structure',
-    claim:'Several folded chains packed into one machine.' },
+    claim:'Several folded chains docked into one unit. Hemoglobin’s four pass each other information one alone could not use.' },
   { id:'rgroup-inter', type:'concept', unit:'proteins', name:'R-group interactions',
     claim:'The side chains are what fold the protein: five forces, very different strengths.' },
   { id:'disulfide', type:'structure', unit:'proteins', level:1, name:'Disulfide bridge',
@@ -179,11 +179,11 @@
   { id:'vdw', type:'concept', unit:'proteins', name:'Van der Waals',
     claim:'Weak, everywhere, and only additive when surfaces already fit.' },
   { id:'folding', type:'process', unit:'proteins', occursAt:1, name:'Protein folding',
-    claim:'The chain finds one shape out of astronomically many, while still leaving the ribosome.' },
+    claim:'A linear chain of amino acids transforms into an ordered, three-dimensional structure that allows the protein to become biologically active.' },
   { id:'denaturation', type:'process', unit:'proteins', occursAt:1, name:'Denaturation',
     claim:'Heat or acid unfolds the shape while the peptide bonds hold. The sequence survives, everything built on it does not.' },
   { id:'func', type:'concept', unit:'proteins', name:'Protein function',
-    claim:'What a protein does is what its shape lets it do.' },
+    claim:'A protein works by having one shape that fits one thing. Function is the fit.' },
 
   { id:'enzyme', type:'structure', unit:'proteins', level:2, name:'Enzyme',
     claim:'A protein that lowers the barrier and comes out the other side unchanged.' },
@@ -229,7 +229,7 @@
        backwards: a soluble protein buries its greasy residues INSIDE, a
        membrane protein turns them OUT to face the tails. Saying its middle
        is greasy describes the soluble one. */
-    claim:'Sits in the bilayer, greasy where it meets the tails. It carries, signals, and catalyses.' },
+    claim:'Sits in the bilayer, greasy where it meets the tails. Almost everything the membrane does, a protein is doing.' },
 
   { id:'simple-diffusion', type:'process', unit:'cell', occursAt:4, name:'Simple diffusion',
     claim:'Molecules spread because they move at random. At equilibrium the net flow stops, the motion does not.' },
@@ -266,7 +266,7 @@
   { id:'nucleus', type:'structure', unit:'cell', level:3, name:'Nucleus',
     claim:'The DNA, kept apart from the machinery that reads it.' },
   { id:'ribosome', type:'structure', unit:'cell', level:3, name:'Ribosome',
-    claim:'Where the chain is made. In every cell alive, which is the point.' },
+    claim:'Reads mRNA and links amino acids into a protein. Bacteria and you inherited the same one from a shared ancestor.' },
   { id:'chloroplast', type:'structure', unit:'cell', level:3, name:'Chloroplast',
     claim:'Two membranes and stacked discs, running the reaction that fills the atmosphere.' },
   { id:'cell-wall', type:'structure', unit:'cell', level:3, name:'Cell wall',
@@ -301,7 +301,7 @@
   { id:'proton-gradient', type:'concept', unit:'resp', name:'Proton gradient',
     claim:'The chain pumps H⁺ to one side. The imbalance itself is stored energy, and it is what the cell actually banks.' },
   { id:'chemiosmosis', type:'concept', unit:'resp', occursAt:3, name:'Chemiosmosis',
-    claim:'Protons fall back through a turbine, and the turbine makes ATP. Learned once here, used again in photosynthesis.' },
+    claim:'Protons fall back through a turbine, and the turbine makes ATP. Mitochondria run this, chloroplasts run this, and so does every bacterium.' },
   { id:'substrate-phos', type:'concept', unit:'resp', name:'Substrate-level phosphorylation',
     claim:'An enzyme hands a phosphate straight to ADP. Direct, and a small fraction of the total.' },
   { id:'oxidative-phos', type:'concept', unit:'resp', name:'Oxidative phosphorylation',
@@ -317,7 +317,7 @@
   { id:'pyr-ox', type:'process', unit:'resp', occursAt:3, name:'Pyruvate oxidation',
     claim:'One carbon leaves as CO₂ and the rest becomes acetyl-CoA. The first carbon you breathe out.' },
   { id:'krebs', type:'process', unit:'resp', occursAt:3, name:'Krebs cycle',
-    claim:'Two more carbons leave as CO₂ and the carriers are loaded. The named intermediates are not the point.' },
+    claim:'Two more carbons leave as CO₂, and every turn loads three NADH, one FADH₂, one ATP. The eight intermediates are the conveyor that does it.' },
   { id:'etc', type:'process', unit:'resp', occursAt:3, name:'Electron transport chain',
     claim:'Electrons fall from carrier to carrier, and every drop pumps protons across the membrane.' },
   { id:'fermentation', type:'process', unit:'resp', occursAt:4, name:'Fermentation',
@@ -426,16 +426,16 @@
     claim:'A flattened sac inside the chloroplast. It is a sealed compartment, which is the only reason a gradient can build.' },
 
   { id:'light-reactions', type:'process', unit:'photo', occursAt:3, name:'Light reactions',
-    claim:'Light drives electrons down a chain, protons pile up in the sac, and the turbine makes ATP. You have seen this before.' },
+    claim:'Light drives electrons down a chain, protons pile up in the sac, and the turbine makes ATP. The same chain as respiration, run the other way: light pushes the electrons uphill.' },
   { id:'nadph', type:'structure', unit:'photo', level:1, name:'NADPH',
     claim:'The reduced carrier the light reactions load. Same job as NADH, spent building sugar instead of making ATP.' },
 
   { id:'calvin', type:'process', unit:'photo', occursAt:3, name:'Calvin cycle',
     claim:'Spends the ATP and NADPH to build sugar from CO₂. It runs in daylight; it just does not need photons directly.' },
   { id:'carbon-fixation', type:'concept', unit:'photo', name:'Carbon fixation',
-    claim:'Carbon from the air is bolted onto a molecule and becomes solid. A tree is mostly rebuilt atmosphere.' },
+    claim:'Rubisco attaches CO₂ from the air onto a sugar, and that carbon is now plant. A tree is mostly rebuilt atmosphere.' },
   { id:'rubisco', type:'structure', unit:'photo', level:2, name:'Rubisco',
-    claim:'The enzyme that grabs the CO₂. The most abundant protein on Earth, and notoriously sloppy.' },
+    claim:'The enzyme that grabs CO₂. It grabs O₂ by mistake often, and it is slow: a few molecules a second.' },
 
   { id:'stomata', type:'structure', unit:'photo', level:5, name:'Stomata',
     claim:'Pores in the leaf. Open for CO₂ and water escapes; shut to keep water and the carbon supply stops.' },
