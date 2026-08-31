@@ -30,6 +30,12 @@
       fit: 'cover', w: 480, h: 640, seconds: 8.35, bytes: 500886,
       fetched: '2026-08-30',
     },
+    {
+      id: 'v:red-blood-cells', slug: 'red-blood-cells',
+      page: 'https://giphy.com/gifs/11i03wSzIuNXiw',
+      giphyId: '11i03wSzIuNXiw', title: 'red blood cells', fit: 'cover',
+      w: 480, h: 324, seconds: 1.2, bytes: 57090, fetched: '2026-08-31',
+    },
   ];
 
   global.Clips = { CLIPS };
