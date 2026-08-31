@@ -67,6 +67,7 @@ const TYPES = {
   '.jpg':'image/jpeg',  '.jpeg':'image/jpeg', '.gif':'image/gif',
   '.ico':'image/x-icon', '.woff2':'font/woff2', '.woff':'font/woff',
   '.md':'text/markdown; charset=utf-8', '.sdf':'text/plain; charset=utf-8',
+  '.mp4':'video/mp4',
 };
 
 /* ---- .env.local ----------------------------------------------------------
@@ -427,9 +428,9 @@ const server = http.createServer((req, res) => {
     if (err) return listOrMiss(url, res);
     if (st.isDirectory()) {
       const idx = path.join(target, 'index.html');
-      return fs.existsSync(idx) ? send(idx, res) : listing(target, url, res);
+      return fs.existsSync(idx) ? send(idx, res, req) : listing(target, url, res);
     }
-    send(target, res);
+    send(target, res, req);
   });
 });
 
@@ -571,11 +572,49 @@ function api(url, req, res) {
   });
 }
 
-function send(file, res) {
+/* Safari will not play a <video> from a server that answers its opening
+ * `Range: bytes=0-1` probe with a 200 and the whole file — it gives up and
+ * draws a black box with a play glyph, which looks exactly like a missing
+ * file. Chrome tolerates the 200, so this is invisible until someone opens
+ * Safari, which is the browser this repo is tested in. Ranges are honoured for
+ * every type rather than just mp4: the rule is the transport's, not video's. */
+function send(file, res, req) {
   const ext = path.extname(file).toLowerCase();
+  const type = TYPES[ext] || 'application/octet-stream';
+  const range = req && req.headers && req.headers.range;
+
+  // HTML gets the reload client spliced in, so its length is not the file's
+  // and it is never served as a range.
+  if (range && ext !== '.html') {
+    let size;
+    try { size = fs.statSync(file).size; } catch (e) { res.writeHead(500).end(String(e)); return; }
+    const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+    if (m) {
+      let start = m[1] === '' ? null : parseInt(m[1], 10);
+      let end   = m[2] === '' ? null : parseInt(m[2], 10);
+      // `bytes=-500` is the LAST 500 bytes, not the first 500.
+      if (start === null) { start = Math.max(0, size - (end || 0)); end = size - 1; }
+      if (end === null || end >= size) end = size - 1;
+      if (start > end || start >= size) {
+        res.writeHead(416, { 'Content-Range': `bytes */${size}` }).end();
+        return;
+      }
+      res.writeHead(206, {
+        'Content-Type': type,
+        'Content-Range': `bytes ${start}-${end}/${size}`,
+        'Content-Length': end - start + 1,
+        'Accept-Ranges': 'bytes',
+        'Cache-Control': 'no-store, must-revalidate',
+      });
+      fs.createReadStream(file, { start, end }).pipe(res);
+      return;
+    }
+  }
+
   fs.readFile(file, (err, buf) => {
     if (err) { res.writeHead(500).end(String(err)); return; }
-    const headers = { 'Content-Type': TYPES[ext] || 'application/octet-stream',
+    const headers = { 'Content-Type': type,
+                      'Accept-Ranges': ext === '.html' ? 'none' : 'bytes',
                       'Cache-Control': 'no-store, must-revalidate' };
     if (ext === '.html') {
       let html = buf.toString('utf8');
