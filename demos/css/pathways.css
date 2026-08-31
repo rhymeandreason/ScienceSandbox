@@ -508,8 +508,11 @@ font-size: 20px;
      main.css's .pill, so the lesson's one invitation is the same object the
      rest of the site presses. Only the reserved-space trick is left here:
      `visibility` holds the row's height on the steps with no button. It comes
-     out at 50px inside an 88px --barh, so nothing here can re-frame the shot. */
-  #actbtn{visibility:hidden}
+     out at 50px inside an 88px --barh, so nothing here can re-frame the shot.
+     --pill-fill is the one hook the component asks for: water-lab's Add Water
+     is the same blue, so the button that advances a lesson looks the same
+     wherever the reader meets it. */
+  #actbtn{visibility:hidden; --pill-fill:var(--action-blue)}
   /* the row that holds the action button and, at the end of a turn, the way
      past it. Centred, so a shorter secondary sits on the primary's axis. */
   #actrow{display:flex;align-items:center;gap:12px}
