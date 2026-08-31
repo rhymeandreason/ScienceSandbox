@@ -223,7 +223,7 @@
   { id:'selective-perm', type:'concept', unit:'cell', name:'Selective permeability',
     claim:'Small and nonpolar crosses the greasy middle. Charged or large does not. Every transport mechanism is a way around that.' },
   { id:'fluid-mosaic', type:'concept', unit:'cell', name:'Fluid mosaic',
-    claim:'Not a wall. A two-dimensional fluid, with proteins drifting in it like boats.' },
+    claim:'Not a wall. A two-dimensional fluid, with the proteins free to drift sideways through it.' },
   { id:'membrane-protein', type:'structure', unit:'cell', level:2, name:'Membrane protein',
     /* The inversion is the whole definition and it is easy to state
        backwards: a soluble protein buries its greasy residues INSIDE, a
@@ -270,9 +270,9 @@
   { id:'chloroplast', type:'structure', unit:'cell', level:3, name:'Chloroplast',
     claim:'Two membranes and stacked discs, running the reaction that fills the atmosphere.' },
   { id:'cell-wall', type:'structure', unit:'cell', level:3, name:'Cell wall',
-    claim:'Outside the membrane, and rigid. A plant cell in fresh water swells until the wall says no.' },
+    claim:'Outside the membrane, and rigid. A plant cell in fresh water swells until the wall pushes back, and that pressure is what holds the plant up.' },
   { id:'endosymbiosis', type:'concept', unit:'cell', name:'Endosymbiotic theory',
-    claim:'Mitochondria and chloroplasts were free-living bacteria. Their own DNA and ribosomes are the receipt.' },
+    claim:'Mitochondria and chloroplasts were once free-living bacteria. They still carry their own DNA and their own ribosomes.' },
 
   /* ---- respiration ----------------------------------------------------
      THE STAGES ARE NOT THE SPINE. A four-node chain is what gets memorised
@@ -369,7 +369,7 @@
   { id:'trna', type:'structure', unit:'genetics', level:2, name:'tRNA',
     claim:'An adaptor: one end pairs with the codon, the other carries the matching amino acid.' },
   { id:'reading-frame', type:'concept', unit:'genetics', name:'Reading frame',
-    claim:'Where you start deciding the triplets. Shift it by one base and every word after that is different.' },
+    claim:'Where the reading starts. Shift it by one base and every triplet after that is different.' },
 
   { id:'mutation', type:'concept', unit:'genetics', name:'Mutation',
     claim:'Any change to the sequence. Most do nothing, some are harmful, and a few are the raw material of evolution.' },
@@ -435,12 +435,12 @@
   { id:'carbon-fixation', type:'concept', unit:'photo', name:'Carbon fixation',
     claim:'Rubisco attaches CO₂ from the air onto a sugar, and that carbon is now plant. A tree is mostly rebuilt atmosphere.' },
   { id:'rubisco', type:'structure', unit:'photo', level:2, name:'Rubisco',
-    claim:'The enzyme that grabs CO₂. It grabs O₂ by mistake often, and it is slow: a few molecules a second.' },
+    claim:'The most abundant protein on Earth, and the enzyme that fixes CO₂ onto sugar. It is slow, and it binds O₂ by mistake often.' },
 
   { id:'stomata', type:'structure', unit:'photo', level:5, name:'Stomata',
     claim:'Pores in the leaf. Open for CO₂ and water escapes; shut to keep water and the carbon supply stops.' },
   { id:'photorespiration', type:'process', unit:'photo', occursAt:3, name:'Photorespiration',
-    claim:'Rubisco grabs O₂ by mistake and the plant spends energy undoing it. Worse when it is hot and the pores are shut.' },
+    claim:'Rubisco binds O₂ instead of CO₂, and the plant spends ATP undoing the result. Worse when it is hot and the pores are shut.' },
 
   { id:'photosynthesis', type:'process', unit:'photo', occursAt:4, name:'Photosynthesis',
     claim:'Light energy into chemical bonds, using water and air. Respiration read backwards, and the source of both.' },

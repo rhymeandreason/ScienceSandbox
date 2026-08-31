@@ -244,11 +244,44 @@
 
 /* The lesson's name. pathways.css sets a 24px marker, hemoglobin had 16px at
    .02em and membrane an 11px cap — three treatments for one thing. */
-#pagetitle {
+#pagetitle,
+#brand h1 {
   font-family: var(--font-display);
   font-size: var(--cap-lg);
   font-weight: var(--cap-weight);
   text-transform: uppercase;
   letter-spacing: var(--cap-track);
   color: var(--text-muted);
+}
+
+/* water-tutor.css is shared with water-lab-v2, which has not opted in, so its
+   scrim is retoned here. It has to be the paper it fades into or the gradient
+   shows as a band lying across the molecules. */
+#titleblock {
+  background: linear-gradient(to bottom,
+    rgba(250, 248, 244, .97) 0%, rgba(250, 248, 244, .88) 52%,
+    rgba(250, 248, 244, 0) 100%);
+}
+
+/* The step's claim. membrane-lab's #cap is the same thing on the same shape of
+   page, so it sets the same: serif at 17px, regular weight, emphasis carried
+   by the <b> inside it rather than by the whole line. Literata has no 500,
+   which water-tutor.css asked for and the browser was synthesising. */
+#stepclaim {
+  font-family: var(--font-editorial);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--text-body);
+}
+#stepclaim b, #stepclaim strong { font-weight: 600; color: var(--text-strong) }
+
+/* The temperature readout's description. 19px at 1.05 was sized for Caveat,
+   where a tight leading is the point; as a serif it is a paragraph with its
+   lines touching. It describes the number above it, so it sets smaller. */
+#treadout .tdesc {
+  font-family: var(--font-editorial);
+  font-size: 14px;
+  line-height: 1.4;
+  margin-top: 8px;
 }
