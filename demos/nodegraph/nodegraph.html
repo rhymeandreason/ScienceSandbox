@@ -2721,11 +2721,16 @@ askIn.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeList(); askIn.blur(); return; }
   if (e.key !== 'Enter') return;
   e.preventDefault();
+  const rows = drawnRows();
+  /* A HIGHLIGHTED ROW OUTRANKS THE PLACEHOLDER. Arrowing down puts no text in
+     the field, so an empty-field check first sent every keyboard pick to
+     whatever the rotation happened to be showing. The placeholder is only the
+     offer when the reader has neither typed nor chosen. */
+  if (listOpen && cursor >= 0 && rows[cursor]) { ask(rows[cursor].dataset.q); return; }
   /* an empty field asks whatever the placeholder is offering: the rotation
      is a suggestion, and Enter is how you take it */
   if (!askIn.value.trim()) { ask(ASKABLE[suggestion].id); return; }
-  const rows = drawnRows();
-  const pick = cursor >= 0 ? rows[cursor] : rows[0];
+  const pick = rows[0];
   /* no match is not an error yet — the fuzzy match is the next piece of
      work, and until it lands the bar says so rather than doing nothing */
   if (pick) ask(pick.dataset.q);
