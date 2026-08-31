@@ -554,7 +554,7 @@
   }
   .modal .mcard {
     position: relative;
-    display: flex; flex-direction: column;
+    display: flex; flex-direction: column; min-height: 0;
     width: min(1280px, 100%); height: min(860px, 100%);
     background: var(--card); border-radius: 6px; overflow: hidden;
     box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .5);
@@ -582,7 +582,10 @@
     cursor: pointer; padding: 0.2rem 0.5rem;
   }
   .modal .mclose:hover { color: var(--ink); }
-  #lessonframe { flex: 1; width: 100%; border: 0; display: block; }
+  /* Safari sizes a flex iframe from its intrinsic 300x150, not the free
+     space, so the height is stated and min-height:0 lets it shrink. */
+  #lessonframe { flex: 1 1 auto; width: 100%; height: 100%; min-height: 0;
+                 border: 0; display: block; }
 
   .hint {
     position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 5;
