@@ -97,7 +97,7 @@
     <div id="bottombar">
       <div id="stephead"></div>
       <div id="steptip" role="tooltip"></div>
-      <button id="actbtn"></button>
+      <button id="actbtn" class="pill"></button>
       <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
   </div>
@@ -1037,6 +1037,10 @@ const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; setDone(k);
   laneDone.clear(); renderLanes(done()); refresh(); };
 
 const actEl=document.getElementById('actbtn');
+// The button is main.css's .pill. Every className write below REPLACES the
+// attribute, so the base has to be re-stated each time — a bare '' silently
+// strips the component and leaves a UA button.
+const ACT_BASE='pill';
 const stepHeadEl=document.getElementById('stephead');
 const stepTipEl=document.getElementById('steptip');
 const BURST_MS=190;
@@ -1071,12 +1075,12 @@ function drawAct(){
   stepHeadEl.classList.toggle('revin', reviewing);
   if(intro){
     actEl.style.visibility='visible';
-    actEl.className='';
+    actEl.className=ACT_BASE;
     actEl.innerHTML=`Begin <i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=beginBranch;
     return;
   }
-  actEl.className = reviewing ? 'revin' : '';
+  actEl.className = reviewing ? ACT_BASE+' revin' : ACT_BASE;
   if(reviewing){
     actEl.style.visibility='visible';
     actEl.innerHTML=`Next <i class="ph-bold ph-arrow-right"></i>`;
@@ -1096,7 +1100,7 @@ function drawAct(){
      * bar and nothing saying the lesson was over or what it had shown. So the
      * slot says the thing both branches were for. A statement, not a door. */
     if(bothDone){
-      actEl.className='done';
+      actEl.className=ACT_BASE+' done';
       actEl.innerHTML=`Two answers, one problem: NAD⁺ back either way`;
       actEl.onclick=null;
       return;

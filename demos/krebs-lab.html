@@ -221,8 +221,8 @@
       <!-- ONE ROW, so a second offer costs the bar no height: --barh is the
            camera's bottom reserve, and a button stacking under another would
            re-frame the shot. -->
-      <div id="actrow"><button id="actbtn"></button>
-        <button id="actalt" hidden></button></div>
+      <div id="actrow"><button id="actbtn" class="pill"></button>
+        <button id="actalt" class="pill pill--ghost" hidden></button></div>
       <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
            the element that HOLDS the rich text makes every <b> and bare text
            node its own flex item, which shreds the sentence into columns -->
@@ -1731,6 +1731,10 @@ const enzBox=enzBtn.querySelector('input');
 enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
 
 const actEl=document.getElementById('actbtn');
+// The button is main.css's .pill. Every className write below REPLACES the
+// attribute, so the base has to be re-stated each time — a bare '' silently
+// strips the component and leaves a UA button.
+const ACT_BASE='pill';
 /* THE SECOND OFFER AT THE END OF TURN ONE. Watching the same nine steps again
  * is a choice, not a toll gate on the results — so the way out is beside the
  * way on, and the student who takes it still gets a receipt that says the cycle
@@ -1778,7 +1782,7 @@ function drawAct(){
   stepHeadEl.classList.toggle('revin', reviewing);
   if(intro){
     actEl.style.visibility='visible';
-    actEl.className='';
+    actEl.className=ACT_BASE;
     actEl.innerHTML=`Begin ${BRIDGE_NAME} <i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=beginPathway;
     return;
@@ -1787,7 +1791,7 @@ function drawAct(){
   // "watch it again" means — and a live control would invite the student to
   // race it.
   if(autoplay){ actEl.style.visibility='hidden'; actEl.onclick=null; return; }
-  actEl.className = reviewing ? 'revin' : '';
+  actEl.className = reviewing ? ACT_BASE+' revin' : ACT_BASE;
   if(reviewing){
     actEl.style.visibility='visible';
     actEl.innerHTML=`${(STEPS[done-1]||{}).nextLabel||'Next'} `

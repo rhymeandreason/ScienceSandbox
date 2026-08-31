@@ -505,29 +505,21 @@ font-size: 20px;
 
 
   /* the action button (Begin, and every no-reagent step), inside #bottombar.
-     ONE SET OF METRICS FOR EVERY STEP: #bottombar's height is usable()'s bottom
-     reserve, so a button changing size between steps re-frames the camera. The
-     label is one word every step, the simplest way to guarantee it. */
-  #actbtn{visibility:hidden;
-    font-family:var(--font-sans);font-weight:700;font-size:17px;letter-spacing:.3px;
-    padding:15px 34px;border-radius:var(--radius);cursor:pointer;
-    border:2.5px solid var(--ink);background:var(--ink);color:var(--paper);
-    box-shadow:0 4px 14px -5px rgba(0,0,0,.45)}
-  #actbtn:hover{background:#000;transform:translateY(-2px)}
+     main.css's .pill, so the lesson's one invitation is the same object the
+     rest of the site presses. Only the reserved-space trick is left here:
+     `visibility` holds the row's height on the steps with no button. It comes
+     out at 50px inside an 88px --barh, so nothing here can re-frame the shot. */
+  #actbtn{visibility:hidden}
   /* the row that holds the action button and, at the end of a turn, the way
-     past it. Its own height is #actbtn's, so --barh is unchanged. */
+     past it. Centred, so a shorter secondary sits on the primary's axis. */
   #actrow{display:flex;align-items:center;gap:12px}
   /* the ink button is not always the first one written: `flip` puts the
      secondary on the left without either button knowing which it is. */
   #actrow.flip #actbtn{order:2}
-  /* SECONDARY, AND IT HAS TO LOOK IT: the same metrics as #actbtn so the row
-     sits straight, but hollow — the lesson's own button stays the invitation. */
-  #actalt{font-family:var(--font-sans);font-weight:700;font-size:17px;
-    letter-spacing:.3px;padding:15px 26px;border-radius:var(--radius);
-    cursor:pointer;border:2.5px solid var(--hair);background:transparent;
-    color:var(--muted)}
+  /* SECONDARY, AND IT HAS TO LOOK IT: .pill--ghost is that in the system. It
+     is shorter than .pill by design, so the row centres the two rather than
+     matching their boxes — which is what kept them looking straight before. */
   #actalt[hidden]{display:none}
-  #actalt:hover{border-color:var(--ink);color:var(--ink);transform:translateY(-2px)}
   #actbtn i{font-size:15px;vertical-align:-1px;margin-left:2px}
 
   /* the press: a short flash in the DOM. Nothing chemical has happened yet, so

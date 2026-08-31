@@ -105,7 +105,7 @@
       <!-- step caption, opened by the ⓘ. Child of the BAND, not the heading:
            centred on the stage, and out of reach of the heading's innerHTML. -->
       <div id="steptip" role="tooltip"></div>
-      <button id="actbtn"></button>
+      <button id="actbtn" class="pill"></button>
       <!-- the inner <p> is load-bearing: #rxmsg centres with flex, and flex on
            the element that HOLDS the rich text makes every <b> and bare text
            node its own flex item, which shreds the sentence into columns -->
@@ -1640,6 +1640,10 @@ enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
 showLedger=ledgerBox.checked; showEnz=enzBox.checked;
 
 const actEl=document.getElementById('actbtn');
+// The button is main.css's .pill. Every className write below REPLACES the
+// attribute, so the base has to be re-stated each time — a bare '' silently
+// strips the component and leaves a UA button.
+const ACT_BASE='pill';
 const stepHeadEl=document.getElementById('stephead');
 const stepTipEl=document.getElementById('steptip');
 const BURST_MS=190;   // just under the .3s press flash
@@ -1693,12 +1697,12 @@ function drawAct(){
   // so the thing to click never jumps between stage and sidebar.
   if(intro){
     actEl.style.visibility='visible';
-    actEl.className='';        // the same button, the same size, in the same slot
+    actEl.className=ACT_BASE;  // the same button, the same size, in the same slot
     actEl.innerHTML=`Begin <i class="ph-bold ph-arrow-right"></i>`;
     actEl.onclick=beginPathway;
     return;
   }
-  actEl.className = reviewing ? 'revin' : '';
+  actEl.className = reviewing ? ACT_BASE+' revin' : ACT_BASE;
   // THE REVIEW SCREEN'S ONE CONTROL. Next is how you say you have looked at
   // the molecule. Also step 10's last beat — press it and the closing question
   // comes up.
