@@ -47,6 +47,16 @@
   --text-muted:   var(--ink-500);
   --text-inverse: var(--paper-white);
 
+  /* THE MICRO-CAP, the system's only heading device outside prose. Two steps:
+     -lg names a whole thing on screen (the lesson, the subject), -sm labels a
+     part of the chrome (a ledger, a control, a step). Same face, same tracking,
+     same weight, same colour — the SIZE is the whole hierarchy, so a page
+     cannot invent a third treatment by picking its own tracking. */
+  --cap-lg:     12px;
+  --cap-sm:     10px;
+  --cap-track:  .22em;
+  --cap-weight: 600;
+
   --accent: var(--green-700);
   --spark:  var(--orange-500);
 
@@ -109,14 +119,19 @@
   color: var(--text-inverse);
 }
 
-/* Micro-labels are the masthead's device: uppercase, letterspaced, quiet. */
+/* Micro-labels are the masthead's device: uppercase, letterspaced, quiet.
+   Every heading on a converted page routes through one of these two, which is
+   what keeps four lessons saying "this is a label" the same way. */
+.cap-lg, .cap-sm,
 .label, .caps, h2.section {
-  font-family: var(--font-ui);
-  font-weight: var(--weight-semibold);
+  font-family: var(--font-display);
+  font-weight: var(--cap-weight);
   text-transform: uppercase;
-  letter-spacing: .22em;
-  font-size: var(--text-2xs);
+  letter-spacing: var(--cap-track);
+  color: var(--text-muted);
 }
+.cap-lg { font-size: var(--cap-lg) }
+.cap-sm, .label, .caps, h2.section { font-size: var(--cap-sm) }
 
 /* annotate.css sets 600 and 700 on labels and card headings, weights chosen
    against Nunito. One step down each, on the system face they now set in. */
@@ -157,8 +172,9 @@
    the rules stop needing the low-alpha ink pathways.css mixes for them. */
 .sticky .lhead {
   font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: .22em;
+  font-size: var(--cap-sm);
+  font-weight: var(--cap-weight);
+  letter-spacing: var(--cap-track);
   color: var(--text-muted);
 }
 .sticky .row { font-family: var(--font-ui); color: var(--text-body) }
@@ -176,19 +192,20 @@
    marker's height and the element's stays 15. */
 #stephead {
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: .22em;
+  font-size: var(--cap-sm);
+  font-weight: var(--cap-weight);
+  letter-spacing: var(--cap-track);
   line-height: 24px;
-  color: var(--text-dim);
+  color: var(--text-muted);
 }
-#stephead em { font-family: var(--font-display); color: var(--text-muted) }
+#stephead em { font-family: inherit; color: inherit }
 
 /* The rail's numbers and the tooltip's marker: hairline, even corners. */
 .rnum,
 #stepsbody .rdot { border-width: 1px }
 .infobtn { border-width: 1px }
-.modal .mkick { font-family: var(--font-display); letter-spacing: .22em }
+.modal .mkick { font-family: var(--font-display); font-size: var(--cap-sm);
+  letter-spacing: var(--cap-track) }
 
 /* The stage's right column: an aside, then a labelled datum. pathways.css
    sets them at 24 / 16 / 22px, which is three sizes close enough that nothing
@@ -211,9 +228,9 @@
 }
 #enzname .ek {
   font-family: var(--font-display);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .22em;
+  font-size: var(--cap-sm);
+  font-weight: var(--cap-weight);
+  letter-spacing: var(--cap-track);
   color: var(--text-muted);
   margin-bottom: 5px;
 }
@@ -223,4 +240,15 @@
   line-height: 1.25;
   letter-spacing: -.01em;
   text-wrap: balance;
+}
+
+/* The lesson's name. pathways.css sets a 24px marker, hemoglobin had 16px at
+   .02em and membrane an 11px cap — three treatments for one thing. */
+#pagetitle {
+  font-family: var(--font-display);
+  font-size: var(--cap-lg);
+  font-weight: var(--cap-weight);
+  text-transform: uppercase;
+  letter-spacing: var(--cap-track);
+  color: var(--text-muted);
 }

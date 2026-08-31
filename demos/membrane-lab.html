@@ -110,9 +110,9 @@
   #bar { position:relative; }
   #pagetitle { position:absolute; left:18px; top:50%;
                transform:translateY(-50%); margin:0; line-height:1;
-               font-family:var(--font-display); font-weight:600; font-size:11px;
-               text-transform:uppercase; letter-spacing:.22em;
-               color:var(--ink); opacity:.55;
+               font-family:var(--font-display); font-size:var(--cap-lg);
+               font-weight:var(--cap-weight); text-transform:uppercase;
+               letter-spacing:var(--cap-track); color:var(--text-muted);
                white-space:nowrap; }
   #steps { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
 
@@ -134,8 +134,10 @@
   #eqBadge b { display:block; font-family:var(--font-display);
                font-size:15px; font-weight:600;
                letter-spacing:.04em; }
-  #eqBadge span { display:block; font-size:11px; letter-spacing:.08em;
-                  text-transform:uppercase; opacity:.7; margin-top:2px; }
+  #eqBadge span { display:block; font-family:var(--font-display);
+                  font-size:var(--cap-sm); font-weight:var(--cap-weight);
+                  letter-spacing:var(--cap-track); text-transform:uppercase;
+                  line-height:1.5; opacity:.7; margin-top:2px; }
   .census { position:absolute; left:16px; text-align:left;
             font-size:12px; line-height:1.5; opacity:.72;
             font-variant-numeric:tabular-nums; white-space:nowrap;
@@ -143,8 +145,10 @@
   #ionsOut { top:14px; }
   #ionsIn { bottom:14px; }        /* placeControls() moves this clear of the chrome */
   .census b { font-family:var(--font-display); font-size:15px; font-weight:600; }
-  .census span { display:block; letter-spacing:.07em; text-transform:uppercase;
-                 opacity:.65; }
+  .census span { display:block; font-family:var(--font-display);
+                 font-size:var(--cap-sm); font-weight:var(--cap-weight);
+                 letter-spacing:var(--cap-track); text-transform:uppercase;
+                 line-height:1.5; opacity:.65; }
 
   /* The one global setting, and styled to say so: no pill, no colour, no
      shadow — the step's switches are pills mid-stage, and this must not read
@@ -152,7 +156,8 @@
      things on screen that persist across steps. */
   .gset { position:absolute; right:16px; z-index:5;   /* placeControls() sets bottom */
           display:flex; align-items:center; gap:7px; cursor:pointer;
-          font:inherit; font-size:12px; letter-spacing:.06em;
+          font-family:var(--font-display); font-size:var(--cap-sm);
+          font-weight:var(--cap-weight); letter-spacing:var(--cap-track);
           text-transform:uppercase; opacity:.55; user-select:none;
           text-shadow:0 1px 10px rgba(255,255,255,.85);
           transition:opacity .15s ease; }
@@ -168,8 +173,10 @@
                font-variant-numeric:tabular-nums; white-space:nowrap;
                text-shadow:0 1px 10px rgba(255,255,255,.85); }
   #voltCount b { font-family:var(--font-display); font-size:15px; font-weight:600; }
-  #voltCount span { display:block; letter-spacing:.07em; text-transform:uppercase;
-                    opacity:.65; }
+  #voltCount span { display:block; font-family:var(--font-display);
+                    font-size:var(--cap-sm); font-weight:var(--cap-weight);
+                    letter-spacing:var(--cap-track); text-transform:uppercase;
+                    line-height:1.5; opacity:.65; }
 
   #osmo { position:absolute; inset:0; pointer-events:none; z-index:3; }
   #osmo[hidden] { display:none; }
@@ -179,8 +186,10 @@
   .otally b { display:block; font-family:var(--font-display);
               font-size:46px; font-weight:600; line-height:1;
               font-variant-numeric:tabular-nums; }
-  .otally span { display:block; font-size:12px; letter-spacing:.09em;
-                 text-transform:uppercase; opacity:.6; margin-top:4px; }
+  .otally span { display:block; font-family:var(--font-display);
+                 font-size:var(--cap-sm); font-weight:var(--cap-weight);
+                 letter-spacing:var(--cap-track); text-transform:uppercase;
+                 line-height:1.6; opacity:.6; margin-top:6px; }
   .otally em { font-style:normal; font-weight:700; opacity:.95; }
   /* The unit sits with its number but does not compete with it. */
   .otally b small { font-size:0.42em; font-weight:600; letter-spacing:.02em;
