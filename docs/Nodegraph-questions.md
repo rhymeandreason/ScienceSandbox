@@ -5,13 +5,13 @@
 | q-lakes | Why do lakes freeze from the top down? | Bridging |
 | q-membrane | How does a membrane assemble itself? | Bridging |
 | q-sweat | Why does sweating cool you down? | Bridging |
-| q-sickle | Why does changing one amino acid out of 146 cause sickle cell disease? | anchor |
+| q-sickle | Why does changing just one amino acid cause a disease? | anchor |
 | q-fever | Why do you get a fever, and why is a high one dangerous? | Anchor |
 | q-egg | Why can't you un-cook an egg? | anchor |
 | q-machine | How does a chain of molecules become a machine with a specific job? | Bridging |
 | q-substrate | Why does an enzyme only act on one substrate? | Comprehension |
 | q-collagen | Why does eating protein not directly become your protein? | anchor |
-| q-which | What decides which amino acid goes where? | Bridging |
+| q-which | What decides the order of amino acids? | Bridging |
 | q-food | Where does the energy in food actually go? | anchor |
 | q-breathe | Why do you breathe out the CO2? | Anchor |
 | q-oxygen | Why do you need oxygen, if it never touches the glucose? | Bridging |
@@ -48,6 +48,22 @@ Why do bruises change colour?
 
 Why does exercise make you breathe harder?
 
+Why do we die of old age?
+
+How does a caterpillar become a butterfly with the same DNA?
+
+How can a sunburn cause cancer years later?
+
+Why do fruits go sweet and then rot?
+
+**Bridges worth adding**
+
+Why is ATP the currency and not glucose directly?
+
+Why is glycolysis 10 steps instead of one?
+
+Why does a gradient store energy at all?
+
 ## How to write Anchor questions
 
 "Why can't you un-cook an egg?" is a question someone could have **before** the course, about something they've already noticed. The concepts aren't in the question. And answering it requires assembling several — covalent vs non-covalent bonds, folding forces, primary structure surviving.
@@ -56,7 +72,7 @@ Why does exercise make you breathe harder?
 
 So the test is roughly: **would a curious person ask this without having taken the course, and does answering it require more than one node?**
 
-## Three kinds, and they need different names
+## Three kinds of questions, and they need different names
 
 **Anchor questions** — pre-existing curiosity, multi-node answer, no jargon. Entry points into the graph, and the reason someone starts reading at all. These should be rare and precious; maybe six to ten per unit and some units won't have that many.
 
@@ -68,14 +84,8 @@ Typing them separately matters for navigation: anchors go on the front door, bri
 
 ## Your two proposals
 
-Both are strong anchors, and they're revealing about a gap.
-
 **"How do fish breathe in water?"** — pulls SA:V, diffusion gradients, countercurrent exchange, oxygen solubility, membrane transport. Crosses four units. Nobody needs biology vocabulary to ask it.
 
 **"Why are some animals cold-blooded?"** — even better, because it has a false premise embedded. "Cold-blooded" isn't a thing; it's ectothermy, and a lizard in the sun is warmer than you. Pulls metabolism, specific heat, SA:V, energy budgets, ecology. Questions with a wrong assumption inside them are the best anchors, because resolving them requires restructuring rather than retrieval.
 
-## Practical suggestion
-
-Retype what's written rather than deleting. Most of my "anchoring questions" are perfectly good bridging or comprehension questions and should keep existing — they just shouldn't be the front door.
-
-Then check anchor coverage per unit and expect it to be uneven. Water has genuinely great anchors because its effects are visible at human scale. Molecular genetics has maybe three real ones — "why do you look like your parents," "how does a molecule store instructions," and the sickle cell one. That's fine. Unevenness in anchor density is honest information about which parts of biology connect to lived experience, and it's probably a useful signal for where to place entry points in the interface.
+## 
