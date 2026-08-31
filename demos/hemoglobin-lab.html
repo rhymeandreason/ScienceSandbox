@@ -28,12 +28,9 @@
     letter-spacing:var(--cap-track);color:var(--text-muted);
     text-align:center;pointer-events:none}
 
-  /* ?chrome=bare — the lesson inside someone else's frame. The door map opens
-     this page in a modal that has already said what it is, so the page's own
-     title would be the second one on screen. The PAGE owns what bare means:
-     the map asks for a mode, it does not reach into this document. Anything
-     else that has to go when this is not the whole window goes here too. */
-  html.bare #pagetitle{display:none}
+  /* Anything else that has to go when this is not the whole window goes here.
+     The title itself is marked .chrome-title and hidden by main.css; lib/embed.js
+     is what decides the page is framed. */
 
   #molname{position:absolute;left:50%;bottom:100px;transform:translateX(-50%);
     z-index:6;font-family:var(--font-editorial);font-size:16px;font-weight:400;
@@ -179,17 +176,14 @@
   }
 </style>
 </head>
-<!-- Read before the body paints, so a bare lesson never flashes its own title
-     on the way into someone else's frame. -->
-<script>
-  if (new URLSearchParams(location.search).get('chrome') === 'bare')
-    document.documentElement.classList.add('bare');
-</script>
+<!-- The class has to land before the first paint, or a framed lesson
+     flashes its own title on the way into someone else's frame. -->
+<script src="lib/embed.js"></script>
 <body>
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
-    <div id="pagetitle">Protein Structure</div>
+    <div id="pagetitle" class="chrome-title">Protein Structure</div>
     <div id="saycap" hidden><div class="capname"></div><div class="capbody"></div></div>
 
     <div id="molname">Hemoglobin</div>

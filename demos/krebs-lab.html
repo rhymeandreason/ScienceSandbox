@@ -140,13 +140,16 @@
   .rlead{color:var(--muted);font-size:14px;margin:0 -3px 0 -1px;user-select:none}
 </style>
 </head>
+<!-- The class has to land before the first paint, or a framed lesson
+     flashes its own title on the way into someone else's frame. -->
+<script src="lib/embed.js"></script>
 <body>
 <div id="app-sidebar">
   <!-- THE PATHWAY RAIL, top, spanning both columns: read left-to-right it costs
        the stage no width, which is what the molecules needed. Title absolutely
        positioned so it costs the rail no width and leaves it centred. -->
   <div id="railbar">
-    <h1 id="pagetitle">The Krebs cycle</h1>
+    <h1 id="pagetitle" class="chrome-title">The Krebs cycle</h1>
     <div id="rail"></div>
   </div>
   <div id="stage">

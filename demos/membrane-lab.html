@@ -231,6 +231,9 @@
 }
 </style>
 </head>
+<!-- The class has to land before the first paint, or a framed lesson
+     flashes its own title on the way into someone else's frame. -->
+<script src="lib/embed.js"></script>
 <body>
 <div id="page">
   <div id="stage">
@@ -338,7 +341,7 @@
        version, where the claim came first because it sat nearer the scene. -->
   <div id="chrome">
     <div id="bar">
-      <h1 id="pagetitle">Cell Membrane</h1>
+      <h1 id="pagetitle" class="chrome-title">Cell Membrane</h1>
       <nav id="steps" aria-label="lesson steps"></nav>
     </div>
     <p id="cap"></p>

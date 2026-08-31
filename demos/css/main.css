@@ -48,6 +48,17 @@ body {
   font-family: var(--font-ui);
 }
 
+/* A lesson in someone else's frame. lib/embed.js puts `bare` on <html> when
+   the page is framed; each lesson marks its OWN title, because only the page
+   knows which element is its name and which is a control that has to survive.
+   Here rather than in a page or in editorial.css: every lesson loads this file,
+   and a lesson that has not been restyled still gets embedded.
+   `!important` because the mark lands on whatever element IS the title, and
+   that is often an id with its own `display` — molecule-lab's #brand is a flex
+   row, and a class cannot outrank an id. A one-purpose hiding utility is the
+   place this is the honest fix rather than a shortcut. */
+html.bare .chrome-title { display: none !important }
+
 /* -----------------------------------------------------------------------------
    1. PRIMITIVES
    -------------------------------------------------------------------------- */

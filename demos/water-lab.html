@@ -18,6 +18,9 @@
 <link rel="stylesheet" href="css/water-tutor.css">   <!-- this lesson's on-stage chrome -->
 <link rel="stylesheet" href="css/editorial.css">     <!-- opt in to the homepage system; LAST of the shared sheets -->
 </head>
+<!-- The class has to land before the first paint, or a framed lesson
+     flashes its own title on the way into someone else's frame. -->
+<script src="lib/embed.js"></script>
 <body>
 <div id="app-sidebar">
   <div id="stage">
@@ -28,7 +31,7 @@
          its own ground rather than relying on empty paper behind it. -->
     <div id="titleblock">
       <div id="brand">
-        <h1>Structure of Water</h1>
+        <h1 class="chrome-title">Structure of Water</h1>
         <div id="steps"></div>
       </div>
       <p id="stepclaim"></p>

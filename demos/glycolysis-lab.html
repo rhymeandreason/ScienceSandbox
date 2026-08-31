@@ -42,13 +42,16 @@
     aspect-ratio:1;max-width:100%;overflow:hidden;padding:18px 20px}
 </style>
 </head>
+<!-- The class has to land before the first paint, or a framed lesson
+     flashes its own title on the way into someone else's frame. -->
+<script src="lib/embed.js"></script>
 <body>
 <div id="app-sidebar">
   <!-- THE PATHWAY RAIL, top, spanning both columns: read left-to-right it costs
        the stage no width, which is what the molecules needed. Title absolutely
        positioned so it costs the rail no width and leaves it centred. -->
   <div id="railbar">
-    <h1 id="pagetitle">Glycolysis</h1>
+    <h1 id="pagetitle" class="chrome-title">Glycolysis</h1>
     <div id="rail"></div>
   </div>
   <div id="stage">

@@ -66,10 +66,13 @@
     max-width:100%;overflow:hidden;padding:16px 18px}
 </style>
 </head>
+<!-- The class has to land before the first paint, or a framed lesson
+     flashes its own title on the way into someone else's frame. -->
+<script src="lib/embed.js"></script>
 <body>
 <div id="app-sidebar">
   <div id="railbar">
-    <h1 id="pagetitle">Fermentation</h1>
+    <h1 id="pagetitle" class="chrome-title">Fermentation</h1>
     <div id="rail"></div>
     <div id="branchtabs"></div>
     <div id="branchwhen"></div>

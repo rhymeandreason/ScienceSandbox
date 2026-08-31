@@ -40,13 +40,16 @@
 
 </style>
 </head>
+<!-- The class has to land before the first paint, or a framed lesson
+     flashes its own title on the way into someone else's frame. -->
+<script src="lib/embed.js"></script>
 <body>
 <div id="app-sidebar">
   <div id="stage">
     <canvas id="gl"></canvas>
     <div id="dissocmsg" aria-live="polite"></div>
 
-    <div id="brand">
+    <div id="brand" class="chrome-title">
       <i class="ph-bold ph-flask drop"></i>
       <h1>Molecule Sandbox</h1>
     </div>
