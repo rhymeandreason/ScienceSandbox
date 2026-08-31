@@ -611,6 +611,15 @@
      a different act rather than a smaller one: italic and blue, a colour no
      unit owns. Clicking it deals the kinds of the card it answers into. */
   .node.question.extension { font-style: italic; }
+  /* AN ASKED QUESTION IS THE LOUDEST THING ON THE MAP. In the bar it is one
+     row of many; on the map it is the reason everything around it is open, so
+     it arrives at twice the size it reads at in the list. Wider with it, or
+     two and a half rem sets a tall narrow column beside a small card. */
+  .node.question.extension.asked {
+    font-size: 2.5rem; line-height: 1.1; letter-spacing: -0.02em;
+    width: 30rem; max-width: 30rem;
+  }
+  .node.question.unlit.extension.asked { max-width: 30rem; }
   /* a fogged question is sized by max-content against a max-width, so the
      narrower cap has to be restated here or the fog rule's 26rem wins */
   .node.question.unlit.bridging,
@@ -1689,6 +1698,9 @@ function draw() {
   }
 }
 
+/* the reader has moved the camera themselves, by hand or by asking: a resize
+   must not re-centre a map they have navigated */
+let touched = false;
 let follow = null, followFrames = 0, followK = 0;
 function followStep() {
   if (!follow || followFrames-- <= 0) { follow = null; followK = 0; return; }
@@ -1942,6 +1954,14 @@ document.addEventListener('click', e => {
 function focus(n) {
   focused = n;
   walk = null;                  // a click lands off the fan; goWalk restores its own
+  /* A QUESTION IS ONLY HALF OF ITSELF. Focusing one and leaving its answer a
+     fogged mark asks the reader to guess which of the neighbours it opened is
+     the answer — so the rank-1 answers open with it. Rank 1 only: the rest of
+     what a question touches is still theirs to open. */
+  if (n.type === 'question') {
+    for (const l of linksOf(n))
+      if (l.type === 'answers' && l.rank === 1) light(l.a === n ? l.b : l.a);
+  }
   showHint();
   follow = n; followFrames = 700;
   if (n.on) goLive(n);          // the clicked card re-fronts in the pool
@@ -1980,6 +2000,30 @@ function focus(n) {
     if (l.arrow) l.arrow.setAttribute('fill-opacity',
       near ? (near * byRank * 1.1).toFixed(2) : '.06');
     l.label.classList.toggle('on', first);
+  }
+  /* the answered chain is re-asserted after the loop above, which knows
+     nothing about it and would leave it dimmed like any other enrichment */
+  if (pillHost && pillHost.query) fullChain(pillHost);
+}
+
+/* THE ANSWERED CHAIN READS AT FULL STRENGTH. Question → its kind → the pill →
+   the card is one continuous claim, and the focus dimming grades those links
+   by hop distance and rank into three different opacities — which makes the
+   answer look like the weakest part of what is on screen. The rest of the fan
+   is left dimmed on purpose: that contrast is what says which member answered.
+   Re-run after every focus, because focus repaints every link. */
+function fullChain(host) {
+  const q = host.query;
+  if (!q) return;
+  const target = q.host;
+  const chain = links.filter(l =>
+    l.a === q || l.b === q ||                                  /* question → kind */
+    (target && target !== host && (l.a === target || l.b === target) &&
+     (l.a === host.pill || l.b === host.pill)) ||              /* kind → pill */
+    l === host.pillLink);                                      /* pill → card */
+  for (const l of chain) {
+    l.el.setAttribute('stroke-opacity', '1');
+    if (l.arrow) l.arrow.setAttribute('fill-opacity', '1');
   }
 }
 
@@ -2542,7 +2586,13 @@ function dropQuery(host) {
   const q = host.query;
   dropLinks(links.filter(l => l.a === q || l.b === q));
   dropNodes([q]);
-  q.el = null;
+  /* A QUERY LEAVES THE MAP, NOT THE MAP'S INDEX. `dropNodes` deletes the id
+     because a satellite ceases to exist when its fan closes — but a deferred
+     question is authored and permanent, off the map exactly the way it was
+     before it was first asked, and `ask()` finds it by id. Without this the
+     question can be asked once and then never again. */
+  byId[q.id] = q;
+  q.el = null; q.satellite = false; q.host = null; q.on = false;
   host.query = null;
 }
 
@@ -2558,7 +2608,8 @@ function spawnQuery(q, host) {
   q.x = target.x; q.y = target.y;
   nodes.push(q); byId[q.id] = q;
   paintNode(q);
-  q.el.classList.add('lit');
+  /* before the measurements below: the class changes the box it reports */
+  q.el.classList.add('lit', 'asked');
   /* below its answer, and left of it, so the question reads before the card
      it points at rather than out of the card's own reading order */
   q.dx = -(target.el.offsetWidth / 2 + q.el.offsetWidth / 2 + 30);
@@ -2568,14 +2619,27 @@ function spawnQuery(q, host) {
   const l = { a: q, b: target, type: 'answers', rank: 1, spine: true };
   links.push(l); paintLink(l); edgeRefresh(l);
   host.query = q;
+  fullChain(host);
   draw();
 }
 
 /* the one entry point: everything that asks goes through here, so the bar,
    the list and anything later that fuzzy-matches all land the same way */
+/* WHERE AN ASK ARRIVES. A query comes from the bar, so it comes from wherever
+   the reader happened to be — the whole map at 0.30, or one card at 1.5. It
+   lands at the same zoom either way, or the same question shows a different
+   amount of its surroundings every time it is asked. */
+const ASK_ZOOM = 0.6;
+
 function askQuestion(q) {
   if (!q) return;
-  if (q.qtype !== 'extension') { light(q); focus(q); return; }
+  /* a question that is already a card is followed to the same zoom: only what
+     is drawn differs between the two kinds of door, not how you arrive */
+  if (q.qtype !== 'extension') {
+    light(q); focus(q);
+    followK = ASK_ZOOM; touched = true;
+    return;
+  }
   const host = byId[q.anchorId];
   if (!host) { console.warn('query has nowhere to land:', q.id); return; }
   light(host);
@@ -2585,15 +2649,22 @@ function askQuestion(q) {
   /* the fan and the question were born after focus lit the neighbourhood */
   for (const m of [q, host.pill, ...(host.sats || [])])
     if (m && m.el) m.el.classList.add('lit');
-  /* CENTRE THE ANSWER, NOT THE QUESTION. The question sits below its member
-     and the card sits above the fan, so following either one puts the rest of
-     the chain against an edge. `follow` only ever reads x and y, so a midpoint
-     is a legal thing to hand it. */
-  const chain = [q, host, host.pill, ...(host.sats || [])].filter(Boolean);
-  follow = { x: chain.reduce((t, m) => t + m.x, 0) / chain.length,
-             y: chain.reduce((t, m) => t + m.y, 0) / chain.length };
+  /* THE CHAIN MOVES AFTER THE ASK. The fan is placed, then the relax settles
+     it, so a point computed now is stale by the time the pan arrives — the
+     follow target reads the chain live, and it is the BOUNDING BOX rather than
+     the mean of centres because the asked question is by far the widest card
+     in it. */
+  const chain = () => [q, host, host.pill, ...(host.sats || [])].filter(m => m && m.el);
+  const box = () => chain().reduce((b, m) => {
+    const w = m.el.offsetWidth / 2, h = m.el.offsetHeight / 2;
+    return { l: Math.min(b.l, m.x - w), r: Math.max(b.r, m.x + w),
+             t: Math.min(b.t, m.y - h), b: Math.max(b.b, m.y + h) };
+  }, { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity });
+  follow = { get x() { const k = box(); return (k.l + k.r) / 2; },
+             get y() { const k = box(); return (k.t + k.b) / 2; } };
   followFrames = 700;
-  followK = Math.max(view.k, 0.85);    /* readable, and never a zoom OUT */
+  followK = ASK_ZOOM;
+  touched = true;
   wake(0.4);
 }
 
@@ -2799,7 +2870,6 @@ function gutterLight(n) {
 
 /* ---- start --------------------------------------------------------------- */
 
-let touched = false;
 canvas.addEventListener('pointerdown', () => { touched = true; });
 canvas.addEventListener('wheel', () => { touched = true; });
 addEventListener('resize', () => { applyView(); if (!touched) centre(); });
