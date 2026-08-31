@@ -10,6 +10,7 @@
 <title>The membrane — what gets through, and what it costs</title>
 <link rel="stylesheet" href="css/main.css">          <!-- design system: tokens, type, buttons -->
 <link rel="stylesheet" href="css/annotate.css">      <!-- callout look, formerly sandbox.css -->
+<link rel="stylesheet" href="css/editorial.css">      <!-- opt in to the homepage system -->
 <style>
   html,body { height:100%; margin:0; overflow:hidden; }
   /* THE STAGE IS THE WHOLE WINDOW AND THE CHROME FLOATS OVER IT, so nothing
@@ -29,14 +30,15 @@
                membrane is unreadable without one. Solid where the type is and
                fading DOWNWARD, so there is no hard edge across the lipid. */
             background:linear-gradient(to bottom,
-              rgba(238,232,220,.96) 0%, rgba(238,232,220,.88) 52%,
-              rgba(238,232,220,0) 100%); }
+              rgba(250,248,244,.96) 0%, rgba(250,248,244,.88) 52%,
+              rgba(250,248,244,0) 100%); }
   /* Only the tabs take clicks; the text must not eat a drag meant for the
      scene behind it. */
   #steps { pointer-events:auto; }
-  #cap { font-size:17px; line-height:1.35; min-height:2.6em;
-         max-width:46em; margin:14px auto 0; }
-  #cap b { font-weight:600; }
+  #cap { font-family:var(--font-editorial); font-size:17px; line-height:1.45;
+         min-height:2.6em; max-width:46em; margin:14px auto 0;
+         color:var(--text-body); }
+  #cap b { font-weight:600; color:var(--text-strong); }
 
 
   /* The pump's control, so it sits by the pump. OUTSIDE #chrome, or
@@ -105,8 +107,9 @@
   #bar { position:relative; }
   #pagetitle { position:absolute; left:18px; top:50%;
                transform:translateY(-50%); margin:0; line-height:1;
-               font-family:var(--font-marker); font-weight:400; font-size:22px;
-               letter-spacing:.2px; color:var(--ink); opacity:.75;
+               font-family:var(--font-ui); font-weight:600; font-size:11px;
+               text-transform:uppercase; letter-spacing:.22em;
+               color:var(--ink); opacity:.55;
                white-space:nowrap; }
   #steps { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
 
