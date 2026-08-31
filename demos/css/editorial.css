@@ -189,3 +189,38 @@
 #stepsbody .rdot { border-width: 1px }
 .infobtn { border-width: 1px }
 .modal .mkick { font-family: var(--font-display); letter-spacing: .22em }
+
+/* The stage's right column: an aside, then a labelled datum. pathways.css
+   sets them at 24 / 16 / 22px, which is three sizes close enough that nothing
+   leads — and a label nearly as big as the thing it labels. The register does
+   the separating here, so the sizes only have to step once each:
+   the note is the tutor's voice (italic), the name is a fact (roman, blue),
+   and the label shrinks to the micro-cap it always was. */
+#enznote {
+  font-family: var(--font-editorial);
+  font-style: italic;
+  font-size: 21px;
+  line-height: 1.32;
+  /* 170px broke "The split: 6 / carbons / become 3 + 3" — one word alone on
+     the middle line. The wider measure sets it in two, and `balance` evens
+     the rag on the notes that still take three. */
+  max-width: 232px;
+  text-wrap: balance;
+  color: var(--text-dim);
+  opacity: 1;
+}
+#enzname .ek {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .22em;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+#enzname .en {
+  font-family: var(--font-editorial);
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
