@@ -1979,6 +1979,7 @@ function focus(n) {
   for (const m of hop2) m.el.classList.add('lit', 'hop2');
 
   renderChips(n);
+  syncQuery(n);
   syncPill(n);
   measure();
   gutterLight(n);
@@ -2003,7 +2004,7 @@ function focus(n) {
   }
   /* the answered chain is re-asserted after the loop above, which knows
      nothing about it and would leave it dimmed like any other enrichment */
-  if (pillHost && pillHost.query) fullChain(pillHost);
+  if (queryHost && queryHost.query) fullChain(queryHost);
 }
 
 /* THE ANSWERED CHAIN READS AT FULL STRENGTH. Question → its kind → the pill →
@@ -2016,11 +2017,14 @@ function fullChain(host) {
   const q = host.query;
   if (!q) return;
   const target = q.host;
+  /* a query that landed on the card itself is a chain of one link, and there
+     is no pill between them to light */
   const chain = links.filter(l =>
     l.a === q || l.b === q ||                                  /* question → kind */
-    (target && target !== host && (l.a === target || l.b === target) &&
+    (host.pill && target && target !== host &&
+     (l.a === target || l.b === target) &&
      (l.a === host.pill || l.b === host.pill)) ||              /* kind → pill */
-    l === host.pillLink);                                      /* pill → card */
+    (host.pillLink && l === host.pillLink));                   /* pill → card */
   for (const l of chain) {
     l.el.setAttribute('stroke-opacity', '1');
     if (l.arrow) l.arrow.setAttribute('fill-opacity', '1');
@@ -2030,6 +2034,7 @@ function fullChain(host) {
 function clearFocus() {
   focused = null;
   walk = null;
+  syncQuery(null);
   syncPill(null);
   showHint();
   document.body.classList.remove('focusing');
@@ -2581,6 +2586,11 @@ function toggleKinds(host) {
    arrived by clicking "what kinds are there?" are looking at the same thing,
    and a second way of drawing it would say they are not. */
 
+/* THE QUERY OUTLIVES THE PILL. A query that landed on a card with no `kinds`
+   has no fan to collapse, so `collapseKinds` never runs and nothing would ever
+   take it off the map. Its own handle is what drops it. */
+let queryHost = null;
+
 function dropQuery(host) {
   if (!host || !host.query) return;
   const q = host.query;
@@ -2594,6 +2604,17 @@ function dropQuery(host) {
   byId[q.id] = q;
   q.el = null; q.satellite = false; q.host = null; q.on = false;
   host.query = null;
+  if (queryHost === host) queryHost = null;
+}
+
+/* the query's own family check, the same shape as syncPill's: focusing the
+   card, its pill, one of its kinds or the question itself is staying inside
+   what the query opened; anything else is leaving. */
+function syncQuery(n) {
+  if (!queryHost) return;
+  const h = queryHost;
+  if (n === h || n === h.query || n === h.pill || (h.sats || []).includes(n)) return;
+  dropQuery(h);
 }
 
 function spawnQuery(q, host) {
@@ -2619,6 +2640,7 @@ function spawnQuery(q, host) {
   const l = { a: q, b: target, type: 'answers', rank: 1, spine: true };
   links.push(l); paintLink(l); edgeRefresh(l);
   host.query = q;
+  queryHost = host;
   fullChain(host);
   draw();
 }

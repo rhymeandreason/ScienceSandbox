@@ -124,12 +124,13 @@ authors it like any other question, and the page pulls it out **before layout**
 moved every neighbour they repelled. The degree they added is given back, or
 the card they answer reads one link heavier than it is.
 
-**Its answer is inside its target's `kinds`, and it names which**, in `kind`,
-matched on the kinds name. Asking one opens the card, deals the fan, and spawns
-the question as a satellite of the member that answers it. The pill stays in
-the chain: a reader who arrived by query and one who clicked "what kinds are
-there?" are looking at the same thing, and a second way of drawing it would say
-they are not.
+**`kind` is optional.** Where the answer is one member of the target's `kinds`,
+the question names it and lands on that member: the card opens, the fan deals,
+and the question spawns beside the member, with the pill left in the chain
+because a reader who arrived by query and one who clicked "what kinds are
+there?" are looking at the same thing. Where there is no `kind`, the question
+lands on the card itself and the chain is one link. The fan was where this
+started, not what it is for.
 
 Being a satellite is what makes it free: it rides its target, is skipped by the
 relax, and pushes nothing. `dropQuery` runs from `collapseKinds`, so the fan
@@ -152,14 +153,21 @@ A query arrives from wherever the reader was, which may be the whole map at
 field as a keyword search over the cards. Until then a typed miss reddens the
 bar rather than failing silently.
 
-### The test for tagging one
+### What belongs here
 
-`kind` is what enforces it. *Why does sunburn cause mutations?* lands on
-`mutagen`'s Ultraviolet. *Why does eating fat give more energy than eating
-sugar?* was tagged extension and had to be given back: `fatty-acid`'s own claim
-already says the tail is the energy, and saturated / unsaturated / trans is a
-different question. **If no member is THE answer, the question is not an
-extension.**
+**An extension question is one that is worth asking and not worth a seat.** The
+map's 35 questions are doors into a unit or joints between two, and they are
+placed accordingly; these are the ones a reader arrives with rather than the
+ones the curriculum arrives with, so they are held in the bar until asked. They
+should be answerable by exactly one place on the map, and they should be worth
+reading before the answer is known.
+
+**A `kind` still has to be THE answer where one is named.** *Why does eating fat
+give more energy than eating sugar?* was tagged extension with `fatty-acid` and
+had to be given back: the card's own claim already says the tail is the energy,
+and saturated / unsaturated / trans is a different question. Landing it kindless
+on the card would have been right; naming a member that does not answer is what
+was wrong.
 
 ## Kinds: detail that failed the node test
 

@@ -645,6 +645,16 @@
     text:'Why does the chain start at photosystem II?' },
   { id:'q-autumn',   type:'question', qtype:'extension', kind:'Carotenoid',
     text:'Why do leaves change colour in autumn?' },
+  /* KINDLESS: these land on the card itself. Each is a thing a reader already
+     has an opinion about, answered by one card and nowhere else. */
+  { id:'q-cyanide',  type:'question', qtype:'extension',
+    text:'Why is cyanide so fast?' },
+  { id:'q-soap',     type:'question', qtype:'extension',
+    text:'Why does soap work?' },
+  { id:'q-curly',    type:'question', qtype:'extension',
+    text:'Why is hair curly?' },
+  { id:'q-yeast',    type:'question', qtype:'extension',
+    text:'Why does yeast make bread rise and beer strong with the same reaction?' },
   ];
 
   const EDGES = [
@@ -945,6 +955,10 @@
     ['q-babies',         'answers',         'nat-select',     1],
     ['q-off',            'answers',         'transcription-factor', 1],
     ['q-psii',           'answers',         'photosystem',    1],
+    ['q-cyanide',        'answers',         'etc',            1],
+    ['q-soap',           'answers',         'amphipathic',    1],
+    ['q-curly',          'answers',         'disulfide',      1],
+    ['q-yeast',          'answers',         'ethanol',        1],
 
     /* THE QUESTION STUDENTS MOST WANT ANSWERED, and the one most often cut
        for time. Rank 1 on purpose. */
