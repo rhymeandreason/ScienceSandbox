@@ -107,7 +107,7 @@
   #bar { position:relative; }
   #pagetitle { position:absolute; left:18px; top:50%;
                transform:translateY(-50%); margin:0; line-height:1;
-               font-family:var(--font-ui); font-weight:600; font-size:11px;
+               font-family:var(--font-display); font-weight:600; font-size:11px;
                text-transform:uppercase; letter-spacing:.22em;
                color:var(--ink); opacity:.55;
                white-space:nowrap; }
@@ -128,7 +128,8 @@
              box-shadow:0 2px 10px rgba(0,0,0,.12);
              opacity:0; transition:opacity .6s ease; }
   #eqBadge.is-on { opacity:1; }
-  #eqBadge b { display:block; font-size:15px; font-weight:700;
+  #eqBadge b { display:block; font-family:var(--font-display);
+               font-size:15px; font-weight:600;
                letter-spacing:.04em; }
   #eqBadge span { display:block; font-size:11px; letter-spacing:.08em;
                   text-transform:uppercase; opacity:.7; margin-top:2px; }
@@ -138,7 +139,7 @@
             text-shadow:0 1px 10px rgba(255,255,255,.85); }
   #ionsOut { top:14px; }
   #ionsIn { bottom:14px; }        /* placeControls() moves this clear of the chrome */
-  .census b { font-size:15px; font-weight:700; }
+  .census b { font-family:var(--font-display); font-size:15px; font-weight:600; }
   .census span { display:block; letter-spacing:.07em; text-transform:uppercase;
                  opacity:.65; }
 
@@ -163,7 +164,7 @@
                font-size:12px; line-height:1.5; opacity:.72;
                font-variant-numeric:tabular-nums; white-space:nowrap;
                text-shadow:0 1px 10px rgba(255,255,255,.85); }
-  #voltCount b { font-size:15px; font-weight:700; }
+  #voltCount b { font-family:var(--font-display); font-size:15px; font-weight:600; }
   #voltCount span { display:block; letter-spacing:.07em; text-transform:uppercase;
                     opacity:.65; }
 
@@ -172,7 +173,8 @@
   .otally { position:absolute; transform:translate(-50%,-50%); text-align:center;
             text-shadow:0 1px 12px rgba(255,255,255,.85),
                         0 0 26px rgba(255,255,255,.7); }
-  .otally b { display:block; font-size:46px; font-weight:700; line-height:1;
+  .otally b { display:block; font-family:var(--font-display);
+              font-size:46px; font-weight:600; line-height:1;
               font-variant-numeric:tabular-nums; }
   .otally span { display:block; font-size:12px; letter-spacing:.09em;
                  text-transform:uppercase; opacity:.6; margin-top:4px; }

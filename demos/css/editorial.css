@@ -60,9 +60,15 @@
    editorial pair converts every page that uses them without touching one.
    -------------------------------------------------------------------------- */
 :root {
-  --font-ui:        'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+  /* Two sans faces, split by job. The geometric one is the site's voice and
+     it is a DISPLAY face: it sets a wordmark and a micro-cap beautifully and
+     a paragraph badly, and its 600 at 13px is a black bar. Body and UI text
+     therefore get the system face, which is what the reader's OS has already
+     hinted for prose at that size. */
+  --font-display: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+  --font-ui:      system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-editorial: 'Literata', Georgia, serif;
-  --font-shout:     var(--font-ui);
+  --font-shout:     var(--font-display);
   --font-aside:     var(--font-editorial);
 
   --tracking-wide: .02em;
@@ -111,3 +117,12 @@
   letter-spacing: .22em;
   font-size: var(--text-2xs);
 }
+
+/* annotate.css sets 600 and 700 on labels and card headings, weights chosen
+   against Nunito. One step down each, on the system face they now set in. */
+.annot-label { font-weight: 500 }
+.annot-card h4, .annot-card b { font-weight: 600 }
+
+/* The display face, where a page wants the site's voice rather than prose:
+   the masthead's micro-caps and any large numeral a lesson reads out. */
+.caps, .label, h2.section { font-family: var(--font-display) }

@@ -23,7 +23,7 @@
   /* static labels — page title above the running caption, molecule name
      above the transport controls. Neither changes with the animation. */
   #pagetitle{position:absolute;left:50%;top:14px;transform:translateX(-50%);
-    z-index:6;font-family:var(--font-ui);font-size:16px;letter-spacing:.02em;color:var(--muted);
+    z-index:6;font-family:var(--font-display);font-size:16px;letter-spacing:.02em;color:var(--muted);
     text-align:center;pointer-events:none}
 
   /* ?chrome=bare — the lesson inside someone else's frame. The door map opens
@@ -70,7 +70,7 @@
     background:rgba(255,255,255,.94);border:1px solid var(--hair);
     border-radius:4px;padding:13px 16px 15px;
     box-shadow:0 6px 18px -8px rgba(0,0,0,.45);backdrop-filter:blur(2px)}
-  #infopanel h4{font-family:var(--font-ui);font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.2;
+  #infopanel h4{font-family:var(--font-display);font-size:15px;font-weight:600;letter-spacing:-.01em;line-height:1.2;
     margin:0 0 3px}
   #infopanel section + section{margin-top:12px;padding-top:11px;
     border-top:1px solid var(--hair)}
@@ -103,7 +103,7 @@
     height:2px;background:var(--hair)}
   #segbar .segfill{position:absolute;left:0;bottom:0;height:2px;width:0;
     background:var(--ink);z-index:1}
-  #segbar .seglab{font-size:10px;font-weight:500;letter-spacing:.16em;
+  #segbar .seglab{font-family:var(--font-display);font-size:10px;font-weight:500;letter-spacing:.16em;
     text-transform:uppercase;color:var(--muted);white-space:nowrap;
     overflow:hidden;text-overflow:ellipsis;max-width:100%;
     transition:color var(--dur-fast)}
@@ -124,7 +124,7 @@
   #tally{pointer-events:none;
     text-align:right;display:flex;gap:18px;align-items:flex-start;
     background:rgba(255,255,255,.72);border:1px solid var(--hair);border-radius:4px;
-    padding:9px 13px;font-family:var(--font-ui);font-size:12.5px;line-height:1.45}
+    padding:9px 13px;font-family:var(--font-display);font-size:12.5px;line-height:1.45}
   #tally[hidden]{display:none}
   #tally .col{text-align:right}
   #tally .big{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;
