@@ -109,6 +109,30 @@
   #edges text.on { opacity: 0.95; }
   #edges line.band { stroke: #eeebe2; stroke-width: 1; }
 
+  .hilite {
+    font-family: var(--ui); font-size: 0.7rem; letter-spacing: 0.04em;
+    color: var(--muted); margin-right: 0.9rem;
+    display: inline-flex; align-items: center; gap: 0.45rem;
+  }
+  .hilite select {
+    font-family: var(--ui); font-size: 0.7rem; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 0.25rem 0.4rem; cursor: pointer;
+  }
+
+  /* ---- highlight ------------------------------------------------------
+     A reading of the map's own shape, laid over the fog. Only MARKS respond:
+     an open card is already making its own case, and focus outranks this
+     entirely, so the two dimming systems never fight. */
+  body.highlighting:not(.focusing) .node.unlit { opacity: 0.28; }
+  body.highlighting:not(.focusing) .node.unlit.hi { opacity: 1; }
+  body.highlighting:not(.focusing) .node.card.unlit.hi {
+    background: var(--card); border-color: var(--line);
+  }
+  body.highlighting:not(.focusing) .node.card.unlit.hi .name {
+    font-size: 0.92em; color: var(--ink); font-weight: 600;
+  }
+
   /* ---- the scale gutter ------------------------------------------------
      No longer a legend: a RULER. Each rung is pinned to its band's world
      y, repositioned on every pan and zoom, so the label and the cards at
@@ -232,6 +256,10 @@
   .node.card.concept:hover,
   .node.card.concept.hub { background: var(--card); border-color: var(--line); }
   .node.card.chem { background: var(--paper); border: 1px dashed #cdbfe3; }
+  /* evidence is an experiment, not a claim: card ground, and a rule down the
+     left the way a process wears one */
+  .node.card.evidence { border-left: 3px solid var(--dot, var(--line)); }
+  .node.card .tag.eviD { color: var(--dot, var(--accent)); border-color: currentColor; }
   .node.card.process { border-left: 3px solid var(--dot, var(--line)); }
   .node.card.process .name .run {
     color: var(--dot, var(--muted)); font-weight: 600; margin-right: 0.05rem;
@@ -542,6 +570,16 @@
   <a class="logo" href="../index.html">kodo<em>lab</em><span class="dot">.</span></a>
   <span class="title">Biology</span>
   <span class="spacer"></span>
+  <label class="hilite">Highlight
+    <select id="hilite">
+      <option value="">off</option>
+      <option value="carries">what carries the map</option>
+      <option value="through">most paths through</option>
+      <option value="degree">most connections</option>
+      <option value="bridge">bridges between units</option>
+      <option value="all">all of the above</option>
+    </select>
+  </label>
   <button class="btn" id="spinebtn">Spine</button>
   <button class="btn" id="reset">Start over</button>
 </header>
@@ -1070,6 +1108,7 @@ function paintNode(n) {
     if (tint) el.style.setProperty('--dot', tint);
     n.tint = tint;
     const tags = scaleTag(n) +
+      (n.type === 'evidence' ? '<span class="tag eviD">evidence</span>' : '') +
       (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '');
     el.innerHTML = '<div class="name">' +
                      (n.type === 'process' ? '<span class="run">→</span>' : '') +
@@ -1597,8 +1636,11 @@ function walkDir(l, n) {
   if (!o) return null;
   return o[1] === n ? 'why' : 'onward';
 }
-const station = n =>
-  n.type !== 'specimen' && n.type !== 'theme' && n.type !== 'content';
+/* an evidence card shows HOW WE KNOW a claim, which is a destination the
+   same way a specimen or a film is: worth clicking, never a station the
+   explanation walks through */
+const station = n => n.type !== 'specimen' && n.type !== 'theme' &&
+                     n.type !== 'content' && n.type !== 'evidence';
 
 /* how far a branch carries: the longest rank-1 chain onward from it. No
    memo — 64 nodes, and only a keypress asks. The seen guard is for a data
@@ -1662,6 +1704,107 @@ addEventListener('keydown', e => {
   if (e.key === 'ArrowDown')  { e.preventDefault(); stepBranch(1); }
   if (e.key === 'ArrowUp')    { e.preventDefault(); stepBranch(-1); }
 });
+
+/* ---- what a card weighs --------------------------------------------------
+   Three questions about a card, and they disagree with each other, which is
+   the point of offering them separately.
+
+     DEGREE       how much this card has to say for itself.
+     THROUGH      how many rank-1 explanations run through it. This is the
+                  doc's own discriminating test and the one that separates a
+                  hinge from a terminus: hydrolysis has six rank-1 edges and
+                  not one path passes through it.
+     SPAN         how many units it touches, which is what a bridge is.
+
+   Computed HERE and not beside `big`, because `big` is decided before the
+   specimens and the content cards have pushed their links and so counts a
+   different graph from this one.
+
+   Ranked by percentile rather than by raw value: the three scales are not
+   comparable, and the downstream-style measures explode toward the left of
+   the map where everything is eventually a consequence of electronegativity. */
+const CARDS = nodes.filter(n =>
+  ['concept', 'structure', 'process', 'evidence'].includes(n.type));
+{
+  const adj = new Map(CARDS.map(n => [n, []]));
+  for (const l of links) {
+    if (l.rank !== 1) continue;
+    for (const n of [l.a, l.b]) {
+      const m = l.a === n ? l.b : l.a;
+      if (!adj.has(n) || !adj.has(m)) continue;
+      if (walkDir(l, n) === 'onward' && station(m)) adj.get(n).push(m);
+    }
+  }
+  /* Brandes, over the rank-1 station graph the walk actually uses */
+  const bc = new Map(CARDS.map(n => [n, 0]));
+  for (const s of CARDS) {
+    const stack = [], pred = new Map(CARDS.map(n => [n, []]));
+    const sig = new Map(CARDS.map(n => [n, 0])), dist = new Map(CARDS.map(n => [n, -1]));
+    sig.set(s, 1); dist.set(s, 0);
+    const q = [s];
+    while (q.length) {
+      const v = q.shift(); stack.push(v);
+      for (const w of adj.get(v)) {
+        if (dist.get(w) < 0) { dist.set(w, dist.get(v) + 1); q.push(w); }
+        if (dist.get(w) === dist.get(v) + 1) {
+          sig.set(w, sig.get(w) + sig.get(v)); pred.get(w).push(v);
+        }
+      }
+    }
+    const delta = new Map(CARDS.map(n => [n, 0]));
+    while (stack.length) {
+      const w = stack.pop();
+      for (const v of pred.get(w))
+        delta.set(v, delta.get(v) + (sig.get(v) / sig.get(w)) * (1 + delta.get(w)));
+      if (w !== s) bc.set(w, bc.get(w) + delta.get(w));
+    }
+  }
+  for (const n of CARDS) {
+    const mine = linksOf(n).filter(l => l.rank === 1);
+    n.wDeg = mine.length;
+    n.wThrough = bc.get(n);
+    n.wSpan = new Set(mine.map(l => (l.a === n ? l.b : l.a).unit).filter(Boolean)).size;
+  }
+  const pct = key => {
+    const sorted = CARDS.slice().sort((a, b) => a[key] - b[key]);
+    sorted.forEach((n, i) => { n[key + 'P'] = i / (sorted.length - 1); });
+  };
+  ['wDeg', 'wThrough', 'wSpan'].forEach(pct);
+  /* SPAN IS NOT IN THE COMBINED SCORE, though it looks like it belongs. It
+     has its own mode already, and counting it twice sank tertiary — the
+     single highest-betweenness card on the map — for the crime of living
+     entirely inside the protein unit. A card can carry the map without
+     leaving its own region. */
+  for (const n of CARDS) n.wAll = (n.wDegP + n.wThroughP) / 2;
+}
+
+const hiliteSel = document.getElementById('hilite');
+const HILITE_TOP = 10;
+
+const HILITE_KEY = { through: 'wThrough', degree: 'wDeg', carries: 'wAll' };
+
+/* one mode's picks. `bridge` is a threshold rather than a top-N because
+   touching three units means something on its own; the others are ranked. */
+function picksFor(mode) {
+  if (mode === 'bridge') return CARDS.filter(n => n.wSpan >= 3);
+  const key = HILITE_KEY[mode];
+  return CARDS.slice().sort((a, b) => b[key] - a[key]).slice(0, HILITE_TOP);
+}
+
+function applyHighlight() {
+  const mode = hiliteSel.value;
+  for (const n of nodes) n.el.classList.remove('hi');
+  document.body.classList.toggle('highlighting', !!mode);
+  if (!mode) return;
+  /* `all` is the UNION, not a fifth metric: a card earns the highlight by
+     any one of the four readings, which is the widest honest answer to
+     "which of these matter". */
+  const pick = mode === 'all'
+    ? new Set(['carries', 'through', 'degree', 'bridge'].flatMap(picksFor))
+    : picksFor(mode);
+  for (const n of pick) n.el.classList.add('hi');
+}
+hiliteSel.addEventListener('change', applyHighlight);
 
 /* ---- the spine ----------------------------------------------------------- */
 

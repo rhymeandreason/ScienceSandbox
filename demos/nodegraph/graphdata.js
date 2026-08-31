@@ -47,6 +47,7 @@
     macro:    { name: 'Macromolecules', tint: '#5f6672' },
     proteins: { name: 'Proteins',       tint: '#c2553a' },
     cell:     { name: 'Cell & membrane', tint: '#9c4f76' },
+    genetics: { name: 'Molecular genetics', tint: '#33418f' },
     resp:     { name: 'Respiration',    tint: '#2e7d63' },
     themes:   { name: 'Themes',         tint: '#c08a1e' },
   };
@@ -151,8 +152,11 @@
     claim:'Amino acids in a chain. The only class whose monomers come in twenty kinds.' },
 
   /* ---- proteins: the spine is the levels of structure ----------------- */
-  { id:'gene-seq', type:'concept', unit:'proteins', name:'Gene sequence',
-    claim:'The order of bases that spells out the order of amino acids.' },
+  /* was `Gene sequence`, in the proteins unit, holding one end of the map's
+     oldest dangling edge. Molecular genetics is what it was waiting for, so
+     it becomes the Gene node rather than a second one being invented. */
+  { id:'gene-seq', type:'structure', unit:'genetics', level:2, name:'Gene',
+    claim:'A stretch of DNA that specifies one product. The order of its bases is the order of the amino acids.' },
   { id:'amino-acid', type:'structure', unit:'proteins', level:1, name:'Amino acid',
     claim:'Twenty kinds, and only the side chain differs between them.' },
   { id:'r-group', type:'structure', unit:'proteins', level:1, name:'R-group',
@@ -318,6 +322,77 @@
   { id:'fermentation', type:'process', unit:'resp', occursAt:4, name:'Fermentation',
     claim:'No oxygen, so the chain stops and the carriers stay full. Fermentation empties them so glycolysis can keep going.' },
 
+  /* ---- molecular genetics ---------------------------------------------
+     COMPLEMENTARITY IS THE HINGE. A-T and G-C is why replication is
+     possible, why transcription works, and why a tRNA finds its codon: one
+     idea with four rank-1 paths out of it, rather than "the bases pair"
+     restated inside every process node. It also reaches BACK, because those
+     are hydrogen bonds, the same node the water unit built.
+
+     NO ENZYME ROSTER. Helicase, primase, topoisomerase, ligase and
+     single-strand binding protein are five tidy job descriptions with almost
+     no downstream degree in Bio 101. What earns rank 1 here are the two
+     things that are constraints rather than named objects, complementarity
+     and reading frame, which is exactly what page counts under-rank. */
+  { id:'base-pairing', type:'concept', unit:'genetics', name:'Base pairing',
+    claim:'A with T, G with C, held by hydrogen bonds. Either strand is enough to rebuild the other.' },
+  { id:'antiparallel', type:'concept', unit:'genetics', name:'Antiparallel',
+    claim:'The two strands run in opposite directions, and every copying machine can only work one way along a strand.' },
+  { id:'chromosome', type:'structure', unit:'genetics', level:2, name:'Chromosome',
+    claim:'One very long DNA molecule wound onto protein spools, so two metres of it fits in a nucleus.' },
+
+  { id:'replication', type:'process', unit:'genetics', occursAt:3, name:'DNA replication',
+    claim:'The strands separate and each one templates a new partner. One molecule becomes two.' },
+  { id:'semiconservative', type:'concept', unit:'genetics', name:'Semiconservative',
+    claim:'Every new molecule keeps one old strand. The original is never discarded, only shared out.' },
+  { id:'proofreading', type:'concept', unit:'genetics', name:'Proofreading',
+    claim:'The copying enzyme checks its last base and backs up to fix it. Errors survive at about one in a billion.' },
+  { id:'strand-asymmetry', type:'concept', unit:'genetics', name:'Leading and lagging',
+    claim:'One new strand runs continuously, the other in backward pieces. The asymmetry is forced by the antiparallel strands.' },
+
+  { id:'transcription', type:'process', unit:'genetics', occursAt:3, name:'Transcription',
+    claim:'One gene is copied into RNA. The DNA itself never leaves the nucleus, which is the whole reason for a messenger.' },
+  { id:'rna', type:'structure', unit:'genetics', level:2, name:'RNA',
+    claim:'One strand, ribose, uracil for thymine. It carries messages, and it also builds things and catalyses.' },
+  { id:'mrna', type:'structure', unit:'genetics', level:2, name:'mRNA',
+    claim:'A working copy of one gene, sent out to the ribosome so the original stays put.' },
+  { id:'rna-processing', type:'process', unit:'genetics', occursAt:3, name:'RNA processing',
+    claim:'Introns cut out, exons joined. Splice the same transcript differently and one gene yields several proteins.' },
+
+  { id:'translation', type:'process', unit:'genetics', occursAt:4, name:'Translation',
+    claim:'The ribosome reads the message three bases at a time and builds the chain the message names.' },
+  { id:'genetic-code', type:'concept', unit:'genetics', name:'The genetic code',
+    claim:'Which triplet means which amino acid. Nearly identical in every organism alive.' },
+  { id:'codon', type:'concept', unit:'genetics', name:'Codon',
+    claim:'Three bases, one amino acid. Sixty-four triplets for twenty amino acids, so most have spares.' },
+  { id:'trna', type:'structure', unit:'genetics', level:2, name:'tRNA',
+    claim:'An adaptor: one end pairs with the codon, the other carries the matching amino acid.' },
+  { id:'reading-frame', type:'concept', unit:'genetics', name:'Reading frame',
+    claim:'Where you start deciding the triplets. Shift it by one base and every word after that is different.' },
+
+  { id:'mutation', type:'concept', unit:'genetics', name:'Mutation',
+    claim:'Any change to the sequence. Most do nothing, some are harmful, and a few are the raw material of evolution.' },
+  { id:'frameshift', type:'concept', unit:'genetics', name:'Frameshift',
+    claim:'Insert or delete one base and the frame shifts. Everything downstream is nonsense.' },
+
+  { id:'gene-expression', type:'concept', unit:'genetics', name:'Gene expression',
+    claim:'Which genes a cell is currently reading. Every cell holds the same genome and runs a different part of it.' },
+  { id:'transcription-factor', type:'structure', unit:'genetics', level:2, name:'Transcription factor',
+    claim:'A protein that binds near a gene and changes how often it is read. A dial, not a switch.' },
+  { id:'differentiation', type:'process', unit:'genetics', occursAt:4, name:'Differentiation',
+    claim:'A neuron and a liver cell hold identical DNA. They differ in which of it is switched on.' },
+  { id:'central-dogma', type:'concept', unit:'genetics', name:'The central dogma',
+    claim:'DNA is copied to RNA and RNA is read into protein. Information travels one way along that chain.' },
+
+  /* ---- evidence -------------------------------------------------------
+     A new type, and this unit is where it earns one: these show HOW WE KNOW,
+     which no other unit does as cleanly. They are destinations rather than
+     stations, like a specimen, so the walk never steps onto one. */
+  { id:'meselson-stahl', type:'evidence', unit:'genetics', name:'Meselson–Stahl',
+    claim:'Three hypotheses, one experiment with heavy nitrogen, and only semiconservative survived the first round.' },
+  { id:'hershey-chase', type:'evidence', unit:'genetics', name:'Hershey–Chase',
+    claim:'Label the phage protein and the phage DNA separately, and only the DNA goes into the cell.' },
+
   /* ---- themes ---------------------------------------------------------- */
   { id:'structfunc', type:'theme', unit:'themes', name:'Structure ↔ Function',
     claim:'Show me everything where a shape is the explanation.' },
@@ -353,6 +428,11 @@
   { id:'q-small',    type:'question', text:'Why is a cell small?' },
   { id:'q-rooms',    type:'question', text:'Why does a eukaryote bother with compartments?' },
   { id:'q-mitodna',  type:'question', text:'Why does a mitochondrion have its own DNA?' },
+  { id:'q-store',    type:'question', text:'How does a molecule store instructions?' },
+  { id:'q-neuron',   type:'question', text:'If every cell has the same DNA, why is a neuron not a liver cell?' },
+  { id:'q-copy',     type:'question', text:'How does a copy get made without errors piling up?' },
+  { id:'q-universal',type:'question', text:'Why is the code the same in bacteria and in you?' },
+  { id:'q-gene',     type:'question', text:'What is a gene, actually?' },
   ];
 
   const EDGES = [
@@ -510,6 +590,83 @@
     ['q-sickle',    'answers',         'r-group',       2],
     ['point-mutation','alters',        'primary',       1],
     ['point-mutation','evidence-for',  'nat-select',    1],
+
+    /* ---- molecular genetics ----------------------------------------------
+       THE HINGE, and it reaches back: base pairing IS hydrogen bonding, the
+       node the water unit built, so the same mechanism turns up a third time
+       after the bilayer and the protein fold. */
+    ['hbond',            'causes',          'base-pairing',   1],
+    ['base-pairing',     'part-of',         'dna-structure',  1],
+    ['base-pairing',     'enables',         'replication',    1],
+    ['base-pairing',     'enables',         'transcription',  1],
+    ['base-pairing',     'enables',         'translation',    2],
+    ['base-pairing',     'causes',          'semiconservative', 1],
+    ['q-store',          'answers',         'base-pairing',   1],
+    ['q-store',          'answers',         'dna-structure',  2],
+
+    ['antiparallel',     'describes',       'dna-structure',  1],
+    ['antiparallel',     'causes',          'strand-asymmetry', 1],
+    ['dna-structure',    'part-of',         'chromosome',     1],
+    ['dna-structure',    'contains',        'gene-seq',       1],
+    ['q-gene',           'answers',         'gene-seq',       1],
+    ['q-gene',           'answers',         'gene-expression', 2],
+
+    /* replication, with no enzyme roster: what survives is what the rest of
+       the course routes through */
+    ['dna-structure',    'prerequisite-of', 'replication',    1],
+    ['semiconservative', 'describes',       'replication',    1],
+    ['proofreading',     'part-of',         'replication',    1],
+    ['strand-asymmetry', 'part-of',         'replication',    2],
+    /* NO `enzyme enables replication`. The doc's bridge runs the other way,
+       from a DNA-polymerase node to Enzyme, and §10 is why there is no such
+       node. Written as enzyme → replication it closed a cycle
+       (r-group → rgroup-inter → tertiary → func → enzyme → replication →
+       mutation → point-mutation → r-group) and dragged the whole genetics
+       unit right of the protein spine besides. */
+    ['q-copy',           'answers',         'proofreading',   1],
+    ['q-copy',           'answers',         'replication',    2],
+
+    /* THE CENTRAL DOGMA, and the point of wiring it at all: it does not stop
+       at "protein". Translation lands on primary structure, which the
+       proteins unit already carries onward through folding to function, so
+       the two units fuse into one causal run. */
+    ['gene-seq',         'prerequisite-of', 'transcription',  1],
+    ['nucleus',          'contains',        'transcription',  1],
+    ['transcription',    'produces',        'mrna',           1],
+    ['mrna',             'instance-of',     'rna',            1],
+    ['rna-processing',   'alters',          'mrna',           1],
+    ['mrna',             'prerequisite-of', 'translation',    1],
+    ['ribosome',         'enables',         'translation',    1],
+    ['trna',             'enables',         'translation',    1],
+    ['genetic-code',     'determines',      'translation',    1],
+    ['reading-frame',    'determines',      'translation',    1],
+    ['codon',            'part-of',         'genetic-code',   1],
+    ['translation',      'produces',        'primary',        1],
+    ['q-universal',      'answers',         'genetic-code',   1],
+    ['q-universal',      'answers',         'codon',          2],
+    ['central-dogma',    'describes',       'transcription',  1],
+    ['central-dogma',    'describes',       'translation',    1],
+
+    /* variation, and the bridge into evolution */
+    ['point-mutation',   'instance-of',     'mutation',       1],
+    ['frameshift',       'instance-of',     'mutation',       1],
+    ['frameshift',       'explained-by',    'reading-frame',  1],
+    ['point-mutation',   'alters',          'r-group',        2],
+    ['mutation',         'prerequisite-of', 'nat-select',     1],
+    ['replication',      'causes',          'mutation',       2],
+
+    /* THE QUESTION STUDENTS MOST WANT ANSWERED, and the one most often cut
+       for time. Rank 1 on purpose. */
+    ['gene-expression',  'causes',          'differentiation', 1],
+    ['transcription-factor', 'causes',      'gene-expression', 1],
+    ['transcription-factor', 'instance-of', 'tertiary',        2],
+    ['gene-expression',  'describes',       'transcription',   2],
+    ['q-neuron',         'answers',         'differentiation', 1],
+    ['q-neuron',         'answers',         'gene-expression', 1],
+
+    /* how we know */
+    ['meselson-stahl',   'evidence-for',    'semiconservative', 1],
+    ['hershey-chase',    'evidence-for',    'dna-structure',    2],
 
     /* ---- macromolecules --------------------------------------------------
        ONE REACTION, FOUR CLASSES. dehydration already reaches peptide-bond
