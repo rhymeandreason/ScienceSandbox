@@ -122,6 +122,15 @@
   body.building .gutter, body.building .band,
   body.building #hilitewrap { display: none; }
 
+  /* THE BEAT. For the moment the question is alone on the paper, the graph it
+     opened is held back and then arrives with the camera — the composer's
+     intro, which is the reason its reveal reads as a reveal rather than a
+     zoom. `!important` because focus writes an opacity on every card as an
+     inline style, and an inline style wins any class. */
+  body.building .node, body.building #edges { transition: opacity .55s ease; }
+  body.building.intro .node:not(.seed) { opacity: 0 !important; }
+  body.building.intro #edges { opacity: 0; }
+
   #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
   #canvas.panning { cursor: grabbing; }
   /* geometricPrecision: #world is zoomed above k=1, and whole-pixel glyph
@@ -743,6 +752,27 @@
   .node.question.unlit.extension { max-width: 19rem; }
   .node.question.hub {
     width: 24rem; padding: 0.9rem 1rem 0.95rem;
+  }
+
+  /* THE SEED QUESTION IS THE GRAPH'S TITLE. In Build the first card is the
+     thing the reader asked and everything on screen is there because of it, so
+     it is set as a heading rather than dealt as a card: no ground, no border,
+     and large enough that nothing beside it competes. Restated past the focus,
+     hover and extension rules, every one of which repaints a question. */
+  body.building .node.question.seed,
+  body.building .node.question.extension.seed,
+  body.building .node.question.seed:hover,
+  body.building .node.question.extension.seed:hover,
+  body.building.focusing .node.question.seed.lit,
+  body.building.focusing .node.question.extension.seed.lit {
+    width: 32rem; max-width: 32rem; padding: 0.2rem 0.8rem;
+    /* THE PAPER, NOT NOTHING. A transparent heading lets the edge leaving it
+       draw straight through the words — it leaves at the box's centre, which
+       is the middle line of the text. */
+    background: var(--paper); border-color: transparent; box-shadow: none;
+    font-family: var(--serif); font-size: 3.4rem; line-height: 1.06;
+    letter-spacing: -0.025em; font-style: normal;
+    color: var(--ink); text-align: left;
   }
 
   /* ---- fog of war ------------------------------------------------------
@@ -2126,8 +2156,54 @@ function followStep() {
   applyView();
 }
 
+/* THE OPENING MOVE, which is `question-composer.html`'s intro in this map's
+   terms. A BEAT FIRST: the question alone on the paper, long enough to read,
+   with the graph it opened held back — a pull-back that starts on the first
+   frame is a zoom, and the reader is reading. Then the camera draws back to
+   the fit on a timed cubic, not a per-frame lerp: a lerp is fastest at the
+   instant it starts, which is the opposite of the move this wants.
+
+   It is not `follow` — that centres its target, and Build holds the seed a
+   seventh of the way in — so the camera is written from the seed's world
+   position every frame and only k is eased. Any pan, zoom or drag ends it: a
+   move the reader is fighting is worse than no move. */
+let cineOn = false, cineAt = 0, cineK = 0, cineY = 0;
+const CINE_HOLD = 900, CINE_GLIDE = 1600, CINE_FROM = 1;
+/* the composer's ease, cubic in and out: slow away, slow in */
+const cineEase = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+
+function cineStep() {
+  if (!cineOn || mode !== 'build') return;
+  const t = performance.now() - cineAt;
+  if (t < CINE_HOLD) return;                 /* the beat */
+  document.body.classList.remove('intro');   /* and the graph arrives with the move */
+  const u = Math.min(1, (t - CINE_HOLD) / CINE_GLIDE);
+  view.k = CINE_FROM + (cineK - CINE_FROM) * cineEase(u);
+  seatSeed();
+  applyView();
+  if (u >= 1) cineEnd();
+}
+
+function cineEnd() {
+  cineOn = false;
+  document.body.classList.remove('intro');
+}
+
+/* the seed's spot on the screen, which the opening move holds still while the
+   zoom changes underneath it */
+function seatSeed() {
+  if (!buildSeed) return;
+  const w = innerWidth || 1440, h = innerHeight || 900;
+  view.x = w * 0.13 - (buildSeed.x - buildSeed.rx) * view.k;
+  /* the same y the arrival framed: a heading holds its own line, a card seed
+     holds the graph's. Recomputing it here as the seed's own y made a card
+     seed jump on the move's first frame. */
+  view.y = h / 2 - cineY * view.k;
+}
+
 function frame() {
   if (!settled) { step(); draw(); }
+  cineStep();
   followStep();
   requestAnimationFrame(frame);
 }
@@ -4136,8 +4212,8 @@ function gutterLight(n) {
 
 /* ---- start --------------------------------------------------------------- */
 
-canvas.addEventListener('pointerdown', () => { touched = true; });
-canvas.addEventListener('wheel', () => { touched = true; });
+canvas.addEventListener('pointerdown', () => { touched = true; cineEnd(); });
+canvas.addEventListener('wheel', () => { touched = true; cineEnd(); });
 addEventListener('resize', () => { applyView(); if (!touched) centre(); });
 
 function centre(set) {
@@ -4330,12 +4406,30 @@ function buildCamera(seed) {
   const w = innerWidth || 1440, h = innerHeight || 900;
   const ys = buildNodes.flatMap(n => [n.y - n.ry, n.y + n.ry]);
   const y0 = Math.min(...ys) - 60, y1 = Math.max(...ys) + 60;
+  /* A HEADING IS CENTRED ON THE PAGE, not on the graph it opened. It is the
+     title of everything on screen, and framing the bounding box instead put it
+     wherever its own chain happened to sit — low, when the fans opened above
+     it. The fit below still chooses the zoom. */
+  const mid = seed.type === 'question' ? seed.y : (y0 + y1) / 2;
   /* the seed on the left and the first fans in frame. A hop-2 column of
      seventeen cards is taller than any readable zoom, so the fit is floored
      rather than obeyed: what a reader has to see is the seed and the arms
      leaving it, and the rest of the column is one scroll away. */
   const k = Math.min(0.6, Math.max(0.5, h / (y1 - y0)));
-  view = { k, x: w * 0.13 - (seed.x - seed.rx) * k, y: h / 2 - (y0 + y1) / 2 * k };
+  /* close on the seed first, then pull back to the fit. A reader who wants the
+     whole graph now can pan or zoom, which ends the move where it stands. */
+  cineK = k;
+  cineY = seed.type === 'question' ? seed.y : mid;
+  cineOn = true;
+  /* THE BEAT BELONGS TO THE QUESTION. It is a title card, and holding on one
+     is what makes it read as one. A card seed has no title to hold and the
+     hold would be a blank screen — the graph is what it opened with — so it
+     starts the pull-back on the first frame. */
+  const heading = seed.type === 'question';
+  cineAt = performance.now() - (heading ? 0 : CINE_HOLD);
+  if (heading) document.body.classList.add('intro');
+  view.k = CINE_FROM;
+  seatSeed();
   applyView();
   touched = true;
 }
@@ -4449,7 +4543,16 @@ function dealBuild(seed) {
   if (isQuery(seed)) seed = buildQuery(seed) || byId[seed.anchorId];
   if (!seed || !seed.el) { console.warn('build seed missing'); return; }
   buildSeed = seed;
+  /* before the reveal, which measures: the heading is a different box from the
+     card it would otherwise be, and a fan spaced for the card holds the
+     heading badly */
+  for (const m of nodes) if (m.el) m.el.classList.remove('seed');
+  if (seed.type === 'question') seed.el.classList.add('seed');
   reveal(seed, 0, 0, null);
+  /* THE SEED HOLDS STILL. Everything else is arranged around it, and a seed
+     the relax is free to shove leaves the camera framing a card that has since
+     moved — measured, 150px below where it was centred. */
+  seed.pinned = true;
   let front = [seed];
   /* A QUESTION SPENDS ITS HOPS ON ITS OWN CHAIN. Its only edge is the answer,
      and where it names a kind there is a card between it and its host — so two
@@ -4474,10 +4577,12 @@ function dealBuild(seed) {
 function leaveBuild() {
   if (mode !== 'build' || !mapSave) return;
   mode = 'map';
+  cineEnd();                     /* the opening move belongs to the graph it opened */
   document.body.classList.remove('building');
   clearFocus();
   stages.clear();
   dropMade();                    /* before the show-all, or a borrowed card stays */
+  for (const n of nodes) if (n.el) n.el.classList.remove('seed');
   for (const n of nodes) showEl(n, true);
   for (const l of links) showLink(l, true);
   for (const s of mapSave.seats) {
