@@ -165,7 +165,7 @@ The segmented toggle bottom left switches **Map** (the baked graph) for **Build*
 
 Two departures from the composer, both because these cards are not one size. The **separation is the map's box test on the axis of least overlap**, not the composer's radius cushion: a cushion drawn on the diagonal holds tall cards apart sideways at a distance only their corners reach. And the **spring's rest length clears both boxes** — at a flat 420 a specimen with a ribbon in it settled sitting on both of its rank-1 neighbours, the spring balancing the push.
 
-**Overlap is a constraint, not a force.** As a force it needs alpha to still be worth something, so it either loses the race with the decay — measured from a collapsed pile, seven pairs still overlapping and nothing left to move them — or it is held alive against the decay and then fights the spring in a limit cycle the reader sees as JITTER. It is projected straight onto the positions after the integration instead: it resolves in a frame or two, cannot oscillate, and the last frame to run is overlap-free. The displacement is counted into `moved` so the loop cannot call itself settled with a separation still pending. Measured: opening Build and expanding a card both reach zero overlaps, and the graph comes to rest in ~500 frames with 0.2px of drift after.
+**Overlap is a constraint, not a force.** As a force it needs alpha to still be worth something, so it either loses the race with the decay — measured from a collapsed pile, seven pairs still overlapping and nothing left to move them — or it is held alive against the decay and then fights the spring in a limit cycle the reader sees as JITTER. It is projected straight onto the positions after the integration instead: it resolves in a frame or two, cannot oscillate, and the last frame to run is overlap-free. The displacement is counted into `moved` so the loop cannot call itself settled with a separation still pending. Measured: opening Build and expanding a card both reach zero overlaps, and the graph comes to rest in \~500 frames with 0.2px of drift after.
 
 **A card arrives at its seat.** `reveal` sets x to the target the way the composer's `show` does; flying a card in from whatever revealed it means every arrival starts inside a pile, and the first thing the reader sees is the shove that separates it. The fan is dealt off the parent's CURRENT position, bowed (the ends pulled 70px left of the middle), and stepped by each card's own measured height, since these range from a two-line question to a specimen with a picture in it.
 
@@ -319,3 +319,21 @@ Every unit doc has a **ranking caution**, and it is always the same failure: nam
 **Uncommitted: nothing. Unverified: the URL feature.** `?node=`, `?node=&kind=`, `?ask=`, `?q=`, plus the link button, are written and parse, but I never got them into a browser — my test server died and navigation was declined. **Nobody has confirmed a single one of those URLs works.** That's the first thing to test.
 
 **Traps for the next agent**: the browser pane's console serves stale messages across reloads (I chased a phantom `RUBISCO_VARIANTS` error), `innerWidth` reads 0 when the pane collapses (it silently breaks any centring maths), and `document.hidden` throttles rAF so the camera crawls — drive `step()/draw()/followStep()` by hand.
+
+**Logging for the query feature**
+
+The search log used to record only **what was typed**. It now records **what came back**, and lets you separate your own testing from real traffic.
+
+**Three columns on `finds`:**
+
+* **`kind`** — `find` / `extend` / `land`. Which endpoint wrote the row, or none.
+
+* **`answer`** — what the reader got. For a generation: the validated cards, their edges, `outside`, the note. For a search: which tier answered, where it landed, and the z-score when there was one.
+
+* **`is_local`** — whether the request came from the machine serving it, by `api/_local.js`'s definition. A boolean, never an address.
+
+**`api/land.js`** is new. The server ranks nothing — the page does — so it never learned where a question went. A `sendBeacon`after arrival tells it, costing the reader nothing. It updates the search's existing row where there is one, and only writes its own row for a tier that called no endpoint at all.
+
+That matters because the bar walks six tiers and only the last two reach an endpoint. A card matched by name, a question, a restored graft, a keyword hit — all invisible before, and all most of the traffic. The log can now answer *which tier is carrying the map* and *which questions fall through to a guess*.
+
+**In `/ask/log.html`**: each row carries its `kind`, and a generation shows the cards it drew beneath the question. `localhost` rows are hidden by default in both the list and the headline stats, with a toggle above the tabs — beside `Reload`, since both are global — that remembers its state.
