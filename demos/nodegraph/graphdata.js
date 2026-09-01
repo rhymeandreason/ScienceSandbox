@@ -215,6 +215,8 @@
     claim:'Van der Waals forces are individually weak but act everywhere two surfaces touch, so they only add up where the fit is already close.' },
   { id:'folding', type:'process', unit:'proteins', occursAt:1, name:'Protein folding',
     claim:'A linear chain of amino acids transforms into an ordered, three-dimensional structure that allows the protein to become biologically active.' },
+  { id:'anfinsen', type:'evidence', unit:'proteins', name:'Anfinsen’s experiment',
+    claim:'Unfold ribonuclease completely, then take the denaturant away, and it folds back into working shape on its own. Nothing but the sequence directs it.' },
   { id:'denaturation', type:'process', unit:'proteins', occursAt:1, name:'Denaturation',
     claim:'Heat or acid unfolds the shape while the peptide bonds hold. The sequence survives, everything built on it does not.' },
   { id:'func', type:'concept', unit:'proteins', name:'Protein function',
@@ -378,6 +380,8 @@
     claim:'The chain pumps H⁺ to one side. The imbalance itself is stored energy, and it is what the cell actually banks.' },
   { id:'chemiosmosis', type:'concept', unit:'resp', occursAt:3, name:'Chemiosmosis',
     claim:'Protons fall back through a turbine, and the turbine makes ATP. Mitochondria run this, chloroplasts run this, and so does every bacterium.' },
+  { id:'mitchell', type:'evidence', unit:'resp', name:'Mitchell’s hypothesis',
+    claim:'Mitchell proposed a proton gradient in place of the chemical intermediate everyone was hunting. Chloroplasts then made ATP in the dark when an acid bath supplied the gradient.' },
   { id:'substrate-phos', type:'concept', unit:'resp', name:'Substrate-level phosphorylation',
     claim:'An enzyme hands a phosphate straight to ADP. Direct, and a small fraction of the total.' },
   { id:'oxidative-phos', type:'concept', unit:'resp', name:'Oxidative phosphorylation',
@@ -498,13 +502,19 @@
     claim:'DNA is copied to RNA and RNA is read into protein. Information travels one way along that chain.' },
 
   /* ---- evidence -------------------------------------------------------
-     A new type, and this unit is where it earns one: these show HOW WE KNOW,
-     which no other unit does as cleanly. They are destinations rather than
-     stations, like a specimen, so the walk never steps onto one. */
+     These show HOW WE KNOW. They are destinations rather than stations, like
+     a specimen, so the walk rarely steps onto one and an evidence-for edge is
+     normally rank 2. Genetics holds most of them, because its claims were the
+     ones settled by named experiments; proteins, respiration and
+     photosynthesis hold one each, beside the claim it settled. */
   { id:'meselson-stahl', type:'evidence', unit:'genetics', name:'Meselson–Stahl',
     claim:'Three hypotheses, one experiment with heavy nitrogen, and only semiconservative survived the first round.' },
   { id:'hershey-chase', type:'evidence', unit:'genetics', name:'Hershey–Chase',
     claim:'Label the phage protein and the phage DNA separately, and only the DNA goes into the cell.' },
+  { id:'avery', type:'evidence', unit:'genetics', name:'Avery–MacLeod–McCarty',
+    claim:'Destroy the protein in a cell extract and it still transforms bacteria. Destroy the DNA and it stops.' },
+  { id:'franklin', type:'evidence', unit:'genetics', name:'Photograph 51',
+    claim:'An X-ray pattern showing a helix of constant diameter with the phosphate backbone outside. It set the dimensions any model had to fit.' },
 
   /* ---- photosynthesis --------------------------------------------------
      MOSTLY A REUSE TEST. Seven of this unit's nine dependencies were built
@@ -557,6 +567,8 @@
 
   { id:'calvin', type:'process', unit:'photo', occursAt:3, name:'Calvin cycle',
     claim:'Spends the ATP and NADPH to build sugar from CO₂. It runs in daylight; it just does not need photons directly.' },
+  { id:'van-helmont', type:'evidence', unit:'photo', name:'Van Helmont’s willow',
+    claim:'A willow gained seventy-five kilograms in five years while its soil lost almost none. He concluded water; the missing source was the air.' },
   { id:'carbon-fixation', type:'concept', unit:'photo', name:'Carbon fixation',
     claim:'Rubisco attaches CO₂ from the air onto a sugar, and that carbon is now plant. A tree is mostly rebuilt atmosphere.',
     kinds:[
@@ -979,6 +991,12 @@
     /* how we know */
     ['meselson-stahl',   'evidence-for',    'semiconservative', 1],
     ['hershey-chase',    'evidence-for',    'dna-structure',    2],
+    ['avery',            'evidence-for',    'dna-structure',    2],
+    ['franklin',         'evidence-for',    'dna-structure',    2],
+    ['anfinsen',         'evidence-for',    'folding',          2],
+    ['van-helmont',      'evidence-for',    'carbon-fixation',  2],
+    ['mitchell',         'evidence-for',    'chemiosmosis',     2],
+    ['q-treemass',       'answers',         'van-helmont',      2],
 
     /* ---- macromolecules --------------------------------------------------
        ONE REACTION, FOUR CLASSES. dehydration already reaches peptide-bond
