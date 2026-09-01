@@ -299,6 +299,13 @@ function assemble(chains, R, centre) {
     }).join('');
     out.order.push(id);
     out.chains[id] = {
+      /* WHAT KIND OF POLYMER THIS IS, so a mixed file's consumer can tell the
+         two apart without guessing from which fields are present. Every bake
+         written before 2026-08-31 lacks it, and ABSENT MEANS 'aa' — a Ca trace
+         is the only thing `assemble` has ever produced. kit/nucleic.js tests
+         for 'na' explicitly, so an old protein bake is skipped by it either
+         way; this is for the reverse question. */
+      kind: 'aa',
       first: res[0].num,
       nums: res.map(r => r.num),
       helices: R.H.filter(h => h.chain === id).length,

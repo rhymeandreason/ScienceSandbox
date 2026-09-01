@@ -30,6 +30,7 @@
   for (const [name, n] of Object.entries(P.bonds)) css.setProperty('--bond-' + name, hex(n));
   for (const [b, n] of Object.entries(P.bases)) css.setProperty('--base-' + b, hex(n));
   for (const [k, n] of Object.entries(P.strands)) css.setProperty('--strand-' + k, hex(n));
+  for (const [k, n] of Object.entries(P.ss)) css.setProperty('--ss-' + k, hex(n));
 
   // legacy bare-element names
   for (const [el, n] of Object.entries(P.atoms)) css.setProperty('--' + el, hex(n));

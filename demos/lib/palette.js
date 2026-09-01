@@ -46,6 +46,15 @@
                       // radius — kit/proteinbox.js sizes it as a multiple of
                       // carbon so it stays the biggest atom in the group at
                       // whatever scale the ring is drawn.
+      Zn: 0x9c8fbe,   // zinc — muted violet. Third of the deposition-only
+                      // metals, so like Fe and Co it has a colour and no
+                      // display radius. STRUCTURAL rather than catalytic where
+                      // it turns up here: a zinc finger is not a fold that
+                      // binds zinc, it is a fold that does not exist without
+                      // it, so the metal has to read as part of the protein
+                      // rather than as something bound to it. Violet keeps it
+                      // clear of iron's rust and cobalt's teal, and clear of
+                      // the base family it sits beside on a DNA complex.
       Co: 0x2f7f8f,   // cobalt — deep teal. Like Fe it arrives only from a
                       // DEPOSITION and has no display radius; proteinbox sizes
                       // both off carbon. NOT cobalt blue, which is the one
@@ -107,6 +116,16 @@
       X: 0x8a8578,   // a base the file names and this repo cannot letter:
                      // stone, so it reads as "not one of the four" rather
                      // than as a fifth base
+    },
+    // ---- secondary structure: how kit/ribbon.js's cartoon is coloured -----
+    // The house ss palette, and it lived inside kit/proteinbox.js as `RIB`
+    // until a second consumer needed it. Coil is a warm grey so the parts that
+    // are not making a claim recede; helix takes the same deep blue as an
+    // H-bond, and strand the amber the ion-dipole bond uses.
+    ss: {
+      C: 0x7d8c7a,   // coil
+      H: 0x0042aa,   // helix
+      E: 0xc2571b,   // strand
     },
     // ---- strands: the sugar-phosphate backbone kit/nucleic.js draws --------
     // The quiet channel, and deliberately so. `bases` above are all saturated

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zif268 — a protein reading DNA</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS ENTRY. It is the first bake in the repo where a protein and
+     a nucleic acid come out of ONE deposition and have to share ONE
+     frame. 1BNA was a duplex alone and 1EHZ an RNA alone; both drew
+     themselves in a scene with nothing else in it. Eight wishlist rows
+     are mixed files, the nucleosome among them, and every one of them is
+     this problem at a larger size.
+
+     SO WHAT THIS BENCH IS FOR SETTLING:
+
+       one frame          the protein and the duplex are centred on ONE
+                          vector solved over both. If either had solved
+                          its own, they would overlap at the origin —
+                          each individually correct, the picture
+                          nonsense. Look for the protein sitting IN the
+                          major groove, not inside the DNA.
+       one scale          real angstroms for both, so a 85-residue
+                          protein and 11 base pairs come out at the sizes
+                          they actually have relative to each other.
+       two vocabularies   a ribbon says helix and strand; a ladder says
+                          paired and unpaired. They have to read as two
+                          KINDS of thing without either one looking like
+                          a mistake.
+       the zincs          three fingers, three zincs. A zinc finger does
+                          not exist without them, so they are baked and
+                          drawn rather than left as a caption.
+
+     WHAT IT STILL DOES NOT TEST. A chain break: chain C is modelled
+     3-87 of a declared 1-87, so the missing pair is terminal and runs()
+     sees one contiguous run. The duplex does carry two unpaired 5'
+     overhangs, which is the first stub drawn on a duplex rather than in
+     a loop.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+
+<style>
+  body { background: var(--h-paper); color: var(--h-ink);
+         font-family: var(--h-ui); }
+  .wrap { max-width: 62rem; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+  h1 { font-family: var(--h-display); font-weight: 500; margin: 0 0 .3rem; }
+  .lede { max-width: 46rem; margin: 0 0 1rem; }
+  #stage { width: 100%; height: 62vh; min-height: 380px; }
+  .row { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;
+         margin: .6rem 0 0; }
+  .row label { display: flex; align-items: center; gap: .4rem; }
+  .sw { display: inline-flex; align-items: center; gap: .35em;
+        font-variant-numeric: tabular-nums; }
+  .sw i { width: .85em; height: .85em; border-radius: 2px; display: inline-block; }
+  #facts { margin-top: .8rem; }
+  #facts td { padding: .1rem .9rem .1rem 0; border-top: 1px solid var(--h-line);
+              vertical-align: top; }
+  #facts td:first-child { color: var(--h-muted); white-space: nowrap; }
+  #facts .n { font-variant-numeric: tabular-nums; }
+  #tris { color: var(--h-muted); }
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <h1>Zif268, reading DNA</h1>
+  <p class="lede" id="lede">Loading…</p>
+
+  <div id="stage"></div>
+
+  <div class="row">
+    <label><input type="checkbox" id="protein" checked> Protein</label>
+    <label><input type="checkbox" id="dna" checked> DNA</label>
+    <label><input type="checkbox" id="zinc" checked> Zinc</label>
+    <label>Samples/nt <input type="range" id="sub" min="2" max="16" value="8" style="width:8rem"></label>
+    <span id="tris" class="n"></span>
+  </div>
+
+  <div class="row" id="legend"></div>
+
+  <table id="facts"></table>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/nucleic.js"></script>
+<script>
+'use strict';
+
+/* ONE SCENE, TWO POLYMERS, ONE SCALE FAMILY. Both are real angstroms out of
+   the same deposition, which is what lets them share a stage at all
+   (MolecularGeometry.md 1.5). The bench builds its own CardStage rather than
+   going through kit/proteinbox.js because that module has no nucleic branch
+   yet — this page is the argument for giving it one, not a use of it. */
+const box = CardStage.create({
+  mount: document.getElementById('stage'),
+  stage: { ortho: true, turn: 'trackball' },
+  cam: { theta: 0, phi: Math.PI / 2, r: 90 },
+  autoplay: false,
+});
+
+/* COLOUR COMES FROM lib/palette.js AND NOWHERE ELSE. The ribbon takes the
+   house ss palette — the same three colours every other protein in the repo
+   wears — and the ladder takes the base family. Two vocabularies, one source. */
+const mats = {};
+const mat = (key, color) => (mats[key] = mats[key] || new THREE.MeshStandardMaterial({
+  color, roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide }));
+const baseMat = b => mat('base:' + b,
+  MolPalette.bases[b] !== undefined ? MolPalette.bases[b] : MolPalette.bases.X);
+const ssMat = c => mat('ss:' + c, MolPalette.ss[c]);
+
+let trace = null;
+const group = new THREE.Group();
+box.root.add(group);
+
+function clear() {
+  for (const c of group.children.slice()) {
+    group.remove(c);
+    if (c.geometry) c.geometry.dispose();
+  }
+}
+
+/* Contiguous runs on the numbers, the same rule kit/nucleic.js and
+   kit/proteinbox.js both apply: a ribbon splined across an unmodelled stretch
+   is indistinguishable from data at ribbon width. */
+function runs(ch) {
+  const out = [];
+  let from = 0;
+  for (let i = 1; i <= ch.nums.length; i++)
+    if (i === ch.nums.length || ch.nums[i] !== ch.nums[i - 1] + 1) {
+      out.push({ CA: ch.CA.slice(from, i), ss: ch.ss.slice(from, i) });
+      from = i;
+    }
+  return out;
+}
+
+/* ONE GEOMETRY PER CONTIGUOUS RUN, COLOURED BY ITS OWN GROUPS. RibbonLib
+   stamps geometry groups with material index 0/1/2 for coil, helix and strand,
+   so three colours come out of one build and the caller passes an array.
+
+   DO NOT SLICE THE CHAIN AND BUILD PER ELEMENT. It is the obvious way to get
+   three colours and kit/ribbon.js's header says why not: the arrowhead logic
+   re-runs on every slice, so every strand grows a duplicate head, and the
+   bands come out as disconnected fragments with the coil between them missing.
+   This page did it that way first and the protein rendered as scattered
+   splinters around an intact duplex. */
+const RIB_MATS = ['C', 'H', 'E'].map(c => ssMat(c));
+
+function drawProtein(ch) {
+  for (const seg of runs(ch)) {
+    if (seg.CA.length < 4) continue;   // RibbonLib needs a spline's worth
+    const pts = seg.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    group.add(new THREE.Mesh(
+      RibbonLib.build(THREE, pts, seg.ss.split(''), { sub: 10 }), RIB_MATS));
+  }
+}
+
+function draw() {
+  if (!trace) return;
+  clear();
+  const sub = +document.getElementById('sub').value;
+
+  if (document.getElementById('protein').checked)
+    for (const id of trace.order)
+      if ((trace.chains[id].kind || 'aa') === 'aa') drawProtein(trace.chains[id]);
+
+  if (document.getElementById('dna').checked) {
+    /* NucleicLib walks the same `chains` object and skips anything that is not
+       `kind:'na'`, so neither renderer has to know what else is in the file. */
+    const parts = NucleicLib.build(THREE, trace, { sub });
+    for (const s of parts.strands)
+      group.add(new THREE.Mesh(s.geo, mat('strand:' + s.id,
+        MolPalette.strands[s.id === trace.order[1] ? 'a' : 'b'])));
+    for (const [b, geo] of Object.entries(parts.rungs))
+      group.add(new THREE.Mesh(geo, baseMat(b)));
+    for (const [b, geo] of Object.entries(parts.stubs))
+      group.add(new THREE.Mesh(geo, baseMat(b)));
+  }
+
+  if (document.getElementById('zinc').checked)
+    for (const z of trace.zinc) {
+      /* SIZED THE WAY kit/proteinbox.js SIZES A HEME'S IRON, at its own
+         proportions: a shrunk carbon times FE_BALL. A deposition-only metal
+         has a colour in the palette and deliberately no display radius,
+         because how big it should look depends on what else is in the frame —
+         and at a true ionic ~1.4 A a zinc is invisible from across a 47 A
+         complex, which is the framing this is judged at. The subject is the
+         metal's PLACE in the finger, not its volume. */
+      const m = new THREE.Mesh(
+        new THREE.SphereGeometry(MolPalette.radii.C * 0.72 * 2.7, 20, 14),
+        mat('zn', MolPalette.atoms.Zn));
+      m.position.set(z.xyz[0], z.xyz[1], z.xyz[2]);
+      group.add(m);
+    }
+
+  reframe();
+  document.getElementById('tris').textContent =
+    NucleicLib.triangles(trace, { sub }).toLocaleString() + ' triangles (DNA only)';
+  box.draw();
+}
+
+function reframe() {
+  const e = trace.extents;
+  Stage.frame(box.camera, box.cam,
+    [{ x: 0, y: 0, rxz: e ? e[0] / 2 : trace.radius, hy: e ? e[1] / 2 : trace.radius }],
+    { pad: 1.1 });
+  box.applyCam();
+}
+
+function aim(v) {
+  if (!v) return;
+  group.setRotationFromMatrix(new THREE.Matrix4().set(
+    v[0][0], v[0][1], v[0][2], 0,
+    v[1][0], v[1][1], v[1][2], 0,
+    v[2][0], v[2][1], v[2][2], 0, 0, 0, 0, 1));
+}
+
+/* EVERY NUMBER READ FROM THE BAKE. The helix and strand counts especially:
+   they come from the deposited records, not from counting letters, because
+   adjacent helices merge into one run of H. */
+function facts() {
+  const aa = trace.order.filter(id => (trace.chains[id].kind || 'aa') === 'aa');
+  const na = trace.order.filter(id => trace.chains[id].kind === 'na');
+  const nnt = na.reduce((k, id) => k + trace.chains[id].nums.length, 0);
+  const p = trace.chains[aa[0]];
+
+  const rows = [
+    ['Entry', trace.entry + ' — ' + trace.what],
+    ['Method', (trace.method || '?') + (trace.resolution ? ', ' + trace.resolution + ' A' : '')],
+    ['Protein', aa.join(', ') + '  (' + p.nums.length + ' residues, '
+      + p.helices + ' helices, ' + p.strands + ' strands, ss ' + trace.ssFrom + ')'],
+    ['DNA', na.map(id => id + ' ' + trace.chains[id].seq).join('   ')],
+    ['Base pairs', trace.pairs.length + '  — ' + trace.pairsFrom],
+    ['Unpaired', (nnt - trace.pairs.length * 2) + "  (5' overhangs)"],
+    ['Zinc', trace.zinc.length],
+    ['Extents', (trace.extents || []).join(' x ') + ' A'],
+    ['Frame', trace.frame],
+  ];
+  document.getElementById('facts').innerHTML = rows
+    .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
+
+  document.getElementById('lede').innerHTML =
+    'Three zinc fingers gripping ' + trace.pairs.length + ' base pairs. The '
+    + 'protein and the DNA come out of one deposition and are centred on one '
+    + 'vector solved over both — centre them separately and each is correct '
+    + 'while the picture puts the protein inside the duplex. Two vocabularies '
+    + 'in one scene at one scale: a ribbon says helix and strand, a ladder says '
+    + 'paired and unpaired.';
+
+  const seen = new Set();
+  for (const id of na) for (const c of trace.chains[id].seq) seen.add(c);
+  document.getElementById('legend').innerHTML =
+    ['C', 'H', 'E'].map(c => '<span class="sw"><i style="background:var(--ss-'
+      + c + ')"></i>' + ({ C: 'coil', H: 'helix', E: 'strand' })[c] + '</span>').join('')
+    + [...seen].sort().map(b => '<span class="sw"><i style="background:var(--base-'
+      + b + ')"></i>' + b + '</span>').join('');
+}
+
+fetch('data/zif268-1ZAA.json')
+  .then(r => r.json())
+  .then(t => { trace = t; aim(t.view); facts(); draw(); })
+  .catch(e => {
+    document.getElementById('lede').textContent =
+      'No bake. Run: node proteins/zif268/tools/prep.js  (' + e.message + ')';
+  });
+
+new ResizeObserver(() => { if (trace) { reframe(); box.draw(); } })
+  .observe(document.getElementById('stage'));
+
+for (const id of ['protein', 'dna', 'zinc', 'sub'])
+  document.getElementById(id).addEventListener('input', draw);
+</script>
+</body>
+</html>

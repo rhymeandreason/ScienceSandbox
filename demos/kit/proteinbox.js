@@ -132,7 +132,11 @@
 
   /* Coil, helix, strand — kit/ribbon-test.html's, so a card and the bench
      that tunes the ribbon are never two opinions about the same helix. */
-  const RIB = { C: 0x7d8c7a, H: 0x0042aa, E: 0xc2571b };
+  /* The ss palette is lib/palette.js's, not this module's — a second consumer
+     (proteins/zif268, a protein and a duplex in one scene) needed the same
+     three colours, and a copy is how a caption and the band it names drift.
+     Every page that loads this file loads palette.js before it. */
+  const RIB = MolPalette.ss;
   const SES_COLOUR = 0xdfe4ee;
 
   /* ---- BALL-AND-STICK, FOR THE FEW ATOMS THAT EARN IT ----
