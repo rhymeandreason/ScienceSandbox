@@ -140,8 +140,18 @@ const box = CardStage.create({
 
    Pine and wine are the two hues the base family leaves free — nothing in it
    is green and nothing is magenta — and they are far enough apart in the blue
-   channel to stay separable for a reader who cannot use the red-green one. */
-const INK = { A: 0x27553f, B: 0x6d2a4c, flat: 0x8a8578 };
+   channel to stay separable for a reader who cannot use the red-green one.
+
+   LIFTED TWICE, AND THE SECOND TIME FOR A REASON WORTH WRITING DOWN. Smooth
+   shading was the first: flat facets each caught the light square on, and
+   gradating that away drops most of the surface to the darker end of the ramp.
+   The second is that lib/scene.js renders with LinearEncoding and no tone
+   mapping, so EVERY colour here reaches the screen darker than its hex —
+   house-wide, shared by every lesson, and not something a bench gets to
+   change. So these two read as mid-tones on screen despite being light values
+   in the source, and a hex picked by eye off a swatch will always come out
+   disappointing. Judge them in the render, never in the file. */
+const INK = { A: 0x4ad18c, B: 0xef73ad, flat: 0x8a8578 };
 
 /* THE BASE COLOURS ARE THE PALETTE'S, read back off the custom properties
    tokens-from-palette.js published at load. Never typed here: a caption and
