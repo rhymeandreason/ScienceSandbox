@@ -74,8 +74,15 @@
     font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: #7d848f;
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>   <!-- proteinbox requires it at load -->
+<script src="../lib/scene.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/ribbon.js"></script>
+<script src="../kit/proteinbox.js"></script>      <!-- after every library it reads -->
+<script src="../proteins/proteins.js"></script>  <!-- the specimen registry -->
 <script src="graphdata.js"></script>
 <script src="graphcontent.js"></script>
 <script src="images.js"></script>
@@ -111,6 +118,46 @@ for (const list of ON_NODE.values())
   list.sort((a, b) => a.rank - b.rank ||
                       (b.item.kind === 'lesson') - (a.item.kind === 'lesson'));
 
+/* SPECIMENS AND FILM CARDS ARE NOT IN NODES: the map spawns them, one from
+   proteins.js and one from a `video` row, so this page spawns them the same
+   way or shows a gallery the map does not. Mirrors nodegraph.html's two
+   passes, minus the edges — placement here only decides which unit a card
+   files under. */
+const CARD_KIND = { video: 1 };
+const EXTRA = [];
+const SPEC = (window.ProteinLib && window.ProteinLib.PROTEINS) || [];
+const specKey = id => id.slice(2).split('@')[0];
+const specWant = id => id.slice(2).split('@')[1] || null;
+for (const p of SPEC) {
+  const ids = PLACED.map(([k]) => k).filter(k => k.startsWith('p:') && specKey(k) === p.key);
+  const row = ids.length && PLACED.find(([k]) => k === ids[0])[1];
+  if (!row) continue;                          // unplaced: not on the map yet
+  const want = specWant(ids[0]);
+  const v = (want && p.variants.find(x => x.id === want)) ||
+            p.variants.find(x => x.default) || p.variants[0];
+  const ribbon = v && (v.bake ? v.bake.trace : v.read && v.read.baked);
+  if (!ribbon) continue;
+  const ec = v.read.ec || null;
+  const cls = ec ? (ProteinLib.EC_CLASS || [])[Number(ec.split('.')[0])] : null;
+  EXTRA.push({
+    id: 'p:' + p.key, type: 'specimen', unit: 'proteins',
+    name: p.name, claim: p.blurb, does: p.does,
+    protein: p.key, variant: v.id,
+    species: v.species, method: v.read.method,
+    residues: v.read.residues, declared: v.read.declared,
+    ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
+  });
+}
+for (const [cid, ranks] of PLACED) {
+  const item = BY_CONTENT.get(cid);
+  if (!item || !CARD_KIND[item.kind]) continue;
+  /* the film wears the unit of the first node it illustrates, which is the
+     same rule that gives it its tint on the map */
+  const host = Object.keys(ranks).map(nid => NODES.find(n => n.id === nid)).find(Boolean);
+  EXTRA.push({ ...item, type: 'content', unit: host ? host.unit : null });
+}
+const ALL = NODES.concat(EXTRA);
+
 const INLINE = { water: 1, build: 1, molbox: 1, protein: 1, lesson: 1, image: 1 };
 const lessonFor = n =>
   (ON_NODE.get(n.id) || []).map(x => x.item).find(i => i.kind === 'lesson') || null;
@@ -132,6 +179,37 @@ function cardHTML(n) {
     return { cls: 'node question ' + (n.qtype || 'anchor') + (qLesson ? ' haslesson' : ''),
       html: '<span>' + esc(n.text) + '</span>' + thumbHTML(n) };
   }
+  if (n.type === 'specimen') {
+    const tag = n.does === 'enzyme' && n.ecClass
+      ? '<div class="tag" title="' + esc(n.ecDoes || '') + '">' + esc(n.ecClass) +
+        '<span>EC ' + esc(n.ec) + '</span></div>'
+      : n.does === 'enzyme' ? '<div class="tag">enzyme</div>' : '';
+    const prov = [
+      n.method,
+      n.residues != null && n.declared != null
+        ? n.residues + ' of ' + n.declared + ' residues' : null,
+      n.species,
+    ].filter(Boolean).map(esc).join(' \u00b7 ');
+    return { cls: 'node card specimen',
+      html: '<div class="name">' + esc(n.name) + '</div>' + tag +
+            '<div class="thumb"><span class="ph"></span></div>' +
+            '<div class="claim">' + esc(n.claim) + '</div>' +
+            '<div class="prov">' + prov + '</div>' };
+  }
+  if (n.type === 'content')
+    return { cls: 'node card content ' + n.kind, tint: (UNITS[n.unit] || {}).tint,
+      html: '<div class="name">' + esc(n.name) + '</div>' +
+            '<div class="tag">' + (n.kind === 'video' ? 'film' : 'lesson') + '</div>' +
+            (n.blurb ? '<div class="claim">' + esc(n.blurb) + '</div>' : '') +
+            (n.poster
+              ? '<div class="thumb mounted"><img class="still poster" alt="" src="../' +
+                esc(n.poster) + '"></div>'
+              : '<div class="thumb empty"></div>') +
+            (n.credit
+              ? '<div class="credit"><a href="' + esc(n.creditUrl) + '" target="_blank" ' +
+                'rel="noopener">' + esc(n.credit) + '</a>' +
+                (n.year ? ' \u00b7 ' + n.year : '') + '</div>' : '') };
+
   if (n.type === 'theme')
     return { cls: 'node theme',
       html: '<div class="name">' + esc(n.name) + '</div>' +
@@ -172,7 +250,9 @@ function thumbHTML(n) {
 
 /* what a card is holding, which is what the filters sort on */
 const stateOf = n =>
-  imageFor(n) ? 'image'
+  n.type === 'specimen' ? 'live'
+  : n.type === 'content' ? (n.poster ? 'image' : 'none')
+  : imageFor(n) ? 'image'
   : (viewFor(n) || {}).kind === 'lesson' ? 'shot'
   : viewFor(n) ? 'live' : 'none';
 
@@ -183,7 +263,7 @@ let unitPick = null;      // null = every unit
 let needOnly = false;     // only cards with nothing in the thumb
 
 function draw() {
-  const rows = NODES.filter(n =>
+  const rows = ALL.filter(n =>
     (!unitPick || (unitPick === 'none' ? !n.unit : n.unit === unitPick)) &&
     (!needOnly || stateOf(n) === 'none'));
 
@@ -210,6 +290,11 @@ function draw() {
       el.className = cls;
       if (tint) el.style.setProperty('--dot', tint);
       el.innerHTML = html;
+      if (n.type === 'specimen') {
+        el.dataset.spec = n.id;
+        el.dataset.protein = n.protein;
+        if (n.variant) el.dataset.variant = n.variant;
+      }
       slot.appendChild(el);
       const id = document.createElement('div');
       id.className = 'id';
@@ -219,6 +304,8 @@ function draw() {
     }
     sheet.appendChild(sec);
   }
+  watched.length = 0;
+  watched.push(...sheet.querySelectorAll('[data-spec]'));
   /* what the clipper has fetched and nothing shows yet: the other half of
      the inventory, and invisible from the map by design */
   const placedIds = new Set([].concat(...[...ON_NODE.values()]).map(x => x.item.id));
@@ -244,9 +331,9 @@ function draw() {
     sheet.appendChild(sec);
   }
 
-  const need = NODES.filter(n => stateOf(n) === 'none').length;
+  const need = ALL.filter(n => stateOf(n) === 'none').length;
   document.getElementById('count').textContent =
-    rows.length + ' shown · ' + NODES.length + ' cards · ' + need + ' with no image';
+    rows.length + ' shown · ' + ALL.length + ' cards · ' + need + ' with no image';
 }
 
 function buildFilters() {
@@ -265,7 +352,58 @@ function buildFilters() {
      () => { needOnly = !needOnly; render(); });
 }
 
-function render() { filters.innerHTML = ''; buildFilters(); draw(); }
+/* THE SAME FOUR CONTEXTS THE MAP RATIONS. Thirteen specimens on one page is
+   thirteen WebGL contexts, which is past what Safari gives a tab, so a box is
+   built when its card scrolls into view and the LRU takes the oldest back.
+   onEvict leaves the last frame behind as a still, so a card that loses its
+   box does not go blank. */
+const stages = CardStage.pool({
+  limit: 4,
+  onEvict: (id, box) => {
+    const thumb = document.querySelector('[data-spec="' + id + '"] .thumb');
+    if (!thumb) return;
+    const png = box.snapshot ? box.snapshot() : null;
+    thumb.classList.remove('mounted');
+    if (!png) return;
+    const img = document.createElement('img');
+    img.className = 'still'; img.alt = ''; img.src = png;
+    thumb.appendChild(img);
+    thumb.classList.add('mounted');
+  },
+});
+
+/* NOT AN IntersectionObserver: inside an offscreen or backgrounded tab it
+   never resolves, and a card that silently never mounts is exactly the bug
+   this page exists to avoid. A rect against the viewport is checked on
+   scroll, and it answers the same question. */
+const watched = [];
+function pump() {
+  const vh = innerHeight || document.documentElement.clientHeight;
+  for (const el of watched) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom < -200 || r.top > vh + 200) continue;
+    const id = el.dataset.spec;
+    if (stages.has(id)) { const b = stages.acquire(id, null); if (b.start) b.start(); continue; }
+    const thumb = el.querySelector('.thumb');
+    stages.acquire(id, () => {
+      thumb.querySelectorAll('.still').forEach(x => x.remove());
+      thumb.classList.add('mounted');
+      return Proteinbox.create({ mount: thumb, base: '../',
+                                 protein: el.dataset.protein,
+                                 variant: el.dataset.variant });
+    });
+  }
+}
+let pumping = false;
+const nudge = () => {
+  if (pumping) return;
+  pumping = true;
+  setTimeout(() => { pumping = false; pump(); }, 60);
+};
+addEventListener('scroll', nudge, { passive: true });
+addEventListener('resize', nudge);
+
+function render() { filters.innerHTML = ''; buildFilters(); draw(); pump(); }
 
 /* nodegraph.html's stylesheet, taken from the page itself so this gallery
    cannot show a card the map no longer draws that way */
