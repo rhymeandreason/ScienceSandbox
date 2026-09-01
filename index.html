@@ -160,6 +160,71 @@
   }
   .card:hover .name { color: var(--accent); }
 
+
+  /* ---- protein shelf --------------------------------------------------
+     THE NODE GRAPH'S SPECIMEN CARD, same shape and same rules: serif name,
+     blurb demoted to a caption, provenance quiet and tabular, EC class as
+     the tag. Every word on one is read from proteins/proteins.js at render,
+     so a re-bake cannot leave a number here it no longer supports. */
+
+  .grid.proteins { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 1000px) { .grid.proteins { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px)  { .grid.proteins { grid-template-columns: 1fr; } }
+
+  /* THE ROW ENDS ON A LINE. The grid stretches the cell; the card has to be
+     told to fill it, and the provenance takes up the slack so four blurbs of
+     different lengths still leave the four bottom rules level. */
+  .grid.proteins > li { display: flex; }
+  .spec {
+    display: flex; flex-direction: column; flex: 1;
+    padding: 0.85rem 1rem 0.9rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: inherit; text-decoration: none;
+    transition: border-color .18s, transform .18s, box-shadow .18s;
+  }
+  .spec:hover {
+    border-color: var(--accent);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 26px rgba(20,22,26,.07);
+  }
+  /* every part is a span inside an anchor, so each one is told to be a block:
+     an inline thumb ignores aspect-ratio and collapses to nothing. */
+  .spec .name, .spec .thumb, .spec .claim, .spec .prov { display: block; }
+  .spec .name {
+    font-family: var(--serif); font-size: 1.1rem; line-height: 1.2;
+    font-weight: 400; letter-spacing: -0.01em; color: var(--ink);
+  }
+  .spec .tag {
+    display: inline-flex; align-items: baseline; gap: 0.4rem; margin-top: 0.3rem;
+    font-size: 0.6rem; font-weight: 500; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--accent);
+  }
+  .spec .tag span { letter-spacing: 0.08em; color: var(--muted); font-variant-numeric: tabular-nums; }
+  /* 4:3 and a ratio, not a height: the card sets the width and the picture
+     follows, so every box on the shelf is the same frame. */
+  .spec .thumb {
+    position: relative; overflow: hidden;
+    width: 100%; aspect-ratio: 4 / 3; margin: 0.55rem 0 0.25rem;
+    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+  }
+  .spec .thumb.mounted { background: #f2f0ea; }
+  .spec .thumb > canvas { display: block; width: 100%; height: 100%; }
+  .spec .claim {
+    font-size: 0.72rem; line-height: 1.4; color: var(--muted); margin-top: 0.5rem;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .spec .prov {
+    margin-top: auto; padding-top: 0.35rem;
+    font-size: 0.63rem; line-height: 1.35; color: #9a9ca3;
+    font-variant-numeric: tabular-nums;
+  }
+  .head .more {
+    font-size: 0.72rem; letter-spacing: 0.1em; color: var(--muted); text-decoration: none;
+  }
+  .head .more:hover { color: var(--accent); }
+
   /* ---- coming soon ---------------------------------------------------- */
 
   .card.soon {
@@ -316,6 +381,13 @@
   </ul>
 </section>
 
+
+<section>
+  <div class="head"><h2>Proteins</h2><span class="rule"></span>
+    <a class="more" href="/demos/proteins/">the whole collection &rarr;</a></div>
+  <ul class="grid proteins" id="shelf"></ul>
+</section>
+
 <section>
   <div class="head"><h2>Coming soon</h2><span class="rule"></span><span class="count">02</span></div>
   <ul class="grid">
@@ -360,5 +432,83 @@
 </footer>
 
 </div>
+
+<!-- THE PROTEIN SHELF. Four shapes that could not be mistaken for each other:
+     a rope, a barrel, a hollow cage, a two-lobed enzyme. Live boxes, four of
+     them, which is the whole of the map's WebGL budget and the reason this
+     row is four and not fourteen. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="demos/lib/palette.js"></script>
+<script src="demos/lib/tokens-from-palette.js"></script>
+<script src="demos/lib/molecules.js"></script>
+<script src="demos/lib/scene.js"></script>
+<script src="demos/kit/ribbon.js"></script>
+<script src="demos/kit/card-stage.js"></script>
+<script src="demos/kit/proteinbox.js"></script>
+<script src="demos/proteins/proteins.js"></script>
+<script>
+'use strict';
+(function () {
+  const SHELF = ['collagen', 'gfp', 'ferritin', 'amylase'];
+  const shelf = document.getElementById('shelf');
+  if (!shelf || !window.ProteinLib) return;
+
+  const esc = t => String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const mounts = [];
+  for (const key of SHELF) {
+    const p = ProteinLib.byKey(key);
+    if (!p) continue;
+    const v = ProteinLib.defaultOf(p), r = v.read;
+    const ec = ProteinLib.ecOf(p);
+    const cls = ec && ProteinLib.EC_CLASS[+ec[0]];
+    /* provenance is the baker's half of the registry, printed as it stands */
+    const prov = [r.method,
+      r.residues != null && r.declared != null
+        ? r.residues + ' of ' + r.declared + ' residues' : null,
+      v.species].filter(Boolean).map(esc).join(' \u00b7 ');
+    const tag = cls
+      ? '<div class="tag" title="' + esc(cls[1]) + '">' + esc(cls[0]) +
+        '<span>EC ' + esc(ec) + '</span></div>'
+      : p.does && p.does !== 'unknown' ? '<div class="tag">' + esc(p.does) + '</div>' : '';
+
+    const li = document.createElement('li');
+    li.innerHTML = '<a class="spec" href="/demos/proteins/">' +
+      '<span class="name">' + esc(p.name) + '</span>' + tag +
+      '<span class="thumb"></span>' +
+      '<span class="claim">' + esc(p.blurb) + '</span>' +
+      '<span class="prov">' + prov + '</span></a>';
+    shelf.appendChild(li);
+    mounts.push([p, li.querySelector('.thumb')]);
+  }
+
+  /* the pool rations contexts, not frames: a box off screen already stops its
+     own loop. Four fits under every browser's cap, so nothing is ever evicted
+     here — the pool is what keeps that true if the row grows. */
+  const pool = CardStage.pool({ limit: 4 });
+
+  /* MOUNTED ON LOAD, NOT ON AN INTERSECTION. The whole row is one screen from
+     the masthead, and a document that is never visible — a background tab, a
+     thumbnail capture, an automated screenshot — gets no intersection callback
+     at all, so an observer here renders four empty frames to exactly the
+     readers who cannot tell that apart from a bug. */
+  for (const [p, mount] of mounts) {
+    if (!mount.clientWidth || !mount.clientHeight) continue;
+    mount.classList.add('mounted');
+    pool.acquire(p.key, () => Proteinbox.create({
+      mount, base: 'demos/', protein: p.key,
+      orbit: true, pad: 1.15, sub: 8,
+      /* zoom off: the wheel is how a reader gets down the homepage, and a card
+         that swallows it traps the scroll under the pointer. Dragging still
+         turns the molecule. */
+      stage: { ortho: false, turn: 'trackball', zoom: false },
+      /* colour and rotation from the registry, so this card and the protein's
+         own bench cannot face or colour one molecule two ways */
+      colors: ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
+    }));
+  }
+})();
+</script>
 </body>
 </html>

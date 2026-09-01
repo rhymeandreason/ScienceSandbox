@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Proteins — what the repo holds</title>
+<title>Proteins — Kodolab</title>
 
 <!-- ===================================================================
      THE COLLECTION, AS A COLLECTION. One card per protein in
@@ -163,11 +163,9 @@
   .open.lesson:hover{background:var(--spark);border-color:var(--spark);
     color:#faf8f4}
 
-  .note{font-size:0.83rem;color:var(--muted);
-    margin:clamp(2.5rem,5vw,4rem) 0 0;padding-top:1.5rem;
-    border-top:1px solid var(--line);max-width:64ch;line-height:1.7}
-  .note code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    font-size:0.9em;color:var(--ink)}
+  /* One line, under the rule: what a reader is looking at a shelf OF. */
+  .lede{font-size:1rem;color:var(--muted);max-width:60ch;line-height:1.6;
+    margin:0 0 clamp(1.75rem,4vw,2.5rem)}
 </style>
 </head>
 <body>
@@ -177,14 +175,10 @@
     <p class="tally" id="tally">&mdash;</p>
   </header>
 
-  <div class="grid" id="grid"></div>
+  <p class="lede">Proteins are what your genes are for: every one of these
+    shapes was measured in a lab, and the shape is the job.</p>
 
-  <p class="note">Names, blurbs and purposes are written by hand; methods,
-    chain and residue counts are written by the bakers and rewritten on every
-    re-bake, so nothing on a card can drift from the file it describes.
-    <code>proteins/proteins.js</code> is the registry, and
-    <code>proteins/check-proteins.js</code> is what fails a commit where the two
-    disagree.</p>
+  <div class="grid" id="grid"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
