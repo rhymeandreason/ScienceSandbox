@@ -175,9 +175,17 @@ Two departures from the composer, both because these cards are not one size. The
 
 **Any card can be the seed.** `q-machine` is only what the toggle defaults to. `buildFrom` is the one door in: the ask bar, a keyword search and a shared link all pass through it, so seeding a graph and switching into the mode cannot drift apart. A card that was never painted cannot be a seed — an extension question has no seat, so it seeds the card it answers into.
 
-**A deferred question has a seat here.** It is off the map because the map is laid out and a query has no place in a layout; Build has no layout to protect, so the question is just a node. Its card and its `answers` edge are made for the session and given back — `dropMade` — when the mode ends or the seed changes, leaving the node exactly as the extraction left it, off the map and still in `byId`. A card's deferred questions also come with its fan, two at most and OUTSIDE the ranked five: they were never competing for a seat on the map, so they do not take one from the spine here.
+**A deferred question has a seat here, and so does the kind it names.** The question is off the map because the map is laid out and a query has no place in a layout; Build has no layout to protect, so both are just nodes. On the map a kinds member is a satellite riding a pill — detail too small for a seat — and the chain reads question → member → pill → card; here it is question → member → card, with the member carrying its own id (`<host>::build:<i>`) so the map's fan and Build's card never stand in for each other. A question dealt into a fan brings its member WITH it and before it, since its only edge runs to the member and alone it would arrive attached to nothing.
 
-**A question seed gets a hop back.** Its only edge is the answer, so two hops off a question is a chain of three where a concept seed opens five.
+**A door and a facet hang close.** A hop is the width of an explanation, and a question to the card it asks about — or a member to the card it is a member OF — is not one: at a full hop they read as two cards with a hand's width of paper between them and nothing in it. Those edges deal at `BUILD_CHAIN` (400 against 820), keep that rest length in the spring, and take no rank stagger: the fan's own edges are rank 2 by construction, which pushed every member half a hop further out than the card it belongs to. Measured on the sunburn question: 441px and 406px, against 750 and 610 before.
+
+**The whole fan comes, not just the member named.** A question names one kind and the map deals the rest around it, because a member only means anything against the others — three kinds of mutagen is the answer, and ultraviolet alone is a fact. They arrive once any one member is on the graph, off the card that holds them.
+
+Card and edges are made for the session and given back — `dropMade` — when the mode ends or the seed changes: an authored question keeps its id, a member card leaves the index with its card.
+
+A card's deferred questions also come with its fan, two at most and OUTSIDE the ranked five: they were never competing for a seat on the map, so they do not take one from the spine here.
+
+**A question seed gets its chain's hops back.** Its only edge is the answer, and where it names a member there is a card between it and its host, so two hops off a question is a chain of three before the graph starts.
 
 **Switching modes carries the reading.** An open query outranks the card under it — it is what the reader is looking at — and a kind, a pill or a generated card is read through the card it hangs off, so `currentSeed` walks up `host` until it reaches something the graph can grow from. Nothing open falls back to the default seed.
 

@@ -2014,7 +2014,12 @@ function buildStep() {
        cards balances the separation pushing them apart and the pair settles
        overlapping: measured, a specimen with a ribbon in it sat on both of
        its rank-1 neighbours at a flat 420 */
-    const rest = Math.max(REST, l.a.rx + l.b.rx + GAP, l.a.ry + l.b.ry + GAP);
+    /* a door or a facet keeps the short rest its fan was dealt at, or the
+       spring pulls back out the very gap `BUILD_CHAIN` closed */
+    const chain = l.a.type === 'question' || l.b.type === 'question' ||
+                  l.a.synthetic || l.b.synthetic;
+    const rest = Math.max(chain ? BUILD_CHAIN : REST,
+                          l.a.rx + l.b.rx + GAP, l.a.ry + l.b.ry + GAP);
     const f = (d - rest) * SPRING;
     l.a.vx += (dx / d) * f; l.a.vy += (dy / d) * f;
     l.b.vx -= (dx / d) * f; l.b.vy -= (dy / d) * f;
@@ -4164,6 +4169,7 @@ function reveal(n, x, y, from) {
    seventeen cards in one fan. */
 const BUILD_FAN = 5;
 const BUILD_ASKS = 2;             /* deferred questions a card may deal, on top */
+const BUILD_CHAIN = 400;          /* the short hop: a door or a kind, to its card */
 
 /* a deterministic per-card drift, hashed from the id: the bow and the rank
    only separate cards that DIFFER in those, and a fan of five rank-1 edges has
@@ -4193,11 +4199,31 @@ function expand(n) {
   for (const q of QUERIES) {
     if (kids.length >= BUILD_FAN + BUILD_ASKS) break;
     if (q.anchorId !== n.id || built.has(q)) continue;
-    if (buildQuery(q)) kids.push(q);
+    if (!buildQuery(q)) continue;
+    /* the kind it names comes with it, and BEFORE it: the question's only edge
+       runs to the member, so dealt alone it arrives attached to nothing */
+    const via = (links.find(l => l.type === 'answers' && l.a === q) || {}).b;
+    if (via && via !== n && !built.has(via) && !kids.includes(via)) kids.push(via);
+    kids.push(q);
   }
+  /* AND THE REST OF THE FAN, once one member of it is on the graph. A question
+     names one kind and the map deals the whole fan around it, because a member
+     only means anything against the others — three kinds of mutagen is the
+     answer, and ultraviolet alone is a fact. */
+  if (n.kinds && n.kinds.some((k, i) => built.has(byId[n.id + '::build:' + i])))
+    for (const [name] of n.kinds) {
+      const k = buildKind(n, name);
+      if (k && !built.has(k) && !kids.includes(k)) kids.push(k);
+    }
   if (!kids.length) return [];
-  const rankTo = m => Math.min(...linksOf(n)
-    .filter(l => l.a === m || l.b === m).map(l => l.rank));
+  /* the best edge between the parent and this card. A question dealt through
+     the kind it names has no edge to the parent at all — `Math.min()` of
+     nothing is Infinity, which put the whole graph at NaN — so it falls back
+     to the rank its own answer edge carries. */
+  const rankTo = m => {
+    const rs = linksOf(n).filter(l => l.a === m || l.b === m).map(l => l.rank);
+    return rs.length ? Math.min(...rs) : (m.anchorRank || 2);
+  };
   /* THE DRIFT WIDENS WITH DEPTH. The first fan is read against the card that
      opened it and wants to stay tidy beside it; a second hop is five fans
      landing at the same distance, and at one hop's width they arrive as a
@@ -4215,7 +4241,13 @@ function expand(n) {
      steps its fan by a constant per kind; these cards range from a two-line
      question to a specimen with a ribbon in it, so the step is the card's own
      height and the row cannot be dealt on top of itself. */
-  for (const m of kids) reveal(m, n.x + BUILD_COL, n.y, n);
+  /* A DOOR AND A FACET HANG CLOSE. A hop is the width of an explanation; a
+     question to the card it asks about, or a member to the card it is a member
+     OF, is not one — at a full hop they read as two cards with a hand's width
+     of paper between them and nothing in it. */
+  const colOf = m => (n.type === 'question' || n.synthetic ||
+                      m.type === 'question' || m.synthetic) ? BUILD_CHAIN : BUILD_COL;
+  for (const m of kids) reveal(m, n.x + colOf(m), n.y, n);
   const hs = kids.map(m => Math.max(m.el.offsetHeight, 120) + BUILD_GAP);
   const total = hs.reduce((a, b) => a + b, 0);
   let y = n.y - total / 2;
@@ -4228,8 +4260,14 @@ function expand(n) {
        both read from the data: the BOW, which sets the ends of a fan back from
        its middle, and the RANK, which puts enrichment further out than the
        spine — so how far right a card sits says how well it is attached. */
-    m.tx = n.x + BUILD_COL - Math.abs(t) * 160 + (rankTo(m) - 1) * BUILD_COL * 0.55
-           + wobble(m.id, drift);
+    /* the rank stagger is a claim about how well a card is ATTACHED, and the
+       rank on a facet edge is not that claim: the fan's own edges are rank 2
+       by construction, which pushed every member half a hop further out than
+       the card it belongs to. Short hops take the bow and the drift only. */
+    const col = colOf(m), near = col / BUILD_COL;
+    m.tx = n.x + col - Math.abs(t) * 160 * near
+           + (col === BUILD_COL ? (rankTo(m) - 1) * col * 0.55 : 0)
+           + wobble(m.id, drift * near);
     m.x = m.tx; m.y = m.ty; m.vx = m.vy = 0;
   });
   measure();
@@ -4271,17 +4309,45 @@ function dropMade() {
     if (q.el) q.el.remove();
     const i = nodes.indexOf(q);
     if (i >= 0) nodes.splice(i, 1);
-    /* the id stays in the index: the question is off the map exactly the way
-       it was before Build borrowed it, and `ask()` still finds it */
-    byId[q.id] = q;
+    /* an authored question keeps its id: it is off the map exactly the way it
+       was before Build borrowed it, and `ask()` still finds it. A kind card was
+       invented here and leaves the index with its card. */
+    if (q.synthetic) delete byId[q.id];
+    else byId[q.id] = q;
     q.el = null; q.on = false; q.satellite = false; q.host = null;
   }
   buildMade.nodes.length = 0; buildMade.links.length = 0;
 }
 
+/* A KIND IS A NODE HERE TOO. On the map a kinds member is a satellite riding a
+   pill, because it is detail too small to hold a seat; in Build there are no
+   seats, and it is the member — not the card — that a question naming one is
+   actually asking about. Its own id, so the map's fan and this can both exist
+   without one standing in for the other. */
+function buildKind(host, name) {
+  const i = (host.kinds || []).findIndex(([n]) => n === name);
+  if (i < 0) return null;
+  const id = host.id + '::build:' + i;
+  if (byId[id] && byId[id].el) return byId[id];
+  const [nm, claim] = host.kinds[i];
+  const k = {
+    id, type: 'satellite', synthetic: true, name: nm, claim,
+    unit: host.unit, tint: host.tint,
+    satellite: false, pinned: false, on: false, deg: 1, vx: 0, vy: 0,
+  };
+  nodes.push(k); byId[id] = k;
+  paintNode(k); showEl(k, false);
+  buildMade.nodes.push(k);
+  const l = { a: k, b: host, type: 'instance-of', rank: 2, spine: false };
+  links.push(l); paintLink(l); showLink(l, false); edgeRefresh(l);
+  buildMade.links.push(l);
+  return k;
+}
+
 /* paint a deferred question into the graph, with the edge the extraction took
-   off it. Returns null where its anchor is not a card, which is not a case the
-   data has but is one a re-bake could make. */
+   off it — landing on the KIND it names where it names one, which is the chain
+   the map draws through the pill. Returns null where its anchor is not a card,
+   which is not a case the data has but is one a re-bake could make. */
 function buildQuery(q) {
   const host = byId[q.anchorId];
   if (!host || !host.el) return null;
@@ -4293,12 +4359,12 @@ function buildQuery(q) {
   q.el.classList.add('unlit');
   nodes.push(q); byId[q.id] = q;
   buildMade.nodes.push(q);
-  const l = { a: q, b: host, type: 'answers', rank: q.anchorRank, spine: true };
+  const target = (q.kind && buildKind(host, q.kind)) || host;
+  const l = { a: q, b: target, type: 'answers', rank: q.anchorRank, spine: true };
   links.push(l); paintLink(l); showLink(l, false); edgeRefresh(l);
   buildMade.links.push(l);
   return q;
 }
-
 /* THE SEED IS WHATEVER THE READER ARRIVED AT. `q-machine` is only the default
    the toggle uses; the ask bar, a `?node=`/`?ask=`/`?q=` link and a keyword
    search all land here instead of on the map when Build is on, so the mode is
@@ -4336,10 +4402,11 @@ function dealBuild(seed) {
   buildSeed = seed;
   reveal(seed, 0, 0, null);
   let front = [seed];
-  /* A QUESTION SPENDS A HOP ON ONE CARD. Its only edge is the answer, so two
-     hops off a question is a chain of three; a concept seed opens five. The
-     door gets the hop back. */
-  const hops = BUILD_HOPS + (isQuery(seed) ? 1 : 0);
+  /* A QUESTION SPENDS ITS HOPS ON ITS OWN CHAIN. Its only edge is the answer,
+     and where it names a kind there is a card between it and its host — so two
+     hops off a question is a chain of three before the graph starts. The door
+     gets those hops back. */
+  const hops = BUILD_HOPS + (isQuery(seed) ? (seed.kind ? 2 : 1) : 0);
   for (let h = 0; h < hops; h++) {
     const next = [];
     for (const n of front) next.push(...expand(n));

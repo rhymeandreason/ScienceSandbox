@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Node graph cards — image inventory</title>
+<!-- THE CARD CSS IS NODEGRAPH.HTML'S OWN, fetched at load and injected below.
+     Copying it here would drift the moment a card's look changes, and a
+     gallery that lies about how a card looks is worse than no gallery. -->
+<style>
+  body {
+    margin: 0; background: var(--paper, #f6f4ef);
+    font-family: var(--sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
+    color: var(--ink, #191b1f);
+  }
+  /* the map positions every node absolutely; a gallery flows them */
+  #sheet .node { position: static; transform: none; cursor: default; }
+  #sheet .node.card { width: 17.5rem; }
+
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--paper, #f6f4ef);
+    border-bottom: 1px solid var(--line, #ded9cf);
+    padding: 0.9rem 1.4rem;
+    display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;
+  }
+  header h1 { font-size: 0.95rem; font-weight: 600; margin: 0; letter-spacing: .01em; }
+  header .count { font-size: 0.75rem; color: var(--muted, #6b6f77); }
+  .filters { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-left: auto; }
+  .filters button {
+    font: inherit; font-size: 0.72rem; padding: 0.25rem 0.6rem;
+    background: var(--card, #fff); color: var(--ink, #191b1f);
+    border: 1px solid var(--line, #ded9cf); border-radius: 999px; cursor: pointer;
+  }
+  .filters button .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor; margin-right: 0.35rem; vertical-align: 0.05em;
+  }
+  .filters button.on { border-color: var(--ink, #191b1f); box-shadow: inset 0 0 0 1px var(--ink, #191b1f); }
+
+  #sheet { padding: 1.4rem; }
+  section { margin-bottom: 2.2rem; }
+  section h2 {
+    font-size: 0.62rem; font-weight: 600; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted, #6b6f77);
+    margin: 0 0 0.9rem; display: flex; align-items: center; gap: 0.45rem;
+  }
+  section h2 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  section h2 .n { font-weight: 400; letter-spacing: 0; text-transform: none; opacity: .7; }
+  .grid { display: flex; flex-wrap: wrap; gap: 1.1rem; align-items: flex-start; }
+
+  /* the gallery's own marks: what the map never has to say out loud */
+  .slot { position: relative; }
+  .slot .id {
+    font-family: ui-monospace, Menlo, monospace; font-size: 0.62rem;
+    color: var(--muted, #6b6f77); margin-top: 0.3rem; user-select: text;
+  }
+  /* a card with nothing to put in its thumb is the whole point of this page */
+  .node.card .thumb.empty {
+    background: repeating-linear-gradient(45deg, #efece4 0 8px, #e7e3d9 8px 16px);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .node.card .thumb.empty::after {
+    content: 'no image'; font-size: 0.6rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #9a958a;
+  }
+  .node.card .thumb.live {
+    background: #eceff3; display: flex; align-items: center; justify-content: center;
+  }
+  .node.card .thumb.live .kind {
+    font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: #7d848f;
+  }
+</style>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="graphdata.js"></script>
+<script src="graphcontent.js"></script>
+<script src="images.js"></script>
+</head>
+<body>
+<header>
+  <h1>Node graph cards</h1>
+  <span class="count" id="count"></span>
+  <div class="filters" id="filters"></div>
+</header>
+<div id="sheet"></div>
+
+<script>
+'use strict';
+
+const { UNITS, CHEM_TINT, NODES } = GraphData;
+const CONTENT = (window.GraphContent || {}).CONTENT || [];
+const PLACED = (window.GraphContent || {}).PLACEMENTS || [];
+const BY_CONTENT = new Map(CONTENT.map(c => [c.id, c]));
+const IMAGES = new Map(((window.Images || {}).IMAGES || []).map(i => [i.id, i]));
+
+/* mirrors nodegraph.html's ON_NODE pass: which content sits on which node,
+   best rank first, a lesson ahead of a live box at the same rank */
+const ON_NODE = new Map();
+for (const [cid, ranks] of PLACED) {
+  if (cid.startsWith('p:')) continue;
+  const item = BY_CONTENT.get(cid) || IMAGES.get(cid);
+  if (!item) continue;
+  for (const [nid, rank] of Object.entries(ranks))
+    (ON_NODE.get(nid) || ON_NODE.set(nid, []).get(nid)).push({ item, rank });
+}
+for (const list of ON_NODE.values())
+  list.sort((a, b) => a.rank - b.rank ||
+                      (b.item.kind === 'lesson') - (a.item.kind === 'lesson'));
+
+const INLINE = { water: 1, build: 1, molbox: 1, protein: 1, lesson: 1, image: 1 };
+const lessonFor = n =>
+  (ON_NODE.get(n.id) || []).map(x => x.item).find(i => i.kind === 'lesson') || null;
+const viewFor = n =>
+  (ON_NODE.get(n.id) || []).map(x => x.item).find(i => INLINE[i.kind]) || null;
+/* an entry in images.js has no `kind`; it is a picture and nothing else */
+const imageFor = n =>
+  (ON_NODE.get(n.id) || []).map(x => x.item).find(i => IMAGES.has(i.id)) || null;
+
+const esc = t => String(t == null ? '' : t)
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/* THE MARKUP IS NODEGRAPH.HTML'S paintNode, minus the live boxes: this page
+   draws ~200 cards at once and four WebGL contexts is the map's whole budget.
+   A thumb says what WOULD fill it, which is the inventory being taken. */
+function cardHTML(n) {
+  if (n.type === 'question') {
+    const qLesson = lessonFor(n);
+    return { cls: 'node question ' + (n.qtype || 'anchor') + (qLesson ? ' haslesson' : ''),
+      html: '<span>' + esc(n.text) + '</span>' + thumbHTML(n) };
+  }
+  if (n.type === 'theme')
+    return { cls: 'node theme',
+      html: '<div class="name">' + esc(n.name) + '</div>' +
+            '<div class="claim">' + esc(n.claim) + '</div>' };
+
+  const tint = n.subject === 'chemistry' ? CHEM_TINT : (UNITS[n.unit] || {}).tint;
+  const tags =
+    (n.type === 'evidence' ? '<span class="tag eviD">evidence</span>' : '') +
+    (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '');
+  return {
+    cls: 'node card ' + n.type + (n.subject === 'chemistry' ? ' chem' : ''),
+    tint,
+    html: '<div class="name">' +
+            (n.type === 'process' ? '<span class="run">&rarr;</span>' : '') +
+            (n.type === 'evidence'
+              ? '<i class="ph-bold ph-flask flask" aria-hidden="true"></i>' : '') +
+            esc(n.name) + '</div>' +
+          '<div class="claim">' + esc(n.claim) + '</div>' +
+          thumbHTML(n) +
+          (tags ? '<div class="tags">' + tags + '</div>' : ''),
+  };
+}
+
+function thumbHTML(n) {
+  const img = imageFor(n);
+  if (img)
+    return '<div class="thumb mounted"><img class="still" alt="" style="object-fit:' +
+           esc(img.fit || 'cover') + '" src="images/' +
+           esc(img.slug) + '.' + esc(img.ext) + '"></div>';
+  const view = viewFor(n);
+  if (view && view.kind === 'lesson' && view.shot)
+    return '<div class="thumb mounted"><img class="still poster" alt="" src="../' +
+           esc(view.shot) + '"></div>';
+  if (view)
+    return '<div class="thumb live"><span class="kind">' + esc(view.kind) + '</span></div>';
+  return '<div class="thumb empty"></div>';
+}
+
+/* what a card is holding, which is what the filters sort on */
+const stateOf = n =>
+  imageFor(n) ? 'image'
+  : (viewFor(n) || {}).kind === 'lesson' ? 'shot'
+  : viewFor(n) ? 'live' : 'none';
+
+/* ---- draw --------------------------------------------------------------- */
+const sheet = document.getElementById('sheet');
+const filters = document.getElementById('filters');
+let unitPick = null;      // null = every unit
+let needOnly = false;     // only cards with nothing in the thumb
+
+function draw() {
+  const rows = NODES.filter(n =>
+    (!unitPick || (unitPick === 'none' ? !n.unit : n.unit === unitPick)) &&
+    (!needOnly || stateOf(n) === 'none'));
+
+  sheet.innerHTML = '';
+  /* a question carries no unit — it is a door into one — so it gets its own
+     bucket at the end rather than vanishing from a page that claims to show
+     every card */
+  const order = Object.keys(UNITS).concat([null]);
+  for (const u of order) {
+    const inUnit = rows.filter(n => (n.unit || null) === u);
+    if (!inUnit.length) continue;
+    const sec = document.createElement('section');
+    const need = inUnit.filter(n => stateOf(n) === 'none').length;
+    sec.innerHTML = '<h2>' +
+      (u ? '<span class="dot" style="background:' + UNITS[u].tint + '"></span>' +
+           esc(UNITS[u].name) : 'Questions (no unit)') + ' <span class="n">' + inUnit.length + ' cards · ' +
+      need + ' with no image</span></h2><div class="grid"></div>';
+    const grid = sec.querySelector('.grid');
+    for (const n of inUnit) {
+      const { cls, html, tint } = cardHTML(n);
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      const el = document.createElement('div');
+      el.className = cls;
+      if (tint) el.style.setProperty('--dot', tint);
+      el.innerHTML = html;
+      slot.appendChild(el);
+      const id = document.createElement('div');
+      id.className = 'id';
+      id.textContent = n.id + ' · ' + stateOf(n);
+      slot.appendChild(id);
+      grid.appendChild(slot);
+    }
+    sheet.appendChild(sec);
+  }
+  /* what the clipper has fetched and nothing shows yet: the other half of
+     the inventory, and invisible from the map by design */
+  const placedIds = new Set([].concat(...[...ON_NODE.values()]).map(x => x.item.id));
+  const spare = [...IMAGES.values()].filter(i => !placedIds.has(i.id));
+  if (spare.length && !unitPick && !needOnly) {
+    const sec = document.createElement('section');
+    sec.innerHTML = '<h2>In images.js, not placed <span class="n">' + spare.length +
+      '</span></h2><div class="grid"></div>';
+    const grid = sec.querySelector('.grid');
+    for (const i of spare) {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.innerHTML =
+        '<div class="node card"><div class="name">' + esc(i.title) + '</div>' +
+        '<div class="claim">' + esc(i.caption || '') + '</div>' +
+        '<div class="thumb mounted"><img class="still" alt="" style="object-fit:' +
+          esc(i.fit || 'cover') + '" src="images/' + esc(i.slug) + '.' + esc(i.ext) + '"></div>' +
+        '<div class="credit"><a href="' + esc(i.page) + '" target="_blank" rel="noopener">' +
+          esc(i.credit) + '</a> · ' + esc(i.license) + '</div></div>' +
+        '<div class="id">' + esc(i.id) + '</div>';
+      grid.appendChild(slot);
+    }
+    sheet.appendChild(sec);
+  }
+
+  const need = NODES.filter(n => stateOf(n) === 'none').length;
+  document.getElementById('count').textContent =
+    rows.length + ' shown · ' + NODES.length + ' cards · ' + need + ' with no image';
+}
+
+function buildFilters() {
+  const mk = (label, tint, on, fn) => {
+    const b = document.createElement('button');
+    b.innerHTML = (tint ? '<span class="dot" style="background:' + tint + '"></span>' : '') + label;
+    if (on) b.classList.add('on');
+    b.onclick = fn;
+    filters.appendChild(b);
+  };
+  mk('all units', null, !unitPick, () => { unitPick = null; render(); });
+  for (const [k, u] of Object.entries(UNITS))
+    mk(esc(u.name), u.tint, unitPick === k, () => { unitPick = k; render(); });
+  mk('questions', null, unitPick === 'none', () => { unitPick = 'none'; render(); });
+  mk(needOnly ? 'needs an image ✓' : 'needs an image', null, needOnly,
+     () => { needOnly = !needOnly; render(); });
+}
+
+function render() { filters.innerHTML = ''; buildFilters(); draw(); }
+
+/* nodegraph.html's stylesheet, taken from the page itself so this gallery
+   cannot show a card the map no longer draws that way */
+fetch('nodegraph.html')
+  .then(r => r.text())
+  .then(t => {
+    const m = t.match(/<style>([\s\S]*?)<\/style>/);
+    if (!m) throw new Error('no <style> block in nodegraph.html');
+    const s = document.createElement('style');
+    s.textContent = m[1];
+    document.head.insertBefore(s, document.head.firstChild);
+  })
+  .catch(e => console.warn('card CSS not loaded:', e))
+  .then(render);
+</script>
+</body>
+</html>
