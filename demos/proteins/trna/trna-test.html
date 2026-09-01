@@ -152,7 +152,12 @@ function draw() {
   const parts = NucleicLib.build(THREE, trace, { sub });
 
   for (const s of parts.strands)
-    group.add(new THREE.Mesh(s.geo, chainMat('chain', 0x8a8578)));
+    /* ONE COLOUR, because there is one chain — the stems are this molecule
+       paired to ITSELF, so there is no second strand to tell apart. Light,
+       and lighter than it looks in the file: scene.js renders with
+       LinearEncoding and no tone mapping, so every colour reaches the screen
+       darker than its hex. Judge it in the render. */
+    group.add(new THREE.Mesh(s.geo, chainMat('chain', 0xd8d2c4)));
   /* Half a rung IS one base, so colour by half is colour by base. Paired and
      unpaired are told apart by SHAPE alone now — the gap down the middle of
      two facing stubs — because colour is carrying which base. */
