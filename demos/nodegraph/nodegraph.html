@@ -4273,6 +4273,7 @@ const ASKABLE = NODES.filter(n => n.type === 'question').map(n => byId[n.id]);
   const saved = readGrafts();
   for (const text of Object.keys(saved)) {
     if (!byId[saved[text].host]) continue;   /* grafted onto a card since renamed */
+    if (saved[text].parent && !saved[saved[text].parent]) continue;   /* built on a graft since evicted */
     ASKABLE.push(doorFor(text, saved[text]));
   }
 }
@@ -4880,15 +4881,22 @@ function syncGraft(n) {
   dropGraft();
 }
 
-function spawnGraft(host, made, edges, question) {
-  dropGraft();
+/* A GRAFT ON A GRAFT. With `stack` the open graft stays and the new row goes
+   above it: the reader asked a second question of a card the first one built,
+   and the chain climbs from the map's floor one question at a time. Every card
+   is still a satellite of the same laid-out ROOT, so the safety argument does
+   not change — nothing here can move the skeleton. */
+function spawnGraft(host, made, edges, question, { stack = false } = {}) {
+  if (!stack) dropGraft();
   const byMade = new Map();
   const fresh = [], wires = [];
+  const prior = stack && graft ? graft.nodes : [];
 
   made.forEach((m, i) => {
     const n = {
       id: 'made:' + m.id, type: 'made', satellite: true, pinned: true, host,
       name: m.name, claim: m.claim, unit: host.unit, tint: host.tint,
+      q: question, root: host.id,
       deg: 0, on: true, dx: 0, dy: 0, x: host.x, y: host.y, vx: 0, vy: 0,
     };
     fresh.push(n); byMade.set(m.id, n); byId[n.id] = n;
@@ -4906,13 +4914,17 @@ function spawnGraft(host, made, edges, question) {
   const gap = 26;
   const span = fresh.reduce((t, m) => t + m.el.offsetWidth + gap, -gap);
   const tall = Math.max(...fresh.map(m => m.el.offsetHeight));
-  const rise = host.el.offsetHeight / 2 + tall / 2 + 64;
+  /* the floor of this row: the host's top edge, or the top of whatever the
+     open graft already stacked (its question included) */
+  const base = prior.length
+    ? Math.min(...prior.map(m => m.dy - m.el.offsetHeight / 2)) - 40
+    : -(host.el.offsetHeight / 2 + 64);
   let x = 0;
   fresh.forEach(n => {
     const w = n.el.offsetWidth;
     n.dx = x + w / 2 - span / 2;
     x += w + gap;
-    n.dy = -rise;
+    n.dy = base - tall / 2;
   });
 
   const resolve = id => byMade.get(id) || byId[id] || null;
@@ -4937,7 +4949,8 @@ function spawnGraft(host, made, edges, question) {
      reconstruct from looking — and it is the reason the cards under it exist. */
   if (question) {
     const q = {
-      id: 'made:q', type: 'question', qtype: 'extension', made: true,
+      id: 'made:q:' + (prior.length ? prior.filter(m => m.type === 'question').length : 0),
+      type: 'question', qtype: 'extension', made: true,
       satellite: true, pinned: true, host, text: question,
       unit: host.unit, tint: host.tint,
       deg: 0, on: true, dx: 0, dy: 0, x: host.x, y: host.y, vx: 0, vy: 0,
@@ -4947,7 +4960,7 @@ function spawnGraft(host, made, edges, question) {
     q.el.classList.add('lit');
     sizeOf(q);
     q.dx = 0;
-    q.dy = -(rise + tall / 2 + q.el.offsetHeight / 2 + 40);
+    q.dy = base - tall - 40 - q.el.offsetHeight / 2;
     /* to the first card it produced, so the line reads question → answer */
     const target = fresh.find(n => n.type === 'made');
     if (target) {
@@ -4959,8 +4972,15 @@ function spawnGraft(host, made, edges, question) {
     }
   }
 
-  graft = { host, nodes: fresh, links: wires };
+  graft = { host, nodes: prior.concat(fresh), links: (stack && graft ? graft.links : []).concat(wires) };
   draw();
+}
+
+/* the generated cards on screen right now, in either mode: what a next
+   question may build on, so the endpoint is told about them */
+function liveMade() {
+  const pool = mode === 'build' ? buildMade.nodes : (graft ? graft.nodes : []);
+  return pool.filter(n => n.type === 'made' && n.el);
 }
 
 /* YOUR OWN QUESTION, ASKED AGAIN IN OTHER WORDS. Question matching needs every
@@ -5002,15 +5022,27 @@ function nearestMine(text) {
    every id against `byId`, so a card renamed since the graft was saved drops
    its edge rather than drawing one to nothing. */
 function restoreGraft(q) {
+  if (mountGraft(q)) frameGraft(graft.host);
+}
+
+/* A CHAIN RESTORES FROM THE BOTTOM. A graft saved with a `parent` names ids
+   the parent made, so the parent is mounted first and this one stacks on it;
+   the root is focused once, before the first row. */
+function mountGraft(q) {
   const g = (readGrafts()[q.text]) || q.graft;
   const host = g && byId[g.host];
-  if (!host) { note('That card is no longer on the map.'); return; }
-  light(host);
-  focus(host);
-  spawnGraft(host, g.nodes || [], g.edges || [], q.text);
+  if (!host) { note('That card is no longer on the map.'); return false; }
+  if (g.parent) {
+    const pq = ASKABLE.find(x => x.mine && x.text === g.parent);
+    if (!pq || !mountGraft(pq)) { note('The question this one built on is gone.'); return false; }
+  } else {
+    light(host);
+    focus(host);
+  }
+  spawnGraft(host, g.nodes || [], g.edges || [], q.text, { stack: !!g.parent });
   for (const n of graft.nodes) n.el.classList.add('lit');
   note(esc(g.note || ''));
-  frameGraft(host);
+  return true;
 }
 
 /* the column is question, cards, host: centre the box it makes rather than
@@ -5053,9 +5085,14 @@ async function askExtend(text) {
           .map(n => ({ id: n.id, name: n.name, claim: n.claim }));
       }
     }
+    /* the cards an earlier question built are the likeliest hosts for the
+       next one, and they have no vectors: they go in as candidates by hand */
+    const made = liveMade().map(n => ({ id: n.id, name: n.name, claim: n.claim }));
+    candidates = made.concat(candidates);
     const index = nodes
       .filter(n => n.name && !n.satellite && n.type !== 'made')
-      .map(n => ({ id: n.id, name: n.name }));
+      .map(n => ({ id: n.id, name: n.name }))
+      .concat(made.map(n => ({ id: n.id, name: n.name })));
 
     const r = await fetch('/api/extend', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -5073,9 +5110,16 @@ async function askExtend(text) {
     }
     /* the host is the first EXISTING card any edge names: that is where the
        graft hangs, and where the camera goes */
-    const anchorId = (out.edges.find(e => byId[e.from] && !/^made:/.test(e.from)) || {}).from ||
-                     (out.edges.find(e => byId[e.to]) || {}).to;
-    const host = byId[anchorId];
+    /* the anchor is the first card any edge names that already exists — a
+       laid-out card, or a generated one from an earlier question. The chain
+       hangs off the anchor; the ROOT it is a satellite of is the laid-out card
+       under the whole stack. */
+    const fresh = new Set(out.nodes.map(n => 'made:' + n.id));
+    const anchorId = out.edges.flatMap(e => [e.from, e.to]).find(id => byId[id] && !fresh.has(id));
+    const anchor = byId[anchorId];
+    if (!anchor) { note(''); return false; }
+    const onMade = anchor.type === 'made';
+    const host = onMade ? byId[anchor.root] : anchor;
     if (!host) { note(''); return false; }
 
     /* saved as the ANSWER, not as the request: the ids and edges are already
@@ -5083,7 +5127,7 @@ async function askExtend(text) {
        exactly what was drawn and never asks anything again. Saved BEFORE it is
        drawn, so both modes read the answer from the same place. */
     rememberGraft(text, { host: host.id, nodes: out.nodes, edges: out.edges,
-                          note: out.note || '' });
+                          note: out.note || '', parent: onMade ? anchor.q : undefined });
     if (!ASKABLE.some(x => x.mine && x.text === text)) {
       ASKABLE.push(doorFor(text, readGrafts()[text] || { host: host.id }));
       sortAskable();
@@ -5096,9 +5140,8 @@ async function askExtend(text) {
       const door = ASKABLE.find(x => x.mine && x.text === text);
       return buildFrom(door);
     }
-    light(host);
-    focus(host);
-    spawnGraft(host, out.nodes, out.edges, text);
+    if (!onMade) { light(host); focus(host); }
+    spawnGraft(host, out.nodes, out.edges, text, { stack: onMade });
     for (const n of graft.nodes) n.el.classList.add('lit');
     frameGraft(host);
     return true;
@@ -5492,17 +5535,23 @@ function buildMine(q) {
   const host = g && byId[g.host];
   if (!host || !host.el) { note('That card is no longer on the map.'); return null; }
   if (q.el) return q;
+  /* a chain builds from the bottom: the parent's cards have to exist before
+     this question's edges can name them */
+  if (g.parent) {
+    const pq = ASKABLE.find(x => x.mine && x.text === g.parent);
+    if (!pq || !buildMine(pq)) { note('The question this one built on is gone.'); return null; }
+  }
 
   paintNode(q);
   showEl(q, false);
   q.satellite = false; q.pinned = false; q.host = null; q.on = false;
   q.deg = 1; q.vx = 0; q.vy = 0;
+  /* seated at the host until revealed: a chain's parent may sit outside the
+     hops, and draw() places every node whether or not it is shown */
+  q.x = host.x; q.y = host.y;
   q.el.classList.add('unlit');
   nodes.push(q); byId[q.id] = q;
   buildMade.nodes.push(q);
-  const ql = { a: q, b: host, type: 'answers', rank: 1, spine: true };
-  links.push(ql); paintLink(ql); showLink(ql, false); edgeRefresh(ql);
-  buildMade.links.push(ql);
 
   const made = new Map();
   for (const m of (g.nodes || [])) {
@@ -5510,14 +5559,22 @@ function buildMine(q) {
     if (byId[id]) continue;              /* a live graft on the map owns that id */
     const n = {
       id, type: 'made', synthetic: true, name: m.name, claim: m.claim,
-      unit: host.unit, tint: host.tint,
+      unit: host.unit, tint: host.tint, q: q.text, root: host.id,
       satellite: false, pinned: false, on: false, deg: 0, vx: 0, vy: 0,
+      x: host.x, y: host.y,
     };
     nodes.push(n); byId[id] = n; made.set(m.id, n);
     paintNode(n); showEl(n, false);
     buildMade.nodes.push(n);
   }
   const resolve = id => made.get(id) || byId['made:' + id] || byId[id] || null;
+  /* the question's own edge runs to what it was asked OF: the root card, or
+     the generated card a parent question built */
+  const anchor = (g.edges || []).flatMap(e => [e.from, e.to])
+    .map(id => made.has(id) ? null : resolve(id)).find(Boolean) || host;
+  const ql = { a: q, b: anchor, type: 'answers', rank: 1, spine: true };
+  links.push(ql); paintLink(ql); showLink(ql, false); edgeRefresh(ql);
+  buildMade.links.push(ql);
   for (const e of (g.edges || [])) {
     const a = resolve(e.from), b = resolve(e.to);
     if (!a || !b || a === b) continue;
@@ -5703,7 +5760,7 @@ function currentSeed() {
   if (queryHost && queryHost.query) return queryHost.query;
   let n = focused;
   while (n && n.satellite && n.host) n = n.host;
-  if (n && n.type === 'made') n = graft && byId[graft.host.id] || null;
+  if (n && n.type === 'made') n = byId[n.root] || null;
   return n && byId[n.id] === n ? n : null;
 }
 

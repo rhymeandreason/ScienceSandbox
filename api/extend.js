@@ -123,6 +123,10 @@ Attach to the card whose MECHANISM explains the answer, which is often not one
 of the candidates: the search ranks by wording, and the right card frequently
 does not use the reader's words at all. Read the index for it.
 
+An id beginning "made:" is a card the reader built from an earlier question
+this session, and it is in the index like any other. Where the new question
+continues that line, attach to it: the chain climbs one question at a time.
+
 RULES, and a reply breaking one is discarded:
 - Every edge's "from" and "to" must be either an id from the index or the
   candidates, exactly as given, or the id of a card you are proposing in this
