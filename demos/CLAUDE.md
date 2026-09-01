@@ -21,6 +21,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | Add a Protein | `AddingAProtein.md` — say what the protein IS first, then pull the data that summary asked for, then build a bench to look at. Ends before the lesson does |
 | Drawing a PROTEIN, or anything from deposited coordinates | `rendering-modules.md` — which of tube / ribbon / surface, what each costs, and why no outside viewer is loaded. **A protein is not a molecule spec**: it is real ångströms, its secondary structure comes from the file's own records, and `MolecularGeometry.md` §1.5's scale families are what keep it in one frame with anything built from a spec |
 | Adding or changing a shared module | `Modules.md` |
+| Curating images for the node graph | `tools/clipper/README.md` — the extension, and why a clip carries its source page. The registry it writes is `nodegraph/images.js`; placement stays `graphcontent.js`'s job |
 | The node graph — `nodegraph/`, its data, its layout, or anything it draws | `nodegraph/Nodegraph.md` — the rulebook: edge grammar, rank, how placement is computed, and the QA list every unit has to pass. Its traps section is failures that ship looking fine. `nodegraph/Biology-Node-Graph.md` is the conceptual truth for what the graph is FOR, and the per-unit docs in `docs/Nodegraph-*.md` are the briefs for building one |
 | Questions-composer, Map, any page that mounts SEVERAL live 3D boxes, or any of `card-stage.js` / `molbox.js` / the builder-as-a-box | `ConceptMap.md` — the invariants half especially. Every item in it is a failure that ships looking fine, and most are invisible from the page that has them. **Being deprecated**: the node graph is its successor, and nothing new should depend on `lib/mapcontent.js` |
 | A new `reaction/` verb | `reaction/reaction.js`'s header, `reaction/check-reaction.js` |
@@ -28,7 +29,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | The AI tutor, or `api/` | `docs/ai-tutor.md` — design, and the local setup the pages do not need |
 | Deciding what to build next | ask the human if the roadmaps are still relevant |
 
-**Every doc in that table lives in `demos/docs/`** except the node graph's two, which sit beside the code they describe in `nodegraph/`; prose names them bare, the way it names a script.
+**Every doc in that table lives in `demos/docs/`** except the node graph's two and the clipper's, which sit beside the code they describe in `nodegraph/` and `tools/clipper/`; prose names them bare, the way it names a script.
 
 Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = invariants, load whole. *recipe* = how to build one kind of thing. *argument* = why this and not that, written for the human; loading one during a build spends context on judgement about priority instead of on the build. **If you need a doc this table does not name, stop and say which** — a gap here is invisible from inside a build, and guessing past it is how a rule gets missed.
 

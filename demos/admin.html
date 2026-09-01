@@ -521,6 +521,10 @@
         <div class="path">clip-shelf.html <span class="badge">internal tool</span></div>
         <div class="desc">Paste a giphy link: the clip is downloaded, trimmed, re-encoded to a card-sized mp4 with a poster frame, filed under nodegraph/clips/, and written into nodegraph/clips.js. Previewed in the node map&rsquo;s real 4:3 thumb, because that is where a letterboxed clip shows. Nothing loads from giphy at runtime &mdash; the registry is placed onto concepts by graphcontent.js, not here</div>
       </a>
+      <a class="card tool" href="tools/clipper/README.md">
+        <div class="path">tools/clipper/ <span class="badge">internal tool</span></div>
+        <div class="desc">NOT A PAGE: a Chrome extension, loaded unpacked. <b>chrome://extensions</b> &rarr; Developer mode &rarr; Load unpacked &rarr; <b>demos/tools/clipper/</b>. Right-click any image on any page and it is downloaded, downscaled, filed under nodegraph/images/, and written into nodegraph/images.js &mdash; with the source page and credit that Chrome and the page already knew. Needs the dev server running, and queues the clip if it is not. <b>Do not clip from the Google Images grid</b>: those tiles are gstatic thumbnails whose page URL is the search, so click through to the source first. Licence is typed, never detected. This link opens the README; placement onto concepts stays graphcontent.js&rsquo;s job</div>
+      </a>
       <a class="card tool" href="questions-cms.html">
         <div class="path">questions-cms.html <span class="badge">internal tool</span></div>
         <div class="desc">Curate questions.js: rank each question against the lessons it names, fix wording, link and unlink lessons, then export the file</div>

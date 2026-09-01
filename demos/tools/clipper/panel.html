@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<!-- The clipper's one window. Opens on a right-click, carries what Chrome and
+     the page already knew, and asks for the rest.
+
+     The preview is the card's real thumb: 4:3, under the row's `fit`. Judging
+     an image in a big box is how a cropped-off label ships looking fine, which
+     is the same trap clip-shelf.html calls out. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Clip to ScienceSandbox</title>
+<style>
+  :root {
+    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    --serif: 'Literata', Georgia, serif;
+    --paper: #faf8f4; --ink: #14161a; --muted: #6d6f76;
+    --line: #e4e0d7; --card: #fff; --accent: #1f5f4f; --spark: #e2643a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--sans); background: var(--paper); color: var(--ink);
+    margin: 0; padding: 1rem 1.15rem 1.5rem; line-height: 1.45; font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    font-size: 0.62rem; font-weight: 500; letter-spacing: 0.18em; margin: 0 0 0.75rem;
+    text-transform: uppercase; color: var(--muted);
+  }
+  /* The image at its own ratio, so what is on screen is the picture and not
+     a crop of it. `.crop` beside it is what the map will really show. */
+  .previews { display: flex; gap: 0.7rem; align-items: flex-start; }
+  .shot {
+    flex: 1; position: relative; background: #eceae4; border: 1px solid var(--line);
+    border-radius: 3px; overflow: hidden; min-height: 6rem;
+  }
+  .shot img { display: block; width: 100%; height: auto; }
+  .crop {
+    position: relative; overflow: hidden; width: 7rem; aspect-ratio: 4 / 3;
+    flex: none; background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+  }
+  .crop img { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .crop-label {
+    font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 0.2rem;
+  }
+  label {
+    display: block; font-size: 0.58rem; letter-spacing: 0.12em; margin: 0.75rem 0 0.2rem;
+    text-transform: uppercase; color: var(--muted);
+  }
+  input, textarea, select {
+    width: 100%; font: inherit; font-size: 12px; padding: 0.35rem 0.45rem;
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    color: inherit;
+  }
+  textarea { resize: vertical; min-height: 2.6rem; }
+  .row { display: flex; gap: 0.7rem; }
+  .row > * { flex: 1; }
+  .filename {
+    font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--accent);
+    margin-top: 0.3rem; word-break: break-all;
+  }
+  .src {
+    font-size: 10.5px; color: var(--muted); word-break: break-all; margin-top: 0.4rem;
+  }
+  .actions { display: flex; gap: 0.6rem; align-items: center; margin-top: 1.1rem; }
+  button {
+    font: inherit; font-size: 12px; font-weight: 500; padding: 0.42rem 0.95rem;
+    background: var(--accent); color: #fff; border: 0; border-radius: 3px; cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  button[disabled] { opacity: 0.5; cursor: default; }
+  .status { font-size: 11.5px; color: var(--muted); }
+  .status.bad { color: var(--spark); }
+  .status.good { color: var(--accent); }
+  .queued {
+    font-size: 11.5px; color: var(--spark); border: 1px solid var(--line);
+    background: #fff; padding: 0.4rem 0.55rem; border-radius: 3px; margin-top: 0.8rem;
+  }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 0.15rem; }
+</style>
+</head>
+<body>
+  <h1>Clip to ScienceSandbox</h1>
+
+  <div class="previews">
+    <div class="shot"><img id="shot" alt=""></div>
+    <div>
+      <div class="crop-label">card thumb</div>
+      <div class="crop"><img id="crop" alt=""></div>
+    </div>
+  </div>
+  <div class="src" id="src"></div>
+
+  <label for="title">Title</label>
+  <input id="title" autocomplete="off">
+  <div class="filename" id="filename"></div>
+
+  <label for="caption">Caption</label>
+  <textarea id="caption" placeholder="what this image shows, in the map's voice"></textarea>
+
+  <div class="row">
+    <div>
+      <label for="credit">Credit</label>
+      <input id="credit" autocomplete="off">
+    </div>
+    <div>
+      <label for="license">Licence</label>
+      <input id="license" autocomplete="off" placeholder="CC BY-SA 4.0">
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <label for="fit">Fit in thumb</label>
+      <select id="fit">
+        <option value="cover">cover — crop to fill</option>
+        <option value="contain">contain — letterbox</option>
+      </select>
+      <div class="hint">A labelled diagram wants contain.</div>
+    </div>
+    <div>
+      <label for="maxWidth">Max width</label>
+      <input id="maxWidth" type="number" value="1024" min="64" max="2048">
+      <div class="hint">These deploy.</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="save">Save</button>
+    <button id="close" class="ghost">Cancel</button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <div class="queued" id="queued" hidden></div>
+
+  <script src="panel.js"></script>
+</body>
+</html>

@@ -26,6 +26,12 @@ demos/map-cms.html
 # nodegraph/clips.js is the registry the map reads.
 demos/clip-shelf.html
 
+# The image clipper is a Chrome extension, not a page, and it is loaded
+# unpacked from this folder. Same endpoint story as the shelf (/api/images, only
+# in tools/dev-server.js). What it WRITES is deployed: nodegraph/images/* are
+# what a student sees, and nodegraph/images.js is the registry the map reads.
+demos/tools/clipper/
+
 # ---------------------------------------------------------------------------
 # Everything below is about a CLI deploy (`vercel --prod` from a laptop), which
 # uploads the WORKING TREE. `.vercelignore` is the only list it consults - a

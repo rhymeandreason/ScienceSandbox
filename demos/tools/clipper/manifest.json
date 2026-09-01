@@ -1,0 +1,9 @@
+{
+  "manifest_version": 3,
+  "name": "ScienceSandbox clipper",
+  "version": "1.0",
+  "description": "Right-click a science image and file it into nodegraph/images.js with its source, credit and licence.",
+  "permissions": ["contextMenus", "scripting", "storage", "activeTab"],
+  "host_permissions": ["http://localhost:8817/*", "http://127.0.0.1:8817/*"],
+  "background": { "service_worker": "background.js" }
+}

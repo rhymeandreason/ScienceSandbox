@@ -331,6 +331,83 @@ function clips(req, res, json) {
   });
 }
 
+/* ---- the node graph's images ----------------------------------------------
+ * GET  → the rows in nodegraph/images.js, the mtime a save has to match, and
+ *        files in images/ that no row names.
+ * POST → { action: 'ingest' | 'save' | 'delete' }.
+ *
+ * Same shape as /api/clips, and local-only for the same reason. The caller is
+ * the clipper extension rather than a page in this repo, which changes nothing
+ * here: an extension fetching from its service worker sends no Origin this
+ * cares about, and the socket is still the only thing consulted.
+ *
+ * The written jpg/png DOES deploy — unlike the extension that writes it, an
+ * image is what a student sees.
+ */
+function images(req, res, json) {
+  if (!require(path.join(ROOT, 'api/_local.js')).local(req)) {
+    return json(403, { error: 'the image registry is editable from this machine only' });
+  }
+
+  let io;
+  try { io = require('./images-io.js'); }
+  catch (e) { console.error(e); return json(500, { error: 'images-io.js would not load' }); }
+
+  const fail = e => {
+    if (e.code === 'STALE')   return json(409, { error: e.message });
+    if (e.code === 'INVALID') return json(422, { error: e.message, problems: e.problems });
+    console.error(e);
+    return json(500, { error: e.message });
+  };
+
+  if (req.method === 'OPTIONS') {
+    // The clipper is an extension, so its preflight has nowhere else to go.
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    return res.end();
+  }
+
+  if (req.method === 'GET') {
+    try {
+      const { rows, mtimeMs, orphans } = io.read();
+      return json(200, { writable: true, mtimeMs, rows, orphans });
+    } catch (e) { return fail(e); }
+  }
+  if (req.method !== 'POST') return json(405, { error: 'GET or POST only' });
+
+  let raw = '';
+  req.on('data', d => { raw += d; if (raw.length > 5e5) req.destroy(); });
+  req.on('end', async () => {
+    let body;
+    try { body = JSON.parse(raw); }
+    catch { return json(400, { error: 'body is not JSON' }); }
+
+    try {
+      if (body.action === 'ingest') {
+        const row = await io.ingest(body);
+        console.log(`  images/${row.slug}.${row.ext} \u2190 ${row.src || 'a local file'}`
+          + ` (${row.w}x${row.h}, ${Math.round(row.bytes / 1024)} KB)`);
+        return json(200, { ok: true, row });
+      }
+      if (body.action === 'delete') {
+        if (!body.slug) return json(400, { error: 'delete needs { slug }' });
+        io.remove(body.slug);
+        console.log(`  images/${body.slug}.* removed`);
+        return json(200, { ok: true });
+      }
+      if (Array.isArray(body.rows)) {
+        const saved = io.write(body.rows, { since: body.mtimeMs });
+        console.log(`  images.js \u2190 ${saved.rows} image(s) from the clipper`);
+        return json(200, { ok: true, ...saved });
+      }
+      return json(400, { error: "body needs { rows } or { action: 'ingest' | 'delete' }" });
+    } catch (e) { return fail(e); }
+  });
+}
+
 /* ---- the question bank ----------------------------------------------------
  * GET  → the rows on disk, and the mtime a save has to match.
  * POST → validate and rewrite demos/questions.js.
@@ -499,6 +576,7 @@ function api(url, req, res) {
   if (url === '/api/questions') return questions(req, res, json);
   if (url === '/api/mapcontent') return editable(req, res, json, 'mapcontent');
   if (url === '/api/clips') return clips(req, res, json);
+  if (url === '/api/images') return images(req, res, json);
 
   if (url !== '/api/ask' && url !== '/api/log' && url !== '/api/find' &&
       url !== '/api/extend')
