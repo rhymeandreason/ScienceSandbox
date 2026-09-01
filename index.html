@@ -384,7 +384,7 @@
 
 <section>
   <div class="head"><h2>Proteins</h2><span class="rule"></span>
-    <a class="more" href="/demos/proteins/">the whole collection &rarr;</a></div>
+    <a class="more" href="/proteins">the whole collection &rarr;</a></div>
   <ul class="grid proteins" id="shelf"></ul>
 </section>
 
@@ -434,9 +434,9 @@
 </div>
 
 <!-- THE PROTEIN SHELF. Four shapes that could not be mistaken for each other:
-     a rope, a barrel, a hollow cage, a two-lobed enzyme. Live boxes, four of
-     them, which is the whole of the map's WebGL budget and the reason this
-     row is four and not fourteen. -->
+     a rope, a barrel, a hollow cage, a compact all-helix globin. Live boxes,
+     four of them, which is the whole of the map's WebGL budget and the reason
+     this row is four and not fourteen. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="demos/lib/palette.js"></script>
 <script src="demos/lib/tokens-from-palette.js"></script>
@@ -449,7 +449,7 @@
 <script>
 'use strict';
 (function () {
-  const SHELF = ['collagen', 'gfp', 'ferritin', 'amylase'];
+  const SHELF = ['collagen', 'gfp', 'ferritin', 'myoglobin'];
   const shelf = document.getElementById('shelf');
   if (!shelf || !window.ProteinLib) return;
 
@@ -473,8 +473,14 @@
         '<span>EC ' + esc(ec) + '</span></div>'
       : p.does && p.does !== 'unknown' ? '<div class="tag">' + esc(p.does) + '</div>' : '';
 
+    /* straight to that protein's own page, where `vercel.json` gives it a short
+       URL; the two whose data lives outside proteins/ keep the file path */
+    const href = (!p.page && p.dir.indexOf('proteins/') === 0)
+      ? '/proteins/' + p.key
+      : 'demos/' + (p.page || p.dir + '/' + p.key + '-test.html');
+
     const li = document.createElement('li');
-    li.innerHTML = '<a class="spec" href="/demos/proteins/">' +
+    li.innerHTML = '<a class="spec" href="' + esc(href) + '">' +
       '<span class="name">' + esc(p.name) + '</span>' + tag +
       '<span class="thumb"></span>' +
       '<span class="claim">' + esc(p.blurb) + '</span>' +

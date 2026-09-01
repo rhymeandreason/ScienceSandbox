@@ -49,9 +49,14 @@ test below checks that.
 
 `vercel.json` rewrites a short URL onto each public page's file, and 301s the
 file path onto it. `index.html` links the short form. The five featured lessons
-are `demos/*.html`; the node graph is `/nodes`, and it is the case that shows
-the `<base>` rule below is about the file's own folder rather than about
-`/demos/`.
+are `demos/*.html`; the node graph is `/nodes`, the protein collection is
+`/proteins` and each bench under `demos/proteins/` is `/proteins/<key>`. Those
+are the cases that show the `<base>` rule below is about the file's own folder
+rather than about `/demos/`.
+
+Amylase and haemoglobin have no `/proteins/<key>` URL: their data lives outside
+`demos/proteins/`, so the collection page links them by file path. The rule the
+gallery applies is the folder, not the registry.
 **The `rewrites` block is the list**; it is not repeated here, because a URL
 renamed there and not here is a doc that lies.
 

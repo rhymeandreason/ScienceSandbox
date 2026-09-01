@@ -38,47 +38,63 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/main.css">
 <link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../proteins/protein-test.css">
 
 <style>
-  #app{grid-template-columns:1fr 320px}
-  #stage{position:relative}
+  /* The panel chrome is ../proteins/protein-test.css, so this bench wears the
+     same column as every protein page. What stays here is the controls it has
+     that a gallery bench does not: a render switch, a substrate switch, and
+     the checkbox rows. All of it draws from the house tokens. */
   canvas{width:100%;height:100%;display:block}
-  /* sandbox.css's .panel expects a lesson's chrome; scratch pages state
-     their own, as kit/ribbon-test.html does. */
-  .panel{padding:14px 16px;overflow-y:auto;font-family:var(--font-sans);font-size:13px;
-    background:var(--paper,#f4ede2);color:#2c2a26;border-left:1.5px solid var(--hair,#d9d0c2)}
-  .panel h2{font-family:var(--font-hand);font-size:17px;margin:0 0 4px}
-  .panel h3{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#8a8175;
-    margin:16px 0 6px;font-weight:600}
-  .row{display:flex;align-items:center;gap:8px;margin:5px 0}
-  .row label{flex:1;color:#4a453d}
-  .row input[type=range]{width:120px}
-  .val{font-variant-numeric:tabular-nums;color:#0042aa;min-width:38px;text-align:right;font-weight:600}
-  #seg,#chainseg{display:flex;gap:6px;margin:6px 0 8px}
-  #seg button,#chainseg button{flex:1;padding:7px 4px;border:1.5px solid var(--hair);border-radius:7px;
-    background:#fff;cursor:pointer;font-family:var(--font-sans);font-size:12.5px}
-  #seg button[aria-pressed=true],#chainseg button[aria-pressed=true]{border-color:#0042aa;box-shadow:0 0 0 2px rgba(0,66,170,.15);font-weight:600}
-  .stat{display:flex;justify-content:space-between;padding:2px 0;color:#4a453d}
-  .stat b{font-variant-numeric:tabular-nums}
-  .out{font-family:var(--font-mono,ui-monospace,monospace);font-size:11px;line-height:1.55;
-    white-space:pre-wrap;background:#fff;border:1px solid var(--hair);border-radius:6px;padding:8px}
-  .note{color:#8a8175;font-size:11.5px;line-height:1.45;margin-top:6px}
+
+  .row{display:flex;align-items:center;gap:var(--space-2);margin:6px 0;
+    font-size:0.8rem;color:var(--h-ink)}
+  .row label{flex:1;display:flex;align-items:center;gap:6px}
+  .row input[type=range]{width:120px;accent-color:var(--h-accent)}
+  .row input[type=checkbox]{accent-color:var(--h-accent)}
+  .val{font-variant-numeric:tabular-nums;color:var(--h-accent);min-width:38px;
+    text-align:right;font-weight:600}
+
+  /* Segmented control: hairlines between, so each row of choices reads as one
+     choice rather than as several buttons. */
+  #seg,#chainseg{display:flex;border:1px solid var(--h-line);
+    border-radius:var(--radius-sm);overflow:hidden;margin:6px 0 var(--space-3)}
+  #seg button,#chainseg button{flex:1;border:0;border-left:1px solid var(--h-line);
+    border-radius:0;padding:8px 4px;background:transparent;cursor:pointer;
+    font:inherit;font-family:var(--h-ui);font-size:0.8rem;color:var(--h-ink);
+    transition:background var(--dur-fast) var(--ease-out),
+               color var(--dur-fast) var(--ease-out)}
+  #seg button:first-child,#chainseg button:first-child{border-left:0}
+  #seg button:hover,#chainseg button:hover{color:var(--h-accent)}
+  #seg button[aria-pressed=true],#chainseg button[aria-pressed=true]{
+    background:var(--h-accent);color:#faf8f4}
+
+  .stat{display:flex;justify-content:space-between;padding:2px 0;color:var(--h-muted)}
+  .stat b{font-variant-numeric:tabular-nums;color:var(--h-ink)}
+  .out{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.7rem;
+    line-height:1.6;white-space:pre-wrap;color:var(--h-ink);
+    background:var(--h-paper);border:1px solid var(--h-line);
+    border-radius:var(--radius-sm);padding:8px}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="stage"><canvas id="cv"></canvas></div>
   <div class="panel">
-    <h2>α-amylase — the site</h2>
-    <div class="note">1OSE, porcine pancreatic, 2.3 Å. Acarbose is a separate molecule, not part of
+    <h1>&alpha;-amylase</h1>
+    <p class="deck">The site, not the fold. 1OSE, porcine pancreatic, 2.3&nbsp;&Aring;.
+      Drag to orbit, wheel to zoom.</p>
+
+    <p class="note">Acarbose is a separate molecule, not part of
       the enzyme: a diabetes drug that lies in the trough where a starch chain would and
       jams it. Four subsites, six rings, and a nitrogen where one glycosidic
       oxygen belongs — which is why the enzyme cannot cut it, why it works as a drug, and
-      why it stays put long enough to be crystallised. Drag to orbit, wheel to zoom.</div>
+      why it stays put long enough to be crystallised.</p>
 
-    <h3>render</h3>
+    <h2>render</h2>
     <div id="seg"></div>
     <div class="row"><label>skin opacity</label><input type="range" id="op" min="0" max="100" value="100"><span class="val" id="opv">0.80</span></div>
     <div class="row"><label><input type="checkbox" id="paint" checked> paint the contact residues</label></div>
@@ -87,28 +103,28 @@
          enzyme, and a page that opens with it already in the groove invites
          exactly the wrong reading. Turning it on is then a deliberate act,
          and the label says what it is. -->
-    <div class="row"><label><input type="checkbox" id="lig"> acarbose <span style="color:#8a8175">(drug)</span></label></div>
+    <div class="row"><label><input type="checkbox" id="lig"> acarbose <span style="color:var(--h-muted)">(drug)</span></label></div>
     <div class="row"><label><input type="checkbox" id="ions" checked> Ca²⁺ and Cl⁻</label></div>
     <div class="row"><label><input type="checkbox" id="spin"> spin</label></div>
 
-    <h3>substrate</h3>
+    <h2>substrate</h2>
     <div id="chainseg"></div>
     <div class="out" id="fit">–</div>
     <div class="note" id="fitnote"></div>
 
-    <h3>camera</h3>
+    <h2>camera</h2>
     <div class="out" id="camv">–</div>
     <div class="note">Orbit to the view you want and paste that line into
       <code>Stage.create</code>. It is the live camera, so what it prints is what is
       on screen.</div>
 
-    <h3>measured, not typed</h3>
+    <h2>measured, not typed</h2>
     <div class="out" id="nums">loading…</div>
 
-    <h3>the three that do the chemistry</h3>
+    <h2>the three that do the chemistry</h2>
     <div class="out" id="catout">–</div>
 
-    <h3>the contact residues</h3>
+    <h2>the contact residues</h2>
     <div class="out" id="contacts">–</div>
     <div class="note" id="verdict"></div>
   </div>
