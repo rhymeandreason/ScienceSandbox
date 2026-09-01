@@ -4201,7 +4201,7 @@ function expand(n) {
        both read from the data: the BOW, which sets the ends of a fan back from
        its middle, and the RANK, which puts enrichment further out than the
        spine — so how far right a card sits says how well it is attached. */
-    m.tx = n.x + BUILD_COL - Math.abs(t) * 160 + (rankTo(m) - 1) * 150
+    m.tx = n.x + BUILD_COL - Math.abs(t) * 160 + (rankTo(m) - 1) * BUILD_COL * 0.55
            + wobble(m.id, drift);
     m.x = m.tx; m.y = m.ty; m.vx = m.vy = 0;
   });
