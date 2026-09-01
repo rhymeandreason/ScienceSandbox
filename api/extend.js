@@ -195,7 +195,13 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ outside: !!out.json.outside, note: out.json.note || '',
                                     nodes: [], edges: [], ms: Date.now() - t0 });
     }
-    finds.record({ visitorId: body.visitorId, cohort: who, q, kind: 'extend', ms: Date.now() - t0 });
+    /* the VALIDATED answer, which is what the reader was shown — not the raw
+       reply, whose dropped edges never reached anybody */
+    finds.record({ visitorId: body.visitorId, cohort: who, q, kind: 'extend',
+                   ms: Date.now() - t0,
+                   answer: { outside: clean.outside, note: clean.note,
+                             nodes: clean.nodes, edges: clean.edges,
+                             served: out.served } });
     return res.status(200).json({ ...clean, ms: Date.now() - t0, served: out.served });
   } catch (err) {
     console.error('[extend] ' + ((err && err.message) || err));

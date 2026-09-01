@@ -4439,24 +4439,29 @@ askIn.addEventListener('keydown', e => {
      they just typed exists. Order: a card NAMED this, then a question that
      matches, then anything a claim or a kinds fan says. */
   const typed = askIn.value;
+  lastTyped = typed;
   note('');
-  if (goToNamed(typed)) return;
-  if (rows[0]) { ask(rows[0].dataset.q); return; }
+  const named = namedCard(typed);
+  if (goToNamed(typed)) { land('named', named && named.n); return; }
+  if (rows[0]) { ask(rows[0].dataset.q); land('question', rows[0].dataset.q); return; }
   /* a graft you already own beats a card that merely shares a word: you asked
      this before, and the answer is sitting in the drawer */
   const mine = nearestMine(typed);
   if (mine) {
     closeList(); askIn.blur();
     if (mode === 'build') buildFrom(mine); else restoreGraft(mine);
+    land('mine', mine.anchorId);
     return;
   }
-  if (goToMatch(typed)) return;
+  const kw = searchMap(typed);
+  if (goToMatch(typed)) { land('keyword', kw && kw.n, { member: kw && kw.kind }); return; }
   /* nothing deterministic matched: guess, say it is a guess, and offer the
      other thing that can be done with a question the map does not hold */
   semanticGo(typed).then(ok => {
     /* no red flash when there is something to offer: a bar that reddens under
        the words "that's a new question" is telling the reader off for asking */
     if (!ok && extendOff) miss();
+    if (!ok) land(extendOff ? 'miss' : 'offer');
     offerBuild(typed);
   });
   askIn.blur(); closeList();
@@ -4679,15 +4684,65 @@ let corpus = null, corpusWanted = null, semanticOff = false, extendOff = false;
    line still sitting in the field. */
 let lastVector = null;          /* { q, v } */
 
+/* ---- where a question landed ----------------------------------------------
+   THE SERVER CANNOT SEE THIS, so the page says it. Four of the bar's six tiers
+   never touch an endpoint — a card matched by name, a question, a restored
+   graft, a keyword hit — and those arrivals were invisible in the log while
+   being most of them. What the log is for is knowing which tier carries the
+   map and which questions fall through to a guess, and neither is derivable
+   from the query text once there is more than one tier.
+
+   A BEACON, so the reader pays nothing: it does not block the arrival, it
+   survives the tab closing a moment later, and it cannot fail visibly. */
+
+const VISITOR_KEY = 'ss.tutor.visitor';   /* the tutor's own, shared on purpose:
+                                             one browser, one id, cleared with
+                                             site data like everything else */
+const VISITOR = (() => {
+  try {
+    let v = localStorage.getItem(VISITOR_KEY);
+    if (!v && crypto.randomUUID) { v = crypto.randomUUID(); localStorage.setItem(VISITOR_KEY, v); }
+    return v || null;
+  } catch (e) { return null; }        /* private mode: the row logs without one */
+})();
+
+/* WHAT THE READER TYPED, not what was matched. The tiers hand around resolved
+   nodes and rewritten strings; the log wants the line as it was entered, which
+   is the only version that can be counted or read back as a question somebody
+   actually asked. */
+let lastTyped = '';
+
+function land(tier, target, extra) {
+  if (!lastTyped) return;
+  try {
+    const body = JSON.stringify({
+      q: lastTyped, tier,
+      target: target && (target.id || target),
+      visitorId: VISITOR,
+      ...(extra || {}),
+    });
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon('/api/land', new Blob([body], { type: 'application/json' }));
+    } else {
+      fetch('/api/land', { method: 'POST', headers: { 'content-type': 'application/json' },
+                           body, keepalive: true }).catch(() => {});
+    }
+  } catch (e) { /* a landing nobody hears is not worth an error */ }
+}
+
 /* ONE SHAPE, ALWAYS: `{v, task, dims}` on success, `{status}` on refusal. The
    first cut returned the bare vector on a cache hit and the response object on
    a miss, and the caller that read `.v` silently got nothing — candidates came
    back empty and the endpoint refused the build. */
 async function embedQuery(text) {
   if (lastVector && lastVector.q === text) return lastVector;
+  /* `visitorId` on the spending calls, not just the beacon. Without it every
+     row this page writes is anonymous, so the per-visitor cap in _finds.js
+     never applies and the landing has no row to fold into — it matches on
+     (q, visitor) and a null never equals a uuid. */
   const res = await fetch('/api/find', {
     method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ q: text }),
+    body: JSON.stringify({ q: text, visitorId: VISITOR }),
   });
   if (!res.ok) return { status: res.status };
   const out = await res.json();
@@ -4777,6 +4832,7 @@ async function semanticGo(text) {
     const evHost = EVIDENCE_HOST.get(hit.row.node);
     const n = evHost || byId[hit.row.node];
     if (!n) return false;
+    land('semantic', n, { member: hit.row.member || null, z: hit.z });
     if (hit.row.kind === 'q') ask(n.id);
     else if (evHost) arriveAt({ n, ev: evidenceName(hit.row.node) });
     else arriveAt({ n, kind: hit.row.member || null });
@@ -5003,7 +5059,7 @@ async function askExtend(text) {
 
     const r = await fetch('/api/extend', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ q: text, candidates, index }),
+      body: JSON.stringify({ q: text, candidates, index, visitorId: VISITOR }),
     });
     if (!r.ok) {
       if ([404, 501, 503].includes(r.status)) extendOff = true;

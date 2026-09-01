@@ -579,7 +579,7 @@ function api(url, req, res) {
   if (url === '/api/images') return images(req, res, json);
 
   if (url !== '/api/ask' && url !== '/api/log' && url !== '/api/find' &&
-      url !== '/api/extend')
+      url !== '/api/extend' && url !== '/api/land')
     return json(404, { error: 'no such endpoint' });
 
   // Env and handler are both re-read per request, so pasting a key into
@@ -615,15 +615,24 @@ function api(url, req, res) {
      /api/extend is the node graph reaching past itself: same shape as find,
      and it is here rather than folded into the tutor because it writes no
      turn and answers a map, not a lesson. */
-  if (url === '/api/find' || url === '/api/extend') {
-    const file = url === '/api/find' ? 'api/find.js' : 'api/extend.js';
+  if (url === '/api/find' || url === '/api/extend' || url === '/api/land') {
+    const file = 'api' + url.slice(4) + '.js';
     let handler;
     try { handler = require(path.join(ROOT, file)); }
     catch (e) { console.error(e); return json(500, { error: 'the ' + url + ' endpoint would not load' }); }
-    const shim = { setHeader: () => {}, status: c => ({ json: b => json(c, b) }) };
+    /* `.end()` as well as `.json()`: /api/land answers 204 with no body, and it
+       answers BEFORE it writes — a beacon has nobody waiting for a reply, so a
+       shim that only knew how to send JSON would hang it. */
+    const shim = {
+      setHeader: () => {},
+      status: c => ({
+        json: b => json(c, b),
+        end: () => { res.writeHead(c); res.end(); },
+      }),
+    };
     const run = body => Promise.resolve(
       handler({ method: req.method, headers: req.headers, body, socket: req.socket }, shim)
-    ).catch(e => json(500, { error: e.message }));
+    ).catch(e => console.error('[' + url + '] ' + e.message));
     if (req.method !== 'POST') return run(null);
     let raw = '';
     req.on('data', d => { raw += d; if (raw.length > 1e5) req.destroy(); });

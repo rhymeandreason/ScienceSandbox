@@ -43,12 +43,18 @@ const uuidOrNull = v => (UUID.test(String(v || '')) ? v : null);
 async function counts(visitor) {
   const db = log.sql();
   if (!db) return null;
+  /* `kind <> 'land'` because the cap rations API CALLS and a landing made
+     none — it is api/land.js recording where the offline half of the bar sent
+     somebody. Counting it would throttle a reader for not spending anything.
+     Legacy rows have a null kind and are counted, which is right: they were
+     all searches. */
   const [row] = await db`
     SELECT count(*) FILTER (WHERE created_at > now() - interval '1 hour')             AS global_hour,
            count(*) FILTER (WHERE created_at > now() - interval '1 hour'
                               AND visitor_id = ${visitor})                            AS visitor_hour
     FROM finds
-    WHERE created_at > now() - interval '1 hour'`;
+    WHERE created_at > now() - interval '1 hour'
+      AND kind IS DISTINCT FROM 'land'`;
   return row;
 }
 
@@ -79,20 +85,21 @@ async function exceeded({ visitorId }) {
 
 /* Never awaited by the handler: a reader waits for their answer, not for the
  * row that records it. A failed insert is logged and dropped. */
-function record({ visitorId, cohort, q, kind, ms }) {
+function record({ visitorId, cohort, q, kind, ms, answer }) {
   const db = log.sql();
   if (!db) return;
   const visitor = uuidOrNull(visitorId), text = String(q).slice(0, 400), took = ms | 0;
-  db`INSERT INTO finds (visitor_id, cohort, q, kind, ms)
+  db`INSERT INTO finds (visitor_id, cohort, q, kind, ms, answer)
      VALUES (${visitor}, ${cohort || null}, ${text},
-             ${kind === 'extend' ? 'extend' : 'find'}, ${took})`
+             ${kind === 'extend' ? 'extend' : 'find'}, ${took},
+             ${answer ? JSON.stringify(answer) : null})`
     /* THE ROW MATTERS MORE THAN THE TAG. `kind` arrives by an ALTER in
        _schema.sql, and between a deploy and somebody running it this insert
        names a column that is not there — which would drop the row silently and
        take the RATE LIMIT with it, since the cap counts these rows. So a
        missing column costs the tag and nothing else. */
     .catch(e => {
-      if (!/column .*kind.* does not exist/i.test((e && e.message) || '')) throw e;
+      if (!/column .*(kind|answer).* does not exist/i.test((e && e.message) || '')) throw e;
       return db`INSERT INTO finds (visitor_id, cohort, q, ms)
                 VALUES (${visitor}, ${cohort || null}, ${text}, ${took})`;
     })

@@ -187,6 +187,30 @@
   .qlist .kind.extend { color: #7aa2f7; opacity: 1; }
   .qlist .kind.find { color: var(--faint, #6d6f76); }
   .qlist .q { flex: 1; }
+  /* WHAT THE READER WAS SHOWN, under the question that got it. Only an extend
+     row has one: a search is ranked in the page and the server never learns
+     where it landed. */
+  .qlist .ans {
+    flex-basis: 100%; margin: .25rem 0 .1rem 0; padding-left: .6rem;
+    border-left: 2px solid #7aa2f7; font-size: .82rem;
+  }
+  .qlist .ans .card { display: block; }
+  .qlist .ans .card b { font-weight: 600; }
+  .qlist .ans .out {
+    font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
+    color: #7aa2f7; margin-right: .4rem;
+  }
+  .qlist .ans .note { color: var(--faint, #6d6f76); display: block; margin-top: .2rem; }
+  /* a landing is one line, not a block: the tier, where it went, and the score
+     when there was one */
+  .qlist .ans.landed { display: flex; gap: .5rem; align-items: baseline; border-left-color: var(--faint, #6d6f76); }
+  .qlist .ans.landed .note { display: inline; margin: 0; }
+  .qlist .tier {
+    font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--faint, #6d6f76);
+  }
+  /* the two that mean the map could not answer */
+  .qlist .tier.offer, .qlist .tier.miss { color: #e0af68; }
 </style>
 </head>
 <body>
@@ -348,8 +372,39 @@ function drawSearches(s) {
     `<div><time>${esc(new Date(r.created_at).toLocaleString())}</time>` +
     `<span class="q">${esc(r.q)}</span>` +
     (r.kind ? `<span class="kind ${esc(r.kind)}">${esc(r.kind)}</span>` : '') +
+    answerOf(r) +
     `</div>`).join('')
     || '<p class="empty">no searches yet</p>';
+}
+
+/* the cards a generation actually drew, and where each hung. An extend that
+   produced nothing is worth seeing too — it means the reader asked, waited,
+   and got the note alone. */
+function answerOf(r) {
+  const a = r.answer;
+  if (!a) return '';
+  /* TWO SHAPES IN ONE COLUMN. A landing says which tier answered and where it
+     went; a generation says what it drew. They share `answer` because they are
+     the same fact — what the reader got — and `tier` is what tells them apart. */
+  if (a.tier) {
+    const where = a.target ? `<b>${esc(a.target)}</b>${a.member ? ' › ' + esc(a.member) : ''}` : '—';
+    return `<div class="ans landed">` +
+      `<span class="tier ${esc(a.tier)}">${esc(a.tier)}</span>` +
+      `<span>${where}</span>` +
+      (a.z != null ? `<span class="note">z ${esc(a.z)}</span>` : '') +
+      `</div>`;
+  }
+  const cards = (a.nodes || []).map(n =>
+    `<span class="card"><b>${esc(n.name)}</b> — ${esc(n.claim)}</span>`).join('');
+  const anchors = [...new Set((a.edges || [])
+    .flatMap(e => [e.from, e.to])
+    .filter(id => !(a.nodes || []).some(n => n.id === id)))];
+  return `<div class="ans">` +
+    (a.outside ? '<span class="out">outside</span>' : '') +
+    (cards || '<span class="card">— nothing proposed</span>') +
+    (anchors.length ? `<span class="note">on: ${esc(anchors.join(', '))}</span>` : '') +
+    (a.note ? `<span class="note">${esc(a.note)}</span>` : '') +
+    `</div>`;
 }
 
 function draw(data) {

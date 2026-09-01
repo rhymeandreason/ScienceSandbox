@@ -104,11 +104,18 @@ ORDER  BY q.created_at DESC;
 --  a window; the EDITORIAL QUEUE reads their text, because a question the map
 --  could not answer is the only record of a door worth writing.
 --
---  The outcome is NOT here, and that is deliberate: api/find.js returns a
---  vector and the PAGE does the ranking, so the server never learns what the
---  question resolved to. Rather than a second endpoint reporting it back, the
---  queue re-scores these texts offline, where the vectors already live. One
---  round trip per search stays one round trip.
+--  THE OUTCOME USED TO BE ABSENT ON PURPOSE. api/find.js returns a vector and
+--  the PAGE ranks it, so the server never learned what a question resolved to;
+--  the queue re-scored the texts offline instead, and one round trip per search
+--  stayed one round trip.
+--
+--  That held while a find WAS the search. The bar now walks six tiers and only
+--  the last two reach api/find.js at all — a reader who typed a card's NAME, or
+--  restored a graft, or was offered a new question, embedded nothing, so those
+--  arrivals were invisible here and they are most of them. Re-scoring cannot
+--  recover a tier it was never part of. api/land.js beacons the landing after
+--  the fact: no round trip in front of the reader, and it folds into the search's
+--  own row where there is one, so a question is still one row.
 --
 --  Same privacy rule as the tutor: no IP, no user agent, no name. `visitor_id`
 --  is a uuid the browser minted for itself and shares with the tutor, so
@@ -130,6 +137,19 @@ CREATE TABLE IF NOT EXISTS finds (
 -- database made before `kind` needs this to get the column. Idempotent, and it
 -- leaves the old rows null rather than guessing what they were.
 ALTER TABLE finds ADD COLUMN IF NOT EXISTS kind text;
+
+--  `answer` is what came back, and it exists ONLY on an `extend` row. The
+--  reasoning above still holds for a search: the page does that ranking and
+--  the server would have to be told. A generation is the other case — the
+--  server WROTE the answer, so recording it costs nothing and is the only
+--  record there is of what a reader was shown. It is also the expensive call:
+--  without this you can see that somebody asked about hollow bones and never
+--  what the map told them.
+ALTER TABLE finds ADD COLUMN IF NOT EXISTS answer jsonb;
+
+--  `kind` is 'find' | 'extend' | 'land'. A `land` row is an arrival that spent
+--  no API call, so _finds.js excludes it from the rate limit — the cap rations
+--  spend, and a landing is not spend.
 
 -- The limiter's only query is "how many since T", globally and per visitor.
 CREATE INDEX IF NOT EXISTS finds_created_idx ON finds (created_at DESC);
