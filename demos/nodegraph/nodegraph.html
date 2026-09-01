@@ -97,6 +97,31 @@
   .btn:hover { color: var(--accent); border-color: var(--accent); }
   .btn.on { color: var(--paper); background: var(--accent); border-color: var(--accent); }
 
+  /* ---- the mode switch -------------------------------------------------
+     Two readings of the same data — the baked map, and one grown a click at
+     a time from a seed card — so it is one control with two halves rather
+     than two buttons. Bottom left, opposite the ask bar's own line. */
+  .modes {
+    position: fixed; left: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 8;
+    display: flex; gap: 2px; padding: 2px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+  }
+  .modes .mode {
+    font-family: var(--sans); font-size: 0.62rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
+    background: none; border: 0; border-radius: 999px;
+    padding: 0.4rem 0.85rem; cursor: pointer;
+    transition: color .15s, background .15s;
+  }
+  .modes .mode:hover { color: var(--accent); }
+  .modes .mode.on { color: var(--paper); background: var(--accent); }
+
+  /* BUILD's y is a fan slot, not the scale ladder, so the ruler and the band
+     lines would both be lying. The ask bar and the highlight read the baked
+     map and reach cards that are not built, so they go with them. */
+  body.building .gutter, body.building .band,
+  body.building .askbar, body.building #hilitewrap { display: none; }
+
   #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
   #canvas.panning { cursor: grabbing; }
   /* geometricPrecision: #world is zoomed above k=1, and whole-pixel glyph
@@ -929,6 +954,12 @@
 
 <div class="hint" id="hint"></div>
 
+<!-- Map reads the baked graph. Build grows one out of a seed card. -->
+<div class="modes" id="modes" role="group" aria-label="how the graph is drawn">
+  <button type="button" class="mode on" data-mode="map">Map</button>
+  <button type="button" class="mode" data-mode="build">Build</button>
+</div>
+
 <!-- the ask bar: every question on the map is reachable from here, and the
      extension ones are reachable ONLY from here -->
 <div class="askbar" id="askbar">
@@ -1066,6 +1097,16 @@ for (const q of QUERIES) {
 
 const neighbours = n => links.flatMap(l => l.a === n ? [l.b] : l.b === n ? [l.a] : []);
 const linksOf = n => links.filter(l => l.a === n || l.b === n);
+
+/* MAP or BUILD. Build draws the same nodes and the same edges from its own
+   positions, so the relax, the measuring and the edge painting all have to
+   run over what is BUILT rather than over the whole map — everything else is
+   display:none and would be repelling cards it cannot be seen next to. */
+let mode = 'map';
+const built = new Set();
+const buildNodes = [], buildLinks = [];
+const active = () => mode === 'build' ? buildNodes : nodes;
+const activeLinks = () => mode === 'build' ? buildLinks : links;
 
 /* RANK IS AUTHORED AND NEVER REWRITTEN. It draws the edge, orders a fan for
    the walk, and sizes a hub, so a node that rewrites it is falsifying all
@@ -1842,6 +1883,7 @@ const densifySoon = () => {
 /* ---- light ------------------------------------------------------------- */
 
 function light(n) {
+  if (mode === 'build' && !built.has(n)) return;
   if (n.on) return;
   n.on = true;
   n.el.classList.remove('unlit');
@@ -1872,14 +1914,16 @@ let alpha = 0, settled = true;
 const wake = a => { alpha = Math.max(alpha, a); settled = false; };
 
 function step() {
+  if (mode === 'build') return buildStep();
   const REPEL = 22000, VMAX = 16, GAP = 64;
-  for (const n of nodes) { n.vx *= 0.76; n.vy *= 0.76; }
+  const NA = active(), LA = activeLinks();
+  for (const n of NA) { n.vx *= 0.76; n.vy *= 0.76; }
 
-  for (let i = 0; i < nodes.length; i++) {
-    const a = nodes[i];
+  for (let i = 0; i < NA.length; i++) {
+    const a = NA[i];
     if (a.satellite) continue;          /* revealed detail pushes nothing */
-    for (let j = i + 1; j < nodes.length; j++) {
-      const b = nodes[j];
+    for (let j = i + 1; j < NA.length; j++) {
+      const b = NA[j];
       if (b.satellite) continue;
       let dx = b.x - a.x, dy = b.y - a.y;
       let d2 = dx * dx + dy * dy;
@@ -1906,7 +1950,7 @@ function step() {
     }
   }
 
-  for (const l of links) {
+  for (const l of LA) {
     if (l.a.satellite || l.b.satellite) continue;
     const dy = l.b.y - l.a.y;
     const f = dy * 0.004;                     /* y alignment only */
@@ -1914,7 +1958,7 @@ function step() {
   }
 
   let moved = 0;
-  for (const n of nodes) {
+  for (const n of NA) {
     n.vx += (n.tx - n.x) * 0.12;
     /* a question holds its anchor harder than a concept holds its mean:
        shoved off it, it reads as attached to whatever it drifted near */
@@ -1930,6 +1974,94 @@ function step() {
     const dx = n.vx * alpha, dy = n.vy * alpha;
     n.x += dx; n.y += dy;
     moved = Math.max(moved, Math.abs(dx), Math.abs(dy));
+  }
+  alpha *= 0.985;
+  if (alpha < 0.05 && moved < 0.05) { settled = true; alpha = 0; }
+}
+
+/* BUILD'S RELAX IS question-composer.html's, which is the layout this mode is
+   copying. The map's step is overlap resolution over targets a layout pass has
+   already spread across a column grid; a grown graph has no such pass, and
+   running it here dealt cards on top of their own arrivals.
+
+   What the composer has and the map does not is a LINK SPRING: a rest length
+   between two connected cards is what holds a fan open and keeps a card near
+   whatever revealed it. Column pull is firm, the row target soft, and the
+   friction heavy — cards settle into place rather than bouncing into it. */
+function buildStep() {
+  const REPEL = 20000, SPRING = 0.012, COLUMN = 0.06, REST = 420, VMAX = 16, GAP = 44;
+  for (const n of buildNodes) { n.vx *= 0.76; n.vy *= 0.76; }
+
+  for (let i = 0; i < buildNodes.length; i++) {
+    const a = buildNodes[i];
+    for (let j = i + 1; j < buildNodes.length; j++) {
+      const b = buildNodes[j];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 1) { dx = (i - j) || 1; dy = 1; d2 = 2; }
+      const d = Math.sqrt(d2), ux = dx / d, uy = dy / d;
+      const f = REPEL / d2;
+      a.vx -= ux * f; a.vy -= uy * f;
+      b.vx += ux * f; b.vy += uy * f;
+    }
+  }
+
+  for (const l of buildLinks) {
+    const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y;
+    const d = Math.hypot(dx, dy) || 1;
+    /* the rest length has to clear both boxes, or a spring between two big
+       cards balances the separation pushing them apart and the pair settles
+       overlapping: measured, a specimen with a ribbon in it sat on both of
+       its rank-1 neighbours at a flat 420 */
+    const rest = Math.max(REST, l.a.rx + l.b.rx + GAP, l.a.ry + l.b.ry + GAP);
+    const f = (d - rest) * SPRING;
+    l.a.vx += (dx / d) * f; l.a.vy += (dy / d) * f;
+    l.b.vx -= (dx / d) * f; l.b.vy -= (dy / d) * f;
+  }
+
+  let moved = 0;
+  for (const n of buildNodes) {
+    n.vx += (n.tx - n.x) * COLUMN;
+    n.vy += (n.ty - n.y) * 0.04;
+    const v = Math.hypot(n.vx, n.vy);
+    if (v > VMAX) { n.vx *= VMAX / v; n.vy *= VMAX / v; }
+    if (n === dragNode || n.pinned) continue;
+    const dx = n.vx * alpha, dy = n.vy * alpha;
+    n.x += dx; n.y += dy;
+    moved = Math.max(moved, Math.abs(dx), Math.abs(dy));
+  }
+  /* OVERLAP IS A CONSTRAINT, NOT A FORCE. As a force it needs alpha to still
+     be worth something, so it either loses the race with the decay and leaves
+     cards on top of each other, or it is held alive and then fights the spring
+     in a limit cycle the reader sees as jitter. Projected straight onto the
+     positions it resolves in a frame or two and cannot oscillate: the pulls
+     are gentle, alpha decays to nothing, and the last frame to run is
+     overlap-free. Counted into `moved` so the loop does not declare itself
+     settled with a separation still pending. */
+  for (let i = 0; i < buildNodes.length; i++) {
+    const a = buildNodes[i];
+    for (let j = i + 1; j < buildNodes.length; j++) {
+      const b = buildNodes[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const ox = a.rx + b.rx + GAP - Math.abs(dx);
+      const oy = a.ry + b.ry + GAP - Math.abs(dy);
+      if (ox <= 0 || oy <= 0) continue;
+      const held = m => m === dragNode || m.pinned;
+      const share = held(a) || held(b) ? 1 : 0.5;
+      /* the shorter way out, so a wide flat card stops shoving its neighbours
+         down for a height it does not have */
+      if (ox < oy) {
+        const p = ox * share * (dx < 0 ? -1 : 1);
+        if (!held(a)) a.x -= p;
+        if (!held(b)) b.x += p;
+        moved = Math.max(moved, ox * share);
+      } else {
+        const p = oy * share * (dy < 0 ? -1 : 1);
+        if (!held(a)) a.y -= p;
+        if (!held(b)) b.y += p;
+        moved = Math.max(moved, oy * share);
+      }
+    }
   }
   alpha *= 0.985;
   if (alpha < 0.05 && moved < 0.05) { settled = true; alpha = 0; }
@@ -2057,7 +2189,10 @@ function endDrag(e) {
   const click = travel <= 5;
   if (dragging === 'node') {
     dragNode.el.classList.remove('dragging');
-    if (click) { light(dragNode); focus(dragNode); }
+    if (click) {
+      if (mode === 'build') expand(dragNode);
+      light(dragNode); focus(dragNode);
+    }
     else dragNode.pinned = true;
     dragNode = null;
   } else if (dragging === 'pan' && click && focused) {
@@ -2157,7 +2292,7 @@ let focused = null;
    seventeen labels on top of each other at the zoom the map opens on. Only
    the marks grow: a lit card is a card, and it is already the bigger box. */
 function measure() {
-  for (const n of nodes) {
+  for (const n of active()) {
     const grow = n.on ? 1 : MARKK_MAX / markk;
     sizeOf(n, grow);
   }
@@ -2292,9 +2427,9 @@ function focus(n) {
   }
 
   renderChips(n);
-  syncGraft(n);
-  syncQuery(n);
-  syncPill(n);
+  /* the pills, the query and a graft all belong to the baked map: each one
+     spawns satellites off cards that Build has not dealt */
+  if (mode !== 'build') { syncGraft(n); syncQuery(n); syncPill(n); }
   measure();
   gutterLight(n);
 
@@ -2450,6 +2585,9 @@ function goWalk() {
 
 function stepWalk(dir) {
   if (!focused) return;
+  /* the walk reads the whole map, and in Build most of it is not dealt: a
+     step would focus a card that is display:none */
+  if (mode === 'build') return;
   const cands = walkCands(focused, dir);
   if (!cands.length) return;
   walk = { from: focused, dir, cands, ix: 0 };
@@ -3953,6 +4091,182 @@ function centre(set) {
 
 for (const n of nodes) paintNode(n);
 for (const l of links) paintLink(l);
+
+/* ---- Build ---------------------------------------------------------------
+   THE MAP IS BAKED; BUILD IS THE OTHER READING. Same nodes, same edges, same
+   authored rank — only the seats are different, so nothing here reaches into
+   graphdata.js and no bake can go stale behind it.
+
+   The seed sits on the left and every fan opens to the right, so x is HOPS
+   FROM THE SEED rather than explanatory order and y is a slot in a fan
+   rather than the scale ladder. Both axes mean something else than they do
+   on the map, which is why the ruler and the band lines are hidden in this
+   mode instead of left to lie.
+
+   Two hops are dealt at the start and a click deals another, so the graph
+   the reader ends with is the path they took through it. Growth is bounded
+   by clicks, not by a depth cap, and what holds the layout together is the
+   map's own relax running over the BUILT set alone. */
+const BUILD_SEED = 'q-machine';   /* How does a chain of molecules become a machine... */
+const BUILD_HOPS = 2;             /* dealt at the start; every click deals one more */
+const BUILD_COL = 560;            /* x between hops */
+const BUILD_GAP = 46;             /* y between siblings in one fan */
+
+let mapSave = null;
+
+const showEl = (n, on) => { n.el.style.display = on ? '' : 'none'; };
+const showLink = (l, on) => {
+  for (const e of [l.el, l.arrow, l.label]) if (e) e.style.display = on ? '' : 'none';
+};
+const labelOf = n => n.name || n.text || n.id;
+
+/* A CARD ARRIVES AT ITS SEAT, not at its parent's. The composer's `show` sets
+   x to the target and lets the relax adjust from there; flying a card in from
+   the card that revealed it means every arrival starts inside a pile and the
+   first thing the reader sees is the shove that separates it. */
+function reveal(n, x, y, from) {
+  if (built.has(n)) return false;
+  built.add(n); buildNodes.push(n);
+  n.pinned = false;
+  n.tx = x; n.ty = y;
+  n.x = x; n.y = y;
+  n.vx = n.vy = 0;
+  showEl(n, true);
+  light(n);
+  /* every edge to something already built, not just the one it arrived on:
+     a fan that closes back onto a sibling has to draw that */
+  for (const l of linksOf(n)) {
+    const o = l.a === n ? l.b : l.a;
+    if (!built.has(o) || buildLinks.includes(l)) continue;
+    buildLinks.push(l); showLink(l, true); edgeRefresh(l);
+  }
+  return true;
+}
+
+/* FIVE EDGES PER CARD, RANK-FIRST: a card deals its rank-1 edges and tops up
+   from rank 2 and then 3 only if it is still short, so the spine leads and the
+   enrichment fills in behind it. Uncapped, `func` and `protein-class` alone put
+   seventeen cards in one fan. */
+const BUILD_FAN = 5;
+
+function expand(n) {
+  const seen = new Set();
+  const kids = linksOf(n)
+    .slice()
+    .sort((a, b) => a.rank - b.rank)
+    .map(l => (l.a === n ? l.b : l.a))
+    .filter(m => !built.has(m) && !seen.has(m) && seen.add(m))
+    .slice(0, BUILD_FAN);
+  if (!kids.length) return [];
+
+  /* THE FAN OPENS RIGHT WHATEVER THE ARROW SAYS. On the map an edge's
+     direction is the reading order and it decides which side a card sits;
+     here the reading order is the reader's own clicks, so what is right of a
+     card is what that card revealed.
+
+     Dealt off the parent's CURRENT position rather than its column, which is
+     what lets a fan follow a card the relax has already moved. The composer
+     steps its fan by a constant per kind; these cards range from a two-line
+     question to a specimen with a ribbon in it, so the step is the card's own
+     height and the row cannot be dealt on top of itself. */
+  for (const m of kids) reveal(m, n.x + BUILD_COL, n.y, n);
+  const hs = kids.map(m => Math.max(m.el.offsetHeight, 120) + BUILD_GAP);
+  const total = hs.reduce((a, b) => a + b, 0);
+  let y = n.y - total / 2;
+  kids.forEach((m, i) => {
+    const t = kids.length === 1 ? 0 : (i / (kids.length - 1)) * 2 - 1;   /* -1 … +1 */
+    m.ty = y + hs[i] / 2;
+    y += hs[i];
+    m.tx = n.x + BUILD_COL - Math.abs(t) * 70;      /* a gentle bow, not an arc */
+    m.x = m.tx; m.y = m.ty; m.vx = m.vy = 0;
+  });
+  measure();
+  wake(1);                    /* a fan dealt into an occupied region has work to do */
+  return kids;
+}
+
+/* the seed on the left, at a zoom a card is readable at. `innerWidth` reads 0
+   when the pane is collapsed, which silently sends the camera to infinity. */
+function buildCamera(seed) {
+  const w = innerWidth || 1440, h = innerHeight || 900;
+  const ys = buildNodes.flatMap(n => [n.y - n.ry, n.y + n.ry]);
+  const y0 = Math.min(...ys) - 60, y1 = Math.max(...ys) + 60;
+  /* the seed on the left and the first fans in frame. A hop-2 column of
+     seventeen cards is taller than any readable zoom, so the fit is floored
+     rather than obeyed: what a reader has to see is the seed and the arms
+     leaving it, and the rest of the column is one scroll away. */
+  const k = Math.min(0.6, Math.max(0.5, h / (y1 - y0)));
+  view = { k, x: w * 0.13 - (seed.x - seed.rx) * k, y: h / 2 - (y0 + y1) / 2 * k };
+  applyView();
+  touched = true;
+}
+
+function enterBuild() {
+  if (mode === 'build') return;
+  /* the baked seats are the map, and they are not recomputed on the way back:
+     switching modes must not cost the reader the map they had open */
+  mapSave = {
+    view: { ...view }, touched,
+    seats: nodes.map(n => ({ n, x: n.x, y: n.y, tx: n.tx, ty: n.ty,
+                             pinned: n.pinned, on: n.on })),
+  };
+  clearFocus();
+  stages.clear();                       /* a hidden card must not hold a context */
+  mode = 'build';
+  document.body.classList.add('building');
+  for (const n of nodes) { n.on = false; n.el.classList.add('unlit'); showEl(n, false); }
+  for (const l of links) showLink(l, false);
+  built.clear(); buildNodes.length = 0; buildLinks.length = 0;
+
+  const seed = byId[BUILD_SEED];
+  if (!seed) { console.warn('build seed missing:', BUILD_SEED); return; }
+  reveal(seed, 0, 0, null);
+  let front = [seed];
+  for (let h = 0; h < BUILD_HOPS; h++) {
+    const next = [];
+    for (const n of front) next.push(...expand(n));
+    front = next;
+  }
+  measure(); wake(1);
+  /* settle BEFORE the camera reads the extents, or it frames the targets and
+     the relax then walks the graph out of the shot */
+  for (let i = 0; i < 1200 && !settled; i++) step();
+  draw();
+  focus(seed);
+  follow = null;                          /* the camera below is the arrival */
+  buildCamera(seed);
+}
+
+function leaveBuild() {
+  if (mode !== 'build' || !mapSave) return;
+  mode = 'map';
+  document.body.classList.remove('building');
+  clearFocus();
+  stages.clear();
+  for (const n of nodes) showEl(n, true);
+  for (const l of links) showLink(l, true);
+  for (const s of mapSave.seats) {
+    const n = s.n;
+    n.x = s.x; n.y = s.y; n.tx = s.tx; n.ty = s.ty; n.pinned = s.pinned;
+    n.vx = n.vy = 0;
+    n.on = false;
+    n.el.classList.add('unlit');
+    if (s.on) light(n);                  /* light() is what re-mounts the box */
+  }
+  built.clear(); buildNodes.length = 0; buildLinks.length = 0;
+  for (const l of links) edgeRefresh(l);
+  measure();
+  view = { ...mapSave.view }; touched = mapSave.touched;
+  applyView(); draw();
+}
+
+const modeBtns = [...document.querySelectorAll('#modes .mode')];
+for (const b of modeBtns) b.addEventListener('click', () => {
+  const want = b.dataset.mode;
+  if (want === mode) return;
+  if (want === 'build') enterBuild(); else leaveBuild();
+  for (const o of modeBtns) o.classList.toggle('on', o.dataset.mode === mode);
+});
 
 /* THE PAGE'S FIRST FRAME, run once at load. NOT the Reset button — that
    clears the highlight and nothing else (below); coming back here would

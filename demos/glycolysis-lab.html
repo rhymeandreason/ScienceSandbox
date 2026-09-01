@@ -27,6 +27,42 @@
      middle of the stage. Keep --trayw and the .tstrip tile width in step. */
   :root{ --trayw:152px; }
 
+  /* THE ENZYME'S NAME LEADS THE RIGHT RAIL, above the step's verdicts: the
+     name is what the step IS, the verdicts are a reading of it. ONE FLEX
+     COLUMN rather than two offsets — the name runs to one or two lines, and a
+     second absolute top would either gap or collide as it does. The children
+     give up pathways.css's own positioning to sit in it. */
+  #enzrail{position:absolute;right:26px;top:96px;z-index:5;max-width:230px;
+    display:flex;flex-direction:column;align-items:flex-end;gap:20px;
+    text-align:right;pointer-events:none}
+  #enzname,#enzmeta{position:static;right:auto;top:auto;max-width:100%}
+  /* the verdicts are pressable; the rail itself is not (see drawMeta) */
+  #enzmeta{pointer-events:auto}
+  @media (max-width:920px){ #enzrail{right:12px;max-width:150px} }
+
+  /* THE SIDEBAR IS AN ACCORDION. The section is the card, so the two readouts
+     give up their own paper inside it — but only inside it: the ledger keeps
+     its card when drawTally moves it into the closing grid. */
+  #acc{display:flex;flex-direction:column;gap:12px;margin:0 0 16px}
+  #acc[hidden],.accsec[hidden],.accb[hidden]{display:none}
+  .accsec{background:var(--surface-card);border:1px solid var(--border-hair);
+    border-radius:var(--radius-md);box-shadow:var(--shadow-panel);overflow:hidden}
+  .acch{display:flex;width:100%;align-items:center;justify-content:space-between;
+    gap:10px;background:none;border:0;padding:12px 15px;cursor:pointer;
+    text-align:left;text-transform:uppercase;
+    font-family:var(--font-display);font-size:var(--cap-sm);
+    font-weight:var(--cap-weight);letter-spacing:var(--cap-track);
+    color:var(--text-muted)}
+  .acch:hover{color:var(--text-strong)}
+  .accc{font-size:12px;transition:transform .18s ease}
+  .acch[aria-expanded="true"]{color:var(--text-strong)}
+  .acch[aria-expanded="true"] .accc{transform:rotate(180deg)}
+  .accb{padding:0 15px 14px}
+  #acc #ledger,#acc #couplebox{position:static;margin:0;padding:0;background:none;
+    border:0;box-shadow:none;transform:none}
+  /* the header says both of these already */
+  #acc #ledger .lhead,#acc #couplebox .cx,#acc #couplebox .cpl-h{display:none}
+
   /* THE CLOSING TALLY, 2x2 — four things come out of ten steps, and the ledger
      is one of them. The box is pathways.css's; the shape is the fact. */
   #tally{grid-template-columns:repeat(2,minmax(0,1fr));
@@ -67,14 +103,17 @@
     <div id="cglow"><div class="sglow"></div></div>
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
-    <!-- WHAT KIND OF STEP THIS IS, above the enzyme's name: coupled or not,
-         one-way or not. Both are doors into the energy card (#couplebox).
-         Absolutely positioned on the right of the stage. -->
-    <div id="enzmeta" hidden></div>
-    <!-- THE ONE THING TO CARRY AWAY from this step, between the verdicts and
-         the enzyme. Read off the step's `takeaway`, never typed here. -->
+    <!-- THE RIGHT RAIL'S HEAD: the enzyme's name, then what kind of step this
+         is (coupled or not, one-way or not — both doors into the energy card,
+         #couplebox). ONE positioned box with the two stacked in it, so the
+         verdicts sit under the name whatever height either takes. -->
+    <div id="enzrail">
+      <div id="enzname" hidden></div>
+      <div id="enzmeta" hidden></div>
+    </div>
+    <!-- THE ONE THING TO CARRY AWAY from this step, under the rail's head.
+         Read off the step's `takeaway`, never typed here. -->
     <div id="enznote" hidden></div>
-    <div id="enzname" hidden></div>
     <div id="flyers" aria-hidden="true"></div>
     <!-- the click targets that sit ON the molecule — see .spot -->
     <div id="spots"></div>
@@ -119,10 +158,9 @@
        to the BOTTOM edge and grows upward, so a new control is one more child
        and nothing else moves — never give these their own `bottom`. -->
   <div id="tools">
-    <!-- ONE BOX for the switches: same kind of control, and the results screen
-         turns both off together. -->
+    <!-- The box kept its shape for a second switch: the ledger's used to sit
+         beside this one, and is now a panel in the sidebar's accordion. -->
     <div id="toggles" class="checkgroup">
-      <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
       <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
     </div>
     <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
@@ -134,9 +172,24 @@
   <!-- Not a panel with its own voice — a stack of readouts beside the stage:
        tally, the step's energy picture, the step's commentary. -->
   <div id="side">
-    <!-- starts away: it is pinned up on Begin — see placeLedger -->
-    <div id="ledger" class="sticky hid"></div>
-    <div id="couplebox" class="note"></div>
+    <!-- THE TWO READOUTS, ONE ACCORDION. Both run long and the column is not
+         tall enough for both, so opening one closes the other (see setPanel).
+         The section headers are the only way in: the ledger's checkbox is
+         gone, and the energy card's ✕ and its own heading are the header. -->
+    <div id="acc" hidden>
+      <section class="accsec" id="acc-ledger">
+        <button class="acch" type="button" data-panel="ledger" aria-expanded="false">
+          Running ledger<i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
+        <!-- starts away: pinned up when the panel opens — see placeLedger -->
+        <div class="accb" hidden><div id="ledger" class="sticky hid"></div></div>
+      </section>
+      <section class="accsec" id="acc-energy" hidden>
+        <button class="acch" type="button" data-panel="energy" aria-expanded="false">
+          <span id="acc-energy-h">Energy curve</span>
+          <i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
+        <div class="accb" hidden><div id="couplebox" class="note"></div></div>
+      </section>
+    </div>
     <div id="card"><div id="stepnote" class="note"></div></div>
   </div>
 </div>
@@ -1035,6 +1088,7 @@ function rewind(){
   done--; renderLanes(done); refresh();
 }
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false; done=0; intro=true;
+  panel=null;                       // the sidebar starts shut, as on first load
   laneDone.clear(); carrierGone.clear();
   renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
 
@@ -1084,13 +1138,51 @@ let prevLedger=null;
 // AWAY AT THE INTRO, PINNED UP ON BEGIN. Fires on the transition only — a
 // restart sends it back to the intro so it goes up again next time; every
 // other redraw leaves it alone.
-/* THE LEDGER IS BEHIND A TOGGLE, default OFF. The arithmetic is the lesson's
- * punchline, not its running commentary — open from step 1 it reads as a
- * spreadsheet beside a reacting molecule, saying 0 most of the way.
+/* WHICH SIDEBAR PANEL IS OPEN: null, 'ledger' or 'energy'. ONE AT A TIME, and
+ * closed to start with. The arithmetic is the lesson's punchline, not its
+ * running commentary — open from step 1 it reads as a spreadsheet beside a
+ * reacting molecule, saying 0 most of the way; and the energy card is what the
+ * verdicts on the stage open, so it cannot arrive by itself either.
  * EXCEPT ON THE END SCREEN, where the sticker is one of the four cells of the
- * closing tally and the toggle has nothing to say about it. */
-let showLedger=false;
-const ledgerOn=()=>showLedger||tallyOn();
+ * closing tally and the accordion has nothing to say about it. */
+let panel=null;
+const setPanel=p=>{ panel=(panel===p?null:p); refresh(); };
+const cplOpen=()=>panel==='energy';
+const ledgerOn=()=>panel==='ledger'||tallyOn();
+const accEl=document.getElementById('acc');
+const accSec={ledger:document.getElementById('acc-ledger'),
+              energy:document.getElementById('acc-energy')};
+const accEnergyH=document.getElementById('acc-energy-h');
+accEl.addEventListener('click',e=>{
+  const h=e.target.closest('[data-panel]');
+  if(h) setPanel(h.dataset.panel);
+});
+/* WHICH SECTIONS EXIST, and which one is open. The ledger has nothing to add
+ * at the intro and stands in the grid on the end screen; the energy card is
+ * about one step, so it exists only while there is one. A section with no
+ * step behind it would be a header you can press onto an empty box. */
+let metaStep=null;
+function drawAcc(){
+  const i=focusStep();
+  const st=(!intro && i<nSteps && !tallyOn()) ? stepAt(i) : null;
+  // A NEW STEP CLOSES THE ENERGY CARD. It describes one step; carried open
+  // across a click it would leave the previous step's verdict standing over a
+  // new stage. HERE and not in drawEnzMeta, which runs after this: closing the
+  // panel behind the accordion's own draw leaves the header saying open.
+  if(metaStep!==i){ metaStep=i; if(cplOpen()) panel=null; }
+  const showL=!intro && !tallyOn();
+  accSec.ledger.hidden=!showL;
+  accSec.energy.hidden=!st;
+  accEl.hidden=!showL && !st;
+  // the header carries the card's own title, so it says which picture is under
+  // it — the same fact drawCouple draws from
+  if(st) accEnergyH.textContent = st.couple ? 'Coupled reaction' : 'Energy curve';
+  for(const k in accSec){
+    const open=panel===k && !accSec[k].hidden;
+    accSec[k].querySelector('.acch').setAttribute('aria-expanded',open?'true':'false');
+    accSec[k].querySelector('.accb').hidden=!open;
+  }
+}
 function placeLedger(){
   const hid=ledgerEl.classList.contains('hid');
   if(intro || !ledgerOn()){ ledgerEl.classList.remove('pin'); ledgerEl.classList.add('hid'); return; }
@@ -1431,7 +1523,6 @@ function drawTray(){
  *  different sizes, which reads as four.
  */
 const tallyEl=document.getElementById('tally');
-const sideEl=document.getElementById('side');
 const TALLY=[
   // count is read from the same tally the ledger prints (productsAt), never
   // typed: a re-baked step count must not be able to falsify this line.
@@ -1462,10 +1553,9 @@ function drawTally(){
   // THE STICKER MOVES, never a second copy — drawLedger keeps writing into the
   // same element wherever it is standing. Only on a change of parent, so an
   // ordinary redraw does not re-run its pin-up animation.
-  const home = on ? document.getElementById('tledger') : sideEl;
-  if(ledgerEl.parentNode!==home){
-    if(on) home.appendChild(ledgerEl); else sideEl.insertBefore(ledgerEl, sideEl.firstChild);
-  }
+  const home = on ? document.getElementById('tledger')
+                  : document.querySelector('#acc-ledger .accb');
+  if(ledgerEl.parentNode!==home) home.appendChild(ledgerEl);
   // the pathway, out of the way (see the header)
   lanes.forEach(l=>{ l.g.visible=!on; });
   platesEl.style.visibility = on ? 'hidden' : '';
@@ -1581,19 +1671,15 @@ function drawEnz(){
  * Pressing a word opens that card for this step; pressing again closes it.
  * Shown whether or not the enzymes are on: these are facts about the step, not
  * about the catalyst. */
-let cplOpen=false, metaStep=null;
 function drawEnzMeta(){
   const i=focusStep();
   const st=(!intro && i<nSteps && !tallyOn()) ? stepAt(i) : null;
-  // A NEW STEP CLOSES IT. The card describes one step; carrying it open across
-  // a click would leave the previous step's verdict standing over a new stage.
-  if(metaStep!==i){ metaStep=i; cplOpen=false; }
   enzMetaEl.hidden=!st;
   // the step's one memorable line, on the same schedule as the verdicts
   enzNoteEl.hidden=!(st&&st.takeaway);
   enzNoteEl.textContent=(st&&st.takeaway)||'';
   if(!st){ enzMetaEl.innerHTML=''; return; }
-  const on=cplOpen?'true':'false';
+  const on=cplOpen()?'true':'false';
   // the mark takes the FIRST word's colour, read off the same two facts that
   // decide which words there are
   const first = st.couple ? 'k-cpl' : (st.rev===false ? 'k-irr' : 'k-rev');
@@ -1603,10 +1689,11 @@ function drawEnzMeta(){
     + `<button class="estat ${st.rev===false?'k-irr':'k-rev'}" data-cpl aria-pressed="${on}">${
         st.rev===false?'Irreversible':'Reversible'}</button>`;
 }
+// THE VERDICTS ARE THE ACCORDION'S OTHER HANDLE, so they go through the same
+// setter — otherwise the stage could open a panel the header says is shut.
 enzMetaEl.addEventListener('click',e=>{
   if(!e.target.closest('[data-cpl]')) return;
-  cplOpen=!cplOpen;
-  drawEnzMeta(); drawCouple();
+  setPanel('energy');
 });
 // Is every lane in this group on its mark? kit/lanes.js eases position toward
 // userData.tx/ty; within a hundredth of a world unit is under a pixel here.
@@ -1633,16 +1720,13 @@ function placeEnz(){
   ENZ.update(on.map(grp=>grp.map(j=>lanes[j].g)),
              {key:enzKey(), pin:split && on.every(laneSettled)});
 }
-const ledgerBtn=document.getElementById('showledger');
-const ledgerBox=ledgerBtn.querySelector('input');
-ledgerBox.onchange=()=>{ showLedger=ledgerBox.checked; refresh(); };
 const enzBox=enzBtn.querySelector('input');
 enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
-// A RELOAD RESTORES THE BOXES, NOT THE FLAGS: browsers carry checkbox state
-// across a soft reload, so a checked box would sit over a hidden ledger/enzyme.
-// Take the box as the truth rather than clearing it, so a dev-server reload
-// keeps what was on screen.
-showLedger=ledgerBox.checked; showEnz=enzBox.checked;
+// A RELOAD RESTORES THE BOX, NOT THE FLAG: browsers carry checkbox state across
+// a soft reload, so a checked box would sit over hidden enzymes. Take the box
+// as the truth rather than clearing it, so a dev-server reload keeps what was
+// on screen.
+showEnz=enzBox.checked;
 
 const actEl=document.getElementById('actbtn');
 // The button is main.css's .pill. Every className write below REPLACES the
@@ -1870,7 +1954,7 @@ const massLink=st=>`<button class="minfo" data-mass="${st?STEPS.indexOf(st):''}"
 const noteClick=e=>{
   // the card's own ✕ — the same state the words on the stage toggle, so the
   // two can never disagree about whether it is up
-  if(e.target.closest('[data-cplx]')){ cplOpen=false; refresh(); return; }
+  if(e.target.closest('[data-cplx]')){ panel=null; refresh(); return; }
   const door=e.target.closest('[data-mass]');
   if(door){ const i=door.dataset.mass; Mass.show(i===''?null:STEPS[+i]); return; }
   const t=e.target.closest('[data-figtab]');
@@ -1892,7 +1976,7 @@ function drawCouple(){
   // step it was, and this is what they open. Arriving by itself on the review
   // beat puts a paragraph of thermodynamics over the molecule the student was
   // just told to look at.
-  const st=(cplOpen&&!intro&&i<nSteps)?stepAt(i):null;
+  const st=(cplOpen()&&!intro&&i<nSteps)?stepAt(i):null;
   if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
   // Coupled: both views + tab strip. Uncoupled: curve only, no strip — a
   // single tab is a control that does nothing.
@@ -2133,7 +2217,7 @@ const Fork=(()=>{
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures, and drawAct's Begin state is the stand-in for it.
-function refresh(){ drawLedger(); drawTray(); drawTally(); drawEnz(); drawAct(); drawRail();
+function refresh(){ drawAcc(); drawLedger(); drawTray(); drawTally(); drawEnz(); drawAct(); drawRail();
   drawNote(); drawCouple(); drawCaption(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;

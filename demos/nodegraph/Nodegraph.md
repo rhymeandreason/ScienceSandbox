@@ -145,6 +145,32 @@ The chain is **card → pill → fan**. The pill is a node because as a chip it 
 
 **None of it is baked**, and that is deliberate. A satellite is a leaf with one edge to one parent: its position says nothing beyond "below this card", and nobody remembers the seat of something they have never seen. They are pinned, skipped by the relax's repulsion and link pull, and ride their host — so opening one moves nothing else on the map. Measured: **0.0px** of skeleton drift.
 
+## Build: the map's other reading
+
+The segmented toggle bottom left switches **Map** (the baked graph) for **Build** (one grown from a seed card). Same nodes, same edges, same authored rank — only the seats differ, so nothing in Build reaches into `graphdata.js` and no bake can go stale behind it.
+
+**Both axes mean something else.** X is hops from the seed, y is a slot in a fan. So the scale ruler and the band lines are hidden in this mode rather than left to lie, and so are the ask bar and the highlight, both of which reach cards Build has not dealt.
+
+**Two hops are dealt at the start; a click deals another.** Depth is not capped — the graph a reader ends with is the path they took.
+
+**Five edges per card, rank-first.** A card deals its rank-1 edges and tops up from rank 2 and then 3 only if it is still short, so the spine leads and the enrichment fills in behind it. Uncapped, `func` and `protein-class` alone put seventeen cards on one column.
+
+**The fan opens RIGHT whatever the arrow says.** On the map an edge's direction is the reading order and it decides which side of a card its neighbour sits. Here the reading order is the reader's own clicks, so what is right of a card is what that card revealed — a `consumes` edge and a `produces` edge deal to the same side.
+
+**Revealing calls the relax, and the relax is `question-composer.html`'s.** That page is the one that already grows a graph a click at a time, and its `step` is ported here as `buildStep`: repulsion, a LINK SPRING at a rest length, a firm pull to the hop column, a soft pull to the fan row, heavy friction. The map's own step is overlap resolution over targets a layout pass has already spread across a grid; run over a grown graph it dealt cards on top of their own arrivals. The spring is what the map does not have and what holds a fan open — without it the column pull and repulsion alone read as a jumble.
+
+Two departures from the composer, both because these cards are not one size. The **separation is the map's box test on the axis of least overlap**, not the composer's radius cushion: a cushion drawn on the diagonal holds tall cards apart sideways at a distance only their corners reach. And the **spring's rest length clears both boxes** — at a flat 420 a specimen with a ribbon in it settled sitting on both of its rank-1 neighbours, the spring balancing the push.
+
+**Overlap is a constraint, not a force.** As a force it needs alpha to still be worth something, so it either loses the race with the decay — measured from a collapsed pile, seven pairs still overlapping and nothing left to move them — or it is held alive against the decay and then fights the spring in a limit cycle the reader sees as JITTER. It is projected straight onto the positions after the integration instead: it resolves in a frame or two, cannot oscillate, and the last frame to run is overlap-free. The displacement is counted into `moved` so the loop cannot call itself settled with a separation still pending. Measured: opening Build and expanding a card both reach zero overlaps, and the graph comes to rest in ~500 frames with 0.2px of drift after.
+
+**A card arrives at its seat.** `reveal` sets x to the target the way the composer's `show` does; flying a card in from whatever revealed it means every arrival starts inside a pile, and the first thing the reader sees is the shove that separates it. The fan is dealt off the parent's CURRENT position, bowed (the ends pulled 70px left of the middle), and stepped by each card's own measured height, since these range from a two-line question to a specimen with a picture in it.
+
+**The camera reads the settled graph, not the targets.** `enterBuild` runs the relax to rest before `buildCamera` measures the extents, or the fit frames targets the relax then walks out of the shot.
+
+**Switching modes costs the reader nothing.** `enterBuild` saves every node's baked x/y/tx/ty/pinned/lit and `leaveBuild` puts them back, so Map returns exactly as it was left, cards and camera included. `light()` refuses anything not in `built`, or focusing a question mounts a WebGL context for a card nobody can see; `focus()` skips the pills, the query and the graft for the same reason. The walk is refused outright.
+
+**The seed is `q-machine` and it is a testing default**, not a claim about where the curriculum starts.
+
 ## What must pass before you commit
 
 Run these in the console. Every one has caught a real bug.
