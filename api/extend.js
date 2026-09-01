@@ -48,6 +48,7 @@
 
 const keys = require('./_keys.js');
 const finds = require('./_finds.js');
+const { local } = require('./_local.js');
 
 const MAXLEN = 400;              // a question, not a passage
 const MAXNODES = 4;
@@ -197,7 +198,7 @@ module.exports = async function handler(req, res) {
     }
     /* the VALIDATED answer, which is what the reader was shown — not the raw
        reply, whose dropped edges never reached anybody */
-    finds.record({ visitorId: body.visitorId, cohort: who, q, kind: 'extend',
+    finds.record({ visitorId: body.visitorId, cohort: who, q, kind: 'extend', isLocal: local(req),
                    ms: Date.now() - t0,
                    answer: { outside: clean.outside, note: clean.note,
                              nodes: clean.nodes, edges: clean.edges,

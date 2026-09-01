@@ -182,13 +182,20 @@ function json(v)   { return v == null ? null : JSON.stringify(v); }
  * Deliberately NOT joined to threads/messages. A visitor id is shared, so the
  * join is possible, and building it would turn two anonymous logs into one
  * profile of a person's afternoon. */
-async function finds({ limit = 60 } = {}) {
+/* `local` false — the default — hides rows written from the machine serving
+   the page. A session spent testing the bar is dozens of questions no student
+   asked, and the editorial queue is the one place that difference matters: it
+   exists to find doors worth writing, and a developer's `beacon smoke test` is
+   not one. Null is UNKNOWN and is shown either way, because rows written
+   before the column could be anybody's. */
+async function finds({ limit = 60, local = false } = {}) {
   const db = sql();
   if (!db) throw new Error('DATABASE_URL is not set');
   const n = Math.min(Math.max(Number(limit) || 60, 1), 300);
   return db`
-    SELECT q, cohort, kind, answer, ms, created_at
+    SELECT q, cohort, kind, answer, ms, is_local, created_at
     FROM   finds
+    WHERE  ${local ? db`true` : db`is_local IS NOT TRUE`}
     ORDER  BY id DESC
     LIMIT  ${n}`
     /* A DATABASE THAT PREDATES `kind` AND `answer` MUST STILL SHOW ITS
@@ -200,7 +207,7 @@ async function finds({ limit = 60 } = {}) {
        list with no tags rather than the whole searches tab replaced by
        `column "kind" does not exist`. */
     .catch(e => {
-      if (!/column .*(kind|answer).* does not exist/i.test((e && e.message) || '')) throw e;
+      if (!/column .*(kind|answer|is_local).* does not exist/i.test((e && e.message) || '')) throw e;
       return db`
         SELECT q, cohort, ms, created_at
         FROM   finds
@@ -209,19 +216,26 @@ async function finds({ limit = 60 } = {}) {
     });
 }
 
-async function findStats() {
+/* Filtered the same way the list is, and for the same reason: a headline that
+   counts a developer's afternoon is not a reading of what students asked.
+   `searches` also stops counting `land` rows, which are arrivals rather than
+   searches — they were inflating the number the moment the beacon shipped. */
+async function findStats({ local = false } = {}) {
   const db = sql();
   if (!db) throw new Error('DATABASE_URL is not set');
+  const where = local ? db`true` : db`is_local IS NOT TRUE`;
   const [row] = await db`
-    SELECT count(*)::int                                                   AS searches,
+    SELECT count(*) FILTER (WHERE kind IS DISTINCT FROM 'land')::int       AS searches,
            count(DISTINCT visitor_id)::int                                 AS visitors,
            count(DISTINCT lower(q))::int                                   AS distinct_q,
            count(*) FILTER (WHERE created_at > now() - interval '24 hours')::int AS day,
            round(avg(ms))::int                                             AS avg_ms
-    FROM   finds`;
+    FROM   finds
+    WHERE  ${where}`;
   const asked = await db`
     SELECT lower(q) AS q, count(*)::int AS n
     FROM   finds
+    WHERE  ${where}
     GROUP  BY lower(q)
     HAVING count(*) > 1
     ORDER  BY count(*) DESC, max(id) DESC

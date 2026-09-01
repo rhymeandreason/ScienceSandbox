@@ -150,6 +150,16 @@ ALTER TABLE finds ADD COLUMN IF NOT EXISTS answer jsonb;
 --  `kind` is 'find' | 'extend' | 'land'. A `land` row is an arrival that spent
 --  no API call, so _finds.js excludes it from the rate limit — the cap rations
 --  spend, and a landing is not spend.
+--
+--  `is_local` is whether the request came from the machine serving it, by
+--  api/_local.js's definition. NOT an address, and not a contradiction of the
+--  privacy rule above: a boolean says which side of the loopback a row came
+--  from and nothing about who wrote it. Deployed, no real request is loopback,
+--  so this is false for every reader and true for whoever is developing —
+--  which is the whole point, because a session spent testing the bar otherwise
+--  fills the editorial queue with questions no student ever asked. Null on
+--  rows written before the column, meaning unknown rather than remote.
+ALTER TABLE finds ADD COLUMN IF NOT EXISTS is_local boolean;
 
 -- The limiter's only query is "how many since T", globally and per visitor.
 CREATE INDEX IF NOT EXISTS finds_created_idx ON finds (created_at DESC);

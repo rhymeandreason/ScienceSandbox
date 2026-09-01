@@ -40,7 +40,12 @@ module.exports = async function handler(req, res) {
       log.recent({ limit: q.limit, offset: q.offset, lesson: q.lesson || null,
                    aimed: q.aimed || null, model: q.model || null,
                    cohort: q.cohort || null }),
-      Promise.all([log.findStats(), log.finds({ limit: q.finds })])
+      /* `?local=1` shows the rows written from the machine serving this, which
+         are hidden by default. Only a local reader can see this page at all —
+         _local.js gates the whole endpoint — so the flag decides what a
+         developer is looking at, never what a student can reach. */
+      Promise.all([log.findStats({ local: q.local === '1' }),
+                   log.finds({ limit: q.finds, local: q.local === '1' })])
         .then(([fstats, rows]) => ({ stats: fstats, rows }))
         .catch(err => ({ error: err.message })),
     ]);

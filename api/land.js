@@ -36,6 +36,7 @@
 
 const keys = require('./_keys.js');
 const log = require('./_log.js');
+const { local } = require('./_local.js');
 
 const MAXLEN = 400;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -98,8 +99,9 @@ module.exports = async function handler(req, res) {
 
     /* nothing to fold into: an arrival that spent no API call at all */
     await db`
-      INSERT INTO finds (visitor_id, cohort, q, kind, answer)
-      VALUES (${visitor}, ${keys.cohort(req) || null}, ${q}, 'land', ${payload}::jsonb)`;
+      INSERT INTO finds (visitor_id, cohort, q, kind, answer, is_local)
+      VALUES (${visitor}, ${keys.cohort(req) || null}, ${q}, 'land', ${payload}::jsonb,
+              ${local(req)})`;
   } catch (err) {
     console.error('[land] ' + ((err && err.message) || err));
   }

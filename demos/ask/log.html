@@ -173,7 +173,11 @@
     padding: .25rem .5rem; font-size: .84rem;
   }
   .qlist { font-size: .88rem; }
-  .qlist div { padding: .3rem 0; border-top: 1px solid var(--line, #2a2d33); display: flex; gap: .8rem; }
+  /* WRAPS, because the answer under a row is a second line and not a fourth
+     column. Without it `flex-basis: 100%` on .ans just competes for width and
+     squeezes the question to one word per line. */
+  .qlist div { padding: .3rem 0; border-top: 1px solid var(--line, #2a2d33);
+               display: flex; flex-wrap: wrap; gap: .8rem; align-items: baseline; }
   .qlist div:first-child { border-top: 0; }
   .qlist time { color: var(--faint, #6d6f76); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* WHICH ENDPOINT WROTE THE ROW. A search and a generation are one question
@@ -211,6 +215,16 @@
   }
   /* the two that mean the map could not answer */
   .qlist .tier.offer, .qlist .tier.miss { color: #e0af68; }
+  /* OFF BY DEFAULT, so the queue reads as what students asked. A session spent
+     testing the bar is dozens of questions nobody wanted answered. */
+  .check { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem;
+           color: var(--faint, #6d6f76); cursor: pointer; }
+  .check input { accent-color: #7aa2f7; }
+  .qlist div.local { opacity: .55; }
+  .qlist .here {
+    font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
+    color: #e0af68; align-self: center;
+  }
 </style>
 </head>
 <body>
@@ -230,6 +244,7 @@
     <div class="bar">
       <select id="lesson"><option value="">every lesson</option></select>
       <select id="cohort"><option value="">every class</option></select>
+    <label class="check"><input type="checkbox" id="showlocal"> localhost</label>
       <select id="aimed">
         <option value="">every answer</option>
         <option value="none">pointed at nothing</option>
@@ -293,6 +308,7 @@ async function load() {
   const p = new URLSearchParams();
   if ($('lesson').value) p.set('lesson', $('lesson').value);
   if ($('cohort').value) p.set('cohort', $('cohort').value);
+  if ($('showlocal').checked) p.set('local', '1');
   if ($('aimed').value)  p.set('aimed',  $('aimed').value);
   if (model)             p.set('model',  model);
   p.set('limit', $('limit').value);
@@ -369,9 +385,11 @@ function drawSearches(s) {
   /* `kind` is null on rows written before the column existed; those say
      nothing rather than claiming to be a search. */
   $('qlist').innerHTML = (s.rows || []).map(r =>
-    `<div><time>${esc(new Date(r.created_at).toLocaleString())}</time>` +
+    `<div${r.is_local ? ' class="local"' : ''}>` +
+    `<time>${esc(new Date(r.created_at).toLocaleString())}</time>` +
     `<span class="q">${esc(r.q)}</span>` +
     (r.kind ? `<span class="kind ${esc(r.kind)}">${esc(r.kind)}</span>` : '') +
+    (r.is_local ? '<span class="here">localhost</span>' : '') +
     answerOf(r) +
     `</div>`).join('')
     || '<p class="empty">no searches yet</p>';
@@ -490,7 +508,7 @@ function draw(data) {
   }).join('');
 }
 
-for (const id of ['lesson', 'cohort', 'aimed', 'limit']) $(id).addEventListener('change', load);
+for (const id of ['lesson', 'cohort', 'aimed', 'limit', 'showlocal']) $(id).addEventListener('change', load);
 $('reload').addEventListener('click', load);
 
 // Before load(), so the page opens on the right tab rather than switching once
