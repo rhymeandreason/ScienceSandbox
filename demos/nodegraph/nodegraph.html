@@ -186,11 +186,17 @@
     bottom: clamp(1rem, 3vh, 1.8rem); z-index: 8;
     width: min(34rem, calc(100vw - 8rem));
   }
+  /* a pill, because the field is a line of speech and not a form control.
+     The shadow arrives on focus rather than sitting there: it is what lifts
+     the bar off the map for the moment the reader is in it. */
   .askrow {
     display: flex; align-items: stretch;
-    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
-    box-shadow: 0 14px 34px -18px rgba(20, 22, 26, .3);
-    transition: border-color .15s;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    box-shadow: 0 6px 18px -14px rgba(20, 22, 26, .3);
+    transition: border-color .15s, box-shadow .2s;
+  }
+  .askbar:focus-within .askrow {
+    box-shadow: 0 16px 38px -16px rgba(20, 22, 26, .34);
   }
   .askbar:focus-within .askrow, .askbar.open .askrow { border-color: var(--ext); }
   /* a miss is said by the bar rather than by an alert: the fuzzy match is not
@@ -199,15 +205,15 @@
   #askinput {
     flex: 1; min-width: 0; font-family: var(--serif); font-size: 1rem;
     color: var(--ink); background: none; border: 0; outline: none;
-    padding: 0.6rem 0.85rem;
+    padding: 0.6rem 0.4rem 0.6rem 1.15rem;
   }
   /* the placeholder is a QUESTION being offered, not a label, so it carries
      the extension door's italic and steps back in colour */
   #askinput::placeholder { color: var(--muted); font-style: italic; opacity: 1; }
   .askcaret {
     font-size: 0.7rem; color: var(--muted); line-height: 1;
-    background: none; border: 0; border-left: 1px solid var(--line);
-    padding: 0 0.7rem; cursor: pointer; transition: color .15s;
+    background: none; border: 0;
+    padding: 0 1rem 0 0.5rem; cursor: pointer; transition: color .15s;
   }
   .askcaret:hover { color: var(--ext); }
   /* A generated card wears its provenance. Same shape as a card so it reads in
@@ -289,6 +295,8 @@
   /* the same italic blue the door wears on the map, so a row and the card it
      produces are recognisably the same object */
   .askopt.ext { font-style: italic; color: var(--ext); }
+  /* the reader's own question, dashed the way the cards it made are dashed */
+  .askopt.mine { border-left: 2px dashed var(--ext); padding-left: 0.55rem; }
   .askopt:hover, .askopt.on { background: var(--paper); }
 
   /* ---- the scale gutter ------------------------------------------------
@@ -2797,6 +2805,9 @@ const ASK_ZOOM = 0.6;
 
 function askQuestion(q) {
   if (!q) return;
+  /* the reader's own: deal the saved cards back rather than paying for a
+     second answer to the question they already asked */
+  if (q.mine) { restoreGraft(q); return; }
   /* a question that is already a card is followed to the same zoom: only what
      is drawn differs between the two kinds of door, not how you arrive */
   if (q.qtype !== 'extension') {
@@ -2843,7 +2854,59 @@ const askList = document.getElementById('asklist');
 const askCaret = document.getElementById('askcaret');
 const askNote = document.getElementById('asknote');
 
+/* ---- the reader's own questions ------------------------------------------
+   A GRAFT IS EPHEMERAL ON THE MAP AND PERMANENT IN THE DRAWER. Clicking the
+   background still clears it, because a generated card must not accumulate
+   into something that reads as curriculum — but rebuilding is not restoring:
+   every build is a fresh call and returns different cards, so a stray click
+   used to destroy that particular answer for good. Saved here, the same
+   question deals the same cards back, instantly and with no call.
+
+   localStorage rather than a session: the reader's own questions are the one
+   thing on this map they authored, and losing them to a reload is the same
+   loss one refresh later. Wrapped in try/catch throughout — a private window
+   throws on the accessor itself, and the map has to work anyway. */
+const GRAFTS_KEY = 'nodegraph:grafts:v1';
+const GRAFTS_MAX = 40;
+
+function readGrafts() {
+  try { return JSON.parse(localStorage.getItem(GRAFTS_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function writeGrafts(all) {
+  try { localStorage.setItem(GRAFTS_KEY, JSON.stringify(all)); }
+  catch (e) { /* full, or a window that refuses to store: the graft is still
+                 on screen, it just will not come back */ }
+}
+function rememberGraft(text, payload) {
+  const all = readGrafts();
+  all[text] = { ...payload, at: Date.now() };
+  /* oldest out first, so the drawer cannot grow without end */
+  const keys = Object.keys(all).sort((a, b) => all[a].at - all[b].at);
+  while (keys.length > GRAFTS_MAX) delete all[keys.shift()];
+  writeGrafts(all);
+}
+
+/* a saved graft becomes a DOOR: off the map like any extension question, in
+   the dropdown beside the authored ones, and answering into the same card it
+   was grafted onto so it groups under that unit */
+function doorFor(text, g) {
+  const q = {
+    id: 'mine:' + text, type: 'question', qtype: 'extension', mine: true,
+    text, anchorId: g.host, graft: g,
+  };
+  byId[q.id] = q;
+  return q;
+}
+
 const ASKABLE = NODES.filter(n => n.type === 'question').map(n => byId[n.id]);
+{
+  const saved = readGrafts();
+  for (const text of Object.keys(saved)) {
+    if (!byId[saved[text].host]) continue;   /* grafted onto a card since renamed */
+    ASKABLE.push(doorFor(text, saved[text]));
+  }
+}
 
 /* the unit a question belongs to is DERIVED, the same way the highlight menu
    derives it: a deferred one has no edges left, so it reads `anchorId`. */
@@ -2859,12 +2922,15 @@ function unitOfQuestion(q) {
    unit the extensions lead — they are the rows with nowhere else to be found.
    The unit order is UNITS' own, which is the order the map is taught in. */
 const UNIT_ORDER = Object.keys(UNITS);
+function sortAskable() {
 ASKABLE.sort((a, b) => {
   const ua = UNIT_ORDER.indexOf(unitOfQuestion(a)), ub = UNIT_ORDER.indexOf(unitOfQuestion(b));
   if (ua !== ub) return (ua < 0 ? 99 : ua) - (ub < 0 ? 99 : ub);
   const ea = a.qtype === 'extension' ? 0 : 1, eb = b.qtype === 'extension' ? 0 : 1;
   return ea - eb || a.text.localeCompare(b.text);
 });
+}
+sortAskable();
 
 let suggestion = 0, rotateTimer = null;
 function rotate() {
@@ -2928,7 +2994,7 @@ function renderList(filter) {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'askopt' + (q.qtype === 'extension' ? ' ext' : '') +
-                  (i === cursor ? ' on' : '');
+                  (q.mine ? ' mine' : '') + (i === cursor ? ' on' : '');
     b.dataset.q = q.id;
     b.textContent = q.text;
     askList.appendChild(b);
@@ -3007,6 +3073,10 @@ askIn.addEventListener('keydown', e => {
   note('');
   if (goToNamed(typed)) return;
   if (rows[0]) { ask(rows[0].dataset.q); return; }
+  /* a graft you already own beats a card that merely shares a word: you asked
+     this before, and the answer is sitting in the drawer */
+  const mine = nearestMine(typed);
+  if (mine) { closeList(); askIn.blur(); restoreGraft(mine); return; }
   if (goToMatch(typed)) return;
   /* nothing deterministic matched: guess, say it is a guess, and offer the
      other thing that can be done with a question the map does not hold */
@@ -3414,6 +3484,71 @@ function spawnGraft(host, made, edges, question) {
   draw();
 }
 
+/* YOUR OWN QUESTION, ASKED AGAIN IN OTHER WORDS. Question matching needs every
+   term, which is right for the authored list and wrong here: a reader who
+   typed "how do fish breathe water?" last week and "how do fish breathe
+   underwater?" today means the same question, and the strict rule offered them
+   a second build of a graft they already own.
+
+   Content words only, or the function words carry it — "how does a cell make
+   energy" and "how does a cell divide" share four of five terms and nothing
+   that matters. Two content words in common and two thirds of the shorter
+   side: enough to catch a rephrasing, not enough to catch a different
+   question about the same card. */
+const CHAFF = new Set(['a', 'an', 'the', 'is', 'are', 'do', 'does', 'did', 'how',
+  'why', 'what', 'when', 'where', 'which', 'who', 'of', 'in', 'on', 'to', 'for',
+  'and', 'or', 'it', 'its', 'my', 'your', 'you', 'i', 'we', 'they', 'be', 'can',
+  'get', 'gets', 'so', 'that', 'this', 'there', 'with', 'from', 'at', 'as']);
+
+const meat = t => (t || '').toLowerCase().split(/[^a-z0-9⁺⁻₀-₉α-ωΑ-Ω]+/)
+  .filter(w => w && w.length > 1 && !CHAFF.has(w));
+
+function nearestMine(text) {
+  const want = new Set(meat(text));
+  if (want.size < 2) return null;
+  let best = null;
+  for (const q of ASKABLE) {
+    if (!q.mine) continue;
+    const have = new Set(meat(q.text));
+    if (!have.size) continue;
+    let shared = 0;
+    for (const w of have) if (want.has(w)) shared++;
+    const ratio = shared / Math.min(have.size, want.size);
+    if (shared >= 2 && ratio >= 0.66 && (!best || ratio > best.ratio)) best = { q, ratio };
+  }
+  return best && best.q;
+}
+
+/* the same arrival a build gives, minus the call. `spawnGraft` re-validates
+   every id against `byId`, so a card renamed since the graft was saved drops
+   its edge rather than drawing one to nothing. */
+function restoreGraft(q) {
+  const g = (readGrafts()[q.text]) || q.graft;
+  const host = g && byId[g.host];
+  if (!host) { note('That card is no longer on the map.'); return; }
+  light(host);
+  focus(host);
+  spawnGraft(host, g.nodes || [], g.edges || [], q.text);
+  for (const n of graft.nodes) n.el.classList.add('lit');
+  note((g.outside ? '<em>outside the map.</em> ' : '') + esc(g.note || ''));
+  frameGraft(host);
+}
+
+/* the column is question, cards, host: centre the box it makes rather than
+   any one of them, and read it live because the host is still settling */
+function frameGraft(host) {
+  const col = () => [host, ...(graft ? graft.nodes : [])].filter(n => n.el);
+  const box = () => col().reduce((b, m) => {
+    const w = m.el.offsetWidth / 2, h = m.el.offsetHeight / 2;
+    return { l: Math.min(b.l, m.x - w), r: Math.max(b.r, m.x + w),
+             t: Math.min(b.t, m.y - h), b: Math.max(b.b, m.y + h) };
+  }, { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity });
+  follow = { get x() { const k = box(); return (k.l + k.r) / 2; },
+             get y() { const k = box(); return (k.t + k.b) / 2; } };
+  followFrames = 700; followK = ASK_ZOOM; touched = true;
+  wake(0.4);
+}
+
 async function askExtend(text) {
   if (extendOff) return false;
   askBar.classList.add('thinking');
@@ -3469,20 +3604,18 @@ async function askExtend(text) {
     light(host);
     focus(host);
     spawnGraft(host, out.nodes, out.edges, text);
+    /* saved as the ANSWER, not as the request: the ids and edges are already
+       validated and already resolved against this map, so a restore draws
+       exactly what was drawn and never asks anything again */
+    rememberGraft(text, { host: host.id, nodes: out.nodes, edges: out.edges,
+                          note: out.note || '', outside: !!out.outside });
+    if (!ASKABLE.some(x => x.mine && x.text === text)) {
+      ASKABLE.push(doorFor(text, readGrafts()[text] || { host: host.id }));
+      sortAskable();
+    }
     for (const n of graft.nodes) n.el.classList.add('lit');
     note((out.outside ? '<em>outside the map.</em> ' : '') + esc(out.note || ''));
-    /* the column is question, cards, host: centre the box it makes rather than
-       any one of them, and read it live because the host is still settling */
-    const col = () => [host, ...graft.nodes].filter(n => n.el);
-    const box = () => col().reduce((b, m) => {
-      const w = m.el.offsetWidth / 2, h = m.el.offsetHeight / 2;
-      return { l: Math.min(b.l, m.x - w), r: Math.max(b.r, m.x + w),
-               t: Math.min(b.t, m.y - h), b: Math.max(b.b, m.y + h) };
-    }, { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity });
-    follow = { get x() { const k = box(); return (k.l + k.r) / 2; },
-               get y() { const k = box(); return (k.t + k.b) / 2; } };
-    followFrames = 700; followK = ASK_ZOOM; touched = true;
-    wake(0.4);
+    frameGraft(host);
     return true;
   } catch (e) {
     console.warn('extend failed:', e.message);

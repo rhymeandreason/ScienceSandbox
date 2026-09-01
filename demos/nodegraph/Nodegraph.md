@@ -185,6 +185,35 @@ questions at z=2.7. So `Z_FLOOR` rejects only the flattest distributions and
 every arrival it produces is LABELLED "closest match" under the field. Raising
 the floor trades junk for real questions, one for one; it does not clean up.
 
+## Extending the map
+
+**A question the curriculum does not cover gets a GRAFT.** `/api/extend`
+proposes two or three cards wired to cards that already exist, and they arrive
+as satellites of the one they attach to: pinned, outside the layout pass,
+dropped when focus leaves. That is what makes it safe rather than careful — a
+generated node cannot move a laid-out card, close a cycle on the explanation
+axis or spend a rank-1 budget, because it never enters the passes that do those
+things. Measured: a graft drifts the skeleton **529.4px**, against **529.4px**
+for opening the same two cards with no graft.
+
+**The model gets the whole INDEX, not just the retrieval.** Given only the
+vector search's candidates it wired gills to AQUATIC OVERWINTERING —
+`simple-diffusion` and `sa-v` never surface for that query because they never
+say oxygen. Two hundred ids and names is about a thousand tokens; the whole map
+is cheaper than being wrong. Rank is 2 or 3, never the spine; `part-of`,
+`contains` and `instance-of` are out of the grammar it may use; every id is
+validated at the endpoint and again against `byId` before anything is drawn,
+and an unresolvable edge is dropped rather than repaired.
+
+**Ephemeral on the map, permanent in the drawer.** Rebuilding is not restoring
+— every build is a fresh call returning different cards — so a graft is saved
+to `localStorage` under the question that made it, and the question joins the
+dropdown beside the authored ones, in its host's unit, marked with a dashed
+rule. Asking it again deals the same cards back with no call. A saved graft
+whose host has since been renamed is skipped at load rather than becoming a
+dead door. Every accessor is wrapped: a private window throws on
+`localStorage` itself and the map still has to work.
+
 **A stale bake is silent**, so `.githooks/pre-commit` gates `graphdata.js`,
 `graphcontent.js`, the vectors and the baker on `--check`, which is offline and
 only compares hashes. The baker also carries the graph's only OFFLINE
