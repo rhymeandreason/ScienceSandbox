@@ -95,6 +95,73 @@
      watch happen rather than a sentence at the end.
      SVG, sized by its viewBox, so it scales with the column and needs no
      measurement. Built by drawRing() from STEPS; nothing about it is typed. */
+  /* THE PATHWAY LIST'S DOOR, ON THE RAIL'S LINE. Mirrors #pagetitle: absolute
+     on the other edge, centred on the row, so the numbers stay centred on the
+     page whatever the button says. A PILL in the rail's own type — .rnum.rend,
+     the END pill it stands opposite — and as quiet as it: the fade is one
+     value over text, icon and border, full strength on hover. */
+  #allsteps{position:absolute;right:22px;top:50%;transform:translateY(-50%);
+    border-radius:999px;padding:7px 16px;
+    font-family:var(--font-display);font-size:12px;
+    font-weight:var(--cap-weight);letter-spacing:var(--cap-track);
+    text-transform:uppercase;border-width:1px;opacity:.55}
+  #allsteps:hover,#allsteps:focus-visible{opacity:1}
+
+  /* THE ENZYME'S NAME, BOTTOM-RIGHT: a caption on the blob it names, so it
+     leaves pathways.css's place in the readout column and takes #tools'
+     corner — on the SIDEBAR'S left margin, not the screen's right edge, since
+     it is the bottom of that column. The two numbers are pathways.css's 316px
+     sidebar and its 20px padding; move either and this stops lining up. */
+  #tools #enzname{position:static;max-width:100%;text-align:left}
+  @media (min-width:921px){
+    #tools{right:20px;width:calc(316px - 40px);align-items:flex-start}
+  }
+
+  /* AIR AT THE TOP OF THE COLUMN, so the verdicts start clear of the rail. */
+  #side{padding-top:26px}
+
+  /* THE HEAD OF THE SIDEBAR'S COLUMN: the step's verdicts, then its takeaway.
+     Both leave pathways.css's absolute placement over the stage and stack here
+     instead, so the verdicts and the panel they open read down one column and
+     nothing lands on anything. LEFT-ALIGNED with the panels under them;
+     #enzmeta carries its own flex-end from there, so it is turned round too. */
+  #enzrail{display:flex;flex-direction:column;align-items:flex-start;gap:18px;
+    margin:0 0 18px;text-align:left;pointer-events:none}
+  #enzrail #enzmeta{align-items:flex-start;max-width:100%}
+  #enzmeta,#enznote{position:static;right:auto;bottom:auto}
+  /* pathways.css sets these on the ids, so inheriting left is not enough */
+  #enzrail #enznote{text-align:left}
+  /* the verdicts are pressable; the rail itself is not (see drawEnzMeta) */
+  #enzmeta{pointer-events:auto}
+
+  /* THE SIDEBAR IS AN ACCORDION. The section is the card, so the three
+     readouts give up their own paper inside it. */
+  #acc{display:flex;flex-direction:column;gap:12px;margin:0 0 16px}
+  #acc[hidden],.accsec[hidden],.accb[hidden]{display:none}
+  .accsec{background:var(--surface-card);border:1px solid var(--border-hair);
+    border-radius:var(--radius-md);box-shadow:var(--shadow-panel);overflow:hidden}
+  .acch{display:flex;width:100%;align-items:center;justify-content:space-between;
+    gap:10px;background:none;border:0;padding:12px 15px;cursor:pointer;
+    text-align:left;text-transform:uppercase;
+    font-family:var(--font-display);font-size:var(--cap-sm);
+    font-weight:var(--cap-weight);letter-spacing:var(--cap-track);
+    color:var(--text-muted)}
+  .acch:hover{color:var(--text-strong)}
+  .accc{font-size:12px;transition:transform .18s ease}
+  .acch[aria-expanded="true"]{color:var(--text-strong)}
+  .acch[aria-expanded="true"] .accc{transform:rotate(180deg)}
+  .accb{padding:0 15px 14px}
+  #acc #ledger,#acc #couplebox,#acc #ringbox{position:static;margin:0;padding:0;
+    background:none;border:0;box-shadow:none;transform:none}
+  /* the header says every one of these already */
+  #acc #ledger .lhead,#acc #ringbox .rh,
+  #acc #couplebox .cx,#acc #couplebox .cpl-h{display:none}
+  /* NO ENTRY ANIMATION IN A PANEL. #couplebox.in and #ledger.pin both wait and
+     hold the opening keyframe through the wait, which is right for a note
+     arriving with the molecule and wrong for a section you just pressed open:
+     it reads as the header doing nothing. */
+  #acc #couplebox.in,#acc #ledger.pin{animation:none}
+
   #ringbox{margin:0 0 14px;padding:12px 10px 8px;
     background:var(--panel);border-radius:12px;
     box-shadow:0 12px 26px -18px rgba(0,0,0,.5)}
@@ -151,6 +218,10 @@
   <div id="railbar">
     <h1 id="pagetitle" class="chrome-title">The Krebs cycle</h1>
     <div id="rail"></div>
+    <!-- THE CYCLE LIST'S DOOR, opposite the title: it is the rail written out,
+         so it belongs on the rail's line. Absolutely positioned for the same
+         reason the title is — the numbers stay centred on the page. -->
+    <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> The cycle</button>
   </div>
   <div id="stage">
     <!-- UNDER the canvas: glow shows through the alpha, so it sits behind the
@@ -165,14 +236,6 @@
     <div id="cglow"><div class="sglow"></div></div>
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
-    <!-- WHAT KIND OF STEP THIS IS, above the enzyme's name: coupled or not,
-         one-way or not. Both are doors into the energy card (#couplebox).
-         Absolutely positioned on the right of the stage. -->
-    <div id="enzmeta" hidden></div>
-    <!-- THE ONE THING TO CARRY AWAY from this step, between the verdicts and
-         the enzyme. Read off the step's `takeaway`, never typed here. -->
-    <div id="enznote" hidden></div>
-    <div id="enzname" hidden></div>
     <div id="flyers" aria-hidden="true"></div>
     <!-- the click targets that sit ON the molecule — see .spot -->
     <div id="spots"></div>
@@ -232,18 +295,12 @@
       <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
   </div>
-  <!-- ONE COLUMN, bottom-right: the two toggles and the pathway map. Anchored
-       to the BOTTOM edge and grows upward, so a new control is one more child
-       and nothing else moves — never give these their own `bottom`. -->
+  <!-- BOTTOM-RIGHT: the enzyme's name, in the corner the three switches used to
+       hold. THE ENZYMES ARE ALWAYS ON — the blob is the step's catalyst, not an
+       option — so the name is a caption on it rather than a readout in the
+       column; the ring and the ledger are panels in the sidebar's accordion. -->
   <div id="tools">
-    <!-- ONE BOX for the three switches: they are the same kind of control and
-         the results screen turns all three off together. -->
-    <div id="toggles" class="checkgroup">
-      <label id="showring" class="btn btn--check"><input type="checkbox"> Show diagram</label>
-      <label id="showledger" class="btn btn--check"><input type="checkbox"> Show ledger</label>
-      <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
-    </div>
-    <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show the cycle</button>
+    <div id="enzname" hidden></div>
   </div>
   <div id="utils">
     <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
@@ -252,15 +309,42 @@
   <!-- Not a panel with its own voice — a stack of readouts beside the stage:
        tally, the step's energy picture, the step's commentary. -->
   <div id="side">
-    <!-- THE RING, in the sidebar rather than on the stage. The stage draws one
+    <!-- ONE COLUMN, top to bottom: what kind of step this is, the one thing to
+         carry away, then the three panels. The verdicts are doors into the
+         energy curve, so they stand directly on it. -->
+    <div id="enzrail">
+      <div id="enzmeta" hidden></div>
+      <!-- THE ONE THING TO CARRY AWAY from this step, last before the panels.
+           Read off the step's `takeaway`, never typed here. -->
+      <div id="enznote" hidden></div>
+    </div>
+    <!-- THE THREE READOUTS, ONE ACCORDION. Each runs long and the column is not
+         tall enough for two, so opening one closes the others (see setPanel).
+         The section headers are the only way in: the three checkboxes are gone,
+         and the energy card's ✕ and every panel's own heading are the header.
+         THE RING, in the sidebar rather than on the stage. The stage draws one
          molecule at a time, which is what a reaction looks like; this is the
          only place the LOOP is visible at once, and it is the whole reason the
          pathway has a name. Filled as you go, and it visibly closes at step 8.
          Built by drawRing() off STEPS, so nothing here is typed twice. -->
-    <div id="ringbox"></div>
-    <!-- starts away: it is pinned up on Begin — see placeLedger -->
-    <div id="ledger" class="sticky hid"></div>
-    <div id="couplebox" class="note"></div>
+    <div id="acc" hidden>
+      <section class="accsec" id="acc-ring">
+        <button class="acch" type="button" data-panel="ring" aria-expanded="false">
+          Cycle diagram<i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
+        <div class="accb" hidden><div id="ringbox"></div></div>
+      </section>
+      <section class="accsec" id="acc-energy" hidden>
+        <button class="acch" type="button" data-panel="energy" aria-expanded="false">
+          Energy curve<i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
+        <div class="accb" hidden><div id="couplebox" class="note"></div></div>
+      </section>
+      <section class="accsec" id="acc-ledger">
+        <button class="acch" type="button" data-panel="ledger" aria-expanded="false">
+          Running ledger<i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
+        <!-- starts away: pinned up when the panel opens — see placeLedger -->
+        <div class="accb" hidden><div id="ledger" class="sticky hid"></div></div>
+      </section>
+    </div>
     <div id="card"><div id="stepnote" class="note"></div></div>
   </div>
 </div>
@@ -1144,6 +1228,7 @@ function rewind(){
 }
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false;
   autoplay=false; done=0; lap=1; intro=true;
+  panel=null;                       // the sidebar starts shut, as on first load
   carrierGone.clear();
   syncLanes(); refresh(); cam.theta=OPEN_THETA; }
 
@@ -1227,10 +1312,47 @@ function drawCaption(){
  *  it is not part of the loop and a ninth node would make it look like one.
  */
 const ringEl=document.getElementById('ringbox');
-/* BEHIND A TOGGLE, default OFF — the ledger's reason. The loop is a fact about
- * the pathway, not about the reaction on screen, and a map open the whole run
- * invites reading the map instead of the molecule. */
-let showRing=false;
+/* WHICH SIDEBAR PANEL IS OPEN: null, 'ring', 'energy' or 'ledger'. ONE AT A
+ * TIME, and closed to start with. The loop is a fact about the pathway, not
+ * about the reaction on screen, and a map open the whole run invites reading
+ * the map instead of the molecule; the ledger's arithmetic is the punchline
+ * rather than the running commentary; and the energy card is what the verdicts
+ * on the stage open, so none of the three may arrive by itself. */
+let panel=null;
+const setPanel=p=>{ panel=(panel===p?null:p); refresh(); };
+const cplOpen=()=>panel==='energy';
+const accEl=document.getElementById('acc');
+const accSec={ring:document.getElementById('acc-ring'),
+              energy:document.getElementById('acc-energy'),
+              ledger:document.getElementById('acc-ledger')};
+accEl.addEventListener('click',e=>{
+  const h=e.target.closest('[data-panel]');
+  if(h) setPanel(h.dataset.panel);
+});
+/* WHICH SECTIONS EXIST, and which one is open. The ring and the ledger have
+ * nothing to add at the intro or on the results screen; the energy card is
+ * about one step, so it exists only while there is one. A section with no step
+ * behind it would be a header you can press onto an empty box. */
+let metaStep=null;
+function drawAcc(){
+  const i=focusStep();
+  const st=(!intro && i<nSteps && !tallyOn()) ? stepAt(i) : null;
+  // A NEW STEP CLOSES THE ENERGY CARD. It describes one step; carried open
+  // across a click it would leave the previous step's verdict standing over a
+  // new stage. HERE and not in drawEnzMeta, which runs after this: closing the
+  // panel behind the accordion's own draw leaves the header saying open.
+  if(metaStep!==i){ metaStep=i; if(cplOpen()) panel=null; }
+  const live=!intro && !tallyOn();
+  accSec.ring.hidden=!live;
+  accSec.ledger.hidden=!live;
+  accSec.energy.hidden=!st;
+  accEl.hidden=!live && !st;
+  for(const k in accSec){
+    const open=panel===k && !accSec[k].hidden;
+    accSec[k].querySelector('.acch').setAttribute('aria-expanded',open?'true':'false');
+    accSec[k].querySelector('.accb').hidden=!open;
+  }
+}
 // The eight steps that ARE the ring: everything with a number.
 const RING_STEPS=STEPS.filter(s=>typeof s.n==='number');
 /* WHOSE COUNT IS WHOSE. This page runs pyruvate oxidation as part of a lap, so
@@ -1259,7 +1381,7 @@ function drawRing(){
    * closing tally is the receipt for both of them — a half-lit loop beside it
    * is answering a question nobody is asking any more, and it stands exactly
    * where the tally's third column needs to be. */
-  const on = showRing && !intro && !tallyOn();
+  const on = panel==='ring' && !intro && !tallyOn();
   ringEl.hidden = !on;
   if(!on) return;
   const N=RING_STEPS.length, CX=130, CY=112, R=64, LR=90;
@@ -1328,15 +1450,11 @@ function drawRing(){
 
 const ledgerEl=document.getElementById('ledger');
 let prevLedger=null;
-/* THE LEDGER IS BEHIND A TOGGLE, default OFF — the arithmetic is the punchline,
- * not the running commentary. Except on the end screen, where it is one cell of
- * the closing tally and the toggle has nothing to say about it. */
-let showLedger=false;
-/* THE RUNNING LEDGER IS THE TOGGLE'S, AND ONLY THE TOGGLE'S. It used to be
- * forced up on the results screen because that screen had no arithmetic of its
- * own; it has three notes now, and a fourth yellow card saying nearly the same
- * thing is one to read too many. */
-const ledgerOn=()=>showLedger && !tallyOn();
+/* THE RUNNING LEDGER IS THE PANEL'S, AND ONLY THE PANEL'S. It used to be forced
+ * up on the results screen because that screen had no arithmetic of its own; it
+ * has three notes now, and a fourth yellow card saying nearly the same thing is
+ * one to read too many. */
+const ledgerOn=()=>panel==='ledger' && !tallyOn();
 function placeLedger(){
   const hid=ledgerEl.classList.contains('hid');
   if(intro || !ledgerOn()){ ledgerEl.classList.remove('pin'); ledgerEl.classList.add('hid'); return; }
@@ -1599,7 +1717,7 @@ function drawTallyNotes(){
  * what you are looking at should not be asking to be read. The intro is the
  * same case from the other end: no step, so no enzyme, no arithmetic, and the
  * ring stays down whatever the checkbox says (see drawRing). */
-const TALLY_HIDES=['toggles'];
+const TALLY_HIDES=['tools'];
 function drawTally(){
   const on=tallyOn();
   tallyEl.hidden=!on;
@@ -1633,8 +1751,9 @@ const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
 const enzMetaEl=document.getElementById('enzmeta');
 const enzNoteEl=document.getElementById('enznote');
-const enzBtn=document.getElementById('showenz');
-let showEnz=false;
+// ALWAYS ON. The blob is what the step's catalyst does, not a view of it, and
+// a lesson about enzymes that opens with them switched off argues the reverse.
+const showEnz=true;
 const enzOf=()=>{ const i=focusStep(); return (!intro && i<nSteps) ? STEPS[i] : null; };
 const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
 /* WHICH LANES THE ENZYME IS ON — one GROUP of lanes per blob, because an enzyme
@@ -1680,16 +1799,14 @@ function drawEnz(){
 /* WHAT KIND OF STEP THIS IS — coupled or not, one-way or not — as two words on
  * the stage, both read off the step and both the door to the card that argues
  * them. */
-let cplOpen=false, metaStep=null;
 function drawEnzMeta(){
   const i=focusStep();
   const st=(!intro && i<nSteps && !tallyOn()) ? stepAt(i) : null;
-  if(metaStep!==i){ metaStep=i; cplOpen=false; }
   enzMetaEl.hidden=!st;
   enzNoteEl.hidden=!(st&&st.takeaway);
   enzNoteEl.textContent=(st&&st.takeaway)||'';
   if(!st){ enzMetaEl.innerHTML=''; return; }
-  const on=cplOpen?'true':'false';
+  const on=cplOpen()?'true':'false';
   const first = st.couple ? 'k-cpl' : (st.rev===false ? 'k-irr' : 'k-rev');
   enzMetaEl.innerHTML=
       `<span class="east ${first}" aria-hidden="true"></span>`
@@ -1700,8 +1817,7 @@ function drawEnzMeta(){
 }
 enzMetaEl.addEventListener('click',e=>{
   if(!e.target.closest('[data-cpl]')) return;
-  cplOpen=!cplOpen;
-  drawEnzMeta(); drawCouple();
+  setPanel('energy');
 });
 // Is every lane in this group on its mark? kit/lanes.js eases position toward
 // userData.tx/ty; within a hundredth of a world unit is under a pixel here.
@@ -1727,13 +1843,6 @@ function placeEnz(){
   ENZ.update(on.map(grp=>grp.map(j=>lanes[j].g)),
              {key:enzKey(), pin:joins && on.every(laneSettled)});
 }
-const ringBox=document.getElementById('showring').querySelector('input');
-ringBox.onchange=()=>{ showRing=ringBox.checked; refresh(); };
-const ledgerBtn=document.getElementById('showledger');
-const ledgerBox=ledgerBtn.querySelector('input');
-ledgerBox.onchange=()=>{ showLedger=ledgerBox.checked; refresh(); };
-const enzBox=enzBtn.querySelector('input');
-enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
 
 const actEl=document.getElementById('actbtn');
 // The button is main.css's .pill. Every className write below REPLACES the
@@ -1963,7 +2072,7 @@ const coupleLine=c=>c.pull
      <b>${c.cout}</b> the other way, <b>uphill</b> — which is where the energy
      actually goes.`;
 const noteClick=e=>{
-  if(e.target.closest('[data-cplx]')){ cplOpen=false; refresh(); return; }
+  if(e.target.closest('[data-cplx]')){ panel=null; refresh(); return; }
   const t=e.target.closest('[data-figtab]');
   if(t){ figTab=t.dataset.figtab; drawCouple(); }
 };
@@ -1972,7 +2081,7 @@ cplEl.addEventListener('click',noteClick);
 let shownCplStep=null;
 function drawCouple(){
   const i=focusStep();
-  const st=(cplOpen&&!intro&&i<nSteps)?stepAt(i):null;
+  const st=(cplOpen()&&!intro&&i<nSteps)?stepAt(i):null;
   if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
   const c = st.couple ? resolveCouple(st) : null;
   cplEl.style.display='block';
@@ -2108,7 +2217,7 @@ const Handoff=(()=>{
 
 // drawTray runs BEFORE drawAct: the tray's visibility decides which element
 // usable() measures.
-function refresh(){ drawLedger(); drawRing(); drawTray(); drawTally(); drawEnz();
+function refresh(){ drawAcc(); drawLedger(); drawRing(); drawTray(); drawTally(); drawEnz();
   drawAct(); drawRail(); drawNote(); drawCouple(); drawCaption(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;

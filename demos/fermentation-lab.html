@@ -47,6 +47,61 @@
     font-family:var(--font-sans);font-size:12.5px;letter-spacing:.2px;
     color:var(--muted);text-align:center;pointer-events:none}
   #railbar{padding-bottom:24px}
+
+  /* THE ENZYME'S NAME, BOTTOM-RIGHT: a caption on the blob it names, so it
+     leaves pathways.css's place in the readout column and takes #tools'
+     corner — on the SIDEBAR'S left margin, not the screen's right edge, since
+     it is the bottom of that column. The two numbers are pathways.css's 316px
+     sidebar and its 20px padding; move either and this stops lining up. */
+  #tools #enzname{position:static;max-width:100%;text-align:left}
+  @media (min-width:921px){
+    #tools{right:20px;width:calc(316px - 40px);align-items:flex-start}
+  }
+
+  /* AIR AT THE TOP OF THE COLUMN, so the verdicts start clear of the rail. */
+  #side{padding-top:26px}
+
+  /* THE HEAD OF THE SIDEBAR'S COLUMN: the step's verdicts, then its takeaway.
+     Both leave pathways.css's absolute placement over the stage and stack here
+     instead, so the verdicts and the panel they open read down one column and
+     nothing lands on anything. LEFT-ALIGNED with the panels under them;
+     #enzmeta carries its own flex-end from there, so it is turned round too. */
+  #enzrail{display:flex;flex-direction:column;align-items:flex-start;gap:18px;
+    margin:0 0 18px;text-align:left;pointer-events:none}
+  #enzrail #enzmeta{align-items:flex-start;max-width:100%}
+  #enzmeta,#enznote{position:static;right:auto;bottom:auto}
+  /* pathways.css sets these on the ids, so inheriting left is not enough */
+  #enzrail #enznote{text-align:left}
+  /* the verdicts are pressable; the rail itself is not (see drawEnzMeta) */
+  #enzmeta{pointer-events:auto}
+
+  /* THE SIDEBAR IS AN ACCORDION. The section is the card, so the two readouts
+     give up their own paper inside it — but only inside it: the ledger keeps
+     its card when drawTally moves it into the closing grid. */
+  #acc{display:flex;flex-direction:column;gap:12px;margin:0 0 16px}
+  #acc[hidden],.accsec[hidden],.accb[hidden]{display:none}
+  .accsec{background:var(--surface-card);border:1px solid var(--border-hair);
+    border-radius:var(--radius-md);box-shadow:var(--shadow-panel);overflow:hidden}
+  .acch{display:flex;width:100%;align-items:center;justify-content:space-between;
+    gap:10px;background:none;border:0;padding:12px 15px;cursor:pointer;
+    text-align:left;text-transform:uppercase;
+    font-family:var(--font-display);font-size:var(--cap-sm);
+    font-weight:var(--cap-weight);letter-spacing:var(--cap-track);
+    color:var(--text-muted)}
+  .acch:hover{color:var(--text-strong)}
+  .accc{font-size:12px;transition:transform .18s ease}
+  .acch[aria-expanded="true"]{color:var(--text-strong)}
+  .acch[aria-expanded="true"] .accc{transform:rotate(180deg)}
+  .accb{padding:0 15px 14px}
+  #acc #ledger,#acc #couplebox{position:static;margin:0;padding:0;background:none;
+    border:0;box-shadow:none;transform:none}
+  /* the header says both of these already */
+  #acc #ledger .lhead,#acc #couplebox .cx,#acc #couplebox .cpl-h{display:none}
+  /* NO ENTRY ANIMATION IN A PANEL. #couplebox.in and #ledger.pin both wait and
+     hold the opening keyframe through the wait, which is right for a note
+     arriving with the molecule and wrong for a section you just pressed open:
+     it reads as the header doing nothing. */
+  #acc #couplebox.in,#acc #ledger.pin{animation:none}
   /* THE CLOSING LINE IS NOT A CONTROL: same slot, same place, nothing to press.
      The lesson is over and this says what it showed. */
   #actbtn.done{background:transparent;border-color:transparent;color:var(--text-strong);
@@ -84,9 +139,6 @@
     <div id="enzymes" hidden></div>
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
-    <div id="enzmeta" hidden></div>
-    <div id="enznote" hidden></div>
-    <div id="enzname" hidden></div>
     <div id="flyers" aria-hidden="true"></div>
     <div id="spots"></div>
     <!-- WHAT CAME OUT, on the end screen. NAD⁺ first and the product second,
@@ -106,19 +158,47 @@
       <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
   </div>
+  <!-- BOTTOM-RIGHT: the enzyme's name, in the corner the switches used to hold.
+       THE ENZYMES ARE ALWAYS ON — the blob is the step's catalyst, not an
+       option — so the name is a caption on it rather than a readout in the
+       column; the ledger is a panel in the sidebar's accordion. -->
   <div id="tools">
-    <div id="toggles" class="checkgroup">
-      <label id="showledger" class="btn btn--check"><input type="checkbox" checked> Show ledger</label>
-      <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
-    </div>
+    <div id="enzname" hidden></div>
   </div>
   <div id="utils">
     <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
     <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
   <div id="side">
-    <div id="ledger" class="sticky hid"></div>
-    <div id="couplebox" class="note"></div>
+    <!-- ONE COLUMN, top to bottom: what kind of step this is, the one thing to
+         carry away, then the two panels. The verdicts are doors into the
+         energy curve, so they stand directly on it. -->
+    <div id="enzrail">
+      <div id="enzmeta" hidden></div>
+      <!-- THE ONE THING TO CARRY AWAY from this step, last before the panels.
+           Read off the step's `takeaway`, never typed here. -->
+      <div id="enznote" hidden></div>
+    </div>
+    <!-- THE TWO READOUTS, ONE ACCORDION. Both run long and the column is not
+         tall enough for two, so opening one closes the other (see setPanel).
+         The section headers are the only way in: the checkboxes are gone, and
+         the energy card's ✕ and its own heading are the header. THE LEDGER
+         STARTS OPEN, alone among the three pathway lessons: the NAD⁺ balance
+         landing on zero is what this lesson is about, and its checkbox shipped
+         ticked for the same reason. -->
+    <div id="acc" hidden>
+      <section class="accsec" id="acc-energy" hidden>
+        <button class="acch" type="button" data-panel="energy" aria-expanded="false">
+          Energy curve<i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
+        <div class="accb" hidden><div id="couplebox" class="note"></div></div>
+      </section>
+      <section class="accsec" id="acc-ledger">
+        <button class="acch" type="button" data-panel="ledger" aria-expanded="false">
+          Running ledger<i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
+        <!-- starts away: pinned up when the panel opens — see placeLedger -->
+        <div class="accb" hidden><div id="ledger" class="sticky hid"></div></div>
+      </section>
+    </div>
     <div id="card"><div id="stepnote" class="note"></div></div>
   </div>
 </div>
@@ -710,7 +790,8 @@ function rewind(){
 function restart(){ cancelTimers(); busy=false; pressing=false; reviewing=false;
   Object.keys(progress).forEach(k=>{ progress[k]=0; });
   intro=true; laneDone.clear();
-  prevLedger=null; shownReview=false; cplOpen=false; metaStep=null; shownCplStep=null;
+  // the sidebar goes back to how it loads: the ledger open, the card shut
+  prevLedger=null; shownReview=false; panel='ledger'; metaStep=null; shownCplStep=null;
   renderLanes(0); refresh(); cam.theta=OPEN_THETA; }
 
 /* =============================================================
@@ -749,7 +830,6 @@ function drawCaption(){
  * able to continue — so those three rows are the ledger and everything else is
  * beneath them. */
 const ledgerEl=document.getElementById('ledger');
-const sideEl=document.getElementById('side');
 let prevLedger=null;
 /* ON BY DEFAULT, which is the opposite of glycolysis and for the reason that
  * page gives: there the arithmetic is the punchline, so a ledger open from step
@@ -757,8 +837,44 @@ let prevLedger=null;
  * arithmetic IS the lesson. Off by default, the three rows the page is built
  * around first appear after the last click, at the moment they can no longer
  * tell the student anything. */
-let showLedger=true;
-const ledgerOn=()=>showLedger||tallyOn();
+/* WHICH SIDEBAR PANEL IS OPEN: null, 'ledger' or 'energy'. ONE AT A TIME, and
+ * THE LEDGER IS THE ONE THAT STARTS OPEN — the NAD⁺ balance is this lesson's
+ * whole argument, where the siblings' arithmetic is their punchline. The energy
+ * card is what the verdicts on the stage open, so it never arrives by itself. */
+let panel='ledger';
+const setPanel=p=>{ panel=(panel===p?null:p); refresh(); };
+const cplOpen=()=>panel==='energy';
+const ledgerOn=()=>panel==='ledger'||tallyOn();
+const accEl=document.getElementById('acc');
+const accSec={energy:document.getElementById('acc-energy'),
+              ledger:document.getElementById('acc-ledger')};
+accEl.addEventListener('click',e=>{
+  const h=e.target.closest('[data-panel]');
+  if(h) setPanel(h.dataset.panel);
+});
+/* WHICH SECTIONS EXIST, and which one is open. The ledger has nothing to add at
+ * the intro and stands in the grid on the end screen; the energy card is about
+ * one step, so it exists only while there is one. A section with no step behind
+ * it would be a header you can press onto an empty box. */
+let metaStep=null;
+function drawAcc(){
+  const i=focusStep();
+  const st=(!intro && i<nSteps() && !tallyOn()) ? stepAt(i) : null;
+  // A NEW STEP CLOSES THE ENERGY CARD — a branch switch too, since the key
+  // carries the branch. HERE and not in drawEnzMeta, which runs after this:
+  // closing the panel behind the accordion's own draw leaves the header open.
+  const key=branch+':'+i;
+  if(metaStep!==key){ metaStep=key; if(cplOpen()) panel=null; }
+  const showL=!intro && !tallyOn();
+  accSec.ledger.hidden=!showL;
+  accSec.energy.hidden=!st;
+  accEl.hidden=!showL && !st;
+  for(const k in accSec){
+    const open=panel===k && !accSec[k].hidden;
+    accSec[k].querySelector('.acch').setAttribute('aria-expanded',open?'true':'false');
+    accSec[k].querySelector('.accb').hidden=!open;
+  }
+}
 function placeLedger(){
   const hid=ledgerEl.classList.contains('hid');
   if(intro || !ledgerOn()){ ledgerEl.classList.remove('pin'); ledgerEl.classList.add('hid'); return; }
@@ -837,11 +953,14 @@ function drawTally(){
   /* Nothing to switch on either end screen: on the tally the molecules are
    * gone and the ledger stands in the grid whatever the checkbox says, and at
    * the intro there is no step to have an enzyme and no arithmetic yet. */
-  document.getElementById('toggles').hidden=on||intro;
-  const home=on?document.getElementById('tledger'):sideEl;
-  if(ledgerEl.parentNode!==home){
-    if(on) home.appendChild(ledgerEl); else sideEl.insertBefore(ledgerEl, sideEl.firstChild);
-  }
+  /* THE CORNER GOES DOWN WITH THE STAGE, and is not up at the intro either:
+   * there is no step at either end, so no enzyme for the caption to name. */
+  document.getElementById('tools').hidden=on||intro;
+  // THE STICKER MOVES, never a second copy — drawLedger keeps writing into the
+  // same element wherever it is standing.
+  const home=on?document.getElementById('tledger')
+               :document.querySelector('#acc-ledger .accb');
+  if(ledgerEl.parentNode!==home) home.appendChild(ledgerEl);
   lanes.forEach(l=>{ l.g.visible=!on; });
   platesEl.style.visibility = on ? 'hidden' : '';
   const L=ledgerAt(done());
@@ -871,7 +990,9 @@ const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
 const enzMetaEl=document.getElementById('enzmeta');
 const enzNoteEl=document.getElementById('enznote');
-let showEnz=false;
+// ALWAYS ON. The blob is what the step's catalyst does, not a view of it, and
+// a lesson about enzymes that opens with them switched off argues the reverse.
+const showEnz=true;
 const enzOf=()=>{ const i=focusStep(); return (!intro && i<nSteps()) ? stepAt(i) : null; };
 const enzLive=()=>showEnz && !!enzOf() && !tallyOn();
 const enzLanes=i=>{ const b=speciesAt(i), a=speciesAt(i+1);
@@ -899,16 +1020,14 @@ function placeEnz(){
  * step, never typed, and both a door into the energy card. The pair is worth
  * more here than in either sibling: the ethanol branch's two steps are one of
  * each, side by side. */
-let cplOpen=false, metaStep=null;
 function drawEnzMeta(){
   const i=focusStep();
   const st=(!intro && i<nSteps() && !tallyOn()) ? stepAt(i) : null;
-  if(metaStep!==branch+':'+i){ metaStep=branch+':'+i; cplOpen=false; }
   enzMetaEl.hidden=!st;
   enzNoteEl.hidden=!(st&&st.takeaway);
   enzNoteEl.textContent=(st&&st.takeaway)||'';
   if(!st){ enzMetaEl.innerHTML=''; return; }
-  const on=cplOpen?'true':'false';
+  const on=cplOpen()?'true':'false';
   const first = st.couple ? 'k-cpl' : (st.rev===false ? 'k-irr' : 'k-rev');
   enzMetaEl.innerHTML=
       `<span class="east ${first}" aria-hidden="true"></span>`
@@ -918,7 +1037,7 @@ function drawEnzMeta(){
 }
 enzMetaEl.addEventListener('click',e=>{
   if(!e.target.closest('[data-cpl]')) return;
-  cplOpen=!cplOpen; drawEnzMeta(); drawCouple();
+  setPanel('energy');
 });
 
 /* ---- the energy card: energy/energy.js's figure ---------------------------
@@ -950,12 +1069,12 @@ const reduceLine=`<b>NADH</b> hands over a hydride and solution supplies an
    this for the empty <b>NAD⁺</b> it gets back.`;
 const cplEl=document.getElementById('couplebox');
 cplEl.addEventListener('click',e=>{
-  if(e.target.closest('[data-cplx]')){ cplOpen=false; refresh(); }
+  if(e.target.closest('[data-cplx]')){ panel=null; refresh(); }
 });
 let shownCplStep=null;
 function drawCouple(){
   const i=focusStep();
-  const st=(cplOpen&&!intro&&i<nSteps())?stepAt(i):null;
+  const st=(cplOpen()&&!intro&&i<nSteps())?stepAt(i):null;
   if(!st){ cplEl.style.display='none'; cplEl.innerHTML=''; shownCplStep=null; return; }
   cplEl.style.display='block';
   cplEl.innerHTML=`<button class="cx" type="button" data-cplx aria-label="Close">&times;</button>`
@@ -1124,15 +1243,8 @@ function drawAct(){
   actEl.style.visibility='hidden'; actEl.onclick=null;
 }
 
-const ledgerBtn=document.getElementById('showledger');
-const ledgerBox=ledgerBtn.querySelector('input');
-ledgerBox.onchange=()=>{ showLedger=ledgerBox.checked; refresh(); };
-const enzBox=document.getElementById('showenz').querySelector('input');
-enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
 // A reload restores the boxes, not the flags: take the box as the truth.
-showLedger=ledgerBox.checked; showEnz=enzBox.checked;
-
-function refresh(){ drawTabs(); drawLedger(); drawTally(); drawEnz(); drawAct();
+function refresh(){ drawTabs(); drawAcc(); drawLedger(); drawTally(); drawEnz(); drawAct();
   drawRail(); drawNote(); drawCouple(); drawCaption(); computeFit(); }
 
 document.getElementById('restart').onclick=restart;
