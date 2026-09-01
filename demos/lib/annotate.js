@@ -249,18 +249,27 @@ window.Annot = (function () {
        trig call per label to arrive at the same number. */
     const SIDE_GAP = 18;         // px from the dot to the label's near edge
 
+    /* The leader's length and angle are solved from the offset HERE and not per
+       frame: it is screen-space, so the trig would return the same number every
+       time. A page that has to move a label — one whose stage has an obstacle on
+       one side, say a readout column — calls note.setOffset and pays for the
+       trig on that change alone. */
+    function applyOffset(el, off) {
+      const dx = (off[0] || 0) + (off[0] < 0 ? -SIDE_GAP : SIDE_GAP);
+      const dy = off[1] || 0;
+      el.classList.toggle('annot-left', dx < 0);
+      el.style.setProperty('--adx', dx + 'px');
+      el.style.setProperty('--ady', dy + 'px');
+      el.style.setProperty('--alen', Math.hypot(dx, dy).toFixed(1) + 'px');
+      el.style.setProperty('--aang', (Math.atan2(dy, dx) * 180 / Math.PI).toFixed(2) + 'deg');
+    }
+
     function add(spec) {
       const el = document.createElement('div');
       el.className = 'annot' + (spec.tone ? ' annot-' + spec.tone : '');
 
       const off = spec.offset || [0, 0];
-      const dx = (off[0] || 0) + (off[0] < 0 ? -SIDE_GAP : SIDE_GAP);
-      const dy = off[1] || 0;
-      if (dx < 0) el.classList.add('annot-left');
-      el.style.setProperty('--adx', dx + 'px');
-      el.style.setProperty('--ady', dy + 'px');
-      el.style.setProperty('--alen', Math.hypot(dx, dy).toFixed(1) + 'px');
-      el.style.setProperty('--aang', (Math.atan2(dy, dx) * 180 / Math.PI).toFixed(2) + 'deg');
+      applyOffset(el, off);
 
       const dot = document.createElement('button');
       dot.className = 'annot-dot';
@@ -288,6 +297,9 @@ window.Annot = (function () {
         open: spec.open !== false,     // 'click' mode starts them closed below
         delay: 0,
         set(text) { label.textContent = text; dot.setAttribute('aria-label', text); return note; },
+        // Move the label to the other side of its dot (dx<0 is left). The dot
+        // does not move: it is the anchor, and only the typesetting changes.
+        setOffset(o) { note.offset = o; applyOffset(el, o); return note; },
         remove() {
           const i = notes.indexOf(note);
           if (i >= 0) notes.splice(i, 1);
