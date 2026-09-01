@@ -930,6 +930,7 @@
     ['nucleus',          'contains',        'transcription',  1],
     ['transcription',    'produces',        'mrna',           1],
     ['mrna',             'instance-of',     'rna',            1],
+    ['trna',             'instance-of',     'rna',            1],
     ['rna-processing',   'alters',          'mrna',           1],
     ['mrna',             'prerequisite-of', 'translation',    1],
     ['ribosome',         'enables',         'translation',    1],
@@ -1003,7 +1004,12 @@
     ['monosaccharide',   'part-of',         'polysaccharide', 1],
     ['glucose',          'instance-of',     'monosaccharide', 1],
     ['amino-acid',       'part-of',         'protein-class',  1],
+    ['protein-class',    'prerequisite-of', 'folding',        1],
+    ['protein-class',    'contains',        'primary',        1],
+    ['enzyme',           'instance-of',     'protein-class',  1],
     ['nucleotide',       'part-of',         'dna-structure',  1],
+    ['atp',              'instance-of',     'nucleotide',     2],
+    ['gene-seq',         'part-of',         'chromosome',     1],
     ['fatty-acid',       'part-of',         'triglyceride',   1],
 
     /* starch vs cellulose: one flipped bond, and the whole of why you can
@@ -1033,6 +1039,7 @@
     ['bilayer',          'contains',        'hydrophobic-core', 1],
     ['hydrophobic-core', 'causes',          'selective-perm',   1],
     ['fluid-mosaic',     'describes',       'bilayer',          1],
+    ['membrane-protein', 'part-of',         'fluid-mosaic',     1],
     ['selective-perm',   'necessitates',    'membrane-protein', 1],
     ['membrane-protein', 'instance-of',     'tertiary',         2],
     ['q-boundary',       'answers',         'selective-perm',   1],
@@ -1059,7 +1066,7 @@
     /* helped is not powered: the unit's other reliable misconception */
     ['facilitated-diff', 'contrasts-with',  'active-transport', 1],
     ['channel-protein',  'enables',         'facilitated-diff', 1],
-    ['carrier-protein',  'enables',         'facilitated-diff', 2],
+    ['carrier-protein',  'enables',         'facilitated-diff', 1],
     ['channel-protein',  'contrasts-with',  'carrier-protein',  2],
     ['channel-protein',  'instance-of',     'structfunc',       2],
     ['membrane-protein', 'instance-of',     'structfunc',       2],
