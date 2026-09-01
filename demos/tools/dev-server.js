@@ -500,7 +500,8 @@ function api(url, req, res) {
   if (url === '/api/mapcontent') return editable(req, res, json, 'mapcontent');
   if (url === '/api/clips') return clips(req, res, json);
 
-  if (url !== '/api/ask' && url !== '/api/log' && url !== '/api/find')
+  if (url !== '/api/ask' && url !== '/api/log' && url !== '/api/find' &&
+      url !== '/api/extend')
     return json(404, { error: 'no such endpoint' });
 
   // Env and handler are both re-read per request, so pasting a key into
@@ -531,12 +532,16 @@ function api(url, req, res) {
       .catch(e => json(500, { error: e.message }));
   }
 
-  /* Also a plain Vercel handler, but a POST one, so it needs the body read
-     before the shim can hand it over. Its own gate lives inside it. */
-  if (url === '/api/find') {
+  /* Also plain Vercel handlers, but POST ones, so they need the body read
+     before the shim can hand it over. Their own gates live inside them.
+     /api/extend is the node graph reaching past itself: same shape as find,
+     and it is here rather than folded into the tutor because it writes no
+     turn and answers a map, not a lesson. */
+  if (url === '/api/find' || url === '/api/extend') {
+    const file = url === '/api/find' ? 'api/find.js' : 'api/extend.js';
     let handler;
-    try { handler = require(path.join(ROOT, 'api/find.js')); }
-    catch (e) { console.error(e); return json(500, { error: 'the find endpoint would not load' }); }
+    try { handler = require(path.join(ROOT, file)); }
+    catch (e) { console.error(e); return json(500, { error: 'the ' + url + ' endpoint would not load' }); }
     const shim = { setHeader: () => {}, status: c => ({ json: b => json(c, b) }) };
     const run = body => Promise.resolve(
       handler({ method: req.method, headers: req.headers, body, socket: req.socket }, shim)

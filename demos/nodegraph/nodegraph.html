@@ -210,15 +210,59 @@
     padding: 0 0.7rem; cursor: pointer; transition: color .15s;
   }
   .askcaret:hover { color: var(--ext); }
+  /* A generated card wears its provenance. Same shape as a card so it reads in
+     the same glance, dashed so it never reads as one. */
+  .node.card.made {
+    border-style: dashed; border-color: var(--ext);
+    background: color-mix(in srgb, var(--ext) 4%, var(--card));
+  }
+  .node.card.made .name { color: var(--ext); }
+  /* THE READER'S OWN QUESTION, ON THE MAP. It is the reason everything under
+     it exists, so it reads at the asked-extension size — and dashed, in the
+     same blue, because it is no more authored than the cards it produced. */
+  .node.question.made {
+    border-style: dashed; border-color: var(--ext);
+    background: color-mix(in srgb, var(--ext) 4%, var(--card));
+  }
+  .tag.made { color: var(--ext); border-color: color-mix(in srgb, var(--ext) 35%, transparent); }
+  /* a generated EDGE is dashed too: the claim it makes was not authored either */
+  #edges path.made { stroke-dasharray: 5 4; }
+
+  /* the same primary pill a concept wears for its lesson, in the extension
+     blue: the map's one filled control, and this is the same kind of act */
+  .askbuild {
+    font-family: var(--sans); font-size: 0.72rem; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--card); background: var(--ext);
+    border: 1px solid transparent; border-radius: 999px;
+    padding: 0.62em 1.15em; margin-left: 0.7rem;
+    cursor: pointer; white-space: nowrap;
+    box-shadow: 0 8px 22px -9px rgba(20, 22, 26, 0.6);
+    transition: background .15s;
+  }
+  .askbuild:hover { background: var(--ink); }
+
+
   /* A GUESS SAYS SO. The semantic fallback cannot tell a real question it has
      no good answer for from a query about pizza — measured, not assumed — so
      an arrival it produced is labelled rather than presented as a lookup. */
+  /* THE BAR SPEAKS IN THE MAP'S OWN VOICE. Everything above the field — a
+     closest match, an outside-the-map note, the offer, "building" — is the map
+     talking to the reader, so it is set in the serif the cards use and at a
+     size that is read rather than squinted at. It sits above a 1rem field and
+     under nothing, and it was losing to both at 0.68. */
   .asknote {
-    font-family: var(--ui); font-size: 0.68rem; color: var(--muted);
-    text-align: center; padding: 0 0.2rem 0.4rem;
+    font-family: var(--serif); font-size: 1.15rem; line-height: 1.35;
+    letter-spacing: -0.01em; color: var(--ink);
+    text-align: center; padding: 0 0.2rem 0.55rem;
   }
   .asknote[hidden] { display: none; }
   .asknote em { font-style: italic; color: var(--ext); }
+  /* the offer is one sentence and an action, so they share a line */
+  .asknote.offer {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0.2rem; padding-bottom: 0.6rem;
+  }
   .askbar.thinking .askrow { border-color: var(--ext); }
   .askbar.thinking #askinput { opacity: 0.5; }
 
@@ -746,6 +790,14 @@
   .node.question.extension:hover,
   .focusing .node.question.extension.lit { color: var(--ext); }
   .node.question.extension:hover { border-color: var(--ext); }
+  /* the generated question's dashed blue outline, restated past the focus and
+     hover rules that repaint every question's border in --line */
+  .node.question.made,
+  .node.question.made:hover,
+  .focusing .node.question.made.lit {
+    border-style: dashed; border-color: var(--ext);
+    background: color-mix(in srgb, var(--ext) 4%, var(--card));
+  }
 
   /* ---- the lesson, over the map (kit/modal.js reads this markup) ------- */
   .modal {
@@ -1348,7 +1400,8 @@ function paintNode(n) {
     /* an anchoring question is the door into a unit; a bridging one links two
        that are already open. Both are questions, so both are doors, but they
        are not the same size of door. */
-    el.className = 'node question unlit ' + (n.qtype || 'anchor');
+    el.className = 'node question unlit ' + (n.qtype || 'anchor') +
+                   (n.made ? ' made asked' : '');
     /* A QUESTION CAN CARRY A LESSON. Where a lesson is a whole unit rather
        than one claim — water-lab is — no concept card is the right host, and
        the door is. The question keeps its own shape and gains a picture and
@@ -1392,6 +1445,15 @@ function paintNode(n) {
     el.className = 'node askpill';
     el.dataset.host = n.host.id;
     el.textContent = n.label;
+  } else if (n.type === 'made') {
+    /* GENERATED, AND IT MUST NOT PASS FOR AUTHORED. Every other card on this
+       map ships with the assertion that checks it; this one is a model's
+       sentence, written seconds ago, checked by nobody. The dashed edge and
+       the tag are the whole difference between an extension and a forgery. */
+    el.className = 'node card made';
+    el.innerHTML = '<div class="name">' + esc(n.name) + '</div>' +
+                   '<div class="claim">' + esc(n.claim) + '</div>' +
+                   '<div class="tags"><span class="tag made">generated</span></div>';
   } else if (n.type === 'satellite') {
     el.className = 'node card satellite';
     if (n.tint) el.style.setProperty('--dot', n.tint);
@@ -2054,6 +2116,7 @@ function focus(n) {
   }
 
   renderChips(n);
+  syncGraft(n);
   syncQuery(n);
   syncPill(n);
   measure();
@@ -2110,6 +2173,7 @@ function fullChain(host) {
 function clearFocus() {
   focused = null;
   walk = null;
+  syncGraft(null);
   syncQuery(null);
   syncPill(null);
   showHint();
@@ -2165,7 +2229,8 @@ function walkDir(l, n) {
    explanation walks through */
 const station = n => n.type !== 'specimen' && n.type !== 'theme' &&
                      n.type !== 'content' && n.type !== 'evidence' &&
-                     n.type !== 'satellite' && n.type !== 'ask';
+                     n.type !== 'satellite' && n.type !== 'ask' &&
+                     n.type !== 'made';
 
 /* how far a branch carries: the longest rank-1 chain onward from it. No
    memo — 64 nodes, and only a keypress asks. The seen guard is for a data
@@ -2884,13 +2949,16 @@ function closeList() {
   cursor = -1;
 }
 
+/* THE READER'S WORDS STAY IN THE FIELD. Clearing it threw away the thing they
+   would edit to try again, and the rotation then wrote a different question
+   over the space where theirs had been — which reads as the bar having
+   forgotten. `rotate()` already declines while the field holds anything, so
+   leaving the text in is the whole of the fix. */
 function ask(id) {
   const q = byId[id];
   if (!q) return;
   closeList();
-  askIn.value = '';
   askIn.blur();
-  startRotate();
   askQuestion(q);
 }
 
@@ -2940,9 +3008,15 @@ askIn.addEventListener('keydown', e => {
   if (goToNamed(typed)) return;
   if (rows[0]) { ask(rows[0].dataset.q); return; }
   if (goToMatch(typed)) return;
-  /* nothing deterministic matched: guess, and say that it is a guess */
-  semanticGo(typed).then(ok => { if (!ok) miss(); });
-  askIn.value = ''; askIn.blur(); closeList(); startRotate();
+  /* nothing deterministic matched: guess, say it is a guess, and offer the
+     other thing that can be done with a question the map does not hold */
+  semanticGo(typed).then(ok => {
+    /* no red flash when there is something to offer: a bar that reddens under
+       the words "that's a new question" is telling the reader off for asking */
+    if (!ok && extendOff) miss();
+    offerBuild(typed);
+  });
+  askIn.blur(); closeList();
 });
 
 function miss() {
@@ -3078,9 +3152,7 @@ const goToMatch = text => arriveAt(searchMap(text));
 function arriveAt(hit) {
   if (!hit) return false;
   closeList();
-  askIn.value = '';
   askIn.blur();
-  startRotate();
   light(hit.n);
   focus(hit.n);
   /* a kinds hit is not a card, so the fan is dealt to put it on screen */
@@ -3117,9 +3189,22 @@ function arriveAt(hit) {
    answer. */
 
 const VECTORS_URL = 'graphdata-vectors.json';
-const Z_FLOOR = 2.6;          /* below this the distribution is flat: no answer */
+/* A WRONG JUMP COSTS MORE THAN A MISS. Landing the reader on the closest card
+   is only worth doing when it is actually the answer; otherwise they have to
+   read a card, work out it is not what they asked, and come back. So the floor
+   is set where a hit is CONFIDENT rather than where it is merely best, and
+   everything under it is offered as a new question instead of travelled to.
 
-let corpus = null, corpusWanted = null, semanticOff = false;
+   Measured over 18 queries. Above 3.5: lactate for sore muscles (4.12), the
+   yeast question (5.24), mitochondrion (3.72), enzymes (3.76), water (4.22),
+   carotenoids (4.00). Below it and now refused: fish → photosynthesis (3.22),
+   "my cat is hungry" → q-digest (3.27), pizza → optimal conditions (3.12).
+   It costs some real hits too — "how does sunscreen work" (2.72) and "how do
+   plants eat" (3.24) were both right and are now offers. That is the trade,
+   and it is deliberately made in this direction. */
+const Z_FLOOR = 3.5;
+
+let corpus = null, corpusWanted = null, semanticOff = false, extendOff = false;
 
 function loadCorpus() {
   if (corpus) return Promise.resolve(corpus);
@@ -3147,7 +3232,28 @@ function bestByZ(v, rows) {
 
 function note(html) {
   askNote.innerHTML = html || '';
+  askNote.classList.remove('offer');
   askNote.hidden = !html;
+}
+
+/* THE OFFER, NOT THE ACT. Generation is seconds and money, and a guess the
+   reader is happy with should not pay for one — so the map is only extended
+   when they ask for it, from beside the guess that did not satisfy them. */
+function offerBuild(text) {
+  if (extendOff) return;
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'askbuild';
+  b.onclick = () => askExtend(text);
+  b.textContent = 'Extend the map';
+  /* the big treatment only when the offer IS the message: beside a closest
+     match it is a second option, and shouting it over the answer is wrong */
+  if (askNote.hidden) {
+    askNote.innerHTML = '<span class="lead">That’s a new question.</span>';
+    askNote.classList.add('offer');
+    askNote.hidden = false;
+  }
+  askNote.appendChild(b);
 }
 
 async function semanticGo(text) {
@@ -3185,6 +3291,202 @@ async function semanticGo(text) {
     return true;
   } catch (e) {
     console.warn('semantic search failed:', e.message);
+    return false;
+  } finally {
+    askBar.classList.remove('thinking');
+  }
+}
+
+/* ---- extending the map ----------------------------------------------------
+   A GRAFT, NOT AN EDIT. The reader asks something the curriculum does not
+   cover — "how do fish breathe underwater?" — and /api/extend proposes two or
+   three cards wired to cards that already exist. They arrive as SATELLITES of
+   the card they attach to: pinned, outside the layout pass, dropped when focus
+   leaves. That is what makes this safe rather than merely careful — a
+   generated node cannot move a laid-out card, cannot close a cycle on the
+   explanation axis and cannot spend a rank-1 budget, because it never enters
+   the passes that do any of those things. Nothing is persisted; the map is the
+   same map on the next reload.
+
+   EVERY ID IS RESOLVED HERE TOO. The endpoint validates, and then this does it
+   again against `byId`, because the endpoint's idea of what exists came from
+   the list this page sent it. An edge naming anything unresolvable is dropped,
+   never repaired: a repaired edge is a claim nobody made. */
+
+let graft = null;               /* { host, nodes, links } */
+
+function dropGraft() {
+  if (!graft) return;
+  dropLinks(graft.links);
+  dropNodes(graft.nodes);
+  graft = null;
+  note('');
+}
+
+/* the same family test the query uses: staying inside what the graft opened is
+   not leaving it */
+function syncGraft(n) {
+  if (!graft) return;
+  if (n === graft.host || graft.nodes.includes(n)) return;
+  dropGraft();
+}
+
+function spawnGraft(host, made, edges, question) {
+  dropGraft();
+  const byMade = new Map();
+  const fresh = [], wires = [];
+
+  made.forEach((m, i) => {
+    const n = {
+      id: 'made:' + m.id, type: 'made', satellite: true, pinned: true, host,
+      name: m.name, claim: m.claim, unit: host.unit, tint: host.tint,
+      deg: 0, on: true, dx: 0, dy: 0, x: host.x, y: host.y, vx: 0, vy: 0,
+    };
+    fresh.push(n); byMade.set(m.id, n); byId[n.id] = n;
+    nodes.push(n);
+    paintNode(n);
+    n.el.classList.add('lit');
+    n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+  });
+
+  /* ABOVE the host, and laid out by hand: there are at most four and the relax
+     never sees them. Above because the map is banded by SCALE and the reader
+     is usually looking at the bottom of the frame with room over the top —
+     and because the question that produced these sits above them again, so
+     the column reads question, then answer, then the card it hangs off. */
+  const gap = 26;
+  const span = fresh.reduce((t, m) => t + m.el.offsetWidth + gap, -gap);
+  const tall = Math.max(...fresh.map(m => m.el.offsetHeight));
+  const rise = host.el.offsetHeight / 2 + tall / 2 + 64;
+  let x = 0;
+  fresh.forEach(n => {
+    const w = n.el.offsetWidth;
+    n.dx = x + w / 2 - span / 2;
+    x += w + gap;
+    n.dy = -rise;
+  });
+
+  const resolve = id => byMade.get(id) || byId[id] || null;
+  for (const e of edges) {
+    const a = resolve(e.from), b = resolve(e.to);
+    if (!a || !b || a === b) continue;
+    /* a generated node has to be one END of every generated edge: two existing
+       cards already have whatever edge the map says they have, and inventing a
+       second one between them would put a model's claim on the skeleton */
+    if (a.type !== 'made' && b.type !== 'made') continue;
+    if (b.type !== 'made' && !b.on) light(b);
+    const l = { a, b, type: e.type, rank: e.rank, spine: false, made: true };
+    wires.push(l);
+    links.push(l);
+    paintLink(l); edgeRefresh(l);
+    l.el.classList.add('made');
+    l.el.setAttribute('stroke-opacity', '1');
+  }
+
+  /* THE QUESTION IS PART OF WHAT WAS BUILT. Without it the graft is an answer
+     with no question on the map, which is the one thing a reader cannot
+     reconstruct from looking — and it is the reason the cards under it exist. */
+  if (question) {
+    const q = {
+      id: 'made:q', type: 'question', qtype: 'extension', made: true,
+      satellite: true, pinned: true, host, text: question,
+      unit: host.unit, tint: host.tint,
+      deg: 0, on: true, dx: 0, dy: 0, x: host.x, y: host.y, vx: 0, vy: 0,
+    };
+    fresh.push(q); byId[q.id] = q; nodes.push(q);
+    paintNode(q);
+    q.el.classList.add('lit');
+    q.r = Math.hypot(q.el.offsetWidth, q.el.offsetHeight) / 2;
+    q.dx = 0;
+    q.dy = -(rise + tall / 2 + q.el.offsetHeight / 2 + 40);
+    /* to the first card it produced, so the line reads question → answer */
+    const target = fresh.find(n => n.type === 'made');
+    if (target) {
+      const l = { a: q, b: target, type: 'answers', rank: 2, spine: false, made: true };
+      wires.push(l); links.push(l);
+      paintLink(l); edgeRefresh(l);
+      l.el.classList.add('made');
+      l.el.setAttribute('stroke-opacity', '1');
+    }
+  }
+
+  graft = { host, nodes: fresh, links: wires };
+  draw();
+}
+
+async function askExtend(text) {
+  if (extendOff) return false;
+  askBar.classList.add('thinking');
+  note('Building …');
+  try {
+    /* the candidates are this page's retrieval, with claims; the index is the
+       whole map as id and name, because retrieval picks the wrong neighbours
+       and the model has to be able to find the right one itself */
+    const bank = await loadCorpus();
+    let candidates = [];
+    if (bank) {
+      const res = await fetch('/api/find', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ q: text }),
+      });
+      if (res.ok) {
+        const { v } = await res.json();
+        const seen = new Set();
+        candidates = bank.rows
+          .map(r => ({ r, s: r.v.reduce((t, x, i) => t + x * v[i], 0) }))
+          .sort((a, b) => b.s - a.s)
+          .map(x => byId[x.r.node])
+          .filter(n => n && n.claim && !seen.has(n.id) && seen.add(n.id))
+          .slice(0, 12)
+          .map(n => ({ id: n.id, name: n.name, claim: n.claim }));
+      }
+    }
+    const index = nodes
+      .filter(n => n.name && !n.satellite && n.type !== 'made')
+      .map(n => ({ id: n.id, name: n.name }));
+
+    const r = await fetch('/api/extend', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ q: text, candidates, index }),
+    });
+    if (!r.ok) {
+      if ([404, 501, 503].includes(r.status)) extendOff = true;
+      note('');
+      return false;
+    }
+    const out = await r.json();
+    if (!out.nodes || !out.nodes.length) {
+      note(out.note ? esc(out.note) : '');
+      return false;
+    }
+    /* the host is the first EXISTING card any edge names: that is where the
+       graft hangs, and where the camera goes */
+    const anchorId = (out.edges.find(e => byId[e.from] && !/^made:/.test(e.from)) || {}).from ||
+                     (out.edges.find(e => byId[e.to]) || {}).to;
+    const host = byId[anchorId];
+    if (!host) { note(''); return false; }
+
+    light(host);
+    focus(host);
+    spawnGraft(host, out.nodes, out.edges, text);
+    for (const n of graft.nodes) n.el.classList.add('lit');
+    note((out.outside ? '<em>outside the map.</em> ' : '') + esc(out.note || ''));
+    /* the column is question, cards, host: centre the box it makes rather than
+       any one of them, and read it live because the host is still settling */
+    const col = () => [host, ...graft.nodes].filter(n => n.el);
+    const box = () => col().reduce((b, m) => {
+      const w = m.el.offsetWidth / 2, h = m.el.offsetHeight / 2;
+      return { l: Math.min(b.l, m.x - w), r: Math.max(b.r, m.x + w),
+               t: Math.min(b.t, m.y - h), b: Math.max(b.b, m.y + h) };
+    }, { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity });
+    follow = { get x() { const k = box(); return (k.l + k.r) / 2; },
+               get y() { const k = box(); return (k.t + k.b) / 2; } };
+    followFrames = 700; followK = ASK_ZOOM; touched = true;
+    wake(0.4);
+    return true;
+  } catch (e) {
+    console.warn('extend failed:', e.message);
+    note('');
     return false;
   } finally {
     askBar.classList.remove('thinking');
