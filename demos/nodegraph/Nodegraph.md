@@ -173,7 +173,11 @@ Two departures from the composer, both because these cards are not one size. The
 
 **Switching modes costs the reader nothing.** `enterBuild` saves every node's baked x/y/tx/ty/pinned/lit and `leaveBuild` puts them back, so Map returns exactly as it was left, cards and camera included. `light()` refuses anything not in `built`, or focusing a question mounts a WebGL context for a card nobody can see; `focus()` skips the pills, the query and the graft for the same reason. The walk is refused outright.
 
-**The seed is `q-machine` and it is a testing default**, not a claim about where the curriculum starts.
+**Any card can be the seed.** `q-machine` is only what the toggle defaults to. `buildFrom` is the one door in: the ask bar, a keyword search and a shared link all pass through it, so seeding a graph and switching into the mode cannot drift apart. A card that was never painted cannot be a seed — an extension question has no seat, so it seeds the card it answers into.
+
+**In Build the ask bar reseeds instead of navigating.** It stays on screen (the highlight and the scale ruler do not) because it is how a reader picks a different starting card. The map's own facets are not dealt there, so a kinds or evidence hit seeds the card that holds it, and the graft offer is withheld: a generated card is a satellite of a laid-out map.
+
+**The URL carries the mode.** `?mode=build` composes with `node`, `ask` and `q` rather than replacing them — whatever the tier resolves to becomes the seed, which is what makes `?q=osmosis&mode=build` work — and `?build=<id>` is the shorthand. The flag is read before the tiers run and the arrival routes through `buildFrom`; switching the mode first would hide the map with nothing built yet. The link button emits `?node=<seed>&mode=build`: the graph is the reader's own clicks and does not travel, the card it grew from does.
 
 ## What must pass before you commit
 

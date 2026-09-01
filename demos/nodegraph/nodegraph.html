@@ -120,7 +120,7 @@
      lines would both be lying. The ask bar and the highlight read the baked
      map and reach cards that are not built, so they go with them. */
   body.building .gutter, body.building .band,
-  body.building .askbar, body.building #hilitewrap { display: none; }
+  body.building #hilitewrap { display: none; }
 
   #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
   #canvas.panning { cursor: grabbing; }
@@ -3173,6 +3173,13 @@ const ASK_ZOOM = 0.6;
 
 function askQuestion(q) {
   if (!q) return;
+  if (buildsNow()) {
+    buildOnArrive = false;
+    /* an extension question has no seat, so it cannot be a seed: the card it
+       answers into is what it is asking about */
+    buildFrom(q.qtype === 'extension' || !q.el ? byId[q.anchorId] : q);
+    return;
+  }
   /* the reader's own: deal the saved cards back rather than paying for a
      second answer to the question they already asked */
   if (q.mine) { restoreGraft(q); return; }
@@ -3443,7 +3450,7 @@ askIn.addEventListener('keydown', e => {
   if (rows[0]) { ask(rows[0].dataset.q); return; }
   /* a graft you already own beats a card that merely shares a word: you asked
      this before, and the answer is sitting in the drawer */
-  const mine = nearestMine(typed);
+  const mine = mode === 'build' ? null : nearestMine(typed);   /* a graft is the map's */
   if (mine) { closeList(); askIn.blur(); restoreGraft(mine); return; }
   if (goToMatch(typed)) return;
   /* nothing deterministic matched: guess, say it is a guess, and offer the
@@ -3452,7 +3459,7 @@ askIn.addEventListener('keydown', e => {
     /* no red flash when there is something to offer: a bar that reddens under
        the words "that's a new question" is telling the reader off for asking */
     if (!ok && extendOff) miss();
-    offerBuild(typed);
+    if (mode !== 'build') offerBuild(typed);   /* a graft is a map satellite */
   });
   askIn.blur(); closeList();
 });
@@ -3605,6 +3612,10 @@ function arriveAt(hit) {
   if (!hit) return false;
   closeList();
   askIn.blur();
+  /* IN BUILD AN ARRIVAL IS A SEED. The fans below are the map's facets and
+     Build does not deal them, so a kinds or evidence hit lands on the card
+     that holds it — which is where the reader has to go to read it anyway. */
+  if (buildsNow()) { buildOnArrive = false; return buildFrom(hit.n); }
   light(hit.n);
   focus(hit.n);
   /* a fan hit is not a card, so the fan is dealt to put it on screen */
@@ -4226,7 +4237,13 @@ function buildCamera(seed) {
   touched = true;
 }
 
-function enterBuild() {
+/* THE SEED IS WHATEVER THE READER ARRIVED AT. `q-machine` is only the default
+   the toggle uses; the ask bar, a `?node=`/`?ask=`/`?q=` link and a keyword
+   search all land here instead of on the map when Build is on, so the mode is
+   a way of reading any card rather than a tour of one. */
+let buildSeed = null;
+
+function enterBuild(seed) {
   if (mode === 'build') return;
   /* the baked seats are the map, and they are not recomputed on the way back:
      switching modes must not cost the reader the map they had open */
@@ -4241,10 +4258,18 @@ function enterBuild() {
   document.body.classList.add('building');
   for (const n of nodes) { n.on = false; n.el.classList.add('unlit'); showEl(n, false); }
   for (const l of links) showLink(l, false);
-  built.clear(); buildNodes.length = 0; buildLinks.length = 0;
+  dealBuild(seed || byId[BUILD_SEED]);
+}
 
-  const seed = byId[BUILD_SEED];
-  if (!seed) { console.warn('build seed missing:', BUILD_SEED); return; }
+/* one graph, grown from one card. Runs on the way in and again whenever the
+   reader asks for a different seed without leaving the mode. */
+function dealBuild(seed) {
+  if (!seed || !seed.el) { console.warn('build seed missing'); return; }
+  for (const n of buildNodes) { n.on = false; n.el.classList.add('unlit'); showEl(n, false); }
+  for (const l of buildLinks) showLink(l, false);
+  built.clear(); buildNodes.length = 0; buildLinks.length = 0;
+  stages.clear();
+  buildSeed = seed;
   reveal(seed, 0, 0, null);
   let front = [seed];
   for (let h = 0; h < BUILD_HOPS; h++) {
@@ -4286,12 +4311,32 @@ function leaveBuild() {
 }
 
 const modeBtns = [...document.querySelectorAll('#modes .mode')];
+const syncModes = () => {
+  for (const o of modeBtns) o.classList.toggle('on', o.dataset.mode === mode);
+};
 for (const b of modeBtns) b.addEventListener('click', () => {
   const want = b.dataset.mode;
   if (want === mode) return;
   if (want === 'build') enterBuild(); else leaveBuild();
-  for (const o of modeBtns) o.classList.toggle('on', o.dataset.mode === mode);
+  syncModes();
 });
+
+/* THE ONE DOOR INTO BUILD. Every arrival — the ask bar, a search, a shared
+   link — comes through here, so seeding a new graph and switching into the
+   mode cannot drift apart. A card that was never painted (an extension
+   question, which has no seat) cannot be a seed; its anchor is. */
+function buildFrom(n) {
+  if (!n || !n.el) return false;
+  if (mode !== 'build') enterBuild(n);
+  else { dealBuild(n); focus(n); follow = null; buildCamera(n); }
+  syncModes();
+  return true;
+}
+
+/* a `mode=build` link arrives before there is anything to seed with: the
+   tiers resolve the card first and the arrival routes here */
+let buildOnArrive = false;
+const buildsNow = () => mode === 'build' || buildOnArrive;
 
 /* THE PAGE'S FIRST FRAME, run once at load. NOT the Reset button — that
    clears the highlight and nothing else (below); coming back here would
@@ -4350,6 +4395,13 @@ function resetHighlight() {
      ?node=pigment&kind=Carotenoid a card with one of its kinds dealt
      ?ask=q-sunburn                a question, authored or deferred
      ?q=how+do+fish+breathe        whatever the bar would have done with it
+     ?node=selective-perm&mode=build   the same card, grown in Build
+     ?q=osmosis&mode=build             ... and the same for a keyword
+     ?build=hbond                      the shorthand for node + mode
+
+   `mode=build` composes with all three tiers rather than replacing them: what
+   they resolve to becomes the SEED, so a keyword link and a card link open the
+   same graph.
 
    `q` is the general one and runs the same pipeline Enter does, down to the
    offer to build — so a question somebody grafted is shareable as the QUESTION
@@ -4363,6 +4415,14 @@ const asklink = document.getElementById('asklink');
 function urlFor() {
   const u = new URL(location.href);
   u.search = '';
+  /* A LINK TO A BUILD IS A LINK TO ITS SEED. The graph itself is the reader's
+     own clicks and is not in the URL; what travels is the card it grew from,
+     which is what the far end needs to grow their own. */
+  if (mode === 'build' && buildSeed) {
+    u.searchParams.set('node', buildSeed.id);
+    u.searchParams.set('mode', 'build');
+    return u.href;
+  }
   const n = focused;
   /* a live graft is the reader's own and is not in the link — but the QUESTION
      that made it is, so the far end can build their own answer to it */
@@ -4405,10 +4465,17 @@ asklink.addEventListener('click', async () => {
 
 function openFromUrl() {
   const p = new URLSearchParams(location.search);
-  const nodeId = p.get('node'), askId = p.get('ask'), q = p.get('q');
+  const nodeId = p.get('node') || p.get('build'), askId = p.get('ask'), q = p.get('q');
+
+  /* `?mode=build`, or the shorthand `?build=<id>`. The flag is set BEFORE the
+     tiers run and the arrival routes through `buildFrom`, so a keyword link
+     seeds Build with whatever that keyword resolved to — the alternative,
+     switching the mode first, would hide the map with nothing built yet. */
+  buildOnArrive = p.get('mode') === 'build' || p.has('build');
 
   if (nodeId && byId[nodeId]) {
     const n = byId[nodeId];
+    if (buildsNow()) { buildOnArrive = false; buildFrom(n); return; }
     light(n); focus(n);
     const kind = p.get('kind');
     if (kind && n.kinds && !n.sats) toggleKinds(n);
@@ -4424,12 +4491,17 @@ function openFromUrl() {
       q.toLowerCase().split(/\s+/).filter(Boolean))) > 0);
     const exact = ASKABLE.find(x => x.text.toLowerCase() === q.toLowerCase());
     if (exact) { askQuestion(exact); return; }
-    const mine = nearestMine(q);
+    const mine = buildsNow() ? null : nearestMine(q);   /* a graft is the map's */
     if (mine) { restoreGraft(mine); return; }
     if (hit.length) { askQuestion(hit[0]); return; }
     if (goToMatch(q)) return;
     askIn.value = q;
-    semanticGo(q).then(ok => { if (!ok && extendOff) miss(); offerBuild(q); });
+    semanticGo(q).then(ok => {
+      if (ok) return;
+      buildOnArrive = false;
+      if (extendOff) miss();
+      if (mode !== 'build') offerBuild(q);          /* the graft is map-only */
+    });
   }
 }
 
