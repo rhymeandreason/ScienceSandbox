@@ -2414,11 +2414,18 @@ function focus(n) {
      edge loop below, so the two agree by construction. */
   const best = (m, from) => linksOf(m).reduce((r, l) =>
     (l.a === from || l.b === from) ? Math.min(r, l.rank) : r, 9);
+  /* IN BUILD THE HOPS ARE COUNTED FROM THE CARD, not from the door. A question
+     seeded here spends one hop on the member it names and another on the card
+     that holds it, so grading from the question put the whole graph two hops
+     out and fogged everything the reader built. `buildFull` below draws the
+     chain itself at full strength; this is what stops the chain from eating
+     the neighbourhood's share. */
+  const g = mode === 'build' ? chainEnd(n) : n;
   const hop1 = new Map();
-  for (const m of neighbours(n)) hop1.set(m, best(m, n));
+  for (const m of neighbours(g)) hop1.set(m, best(m, g));
   const hop2 = new Map();
   for (const m of hop1.keys()) for (const o of neighbours(m)) {
-    if (o === n || hop1.has(o)) continue;
+    if (o === g || hop1.has(o)) continue;
     hop2.set(o, Math.min(hop2.has(o) ? hop2.get(o) : 9, best(o, m)));
   }
 
@@ -2443,7 +2450,7 @@ function focus(n) {
      used to wash both hops red instead, which spent the only colour the edges
      have. The numbers are DIM, above. */
   for (const l of links) {
-    const first = l.a === n || l.b === n;
+    const first = l.a === g || l.b === g;
     const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
     edgeRefresh(l);
     const near = first ? DIM.edge.hop1 : second ? DIM.edge.hop2 : 0;
@@ -2456,6 +2463,48 @@ function focus(n) {
   /* the answered chain is re-asserted after the loop above, which knows
      nothing about it and would leave it dimmed like any other enrichment */
   if (queryHost && queryHost.query) fullChain(queryHost);
+  if (mode === 'build') buildFull();
+}
+
+/* `fullChain`'s rule, for the chain Build draws. Question → member → card is
+   one continuous claim, and the hop grading breaks it into three strengths —
+   worse here than on the map, because the member is a card of its own rather
+   than a satellite, so the card the question is actually about is two hops out
+   and reads at half. The first hop is a single card as well, and dimming that
+   grades a fan of one. So a door, a member, and whatever they attach to are
+   drawn at full strength whatever the distance says. */
+/* a door and the members it names are read THROUGH the card they hang off, so
+   that card is where the neighbourhood starts. Ordinary cards are their own
+   chain end, which is why this is safe to run on every focus in Build. */
+function chainEnd(n) {
+  let cur = n;
+  const seen = new Set([n]);
+  while (cur && (cur.type === 'question' || cur.synthetic)) {
+    const next = buildLinks
+      .map(l => l.a === cur ? l.b : l.b === cur ? l.a : null)
+      .find(m => m && !seen.has(m));
+    if (!next) break;
+    seen.add(next); cur = next;
+  }
+  return cur;
+}
+
+function buildFull() {
+  const chain = new Set();
+  for (const m of buildNodes) {
+    if (m.type !== 'question' && !m.synthetic) continue;
+    chain.add(m);
+    for (const l of buildLinks) {
+      if (l.a === m) chain.add(l.b);
+      else if (l.b === m) chain.add(l.a);
+    }
+  }
+  for (const m of chain) if (m.el) m.el.style.opacity = '1';
+  for (const l of buildLinks) {
+    if (!chain.has(l.a) || !chain.has(l.b)) continue;
+    l.el.setAttribute('stroke-opacity', '1');
+    if (l.arrow) l.arrow.setAttribute('fill-opacity', '1');
+  }
 }
 
 /* THE ANSWERED CHAIN READS AT FULL STRENGTH. Question → its kind → the pill →
