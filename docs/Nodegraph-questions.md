@@ -90,7 +90,9 @@ So the test is roughly: **would a curious person ask this without having taken t
 
 **Bridging questions** — connect two concepts, useful mid-traversal. "Why does sweating cool you?" is exactly this. Still valuable, but it belongs on an edge, not as an entry point.
 
-**Comprehension questions** — restate a concept as a check. These are assessment, and I mislabelled several as anchors.
+**Extension questions** — pre-existing curiosity, inspiring investigation. Not in the graph at start, they get added via the user input box. 
+
+**Comprehension questions** — restate a concept as a check. These are assessment, and I mislabelled several as anchors. (dropped from content)
 
 Typing them separately matters for navigation: anchors go on the front door, bridges surface when you're standing between two nodes, comprehension appears in review mode. Your per-intent ranking already has the machinery.
 

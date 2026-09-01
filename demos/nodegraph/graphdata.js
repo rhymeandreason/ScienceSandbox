@@ -455,9 +455,9 @@
   { id:'translation', type:'process', unit:'genetics', occursAt:4, name:'Translation',
     claim:'The ribosome reads the message three bases at a time and builds the chain the message names.' },
   { id:'genetic-code', type:'concept', unit:'genetics', name:'The genetic code',
-    claim:'Which triplet means which amino acid. Nearly identical in every organism alive.' },
+    claim:'The rule that assigns each codon to one amino acid. It is nearly identical in every organism alive, which is why the code is evidence of common ancestry.' },
   { id:'codon', type:'concept', unit:'genetics', name:'Codon',
-    claim:'Three bases, one amino acid. Sixty-four triplets for twenty amino acids, so most have spares.',
+    claim:'Three bases in mRNA that specify one amino acid. Sixty-four codons cover twenty amino acids, so most amino acids have more than one.',
     kinds:[
       ['Start', 'AUG. Marks where translation begins, and sets the frame for everything after it.'],
       ['Stop', 'UAA, UAG, UGA. No amino acid at all. The ribosome lets go.'],
@@ -466,7 +466,7 @@
   { id:'trna', type:'structure', unit:'genetics', level:2, name:'tRNA',
     claim:'An adaptor: one end pairs with the codon, the other carries the matching amino acid.' },
   { id:'reading-frame', type:'concept', unit:'genetics', name:'Reading frame',
-    claim:'Where the reading starts. Shift it by one base and every triplet after that is different.' },
+    claim:'Where the reading starts. Shift it by one base and every codon after that is different.' },
 
   { id:'mutation', type:'concept', unit:'genetics', name:'Mutation',
     claim:'Any change to the sequence. Most do nothing, some are harmful, and a few are the raw material of evolution.' },
@@ -590,7 +590,7 @@
   /* ---- anchoring questions --------------------------------------------
      Every non-question node must sit on a path answering at least one. */
   { id:'q-medium',   type:'question', qtype:'anchor', text:'Why is water the medium of life?' },
-  { id:'q-tree',     type:'question', qtype:'anchor', text:'Why can a tree be a hundred metres tall?' },
+  { id:'q-tree',     type:'question', qtype:'anchor', text:'How can a tree be a hundred metres tall?' },
   { id:'q-lakes',    type:'question', qtype:'bridging', text:'Why do lakes freeze from the top down?' },
   { id:'q-membrane', type:'question', qtype:'bridging', text:'How does a membrane assemble itself?' },
   { id:'q-sweat',    type:'question', qtype:'bridging', text:'Why does sweating cool you down?' },
@@ -605,9 +605,9 @@
   { id:'q-oxygen',   type:'question', qtype:'bridging', text:'Why do you need oxygen, if it never touches the glucose?' },
   { id:'q-battery',  type:'question', qtype:'bridging', text:'If a mitochondrion is a battery, what is the voltage?' },
   { id:'q-burn',     type:'question', qtype:'anchor', text:'Why do your muscles burn when you sprint?' },
-  { id:'q-four',     type:'question', qtype:'anchor', text:'Why are there only four kinds of macromolecule?' },
+  { id:'q-four',     type:'question', qtype:'anchor', text:'What are the four kinds of macromolecules?' },
   { id:'q-starch',   type:'question', qtype:'bridging', text:'Why can humans digest starch but not cellulose?' },
-  { id:'q-fat',      type:'question', qtype:'anchor', text:'Why does eating fat give more energy than eating sugar?' },
+  { id:'q-fat',      type:'question', qtype:'anchor', text:'Why does fat have more calories than sugar?' },
   { id:'q-oil',      type:'question', qtype:'anchor', text:'Why do oil and water not mix?' },
   { id:'q-boundary', type:'question', qtype:'bridging', text:'Why does a cell need a boundary at all?' },
   { id:'q-burst',    type:'question', qtype:'bridging', text:'Why does a cell in pure water burst, and one in seawater shrivel?' },
@@ -618,19 +618,20 @@
   { id:'q-store',    type:'question', qtype:'bridging', text:'How does a molecule store instructions?' },
   { id:'q-neuron',   type:'question', qtype:'anchor', text:'If every cell has the same DNA, why is a neuron not a liver cell?' },
   { id:'q-copy',     type:'question', qtype:'bridging', text:'How does a copy get made without errors piling up?' },
-  { id:'q-universal', type:'question', qtype:'anchor', text:'Why is the code the same in bacteria and in you?' },
+  { id:'q-universal', type:'question', qtype:'anchor', text:'Why do you and a bacterium use the same genetic code?' },
   { id:'q-treemass', type:'question', qtype:'anchor', text:'Where does the mass of a tree come from?' },
   { id:'q-green',    type:'question', qtype:'anchor', text:'Why are plants green?' },
 
   { id:'q-plantmito', type:'question', qtype:'bridging', text:'If plants make sugar, why do they also need mitochondria?' },
   { id:'q-o2',       type:'question', qtype:'anchor', text:'Where does the oxygen you breathe come from?' },
+  { id:'q-sunlight', type:'question', qtype:'anchor', text:'What happens to sunlight when it hits a leaf?' },
   /* EXTENSION: the answer is not on the card it points at, it is inside that
      card's kinds. `kind` names WHICH member answers it, matched on the kinds
      name — clicking deals the fan and draws the question straight to that one,
      so the door lands on the detail rather than on the fan. A tag with no kind
      to land on is the failure this field exists to make impossible. */
   { id:'q-sunburn',  type:'question', qtype:'extension', kind:'Ultraviolet',
-    text:'Why does sunburn cause mutations?' },
+    text:'How does a sunburn sometimes lead to skin cancer?' },
   { id:'q-uracil',   type:'question', qtype:'extension', kind:'Uracil',
     text:'Why does RNA use uracil where DNA uses thymine?' },
   { id:'q-hair',     type:'question', qtype:'extension', kind:'α-helix',
@@ -641,14 +642,12 @@
     text:'Why are human babies rarely very large or very small?' },
   { id:'q-off',      type:'question', qtype:'extension', kind:'Repressor',
     text:'How does a cell hold a gene switched off?' },
-  { id:'q-psii',     type:'question', qtype:'extension', kind:'Photosystem II',
-    text:'Why does the chain start at photosystem II?' },
   { id:'q-autumn',   type:'question', qtype:'extension', kind:'Carotenoid',
     text:'Why do leaves change colour in autumn?' },
   /* KINDLESS: these land on the card itself. Each is a thing a reader already
      has an opinion about, answered by one card and nowhere else. */
   { id:'q-cyanide',  type:'question', qtype:'extension',
-    text:'Why is cyanide so fast?' },
+    text:'Why is cyanide so deadly?' },
   { id:'q-soap',     type:'question', qtype:'extension',
     text:'Why does soap work?' },
   { id:'q-curly',    type:'question', qtype:'extension',
@@ -845,6 +844,10 @@
     ['photolysis',       'produces',       'oxygen',          1],
     ['q-o2',             'answers',        'photolysis',      1],
     ['q-o2',             'answers',        'oxygen',          2],
+    ['q-sunlight',       'answers',        'light-energy',    1],
+    ['q-sunlight',       'answers',        'photosystem',     1],
+    ['q-sunlight',       'answers',        'pigment',         2],
+    ['q-sunlight',       'answers',        'light-reactions', 2],
 
     ['photosystem',      'part-of',        'light-reactions', 1],
     ['thylakoid',        'enables',        'light-reactions', 1],
@@ -958,7 +961,6 @@
     ['q-digest',         'answers',         'enzyme',         1],
     ['q-babies',         'answers',         'nat-select',     1],
     ['q-off',            'answers',         'transcription-factor', 1],
-    ['q-psii',           'answers',         'photosystem',    1],
     ['q-cyanide',        'answers',         'etc',            1],
     ['q-soap',           'answers',         'amphipathic',    1],
     ['q-curly',          'answers',         'disulfide',      1],
