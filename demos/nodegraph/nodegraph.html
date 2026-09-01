@@ -130,6 +130,14 @@
   body.building .node, body.building #edges { transition: opacity .55s ease; }
   body.building.intro .node:not(.seed) { opacity: 0 !important; }
   body.building.intro #edges { opacity: 0; }
+  /* AND THE GRAPH ARRIVES IN ORDER, nearest the seed first. A wave that lands
+     at once is a picture appearing; one that lands in reading order is the
+     graph being built, which is the whole claim of the mode. The delay is per
+     element, so this is one class and a `transition-delay`. */
+  body.building .node.arriving { opacity: 0 !important; }
+  body.building #edges .arriving { opacity: 0; }
+  body.building #edges path, body.building #edges polygon,
+  body.building #edges text { transition: opacity .5s ease; }
 
   #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
   #canvas.panning { cursor: grabbing; }
@@ -2176,12 +2184,75 @@ function cineStep() {
   if (!cineOn || mode !== 'build') return;
   const t = performance.now() - cineAt;
   if (t < CINE_HOLD) return;                 /* the beat */
-  document.body.classList.remove('intro');   /* and the graph arrives with the move */
+  if (document.body.classList.contains('intro')) {
+    document.body.classList.remove('intro');
+    release();                               /* the graph arrives with the move */
+  }
   const u = Math.min(1, (t - CINE_HOLD) / CINE_GLIDE);
   view.k = CINE_FROM + (cineK - CINE_FROM) * cineEase(u);
   seatSeed();
   applyView();
   if (u >= 1) cineEnd();
+}
+
+/* THE WAVE. Cards are held at zero and released in reading order — by hop
+   first, then left to right, which is the order the reader would have clicked
+   them in. An edge waits for its later end, or a line reaches a card that is
+   not there yet. The delay is cleared once it has played, or the next thing to
+   change a card's opacity — focus grades every card on every click — would
+   inherit the wait. */
+const ARRIVE_STEP = 100, ARRIVE_CAP = 4000, ARRIVE_MS = 550;
+let arriving = null;
+
+function hold(ns, ls) {
+  for (const n of ns) if (n.el) n.el.classList.add('arriving');
+  for (const l of ls) for (const e of [l.el, l.arrow, l.label])
+    if (e) e.classList.add('arriving');
+  arriving = { ns, ls };
+}
+
+function release() {
+  if (!arriving) return;
+  const { ns, ls } = arriving;
+  arriving = null;
+  const at = new Map();
+  ns.slice()
+    .sort((a, b) => (a.hop || 0) - (b.hop || 0) || a.x - b.x)
+    .forEach((n, i) => at.set(n, Math.min(i * ARRIVE_STEP, ARRIVE_CAP)));
+  const wait = [];
+  for (const n of ns) {
+    if (!n.el) continue;
+    const d = at.get(n) || 0;
+    n.el.style.transitionDelay = d + 'ms';
+    wait.push([n.el, d]);
+  }
+  for (const l of ls) {
+    const d = Math.max(at.get(l.a) || 0, at.get(l.b) || 0);
+    for (const e of [l.el, l.arrow, l.label])
+      if (e) { e.style.transitionDelay = d + 'ms'; wait.push([e, d]); }
+  }
+  /* Two frames, so the delays are in the style and the browser has taken the
+     starting opacity before the class holding it goes — with a timer racing
+     them, because rAF is throttled to about once a second in a hidden tab and
+     the wave would sit at zero until the reader came back. Whichever fires
+     first does the work; the other finds it done. */
+  let done = false;
+  const go = () => {
+    if (done) return;
+    done = true;
+    for (const n of ns) if (n.el) n.el.classList.remove('arriving');
+    for (const l of ls) for (const e of [l.el, l.arrow, l.label])
+      if (e) e.classList.remove('arriving');
+    for (const [el, d] of wait) {
+      /* the fade's own end is the reliable signal; the timer is the fallback
+         for an element whose opacity did not actually change */
+      el.addEventListener('transitionend', () => { el.style.transitionDelay = ''; },
+                          { once: true });
+      setTimeout(() => { el.style.transitionDelay = ''; }, d + ARRIVE_MS);
+    }
+  };
+  requestAnimationFrame(() => requestAnimationFrame(go));
+  setTimeout(go, 60);
 }
 
 function cineEnd() {
@@ -4387,6 +4458,7 @@ function expand(n) {
      of paper between them and nothing in it. */
   const colOf = m => (n.type === 'question' || n.synthetic ||
                       m.type === 'question' || m.synthetic) ? BUILD_CHAIN : BUILD_COL;
+  const before = buildLinks.length;
   for (const m of kids) reveal(m, n.x + colOf(m), n.y, n);
   const hs = kids.map(m => Math.max(m.el.offsetHeight, 120) + BUILD_GAP);
   const total = hs.reduce((a, b) => a + b, 0);
@@ -4412,6 +4484,8 @@ function expand(n) {
   });
   measure();
   wake(1);                    /* a fan dealt into an occupied region has work to do */
+  hold(kids, buildLinks.slice(before));
+  release();
   return kids;
 }
 
@@ -4642,6 +4716,10 @@ function dealBuild(seed) {
   focus(seed);
   follow = null;                          /* the camera below is the arrival */
   buildCamera(seed);
+  /* everything but the seed is held back and released in order — with the beat
+     where there is one, and on the next frame where there is not */
+  hold(buildNodes.filter(m => m !== seed), buildLinks);
+  if (!document.body.classList.contains('intro')) release();
 }
 
 function leaveBuild() {
