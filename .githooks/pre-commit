@@ -120,6 +120,49 @@ else
   echo "pre-commit: skipping bake-vectors.js --check — no map file staged"
 fi
 
+# The NODE GRAPH, and the same two failures one map over. graphdata.js is
+# hand-edited rather than CMS-written, which makes the stale case MORE likely,
+# not less: a reworded claim is a normal thing to do while writing and its
+# vector goes quiet without a word.
+#
+#   . a question or claim whose wording changed has no vector, so it is absent
+#     from the bar's semantic fallback -- not a wrong answer, an unreachable
+#     card, and the only symptom is a console warning nobody has open;
+#   . an edge, an extension question's `kind`, or a graphcontent placement
+#     naming an id that no longer exists. The page drops each of those with a
+#     console.warn and draws everything else, so the map is missing exactly the
+#     crossing somebody just authored.
+#
+# The integrity half is the reason this gate is wider than the vectors: it fires
+# on graphcontent.js too, because a placement is half of the pair it checks.
+#
+# --gate, NOT --check, AND THE DIFFERENCE IS THE POINT. Unlike mapcontent.js
+# above, graphdata.js is hand-edited, and small content edits land often.
+# Blocking a one-word claim edit until the machine can reach Google is a rule
+# that teaches --no-verify -- which then also skips the integrity half, which is
+# the half that actually breaks the map. So --gate splits them by cost:
+# integrity is fatal (offline to check, offline to fix, and it means a crossing
+# somebody just authored is silently missing), while a stale vector is printed
+# loudly and passes. A stale row only means it cannot be the answer in a
+# LAST-RESORT labelled guess; the keyword search above it is untouched and the
+# page reads whatever rows it finds. Re-bake when it suits you:
+#   node tools/bake-graph-vectors.js
+if git diff --cached --name-only | grep -qE '^demos/(nodegraph/(graphdata|graphcontent)\.js|nodegraph/graphdata-vectors\.json|tools/bake-graph-vectors\.js)$'; then
+  if ! node tools/bake-graph-vectors.js --gate > /tmp/bgv.$$ 2>&1; then
+    tail -25 /tmp/bgv.$$; rm -f /tmp/bgv.$$
+    echo ""
+    echo "pre-commit FAILED: bake-graph-vectors.js --gate -- an edge, an extension's"
+    echo "  kind, or a placement names an id that no longer exists. The map is"
+    echo "  missing that crossing and nothing on screen says so."
+    exit 1
+  fi
+  # printed either way: a stale bake passes, but it should not pass in silence
+  grep -q '^STALE' /tmp/bgv.$$ && tail -6 /tmp/bgv.$$
+  rm -f /tmp/bgv.$$
+else
+  echo "pre-commit: skipping bake-graph-vectors.js --gate -- no node graph file staged"
+fi
+
 # The mass-action model is demos/massaction/, so its own folder gates it — but
 # glycolysis-lab.html is in the pattern too, because the SCENARIOS (each step's
 # ΔE, and the names on the curve) live on the host page and the checker lifts

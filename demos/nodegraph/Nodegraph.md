@@ -167,11 +167,30 @@ row is out, so two words narrow. Scoring is whole-field > prefix > whole word >
 fragment: `trans` is a fatty acid AND the first five letters of translation,
 and the one it *is* wins. A miss reddens the bar.
 
-**Not built yet**: the semantic match onto a typed sentence. `api/find.js` and
-`tools/bake-vectors.js` already do this for the questions-composer, but they
-bake `lib/mapcontent.js`, which this map does not depend on — it needs a second
-bake from `graphdata.js` and a hook gate so a stale one cannot ship. The
-keyword search is the floor under it either way: no key, no network, no bake.
+**Last, a semantic guess.** When nothing deterministic matches, `/api/find`
+embeds the line and the page cosines it against `graphdata-vectors.json` —
+baked by `tools/bake-graph-vectors.js`, one vector per question, per claim and
+per kinds member. The file is half a megabyte and is fetched on the FIRST MISS,
+never at load. A checkout with no key loses nothing it had: the endpoint's
+first refusal turns the fallback off for the session, so three misses cost one
+round trip, not three.
+
+**It is a guess, and it says so.** Absolute cosine does not separate signal
+from noise here — measured, `asdfgh` scores 0.839 against its best claim while
+a correct hit scores 0.855. What carries information is how far the top row
+stands above the rest of its OWN kind, since questions sit systematically
+higher than claims (same register), which is what `kind` is in every row for.
+Even so the separation is soft: `my cat is hungry` reaches z=3.27, above real
+questions at z=2.7. So `Z_FLOOR` rejects only the flattest distributions and
+every arrival it produces is LABELLED "closest match" under the field. Raising
+the floor trades junk for real questions, one for one; it does not clean up.
+
+**A stale bake is silent**, so `.githooks/pre-commit` gates `graphdata.js`,
+`graphcontent.js`, the vectors and the baker on `--check`, which is offline and
+only compares hashes. The baker also carries the graph's only OFFLINE
+integrity check — edges resolving, every extension's `kind` existing, every
+placement pointing at a real node — because the rest of the QA list needs the
+laid-out graph and lives in the browser.
 
 ### What belongs here
 

@@ -210,6 +210,18 @@
     padding: 0 0.7rem; cursor: pointer; transition: color .15s;
   }
   .askcaret:hover { color: var(--ext); }
+  /* A GUESS SAYS SO. The semantic fallback cannot tell a real question it has
+     no good answer for from a query about pizza — measured, not assumed — so
+     an arrival it produced is labelled rather than presented as a lookup. */
+  .asknote {
+    font-family: var(--ui); font-size: 0.68rem; color: var(--muted);
+    text-align: center; padding: 0 0.2rem 0.4rem;
+  }
+  .asknote[hidden] { display: none; }
+  .asknote em { font-style: italic; color: var(--ext); }
+  .askbar.thinking .askrow { border-color: var(--ext); }
+  .askbar.thinking #askinput { opacity: 0.5; }
+
   .asklist {
     position: absolute; left: 0; right: 0; bottom: calc(100% + 0.4rem);
     max-height: 46vh; overflow-y: auto;
@@ -834,6 +846,7 @@
      extension ones are reachable ONLY from here -->
 <div class="askbar" id="askbar">
   <div class="asklist" id="asklist" role="listbox" hidden></div>
+  <div class="asknote" id="asknote" hidden></div>
   <div class="askrow">
     <input id="askinput" type="text" autocomplete="off" spellcheck="false"
            aria-label="ask a question of the map">
@@ -2763,6 +2776,7 @@ const askBar = document.getElementById('askbar');
 const askIn = document.getElementById('askinput');
 const askList = document.getElementById('asklist');
 const askCaret = document.getElementById('askcaret');
+const askNote = document.getElementById('asknote');
 
 const ASKABLE = NODES.filter(n => n.type === 'question').map(n => byId[n.id]);
 
@@ -2884,6 +2898,7 @@ askIn.addEventListener('focus', stopRotate);
 askIn.addEventListener('blur', startRotate);
 askIn.addEventListener('input', () => {
   cursor = -1;
+  note('');
   if (askIn.value.trim()) openList(askIn.value); else closeList();
 });
 askIn.addEventListener('keydown', e => {
@@ -2920,9 +2935,14 @@ askIn.addEventListener('keydown', e => {
      its name and presses Enter, and does not need a list to tell them the name
      they just typed exists. Order: a card NAMED this, then a question that
      matches, then anything a claim or a kinds fan says. */
-  if (goToNamed(askIn.value)) return;
+  const typed = askIn.value;
+  note('');
+  if (goToNamed(typed)) return;
   if (rows[0]) { ask(rows[0].dataset.q); return; }
-  if (!goToMatch(askIn.value)) miss();
+  if (goToMatch(typed)) return;
+  /* nothing deterministic matched: guess, and say that it is a guess */
+  semanticGo(typed).then(ok => { if (!ok) miss(); });
+  askIn.value = ''; askIn.blur(); closeList(); startRotate();
 });
 
 function miss() {
@@ -3069,6 +3089,106 @@ function arriveAt(hit) {
   touched = true;
   wake(0.4);
   return true;
+}
+
+/* ---- the semantic fallback ------------------------------------------------
+   LAST, AND ONLY LAST. Everything above is deterministic, offline and free;
+   this is what runs when a typed line matches no question and no card, where
+   the bar used to just redden. So no keystroke pays for it, `membrane` and
+   `protein` never reach it, and a checkout with no key loses nothing it had.
+
+   THE CORPUS SHIPS, THE QUERY DOES NOT. graphdata-vectors.json is baked by
+   tools/bake-graph-vectors.js and holds a vector per question, per claim and
+   per kinds member; /api/find embeds the reader's line and returns that one
+   vector. The cosine happens here, so the floor below is an edit rather than a
+   redeploy. Fetched on the FIRST MISS rather than at load: it is half a
+   megabyte, and most readers will never type something the keyword search
+   cannot answer.
+
+   Z, NOT COSINE, AND IT IS STILL A GUESS. Absolute cosine does not separate
+   signal from noise on this corpus: measured, `asdfgh` scores 0.839 against
+   its best claim and a correct hit scores 0.855. What does carry information
+   is how far the top row stands above the rest of its OWN kind — questions sit
+   systematically higher than claims because question-to-question is the same
+   register, which is why `kind` is written into every row. Even then the
+   separation is soft: `my cat is hungry` reaches z=3.27, above several real
+   questions. The floor rejects only the flattest cases, and everything that
+   gets through is LABELLED as a closest match rather than presented as an
+   answer. */
+
+const VECTORS_URL = 'graphdata-vectors.json';
+const Z_FLOOR = 2.6;          /* below this the distribution is flat: no answer */
+
+let corpus = null, corpusWanted = null, semanticOff = false;
+
+function loadCorpus() {
+  if (corpus) return Promise.resolve(corpus);
+  if (!corpusWanted) corpusWanted = fetch(VECTORS_URL)
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('vectors ' + r.status)))
+    .then(j => (corpus = j))
+    .catch(e => { console.warn('no baked vectors:', e.message); semanticOff = true; return null; });
+  return corpusWanted;
+}
+
+/* per KIND, because the three live at different absolute cosines */
+function bestByZ(v, rows) {
+  const out = [];
+  for (const k of ['q', 'claim', 'kind']) {
+    const of = rows.filter(r => r.kind === k);
+    if (of.length < 2) continue;
+    const scored = of.map(r => ({ r, s: r.v.reduce((t, x, i) => t + x * v[i], 0) }));
+    const mean = scored.reduce((t, x) => t + x.s, 0) / scored.length;
+    const sd = Math.sqrt(scored.reduce((t, x) => t + (x.s - mean) ** 2, 0) / scored.length) || 1;
+    const top = scored.reduce((a, b) => (b.s > a.s ? b : a));
+    out.push({ row: top.r, z: (top.s - mean) / sd, s: top.s });
+  }
+  return out.sort((a, b) => b.z - a.z)[0] || null;
+}
+
+function note(html) {
+  askNote.innerHTML = html || '';
+  askNote.hidden = !html;
+}
+
+async function semanticGo(text) {
+  if (semanticOff) return false;
+  askBar.classList.add('thinking');
+  try {
+    const res = await fetch('/api/find', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ q: text }),
+    });
+    if (!res.ok) {
+      /* no key, or the endpoint is not deployed: stop asking for this session
+         rather than paying a round trip on every miss */
+      if (res.status === 404 || res.status === 501 || res.status === 503) semanticOff = true;
+      return false;
+    }
+    const { v, task, dims } = await res.json();
+    const bank = await loadCorpus();
+    if (!bank || !v) return false;
+    /* THE TASK TYPE IS NOT A DETAIL. A query embedded with a different one
+       lands in a different geometry and the cosines come back plausible and
+       quietly wrong, so the two are compared rather than assumed. */
+    if (task !== bank.task || dims !== bank.dims) {
+      console.warn('vector geometry mismatch:', task, dims, 'vs', bank.task, bank.dims);
+      return false;
+    }
+    const hit = bestByZ(v, bank.rows);
+    if (!hit || hit.z < Z_FLOOR) return false;
+
+    const n = byId[hit.row.node];
+    if (!n) return false;
+    if (hit.row.kind === 'q') ask(n.id);
+    else arriveAt({ n, kind: hit.row.member || null });
+    note('closest match: <em>' + esc(hit.row.text.slice(0, 90)) + '</em>');
+    return true;
+  } catch (e) {
+    console.warn('semantic search failed:', e.message);
+    return false;
+  } finally {
+    askBar.classList.remove('thinking');
+  }
 }
 
 /* ---- the gutter ruler ---------------------------------------------------- */
