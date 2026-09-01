@@ -797,6 +797,7 @@
       source: { kind: 'rcsb', id: '1RCX' },
       chains: 'L,S,B,C,E,F,H,I,K,M,O,P,R,T,V,W',
       subject: 'L,B,E,H,K,O,R,V',
+      frame: 'particle',
       /* LARGE AGAINST SMALL, and it is the only thing this protein colours by:
          sixteen chains under the ss palette is one rope with no way to see
          which half carries the sites. The second name in each pair is the gene
@@ -824,6 +825,7 @@
       source: { kind: 'rcsb', id: '1RCX' },
       chains: 'L,S',
       subject: 'L',
+      frame: 'site',
       /* WHICH RESIDUES MAKE THE SITE, per variant because the numbering is the
          protein's and the atoms are not: 201 is the switch, 203 and 204 are the
          two carboxylates that hold the metal with it. Lys175 and Lys334 are
@@ -844,6 +846,7 @@
       source: { kind: 'rcsb', id: '8RUC' },
       chains: 'A,I',
       subject: 'A',
+      frame: 'site',
       site: { switch: 201, grip: [203, 204] },
       read: {
         method: "x-ray diffraction",
@@ -1557,9 +1560,29 @@
          no basis at all and it opens in the deposited frame — which is the one
          a human should replace with `copy this view`, since the picture that
          says what this enzyme IS is the one down the four-fold. */
-      view: { by: 'measured', shared: false,
-              why: 'the pair solves its own axes; the particle is a sphere and '
-                 + 'no solved basis survives a re-bake of it' },
+      /* TWO FRAMES, AND THIS IS THE PROTEIN THE MAP WAS BUILT FOR. The site
+         pair is one frame because the two are superposed onto each other; the
+         particle is a second, at four times the radius, with no correspondence
+         to the pair for a rotation to carry across. One basis over all three
+         would aim one of them and leave the other opening in a rotation nobody
+         chose.
+
+         Both were turned on the bench and pasted. `particle` is 123 A on every
+         axis, so `frameOf` writes it no basis at all and it would otherwise
+         open in the crystal's frame — for the default view of the most
+         abundant protein on Earth. `site` had a solved basis and is aimed over
+         it: the pair's long axis is the two chains end to end, which puts the
+         site edge-on, and the site is what those two views are for. */
+      view: { by: 'human', shared: true,
+              why: 'the particle is a sphere and no solved basis survives a '
+                 + 're-bake of it, so the view that says what this enzyme IS '
+                 + 'has to be chosen',
+              basis: { particle: [[0.9547, 0.2975, -0.0091],
+                                  [-0.2931, 0.9345, -0.2018],
+                                  [-0.0515, 0.1954, 0.9794]],
+                       site:     [[0.6518, -0.4207, 0.6255],
+                                  [-0.3725, 0.5412, 0.7479],
+                                  [-0.6525, -0.7277, 0.1976]] } },
       /* HOW THE TWO SUBUNITS ARE TOLD APART, here rather than on the bench
          because the gallery card draws this protein too. The large subunit is
          the house green; the small one is an olive that reads beside it
@@ -1617,7 +1640,43 @@
      A FUNCTION RATHER THAN A FIELD READ DIRECTLY, for `colorsOf`'s reason: it
      is every consumer calling the same thing that stops a bench and a gallery
      card becoming two opinions about which way one molecule faces. */
-  const viewOf = p => (p && p.view && p.view.by === 'human' && p.view.basis) || null;
+  /* ONE BASIS, OR ONE PER FRAME. A protein with a single frame writes a bare
+     3x3 and every variant wears it — twelve of the thirteen. A protein whose
+     variants are at more than one SCALE writes a map instead, keyed by frame
+     name, and each variant says which frame it is in:
+
+       view: { by:'human', shared:true,
+               basis: { site:[[…]], particle:[[…]] } }
+       …and on the variant:  frame: 'site'
+
+     BECAUSE A CHOSEN BASIS BELONGS TO A FRAME AND NOT TO A PROTEIN. Rubisco is
+     the case and it is a common shape: two views of one active site, superposed
+     so they can be flipped, and the whole sixteen-chain particle beside them.
+     One basis over all three either aims the particle or aims the pair, and
+     whichever it is, the other opens in a rotation nobody chose.
+
+     A FRAME IS EXACTLY A SUPERPOSITION GROUP, which is what keeps this from
+     being a per-variant basis by another name: `registry-io.js` fails a frame
+     holding two variants that are not fitted onto each other, so views that
+     share a rotation are views that share coordinates. A per-variant basis
+     would let a superposed pair drift apart, which is the whole thing `shared`
+     exists to prevent.
+
+     A FRAME WITH NO ENTRY IN THE MAP IS NULL, not an error: nobody has picked
+     one for it yet, its bake's solved basis stands, and `check-proteins.js`
+     allows exactly that bake to carry a view. That is how a protein takes its
+     rotations one frame at a time.
+
+     `v` is optional. Without it — a gallery card asking about the protein
+     rather than about one structure — the answer is the default variant's
+     frame, which is what that card is about to draw. */
+  function viewOf(p, v) {
+    if (!p || !p.view || p.view.by !== 'human' || !p.view.basis) return null;
+    const b = p.view.basis;
+    if (Array.isArray(b)) return b;
+    const at = v || (p.variants || []).find(x => x.default);
+    return (at && b[at.frame]) || null;
+  }
 
   /* What the first digit of an EC number means, for a page that wants to say
      it in words. The same table bake-lib.js keeps for Node. */

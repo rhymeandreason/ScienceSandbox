@@ -51,6 +51,10 @@
 
 const path = require('path');
 const FoldLib = require(path.join(__dirname, '..', 'folding', 'folding.js'));
+/* Only `viewFor` reads it, and only to ask whether a human has chosen a
+   rotation — the one question about a bake that is answered outside the file
+   being baked. */
+const REG = require(path.join(__dirname, 'proteins.js'));
 
 /* 0.01 A, finer than any deposited coordinate is meaningful to. */
 const r2 = v => Math.round(v * 100) / 100;
@@ -355,8 +359,14 @@ function frameOf(points) {
  *  most, `FoldLib.basisFrom` where a field has a convention about which axis
  *  stands up. Pass that as `fallback` and it comes back untouched.
  */
-function viewFor(p, fallback) {
-  if (p && p.view && p.view.by === 'human' && p.view.basis)
+function viewFor(p, fallback, v) {
+  /* WHETHER A HUMAN HAS PICKED ONE FOR **THIS** VIEW'S FRAME, resolved by
+     ProteinLib rather than re-read here: a protein at two scales keys its
+     basis by frame, and a frame nobody has aimed yet still falls through to
+     the solved one below. One resolver, because a second copy of the rule is
+     how a bake and a bench come to disagree about which way a molecule
+     faces. */
+  if (REG.viewOf(p, v))
     return { view: null, frame: 'chosen in the registry' };
   const f = fallback || {};
   return { view: f.view || null, frame: f.view ? (f.frame || 'computed') : 'deposited' };

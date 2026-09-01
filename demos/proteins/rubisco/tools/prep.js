@@ -222,15 +222,22 @@ function bake(v, ref) {
     bonds: site.bonds,
   };
 
-  /* NOTHING IS IN THE REGISTRY YET, so there is no chosen basis to read and
-     `viewFor` is not called: what a bake can say for itself is the solved
-     basis or nothing. The two site views wear the reference's, because they
-     share a frame and a basis each would turn the molecule on every switch. */
+  /* THE ROTATION IS THE REGISTRY'S WHERE A HUMAN HAS PICKED ONE FOR THIS
+     VIEW'S FRAME, and then no view is baked at all — `Bake.viewFor` says so and
+     names the result, so a re-aim is an edit and a reload rather than a re-bake
+     of coordinates that did not change. The particle has a chosen basis and the
+     site pair does not, which is why the variant goes in: the answer differs
+     between two views of one protein. The fallback under it is the solved basis, and the two
+     site views wear the REFERENCE's: they share a frame, and a basis each
+     would turn the molecule on every switch and hide the carbamate inside the
+     rotation. The extents are solved either way — they are a measurement of
+     the shape and the panel prints them. */
   const all = [];
   for (const id of out.order) for (const p of out.chains[id].CA) all.push(p);
   const F = Bake.frameOf(all);
-  if (ref && ref.view) { out.view = ref.view; out.frame = ref.frame; }
-  else { if (F.view) out.view = F.view; out.frame = F.frame; }
+  const V = Bake.viewFor(ME, ref && ref.view ? { view: ref.view, frame: ref.frame } : F, v);
+  if (V.view) out.view = V.view;
+  out.frame = V.frame;
   out.extents = F.extents;
 
   const decl = Bake.declared(text);

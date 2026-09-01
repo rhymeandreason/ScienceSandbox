@@ -237,9 +237,14 @@ for (const p of lib.PROTEINS) {
             A SHARED basis is still only legal across variants that are
             superposed — registry-io.js's validate holds that, since it is a
             fact about the registry and needs no file to check. */
-      if (p.view && p.view.by === 'human' && t.view)
-        say(`${at}: ${p.key} chooses its rotation in the registry, but the bake ` +
-            `carries one too — re-run the baker`);
+      /* ASKED PER VARIANT, because a protein at two scales keys its chosen
+         bases by frame and may have aimed one frame and not the other. A view
+         the registry has chosen must not also be baked; a frame nobody has
+         chosen for keeps its solved basis, and that bake carrying one is the
+         arrangement working rather than a fault. */
+      if (lib.viewOf(p, v) && t.view)
+        say(`${at}: ${p.key} chooses this frame's rotation in the registry, but ` +
+            `the bake carries one too — re-run the baker`);
 
       /* 7. Every fitted variant names the reference, and the reference itself
             is fitted onto nothing. Read off the BAKE's meta, which is where a

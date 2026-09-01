@@ -166,6 +166,38 @@ function validate(lib) {
       bad.push(`${at}: view.shared with no superposition`);
     if (p.view && p.view.by === 'human' && !p.view.basis)
       bad.push(`${at}: view by a human, but no basis recorded`);
+
+    /* A FRAME-KEYED BASIS, and the rule that keeps it from being a per-variant
+       one: a frame is a superposition group, so two variants may share a frame
+       name only if they are fitted onto each other. Without that a frame could
+       group two structures with no coordinates in common, and one of them would
+       open in a rotation chosen for the other — which is the failure the map
+       exists to fix, reintroduced under a different name. */
+    const basis = p.view && p.view.basis;
+    const framed = basis && !Array.isArray(basis);
+    const frames = new Map();
+    for (const v of p.variants) {
+      if (!v.frame) continue;
+      if (!framed)
+        bad.push(`${at}/${v.id}: names frame '${v.frame}', but the basis is not keyed by frame`);
+      frames.set(v.frame, (frames.get(v.frame) || []).concat(v.id));
+    }
+    if (framed) {
+      for (const v of p.variants)
+        if (!v.frame) bad.push(`${at}/${v.id}: the basis is keyed by frame and this names none`);
+      for (const k of Object.keys(basis))
+        if (!frames.has(k)) bad.push(`${at}: basis names frame '${k}', which no variant is in`);
+      /* Not every frame needs a basis — an unaimed one falls back to its bake's
+         solved view — so a missing key is silence rather than a failure. */
+    }
+    for (const [name, members] of frames) {
+      if (members.length < 2) continue;
+      const among = (p.fit && p.fit.among) || (p.fit ? p.variants.map(v => v.id) : []);
+      const loose = members.filter(id => !among.includes(id));
+      if (loose.length)
+        bad.push(`${at}: frame '${name}' holds ${members.join(', ')}, but ` +
+                 `${loose.join(', ')} ${loose.length > 1 ? 'are' : 'is'} not superposed with them`);
+    }
   }
   return bad;
 }
