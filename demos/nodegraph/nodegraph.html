@@ -2799,9 +2799,35 @@ askIn.placeholder = ASKABLE[0].text;
 startRotate();
 
 let listOpen = false, cursor = -1;
+/* A QUESTION IS SEARCHED THE WAY A CARD IS, by terms rather than by substring:
+   `tree mass` has to find "Where does the mass of a tree come from?", and a
+   contiguous match never will. The card it answers into counts too, so `pigment`
+   finds the autumn question even though the word is not in it.
+
+   BROWSING AND SEARCHING LOOK DIFFERENT. An empty field lists every question
+   grouped by unit, which is the curriculum's own order and is what a reader
+   browsing wants. Typed terms produce a flat list in score order, because the
+   best match belongs at the top where Enter takes it, and unit headings would
+   scatter it. */
+function questionScore(q, terms) {
+  const target = byId[q.qtype === 'extension' ? q.anchorId : ''] ||
+                 (q.anchor || null);
+  const extra = target ? (target.name || '') + ' ' + (target.kind || q.kind || '') : (q.kind || '');
+  return score(q.text.toLowerCase(), terms, 100) +
+         score(extra.toLowerCase(), terms, 20);
+}
+
 function renderList(filter) {
-  const f = (filter || '').trim().toLowerCase();
-  const rows = ASKABLE.filter(q => !f || q.text.toLowerCase().includes(f));
+  const terms = (filter || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  let rows;
+  if (terms.length) {
+    rows = ASKABLE.map(q => ({ q, s: questionScore(q, terms) }))
+      .filter(x => x.s > 0)
+      .sort((a, b) => b.s - a.s || a.q.text.length - b.q.text.length)
+      .map(x => x.q);
+  } else {
+    rows = ASKABLE;
+  }
   askList.innerHTML = '';
   if (!rows.length) {
     /* not a dead end: Enter still searches the cards from here */
@@ -2810,13 +2836,15 @@ function renderList(filter) {
   }
   let group = null;
   rows.forEach((q, i) => {
-    const u = unitOfQuestion(q);
-    if (u !== group) {
-      group = u;
-      const h = document.createElement('div');
-      h.className = 'askgroup';
-      h.textContent = (UNITS[u] && UNITS[u].name) || 'elsewhere';
-      askList.appendChild(h);
+    if (!terms.length) {
+      const u = unitOfQuestion(q);
+      if (u !== group) {
+        group = u;
+        const h = document.createElement('div');
+        h.className = 'askgroup';
+        h.textContent = (UNITS[u] && UNITS[u].name) || 'elsewhere';
+        askList.appendChild(h);
+      }
     }
     const b = document.createElement('button');
     b.type = 'button';

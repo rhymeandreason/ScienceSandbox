@@ -149,6 +149,14 @@ A query arrives from wherever the reader was, which may be the whole map at
 0.30, so `follow` carries a zoom and centres the CHAIN rather than the question
 — following either end puts the rest against a screen edge.
 
+**Questions are searched by TERMS, not substring** — `tree mass` has to find
+"Where does the mass of a tree come from?", and a contiguous match never will.
+The card a question answers into counts too, at a fifth of the weight, so
+`pigment` finds the autumn question without the word being in it. Browsing and
+searching look different on purpose: an empty field lists every question
+grouped by unit, which is the curriculum's own order; typed terms give a flat
+list in score order, because the best match belongs where Enter takes it.
+
 **Typed words that match no question are a SEARCH.** Cards are deliberately not
 in the dropdown: a reader who wants one types its name and presses Enter, and
 does not need a list to confirm the name they just typed exists. The search
