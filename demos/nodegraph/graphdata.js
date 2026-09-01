@@ -72,6 +72,11 @@
     claim:'Two atoms share a pair of electrons, and both count them as their own.' },
   { id:'polarity', type:'concept', unit:'water', subject:'chemistry', name:'Polarity',
     claim:'Unequal sharing gives a molecule a positive end and a negative end.' },
+  /* THE LATTICE THE SOLVENT CARD ASSUMES. `solvent` says water pulls a
+     charged particle off its neighbours and that the solid is then gone —
+     and nothing on the map had said what held the solid together. */
+  { id:'ionic-bond', type:'concept', unit:'water', subject:'chemistry', name:'Ionic bond',
+    claim:'One atom takes the electron rather than sharing it. Opposite charges then hold the ions in a lattice.' },
 
   /* ---- water: cause → mechanism → properties → consequences ----------- */
   { id:'water-mol', type:'structure', unit:'water', level:1, name:'Water molecule',
@@ -601,6 +606,10 @@
 
   /* ---- anchoring questions --------------------------------------------
      Every non-question node must sit on a path answering at least one. */
+  /* THE CHEMISTRY FLOOR'S DOOR. electroneg, covalent, polarity and the ionic
+     bond had no question pointing at them — the only stretch of the map like
+     that — and molecule-builder is the lesson that IS that floor. */
+  { id:'q-bond',     type:'question', qtype:'anchor', text:'What holds a molecule together?' },
   { id:'q-medium',   type:'question', qtype:'anchor', text:'Why is water the medium of life?' },
   { id:'q-tree',     type:'question', qtype:'anchor', text:'How can a tree be a hundred metres tall?' },
   { id:'q-lakes',    type:'question', qtype:'bridging', text:'Why do lakes freeze from the top down?' },
@@ -675,6 +684,14 @@
        card. */
     ['electroneg',  'prerequisite-of', 'polarity',    1],
     ['covalent',    'prerequisite-of', 'polarity',    1],
+    /* how far the pull goes decides which bond you get, so the contrast is
+       lateral: two outcomes of one difference, neither read before the other */
+    ['electroneg',  'determines',      'ionic-bond',  1],
+    ['covalent',    'contrasts-with',  'ionic-bond',  1],
+    ['ionic-bond',  'prerequisite-of', 'solvent',     1],
+    ['q-bond',      'answers',         'covalent',    1],
+    ['q-bond',      'answers',         'ionic-bond',  1],
+    ['q-bond',      'answers',         'electroneg',  2],
     ['polarity',    'prerequisite-of', 'hbond',       1],
     ['polarity',    'prerequisite-of', 'hydrophobic', 1],
     ['polarity',    'prerequisite-of', 'solvent',     2],

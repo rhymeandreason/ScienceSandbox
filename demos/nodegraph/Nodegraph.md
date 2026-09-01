@@ -396,12 +396,21 @@ must stay exactly what it was.
 **A question can host a lesson.** Where a lesson is a whole unit rather than
 one claim — water-lab is — no concept card is the right host, and hanging it
 on one would say the lesson is about that one claim. The anchoring question is
-the unit's door, so `l:water` sits on `q-medium`. The question keeps its own
+the unit's door, so `l:water` sits on `q-medium` and `l:builder` on `q-bond`.
+
+**`q-bond` was authored to be that door.** The chemistry floor —
+electronegativity, the covalent bond, polarity, the ionic bond — was the one
+stretch of the map with no question pointing at it, and molecule-builder is
+the lesson that IS that floor: nine molecules, a third of them ionic, so it is
+valence and geometry and charge rather than any one claim. **A `Molecular
+Bonding` card was the other candidate and was refused**: no rank-1 path would
+route through it that does not already reach `covalent`, so its whole claim
+would have been the fan it names — `pigment`'s rule, one section up. The question keeps its own
 shape and gains the same two things a concept card gains, a thumb and the pill,
 plus a `haslesson` class that brings the 2rem type down to card scale.
 
 **Every lesson card is lit at load**, not fogged — they are the featured work,
-so a reader who never explores still sees all seven. The opening camera does
+so a reader who never explores still sees every one. The opening camera does
 NOT frame them: they span three units and 10,000px, and fitting them needs
 k≈0.14, well under `centre()`'s 0.3 floor and unreadable. `start()` therefore
 collects the doors it lights into a list and passes THAT to `centre()`, so the

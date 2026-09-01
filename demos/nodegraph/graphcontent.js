@@ -112,6 +112,15 @@
        — so no single concept card is the right host, and hanging it on one
        would say the lesson is about that one. The anchoring question IS the
        unit's door, and the lesson is what is behind it. */
+    /* ON THE QUESTION FOR THE SAME REASON water-lab is. The builder is nine
+       molecules — H₂O, CH₄, NH₃→NH₄⁺, CO₂, N₂, HCl, and three salts — so it
+       is valence, geometry and charge rather than any one claim, and a third
+       of it is ionic. Hanging it on `covalent` would say it is about covalent
+       bonds. */
+    { id: 'l:builder', kind: 'lesson', name: 'Build a bond by hand',
+      blurb: 'Drag two atoms together and let valence, geometry and charge decide what you get — water, methane, ammonia, CO₂, and salt.',
+      shot: 'media/kodo-bonding.webp',
+      href: 'molecule-builder.html' },
     { id: 'l:water', kind: 'lesson', name: 'Why water behaves the way it does',
       blurb: 'The shape of one molecule, then everything that follows from it: hydrogen bonds, why ice floats, why water resists heating, and what happens when salt goes in.',
       shot: 'media/kodo-water.webp',
@@ -215,6 +224,7 @@
        and the same pill on two cards a short walk apart, and a reader who
        met it twice learned nothing the second time. */
     ['l:membrane',     { 'selective-perm': 1 }],
+    ['l:builder',      { 'q-bond': 1 }],
     ['l:water',        { 'q-medium': 1 }],
     ['l:osmosis',      { osmosis: 1 }],
 

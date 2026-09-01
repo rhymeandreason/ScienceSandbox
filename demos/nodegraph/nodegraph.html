@@ -900,7 +900,7 @@
       <optgroup label="by theme" id="hilitethemes"></optgroup>
     </select>
   </div>
-  <button class="btn" id="reset">Start over</button>
+  <button class="btn" id="reset">Reset</button>
 </header>
 
 <nav class="gutter" id="gutter" aria-label="scale ladder"></nav>
@@ -3934,6 +3934,10 @@ function centre(set) {
 for (const n of nodes) paintNode(n);
 for (const l of links) paintLink(l);
 
+/* THE PAGE'S FIRST FRAME, run once at load. NOT the Reset button — that
+   clears the highlight and nothing else (below); coming back here would
+   throw away the reader's position, zoom and every card they had opened,
+   which is refreshing the page with extra steps. */
 function start() {
   follow = null;
   hiliteSel.value = '';
@@ -3969,7 +3973,16 @@ function start() {
   draw();
   centre(doors);
 }
-document.getElementById('reset').addEventListener('click', start);
+/* RESET IS THE HIGHLIGHT'S OFF SWITCH, not the page's. It puts the menu back
+   to "all" and drops the overlay; the camera, the zoom and every lit card stay
+   exactly where the reader left them. applyHighlight's empty-mode path is what
+   does the work, so the button and picking "all" from the menu cannot drift. */
+function resetHighlight() {
+  hiliteSel.value = '';
+  syncHilite();
+  applyHighlight();
+}
+document.getElementById('reset').addEventListener('click', resetHighlight);
 start();
 </script>
 </body>
