@@ -4,75 +4,60 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hemoglobin — molecular surface test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/main.css">
 <link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../proteins/protein-test.css">
 <style>
-  #note{position:absolute;left:16px;top:16px;z-index:6;max-width:360px;
-    font-family:var(--font-sans);font-size:13px;line-height:1.45;color:var(--muted);
-    background:rgba(255,255,255,.85);border:1px solid var(--hair);border-radius:8px;
-    padding:10px 12px}
-  #note b{color:var(--ink)}
-  #ctl{position:absolute;right:16px;bottom:16px;z-index:6;display:grid;gap:8px;
-    font-family:var(--font-sans);font-size:12px;color:var(--muted);
-    background:rgba(255,255,255,.9);border:1px solid var(--hair);
-    border-radius:8px;padding:10px 12px;width:252px}
-  #ctl label{display:grid;gap:2px}
-  #ctl output{font-family:var(--font-mono,monospace);color:var(--ink)}
-  #ctl input[type=range]{width:100%}
-  #ctl button{font-family:var(--font-sans);font-size:13px;cursor:pointer;
-    background:var(--paper,#fff);color:var(--ink);border:1px solid var(--hair);
-    border-radius:8px;padding:8px 14px}
-  #ctl button:hover{background:var(--hair)}
+  /* The shared chrome is ../proteins/protein-test.css. What stays here is the
+     control shapes this bench needs and the gallery does not: two segmented
+     switches, two colour wells and two sliders. They take their colours from
+     the house tokens, so nothing here declares a hue. */
+  #stage{display:block}
+  #gl{display:block;width:100%;height:100%}
+
+  .panel label{display:grid;gap:3px;font-size:0.78rem;color:var(--h-muted)}
+  .panel output{font-variant-numeric:tabular-nums;color:var(--h-ink);font-weight:600}
+  .panel input[type=range]{width:100%;accent-color:var(--h-accent)}
+
   /* Segmented control: one border around the group, hairlines between,
-     so the three read as one choice rather than three buttons. */
-  #seg{display:flex;border:1px solid var(--hair);border-radius:8px;overflow:hidden}
-  #seg button{flex:1;border:0;border-left:1px solid var(--hair);border-radius:0;
-    padding:7px 0;font-size:12px;color:var(--muted)}
-  #seg button:first-child{border-left:0}
-  #seg button[aria-pressed=true]{background:var(--ink);color:var(--paper,#fff)}
-  #seg button[aria-pressed=true]:hover{background:var(--ink)}
+     so the choices read as one choice rather than several buttons. */
+  #seg,#var{display:flex;border:1px solid var(--h-line);border-radius:var(--radius-sm);
+    overflow:hidden}
+  #seg button,#var button{flex:1;border:0;border-left:1px solid var(--h-line);
+    border-radius:0;padding:8px 0;font:inherit;font-family:var(--h-ui);
+    font-size:0.8rem;color:var(--h-ink);background:transparent;cursor:pointer;
+    transition:background var(--dur-fast) var(--ease-out),
+               color var(--dur-fast) var(--ease-out)}
+  #seg button:first-child,#var button:first-child{border-left:0}
+  #seg button:hover,#var button:hover{color:var(--h-accent)}
+  #seg button[aria-pressed=true],#var button[aria-pressed=true]{
+    background:var(--h-accent);color:#faf8f4}
+
+  #diff{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.72rem;
+    color:var(--h-muted);line-height:1.6;white-space:pre;margin:var(--space-3) 0 0}
+  #diff b{color:var(--h-ink);font-weight:600}
+
   /* The swatch only means anything in plain mode, so it dims out of it —
      but stays live, because picking a colour switches back to plain. */
-  #swatch{display:flex;align-items:center;gap:8px;transition:opacity .15s}
+  #swatch{display:flex;align-items:center;gap:var(--space-2);transition:opacity .15s;
+    margin-top:var(--space-2)}
   #swatch.off{opacity:.45}
-  #swatch input[type=color]{width:34px;height:24px;padding:0;cursor:pointer;
-    background:none;border:1px solid var(--hair);border-radius:6px}
-  #swatch input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
-  #swatch input[type=color]::-webkit-color-swatch{border:0;border-radius:4px}
-  #swatch code{font-family:var(--font-mono,monospace);color:var(--ink);font-size:12px}
-  #hud{position:absolute;right:16px;top:16px;z-index:6;font-family:var(--font-mono,monospace);
-    font-size:12px;color:var(--muted);background:rgba(255,255,255,.85);
-    border:1px solid var(--hair);border-radius:8px;padding:8px 10px;white-space:pre}
-  /* The variant switch is the loudest control on the page because it is the
-     one the page is now FOR. Same segmented shape as `colour by`, so the two
-     read as the same kind of thing, but full width and above the rest. */
-  #var{display:flex;border:1px solid var(--hair);border-radius:8px;overflow:hidden}
-  #var button{flex:1;border:0;border-left:1px solid var(--hair);border-radius:0;
-    padding:8px 0;font-size:12px;color:var(--muted)}
-  #var button:first-child{border-left:0}
-  #var button[aria-pressed=true]{background:var(--ink);color:var(--paper,#fff)}
-  #var button[aria-pressed=true]:hover{background:var(--ink)}
-  #diff{font-family:var(--font-mono,monospace);font-size:11px;color:var(--muted);
-    line-height:1.5;white-space:pre}
-  #diff b{color:var(--ink);font-weight:600}
-  /* The beta6 block is ruled off rather than merely spaced: its controls
-     act on a DIFFERENT object from the four above them, and a gap alone
-     does not say that. */
-  #b6{display:grid;gap:8px;border-top:1px solid var(--hair);padding-top:10px}
-  #b6 > .hd{color:var(--ink);font-size:12px}
-  #b6row{display:flex;align-items:center;gap:8px}
-  #b6row input[type=color]{width:34px;height:24px;padding:0;cursor:pointer;
-    background:none;border:1px solid var(--hair);border-radius:6px;flex:none}
-  #b6row input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
-  #b6row input[type=color]::-webkit-color-swatch{border:0;border-radius:4px}
-  /* `chem` is a latch, not an action, so it gets the same pressed styling
-     as the segmented controls rather than looking like a button you poke. */
-  #b6chem{flex:1;padding:6px 0;font-size:12px;font-family:var(--font-sans);
-    cursor:pointer;color:var(--muted);background:var(--paper,#fff);
-    border:1px solid var(--hair);border-radius:6px}
-  #b6chem[aria-pressed=true]{background:var(--ink);color:var(--paper,#fff);
-    border-color:var(--ink)}
+  input[type=color]{width:34px;height:26px;padding:0;cursor:pointer;flex:none;
+    background:none;border:1px solid var(--h-line);border-radius:var(--radius-sm)}
+  input[type=color]::-webkit-color-swatch-wrapper{padding:2px}
+  input[type=color]::-webkit-color-swatch{border:0;border-radius:4px}
+  #plainHex{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:0.75rem;color:var(--h-muted)}
+
+  #b6row{display:flex;align-items:center;gap:var(--space-2);margin:var(--space-2) 0}
+  /* `chem` is a latch, not an action, so it takes the pressed styling the
+     segmented controls use rather than looking like a button you poke. */
+  #b6chem{flex:1;margin:0;justify-content:center}
   #b6.chem #b6col{opacity:.45}
+  #b6res{color:var(--h-spark);font-weight:600}
 </style>
 </head>
 <body>
@@ -80,61 +65,37 @@
   <main id="stage">
     <canvas id="gl"></canvas>
   </main>
-</div>
-<div id="note">
-  <b>Test — solvent-excluded surface over the ribbon.</b><br>
-  The tetramer as <code>kit/ribbon.js</code> draws it, with the
-  molecular surface laid over the top as a translucent skin. The surface
-  is <b>baked</b>, not solved here: <code>tools/ses.js</code> builds it
-  offline from 2HHB's 4&thinsp;556 heavy atoms with a 1.4&nbsp;&Aring;
-  water probe, and the page just loads a mesh. The same job took 3Dmol
-  5.7&nbsp;s and Mol* 9.4&nbsp;s in <i>viewer-compare.html</i>.<br><br>
-  <b>s</b> toggles the surface, <b>c</b> cycles what it is coloured by,
-  <b>v</b> swaps normal haemoglobin (2HHB) for sickle (2HBS).
-  Chain colour says which subunit a patch belongs to; hydrophobicity is
-  the Kyte&ndash;Doolittle scale, and it is the one that carries a
-  lesson &mdash; the greasy patches are where another molecule could
-  stick.<br><br>
-  <b>The swap is the experiment.</b> Both molecules are drawn at the same
-  0.7&nbsp;&Aring; grid, and 2HBS is rotated onto 2HHB by a superposition
-  stored as data, not baked into either &mdash; so nothing you see when
-  you press <b>v</b> is the frame moving. Watch the silhouette, then
-  switch to <b>&beta;6</b> and watch again.<br><br>
-  The two fit to <span id="nFit">&hellip;</span>, so the
-  silhouette is the wrong place to look &mdash; and the area difference in
-  the panel is two different crystals' surface side chains, not the
-  mutation, which is four atoms. Sickle-cell is not a misshapen protein.
-  It is one charged residue swapped for a greasy one, on the outside.<br><br>
-  The <b>&beta;6 patch</b> is its own mesh, so it carries its own colour and
-  opacity &mdash; it can stay solid over a skin at 0.28, or over no skin at
-  all. Left on <i>follow chemistry</i> its colour <i>is</i> the finding:
-  charged blue becomes greasy orange. Pin it to one colour instead and you
-  are asking the other question &mdash; whether the patch moves.
-</div>
-<div id="hud"></div>
-<div id="ctl">
-  <label>molecule (v)
+  <div class="panel">
+    <h1>Hemoglobin</h1>
+    <p class="deck">A baked solvent-excluded surface laid over the ribbon.
+      Swap normal haemoglobin for sickle and watch the &beta;6 patch, not the
+      silhouette.</p>
+
+    <h2>molecule (v)</h2>
     <div id="var"></div>
-  </label>
-  <div id="diff"></div>
-  <button id="toggle">hide surface (s)</button>
-  <label>colour by (c)
-    <div id="seg"></div>
-  </label>
-  <div id="swatch">
-    <input type="color" id="plainCol" value="#cccfd4">
-    <code id="plainHex">#cccfd4</code>
-  </div>
-  <label>opacity <output id="ov"></output>
-    <input id="op" type="range" min="5" max="100" value="28"></label>
-  <div id="b6" class="chem">
-    <div class="hd">β6 patch <span id="b6res"></span></div>
-    <div id="b6row">
-      <input type="color" id="b6col" value="#d94f1e">
-      <button type="button" id="b6chem" aria-pressed="true">follow chemistry</button>
+    <div id="diff"></div>
+
+    <h2>surface</h2>
+    <button class="mode" id="toggle">hide surface (s)</button>
+    <label>colour by (c)
+      <div id="seg"></div>
+    </label>
+    <div id="swatch">
+      <input type="color" id="plainCol" value="#cccfd4">
+      <code id="plainHex">#cccfd4</code>
     </div>
-    <label>patch opacity <output id="b6ov"></output>
-      <input id="b6op" type="range" min="0" max="100" value="100"></label>
+    <label style="margin-top:var(--space-3)">opacity <output id="ov"></output>
+      <input id="op" type="range" min="5" max="100" value="28"></label>
+
+    <h2>&beta;6 patch <span id="b6res"></span></h2>
+    <div id="b6" class="chem">
+      <div id="b6row">
+        <input type="color" id="b6col" value="#d94f1e">
+        <button type="button" class="mode" id="b6chem" aria-pressed="true">follow chemistry</button>
+      </div>
+      <label>patch opacity <output id="b6ov"></output>
+        <input id="b6op" type="range" min="0" max="100" value="100"></label>
+    </div>
   </div>
 </div>
 
@@ -424,7 +385,6 @@ function show(i) {
 
   vseg.forEach((btn, k) => btn.setAttribute('aria-pressed', String(k === i)));
   btn.textContent = (surfaceOn ? 'hide' : 'show') + ' surface (s)';
-  hud();
 }
 
 /* ------------------------------------------------------------------ *
@@ -500,12 +460,6 @@ function diff() {
      `volume  ${a.S.head.volume.toFixed(0)} → ${s.S.head.volume.toFixed(0)} Å³  (${pct(a.S.head.volume, s.S.head.volume)}%)`,
      `fit     ${s.quat.align.rmsd} Å rmsd over ${s.quat.align.n} Cα`,
     ].join('\n');
-
-  /* The prose makes a quantitative claim, so the prose reads the number
-     out of the bake too — a typed 0.58 here is a claim nothing checks and
-     a re-bake would silently falsify. */
-  document.getElementById('nFit').textContent =
-    `${s.quat.align.rmsd} Å over ${s.quat.align.n} Cα`;
 }
 
 /* WHAT THE AREA DELTA IS NOT. It is a few percent, and the mutation is four
@@ -522,20 +476,6 @@ function diff() {
    agrees to 0.2%, and that is the number that says the molecule is the
    same size. */
 
-function hud() {
-  const b = built[variant];
-  /* Which chains the MESH is built from, counted off the mesh's own
-     residue table rather than read from a header field only one of the two
-     bakes happens to write. */
-  const chains = [...new Set(Array.from(b.S.res, v => b.S.head.residues[v][0]))].sort().join('');
-  document.getElementById('hud').textContent =
-    [`${b.quat.source}  ${chains}`,
-     `${b.S.head.nVert.toLocaleString()} verts  ${b.S.head.nTri.toLocaleString()} tris`,
-     `grid ${b.S.head.spacing} A   probe ${b.S.head.probe} A`,
-     `${(b.bytes/1024).toFixed(0)} KB  index${b.S.head.indexBits}`,
-     `area ${b.S.head.area.toLocaleString()} A^2`,
-    ].join('\n');
-}
 
 const vseg = VARIANTS.map((v, i) => {
   const b = document.createElement('button');
