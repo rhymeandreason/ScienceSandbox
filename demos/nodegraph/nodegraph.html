@@ -1267,10 +1267,17 @@ for (const p of SPEC) {
     ec, ecClass: cls ? cls[0] : null, ecDoes: cls ? cls[1] : null,
   };
   nodes.push(n); byId[n.id] = n;
-  for (const [nid, rank] of Object.entries(row)) {
+  /* A PLACEMENT MAY NAME ITS EDGE. `instance-of` is right for an exemplar and
+     wrong for a protein that carries the explanation: rubisco does not
+     instantiate carbon fixation, it ENABLES it, and instance-of is BACKWARD —
+     typed the default way, the reaction would have sat left of the enzyme
+     that runs it, and photorespiration would have lost its only parent.
+     `['enables', 1]` in place of a bare rank, defaulting to what it was. */
+  for (const [nid, spec] of Object.entries(row)) {
     const m = byId[nid];
     if (!m) { console.warn('specimen placed on missing node:', n.id, nid); continue; }
-    links.push({ a: n, b: m, type: 'instance-of', rank, spine: rank === 1 });
+    const [type, rank] = Array.isArray(spec) ? spec : ['instance-of', spec];
+    links.push({ a: n, b: m, type, rank, spine: rank === 1 });
     n.deg++; m.deg++;
   }
 }
@@ -2788,9 +2795,17 @@ function walkDir(l, n) {
   return o[1] === n ? 'why' : 'onward';
 }
 /* an evidence card shows HOW WE KNOW a claim, which is a destination the
-   same way a specimen or a film is: worth clicking, never a station the
-   explanation walks through */
-const station = n => n.type !== 'specimen' && n.type !== 'theme' &&
+   same way a film is: worth clicking, never a station the explanation walks
+   through.
+
+   A SPECIMEN IS A DESTINATION UNLESS ITS EDGES SAY OTHERWISE. Most exemplify
+   a concept and stop there, which `instance-of` is exactly the word for. One
+   does not: rubisco `enables` carbon fixation at rank 1 and `causes`
+   photorespiration, so the photosynthesis spine runs THROUGH it, and being a
+   protein is not a reason to step over the card carrying the explanation.
+   What decides is the edge, not the type. */
+const carries = n => linksOf(n).some(l => l.rank === 1 && l.type !== 'instance-of');
+const station = n => (n.type !== 'specimen' || carries(n)) && n.type !== 'theme' &&
                      n.type !== 'content' && n.type !== 'evidence' &&
                      n.type !== 'satellite' && n.type !== 'ask' &&
                      n.type !== 'made';

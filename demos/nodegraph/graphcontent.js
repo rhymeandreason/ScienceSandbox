@@ -261,6 +261,13 @@
     ['p:ferritin',        { quaternary: 2 }],
     /* the turbine itself, now that chemiosmosis exists to hang it on */
     ['p:atp-synthase',    { chemiosmosis: 1, etc: 2 }],
+    /* RUBISCO IS NOT AN EXEMPLAR OF THE REACTION, it is the enzyme that runs
+       it — and photorespiration is the same enzyme's mistake, which nothing
+       else on the map explains. Typed, or instance-of would put both to the
+       LEFT of the protein that causes them. */
+    ['p:rubisco',         { enzyme: 1,
+                            'carbon-fixation': ['enables', 1],
+                            photorespiration:  ['causes',  2] }],
 
     /* the pump itself, now that the membrane unit exists to hang it on. Its
        E1 default is the inward-facing state, which is the one that has just

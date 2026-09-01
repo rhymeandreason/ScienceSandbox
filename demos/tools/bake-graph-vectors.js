@@ -34,6 +34,19 @@
  *  The three sit at different absolute cosines, so `kind` is written into
  *  every row and the page floors them separately. One shared threshold is
  *  the wrong shape, not a number to tune.
+ *
+ *  A SPECIMEN IS A FOURTH SOURCE AND NOT A FOURTH KIND. The protein cards
+ *  are spawned from proteins/proteins.js rather than declared in graphdata,
+ *  so they were absent from the corpus entirely and the semantic fallback
+ *  could not reach one — rubisco stopped being findable that way the day it
+ *  became a specimen. They are baked as `claim` rows, because a blurb is
+ *  prose about a card in the same register a claim is, and because fourteen
+ *  rows is far too few to z-score as a pool of their own: `bestByZ` reads
+ *  the mean and sd WITHIN a kind, and a pool that small has neither.
+ *
+ *  ONLY THE PLACED ONES. An unplaced protein is not on the map, so its row
+ *  would name a node the page cannot resolve, and the miss reads to a reader
+ *  exactly like no answer at all.
  * ===================================================================== */
 'use strict';
 
@@ -44,6 +57,7 @@ const crypto = require('crypto');
 const ROOT = path.join(__dirname, '..');
 const SRC = path.join(ROOT, 'nodegraph', 'graphdata.js');
 const CONTENT = path.join(ROOT, 'nodegraph', 'graphcontent.js');
+const PROTEINS = path.join(ROOT, 'proteins', 'proteins.js');
 const DST = path.join(ROOT, 'nodegraph', 'graphdata-vectors.json');
 
 const MODEL = process.env.EMBED_MODEL || 'gemini-embedding-001';
@@ -115,13 +129,45 @@ function integrity() {
       for (const nid of Object.keys(ranks))
         if (!byId.has(nid)) bad.push(`placement names missing node: ${cid} → ${nid}`);
     }
+    /* A `p:` placement naming no such protein spawns no card at all, and the
+       concepts it was placed on are simply missing their exemplar. The page
+       warns; nothing on screen does. */
+    let lib = null;
+    try { lib = require(PROTEINS); } catch (e) { /* soft, as above */ }
+    if (lib) for (const [cid] of placements.PLACEMENTS) {
+      if (!/^p:/.test(cid)) continue;
+      const key = cid.slice(2).split('@')[0], want = cid.slice(2).split('@')[1];
+      const p = lib.PROTEINS.find(x => x.key === key);
+      if (!p) { bad.push(`placement names no such protein: ${cid}`); continue; }
+      if (want && !(p.variants || []).some(v => v.id === want))
+        bad.push(`placement names no such variant: ${cid}`);
+    }
   }
   return bad;
+}
+
+/* the placed proteins, as the map will spawn them: `p:<key>` or
+   `p:<key>@<variant>`, one card per protein either way */
+function specimens() {
+  let lib, placements;
+  try { lib = require(PROTEINS); } catch (e) { return []; }
+  try { placements = require(CONTENT).GraphContent; } catch (e) { return []; }
+  const placed = new Set(placements.PLACEMENTS
+    .map(([cid]) => cid)
+    .filter(cid => /^p:/.test(cid))
+    .map(cid => cid.slice(2).split('@')[0]));
+  return lib.PROTEINS.filter(p => placed.has(p.key));
 }
 
 function corpus() {
   const { NODES } = graph();
   const rows = [];
+
+  for (const p of specimens()) {
+    if (!p.blurb) continue;
+    const text = `${p.name}. ${p.blurb}`;
+    rows.push({ kind: 'claim', text, hash: sha(text), node: 'p:' + p.key });
+  }
 
   for (const n of NODES) {
     if (n.type === 'question') {

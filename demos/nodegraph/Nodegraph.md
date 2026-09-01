@@ -41,11 +41,13 @@ Biology's resources genuinely go round in loops and the explanation axis is a DA
 | `question` | a door. `qtype` is `anchor` (opens a unit, large), `bridging` (joins two already open, small) or `extension` (small, italic, blue) | via `answers` |
 | `theme` | a saved query over the map. Its fan is dealt whole regardless of rank | no |
 | `evidence` | how we know. Meselson–Stahl, Hershey–Chase. **Not on the map** — pulled before layout, dealt from a pill | no |
-| `specimen` | spawned from `proteins/proteins.js` by a `p:` placement | no |
+| `specimen` | spawned from `proteins/proteins.js` by a `p:` placement | only if it `carries` |
 | `content` | a film, spawned from `graphcontent.js`. A LESSON IS NOT ONE: it rides its concept | no |
 | `ask` / `satellite` | a facet pill and what it reveals | no |
 
 Everything after the first row is a **destination, not a station**: `station()` excludes them so the walk never steps onto one. Adding a type means adding it there too.
+
+**A specimen is the exception, and the EDGE decides.** Most exemplify a concept and stop, which `instance-of` is the word for; `p:rubisco` `enables` carbon fixation at rank 1 and `causes` photorespiration, so the photosynthesis spine runs through it, and being a protein is not a reason to step over the card carrying the explanation. `carries()` is that test. **A `p:` placement may name its edge** — `['enables', 1]` in place of a bare rank, defaulting to `instance-of`. Typed the default way the reaction sits LEFT of the enzyme that runs it, because `instance-of` is BACKWARD, and photorespiration loses its only parent.
 
 ## Rank, and the spine flag
 
@@ -109,7 +111,9 @@ It is styled as a different ACT, not a smaller one: italic, and a blue no unit o
 
 **Ephemeral on the map, permanent in the drawer.** Rebuilding is not restoring — every build is a fresh call returning different cards — so a graft is saved to `localStorage` under the question that made it, and the question joins the dropdown beside the authored ones, in its host's unit, marked with a dashed rule. Asking it again deals the same cards back with no call. A saved graft whose host has since been renamed is skipped at load rather than becoming a dead door. Every accessor is wrapped: a private window throws on `localStorage` itself and the map still has to work.
 
-**A stale bake is silent**, so `.githooks/pre-commit` gates `graphdata.js`, `graphcontent.js`, the vectors and the baker on `--check`, which is offline and only compares hashes. The baker also carries the graph's only OFFLINE integrity check — edges resolving, every extension's `kind` existing, every placement pointing at a real node — because the rest of the QA list needs the laid-out graph and lives in the browser.
+**A stale bake is silent**, so `.githooks/pre-commit` gates `graphdata.js`, `graphcontent.js`, **`proteins/proteins.js`**, the vectors and the baker on `--check`, which is offline and only compares hashes. The baker also carries the graph's only OFFLINE integrity check — edges resolving, every extension's `kind` existing, every placement pointing at a real node, and every `p:` placement at a real protein and a real variant — because the rest of the QA list needs the laid-out graph and lives in the browser.
+
+**The specimens are in the corpus, and `proteins.js` is why it is gated.** The protein cards are spawned from that registry rather than declared in `graphdata.js`, so they were absent from the vectors entirely and the semantic fallback could not reach one — which is how rubisco stopped being findable that way the day it became a specimen. They bake as **`claim` rows, not a fourth kind**: a blurb is prose about a card in the same register a claim is, and fourteen rows is far too few to z-score as a pool of their own, since `bestByZ` reads the mean and sd WITHIN a kind. **Only the placed ones** — an unplaced protein is not on the map, and a row naming a node the page cannot resolve reads to a reader exactly like no answer at all.
 
 ### What belongs here
 

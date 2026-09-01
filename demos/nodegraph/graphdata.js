@@ -581,9 +581,6 @@
       ['C4', 'Carbon is caught in one cell and handed to another, so rubisco never meets much oxygen.'],
       ['CAM', 'Pores open at night and the carbon is held until morning. Cacti, in deserts.'],
     ] },
-  { id:'rubisco', type:'structure', unit:'photo', level:2, name:'Rubisco',
-    claim:'The most abundant protein on Earth, and the enzyme that fixes CO₂ onto sugar. It is slow, and it binds O₂ by mistake often.' },
-
   { id:'stomata', type:'structure', unit:'photo', level:5, name:'Stomata',
     claim:'Pores in the leaf. Open for CO₂ and water escapes; shut to keep water and the carbon supply stops.' },
   { id:'photorespiration', type:'process', unit:'photo', occursAt:3, name:'Photorespiration',
@@ -860,7 +857,6 @@
     ['light-reactions',  'instance-of',    'chemiosmosis',    1],
     ['nadph',            'analogous-to',   'carriers',        1],
     ['thylakoid',        'analogous-to',   'mitochondrion',   1],
-    ['rubisco',          'instance-of',    'enzyme',          1],
     ['redox',            'prerequisite-of','photosynthesis',  1],
     ['chloroplast',      'contains',       'thylakoid',       1],
 
@@ -900,7 +896,6 @@
     /* carbon, and the best question in the unit: almost everyone says soil */
     ['calvin',           'consumes',       'nadph',           1],
     ['carbon-fixation',  'part-of',        'calvin',          1],
-    ['rubisco',          'enables',        'carbon-fixation', 1],
     /* THE LOOP CLOSES, AND IT IS A LOOP. The sugar photosynthesis builds is
        the sugar respiration burns, so written as `produces` this edge ran
        calvin → glucose → glycolysis → carriers → etc → chemiosmosis →
@@ -916,7 +911,6 @@
        that lets carbon in is the one transpiration pulls water out of */
     ['stomata',          'enables',        'carbon-fixation', 2],
     ['stomata',          'contrasts-with', 'transpiration',   2],
-    ['rubisco',          'causes',         'photorespiration', 2],
     ['photorespiration', 'contrasts-with', 'carbon-fixation', 2],
 
     /* THE RECIPROCAL PAIR. Not chapters eight and nine: one system seen

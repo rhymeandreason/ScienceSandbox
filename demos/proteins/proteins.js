@@ -1532,11 +1532,10 @@
     },
     {
       key: 'rubisco', name: 'Rubisco', dir: 'proteins/rubisco',
-      blurb: 'The enzyme that puts carbon into the biosphere: it takes CO\u2082 out '
-           + 'of the air and sticks it onto a five-carbon sugar, which is where '
-           + 'nearly every carbon atom in every living thing came in. It is slow '
-           + 'and it grabs oxygen by mistake, so plants make enormous amounts of '
-           + 'it \u2014 there is more rubisco on Earth than any other protein.',
+      blurb: 'The enzyme that puts carbon into the biosphere: it sticks CO\u2082 from '
+           + 'the air onto a five-carbon sugar. It is slow and it grabs O\u2082 by '
+           + 'mistake, so plants make enormous amounts of it \u2014 there is more '
+           + 'rubisco on Earth than any other protein.',
       /* EC 4.1.1.39, on the COMPND record of both entries. A lyase: it adds
          CO2 across a double bond, which is the one kind of chemistry the class
          is named for. */

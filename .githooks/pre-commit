@@ -147,7 +147,11 @@ fi
 # LAST-RESORT labelled guess; the keyword search above it is untouched and the
 # page reads whatever rows it finds. Re-bake when it suits you:
 #   node tools/bake-graph-vectors.js
-if git diff --cached --name-only | grep -qE '^demos/(nodegraph/(graphdata|graphcontent)\.js|nodegraph/graphdata-vectors\.json|tools/bake-graph-vectors\.js)$'; then
+# proteins/proteins.js is in the pattern because the specimen cards are spawned
+# from it rather than declared in graphdata, so a blurb edit changes the corpus
+# and a key or variant rename breaks a placement — neither of which any other
+# checker can see.
+if git diff --cached --name-only | grep -qE '^demos/(nodegraph/(graphdata|graphcontent)\.js|nodegraph/graphdata-vectors\.json|proteins/proteins\.js|tools/bake-graph-vectors\.js)$'; then
   if ! node tools/bake-graph-vectors.js --gate > /tmp/bgv.$$ 2>&1; then
     tail -25 /tmp/bgv.$$; rm -f /tmp/bgv.$$
     echo ""
