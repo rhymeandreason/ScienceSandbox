@@ -135,7 +135,6 @@
      graph being built, which is the whole claim of the mode. The delay is per
      element, so this is one class and a `transition-delay`. */
   body.building .node.arriving { opacity: 0 !important; }
-  body.building #edges .arriving { opacity: 0; }
   body.building #edges path, body.building #edges polygon,
   body.building #edges text { transition: opacity .5s ease; }
 
@@ -2186,7 +2185,7 @@ function cineStep() {
   if (t < CINE_HOLD) return;                 /* the beat */
   if (document.body.classList.contains('intro')) {
     document.body.classList.remove('intro');
-    release();                               /* the graph arrives with the move */
+    stagger(waiting); waiting = [];          /* the graph arrives with the move */
   }
   const u = Math.min(1, (t - CINE_HOLD) / CINE_GLIDE);
   view.k = CINE_FROM + (cineK - CINE_FROM) * cineEase(u);
@@ -2195,64 +2194,75 @@ function cineStep() {
   if (u >= 1) cineEnd();
 }
 
-/* THE WAVE. Cards are held at zero and released in reading order — by hop
-   first, then left to right, which is the order the reader would have clicked
-   them in. An edge waits for its later end, or a line reaches a card that is
-   not there yet. The delay is cleared once it has played, or the next thing to
-   change a card's opacity — focus grades every card on every click — would
-   inherit the wait. */
-const ARRIVE_STEP = 100, ARRIVE_CAP = 4000, ARRIVE_MS = 550;
-let arriving = null;
+/* THE WAVE. The cards do not fade in where they already are — they JOIN, one
+   at a time, in reading order: by hop first, then left to right, which is the
+   order the reader would have clicked them in. Each arrival wakes the relax,
+   so the graph shifts to take the new card the way it does when a fan is
+   dealt, and what the reader watches is the graph being built rather than a
+   picture being revealed.
 
-function hold(ns, ls) {
-  for (const n of ns) if (n.el) n.el.classList.add('arriving');
-  for (const l of ls) for (const e of [l.el, l.arrow, l.label])
-    if (e) e.classList.add('arriving');
-  arriving = { ns, ls };
+   The layout is computed FIRST and whole — `dealBuild` deals the graph,
+   settles it and frames the camera — and then everything but the seed is
+   PARKED and re-admitted on the schedule. Dealing progressively instead would
+   mean framing a camera on a graph that does not exist yet, and every card
+   would land somewhere the next arrival moves it away from. A parked card
+   keeps the seat the layout gave it. */
+const ARRIVE_STEP = 100, ARRIVE_CAP = 4000;   /* ms between arrivals, and the last card's wait */
+let wave = 0;                   /* the current wave; a reseed invalidates the last */
+let waiting = [];               /* parked through the beat, dealt when it ends */
+/* the opening deal lays the whole graph out before anything is parked, so the
+   fans it calls must not park as they go — a parked card is out of `built`,
+   and the next hop would deal it again as if it were new */
+let dealing = false;
+
+/* out of the graph, holding its seat. The relax, the edges and the stage pool
+   all read the built set, so leaving it is all it takes to be gone. */
+function park(m) {
+  m.seatX = m.x; m.seatY = m.y;
+  built.delete(m);
+  const i = buildNodes.indexOf(m);
+  if (i >= 0) buildNodes.splice(i, 1);
+  for (let j = buildLinks.length - 1; j >= 0; j--) {
+    const l = buildLinks[j];
+    if (l.a === m || l.b === m) { showLink(l, false); buildLinks.splice(j, 1); }
+  }
+  unlight(m);
+  showEl(m, false);
 }
 
-function release() {
-  if (!arriving) return;
-  const { ns, ls } = arriving;
-  arriving = null;
-  const at = new Map();
-  ns.slice()
-    .sort((a, b) => (a.hop || 0) - (b.hop || 0) || a.x - b.x)
-    .forEach((n, i) => at.set(n, Math.min(i * ARRIVE_STEP, ARRIVE_CAP)));
-  const wait = [];
-  for (const n of ns) {
-    if (!n.el) continue;
-    const d = at.get(n) || 0;
-    n.el.style.transitionDelay = d + 'ms';
-    wait.push([n.el, d]);
-  }
-  for (const l of ls) {
-    const d = Math.max(at.get(l.a) || 0, at.get(l.b) || 0);
-    for (const e of [l.el, l.arrow, l.label])
-      if (e) { e.style.transitionDelay = d + 'ms'; wait.push([e, d]); }
-  }
-  /* Two frames, so the delays are in the style and the browser has taken the
-     starting opacity before the class holding it goes — with a timer racing
-     them, because rAF is throttled to about once a second in a hidden tab and
-     the wave would sit at zero until the reader came back. Whichever fires
-     first does the work; the other finds it done. */
+/* the fade a single card arrives on. Two frames so the browser takes the
+   starting opacity before the class goes, with a timer racing them: rAF is
+   throttled to about once a second in a hidden tab, and the card would sit at
+   zero until the reader came back. */
+function fadeIn(m) {
+  if (!m.el) return;
+  m.el.classList.add('arriving');
   let done = false;
   const go = () => {
     if (done) return;
     done = true;
-    for (const n of ns) if (n.el) n.el.classList.remove('arriving');
-    for (const l of ls) for (const e of [l.el, l.arrow, l.label])
-      if (e) e.classList.remove('arriving');
-    for (const [el, d] of wait) {
-      /* the fade's own end is the reliable signal; the timer is the fallback
-         for an element whose opacity did not actually change */
-      el.addEventListener('transitionend', () => { el.style.transitionDelay = ''; },
-                          { once: true });
-      setTimeout(() => { el.style.transitionDelay = ''; }, d + ARRIVE_MS);
-    }
+    if (m.el) m.el.classList.remove('arriving');
   };
   requestAnimationFrame(() => requestAnimationFrame(go));
   setTimeout(go, 60);
+}
+
+function stagger(list) {
+  const order = list.slice()
+    .sort((a, b) => (a.hop || 0) - (b.hop || 0) || a.x - b.x);
+  for (const m of order) park(m);
+  const id = ++wave;
+  order.forEach((m, i) => setTimeout(() => {
+    if (id !== wave || mode !== 'build') return;   /* a reseed owns the graph now */
+    reveal(m, m.seatX, m.seatY, null);
+    fadeIn(m);
+    /* the floor is applied on ARRIVAL as well as on focus: focus graded this
+       card while the graph still held it, and then the wave took it out and
+       put it back, so nothing has floored it since */
+    buildFull();
+    measure();
+    wake(0.5);                  /* the graph takes the new card */
+  }, Math.min(i * ARRIVE_STEP, ARRIVE_CAP)));
 }
 
 function cineEnd() {
@@ -2636,7 +2646,40 @@ function chainEnd(n) {
   return cur;
 }
 
+/* NOTHING IN A BUILT GRAPH IS FOG. The map's `out` tier is for the parts of it
+   the reader has never opened; here every card on screen was dealt because
+   they asked for it, and a graph seeded on a question spends two of its hops
+   before the neighbourhood even starts, so its outer ring fell to 0.18 and
+   read as unexplored. The grading inside the neighbourhood is kept — that is
+   what says which cards answer the question — and everything past it is
+   floored instead of fogged. */
+/* the floor, and a SECOND one for a graph grown from a question of any type.
+   A question spends its first hops on its own chain — the member it names, the
+   card that holds it — so what a card seed shows at one hop out, a question
+   seed is showing at three, and the same grading reads flatter and further
+   away for having travelled. */
+const BUILD_OUT = 0.75, BUILD_OUT_EDGE = 0.3;
+const BUILD_OUT_Q = 0.9, BUILD_OUT_EDGE_Q = 0.45;
+
 function buildFull() {
+  const door = !!(buildSeed && buildSeed.type === 'question');
+  const floor = door ? BUILD_OUT_Q : BUILD_OUT;
+  const edgeFloor = door ? BUILD_OUT_EDGE_Q : BUILD_OUT_EDGE;
+  for (const m of buildNodes) {
+    if (!m.el) continue;
+    m.el.classList.add('lit');            /* the fog rule also takes the clicks */
+    /* THE FOCUSED CARD IS NEVER FLOORED DOWN. It carries no inline opacity of
+       its own — the CSS gives it 1 — so a blanket floor made the seed of a
+       card-seeded graph the dimmest thing on screen. */
+    if (m === focused) { m.el.style.opacity = '1'; continue; }
+    const graded = m.el.style.opacity ? +m.el.style.opacity : floor;
+    m.el.style.opacity = String(Math.max(graded, floor));
+  }
+  for (const l of buildLinks) {
+    if (+l.el.getAttribute('stroke-opacity') >= edgeFloor) continue;
+    l.el.setAttribute('stroke-opacity', String(edgeFloor));
+    if (l.arrow) l.arrow.setAttribute('fill-opacity', String(edgeFloor));
+  }
   const chain = new Set();
   for (const m of buildNodes) {
     if (m.type !== 'question' && !m.synthetic) continue;
@@ -4484,8 +4527,7 @@ function expand(n) {
   });
   measure();
   wake(1);                    /* a fan dealt into an occupied region has work to do */
-  hold(kids, buildLinks.slice(before));
-  release();
+  if (!dealing) stagger(kids);   /* a dealt fan joins one card at a time */
   return kids;
 }
 
@@ -4697,6 +4739,7 @@ function dealBuild(seed) {
      the relax is free to shove leaves the camera framing a card that has since
      moved — measured, 150px below where it was centred. */
   seed.pinned = true;
+  dealing = true;
   let front = [seed];
   /* A QUESTION SPENDS ITS HOPS ON ITS OWN CHAIN. Its only edge is the answer,
      and where it names a kind there is a card between it and its host — so two
@@ -4708,6 +4751,7 @@ function dealBuild(seed) {
     for (const n of front) next.push(...expand(n));
     front = next;
   }
+  dealing = false;
   measure(); wake(1);
   /* settle BEFORE the camera reads the extents, or it frames the targets and
      the relax then walks the graph out of the shot */
@@ -4716,10 +4760,11 @@ function dealBuild(seed) {
   focus(seed);
   follow = null;                          /* the camera below is the arrival */
   buildCamera(seed);
-  /* everything but the seed is held back and released in order — with the beat
-     where there is one, and on the next frame where there is not */
-  hold(buildNodes.filter(m => m !== seed), buildLinks);
-  if (!document.body.classList.contains('intro')) release();
+  /* everything but the seed waits its turn — with the beat where there is one,
+     and from the next tick where there is not */
+  waiting = buildNodes.filter(m => m !== seed);
+  for (const m of waiting) park(m);
+  if (!document.body.classList.contains('intro')) { stagger(waiting); waiting = []; }
 }
 
 function leaveBuild() {
@@ -4778,7 +4823,7 @@ for (const b of modeBtns) b.addEventListener('click', () => {
 function buildFrom(n) {
   if (!n || (!n.el && !isQuery(n) && !n.mine)) return false;
   if (mode !== 'build') enterBuild(n);
-  else { dealBuild(n); focus(n); follow = null; buildCamera(n); }
+  else dealBuild(n);            /* which focuses the seed and frames it */
   syncModes();
   return true;
 }
