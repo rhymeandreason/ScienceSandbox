@@ -127,18 +127,21 @@ const box = CardStage.create({
    the two are told apart. The RUNGS carry base identity instead — the two
    claims cannot share one channel, and the backbone is the better home for
    strand since it is the thing that runs. */
-/* TWO STRAND COLOURS, SEPARATED BY VALUE AS WELL AS HUE. Antiparallel is only
-   visible if the two backbones are told apart, and two neutrals a step apart
-   were not enough to do it at card size.
+/* TWO STRAND COLOURS, DARK, IN HUES THE BASES DO NOT USE. Antiparallel is
+   only visible if the two backbones are told apart, and neither two neutrals
+   nor a slate-and-tan pair separated them at card size.
 
-   They were a blue and an orange until the rungs took over base identity, and
-   then strand A's blue sat on guanine's indigo and strand B's orange on
-   thymine's amber — the backbone reading as a fifth and sixth base. So these
-   two are chosen to be loud against EACH OTHER and quiet against the base
-   family: dark cool against light warm, neither saturated enough to compete
-   with a rung. Splitting them by value rather than by hue alone is also what
-   keeps them apart for a reader who cannot separate the hues. */
-const INK = { A: 0x51606d, B: 0xc3a179, flat: 0x8a8578 };
+   THE BASES OWN THE BRIGHT END. Guanine's indigo, cytosine's cyan, adenine's
+   red and thymine's amber are all saturated and light, so a backbone competes
+   the moment it goes anywhere near them — strand blue sat on guanine and
+   strand orange on thymine, and the backbone read as a fifth and sixth base.
+   Going DARK settles that by value: the rungs are what the eye lands on, and
+   the two strands still separate from each other.
+
+   Pine and wine are the two hues the base family leaves free — nothing in it
+   is green and nothing is magenta — and they are far enough apart in the blue
+   channel to stay separable for a reader who cannot use the red-green one. */
+const INK = { A: 0x27553f, B: 0x6d2a4c, flat: 0x8a8578 };
 
 /* THE BASE COLOURS ARE THE PALETTE'S, read back off the custom properties
    tokens-from-palette.js published at load. Never typed here: a caption and
