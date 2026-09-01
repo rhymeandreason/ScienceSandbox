@@ -169,8 +169,16 @@ function draw() {
    wide, so fitting its bounding sphere leaves most of the card empty. `radius`
    is the bake's own, measured over every atom it kept. */
 function reframe() {
-  const R = trace.radius;
-  Stage.frame(box.camera, box.cam, [{ x: 0, y: 0, rxz: R, hy: R }], { pad: 1.1 });
+  /* FIT THE EXTENTS, NOT THE BOUNDING SPHERE. `radius` is the furthest atom
+     from the centre, so fitting it frames a ball around a molecule that is
+     three times longer than it is deep and leaves most of the card empty.
+     `extents` are measured along the frame's own axes by the baker, which is
+     the frame the reader is looking down. scene.js solves the fit per axis
+     against the real frustum from there. */
+  const e = trace.extents;
+  const hw = e ? e[0] / 2 : trace.radius;
+  const hy = e ? e[1] / 2 : trace.radius;
+  Stage.frame(box.camera, box.cam, [{ x: 0, y: 0, rxz: hw, hy }], { pad: 1.1 });
   box.applyCam();
 }
 
@@ -230,6 +238,14 @@ fetch('data/dna-1BNA.json')
     document.getElementById('lede').textContent =
       'No bake. Run: node proteins/dna/tools/prep.js  (' + e.message + ')';
   });
+
+/* THE FIRST DRAW CAN BEAT THE CANVAS BEING SIZED, and `Stage.frame` bails when
+   the aspect is not ready — leaving the default frustum, which is a 1 A view
+   of a 50 A molecule. Nothing reframes afterwards on its own, so the fit is
+   hung off the element's own size instead of off load order. Fires once on
+   observe, which is also the initial fit. */
+new ResizeObserver(() => { if (trace) { reframe(); box.draw(); } })
+  .observe(document.getElementById('stage'));
 
 for (const id of ['rungs', 'stubs', 'bychain', 'sub'])
   document.getElementById(id).addEventListener('input', draw);

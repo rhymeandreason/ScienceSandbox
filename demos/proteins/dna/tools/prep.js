@@ -80,6 +80,21 @@ const T = Bake.assembleNA(chains);
 const B = FoldLib.basisFrom(
   [0, 1, 2].map(k => (chains.get(na[0])[0].Bc[k] - m0[k])), axis);
 
+/* THE EXTENTS ALONG THE FRAME'S OWN AXES, so a card can fit what it is
+   actually looking at rather than a ball around it. Measured after the basis
+   is chosen, because that is the frame the reader sees; measuring in the
+   deposited frame would describe a rotation nobody draws. */
+const ext = (() => {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const id of T.order) for (const p of T.chains[id].P)
+    for (let k = 0; k < 3; k++) {
+      const v = B[k][0] * p[0] + B[k][1] * p[1] + B[k][2] * p[2];
+      if (v < lo[k]) lo[k] = v;
+      if (v > hi[k]) hi[k] = v;
+    }
+  return hi.map((h, k) => Bake.r2(h - lo[k]));
+})();
+
 const out = {
   source: '1BNA.pdb',
   entry: '1BNA',
@@ -92,6 +107,7 @@ const out = {
   chains: T.chains,
   pairs,
   radius: T.radius,
+  extents: ext,
   view: B.map(ax => ax.map(Bake.r2)),
   frame: 'helix axis across the page',
 };
@@ -103,6 +119,7 @@ fs.writeFileSync(dst, JSON.stringify(out));
 const n = out.order.reduce((k, id) => k + out.chains[id].nums.length, 0);
 const kb = (fs.statSync(dst).size / 1024).toFixed(1);
 console.log(dst);
+console.log('  ' + out.extents.join(' x ') + ' A in the drawn frame');
 console.log('  ' + out.order.length + ' chains, ' + n + ' nucleotides, ' +
             pairs.length + ' base pairs, radius ' + out.radius + ' A, ' + kb + ' KB');
 for (const id of out.order)

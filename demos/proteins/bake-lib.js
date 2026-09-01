@@ -471,6 +471,7 @@ function naTrace(text, only, mod) {
     if (!chains.has(id)) chains.set(id, []);
     chains.get(id).push({
       num: r.num, name: r.name, base: baseLetter(r.name),
+      mod: !!(mod && mod.has(r.name)),
       ring: r.atoms.N9 ? 'pu' : 'py',
       P: back, C1: c1, Bc: bc, Bn: ringNormal(ring),
       /* The Watson-Crick edge nitrogen: purine N1 faces pyrimidine N3. */
@@ -567,6 +568,13 @@ function assembleNA(chains, centre) {
       nums: res.map(r => r.num),
       seq: res.map(r => r.base).join(''),
       ring: res.map(r => r.ring === 'pu' ? 'R' : 'Y').join(''),
+      /* THE MODIFIED RESIDUES, kept as {num, name} rather than folded into
+         `seq`. A modified base is still its parent letter for pairing and for
+         reading, but WHICH ones are modified is a fact about the molecule that
+         a tRNA lesson is largely about — and it is the fact that decides
+         whether the chain was read at all, since every one of them is a
+         HETATM. `seq` alone cannot say it: 5MC and C are both 'C'. */
+      mods: res.filter(r => r.mod).map(r => ({ num: r.num, name: r.name })),
       P: res.map(r => move(r.P)),
       C1: res.map(r => move(r.C1)),
       Bc: res.map(r => move(r.Bc)),

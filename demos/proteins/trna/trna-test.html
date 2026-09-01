@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>tRNA-Phe — where the ladder stops</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS ENTRY. 1BNA settled that a joined rung reads. It could not
+     settle anything else, because it is a perfect duplex: every
+     nucleotide paired, no breaks, no modified bases, straight. 1EHZ is
+     the opposite on all three counts, and each one exercises a path that
+     was written blind.
+
+       the stub          36 of 76 nucleotides have no Watson-Crick
+                         partner. On 1BNA that number was zero, so the
+                         stub was drawn and never seen. If the loops do
+                         not read as visibly not-a-ladder, the rung is
+                         not carrying the claim we built it for.
+       modified bases    fourteen, all HETATM. The baker opts in and
+                         asserts the count against SEQRES; what is left
+                         to look at is whether they are INVISIBLE in the
+                         render, which is the point — they are part of
+                         the chain, not decorations on it.
+       a solved frame    an L, not a helix. No axis to stand it on.
+
+     WHAT THE PICTURE DELIBERATELY DOES NOT SHOW. The L is held shut by
+     tertiary contacts, and every one of them is a pair `basePairs`
+     refuses to find: the G15-C48 Levitt pair, G19-C56, the
+     reverse-Hoogsteen T54-A58. So the two arms are drawn joined by
+     nothing, which is an honest report of what a Watson-Crick test
+     found and NOT an honest picture of the molecule. A lesson has to
+     say so out loud, or it teaches that the fold is held by the
+     backbone.
+
+     Two stem pairs are missing for the same reason and both are worth
+     seeing: G4-U69 is a G-U WOBBLE, real pairing at 3.92 A between the
+     N1 and N3 that a Watson-Crick test is right to refuse, and
+     A31-PSU39 is a pseudouridine pair at 4.80 A.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+
+<style>
+  body { background: var(--h-paper); color: var(--h-ink);
+         font-family: var(--h-ui); }
+  .wrap { max-width: 62rem; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+  h1 { font-family: var(--h-display); font-weight: 500; margin: 0 0 .3rem; }
+  .lede { max-width: 46rem; margin: 0 0 1rem; }
+  #stage { width: 100%; height: 62vh; min-height: 380px; }
+  .row { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;
+         margin: .6rem 0 0; }
+  .row label { display: flex; align-items: center; gap: .4rem; }
+  #facts { margin-top: .8rem; }
+  #facts td { padding: .1rem .9rem .1rem 0; border-top: 1px solid var(--h-line);
+              vertical-align: top; }
+  #facts td:first-child { color: var(--h-muted); white-space: nowrap; }
+  #facts .n { font-variant-numeric: tabular-nums; }
+  #tris { color: var(--h-muted); }
+  .miss { color: var(--h-muted); max-width: 46rem; margin-top: 1rem;
+          border-left: 2px solid var(--h-line); padding-left: .9rem; }
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <h1>tRNA-Phe, and where the ladder stops</h1>
+  <p class="lede" id="lede">Loading…</p>
+
+  <div id="stage"></div>
+
+  <div class="row">
+    <label><input type="checkbox" id="rungs" checked> Pairs</label>
+    <label><input type="checkbox" id="stubs" checked> Unpaired</label>
+    <label>Samples/nt <input type="range" id="sub" min="2" max="16" value="8" style="width:8rem"></label>
+    <span id="tris" class="n"></span>
+  </div>
+
+  <table id="facts"></table>
+
+  <p class="miss" id="miss"></p>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/nucleic.js"></script>
+<script>
+'use strict';
+
+const box = CardStage.create({
+  mount: document.getElementById('stage'),
+  stage: { ortho: true, turn: 'trackball' },
+  /* Straight on: the bake has already turned the L into the frame, and a
+     card's usual oblique default would undo it. */
+  cam: { theta: 0, phi: Math.PI / 2, r: 90 },
+  autoplay: false,
+});
+
+/* ONE COLOUR FOR THE CHAIN, because there is only one chain and colouring it
+   by anything here would be inventing a claim. The two that ARE claims: a pair
+   and a nucleotide without one. */
+const INK = { chain: 0x8a8578, rung: 0x6f8f5f, stub: 0xb03a48 };
+const mats = {};
+const matFor = k => (mats[k] = mats[k] || new THREE.MeshStandardMaterial({
+  color: INK[k], roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide }));
+
+let trace = null;
+const group = new THREE.Group();
+box.root.add(group);
+
+function clear() {
+  for (const c of group.children.slice()) {
+    group.remove(c);
+    if (c.geometry) c.geometry.dispose();
+  }
+}
+
+function draw() {
+  if (!trace) return;
+  clear();
+  const sub = +document.getElementById('sub').value;
+  const parts = NucleicLib.build(THREE, trace, { sub });
+
+  for (const s of parts.strands) group.add(new THREE.Mesh(s.geo, matFor('chain')));
+  if (parts.rungs && document.getElementById('rungs').checked)
+    group.add(new THREE.Mesh(parts.rungs, matFor('rung')));
+  if (parts.stubs && document.getElementById('stubs').checked)
+    group.add(new THREE.Mesh(parts.stubs, matFor('stub')));
+
+  reframe();
+  document.getElementById('tris').textContent =
+    NucleicLib.triangles(trace, { sub }).toLocaleString() + ' triangles';
+  box.draw();
+}
+
+function reframe() {
+  /* FIT THE EXTENTS, NOT THE BOUNDING SPHERE. `radius` is the furthest atom
+     from the centre, so fitting it frames a ball around a molecule that is
+     three times longer than it is deep and leaves most of the card empty.
+     `extents` are measured along the frame's own axes by the baker, which is
+     the frame the reader is looking down. scene.js solves the fit per axis
+     against the real frustum from there. */
+  const e = trace.extents;
+  const hw = e ? e[0] / 2 : trace.radius;
+  const hy = e ? e[1] / 2 : trace.radius;
+  Stage.frame(box.camera, box.cam, [{ x: 0, y: 0, rxz: hw, hy }], { pad: 1.1 });
+  box.applyCam();
+}
+
+function aim(v) {
+  if (!v) return;
+  const m = new THREE.Matrix4().set(
+    v[0][0], v[0][1], v[0][2], 0,
+    v[1][0], v[1][1], v[1][2], 0,
+    v[2][0], v[2][1], v[2][2], 0,
+    0, 0, 0, 1);
+  group.setRotationFromMatrix(m);
+}
+
+/* EVERY NUMBER READ FROM THE BAKE. The modified count especially: it is the
+   one this entry exists to prove, and a typed 14 would still say 14 the day
+   the baker stopped opting in. */
+function facts() {
+  const ch = trace.chains[trace.order[0]];
+  const n = ch.nums.length;
+  const unpaired = n - trace.pairs.length * 2;
+  const rows = [
+    ['Entry', trace.entry + ' — ' + trace.what],
+    ['Method', (trace.method || '?') + (trace.resolution ? ', ' + trace.resolution + ' A' : '')],
+    ['Chain', trace.order.join('') + '  (' + n + ' nucleotides)'],
+    ['Sequence', ch.seq],
+    ['Watson-Crick pairs', trace.pairs.length + '  — ' + trace.pairsFrom],
+    ['Unpaired', unpaired + '  (' + Math.round(unpaired / n * 100) + '% of the chain)'],
+    ['Modified bases', ch.mods.length + '  — ' + ch.mods.map(m => m.name + m.num).join(', ')],
+    ['Extents', (trace.extents || []).join(' x ') + ' A'],
+    ['Frame', trace.frame],
+  ];
+  document.getElementById('facts').innerHTML = rows
+    .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
+
+  document.getElementById('lede').innerHTML =
+    'Four stems and three loops. <b style="color:#5d7a50">' + trace.pairs.length
+    + ' Watson-Crick pairs</b> are drawn as rungs; the other '
+    + '<b style="color:#9c3340">' + unpaired + ' nucleotides</b> have no partner '
+    + 'the test would accept, and are drawn as half a rung. '
+    + ch.mods.length + ' of the ' + n + ' bases are chemically modified, and every '
+    + 'one of them is a HETATM — read the file for ATOM records only and '
+    + (n - ch.mods.length) + ' nucleotides come back instead of ' + n + '.';
+
+  /* THE UNDER-CLAIM, SAID OUT LOUD. The drawing shows the two arms of the L
+     joined by nothing, and that is a fact about the test rather than about the
+     molecule. A page that leaves it unsaid teaches that the fold is held by
+     the backbone. */
+  document.getElementById('miss').innerHTML =
+    '<b>What this picture does not show.</b> The L is held shut by tertiary '
+    + 'contacts, and every one of them is a pair the Watson-Crick test refuses: '
+    + 'the G15·C48 Levitt pair, G19·C56, the reverse-Hoogsteen '
+    + 'T54·A58. Two stem positions are missing for the same reason — '
+    + 'G4·U69 is a G·U <b>wobble</b> at 3.92 Å between N1 and N3, '
+    + 'and A31·Ψ39 is a pseudouridine pair at 4.80 Å. Both are '
+    + 'real pairing that is not Watson-Crick. The drawing under-claims on '
+    + 'purpose: it never invents a rung it did not find.';
+}
+
+fetch('data/trna-1EHZ.json')
+  .then(r => r.json())
+  .then(t => { trace = t; aim(t.view); facts(); draw(); })
+  .catch(e => {
+    document.getElementById('lede').textContent =
+      'No bake. Run: node proteins/trna/tools/prep.js  (' + e.message + ')';
+  });
+
+/* THE FIRST DRAW CAN BEAT THE CANVAS BEING SIZED, and `Stage.frame` bails when
+   the aspect is not ready — leaving the default frustum, which is a 1 A view
+   of a 50 A molecule. Nothing reframes afterwards on its own, so the fit is
+   hung off the element's own size instead of off load order. Fires once on
+   observe, which is also the initial fit. */
+new ResizeObserver(() => { if (trace) { reframe(); box.draw(); } })
+  .observe(document.getElementById('stage'));
+
+for (const id of ['rungs', 'stubs', 'sub'])
+  document.getElementById(id).addEventListener('input', draw);
+</script>
+</body>
+</html>
