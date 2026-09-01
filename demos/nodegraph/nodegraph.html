@@ -1989,7 +1989,7 @@ function step() {
    whatever revealed it. Column pull is firm, the row target soft, and the
    friction heavy — cards settle into place rather than bouncing into it. */
 function buildStep() {
-  const REPEL = 20000, SPRING = 0.012, COLUMN = 0.06, REST = 420, VMAX = 16, GAP = 44;
+  const REPEL = 20000, SPRING = 0.012, COLUMN = 0.06, REST = 620, VMAX = 16, GAP = 44;
   for (const n of buildNodes) { n.vx *= 0.76; n.vy *= 0.76; }
 
   for (let i = 0; i < buildNodes.length; i++) {
@@ -4109,7 +4109,7 @@ for (const l of links) paintLink(l);
    map's own relax running over the BUILT set alone. */
 const BUILD_SEED = 'q-machine';   /* How does a chain of molecules become a machine... */
 const BUILD_HOPS = 2;             /* dealt at the start; every click deals one more */
-const BUILD_COL = 560;            /* x between hops */
+const BUILD_COL = 820;            /* x between hops */
 const BUILD_GAP = 46;             /* y between siblings in one fan */
 
 let mapSave = null;
@@ -4149,6 +4149,16 @@ function reveal(n, x, y, from) {
    seventeen cards in one fan. */
 const BUILD_FAN = 5;
 
+/* a deterministic per-card drift, hashed from the id: the bow and the rank
+   only separate cards that DIFFER in those, and a fan of five rank-1 edges has
+   neither to work with. Hashed rather than random so the graph is the same
+   every session, which is what spatial memory needs. */
+function wobble(id, span) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return ((Math.abs(h) % 1000) / 1000 - 0.5) * span;
+}
+
 function expand(n) {
   const seen = new Set();
   const kids = linksOf(n)
@@ -4158,6 +4168,8 @@ function expand(n) {
     .filter(m => !built.has(m) && !seen.has(m) && seen.add(m))
     .slice(0, BUILD_FAN);
   if (!kids.length) return [];
+  const rankTo = m => Math.min(...linksOf(n)
+    .filter(l => l.a === m || l.b === m).map(l => l.rank));
 
   /* THE FAN OPENS RIGHT WHATEVER THE ARROW SAYS. On the map an edge's
      direction is the reading order and it decides which side a card sits;
@@ -4177,7 +4189,13 @@ function expand(n) {
     const t = kids.length === 1 ? 0 : (i / (kids.length - 1)) * 2 - 1;   /* -1 … +1 */
     m.ty = y + hs[i] / 2;
     y += hs[i];
-    m.tx = n.x + BUILD_COL - Math.abs(t) * 70;      /* a gentle bow, not an arc */
+    /* A HOP IS NOT A COLUMN. Every fan reaching the same distance put twelve
+       cards in a 180px band and the hop read as a wall. Two things break it,
+       both read from the data: the BOW, which sets the ends of a fan back from
+       its middle, and the RANK, which puts enrichment further out than the
+       spine — so how far right a card sits says how well it is attached. */
+    m.tx = n.x + BUILD_COL - Math.abs(t) * 160 + (rankTo(m) - 1) * 150
+           + wobble(m.id, BUILD_COL * 0.45);
     m.x = m.tx; m.y = m.ty; m.vx = m.vy = 0;
   });
   measure();
