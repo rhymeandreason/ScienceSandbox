@@ -27,18 +27,47 @@
      middle of the stage. Keep --trayw and the .tstrip tile width in step. */
   :root{ --trayw:152px; }
 
-  /* THE ENZYME'S NAME LEADS THE RIGHT RAIL, above the step's verdicts: the
-     name is what the step IS, the verdicts are a reading of it. ONE FLEX
-     COLUMN rather than two offsets — the name runs to one or two lines, and a
-     second absolute top would either gap or collide as it does. The children
-     give up pathways.css's own positioning to sit in it. */
-  #enzrail{position:absolute;right:26px;top:96px;z-index:5;max-width:230px;
-    display:flex;flex-direction:column;align-items:flex-end;gap:20px;
-    text-align:right;pointer-events:none}
-  #enzname,#enzmeta{position:static;right:auto;top:auto;max-width:100%}
-  /* the verdicts are pressable; the rail itself is not (see drawMeta) */
+  /* THE ENZYME'S NAME, BOTTOM-RIGHT: a caption on the blob it names, so it
+     leaves pathways.css's place in the readout column and takes #tools'
+     corner. Left-aligned — the corner's other controls are, and it is a label
+     on the scene, not a right rail any more. */
+  #tools #enzname{position:static;max-width:100%}
+  /* ON THE SIDEBAR'S OWN LEFT MARGIN, not the screen's right edge: the caption
+     is the bottom of that column even though it is fixed to the corner. The
+     two numbers are pathways.css's 316px sidebar and its 20px padding — move
+     either and this stops lining up. */
+  @media (min-width:921px){
+    #tools{right:20px;width:calc(316px - 40px);align-items:flex-start}
+  }
+
+  /* AIR AT THE TOP OF THE COLUMN, so the verdicts start clear of the rail
+     rather than against it. */
+  #side{padding-top:26px}
+
+  /* THE HEAD OF THE SIDEBAR'S COLUMN: the enzyme's name, then the step's
+     verdicts. Both leave pathways.css's absolute placement over the stage and
+     stack here instead, so name, verdicts and the panels they open read down
+     one column and nothing lands on anything. LEFT-ALIGNED with the panels
+     under them: pathways.css hangs these off the stage's right edge, and in a
+     column that reads as a second margin. #enzmeta also carries its own
+     flex-end from there, so it has to be turned round itself. */
+  #enzrail{display:flex;flex-direction:column;align-items:flex-start;gap:18px;
+    margin:0 0 18px;text-align:left;pointer-events:none}
+  #enzrail #enzmeta{align-items:flex-start}
+  /* pathways.css sets these on the ids, so inheriting left is not enough */
+  #enzrail #enznote,#tools #enzname{text-align:left}
+  /* the note keeps editorial.css's 232px measure — it was set for the rag */
+  #enzmeta,#enznote{position:static;right:auto;bottom:auto}
+  #enzmeta{max-width:100%}
+  /* the verdicts are pressable; the rail itself is not (see drawEnzMeta) */
   #enzmeta{pointer-events:auto}
-  @media (max-width:920px){ #enzrail{right:12px;max-width:150px} }
+
+  /* THE PATHWAY MAP'S DOOR, ON THE RAIL'S LINE. Mirrors #pagetitle: absolute
+     on the other edge, centred on the row, so the ten numbers stay centred on
+     the page whatever the button says. A PILL — it opens a panel rather than
+     changing the stage, and the round end says so beside the round numbers. */
+  #allsteps{position:absolute;right:22px;top:50%;transform:translateY(-50%);
+    border-radius:999px;padding:7px 16px}
 
   /* THE SIDEBAR IS AN ACCORDION. The section is the card, so the two readouts
      give up their own paper inside it — but only inside it: the ledger keeps
@@ -62,6 +91,11 @@
     border:0;box-shadow:none;transform:none}
   /* the header says both of these already */
   #acc #ledger .lhead,#acc #couplebox .cx,#acc #couplebox .cpl-h{display:none}
+  /* NO ENTRY ANIMATION IN A PANEL. #couplebox.in and #ledger.pin both wait
+     (.8s on the card) and hold the opening keyframe through the wait, which is
+     right for a note arriving with the molecule and wrong for a section you
+     just pressed open: it reads as the header doing nothing. */
+  #acc #couplebox.in,#acc #ledger.pin{animation:none}
 
   /* THE CLOSING TALLY, 2x2 — four things come out of ten steps, and the ledger
      is one of them. The box is pathways.css's; the shape is the fact. */
@@ -89,6 +123,10 @@
   <div id="railbar">
     <h1 id="pagetitle" class="chrome-title">Glycolysis</h1>
     <div id="rail"></div>
+    <!-- THE PATHWAY MAP'S DOOR, opposite the title: it is the ten numbers
+         written out, so it belongs on their line. Absolutely positioned for
+         the same reason the title is — the rail stays centred on the page. -->
+    <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
   </div>
   <div id="stage">
     <!-- UNDER the canvas: glow shows through the alpha, so it sits behind the
@@ -103,17 +141,6 @@
     <div id="cglow"><div class="sglow"></div></div>
     <canvas id="gl"></canvas>
     <div id="plates" aria-live="polite"></div>
-    <!-- THE RIGHT RAIL'S HEAD: the enzyme's name, then what kind of step this
-         is (coupled or not, one-way or not — both doors into the energy card,
-         #couplebox). ONE positioned box with the two stacked in it, so the
-         verdicts sit under the name whatever height either takes. -->
-    <div id="enzrail">
-      <div id="enzname" hidden></div>
-      <div id="enzmeta" hidden></div>
-    </div>
-    <!-- THE ONE THING TO CARRY AWAY from this step, under the rail's head.
-         Read off the step's `takeaway`, never typed here. -->
-    <div id="enznote" hidden></div>
     <div id="flyers" aria-hidden="true"></div>
     <!-- the click targets that sit ON the molecule — see .spot -->
     <div id="spots"></div>
@@ -154,16 +181,13 @@
       <div id="rxmsg" aria-live="polite"><p></p></div>
     </div>
   </div>
-  <!-- ONE COLUMN, bottom-right: the two toggles and the pathway map. Anchored
-       to the BOTTOM edge and grows upward, so a new control is one more child
-       and nothing else moves — never give these their own `bottom`. -->
+  <!-- BOTTOM-RIGHT: the enzyme's name, in the corner the switches used to hold.
+       THE ENZYMES ARE ALWAYS ON — the blob is the step's catalyst, not an
+       option — so the name is a caption on it rather than a readout in the
+       column. Anchored to the BOTTOM edge and grows upward, so a second
+       caption is one more child and nothing else moves. -->
   <div id="tools">
-    <!-- The box kept its shape for a second switch: the ledger's used to sit
-         beside this one, and is now a panel in the sidebar's accordion. -->
-    <div id="toggles" class="checkgroup">
-      <label id="showenz" class="btn btn--check"><input type="checkbox"> Show enzymes</label>
-    </div>
-    <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
+    <div id="enzname" hidden></div>
   </div>
   <div id="utils">
     <button id="restart"><i class="ph-bold ph-arrow-counter-clockwise"></i> Restart</button>
@@ -172,22 +196,30 @@
   <!-- Not a panel with its own voice — a stack of readouts beside the stage:
        tally, the step's energy picture, the step's commentary. -->
   <div id="side">
+    <!-- ONE COLUMN, top to bottom: what the enzyme IS, what kind of step it is,
+         then the two panels. The verdicts are doors into the energy curve, so
+         they stand directly on it — the card no longer lands over them. -->
+    <div id="enzrail">
+      <div id="enzmeta" hidden></div>
+      <!-- THE ONE THING TO CARRY AWAY from this step, last before the panels.
+           Read off the step's `takeaway`, never typed here. -->
+      <div id="enznote" hidden></div>
+    </div>
     <!-- THE TWO READOUTS, ONE ACCORDION. Both run long and the column is not
          tall enough for both, so opening one closes the other (see setPanel).
          The section headers are the only way in: the ledger's checkbox is
          gone, and the energy card's ✕ and its own heading are the header. -->
     <div id="acc" hidden>
+      <section class="accsec" id="acc-energy" hidden>
+        <button class="acch" type="button" data-panel="energy" aria-expanded="false">
+          Energy curve<i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
+        <div class="accb" hidden><div id="couplebox" class="note"></div></div>
+      </section>
       <section class="accsec" id="acc-ledger">
         <button class="acch" type="button" data-panel="ledger" aria-expanded="false">
           Running ledger<i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
         <!-- starts away: pinned up when the panel opens — see placeLedger -->
         <div class="accb" hidden><div id="ledger" class="sticky hid"></div></div>
-      </section>
-      <section class="accsec" id="acc-energy" hidden>
-        <button class="acch" type="button" data-panel="energy" aria-expanded="false">
-          <span id="acc-energy-h">Energy curve</span>
-          <i class="ph-bold ph-caret-down accc" aria-hidden="true"></i></button>
-        <div class="accb" hidden><div id="couplebox" class="note"></div></div>
       </section>
     </div>
     <div id="card"><div id="stepnote" class="note"></div></div>
@@ -1152,7 +1184,6 @@ const ledgerOn=()=>panel==='ledger'||tallyOn();
 const accEl=document.getElementById('acc');
 const accSec={ledger:document.getElementById('acc-ledger'),
               energy:document.getElementById('acc-energy')};
-const accEnergyH=document.getElementById('acc-energy-h');
 accEl.addEventListener('click',e=>{
   const h=e.target.closest('[data-panel]');
   if(h) setPanel(h.dataset.panel);
@@ -1174,9 +1205,6 @@ function drawAcc(){
   accSec.ledger.hidden=!showL;
   accSec.energy.hidden=!st;
   accEl.hidden=!showL && !st;
-  // the header carries the card's own title, so it says which picture is under
-  // it — the same fact drawCouple draws from
-  if(st) accEnergyH.textContent = st.couple ? 'Coupled reaction' : 'Energy curve';
   for(const k in accSec){
     const open=panel===k && !accSec[k].hidden;
     accSec[k].querySelector('.acch').setAttribute('aria-expanded',open?'true':'false');
@@ -1544,12 +1572,9 @@ const tallyOn=()=>!intro && !reviewing && done>=nSteps;
 function drawTally(){
   const on=tallyOn();
   tallyEl.hidden=!on;
-  /* THE SWITCHES GO DOWN WITH THE STAGE, and are not up yet at the intro:
-   * neither can change either screen. On the tally the molecules are gone, so
-   * the enzyme blobs have nothing to sit behind and the ledger is standing in
-   * the grid whatever the checkbox says; at the intro there is no step to have
-   * an enzyme and no arithmetic to show. */
-  document.getElementById('toggles').hidden=on||intro;
+  /* THE CORNER GOES DOWN WITH THE STAGE, and is not up at the intro either:
+   * there is no step at either end, so no enzyme for the caption to name. */
+  document.getElementById('tools').hidden=on||intro;
   // THE STICKER MOVES, never a second copy — drawLedger keeps writing into the
   // same element wherever it is standing. Only on a change of parent, so an
   // ordinary redraw does not re-run its pin-up animation.
@@ -1596,8 +1621,9 @@ const enzEl=document.getElementById('enzymes');
 const enzNameEl=document.getElementById('enzname');
 const enzMetaEl=document.getElementById('enzmeta');
 const enzNoteEl=document.getElementById('enznote');
-const enzBtn=document.getElementById('showenz');
-let showEnz=false;
+// ALWAYS ON. The blob is what the step's catalyst does, not a view of it, and
+// a lesson about enzymes that opens with them switched off argues the reverse.
+const showEnz=true;
 // The enzyme of the step being described — the same index the heading, tray and
 // coupling box use, so on the review beat it is still the one that just ran.
 const enzOf=()=>{ const i=focusStep(); return (!intro && i<nSteps) ? STEPS[i] : null; };
@@ -1720,14 +1746,6 @@ function placeEnz(){
   ENZ.update(on.map(grp=>grp.map(j=>lanes[j].g)),
              {key:enzKey(), pin:split && on.every(laneSettled)});
 }
-const enzBox=enzBtn.querySelector('input');
-enzBox.onchange=()=>{ showEnz=enzBox.checked; drawEnz(); };
-// A RELOAD RESTORES THE BOX, NOT THE FLAG: browsers carry checkbox state across
-// a soft reload, so a checked box would sit over hidden enzymes. Take the box
-// as the truth rather than clearing it, so a dev-server reload keeps what was
-// on screen.
-showEnz=enzBox.checked;
-
 const actEl=document.getElementById('actbtn');
 // The button is main.css's .pill. Every className write below REPLACES the
 // attribute, so the base has to be re-stated each time — a bare '' silently
