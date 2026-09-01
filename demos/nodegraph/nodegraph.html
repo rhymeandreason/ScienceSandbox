@@ -32,6 +32,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- SERVED AT /nodes BY A vercel.json REWRITE, which does not move the file:
+     without this every ../lib and every clip path would resolve against `/`.
+     Correct at its own path and on the dev server too. docs/deploy.md. -->
+<base href="/demos/nodegraph/">
 <title>Biology 101 node graph</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -398,10 +402,14 @@
 
   /* ---- nodes ----------------------------------------------------------- */
 
+  /* the cursor says whether there is anything left to reach: zoom-in only on
+     a node that is still fogged AND still has a dark neighbour. An opened
+     card has nothing left to open, and a walked-out corner of the map stops
+     promising more. `canexpand` is recomputed in measure(). */
   .node {
     position: absolute;
     transform: translate(-50%, -50%);
-    cursor: zoom-in;
+    cursor: pointer;
     user-select: none;
     border-radius: 4px;
     transition: border-color .15s, box-shadow .15s, opacity .18s;
@@ -475,6 +483,18 @@
   .node.card.unlit .credit { display: none; }
   /* a poster fills its frame; the generated stills are 16:9 in a 4:3 thumb */
   .node .thumb .still.poster { object-fit: cover; }
+
+  .node.canexpand { cursor: zoom-in; }
+  /* the word the cursor is already saying, for whoever does not read cursors */
+  #expandtip {
+    position: fixed; top: 0; left: 0; z-index: 9; pointer-events: none;
+    font-family: var(--sans); font-size: 0.55rem; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    padding: 0.24rem 0.42rem;
+    box-shadow: 0 6px 16px -10px rgba(20, 22, 26, .5);
+  }
+  #expandtip[hidden] { display: none; }
 
   .node.card .tags {
     display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem;
@@ -1005,6 +1025,7 @@
 </div>
 
 <div class="hint" id="hint"></div>
+<div id="expandtip" hidden>expand</div>
 
 <!-- Map reads the baked graph. Build grows one out of a seed card. -->
 <div class="modes" id="modes" role="group" aria-label="how the graph is drawn">
@@ -2339,6 +2360,18 @@ const applyView = () => {
 
 let dragNode = null, dragging = null, last = null, travel = 0;
 
+/* the tip rides the cursor and only over a node that still has something to
+   open. It is hidden the moment a drag starts: mid-pan it is not an offer. */
+const expandTip = document.getElementById('expandtip');
+canvas.addEventListener('pointermove', e => {
+  const on = !dragging && e.target.closest('.node.canexpand');
+  expandTip.hidden = !on;
+  if (on) expandTip.style.transform =
+    'translate(' + (e.clientX + 16) + 'px,' + (e.clientY + 18) + 'px)';
+});
+canvas.addEventListener('pointerleave', () => { expandTip.hidden = true; });
+canvas.addEventListener('pointerdown', () => { expandTip.hidden = true; });
+
 /* nothing on the map is draggable in the HTML sense — the CSS covers WebKit,
    this covers the rest, and both leave the card's own drag alone */
 canvas.addEventListener('dragstart', e => e.preventDefault());
@@ -2480,10 +2513,23 @@ let focused = null;
    reader zooms freely through it, so sizing marks at the current zoom put
    seventeen labels on top of each other at the zoom the map opens on. Only
    the marks grow: a lit card is a card, and it is already the bigger box. */
+/* WHAT "MORE" MEANS DIFFERS BY MODE, and asking the map's question in Build
+   says every card is finished, because Build lights everything it deals. On
+   the map a node has more when a neighbour is still fogged; in Build it has
+   more when `expand` would still find something to deal — a neighbour not yet
+   built, or a question the bar is holding for it. */
+const canOpen = n => mode === 'build'
+  ? linksOf(n).some(l => {
+      const o = l.a === n ? l.b : l.a;
+      return !o.satellite && !built.has(o);
+    }) || QUERIES.some(q => q.anchorId === n.id && !built.has(q))
+  : !n.on && links.some(l => l.a === n ? !l.b.on : l.b === n ? !l.a.on : false);
+
 function measure() {
   for (const n of active()) {
     const grow = n.on ? 1 : MARKK_MAX / markk;
     sizeOf(n, grow);
+    n.el.classList.toggle('canexpand', canOpen(n));
   }
   wake(0.4);
 }
