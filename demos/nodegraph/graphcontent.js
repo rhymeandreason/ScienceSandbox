@@ -180,7 +180,9 @@
     ['w:ice',       { 'ice-density': 1 }],
     ['w:solvation', { solvent: 1 }],
     ['w:heat',      { 'spec-heat': 1, 'temp-buffer': 2 }],
-    ['b:water',     { 'water-mol': 1, polarity: 1 }],
+    /* water-mol only: the same build on `polarity` illustrated one molecule
+       under a claim that is about every molecule */
+    ['b:water',     { 'water-mol': 1 }],
 
     ['r:quaternary', { quaternary: 1 }],
     ['r:tertiary',   { tertiary: 1 }],

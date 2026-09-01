@@ -702,7 +702,8 @@
   .node:hover { border-color: var(--accent); }
   .node.question:hover { background: var(--card); border-color: var(--line); color: var(--ink); }
 
-  .focusing .node { opacity: 0.18; pointer-events: none; }
+  /* the number is DIM.out in the script; this is its fallback */
+  .focusing .node { opacity: var(--dim-out, 0.18); pointer-events: none; }
   .focusing .node.lit { opacity: 1; pointer-events: auto; }
   .focusing .node.hop2 { opacity: 1; }
   .focusing .node.question.lit {
@@ -1951,6 +1952,30 @@ document.addEventListener('click', e => {
   focus(n);
 });
 
+/* ---- FOCUS DIMMING: every number, in one place ---------------------------
+   Distance from the focused card is carried by OPACITY ALONE (colour is spoken
+   for: red means contrasts-with). Two things fade together — the CARD and the
+   EDGE that reaches it — and `rank` is shared between them so they cannot say
+   different things about the same relation.
+
+   To make a neighbour more present, raise `rank`. To make the near ring louder
+   without touching the far one, raise `card.hop1`. `out` is mirrored into CSS
+   below, so the fogged rest of the map moves from here too.  */
+const DIM = {
+  rank: { 1: 1, 2: 0.6, 3: 0.45 },   /* what a rank is worth, card and edge */
+  card: { hop1: 1, hop2: 0.8 },     /* multiplier by distance, on the CARD  */
+  edge: { hop1: .8, hop2: 0.6 },   /* ... and on the EDGE. Lower: a line is
+                                        thin, and reads louder than it measures */
+  out: 0.18,                         /* a card outside the neighbourhood     */
+  outEdge: 0.06,                     /* ... and an edge with an end outside  */
+  arrow: 1.1,                        /* an arrowhead is small, so it is lifted */
+};
+/* the fog is a CSS rule and the grading is JS: this is what keeps one number
+   behind both, so `out` above is the only place it is written */
+document.documentElement.style.setProperty('--dim-out', DIM.out);
+
+const byRank = r => DIM.rank[r] || DIM.rank[3];
+
 function focus(n) {
   focused = n;
   walk = null;                  // a click lands off the fan; goWalk restores its own
@@ -1966,17 +1991,34 @@ function focus(n) {
   follow = n; followFrames = 700;
   if (n.on) goLive(n);          // the clicked card re-fronts in the pool
   document.body.classList.add('focusing');
-  for (const m of nodes) m.el.classList.remove('lit', 'hub', 'hop2');
+  for (const m of nodes) { m.el.classList.remove('lit', 'hub', 'hop2'); m.el.style.opacity = ''; }
   for (const m of nodes) { const c = m.el.querySelector('.chips'); if (c) c.innerHTML = ''; }
 
-  const hop1 = new Set(neighbours(n));
-  const hop2 = new Set();
-  for (const m of hop1) for (const o of neighbours(m))
-    if (o !== n && !hop1.has(o)) hop2.add(o);
+  /* A CARD IS AS PRESENT AS THE LINE THAT JUSTIFIES IT. The hops carry the
+     BEST rank that reached them, not just membership: a node used to be binary
+     — in the neighbourhood at full strength or fogged — while its edge was
+     graded by rank, so a hop-2 card reached by a rank-2 edge sat at 1 above a
+     line drawn at 0.24 and read as attached to nothing. Same `byRank` as the
+     edge loop below, so the two agree by construction. */
+  const best = (m, from) => linksOf(m).reduce((r, l) =>
+    (l.a === from || l.b === from) ? Math.min(r, l.rank) : r, 9);
+  const hop1 = new Map();
+  for (const m of neighbours(n)) hop1.set(m, best(m, n));
+  const hop2 = new Map();
+  for (const m of hop1.keys()) for (const o of neighbours(m)) {
+    if (o === n || hop1.has(o)) continue;
+    hop2.set(o, Math.min(hop2.has(o) ? hop2.get(o) : 9, best(o, m)));
+  }
 
   n.el.classList.add('lit', 'hub');
-  for (const m of hop1) m.el.classList.add('lit');
-  for (const m of hop2) m.el.classList.add('lit', 'hop2');
+  for (const [m, rank] of hop1) {
+    m.el.classList.add('lit');
+    m.el.style.opacity = (byRank(rank) * DIM.card.hop1).toFixed(2);
+  }
+  for (const [m, rank] of hop2) {
+    m.el.classList.add('lit', 'hop2');
+    m.el.style.opacity = (byRank(rank) * DIM.card.hop2).toFixed(2);
+  }
 
   renderChips(n);
   syncQuery(n);
@@ -1984,22 +2026,18 @@ function focus(n) {
   measure();
   gutterLight(n);
 
-  /* Distance from the focused card is carried by OPACITY ALONE. Focus used
-     to wash both hops red, which spent the only colour the edges have:
-     red means contrasts-with, and a card whose neighbours all went red
-     could not be read for rank either. So route through edgeRefresh for
-     the resting colour, width and dash, then dim — and scale the dimming
-     by rank, so the spine still separates from the enrichment inside a
-     focused neighbourhood. */
+  /* edgeRefresh first for the resting colour, width and dash, then dim: focus
+     used to wash both hops red instead, which spent the only colour the edges
+     have. The numbers are DIM, above. */
   for (const l of links) {
     const first = l.a === n || l.b === n;
     const second = (hop1.has(l.a) && hop2.has(l.b)) || (hop1.has(l.b) && hop2.has(l.a));
     edgeRefresh(l);
-    const near = first ? 0.85 : second ? 0.4 : 0;
-    const byRank = l.rank === 1 ? 1 : l.rank === 2 ? 0.6 : 0.45;
-    l.el.setAttribute('stroke-opacity', near ? (near * byRank).toFixed(2) : '.06');
+    const near = first ? DIM.edge.hop1 : second ? DIM.edge.hop2 : 0;
+    const rk = byRank(l.rank);
+    l.el.setAttribute('stroke-opacity', near ? (near * rk).toFixed(2) : String(DIM.outEdge));
     if (l.arrow) l.arrow.setAttribute('fill-opacity',
-      near ? (near * byRank * 1.1).toFixed(2) : '.06');
+      near ? (near * rk * DIM.arrow).toFixed(2) : String(DIM.outEdge));
     l.label.classList.toggle('on', first);
   }
   /* the answered chain is re-asserted after the loop above, which knows
@@ -2029,6 +2067,11 @@ function fullChain(host) {
     l.el.setAttribute('stroke-opacity', '1');
     if (l.arrow) l.arrow.setAttribute('fill-opacity', '1');
   }
+  /* the cards too, now that a hop is graded by the rank that reached it: the
+     satellite links are rank 2, so the answering kind would fade to 0.6 the
+     moment the reader clicked the card it hangs off */
+  for (const m of [q, target, host.pill, host])
+    if (m && m.el) m.el.style.opacity = '1';
 }
 
 function clearFocus() {
@@ -2040,6 +2083,7 @@ function clearFocus() {
   document.body.classList.remove('focusing');
   for (const m of nodes) {
     m.el.classList.remove('lit', 'hub', 'hop2');
+    m.el.style.opacity = '';
     const c = m.el.querySelector('.chips'); if (c) c.innerHTML = '';
   }
   measure();

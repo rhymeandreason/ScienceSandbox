@@ -667,7 +667,11 @@
     ['polarity',    'prerequisite-of', 'hbond',       1],
     ['polarity',    'prerequisite-of', 'hydrophobic', 1],
     ['polarity',    'prerequisite-of', 'solvent',     2],
-    ['polarity',    'prerequisite-of', 'amphipathic', 2],
+    /* rank 1: amphipathic IS polarity applied to one molecule — a head that
+       dissolves and a tail that cannot — and every membrane and micelle is
+       downstream of it. Enrichment was the wrong claim, and it drew a line
+       half the width of the ones running past it. */
+    ['polarity',    'prerequisite-of', 'amphipathic', 1],
     /* water's polarity is card content on water-mol; the concept describes it */
     ['polarity',    'describes',       'water-mol',   2],
 
