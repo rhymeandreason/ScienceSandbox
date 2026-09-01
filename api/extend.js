@@ -195,7 +195,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ outside: !!out.json.outside, note: out.json.note || '',
                                     nodes: [], edges: [], ms: Date.now() - t0 });
     }
-    finds.record({ visitorId: body.visitorId, cohort: who, q, ms: Date.now() - t0 });
+    finds.record({ visitorId: body.visitorId, cohort: who, q, kind: 'extend', ms: Date.now() - t0 });
     return res.status(200).json({ ...clean, ms: Date.now() - t0, served: out.served });
   } catch (err) {
     console.error('[extend] ' + ((err && err.message) || err));

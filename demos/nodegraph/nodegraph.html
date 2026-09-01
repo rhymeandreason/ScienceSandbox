@@ -4670,6 +4670,32 @@ const Z_FLOOR = 3.5;
 
 let corpus = null, corpusWanted = null, semanticOff = false, extendOff = false;
 
+/* THE LAST QUERY'S VECTOR, KEPT. `semanticGo` embeds the reader's line to rank
+   it, and `askExtend` needs the same vector to pick candidates — so building a
+   question the reader had just searched embedded identical text twice, seconds
+   apart, and threw the first one away. Two Gemini calls, two rows in the
+   `finds` log under one question, and two slots against the hourly cap.
+   One entry, not a cache: the only text this is ever asked for again is the
+   line still sitting in the field. */
+let lastVector = null;          /* { q, v } */
+
+/* ONE SHAPE, ALWAYS: `{v, task, dims}` on success, `{status}` on refusal. The
+   first cut returned the bare vector on a cache hit and the response object on
+   a miss, and the caller that read `.v` silently got nothing — candidates came
+   back empty and the endpoint refused the build. */
+async function embedQuery(text) {
+  if (lastVector && lastVector.q === text) return lastVector;
+  const res = await fetch('/api/find', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ q: text }),
+  });
+  if (!res.ok) return { status: res.status };
+  const out = await res.json();
+  if (!out || !out.v) return { status: 502 };
+  lastVector = { q: text, v: out.v, task: out.task, dims: out.dims };
+  return lastVector;
+}
+
 function loadCorpus() {
   if (corpus) return Promise.resolve(corpus);
   if (!corpusWanted) corpusWanted = fetch(VECTORS_URL)
@@ -4724,17 +4750,14 @@ async function semanticGo(text) {
   if (semanticOff) return false;
   askBar.classList.add('thinking');
   try {
-    const res = await fetch('/api/find', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ q: text }),
-    });
-    if (!res.ok) {
+    const got = await embedQuery(text);
+    if (got && got.status) {
       /* no key, or the endpoint is not deployed: stop asking for this session
          rather than paying a round trip on every miss */
-      if (res.status === 404 || res.status === 501 || res.status === 503) semanticOff = true;
+      if ([404, 501, 503].includes(got.status)) semanticOff = true;
       return false;
     }
-    const { v, task, dims } = await res.json();
+    const { v, task, dims } = got;
     const bank = await loadCorpus();
     if (!bank || !v) return false;
     /* THE TASK TYPE IS NOT A DETAIL. A query embedded with a different one
@@ -4960,12 +4983,10 @@ async function askExtend(text) {
     const bank = await loadCorpus();
     let candidates = [];
     if (bank) {
-      const res = await fetch('/api/find', {
-        method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ q: text }),
-      });
-      if (res.ok) {
-        const { v } = await res.json();
+      /* almost always the vector `semanticGo` just fetched for this same line */
+      const got = await embedQuery(text);
+      const v = got && got.v;
+      if (v) {
         const seen = new Set();
         candidates = bank.rows
           .map(r => ({ r, s: r.v.reduce((t, x, i) => t + x * v[i], 0) }))

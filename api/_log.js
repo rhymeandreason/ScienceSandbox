@@ -187,10 +187,22 @@ async function finds({ limit = 60 } = {}) {
   if (!db) throw new Error('DATABASE_URL is not set');
   const n = Math.min(Math.max(Number(limit) || 60, 1), 300);
   return db`
-    SELECT q, cohort, ms, created_at
+    SELECT q, cohort, kind, ms, created_at
     FROM   finds
     ORDER  BY id DESC
-    LIMIT  ${n}`;
+    LIMIT  ${n}`
+    /* A DATABASE THAT PREDATES `kind` MUST STILL SHOW ITS SEARCHES. The column
+       arrives by an ALTER in _schema.sql, and a deploy reaches production
+       before somebody runs that — so a missing column degrades to a list with
+       no tags rather than taking the whole searches tab down with an error. */
+    .catch(e => {
+      if (!/column .*kind.* does not exist/i.test((e && e.message) || '')) throw e;
+      return db`
+        SELECT q, cohort, ms, created_at
+        FROM   finds
+        ORDER  BY id DESC
+        LIMIT  ${n}`;
+    });
 }
 
 async function findStats() {

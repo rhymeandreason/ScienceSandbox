@@ -79,11 +79,23 @@ async function exceeded({ visitorId }) {
 
 /* Never awaited by the handler: a reader waits for their answer, not for the
  * row that records it. A failed insert is logged and dropped. */
-function record({ visitorId, cohort, q, ms }) {
+function record({ visitorId, cohort, q, kind, ms }) {
   const db = log.sql();
   if (!db) return;
-  db`INSERT INTO finds (visitor_id, cohort, q, ms)
-     VALUES (${uuidOrNull(visitorId)}, ${cohort || null}, ${String(q).slice(0, 400)}, ${ms | 0})`
+  const visitor = uuidOrNull(visitorId), text = String(q).slice(0, 400), took = ms | 0;
+  db`INSERT INTO finds (visitor_id, cohort, q, kind, ms)
+     VALUES (${visitor}, ${cohort || null}, ${text},
+             ${kind === 'extend' ? 'extend' : 'find'}, ${took})`
+    /* THE ROW MATTERS MORE THAN THE TAG. `kind` arrives by an ALTER in
+       _schema.sql, and between a deploy and somebody running it this insert
+       names a column that is not there — which would drop the row silently and
+       take the RATE LIMIT with it, since the cap counts these rows. So a
+       missing column costs the tag and nothing else. */
+    .catch(e => {
+      if (!/column .*kind.* does not exist/i.test((e && e.message) || '')) throw e;
+      return db`INSERT INTO finds (visitor_id, cohort, q, ms)
+                VALUES (${visitor}, ${cohort || null}, ${text}, ${took})`;
+    })
     .catch(e => console.error('[finds] insert failed:', (e && e.message) || e));
 }
 

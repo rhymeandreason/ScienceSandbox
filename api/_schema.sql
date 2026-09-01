@@ -113,14 +113,23 @@ ORDER  BY q.created_at DESC;
 --  Same privacy rule as the tutor: no IP, no user agent, no name. `visitor_id`
 --  is a uuid the browser minted for itself and shares with the tutor, so
 --  clearing site data clears both.
+--  `kind` names WHICH endpoint wrote the row. Without it a search and a
+--  generation are indistinguishable here, and one question that was searched
+--  and then built reads as the same question asked twice.
 CREATE TABLE IF NOT EXISTS finds (
   id          bigserial PRIMARY KEY,
   visitor_id  uuid,                        -- null: a browser that would not mint one
   cohort      text,                        -- the access link's label, or null when open
   q           text NOT NULL,               -- what was typed, capped at 400 chars upstream
+  kind        text,                        -- 'find' | 'extend'; null on rows written before this column
   ms          int,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
+
+-- CREATE TABLE IF NOT EXISTS does nothing to a table that already exists, so a
+-- database made before `kind` needs this to get the column. Idempotent, and it
+-- leaves the old rows null rather than guessing what they were.
+ALTER TABLE finds ADD COLUMN IF NOT EXISTS kind text;
 
 -- The limiter's only query is "how many since T", globally and per visitor.
 CREATE INDEX IF NOT EXISTS finds_created_idx ON finds (created_at DESC);

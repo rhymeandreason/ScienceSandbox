@@ -176,6 +176,17 @@
   .qlist div { padding: .3rem 0; border-top: 1px solid var(--line, #2a2d33); display: flex; gap: .8rem; }
   .qlist div:first-child { border-top: 0; }
   .qlist time { color: var(--faint, #6d6f76); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* WHICH ENDPOINT WROTE THE ROW. A search and a generation are one question
+     apiece in this list, and without the tag a question that was searched and
+     then built reads as the same question asked twice. */
+  .qlist .kind {
+    font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
+    align-self: center; padding: .12rem .38rem; border-radius: 2px;
+    border: 1px solid currentColor; white-space: nowrap; opacity: .75;
+  }
+  .qlist .kind.extend { color: #7aa2f7; opacity: 1; }
+  .qlist .kind.find { color: var(--faint, #6d6f76); }
+  .qlist .q { flex: 1; }
 </style>
 </head>
 <body>
@@ -331,8 +342,13 @@ function drawSearches(s) {
     `<span><b>${esc(a.n)}×</b>${esc(a.q)}</span>`).join('')
     || '<span class="empty">nothing asked twice yet</span>';
 
+  /* `kind` is null on rows written before the column existed; those say
+     nothing rather than claiming to be a search. */
   $('qlist').innerHTML = (s.rows || []).map(r =>
-    `<div><time>${esc(new Date(r.created_at).toLocaleString())}</time><span>${esc(r.q)}</span></div>`).join('')
+    `<div><time>${esc(new Date(r.created_at).toLocaleString())}</time>` +
+    `<span class="q">${esc(r.q)}</span>` +
+    (r.kind ? `<span class="kind ${esc(r.kind)}">${esc(r.kind)}</span>` : '') +
+    `</div>`).join('')
     || '<p class="empty">no searches yet</p>';
 }
 

@@ -101,7 +101,7 @@ module.exports = async function handler(req, res) {
 
     const ms = Date.now() - t0;
     // Not awaited: a reader waits for their answer, not for the row about it.
-    finds.record({ visitorId: body.visitorId, cohort: who, q, ms });
+    finds.record({ visitorId: body.visitorId, cohort: who, q, kind: 'find', ms });
     return res.status(200).json({ v, model: MODEL, dims: DIMS, task: TASK, ms });
   } catch (err) {
     console.error('[find] ' + ((err && err.message) || err));
