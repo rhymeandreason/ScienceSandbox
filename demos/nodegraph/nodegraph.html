@@ -129,7 +129,7 @@
   }
   .hbtn:hover, .hilite.open .hbtn { border-color: var(--accent); }
   .hbtn .hlabel { flex: 1; text-align: left; }
-  .hbtn .caret { color: var(--muted); font-size: 0.55rem; line-height: 1; }
+  .hbtn .caret { color: var(--muted); font-size: 0.7rem; line-height: 1; }
   .hdot {
     width: 7px; height: 7px; border-radius: 50%; flex: none;
     display: inline-block;
@@ -211,7 +211,8 @@
      the extension door's italic and steps back in colour */
   #askinput::placeholder { color: var(--muted); font-style: italic; opacity: 1; }
   .askcaret {
-    font-size: 0.7rem; color: var(--muted); line-height: 1;
+    display: flex; align-items: center;
+    font-size: 0.85rem; color: var(--muted); line-height: 1;
     background: none; border: 0;
     padding: 0 1rem 0 0.5rem; cursor: pointer; transition: color .15s;
   }
@@ -651,14 +652,16 @@
     margin-top: 0.4rem;
   }
 
-  /* an anchoring question is a door, and it reads at door size: twice the
-     card claim, ink, never fogged */
+  /* an anchoring question is a door, and it reads at door size: well above
+     the card claim, ink, never fogged. Not TWICE it any more — at 2rem over
+     26rem a door held a moat the map could not afford, and a question read
+     as important by the paper around it rather than by what it opens. */
   .node.question {
-    width: 26rem;
+    width: 22rem;
     padding: 0.7rem 0.9rem;
     background: var(--paper);
     border: 1px solid transparent;
-    font-family: var(--serif); font-size: 2rem; line-height: 1.15;
+    font-family: var(--serif); font-size: 1.6rem; line-height: 1.16;
     letter-spacing: -0.015em; color: var(--ink);
     text-align: center;
   }
@@ -690,7 +693,7 @@
   .node.question.unlit.bridging,
   .node.question.unlit.extension { max-width: 19rem; }
   .node.question.hub {
-    width: 28rem; padding: 0.9rem 1rem 0.95rem;
+    width: 24rem; padding: 0.9rem 1rem 0.95rem;
   }
 
   /* ---- fog of war ------------------------------------------------------
@@ -741,7 +744,7 @@
   .node.card.evidence.unlit .name .flask { font-size: 0.65em; }
   .node.theme.unlit .name { font-size: 1em; }
   .node.theme.unlit .claim { display: none; }
-  .node.question.unlit { width: max-content; max-width: 26rem; }
+  .node.question.unlit { width: max-content; max-width: 22rem; }
   /* a mark hovers the way a question does: card ground, line border, ink */
   .node.card.unlit:hover,
   .node.theme.unlit:hover,
@@ -871,7 +874,7 @@
             aria-haspopup="listbox" aria-expanded="false">
       <span class="hdot" id="hilitedot" hidden></span>
       <span class="hlabel" id="hilitelabel">all</span>
-      <span class="caret">&#9660;</span>
+      <i class="ph-bold ph-caret-down caret" aria-hidden="true"></i>
     </button>
     <div class="hmenu" id="hilitemenu" role="listbox" hidden></div>
     <select id="hilite">
@@ -911,7 +914,7 @@
     <input id="askinput" type="text" autocomplete="off" spellcheck="false"
            aria-label="ask a question of the map">
     <button type="button" class="askcaret" id="askcaret"
-            aria-label="all the questions">&#9662;</button>
+            aria-label="all the questions"><i class="ph-bold ph-caret-down" aria-hidden="true"></i></button>
   </div>
 </div>
 
@@ -1251,13 +1254,32 @@ for (const n of nodes) if (n.type !== 'question') layer(n);
    IGNORING consequences whose only constraint is this node (they trail
    it, so using them is circular: point-mutation would be held at 0 by
    nat-select, whose position comes from point-mutation) — then
-   re-propagate the longest path so the trailers follow. */
+   re-propagate the longest path so the trailers follow.
+
+   THE SEARCH IS TRANSITIVE. A node whose every consequence trails it has no
+   anchor one step out, and used to be left at column 0 — which stranded
+   `antiparallel → strand-asymmetry → replication` and `codon → genetic-code
+   → translation` at the map's left edge, four columns before the DNA they
+   are properties of. So the walk continues through the trailers until it
+   reaches something independently anchored, and the distance travelled is
+   what the node sits back from it. */
 for (const n of nodes) {
   if (n.type === 'question' || inCons.get(n).length) continue;
-  const anchored = outCons.get(n).filter(m =>
-    inCons.get(m).some(p => p !== n));
-  if (anchored.length)
-    layerOf.set(n, Math.max(0, Math.min(...anchored.map(m => layerOf.get(m))) - 1));
+  let front = [n], seen = new Set([n]), dist = 0, want = null;
+  while (front.length && dist < 12 && want === null) {
+    const next = [];
+    dist++;
+    for (const m of front) for (const o of outCons.get(m)) {
+      if (seen.has(o)) continue;
+      seen.add(o);
+      /* anchored = held by a constraint from outside this floating chain */
+      if (inCons.get(o).some(p => !seen.has(p)))
+        want = want === null ? layerOf.get(o) - dist : Math.min(want, layerOf.get(o) - dist);
+      else next.push(o);
+    }
+    front = next;
+  }
+  if (want !== null) layerOf.set(n, Math.max(0, want));
 }
 for (let pass = 0; pass < 12; pass++) {
   let changed = false;
@@ -1331,10 +1353,41 @@ for (const n of nodes) {
     .map(l => l.a === n ? l.b : l.a)
     .sort((a, b) => layerOf.get(a) - layerOf.get(b))[0];
 }
-const COLW = 430;
-for (const n of nodes) n.tx =
-  ((n.type === 'question' ? (n.anchor ? layerOf.get(n.anchor) - 0.7 : 0)
-                          : layerOf.get(n))) * COLW;
+/* COLUMN WIDTH IS NOT A CONSTANT. A layer holding two nodes cost the same
+   430px of paper as one holding twenty-three, so the sparse tail spent a
+   third of the map's width on almost nothing — and the white space around a
+   lone question read as emphasis it had not earned — while the water end had
+   cards shoulder to shoulder in a gap barely wider than one card. The gap
+   AFTER a column is scaled by the busier of the two it separates: sparse
+   columns close up, crowded ones get the room the cards need. Only the
+   spacing changes, never the order, so no edge can reverse. */
+const COL_MIN = 250, COL_MAX = 580, BUSY = 14;
+const load = {};
+for (const n of nodes) {
+  if (n.type === 'question' || !layerOf.has(n)) continue;
+  const c = Math.round(layerOf.get(n));
+  load[c] = (load[c] || 0) + 1;
+}
+const cols = Object.keys(load).map(Number);
+const colLo = Math.min(...cols), colHi = Math.max(...cols);
+const gapAt = c => COL_MIN + (COL_MAX - COL_MIN) *
+  Math.min(1, Math.max(load[c] || 0, load[c + 1] || 0) / BUSY);
+const colX = new Map();
+{
+  let x = 0;
+  for (let c = colLo; c <= colHi; c++) { colX.set(c, x); x += gapAt(c); }
+}
+/* a levelless node's layer is a mean, and a question sits 0.7 of a column
+   left of its answer, so the ruler has to be readable between its rungs */
+function xAt(v) {
+  const c = Math.floor(v);
+  if (c < colLo) return colX.get(colLo) - (colLo - v) * gapAt(colLo);
+  if (c >= colHi) return colX.get(colHi) + (v - colHi) * gapAt(colHi - 1);
+  return colX.get(c) + (v - c) * gapAt(c);
+}
+for (const n of nodes) n.tx = xAt(
+  n.type === 'question' ? (n.anchor ? layerOf.get(n.anchor) - 0.7 : colLo)
+                        : layerOf.get(n));
 
 /* ---- y: the scale ladder ------------------------------------------------
    Bands from the ladder, top is ecosystem because up is bigger. Bands
@@ -1344,11 +1397,21 @@ for (const n of nodes) n.tx =
    what lets polarity float between the water and protein shelves. */
 const lvOf = n => n.level || n.occursAt || n.emergesAt || 0;
 const used = new Set(nodes.map(lvOf).filter(Boolean));
+/* A RUNG IS AS TALL AS WHAT STANDS ON IT. Every used band was a flat 660px,
+   so macromolecule's thirty-eight nodes and ecosystem's one got the same
+   paper — five nodes were spending 2,640px of a 5,540px map while the
+   molecule and macromolecule rungs had cards on identical points. The ladder
+   still says which rung; how much room the rung gets is what it holds. */
+const bandLoad = {};
+for (const n of nodes) { const lv = lvOf(n); if (lv) bandLoad[lv] = (bandLoad[lv] || 0) + 1; }
+const BAND_LO = 340, BAND_HI = 1320, BAND_FULL = 34;
+const bandH = lv => !used.has(lv) ? 130
+  : BAND_LO + (BAND_HI - BAND_LO) * Math.min(1, (bandLoad[lv] || 0) / BAND_FULL);
 const bandCentre = {}, bandEdge = [];
 {
   let y = 0;
   for (let lv = 10; lv >= 1; lv--) {
-    const h = used.has(lv) ? 660 : 130;
+    const h = bandH(lv);
     bandEdge.push(y);
     bandCentre[lv] = y + h / 2;
     y += h;
@@ -1365,26 +1428,41 @@ for (const n of nodes) n.ty = lvOf(n) ? bandCentre[lvOf(n)] : bandCentre[2];
    everything in between. Every node now settles at the MEDIAN of its rank-1
    neighbours; a leveled one is then clamped back into its own band. The
    ladder still says which rung, the edges say where along it. */
-const BAND_PAD = 110;
+const BAND_PAD = 0.17;            /* of the band's own height, at each edge */
 const bandLo = {}, bandHi = {};
 for (const lv of used) {
-  bandLo[lv] = bandCentre[lv] - 330 + BAND_PAD;
-  bandHi[lv] = bandCentre[lv] + 330 - BAND_PAD;
+  const half = bandH(lv) * (0.5 - BAND_PAD);
+  bandLo[lv] = bandCentre[lv] - half;
+  bandHi[lv] = bandCentre[lv] + half;
 }
-for (let pass = 0; pass < 12; pass++)
+/* THE QUESTION FILTER RUNS BEFORE THE FALLBACK, not after. The other way
+   round, a node whose only rank-1 neighbour is a question passed the
+   non-empty test, then filtered to nothing and bailed — so van-helmont never
+   read the carbon fixation it is evidence for and kept the raw band centre.
+
+   And every pass reads a SNAPSHOT. Reading `ty` as it was being written made
+   a node's seat depend on where it sits in graphdata.js, so reordering the
+   data file moved cards for no reason a reader could see. */
+const rank1Of = new Map(nodes.map(n => {
+  let ns = linksOf(n).filter(l => l.rank === 1)
+    .map(l => (l.a === n ? l.b : l.a)).filter(m => m.type !== 'question');
+  if (!ns.length) ns = neighbours(n).filter(m => m.type !== 'question');
+  return [n, ns];
+}));
+for (let pass = 0; pass < 12; pass++) {
+  const was = new Map(nodes.map(n => [n, n.ty]));
   for (const n of nodes) {
     if (n.type === 'question') continue;
-    let ns = linksOf(n).filter(l => l.rank === 1).map(l => (l.a === n ? l.b : l.a));
-    if (!ns.length) ns = neighbours(n);
-    ns = ns.filter(m => m.type !== 'question');
+    const ns = rank1Of.get(n);
     if (!ns.length) continue;
-    const ys = ns.map(m => m.ty).sort((a, b) => a - b);
+    const ys = ns.map(m => was.get(m)).sort((a, b) => a - b);
     const mid = ys.length % 2
       ? ys[(ys.length - 1) / 2]
       : (ys[ys.length / 2 - 1] + ys[ys.length / 2]) / 2;
     const lv = lvOf(n);
     n.ty = lv ? Math.max(bandLo[lv], Math.min(bandHi[lv], mid)) : mid;
   }
+}
 /* after the concepts settle: a question sits level with its anchor */
 for (const n of nodes)
   if (n.type === 'question' && n.anchor) n.ty = n.anchor.ty;
@@ -1398,6 +1476,16 @@ nodes.forEach((n, i) => {
 });
 
 /* ---- DOM --------------------------------------------------------------- */
+
+/* HALF-EXTENTS, NOT A RADIUS. Repulsion used the circumscribed circle, so
+   every card reserved its own DIAGONAL in all directions — and the widest
+   cards on the map are the questions, which is why every hole in the paper
+   had a door sitting in the middle of it. A card is a box; measure it as
+   one. */
+function sizeOf(n, grow = 1) {
+  n.rx = n.el.offsetWidth / 2 * grow;
+  n.ry = n.el.offsetHeight / 2 * grow;
+}
 
 const esc = t => String(t == null ? '' : t)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -1522,7 +1610,7 @@ function paintNode(n) {
   }
   n.el = el;
   world.appendChild(el);
-  n.r = Math.hypot(el.offsetWidth, el.offsetHeight) / 2;
+  sizeOf(n);
 }
 
 const wordFor = t => t.replace(/-/g, ' ');
@@ -1695,7 +1783,7 @@ function light(n) {
   if (n.on) return;
   n.on = true;
   n.el.classList.remove('unlit');
-  n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+  sizeOf(n);
   for (const l of linksOf(n)) edgeRefresh(l);
   goLive(n);                    // a lit card shows its subject, not a promise
   wake(0.5);
@@ -1722,7 +1810,7 @@ let alpha = 0, settled = true;
 const wake = a => { alpha = Math.max(alpha, a); settled = false; };
 
 function step() {
-  const REPEL = 22000, VMAX = 16;
+  const REPEL = 22000, VMAX = 16, GAP = 64;
   for (const n of nodes) { n.vx *= 0.76; n.vy *= 0.76; }
 
   for (let i = 0; i < nodes.length; i++) {
@@ -1735,10 +1823,24 @@ function step() {
       let d2 = dx * dx + dy * dy;
       if (d2 < 1) { dx = (i - j) || 1; dy = 1; d2 = 2; }
       const d = Math.sqrt(d2), ux = dx / d, uy = dy / d;
-      const near = a.r + b.r;
-      const f = REPEL / d2 + (d < near * 1.1 ? (near * 1.1 - d) * 0.5 : 0);
+      const f = REPEL / d2;
       a.vx -= ux * f; a.vy -= uy * f;
       b.vx += ux * f; b.vy += uy * f;
+      /* BOX OVERLAP, resolved on the axis of LEAST overlap — the shortest
+         way out. A wide flat card stops shoving its neighbours down for a
+         height it does not have, and stops holding them off sideways at a
+         distance only its corners reach. */
+      const ox = a.rx + b.rx + GAP - Math.abs(dx);
+      const oy = a.ry + b.ry + GAP - Math.abs(dy);
+      if (ox > 0 && oy > 0) {
+        if (ox < oy) {
+          const p = ox * 1.3 * (dx < 0 ? -1 : 1);
+          a.vx -= p; b.vx += p;
+        } else {
+          const p = oy * 1.3 * (dy < 0 ? -1 : 1);
+          a.vy -= p; b.vy += p;
+        }
+      }
     }
   }
 
@@ -1995,7 +2097,7 @@ let focused = null;
 function measure() {
   for (const n of nodes) {
     const grow = n.on ? 1 : MARKK_MAX / markk;
-    n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2 * grow;
+    sizeOf(n, grow);
   }
   wake(0.4);
 }
@@ -2628,7 +2730,7 @@ function makePill(host) {
   pill.el.classList.add('lit');
   pill.dy = host.el.offsetHeight / 2 + pill.el.offsetHeight / 2 + 34;
   pill.tx = pill.x; pill.ty = pill.y;
-  pill.r = Math.hypot(pill.el.offsetWidth, pill.el.offsetHeight) / 2;
+  sizeOf(pill);
   const l = { a: pill, b: host, type: 'asks', rank: 2, spine: false };
   links.push(l); paintLink(l); edgeRefresh(l);
   l.label.style.display = 'none';        /* the pill says it; the line need not */
@@ -2688,7 +2790,7 @@ function toggleKinds(host) {
     paintNode(sat);
     sat.el.classList.add('lit');
     sat.tx = sat.x; sat.ty = sat.y;
-    sat.r = Math.hypot(sat.el.offsetWidth, sat.el.offsetHeight) / 2;
+    sizeOf(sat);
     const l = { a: sat, b: pill, type: 'instance-of', rank: 2, spine: false };
     links.push(l); host.satLinks.push(l); paintLink(l); edgeRefresh(l);
     host.sats.push(sat);
@@ -2785,7 +2887,7 @@ function spawnQuery(q, host) {
      it points at rather than out of the card's own reading order */
   q.dx = -(target.el.offsetWidth / 2 + q.el.offsetWidth / 2 + 30);
   q.dy = target.el.offsetHeight / 2 + q.el.offsetHeight / 2 + 26;
-  q.r = Math.hypot(q.el.offsetWidth, q.el.offsetHeight) / 2;
+  sizeOf(q);
 
   const l = { a: q, b: target, type: 'answers', rank: 1, spine: true };
   links.push(l); paintLink(l); edgeRefresh(l);
@@ -3416,7 +3518,7 @@ function spawnGraft(host, made, edges, question) {
     nodes.push(n);
     paintNode(n);
     n.el.classList.add('lit');
-    n.r = Math.hypot(n.el.offsetWidth, n.el.offsetHeight) / 2;
+    sizeOf(n);
   });
 
   /* ABOVE the host, and laid out by hand: there are at most four and the relax
@@ -3466,7 +3568,7 @@ function spawnGraft(host, made, edges, question) {
     fresh.push(q); byId[q.id] = q; nodes.push(q);
     paintNode(q);
     q.el.classList.add('lit');
-    q.r = Math.hypot(q.el.offsetWidth, q.el.offsetHeight) / 2;
+    sizeOf(q);
     q.dx = 0;
     q.dy = -(rise + tall / 2 + q.el.offsetHeight / 2 + 40);
     /* to the first card it produced, so the line reads question → answer */

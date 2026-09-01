@@ -732,9 +732,19 @@
     ['phospholipid','part-of',         'bilayer',       1],
     ['amphipathic', 'describes',       'bilayer',       2],
 
-    /* water is the reagent in the universal reaction */
-    ['dehydration', 'produces',        'water-mol',     1],
-    ['hydrolysis',  'consumes',        'water-mol',     1],
+    /* WATER IS THE REAGENT, WHICH IS A RESOURCE CLAIM AND NOT A READING ORDER.
+       Typed `produces`/`consumes` these ordered the axis, and `produces` sits
+       LEFT: it pinned the whole macromolecule lead-in to column 0, on top of
+       the electronegativity that water's own story starts from. Nobody reads
+       dehydration synthesis before they know what a water molecule is. */
+    ['dehydration', 'supplies',        'water-mol',     1],
+    ['hydrolysis',  'spends',          'water-mol',     1],
+    /* the reading order the resource claim was standing in for, pointing the
+       way it actually runs: both reactions are DEFINED by the water, so the
+       molecule is read first. This is what puts the macromolecules to the
+       right of the unit that explains their solvent. */
+    ['water-mol',   'prerequisite-of', 'dehydration',   1],
+    ['water-mol',   'prerequisite-of', 'hydrolysis',    1],
     ['dehydration', 'contrasts-with',  'hydrolysis',    1],
     ['dehydration', 'produces',        'peptide-bond',  1],
     ['hydrolysis',  'consumes',        'peptide-bond',  2],   /* digestion, literally */

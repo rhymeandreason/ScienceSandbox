@@ -41,10 +41,19 @@ the enzyme.
 
 ### A resource claim is not an explanatory order
 
-The map has learned this three times: fermentation recycling NAD⁺, active
-transport spending ATP, and the Calvin cycle handing sugar to glycolysis. Each
-was typed as `enables` or `produces` and each closed a cycle — the last one
+The map has learned this four times: fermentation recycling NAD⁺, active
+transport spending ATP, the Calvin cycle handing sugar to glycolysis, and
+dehydration synthesis producing water. Three closed a cycle — the Calvin one
 made **every node on the map** circular.
+
+**The fourth did not warn.** `dehydration produces water-mol` and `hydrolysis
+consumes water-mol` laid out cleanly and read as an ordering, so they pinned
+the whole macromolecule lead-in to column 0, on top of the electronegativity
+water's own story starts from. Nobody reads dehydration synthesis before they
+know what a water molecule is. The reading order runs the OTHER way, and
+saying so is what put the macromolecules right of the unit that explains their
+solvent: `water-mol prerequisite-of dehydration`. **A resource claim standing
+in for an explanatory one is silent** — look for the pair, not just the cycle.
 
 Biology's resources genuinely go round in loops and the explanation axis is a
 DAG. `spends` and `supplies` exist so an edge can say "this makes the stuff
@@ -92,7 +101,12 @@ No randomness, same map every session, so spatial memory can form.
 
 1. Longest-path layering over the ordering constraints.
 2. **Pull-right**: a node with no upstream constraint is pulled to one column
-   before its first *independently anchored* consequence.
+   before its first *independently anchored* consequence. **The search is
+   transitive** — a node whose every consequence merely trails it has no
+   anchor one step out, and used to be left at column 0. That stranded
+   `antiparallel → strand-asymmetry → replication` and `codon → genetic-code
+   → translation` at the map's left edge, four columns before the DNA they
+   are properties of.
 3. **Median tightening**: a node with slack moves to the median of its rank-1
    neighbours, clamped to its own legal range. Longest-path puts everything as
    far LEFT as constraints allow, which is wrong for a node merely *mentioned*
@@ -100,7 +114,13 @@ No randomness, same map every session, so spatial memory can form.
    Rank 1 is what makes it safe: a node with one late consumer and two early
    causes stays early.
 4. Authored `nudge` last. Nothing uses it now.
-5. Layer × 430px.
+5. **Columns are spaced by what they hold**, not by a constant. The gap after
+   a column scales with the busier of the two it separates, 250px to 580px.
+   A layer holding two nodes used to cost the same 430px as one holding
+   twenty-three, so the sparse tail spent a third of the map's width on almost
+   nothing — and white space around a lone question read as emphasis it had
+   not earned — while the water end had cards in a gap barely wider than one
+   card. Only the spacing changes, never the order, so no edge can reverse.
 
 **Y:** levels 1–10 become bands, ecosystem at top, unoccupied bands stay thin.
 Then every node settles at the **median of its rank-1 neighbours**, with a
@@ -108,12 +128,37 @@ levelled one clamped back into its own band. The ladder says which rung, the
 edges say where along it. Without this a membrane protein sat below the
 tertiary structure it is an instance of.
 
+**A rung is as tall as what stands on it**, 340px to 1320px. Every used band
+was a flat 660px, so macromolecule's thirty-eight nodes and ecosystem's one
+got the same paper: five nodes were spending 2,640px of a 5,540px map while
+molecule and macromolecule had cards on identical points. `BAND_PAD` is a
+fraction of the band now, not 110px of a fixed 660.
+
+**The median pass filters questions BEFORE the neighbour fallback**, and each
+pass reads a snapshot. The other order let a node whose only rank-1 neighbour
+is a question pass the non-empty test, filter to nothing and bail — van-Helmont
+never read the carbon fixation it is evidence for. Reading `ty` while writing
+it made a node's seat depend on where it sits in `graphdata.js`.
+
+**A leaf sits on the card it points at.** A degree-1 node's median IS its
+neighbour, so the four DNA evidence cards were all targeted at one identical
+point one column left of `dna-structure`, and only the relax separated them.
+
 **Questions** anchor 0.7 columns left of their rank-1 answer.
 
 **Then the relax, which only resolves overlap**: x pinned to the column (0.12),
 y pulled to the median (questions 0.07, levelled 0.09, levelless 0.06),
 repulsion, a weak y-alignment along edges, deterministic jitter. No spring
 invents a position. Dragging pins a card out of it.
+
+**Repulsion separates BOXES, on the axis of least overlap.** It used the
+circumscribed circle, so every card reserved its own diagonal in all
+directions — and the widest cards are the questions, so every hole in the
+paper had a door in the middle of it: measured, the thirteen loosest nodes on
+the map were all questions, at 600–780px of clearance against a 313px median.
+`sizeOf` is half-width and half-height, and the push takes the shorter way
+out. A wide flat card stops shoving neighbours down for a height it does not
+have.
 
 ## Extension questions, and the ask bar
 
