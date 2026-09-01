@@ -93,11 +93,11 @@ function record({ visitorId, cohort, q, kind, ms, answer }) {
      VALUES (${visitor}, ${cohort || null}, ${text},
              ${kind === 'extend' ? 'extend' : 'find'}, ${took},
              ${answer ? JSON.stringify(answer) : null})`
-    /* THE ROW MATTERS MORE THAN THE TAG. `kind` arrives by an ALTER in
-       _schema.sql, and between a deploy and somebody running it this insert
-       names a column that is not there — which would drop the row silently and
-       take the RATE LIMIT with it, since the cap counts these rows. So a
-       missing column costs the tag and nothing else. */
+    /* THE ROW MATTERS MORE THAN THE TAG, and this is the retry that costs the
+       tag instead of the row. Against a database the ALTERs in _schema.sql
+       have not reached, naming `kind` drops the insert — and the RATE LIMIT
+       with it, since the cap counts these rows, so the failure is a silent
+       loss of both rather than a missing column somebody notices. */
     .catch(e => {
       if (!/column .*(kind|answer).* does not exist/i.test((e && e.message) || '')) throw e;
       return db`INSERT INTO finds (visitor_id, cohort, q, ms)

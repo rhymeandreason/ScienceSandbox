@@ -191,10 +191,14 @@ async function finds({ limit = 60 } = {}) {
     FROM   finds
     ORDER  BY id DESC
     LIMIT  ${n}`
-    /* A DATABASE THAT PREDATES `kind` MUST STILL SHOW ITS SEARCHES. The column
-       arrives by an ALTER in _schema.sql, and a deploy reaches production
-       before somebody runs that — so a missing column degrades to a list with
-       no tags rather than taking the whole searches tab down with an error. */
+    /* A DATABASE THAT PREDATES `kind` AND `answer` MUST STILL SHOW ITS
+       SEARCHES. Not a deploy-ordering guard: there is ONE database, and the
+       ALTERs in _schema.sql are run against it by hand, so a deploy never
+       arrives ahead of them. What this covers is a checkout pointed at a
+       database somebody else's ALTER has not reached — a second environment,
+       a restored dump, a colleague's branch — where the honest failure is a
+       list with no tags rather than the whole searches tab replaced by
+       `column "kind" does not exist`. */
     .catch(e => {
       if (!/column .*(kind|answer).* does not exist/i.test((e && e.message) || '')) throw e;
       return db`
