@@ -68,10 +68,10 @@ that one over there uses" without also claiming which is read first.
 | `concept` `structure` `process` | the skeleton | yes |
 | `question` | a door. `qtype` is `anchor` (opens a unit, large), `bridging` (joins two already open, small) or `extension` (small, italic, blue) | via `answers` |
 | `theme` | a saved query over the map. Its fan is dealt whole regardless of rank | no |
-| `evidence` | how we know. Meselson–Stahl, Hershey–Chase | no |
+| `evidence` | how we know. Meselson–Stahl, Hershey–Chase. **Not on the map** — pulled before layout, dealt from a pill | no |
 | `specimen` | spawned from `proteins/proteins.js` by a `p:` placement | no |
 | `content` | a film, spawned from `graphcontent.js`. A LESSON IS NOT ONE: it rides its concept | no |
-| `ask` / `satellite` | the kinds pill and what it reveals | no |
+| `ask` / `satellite` | a facet pill and what it reveals | no |
 
 Everything after the first row is a **destination, not a station**: `station()`
 excludes them so the walk never steps onto one. Adding a type means adding it
@@ -282,6 +282,41 @@ and saturated / unsaturated / trans is a different question. Landing it kindless
 on the card would have been right; naming a member that does not answer is what
 was wrong.
 
+## Evidence: a card that is not worth a seat
+
+**Seven experiments, seven leaves, one edge each.** A leaf's y target IS its
+neighbour's, so the four DNA experiments were all aimed at one point beside
+`dna-structure` and stacked there, in the busiest columns on the map. They are
+pulled out **before layout**, the way an extension question is, and arrive from
+a **"How do we know?"** pill on the claim they settle.
+
+**Only `type: 'evidence'` leaves.** `point-mutation evidence-for nat-select`
+and the three `evidence-for endosymbiosis` edges come from concept cards that
+are stations in their own right. The edge type does not decide this; the node
+type does.
+
+**They are still findable by name.** `Meselson`, `Photograph 51` and `heavy
+nitrogen` all land on the claim the experiment settles with its fan dealt —
+the same arrival a `kinds` hit gets, scored the same way. The vector corpus
+still holds their claims, which are the most distinctive prose on the map, and
+`EVIDENCE_HOST` is what turns a row naming an off-map card into a landing.
+
+**An experiment is only ever in a fan now**, so it is sized for one: 21.5rem
+and five lines. There is no short way to say heavy nitrogen or a labelled
+phage, and at card width Photograph 51 lost the sentence that matters.
+
+## Two facets, one mechanism
+
+`kinds` and `evidence` fail the node test for opposite reasons — a kinds member
+is too small to be a card, an experiment is a real card whose seat says nothing
+— and both hang off a pill. **So the pill belongs to the facet, not the host**:
+`host.facets.kinds` and `host.facets.evidence` each hold their own pill, fan
+and links, and where a card has both they stack. `carbon-fixation` is that
+card, and it is why `host.pill` could not stay a single field.
+
+Only the kinds fan can carry a query: an extension question names a `kind`,
+never an experiment.
+
 ## Kinds: detail that failed the node test
 
 **Reusable concepts get nodes. Facts about one thing get cards.** A `kinds`
@@ -303,7 +338,7 @@ against a fan rather than five against five: the reader asks why chlorophyll is
 different, and the map's answer is the edge leaving it. **Accessory pigments
 used to be a card here** — a card whose whole claim was the fan it named.
 
-The chain is **card → pill → kinds**. The pill is a node because as a chip it
+The chain is **card → pill → fan**. The pill is a node because as a chip it
 read as one more navigation control and what it does is not navigation. It
 grows on focus and goes when focus leaves that card's family.
 
@@ -325,7 +360,11 @@ Run these in the console. Every one has caught a real bug.
 * **No hairball** over 8 rank-1 edges except `hbond`.
 * **Placements resolve** — no content id or node id that does not exist.
 * **Claims are not clipped** — `scrollHeight > clientHeight` on `.claim`.
-  About 95 characters on a normal card, 130 on a hub.
+  About 95 characters on a normal card, 130 on a hub. **Allow 2px**: every
+  card reports a scrollHeight a line-height rounding over its clientHeight, so
+  a bare `>` calls eight healthy cards clipped. A real clip is a whole line.
+* **Every evidence card opens** — deal each `EVIDENCE` fan and check the
+  claims, since nothing on the laid-out map will show you a clipped one.
 
 ## Content: inline or its own card
 

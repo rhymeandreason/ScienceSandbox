@@ -616,6 +616,14 @@
   .node.card.big { width: 22rem; }
   .node.card.big .claim { font-size: 1.2rem; line-height: 1.24; -webkit-line-clamp: 5; }
 
+  /* AN EXPERIMENT IS ONLY EVER IN A FAN NOW, so it is sized for the fan and
+     not for a column. An experiment's claim is what it DID, and there is no
+     shorter way to say heavy nitrogen or a labelled phage: Photograph 51 ran
+     to five lines at card width and lost the sentence that matters. The fan
+     has room in x, which is the axis this map is roomy in. */
+  .node.card.evidence { width: 21.5rem; }
+  .node.card.evidence .claim { -webkit-line-clamp: 5; }
+
   /* the open card steps up one size, not to a poster: there is no picture
      to make room for yet, so the growth only has to say "you are here" */
   .node.hub { box-shadow: 0 14px 34px -12px rgba(20,22,26,.22); }
@@ -980,6 +988,40 @@ for (const [from, type, to, rank] of EDGES) {
   if (!a || !b) { console.warn('edge names a missing node:', from, type, to); continue; }
   links.push({ a, b, type, rank });
   a.deg++; b.deg++;
+}
+
+/* ---- how do we know ------------------------------------------------------
+   EVIDENCE IS A DESTINATION AND IT WAS TAKING SEATS. Seven experiment cards
+   are seven leaves with one edge each, and a leaf's y target IS its
+   neighbour's — so the four DNA experiments were all aimed at one point
+   beside `dna-structure` and stacked there, in the busiest columns on the
+   map. They come off before layout the way an extension question does, and
+   arrive from a pill on the claim they settle.
+
+   ONLY `type: 'evidence'` LEAVES. `point-mutation evidence-for nat-select`
+   and the three `evidence-for endosymbiosis` edges come from real concept
+   cards that are stations in their own right; the edge type is not what
+   decides this, the node type is. */
+const EVIDENCE = new Map();          /* host id → the experiments that settle it */
+const EVIDENCE_HOST = new Map();     /* experiment id → its host, for the search */
+const EVIDENCE_NAME = new Map();    /* experiment id → its name, for the same */
+const evidenceName = id => EVIDENCE_NAME.get(id) || null;
+{
+  const ev = nodes.filter(n => n.type === 'evidence');
+  for (const e of ev) {
+    const l = links.find(k => (k.a === e || k.b === e) && k.type === 'evidence-for');
+    const host = l && (l.a === e ? l.b : l.a);
+    if (!host) { console.warn('evidence supports nothing:', e.id); continue; }
+    if (!EVIDENCE.has(host.id)) EVIDENCE.set(host.id, []);
+    EVIDENCE.get(host.id).push(e);
+    EVIDENCE_HOST.set(e.id, host);
+    EVIDENCE_NAME.set(e.id, e.name);
+  }
+  /* the degree was counted when the edges were built, and degree sizes hubs */
+  for (const l of links)
+    if (l.a.type === 'evidence' || l.b.type === 'evidence') { l.a.deg--; l.b.deg--; }
+  links = links.filter(l => l.a.type !== 'evidence' && l.b.type !== 'evidence');
+  for (const e of ev) { nodes.splice(nodes.indexOf(e), 1); delete byId[e.id]; }
 }
 
 /* ---- the deferred doors -------------------------------------------------
@@ -1539,7 +1581,7 @@ function paintNode(n) {
                    '<div class="chips"></div>';
   } else if (n.type === 'ask') {
     el.className = 'node askpill';
-    el.dataset.host = n.host.id;
+    el.dataset.pill = n.id;
     el.textContent = n.label;
   } else if (n.type === 'made') {
     /* GENERATED, AND IT MUST NOT PASS FOR AUTHORED. Every other card on this
@@ -2138,7 +2180,11 @@ const lessonModal = Modal.create({
 document.addEventListener('click', e => {
   if (e.target.closest('.credit a')) return;   // the credit goes out, not in
   const ask = e.target.closest('.askpill');
-  if (ask) { toggleKinds(byId[ask.dataset.host]); return; }
+  if (ask) {
+    const pill = byId[ask.dataset.pill];
+    if (pill) toggleFacet(pill.host, pill.facet);
+    return;
+  }
   const open = e.target.closest('.opener[data-open]');
   if (open) {
     const c = BY_CONTENT.get(open.dataset.open);
@@ -2265,10 +2311,10 @@ function fullChain(host) {
      is no pill between them to light */
   const chain = links.filter(l =>
     l.a === q || l.b === q ||                                  /* question → kind */
-    (host.pill && target && target !== host &&
+    (kf(host).pill && target && target !== host &&
      (l.a === target || l.b === target) &&
-     (l.a === host.pill || l.b === host.pill)) ||              /* kind → pill */
-    (host.pillLink && l === host.pillLink));                   /* pill → card */
+     (l.a === kf(host).pill || l.b === kf(host).pill)) ||      /* kind → pill */
+    (kf(host).pillLink && l === kf(host).pillLink));           /* pill → card */
   for (const l of chain) {
     l.el.setAttribute('stroke-opacity', '1');
     if (l.arrow) l.arrow.setAttribute('fill-opacity', '1');
@@ -2276,7 +2322,7 @@ function fullChain(host) {
   /* the cards too, now that a hop is graded by the rank that reached it: the
      satellite links are rank 2, so the answering kind would fade to 0.6 the
      moment the reader clicked the card it hangs off */
-  for (const m of [q, target, host.pill, host])
+  for (const m of [q, target, kf(host).pill, host])
     if (m && m.el) m.el.style.opacity = '1';
 }
 
@@ -2697,44 +2743,88 @@ addEventListener('keydown', e => { if (e.key === 'Escape') openHilite(false); })
 hiliteSel.addEventListener('change', syncHilite);
 syncHilite();
 
-/* ---- kinds: detail that failed the node test -----------------------------
-   THE CHAIN IS card → pill → kinds. The pill is a node rather than another
-   chip in the card's row, because as a chip it read as one more navigation
-   control among three and the thing it does is not navigation. As a node
-   hanging off the card it is an event, and the kinds then hang off IT, so
-   the map says plainly that these arrived through a question.
+/* ---- pills: what a card holds but does not seat ---------------------------
+   THE CHAIN IS card → pill → fan. The pill is a node rather than another chip
+   in the card's row, because as a chip it read as one more navigation control
+   among three and the thing it does is not navigation. As a node hanging off
+   the card it is an event, and the fan hangs off IT, so the map says plainly
+   that these arrived through a question.
+
+   TWO THINGS FAIL THE NODE TEST FOR OPPOSITE REASONS. A `kinds` member is too
+   small to be a card — UV and benzene route nowhere and nobody arrives at one
+   alone. An `evidence` card is the other way round: a real card with a real
+   claim, but a leaf with one edge, so its seat says nothing except "beside
+   the thing it settles" and four of them said it about the same card. Both
+   are content the map should hold and neither is worth a seat.
 
    NOTHING HERE IS BAKED, and that is the one invariant worth arguing over.
    The map is laid out once so spatial memory can form, but a satellite is a
    leaf with one edge to one parent: its position says nothing beyond "below
    this card", and nobody remembers the seat of something they have never
-   seen. Reserving room for sixty-four of them would cost real geometry to
-   protect a memory that cannot form. So they are made on reveal, PINNED,
-   and skipped by the relax's repulsion and its link pull, which is why
-   opening one moves nothing else on the map.
+   seen. So they are made on reveal, PINNED, and skipped by the relax's
+   repulsion and its link pull, which is why opening one moves nothing else.
 
-   The pill follows the focus: focusing a card with `kinds` grows it,
-   focusing anything outside that card's own family takes it away again. */
+   The pills follow the focus: focusing a card that has either facet grows
+   them, focusing anything outside that card's own family takes them away. */
 let pillHost = null;
 
-function makePill(host) {
-  const pill = {
-    id: host.id + '::ask', type: 'ask', satellite: true, pinned: true,
-    host, label: 'What kinds are there?', unit: host.unit, tint: host.tint,
-    deg: 0, on: true, dx: 0, dy: 0, x: host.x, y: host.y, vx: 0, vy: 0,
-  };
-  nodes.push(pill); byId[pill.id] = pill;
-  paintNode(pill);
-  /* focus decided what to light before this existed. It is always family of
-     the focused card, so it is always lit. */
-  pill.el.classList.add('lit');
-  pill.dy = host.el.offsetHeight / 2 + pill.el.offsetHeight / 2 + 34;
-  pill.tx = pill.x; pill.ty = pill.y;
-  sizeOf(pill);
-  const l = { a: pill, b: host, type: 'asks', rank: 2, spine: false };
-  links.push(l); paintLink(l); edgeRefresh(l);
-  l.label.style.display = 'none';        /* the pill says it; the line need not */
-  host.pill = pill; host.pillLink = l;
+/* read-only view of a card's kinds facet, for the query and highlight code
+   that asks about a card it may never open */
+const kf = h => (h && h.facets && h.facets.kinds) || {};
+
+/* TWO FACETS ASK TWO DIFFERENT QUESTIONS OF THE SAME CARD, and one card is
+   asked both — `carbon-fixation` has kinds AND van Helmont's willow — so the
+   pill belongs to the facet, not to the host. Each facet keeps its own pill,
+   fan and links under `host.facets[key]`, and the pills stack under the card
+   in declaration order. */
+const FACETS = {
+  kinds: {
+    label: 'What kinds are there?',
+    has: h => !!(h.kinds && h.kinds.length),
+    deal: h => h.kinds.map(([name, claim], i) =>
+      ({ id: h.id + '::' + i, type: 'satellite', name, claim })),
+  },
+  evidence: {
+    label: 'How do we know?',
+    has: h => EVIDENCE.has(h.id),
+    /* the experiment cards themselves, in the shape the map used to draw
+       them: a flask, a name and the sentence that is the whole point */
+    deal: h => EVIDENCE.get(h.id).map(e =>
+      ({ id: e.id, type: 'evidence', name: e.name, claim: e.claim })),
+  },
+};
+const FACET_KEYS = Object.keys(FACETS);
+const hasFacet = h => !!h && FACET_KEYS.some(k => FACETS[k].has(h));
+const fc = (host, key) => {
+  const all = host.facets || (host.facets = {});
+  return all[key] || (all[key] = { pill: null, pillLink: null, sats: null, satLinks: null });
+};
+
+function makePills(host) {
+  let below = host.el.offsetHeight / 2 + 34;
+  for (const key of FACET_KEYS) {
+    if (!FACETS[key].has(host)) continue;
+    const f = fc(host, key);
+    const pill = {
+      id: host.id + '::ask:' + key, type: 'ask', facet: key,
+      satellite: true, pinned: true,
+      host, label: FACETS[key].label, unit: host.unit, tint: host.tint,
+      deg: 0, on: true, dx: 0, dy: 0, x: host.x, y: host.y, vx: 0, vy: 0,
+    };
+    nodes.push(pill); byId[pill.id] = pill;
+    paintNode(pill);
+    /* focus decided what to light before this existed. It is always family of
+       the focused card, so it is always lit. */
+    pill.el.classList.add('lit');
+    pill.dy = below + pill.el.offsetHeight / 2;
+    below += pill.el.offsetHeight + 12;
+    pill.tx = pill.x; pill.ty = pill.y;
+    sizeOf(pill);
+    const l = { a: pill, b: host, type: 'asks', rank: 2, spine: false };
+    links.push(l); paintLink(l); edgeRefresh(l);
+    l.label.style.display = 'none';      /* the pill says it; the line need not */
+    f.pill = pill; f.pillLink = l;
+  }
   return host;
 }
 
@@ -2746,62 +2836,80 @@ function dropLinks(list) {
   links = links.filter(l => !list.includes(l));
 }
 
-function dropPill(host) {
-  if (host.sats) collapseKinds(host);
-  if (!host.pill) return;
-  dropNodes([host.pill]); dropLinks([host.pillLink]);
-  host.pill = null; host.pillLink = null;
+function dropPills(host) {
+  for (const key of FACET_KEYS) {
+    const f = host.facets && host.facets[key];
+    if (!f) continue;
+    if (f.sats) collapseFacet(host, key);
+    if (f.pill) { dropNodes([f.pill]); dropLinks([f.pillLink]); }
+    f.pill = null; f.pillLink = null;
+  }
 }
 
-/* the pill belongs to whichever card is being worked on, and survives a click
-   on itself or on anything it produced */
+/* the pills belong to whichever card is being worked on, and survive a click
+   on one of themselves or on anything they produced */
 function syncPill(n) {
   const family = pillHost &&
-    (n === pillHost || n === pillHost.pill || n === pillHost.query ||
-     (pillHost.sats || []).includes(n));
+    (n === pillHost || n === pillHost.query ||
+     FACET_KEYS.some(k => {
+       const f = pillHost.facets && pillHost.facets[k];
+       return f && (n === f.pill || (f.sats || []).includes(n));
+     }));
   if (family) return;
-  if (pillHost) dropPill(pillHost);
-  pillHost = (n && n.kinds) ? makePill(n) : null;
+  if (pillHost) dropPills(pillHost);
+  pillHost = hasFacet(n) ? makePills(n) : null;
 }
 
-function collapseKinds(host) {
-  dropQuery(host);
-  dropNodes(host.sats); dropLinks(host.satLinks);
-  host.sats = null; host.satLinks = null;
-  if (host.pill) host.pill.el.textContent = host.pill.label;
+function collapseFacet(host, key) {
+  /* only the kinds fan can be carrying a query: an extension question names a
+     `kind`, never an experiment */
+  if (key === 'kinds') dropQuery(host);
+  const f = fc(host, key);
+  if (!f.sats) return;
+  dropNodes(f.sats); dropLinks(f.satLinks);
+  f.sats = null; f.satLinks = null;
+  if (f.pill) f.pill.el.textContent = f.pill.label;
 }
 
-/* THE KINDS HANG OFF THE PILL, not off the card, so the reading is that a
-   question produced them. Fanned rather than stacked: five in a column ran
+/* THE FAN HANGS OFF THE PILL, not off the card, so the reading is that a
+   question produced it. Fanned rather than stacked: five in a column ran
    551px down into a map that is tight in y and roomy in x. */
-function toggleKinds(host) {
-  if (!host || !host.pill) return;
-  if (host.sats) { collapseKinds(host); draw(); return; }
+function toggleFacet(host, key) {
+  const f = host && key && fc(host, key);
+  if (!f || !f.pill) return;
+  if (f.sats) { collapseFacet(host, key); draw(); return; }
 
-  const GAP = 18, pill = host.pill;
-  host.sats = []; host.satLinks = [];
-  host.kinds.forEach(([name, claim], i) => {
+  const GAP = 18, pill = f.pill;
+  f.sats = []; f.satLinks = [];
+  FACETS[key].deal(host).forEach(spec => {
     const sat = {
-      id: host.id + '::' + i, type: 'satellite', satellite: true, pinned: true,
-      name, claim, unit: host.unit, tint: host.tint, deg: 0, on: true, host: pill,
+      ...spec, satellite: true, pinned: true,
+      unit: host.unit, tint: host.tint, deg: 0, on: true, host: pill,
       dx: 0, dy: 0, x: pill.x, y: pill.y, vx: 0, vy: 0,
     };
     nodes.push(sat); byId[sat.id] = sat;
     paintNode(sat);
+    /* AN EVIDENCE CARD PAINTS THROUGH THE CARD BRANCH, which starts fogged —
+       and a revealed card that withholds its claim is the mark it replaced.
+       `light()` is what normally strips this; a satellite never goes through
+       it. Before `sizeOf`, or the fan is spaced for a mark and then holds
+       cards. */
+    sat.el.classList.remove('unlit');
     sat.el.classList.add('lit');
     sat.tx = sat.x; sat.ty = sat.y;
     sizeOf(sat);
-    const l = { a: sat, b: pill, type: 'instance-of', rank: 2, spine: false };
-    links.push(l); host.satLinks.push(l); paintLink(l); edgeRefresh(l);
-    host.sats.push(sat);
+    const l = { a: sat, b: pill, type: key === 'evidence' ? 'evidence-for' : 'instance-of',
+                rank: 2, spine: false };
+    links.push(l); f.satLinks.push(l); paintLink(l); edgeRefresh(l);
+    f.sats.push(sat);
   });
 
-  const count = host.sats.length;
-  const wide = Math.max(...host.sats.map(x => x.el.offsetWidth));
-  const tall = Math.max(...host.sats.map(x => x.el.offsetHeight));
+  const count = f.sats.length;
+  const wide = Math.max(...f.sats.map(x => x.el.offsetWidth));
+  const tall = Math.max(...f.sats.map(x => x.el.offsetHeight));
   const span = Math.min(150, count * 34) * Math.PI / 180;
   const step = count > 1 ? span / (count - 1) : 0;
-  const place = (reach) => host.sats.forEach((sat, i) => {
+  const place = (reach) => f.sats.forEach((sat, i) => {
     const a = -span / 2 + i * step;             /* 0 points straight down */
     sat.dx = reach * Math.sin(a);
     sat.dy = reach * Math.cos(a);
@@ -2812,7 +2920,7 @@ function toggleKinds(host) {
      than a cleverer formula, push the fan out until the boxes really miss. */
   const clash = () => {
     for (let a = 0; a < count; a++) for (let b = a + 1; b < count; b++) {
-      const p = host.sats[a], q = host.sats[b];
+      const p = f.sats[a], q = f.sats[b];
       if (Math.abs(p.dx - q.dx) < (p.el.offsetWidth + q.el.offsetWidth) / 2 + GAP &&
           Math.abs(p.dy - q.dy) < (p.el.offsetHeight + q.el.offsetHeight) / 2 + GAP)
         return true;
@@ -2875,7 +2983,7 @@ function spawnQuery(q, host) {
 
   /* the member that answers it, or the card itself when the question is
      about the whole fan rather than one of it */
-  const target = (q.kind && (host.sats || []).find(s => s.name === q.kind)) || host;
+  const target = (q.kind && (kf(host).sats || []).find(s => s.name === q.kind)) || host;
   q.satellite = true; q.pinned = true; q.host = target;
   q.on = true; q.deg = 0; q.vx = 0; q.vy = 0;
   q.x = target.x; q.y = target.y;
@@ -2921,17 +3029,17 @@ function askQuestion(q) {
   if (!host) { console.warn('query has nowhere to land:', q.id); return; }
   light(host);
   focus(host);                         /* syncPill grows the pill from here */
-  if (host.kinds && !host.sats) toggleKinds(host);
+  if (FACETS.kinds.has(host) && !kf(host).sats) toggleFacet(host, 'kinds');
   spawnQuery(q, host);
   /* the fan and the question were born after focus lit the neighbourhood */
-  for (const m of [q, host.pill, ...(host.sats || [])])
+  for (const m of [q, kf(host).pill, ...(kf(host).sats || [])])
     if (m && m.el) m.el.classList.add('lit');
   /* THE CHAIN MOVES AFTER THE ASK. The fan is placed, then the relax settles
      it, so a point computed now is stale by the time the pan arrives — the
      follow target reads the chain live, and it is the BOUNDING BOX rather than
      the mean of centres because the asked question is by far the widest card
      in it. */
-  const chain = () => [q, host, host.pill, ...(host.sats || [])].filter(m => m && m.el);
+  const chain = () => [q, host, kf(host).pill, ...(kf(host).sats || [])].filter(m => m && m.el);
   const box = () => chain().reduce((b, m) => {
     const w = m.el.offsetWidth / 2, h = m.el.offsetHeight / 2;
     return { l: Math.min(b.l, m.x - w), r: Math.max(b.r, m.x + w),
@@ -3280,9 +3388,23 @@ function searchMap(text) {
       const s = score(k.toLowerCase(), terms, 60) + score(claim.toLowerCase(), terms, 6);
       if (s > 0 && s > (kind ? kind.s : 0)) kind = { k, s };
     }
-    if (kind && kind.s > best) { best = kind.s; }
-    else kind = null;                          /* the card itself won */
-    if (best > 0) hits.push({ n, kind: kind && kind.k, s: best, nameScore, stemScore });
+    /* AN EXPERIMENT IS OFF THE MAP AND STILL HAS A NAME. `Meselson` and
+       `Photograph 51` are what a reader types, and neither is on any card's
+       face — so evidence is scored the way a kinds member is, and the hit
+       resolves to the claim it settles, because that is where it hangs. */
+    let ev = null;
+    for (const e of EVIDENCE.get(n.id) || []) {
+      const s = score(e.name.toLowerCase(), terms, 60) +
+                score((e.claim || '').toLowerCase(), terms, 6);
+      if (s > 0 && s > (ev ? ev.s : 0)) ev = { name: e.name, s };
+    }
+    const fan = kind && ev ? (kind.s >= ev.s ? kind : ev) : (kind || ev);
+    if (fan && fan.s > best) best = fan.s;
+    else { kind = null; ev = null; }           /* the card itself won */
+    if (fan && fan !== kind) kind = null;
+    if (fan && fan !== ev) ev = null;
+    if (best > 0) hits.push({ n, kind: kind && kind.k, ev: ev && ev.name,
+                              s: best, nameScore, stemScore });
   }
   /* A CARD WITH A LESSON IS THE BETTER ARRIVAL. `membrane` names no card, but
      `selective-perm` holds the membrane lesson and `membrane-protein` merely
@@ -3307,7 +3429,7 @@ function searchMap(text) {
 function namedCard(text) {
   const terms = (text || '').trim().split(/\s+/).filter(Boolean).length;
   const hit = searchMap(text);
-  if (!hit || hit.kind) return null;
+  if (!hit || hit.kind || hit.ev) return null;
   /* NAMED, or the SUBJECT OF ITS LESSON. Both are the reader saying plainly
      what they want, so both outrank a question that merely contains the word:
      `membrane` is the subject of the lesson on `selective-perm` and appears
@@ -3327,8 +3449,11 @@ function arriveAt(hit) {
   askIn.blur();
   light(hit.n);
   focus(hit.n);
-  /* a kinds hit is not a card, so the fan is dealt to put it on screen */
-  if (hit.kind && hit.n.kinds && !hit.n.sats) toggleKinds(hit.n);
+  /* a fan hit is not a card, so the fan is dealt to put it on screen */
+  if (hit.kind && FACETS.kinds.has(hit.n) && !kf(hit.n).sats) toggleFacet(hit.n, 'kinds');
+  if (hit.ev && FACETS.evidence.has(hit.n) &&
+      !(hit.n.facets && hit.n.facets.evidence && hit.n.facets.evidence.sats))
+    toggleFacet(hit.n, 'evidence');
   followK = ASK_ZOOM;
   touched = true;
   wake(0.4);
@@ -3455,9 +3580,15 @@ async function semanticGo(text) {
     const hit = bestByZ(v, bank.rows);
     if (!hit || hit.z < Z_FLOOR) return false;
 
-    const n = byId[hit.row.node];
+    /* THE CORPUS STILL HOLDS THE EXPERIMENTS, and it should: their claims are
+       the most distinctive prose on the map. They are no longer cards, so the
+       row resolves to the claim each one settles and arrives with its fan
+       dealt — the same landing a `kind` row gets. */
+    const evHost = EVIDENCE_HOST.get(hit.row.node);
+    const n = evHost || byId[hit.row.node];
     if (!n) return false;
     if (hit.row.kind === 'q') ask(n.id);
+    else if (evHost) arriveAt({ n, ev: evidenceName(hit.row.node) });
     else arriveAt({ n, kind: hit.row.member || null });
     note('closest match: <em>' + esc(hit.row.text.slice(0, 90)) + '</em>');
     return true;
