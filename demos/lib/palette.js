@@ -108,6 +108,30 @@
                      // stone, so it reads as "not one of the four" rather
                      // than as a fifth base
     },
+    // ---- strands: the sugar-phosphate backbone kit/nucleic.js draws --------
+    // The quiet channel, and deliberately so. `bases` above are all saturated
+    // and light, because the rungs are what a reader is meant to land on; a
+    // backbone that goes anywhere near them starts reading as a fifth and
+    // sixth base, which is what a blue-and-orange pair did before these.
+    //
+    // GREEN AND MAGENTA ARE THE TWO HUES `bases` LEAVES FREE — nothing in it
+    // is either — and they are far enough apart in the blue channel to stay
+    // separable for a reader who cannot use the red-green one. Two strands
+    // have to be told apart or antiparallel is invisible, and that is the only
+    // thing a backbone's colour has to say.
+    //
+    // THESE ARE LIGHTER IN THE FILE THAN THEY LOOK ON SCREEN. lib/scene.js
+    // renders with LinearEncoding and no tone mapping, so every colour here
+    // reaches the screen darker than its hex — house-wide, and not something
+    // one page gets to change. A hex picked by eye off a swatch always comes
+    // out disappointing. Judge them in the render.
+    strands: {
+      a:   0x4ad18c,   // first strand  — green
+      b:   0xef73ad,   // second strand — magenta
+      one: 0xd8d2c4,   // a chain with nothing to be told apart from: tRNA is
+                       // ONE strand paired to itself, so a second colour there
+                       // would claim a second molecule
+    },
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks
     // every bond clears the sum of its two. See molecules.js's header.

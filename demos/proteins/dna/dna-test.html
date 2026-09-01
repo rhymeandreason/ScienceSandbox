@@ -127,47 +127,25 @@ const box = CardStage.create({
    the two are told apart. The RUNGS carry base identity instead — the two
    claims cannot share one channel, and the backbone is the better home for
    strand since it is the thing that runs. */
-/* TWO STRAND COLOURS, DARK, IN HUES THE BASES DO NOT USE. Antiparallel is
-   only visible if the two backbones are told apart, and neither two neutrals
-   nor a slate-and-tan pair separated them at card size.
+/* The two strands, and the one colour a bench uses when it is not telling
+   them apart. Why these hues and why they are lighter in the file than they
+   look on screen: lib/palette.js's `strands`. */
+const INK = { A: MolPalette.strands.a, B: MolPalette.strands.b,
+              flat: MolPalette.strands.one };
 
-   THE BASES OWN THE BRIGHT END. Guanine's indigo, cytosine's cyan, adenine's
-   red and thymine's amber are all saturated and light, so a backbone competes
-   the moment it goes anywhere near them — strand blue sat on guanine and
-   strand orange on thymine, and the backbone read as a fifth and sixth base.
-   Going DARK settles that by value: the rungs are what the eye lands on, and
-   the two strands still separate from each other.
-
-   Pine and wine are the two hues the base family leaves free — nothing in it
-   is green and nothing is magenta — and they are far enough apart in the blue
-   channel to stay separable for a reader who cannot use the red-green one.
-
-   LIFTED TWICE, AND THE SECOND TIME FOR A REASON WORTH WRITING DOWN. Smooth
-   shading was the first: flat facets each caught the light square on, and
-   gradating that away drops most of the surface to the darker end of the ramp.
-   The second is that lib/scene.js renders with LinearEncoding and no tone
-   mapping, so EVERY colour here reaches the screen darker than its hex —
-   house-wide, shared by every lesson, and not something a bench gets to
-   change. So these two read as mid-tones on screen despite being light values
-   in the source, and a hex picked by eye off a swatch will always come out
-   disappointing. Judge them in the render, never in the file. */
-const INK = { A: 0x4ad18c, B: 0xef73ad, flat: 0x8a8578 };
-
-/* THE BASE COLOURS ARE THE PALETTE'S, read back off the custom properties
-   tokens-from-palette.js published at load. Never typed here: a caption and
-   the slab it names cannot drift if both read the same token, which is the
-   whole reason that file exists. */
+/* COLOUR COMES FROM lib/palette.js AND NOWHERE ELSE. The meshes read the ints
+   directly; the legend's swatches read the --base-* / --strand-* custom
+   properties tokens-from-palette.js publishes from the same object at load.
+   Two paths, one source — which is the whole reason that file exists, and why
+   a caption and the slab it names cannot drift. */
 const mats = {};
 function baseMat(b) {
-  if (!mats[b]) {
-    const hex = getComputedStyle(document.documentElement)
-      .getPropertyValue('--base-' + b).trim() || '#8a8578';
-    mats[b] = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(hex), roughness: 0.5, metalness: 0.0,
-      side: THREE.DoubleSide });
-  }
+  if (!mats[b]) mats[b] = new THREE.MeshStandardMaterial({
+    color: MolPalette.bases[b] !== undefined ? MolPalette.bases[b] : MolPalette.bases.X,
+    roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide });
   return mats[b];
 }
+
 const chainMats = {};
 function chainMat(key) {
   if (!chainMats[key]) chainMats[key] = new THREE.MeshStandardMaterial({

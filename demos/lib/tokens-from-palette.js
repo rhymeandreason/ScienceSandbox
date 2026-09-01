@@ -13,8 +13,8 @@
  *  the numbers across and hope, the ints become custom properties at load, so
  *  editing palette.js moves the type and the molecule together.
  *
- *  Writes --atom-O ..., --bond-hbond ... and --base-G ..., plus the bare
- *  --O / --Na / --Cl / --K names the older pages still use. When nothing greps for those, the
+ *  Writes --atom-O ..., --bond-hbond ..., --base-G ... and --strand-a ...,
+ *  plus the bare --O / --Na / --Cl / --K names the older pages still use. When nothing greps for those, the
  *  second loop goes.
  * ===================================================================== */
 (function (global) {
@@ -29,6 +29,7 @@
   for (const [el, n] of Object.entries(P.atoms)) css.setProperty('--atom-' + el, hex(n));
   for (const [name, n] of Object.entries(P.bonds)) css.setProperty('--bond-' + name, hex(n));
   for (const [b, n] of Object.entries(P.bases)) css.setProperty('--base-' + b, hex(n));
+  for (const [k, n] of Object.entries(P.strands)) css.setProperty('--strand-' + k, hex(n));
 
   // legacy bare-element names
   for (const [el, n] of Object.entries(P.atoms)) css.setProperty('--' + el, hex(n));

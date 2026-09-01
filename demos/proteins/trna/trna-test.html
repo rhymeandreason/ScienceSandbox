@@ -112,21 +112,19 @@ const box = CardStage.create({
   autoplay: false,
 });
 
-/* THE BASE COLOURS ARE THE PALETTE'S, read back off the custom properties
-   tokens-from-palette.js published at load. Never typed here: a caption and
-   the slab it names cannot drift if both read the same token, which is the
-   whole reason that file exists. */
+/* COLOUR COMES FROM lib/palette.js AND NOWHERE ELSE. The meshes read the ints
+   directly; the legend's swatches read the --base-* / --strand-* custom
+   properties tokens-from-palette.js publishes from the same object at load.
+   Two paths, one source — which is the whole reason that file exists, and why
+   a caption and the slab it names cannot drift. */
 const mats = {};
 function baseMat(b) {
-  if (!mats[b]) {
-    const hex = getComputedStyle(document.documentElement)
-      .getPropertyValue('--base-' + b).trim() || '#8a8578';
-    mats[b] = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(hex), roughness: 0.5, metalness: 0.0,
-      side: THREE.DoubleSide });
-  }
+  if (!mats[b]) mats[b] = new THREE.MeshStandardMaterial({
+    color: MolPalette.bases[b] !== undefined ? MolPalette.bases[b] : MolPalette.bases.X,
+    roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide });
   return mats[b];
 }
+
 const chainMats = {};
 function chainMat(key, hex) {
   if (!chainMats[key]) chainMats[key] = new THREE.MeshStandardMaterial({
@@ -153,11 +151,8 @@ function draw() {
 
   for (const s of parts.strands)
     /* ONE COLOUR, because there is one chain — the stems are this molecule
-       paired to ITSELF, so there is no second strand to tell apart. Light,
-       and lighter than it looks in the file: scene.js renders with
-       LinearEncoding and no tone mapping, so every colour reaches the screen
-       darker than its hex. Judge it in the render. */
-    group.add(new THREE.Mesh(s.geo, chainMat('chain', 0xd8d2c4)));
+       paired to ITSELF, so there is no second strand to tell apart. */
+    group.add(new THREE.Mesh(s.geo, chainMat('chain', MolPalette.strands.one)));
   /* Half a rung IS one base, so colour by half is colour by base. Paired and
      unpaired are told apart by SHAPE alone now — the gap down the middle of
      two facing stubs — because colour is carrying which base. */
