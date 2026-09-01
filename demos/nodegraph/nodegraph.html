@@ -328,7 +328,7 @@
      no good answer for from a query about pizza — measured, not assumed — so
      an arrival it produced is labelled rather than presented as a lookup. */
   /* THE BAR SPEAKS IN THE MAP'S OWN VOICE. Everything above the field — a
-     closest match, an outside-the-map note, the offer, "building" — is the map
+     closest match, a graft's bridge note, the offer, "building" — is the map
      talking to the reader, so it is set in the serif the cards use and at a
      size that is read rather than squinted at. It sits above a 1rem field and
      under nothing, and it was losing to both at 0.68. */
@@ -5009,7 +5009,7 @@ function restoreGraft(q) {
   focus(host);
   spawnGraft(host, g.nodes || [], g.edges || [], q.text);
   for (const n of graft.nodes) n.el.classList.add('lit');
-  note((g.outside ? '<em>outside the map.</em> ' : '') + esc(g.note || ''));
+  note(esc(g.note || ''));
   frameGraft(host);
 }
 
@@ -5083,12 +5083,12 @@ async function askExtend(text) {
        exactly what was drawn and never asks anything again. Saved BEFORE it is
        drawn, so both modes read the answer from the same place. */
     rememberGraft(text, { host: host.id, nodes: out.nodes, edges: out.edges,
-                          note: out.note || '', outside: !!out.outside });
+                          note: out.note || '' });
     if (!ASKABLE.some(x => x.mine && x.text === text)) {
       ASKABLE.push(doorFor(text, readGrafts()[text] || { host: host.id }));
       sortAskable();
     }
-    note((out.outside ? '<em>outside the map.</em> ' : '') + esc(out.note || ''));
+    note(esc(out.note || ''));
     /* IN BUILD A NEW QUESTION IS A NEW GRAPH, not a graft on somebody else's
        card: it seeds, and what it generated is its first hop. */
     if (buildsNow()) {

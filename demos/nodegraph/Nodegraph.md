@@ -105,7 +105,7 @@ It is styled as a different ACT, not a smaller one: italic, and a blue no unit o
 
 ## Extending the map
 
-**A question the curriculum does not cover gets a GRAFT.** `/api/extend` proposes two or three cards wired to cards that already exist, and they arrive as satellites of the one they attach to: pinned, outside the layout pass, dropped when focus leaves. That is what makes it safe rather than careful — a generated node cannot move a laid-out card, close a cycle on the explanation axis or spend a rank-1 budget, because it never enters the passes that do those things. Measured: a graft drifts the skeleton **529.4px**, against **529.4px** for opening the same two cards with no graft.
+**A question the curriculum does not cover gets a GRAFT.** `/api/extend` proposes a CHAIN of up to six cards, from a card that already exists up to the thing the reader asked about — the map's units are its floor, not its fence, so gluten intolerance is answered from protein shape rather than refused for being whole-body. The `note` under it is the bridge sentence naming the mechanism the chain runs through; it used to be an "outside the map" disclaimer printed over the graft, which disowned the answer. The cards are wired to cards that already exist, and they arrive as satellites of the one they attach to: pinned, outside the layout pass, dropped when focus leaves. That is what makes it safe rather than careful — a generated node cannot move a laid-out card, close a cycle on the explanation axis or spend a rank-1 budget, because it never enters the passes that do those things. Measured: a graft drifts the skeleton **529.4px**, against **529.4px** for opening the same two cards with no graft.
 
 **The model gets the whole INDEX, not just the retrieval.** Given only the vector search's candidates it wired gills to AQUATIC OVERWINTERING — `simple-diffusion` and `sa-v` never surface for that query because they never say oxygen. Two hundred ids and names is about a thousand tokens; the whole map is cheaper than being wrong. Rank is 2 or 3, never the spine; `part-of`, `contains` and `instance-of` are out of the grammar it may use; every id is validated at the endpoint and again against `byId` before anything is drawn, and an unresolvable edge is dropped rather than repaired.
 
@@ -328,7 +328,7 @@ The search log used to record only **what was typed**. It now records **what cam
 
 * **`kind`** — `find` / `extend` / `land`. Which endpoint wrote the row, or none.
 
-* **`answer`** — what the reader got. For a generation: the validated cards, their edges, `outside`, the note. For a search: which tier answered, where it landed, and the z-score when there was one.
+* **`answer`** — what the reader got. For a generation: the validated cards, their edges, the note. For a search: which tier answered, where it landed, and the z-score when there was one.
 
 * **`is_local`** — whether the request came from the machine serving it, by `api/_local.js`'s definition. A boolean, never an address.
 

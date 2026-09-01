@@ -2,7 +2,7 @@
  *  api/extend.js — the map reaching past itself, one question at a time
  * =============================================================================
  *  GET  /api/extend  → whether the endpoint is configured
- *  POST /api/extend  {q, candidates:[{id,name,claim}]} → {outside, nodes, edges}
+ *  POST /api/extend  {q, candidates:[{id,name,claim}]} → {note, nodes, edges}
  *
  *  A reader asks something Bio 101 does not cover — "how do fish breathe
  *  underwater?" — and the map has every PIECE (diffusion, surface-area-to-
@@ -39,10 +39,12 @@
  *  the pass that would do any of those things. The blast radius of a wrong
  *  answer is one card the reader is looking at.
  *
- *  `outside` IS PART OF THE ANSWER. The model is asked to say plainly whether
- *  the question is inside this curriculum. "Gills are not in Bio 101; here is
- *  the diffusion that makes them work" is a better answer than a confident
- *  card pretending gills were always on the map.
+ *  THE MAP'S UNITS ARE ITS FLOOR, NOT ITS FENCE. A reader asks about gluten
+ *  intolerance or gills, and the answer is a CHAIN from a card the map has up
+ *  to the thing they asked about. `note` is the bridge sentence: which
+ *  mechanism on the map the answer runs through. It used to be a refusal
+ *  ("outside the map") printed over a graft the model had built anyway, which
+ *  disowned the answer it was giving.
  * ========================================================================== */
 'use strict';
 
@@ -51,7 +53,7 @@ const finds = require('./_finds.js');
 const { local } = require('./_local.js');
 
 const MAXLEN = 400;              // a question, not a passage
-const MAXNODES = 4;
+const MAXNODES = 6;             // a chain from the map's floor to the answer
 const MAXCANDIDATES = 20;
 const MAXINDEX = 400;            // the whole map, with room to grow
 
@@ -66,7 +68,6 @@ const TYPES = ['causes', 'enables', 'prerequisite-of', 'produces', 'consumes',
 const SCHEMA = {
   type: 'object',
   properties: {
-    outside: { type: 'boolean' },
     note: { type: 'string' },
     nodes: {
       type: 'array',
@@ -94,7 +95,7 @@ const SCHEMA = {
       },
     },
   },
-  required: ['outside', 'note', 'nodes', 'edges'],
+  required: ['note', 'nodes', 'edges'],
 };
 
 const SYSTEM = `You extend a concept map for a college Biology 101 course.
@@ -108,6 +109,15 @@ You are given the reader's question, the map's INDEX — every card, as id and
 name — and CANDIDATES, the handful a search ranked closest, with their claims.
 Propose at most ${MAXNODES} new cards that answer the question, and the edges
 that connect them.
+
+The map's units — water and bonding, macromolecules, protein structure, the
+cell and its membrane, molecular genetics, respiration, photosynthesis — are
+its FLOOR, not its fence. Readers ask about organs, disease, ecology, whatever
+they are curious about, and the answer is a CHAIN: start from the card whose
+mechanism the answer runs through and build up to the thing they asked about,
+one card per step, the general mechanism at the map end. Gluten intolerance is
+peptide → immune recognition → immune attack → gut lining, hung on protein
+shape. Never refuse a question for being above the map's scale.
 
 Attach to the card whose MECHANISM explains the answer, which is often not one
 of the candidates: the search ranks by wording, and the right card frequently
@@ -126,13 +136,10 @@ RULES, and a reply breaking one is discarded:
   second: diffusion enables a gill, a gill does not enable diffusion.
 - New ids are lowercase, hyphenated, and describe the card: "gill", "countercurrent".
 - rank 2 for the main link, rank 3 for a side one. Never rank 1.
-- This map is Bio 101: water and bonding, macromolecules, protein structure,
-  the cell and its membrane, molecular genetics, respiration, photosynthesis.
-  Organism-scale anatomy and physiology — organs, breathing, circulation,
-  whole-body systems — is OUTSIDE it. Say outside:true for those, and do not
-  pretend otherwise; the reader is told. "note" is one sentence to the reader saying
-  what the map does and does not cover here, and it is shown to them.
-- Propose FEWER cards rather than padding. One card that lands is the goal.
+- "note" is one sentence to the reader, shown under the cards: which mechanism
+  on the map the answer runs through, said as an on-ramp, never as a
+  disclaimer about what the map does not cover.
+- Propose FEWER cards rather than padding: as many as the chain needs, no more.
 - Every claim must be true. If you are not sure of a mechanism, leave it out.`;
 
 module.exports = async function handler(req, res) {
@@ -193,14 +200,14 @@ module.exports = async function handler(req, res) {
 
     const clean = validate(out.json, candidates.concat(index));
     if (!clean.nodes.length) {
-      return res.status(200).json({ outside: !!out.json.outside, note: out.json.note || '',
+      return res.status(200).json({ note: out.json.note || '',
                                     nodes: [], edges: [], ms: Date.now() - t0 });
     }
     /* the VALIDATED answer, which is what the reader was shown — not the raw
        reply, whose dropped edges never reached anybody */
     finds.record({ visitorId: body.visitorId, cohort: who, q, kind: 'extend', isLocal: local(req),
                    ms: Date.now() - t0,
-                   answer: { outside: clean.outside, note: clean.note,
+                   answer: { note: clean.note,
                              nodes: clean.nodes, edges: clean.edges,
                              served: out.served } });
     return res.status(200).json({ ...clean, ms: Date.now() - t0, served: out.served });
@@ -244,12 +251,11 @@ function validate(json, candidates) {
   /* A cluster with no edge to a real card is not an extension of anything, and
      the page would have nowhere to hang it. */
   const anchored = edges.some(e => known.has(e.from) || known.has(e.to));
-  if (!anchored) return { outside: !!json.outside, note: String(json.note || ''), nodes: [], edges: [] };
+  if (!anchored) return { note: String(json.note || ''), nodes: [], edges: [] };
 
   /* A node no surviving edge mentions would spawn with nothing attached. */
   const used = new Set(edges.flatMap(e => [e.from, e.to]));
   return {
-    outside: !!json.outside,
     note: String(json.note || '').slice(0, 240),
     nodes: nodes.filter(n => used.has(n.id)),
     edges,
