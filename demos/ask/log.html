@@ -154,7 +154,15 @@
      One page, two different questions: how the tutor ANSWERED, and what people
      typed at the map. They share a visitor id and nothing else, so they are
      tabs rather than one merged stream. */
-  .tabs { display: flex; gap: .25rem; margin: 0 0 1.25rem; border-bottom: 1px solid var(--line, #2a2d33); }
+  /* the tabs and the global controls share the rule under them, so the page
+     has ONE line separating "which view" from the view itself */
+  .topbar {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+    margin: 0 0 1.25rem; border-bottom: 1px solid var(--line, #2a2d33);
+  }
+  .topbar .global { display: flex; gap: .5rem; padding-bottom: .4rem; }
+  .tabs { display: flex; gap: .25rem; }
   .tabs button {
     font: inherit; font-size: .9rem; color: var(--muted);
     background: none; border: 0; border-bottom: 2px solid transparent;
@@ -217,9 +225,11 @@
   .qlist .tier.offer, .qlist .tier.miss { color: #e0af68; }
   /* OFF BY DEFAULT, so the queue reads as what students asked. A session spent
      testing the bar is dozens of questions nobody wanted answered. */
-  .check { display: inline-flex; align-items: center; gap: .35rem; font-size: .78rem;
-           color: var(--faint, #6d6f76); cursor: pointer; }
-  .check input { accent-color: #7aa2f7; }
+  /* the one control here that is a STATE rather than an action, so it fills
+     when it is on — the same thing the map's own primary pill does */
+  button.act[aria-pressed="true"] {
+    background: #7aa2f7; border-color: #7aa2f7; color: #10131a; font-weight: 500;
+  }
   .qlist div.local { opacity: .55; }
   .qlist .here {
     font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
@@ -232,9 +242,21 @@
   <h1>Log</h1>
   <p class="sub" id="sub"></p>
 
-  <div class="tabs" role="tablist">
-    <button role="tab" id="tab-tutor" aria-controls="pane-tutor" aria-selected="true">Tutor<span class="n"></span></button>
-    <button role="tab" id="tab-map"   aria-controls="pane-map"   aria-selected="false">Map<span class="n"></span></button>
+  <!-- GLOBAL, so above the tabs. Reload refetches both panes and `localhost`
+       decides what either of them counts; both were sitting inside the Tutor
+       pane, where a control that reaches the whole page reads as one more
+       filter on turns — and `localhost`, which only affects the MAP, was
+       invisible from the tab it acts on. -->
+  <div class="topbar">
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tab-tutor" aria-controls="pane-tutor" aria-selected="true">Tutor<span class="n"></span></button>
+      <button role="tab" id="tab-map"   aria-controls="pane-map"   aria-selected="false">Map<span class="n"></span></button>
+    </div>
+    <div class="global">
+      <button class="act" id="showlocal" aria-pressed="false"
+              title="rows written from this machine, hidden by default">localhost</button>
+      <button class="act" id="reload">Reload</button>
+    </div>
   </div>
 
   <section id="pane-tutor" role="tabpanel">
@@ -244,7 +266,6 @@
     <div class="bar">
       <select id="lesson"><option value="">every lesson</option></select>
       <select id="cohort"><option value="">every class</option></select>
-    <label class="check"><input type="checkbox" id="showlocal"> localhost</label>
       <select id="aimed">
         <option value="">every answer</option>
         <option value="none">pointed at nothing</option>
@@ -254,7 +275,6 @@
         <option value="100">100</option>
         <option value="200">200</option>
       </select>
-      <button class="act" id="reload">Reload</button>
       <span class="note" id="note"></span>
     </div>
 
@@ -308,7 +328,7 @@ async function load() {
   const p = new URLSearchParams();
   if ($('lesson').value) p.set('lesson', $('lesson').value);
   if ($('cohort').value) p.set('cohort', $('cohort').value);
-  if ($('showlocal').checked) p.set('local', '1');
+  if ($('showlocal').getAttribute('aria-pressed') === 'true') p.set('local', '1');
   if ($('aimed').value)  p.set('aimed',  $('aimed').value);
   if (model)             p.set('model',  model);
   p.set('limit', $('limit').value);
@@ -508,7 +528,22 @@ function draw(data) {
   }).join('');
 }
 
-for (const id of ['lesson', 'cohort', 'aimed', 'limit', 'showlocal']) $(id).addEventListener('change', load);
+for (const id of ['lesson', 'cohort', 'aimed', 'limit']) $(id).addEventListener('change', load);
+
+/* A TOGGLE, AND IT REMEMBERS. Reading the log while testing means flipping
+   this often, and a button that resets on every reload would be flipped again
+   every time. `aria-pressed` is the state rather than a class, so the button
+   says what it is to a screen reader as well as to the eye. */
+const LOCAL_KEY = 'ss.log.local';
+const localBtn = $('showlocal');
+function setLocal(on, reload) {
+  localBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  try { localStorage.setItem(LOCAL_KEY, on ? '1' : '0'); } catch (e) { /* private mode */ }
+  if (reload) load();
+}
+localBtn.addEventListener('click', () =>
+  setLocal(localBtn.getAttribute('aria-pressed') !== 'true', true));
+try { if (localStorage.getItem(LOCAL_KEY) === '1') setLocal(true, false); } catch (e) {}
 $('reload').addEventListener('click', load);
 
 // Before load(), so the page opens on the right tab rather than switching once
