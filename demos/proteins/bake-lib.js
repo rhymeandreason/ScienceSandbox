@@ -372,6 +372,213 @@ function viewFor(p, fallback, v) {
   return { view: f.view || null, frame: f.view ? (f.frame || 'computed') : 'deposited' };
 }
 
+/* =========================================================== nucleic acid
+ *
+ *  A NUCLEIC CHAIN HAS NO CA, so caTrace returns nothing for it and the chain
+ *  drops out of a bake with nothing printed. 1AOI bakes as eight histones and
+ *  no DNA, and the render looks like a perfectly good histone octamer. That is
+ *  what `chainKinds` exists to make visible: it says what every chain in the
+ *  file IS, so a baker can refuse rather than quietly halve its subject.
+ *
+ *  A nucleic residue is anchored by three atoms and they answer different
+ *  questions. P is the backbone — where the ribbon goes. C1' is the glycosidic
+ *  attachment — where the base hangs off. The base ring atoms give a centroid
+ *  and a plane normal, which is what lets a renderer draw a slab that is
+ *  actually in the plane of the base rather than a stub pointing at it.
+ *
+ *  THE FIRST RESIDUE OF A CHAIN HAS NO PHOSPHATE. A 5' terminus is deposited
+ *  with O5' and no P, so a P-only backbone silently starts one residue late
+ *  and the ribbon is short at one end — small enough to read as the chain
+ *  simply ending there. O5' then C5' are the fallbacks, in that order.
+ *
+ *  PURINE OR PYRIMIDINE IS ASKED OF THE ATOMS, NOT OF A NAME LIST. N9 present
+ *  means purine. tRNA carries a dozen modified bases and a hardcoded list is
+ *  the thing that misses the next one; the base LETTER still falls back to 'X'
+ *  when the name is not one of the five, which is honest rather than a guess.
+ */
+
+const PU_RING = ['N9', 'C8', 'N7', 'C5', 'C6', 'N1', 'C2', 'N3', 'C4'];
+const PY_RING = ['N1', 'C2', 'O2', 'N3', 'C4', 'C5', 'C6'];
+
+/* The one-letter base, or 'X'. DC -> C, DG -> G, C -> C, PSU -> X. */
+function baseLetter(name) {
+  const c = name.trim().replace(/^D/, '').slice(-1);
+  return 'ACGTU'.includes(c) && name.trim().length <= 3 ? c : 'X';
+}
+
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1],
+                          a[2] * b[0] - a[0] * b[2],
+                          a[0] * b[1] - a[1] * b[0]];
+const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+function unit3(v) {
+  const n = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / n, v[1] / n, v[2] / n];
+}
+
+/* Least-squares plane normal over the ring atoms, by Newell's method — it
+   needs no eigen solve and is stable on a ring that is not quite flat, which
+   every deposited base is. */
+function ringNormal(pts) {
+  let x = 0, y = 0, z = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    x += (a[1] - b[1]) * (a[2] + b[2]);
+    y += (a[2] - b[2]) * (a[0] + b[0]);
+    z += (a[0] - b[0]) * (a[1] + b[1]);
+  }
+  return unit3([x, y, z]);
+}
+
+/* WHAT EVERY CHAIN IN THE FILE IS: 'aa', 'na', or 'other', off the atoms it
+   carries rather than off SEQRES — SEQRES describes the construct and a chain
+   can be declared and unmodelled. Returns a Map of chain id to kind. */
+function chainKinds(text) {
+  const seen = new Map();
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('ATOM') && !line.startsWith('HETATM')) continue;
+    const name = line.slice(17, 20).trim();
+    if (name === 'HOH') continue;
+    const id = line[21] === ' ' ? '_' : line[21];
+    const atom = line.slice(12, 16).trim();
+    if (!seen.has(id)) seen.set(id, { aa: 0, na: 0 });
+    if (atom === 'CA') seen.get(id).aa++;
+    else if (atom === "C1'" || atom === 'C1*') seen.get(id).na++;
+  }
+  const out = new Map();
+  for (const [id, n] of seen)
+    out.set(id, n.aa > n.na ? 'aa' : n.na ? 'na' : 'other');
+  return out;
+}
+
+/* Nucleic residues per chain, in file order. Same altLoc and `only` rules as
+   caTrace; `mod` plays the same opt-in role, because a modified base is a
+   HETATM for exactly the reason hydroxyproline is. */
+function naTrace(text, only, mod) {
+  const chains = new Map();
+  const cur = new Map();          /* chain id -> the residue being filled */
+
+  const flush = (id, r) => {
+    if (!r) return;
+    const back = r.atoms.P || r.atoms["O5'"] || r.atoms["C5'"];
+    const c1 = r.atoms["C1'"];
+    if (!back || !c1) return;     /* not a nucleotide, or too broken to place */
+    const ring = (r.atoms.N9 ? PU_RING : PY_RING)
+      .map(a => r.atoms[a]).filter(Boolean);
+    if (ring.length < 5) return;
+    const bc = ring.reduce((s, p) => [s[0] + p[0], s[1] + p[1], s[2] + p[2]], [0, 0, 0])
+      .map(v => v / ring.length);
+    if (!chains.has(id)) chains.set(id, []);
+    chains.get(id).push({
+      num: r.num, name: r.name, base: baseLetter(r.name),
+      ring: r.atoms.N9 ? 'pu' : 'py',
+      P: back, C1: c1, Bc: bc, Bn: ringNormal(ring),
+      /* The Watson-Crick edge nitrogen: purine N1 faces pyrimidine N3. */
+      edge: r.atoms.N9 ? r.atoms.N1 : r.atoms.N3,
+    });
+  };
+
+  for (const line of text.split('\n')) {
+    const name = line.slice(17, 20).trim();
+    const het = mod && line.startsWith('HETATM') && mod.has(name);
+    if (!line.startsWith('ATOM') && !het) continue;
+    const alt = line[16];
+    if (alt !== ' ' && alt !== 'A') continue;
+    const id = line[21] === ' ' ? '_' : line[21];
+    if (only && !only.has(id)) continue;
+    const num = parseInt(line.slice(22, 26), 10);
+    let r = cur.get(id);
+    if (!r || r.num !== num) { flush(id, r); r = { num, name, atoms: {} }; cur.set(id, r); }
+    r.atoms[line.slice(12, 16).trim().replace(/\*/g, "'")] = xyz(line);
+  }
+  for (const [id, r] of cur) flush(id, r);
+  return chains;
+}
+
+/* WATSON-CRICK PAIRS, SOLVED — and this is the one thing in this file that is
+   computed rather than read, because the format has no record for it. There is
+   no BASEPAIR line in a PDB, so a renderer that wants to draw a rung has to
+   earn the pair from the coordinates, and the bake says `pairsFrom:'geometry'`
+   the way `ssFrom` says where the letters came from.
+ *
+ *  THE TEST IS THE HYDROGEN BOND ITSELF: purine N1 to pyrimidine N3, which is
+ *  the one contact every Watson-Crick pair has and no other arrangement of two
+ *  bases reproduces. Distance and coplanarity alone admit stacked neighbours,
+ *  which are 3.4 A apart and beautifully parallel.
+ *
+ *  IT FINDS ONLY WATSON-CRICK, ON PURPOSE. A wobble, a Hoogsteen or tRNA's
+ *  tertiary contacts come back unpaired, and unpaired renders as a stub rather
+ *  than a rung — so the picture under-claims instead of inventing a ladder.
+ */
+function basePairs(chains, opts) {
+  const o = opts || {};
+  const HB = o.hb || 3.3;            /* N1...N3, ~2.85 A in a good structure */
+  const COPLANAR = o.coplanar || 0.6;  /* |n1 . n2|, a pair is near-antiparallel */
+  const flat = [];
+  for (const [id, res] of chains) for (const r of res) flat.push({ id, r });
+
+  const out = [];
+  const taken = new Set();
+  const key = x => x.id + ':' + x.r.num;
+  for (let i = 0; i < flat.length; i++) {
+    for (let j = i + 1; j < flat.length; j++) {
+      const a = flat[i], b = flat[j];
+      if (a.r.ring === b.r.ring) continue;         /* purine needs a pyrimidine */
+      if (!a.r.edge || !b.r.edge) continue;
+      if (a.id === b.id && Math.abs(a.r.num - b.r.num) < 3) continue;
+      if (dist3(a.r.edge, b.r.edge) > HB) continue;
+      const dot = a.r.Bn[0] * b.r.Bn[0] + a.r.Bn[1] * b.r.Bn[1] + a.r.Bn[2] * b.r.Bn[2];
+      if (Math.abs(dot) < COPLANAR) continue;
+      if (taken.has(key(a)) || taken.has(key(b))) continue;
+      taken.add(key(a)); taken.add(key(b));
+      out.push([a.id, a.r.num, b.id, b.r.num, a.r.base + b.r.base]);
+    }
+  }
+  return out;
+}
+
+/* The nucleic counterpart of `assemble`. Same contract — centred coordinates,
+   `nums` riding with `first`, a radius — and a `kind` so a consumer can never
+   mistake one for a Ca trace. `seq` replaces `ss`: it is the per-residue
+   letter, and it is what it is rather than an assignment anyone could dispute.
+
+   THE CENTRE IS SHARED WITH THE PROTEIN HALF OR THE TWO LAND APART. A mixed
+   file bakes one centre over both, so the caller solves it and passes it in;
+   omit it and it is solved over this chain set alone. */
+function assembleNA(chains, centre) {
+  let c = centre;
+  if (!c) {
+    let cx = 0, cy = 0, cz = 0, n = 0;
+    for (const res of chains.values())
+      for (const r of res) { cx += r.P[0]; cy += r.P[1]; cz += r.P[2]; n++; }
+    c = [cx / n, cy / n, cz / n];
+  }
+  const out = { order: [], chains: {}, radius: 0, centre: c.map(r2) };
+  const move = p => {
+    const q = [r2(p[0] - c[0]), r2(p[1] - c[1]), r2(p[2] - c[2])];
+    out.radius = Math.max(out.radius, Math.hypot(q[0], q[1], q[2]));
+    return q;
+  };
+  for (const [id, res] of chains) {
+    out.order.push(id);
+    out.chains[id] = {
+      kind: 'na',
+      first: res[0].num,
+      nums: res.map(r => r.num),
+      seq: res.map(r => r.base).join(''),
+      ring: res.map(r => r.ring === 'pu' ? 'R' : 'Y').join(''),
+      P: res.map(r => move(r.P)),
+      C1: res.map(r => move(r.C1)),
+      Bc: res.map(r => move(r.Bc)),
+      /* A normal is a direction: it is rotated by a view basis but never
+         translated, so it is written raw and must not go through `move`. */
+      Bn: res.map(r => r.Bn.map(r2)),
+    };
+  }
+  out.radius = r2(out.radius);
+  return out;
+}
+
 /* Chain breaks, counted off the numbers a bake carries — for a baker's own
    console line and for a panel that reports segments. */
 const breaks = trace => trace.order.reduce((k, id) => k + trace.chains[id].nums
@@ -383,4 +590,5 @@ module.exports = {
   modResidues,
   ecNumbers, EC_CLASS,
   assemble, frameOf, viewFor, breaks,
+  chainKinds, naTrace, basePairs, assembleNA, baseLetter,
 };

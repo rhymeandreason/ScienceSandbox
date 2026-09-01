@@ -449,6 +449,27 @@ else
   echo "pre-commit: skipping check-ribbon.js — kit/ribbon.js not staged"
 fi
 
+# nucleic.js is gated the same way and for the same reason: it is the ladder
+# every DNA/RNA page will draw, no one lesson owns it, and its failures are the
+# ribbon's failures wearing different clothes. The flat-face-outward assertion
+# is the one that earns the gate — the width along the radial makes the
+# backbone a fin standing edge-on from the helix, which still twists, still
+# follows the phosphates, and shows the reader its narrow side all the way
+# round. It shipped that way once. The checker builds its own ideal B-DNA and
+# needs no bake, so it is instant.
+if git diff --cached --name-only | grep -qE '^demos/kit/nucleic\.js$'; then
+  if ! node kit/check-nucleic.js > /tmp/cn.$$ 2>&1; then
+    tail -20 /tmp/cn.$$; rm -f /tmp/cn.$$
+    echo ""
+    echo "pre-commit FAILED: check-nucleic.js — the backbone no longer shows its"
+    echo "  flat side outward, or a rung does not span both strands. See the header."
+    exit 1
+  fi
+  rm -f /tmp/cn.$$
+else
+  echo "pre-commit: skipping check-nucleic.js — kit/nucleic.js not staged"
+fi
+
 # residues.js is generated from structures this repo commits, so it can go
 # stale two ways: the baker changes, or a source structure does. Both patterns
 # are here. It is cheap (instant) and it carries the L/D assertion, which is

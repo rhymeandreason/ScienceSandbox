@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B-DNA — the ladder, drawn joined</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS EXISTS. kit/nucleic.js makes one claim no viewer makes: a
+     base PAIR is one rung spanning both backbones. 3Dmol and Mol* both
+     hang a separate stub off each strand, so the reader sees "bases point
+     inward" and nothing about which base is with which. That comparison
+     is in viewer-compare.html at the repo root, on this same structure.
+
+     SO WHAT THIS BENCH IS FOR SETTLING:
+
+       does the rung read     at a card's framing, 40 A across. If a joined
+                              rung is not visibly different from two stubs
+                              at that size, the whole argument for the
+                              module collapses and we may as well use the
+                              conventional drawing.
+       does the stack read    bases are 3.4 A apart, face to face. Parallel
+                              slabs should look like a stack. If they fan,
+                              the plane is coming from the wrong place.
+       antiparallel           colour the strands separately and the two
+                              backbones should visibly run opposite ways.
+       the grooves            major and minor are a real asymmetry, and on
+                              a correct backbone they alternate down the
+                              helix without anyone drawing them.
+
+     WHAT THIS BENCH CANNOT TELL YOU. 1BNA is a perfect duplex — every
+     nucleotide paired, no breaks, no modified bases, straight. It cannot
+     test the case the stub exists for. tRNA (1EHZ) is where paired and
+     unpaired coexist in one chain, and that is the next structure through
+     this pipeline, not this one.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+
+<style>
+  /* The bench chrome in ../protein-test.css is a two-column shell built round
+     a structure switcher, and this page has one structure and a geometry
+     question — so it takes that file's PALETTE and lays itself out as a
+     reading column. Stated because a bench that looks unlike its siblings
+     otherwise reads as an oversight. */
+  body { background: var(--h-paper); color: var(--h-ink);
+         font-family: var(--h-ui); }
+  .wrap { max-width: 62rem; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
+  h1 { font-family: var(--h-display); font-weight: 500; margin: 0 0 .3rem; }
+  .lede { color: var(--h-ink); max-width: 46rem; margin: 0 0 1rem; }
+  #facts td { border-top: 1px solid var(--h-line); }
+  #facts td:first-child { color: var(--h-muted); }
+  #tris { color: var(--h-muted); }
+
+  /* Colour is carrying two claims here and nothing else, so it is the page's
+     rather than the module's: strand identity (antiparallel is only visible
+     if the two are told apart) and pair-vs-no-partner. */
+  #stage { width: 100%; height: 62vh; min-height: 380px; }
+  .swatch { display: inline-block; width: .85em; height: .85em; border-radius: 2px;
+            vertical-align: -1px; margin-right: .35em; }
+  .row { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;
+         margin: .6rem 0 0; }
+  .row label { display: flex; align-items: center; gap: .4rem; }
+  #facts { margin-top: .8rem; }
+  #facts td { padding: .1rem .9rem .1rem 0; vertical-align: top; }
+  #facts .n { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <h1>B-DNA, drawn as a ladder</h1>
+  <p class="lede" id="lede">Loading…</p>
+
+  <div id="stage"></div>
+
+  <div class="row">
+    <label><input type="checkbox" id="rungs" checked> Rungs (base pairs)</label>
+    <label><input type="checkbox" id="stubs" checked> Stubs (unpaired)</label>
+    <label><input type="checkbox" id="bychain" checked> Colour by strand</label>
+    <label>Samples/nt <input type="range" id="sub" min="2" max="16" value="8" style="width:8rem"></label>
+    <span id="tris" class="n"></span>
+  </div>
+
+  <table id="facts"></table>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/nucleic.js"></script>
+<script>
+'use strict';
+
+/* The bench builds its own stage rather than going through
+   kit/proteinbox.js. That is deliberate and TEMPORARY: the box's job is the
+   ribbon, the surface toggle and the fold button, and none of those mean
+   anything for a duplex yet. What this page is settling is whether the
+   GEOMETRY reads at all — and answering that inside a module that would have
+   to grow a nucleic branch first puts the two questions in one change. The
+   branch goes in once the drawing is agreed. */
+const box = CardStage.create({
+  mount: document.getElementById('stage'),
+  stage: { ortho: true, turn: 'trackball' },
+  /* Straight on, because the bake has already turned the helix axis across
+     the page and a card's usual oblique default would undo it. */
+  cam: { theta: 0, phi: Math.PI / 2, r: 62 },
+  /* An ortho camera's apparent size is its frustum, not its distance — so
+     `r` above is standing distance only and the fit happens in reframe(). */
+  autoplay: false,
+});
+
+const INK = {
+  A: 0x3f6fb5,   /* the two strands: distinguishable, and neither one "right" */
+  B: 0xc2703a,
+  flat: 0x8a8578,
+  rung: 0x6f8f5f,   /* a pair — green, because it is the thing being claimed */
+  stub: 0xb03a48,   /* no partner — and it should read as an exception */
+};
+
+const mats = {};
+const matFor = (key) => (mats[key] = mats[key] || new THREE.MeshStandardMaterial({
+  color: INK[key], roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide }));
+
+let trace = null;
+const group = new THREE.Group();
+box.root.add(group);
+
+function clear() {
+  for (const c of group.children.slice()) {
+    group.remove(c);
+    if (c.geometry) c.geometry.dispose();
+  }
+}
+
+function draw() {
+  if (!trace) return;
+  clear();
+  const sub = +document.getElementById('sub').value;
+  const parts = NucleicLib.build(THREE, trace, { sub });
+
+  for (const s of parts.strands)
+    group.add(new THREE.Mesh(s.geo,
+      matFor(document.getElementById('bychain').checked ? s.id : 'flat')));
+
+  if (parts.rungs && document.getElementById('rungs').checked)
+    group.add(new THREE.Mesh(parts.rungs, matFor('rung')));
+  if (parts.stubs && document.getElementById('stubs').checked)
+    group.add(new THREE.Mesh(parts.stubs, matFor('stub')));
+
+  reframe();
+  document.getElementById('tris').textContent =
+    NucleicLib.triangles(trace, { sub }).toLocaleString() + ' triangles';
+  box.draw();
+}
+
+/* THE FIT IS PER AXIS AGAINST THE REAL FRUSTUM, which is scene.js's `frame`
+   and not a distance this page picks: a duplex is three times as long as it is
+   wide, so fitting its bounding sphere leaves most of the card empty. `radius`
+   is the bake's own, measured over every atom it kept. */
+function reframe() {
+  const R = trace.radius;
+  Stage.frame(box.camera, box.cam, [{ x: 0, y: 0, rxz: R, hy: R }], { pad: 1.1 });
+  box.applyCam();
+}
+
+/* The view is the bake's — a convention, the helix axis across the page, and
+   the baker says so in `frame`. Applied to the group so the camera stays the
+   reader's, the same split kit/proteinbox.js makes. */
+function aim(v) {
+  if (!v) return;
+  const m = new THREE.Matrix4().set(
+    v[0][0], v[0][1], v[0][2], 0,
+    v[1][0], v[1][1], v[1][2], 0,
+    v[2][0], v[2][1], v[2][2], 0,
+    0, 0, 0, 1);
+  group.setRotationFromMatrix(m);
+}
+
+/* EVERY NUMBER ON THIS PAGE IS READ FROM THE BAKE, never typed. The pair
+   count especially: it is solved by the baker from the coordinates, so a
+   sentence claiming twelve has to get the twelve from the file that found
+   them. */
+function facts() {
+  const n = trace.order.reduce((k, id) => k + trace.chains[id].nums.length, 0);
+  const rows = [
+    ['Entry', trace.entry + ' — ' + trace.what],
+    ['Method', (trace.method || '?') + (trace.resolution ? ', ' + trace.resolution + ' A' : '')],
+    ['Chains', trace.order.join(', ') + '  (' + n + ' nucleotides)'],
+    ['Base pairs', trace.pairs.length + '  — ' + trace.pairsFrom],
+    ['Unpaired', (n - trace.pairs.length * 2) + ''],
+    ['Frame', trace.frame],
+    ['Radius', trace.radius + ' A'],
+  ];
+  document.getElementById('facts').innerHTML = rows
+    .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
+
+  document.getElementById('lede').innerHTML =
+    'Every base pair is drawn as <b style="color:#5d7a50">one rung</b> joining the two '
+    + 'backbones, not as two stubs meeting in the middle. '
+    + trace.pairs.length + ' pairs: '
+    /* The two strands as the baker read them, not the pair letters run
+       together — concatenating those spells a string that is not a sequence
+       and reads exactly like one. */
+    + trace.order.map(id => trace.chains[id].seq).join(' with ')
+    + '. A nucleotide with no Watson-Crick partner is '
+    + '<b style="color:#9c3340">half a rung</b> instead — there are '
+    + (n - trace.pairs.length * 2) + ' here.';
+}
+
+fetch('data/dna-1BNA.json')
+  .then(r => r.json())
+  .then(t => {
+    trace = t;
+    aim(t.view);
+    facts();
+    draw();
+  })
+  .catch(e => {
+    document.getElementById('lede').textContent =
+      'No bake. Run: node proteins/dna/tools/prep.js  (' + e.message + ')';
+  });
+
+for (const id of ['rungs', 'stubs', 'bychain', 'sub'])
+  document.getElementById(id).addEventListener('input', draw);
+</script>
+</body>
+</html>
