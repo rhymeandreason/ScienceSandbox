@@ -153,19 +153,33 @@ const NucleicLib = (function () {
   };
 
   /* Two rings, four side quads. Winding is consistent so backface culling and
-     any later flat-shading agree about which way is out. */
-  Mesh.prototype.band = function (A, B) {
+     any later flat-shading agree about which way is out.
+   *
+   *  `nA`/`nB` are the two rings' four SIDE normals, and passing them is what
+   *  makes a swept ribbon smooth. Without them every quad takes one normal off
+   *  its own corners, so the backbone is faceted along its length — visible as
+   *  flat panels wherever the helix turns, which at eight samples a nucleotide
+   *  is everywhere. Smoothing is per SIDE, never across the whole ring: the
+   *  cross-section is a rectangle and its four edges are real edges. Average
+   *  them away, as computeVertexNormals would, and a 0.7 A ribbon reads as a
+   *  soft tube with no width to it. */
+  Mesh.prototype.band = function (A, B, nA, nB) {
     for (let k = 0; k < 4; k++) {
       const k2 = (k + 1) % 4;
-      this.quad(A[k], A[k2], B[k2], B[k]);
+      this.quad(A[k], A[k2], B[k2], B[k],
+                nA && [nA[k], nA[k], nB[k], nB[k]]);
     }
   };
 
-  Mesh.prototype.quad = function (p, q, r, s) {
-    const n = unit(cross(sub(q, p), sub(s, p)));
+  /* `ns` gives the four vertices their own normals; without it the quad takes
+     one flat normal off its corners, which is right for a cap and for a rung. */
+  Mesh.prototype.quad = function (p, q, r, s, ns) {
+    const flat = ns ? null : unit(cross(sub(q, p), sub(s, p)));
     const base = this.pos.length / 3;
-    for (const v of [p, q, r, s]) {
-      this.pos.push(v[0], v[1], v[2]);
+    const vs = [p, q, r, s];
+    for (let i = 0; i < 4; i++) {
+      const n = ns ? ns[i] : flat;
+      this.pos.push(vs[i][0], vs[i][1], vs[i][2]);
       this.nrm.push(n[0], n[1], n[2]);
     }
     this.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
@@ -233,15 +247,21 @@ const NucleicLib = (function () {
     const tans = path.map((_, i) => unit(sub(path[Math.min(i + 1, path.length - 1)],
                                              path[Math.max(i - 1, 0)])));
     const m = new Mesh();
-    let prev = null;
+    let prev = null, prevN = null;
     for (let i = 0; i < path.length; i++) {
       /* Radial is the face NORMAL, so it is the thin axis — see the header.
          Width goes across it, tangent to the helix cylinder. */
       const out = reject(dirs[Math.min(i, dirs.length - 1)], tans[i]);
       const u = unit(cross(tans[i], out));
       const R = m.ring(path[i], u, out, o.width, o.thick);
-      if (!prev) m.cap(R, true); else m.band(prev, R);
-      prev = R;
+      /* The four side normals, in the order `band` walks them: ring() lays the
+         corners out as +u+v, -u+v, -u-v, +u-v, so side k faces
+         [+v, -u, -v, +u]. They are the cross-section's own axes rather than
+         anything measured off the triangles, which is what keeps them exact
+         through a turn. */
+      const N = [out, mul(u, -1), mul(out, -1), u];
+      if (!prev) m.cap(R, true); else m.band(prev, R, prevN, N);
+      prev = R; prevN = N;
     }
     m.cap(prev, false);
     return { geo: m.geo(THREE), path, tans };
