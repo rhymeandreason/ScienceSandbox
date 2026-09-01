@@ -282,6 +282,21 @@ A question carries no `unit` and must not — a bridging one joins two by defini
 
 Highlight lies over the fog. Marks respond, and so do EDGES: an edge with both ends in the picks draws as though both were lit, everything else falls below the fog. A group with its interior wiring dropped is a scatter of dots, and what a unit looks like is how it is wired. Focus outranks the whole overlay, so Escape drops back to the at-a-glance version rather than clearing it.
 
+## Reset, and ⌘⇧D
+
+**Reset is the highlight's off switch, not the page's.** It puts the menu back
+to "all" and drops the overlay; camera, zoom and every lit card stay where the
+reader left them. `start()` is the first frame only — routing the button back
+there throws away the reader's position and is a page refresh with extra steps.
+
+**⌘⇧D** clears what this page stores and reloads, behind a confirm that names
+how many saved questions are about to go. It clears `GRAFTS_KEY` and
+`TRACKPAD_KEY` and deliberately NOT `ss.tutor.visitor`, which is the tutor's
+and shared across the site. It reads those consts inside the function rather
+than listing the strings, which would go stale on the first rename. The chord
+sits ahead of the modal guard so it works with a lesson open, and matches on
+`e.code` so the chord's own shift cannot change what is compared.
+
 ## Adding a unit
 
 Questions first, then nodes, then edges, then the QA walk, then content. Do not attach material before the skeleton settles or you will stop restructuring.
@@ -294,6 +309,15 @@ Every unit doc has a **ranking caution**, and it is always the same failure: nam
 * Testing an opener with `element.click()`. It skips pointerdown and sails past the guard that is actually broken. **Use real clicks.**
 * **`.node.card`-scoped rules, when the thing is not a card.** Every `.thumb` and `.opener` rule was written for cards; the first question to carry a lesson matched none of them, so the raw 1600px still laid out at natural size and the door came out 1142px tall. They are scoped to `.node` now.
 * **Ties in the control-fade rule.** `.node:not(.hub) .opener` is three classes, and so is every rule trying to hold an opener visible — so the winner was whichever sat later in the file, and widening one selector silently blanked the film cards' play buttons. The fade now names its exceptions (`:not(.primary)`, `:not(.content)`) instead of being out-shouted.
+* **`byId` is the index, not the map.** `dropMade` and `dropQuery` both keep a
+  non-synthetic node indexed on purpose — an authored question has to stay
+  findable by `ask()` — while nulling its `el`. So `byId[n.id] === n` passes
+  for a card that is no longer on the page. **`n.el` is what says it is there.**
+* **`mapSave.seats` is a snapshot.** It is taken on the way into Build, and a
+  node can leave the map before the way out (dealBuild's `dropMade()` on a
+  re-deal, a query dropped, a fan collapsed). Both of those crashed
+  `leaveBuild` on `n.el.classList` until the seat loop and the subject restore
+  learned to check.
 * `loading="lazy"` on anything inside `#world`. The transform defeats the intersection test and the image silently never loads — `naturalWidth` is 0 while `complete` is false and nothing errors.
 * Anything computed **before specimens and content cards push their links** is scoring a different graph. `n.big` still does.
 * A node created after `focus()` has run needs `.lit` explicitly, or it sits at 18% and looks like a rendering bug.

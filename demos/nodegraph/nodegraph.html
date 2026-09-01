@@ -2721,11 +2721,12 @@ function zoomAt(k, cx, cy) {
 const BURST_GAP = 120;      // ms of quiet that ends a burst
 const BURST_PAN = 8;        // events in one burst that only fingers produce
 let burstAt = 0, burstN = 0, shortRun = 0;
+const TRACKPAD_KEY = 'nodegraph.trackpad';
 let trackpad = false;
-try { trackpad = localStorage.getItem('nodegraph.trackpad') === '1'; } catch (_) {}
+try { trackpad = localStorage.getItem(TRACKPAD_KEY) === '1'; } catch (_) {}
 const setTrackpad = on => {
   trackpad = on;
-  try { localStorage.setItem('nodegraph.trackpad', on ? '1' : '0'); } catch (_) {}
+  try { localStorage.setItem(TRACKPAD_KEY, on ? '1' : '0'); } catch (_) {}
 };
 
 canvas.addEventListener('wheel', e => {
@@ -3594,7 +3595,39 @@ function stepBranch(d) {
   goWalk();
 }
 
+/* ---- ⌘⇧D: throw away what this page has stored ---------------------------
+   The saved grafts are the reader's own questions and their dealt cards, and
+   they survive a reload by design, so nothing short of clearing site data got
+   rid of them — which is a nuisance while working on the builder that makes
+   them. Behind a confirm because it destroys authored content, and it names
+   the count so the dialog is not a blank threat.
+
+   `ss.tutor.visitor` is NOT cleared: it is the tutor's, shared across the
+   site, and this page does not get to reset other pages' state. `e.code` so
+   the shift that is part of the chord cannot change what is matched.
+
+   The keys are read from the consts that own them, inside the function: they
+   are declared further down the file, so a list up here would have to retype
+   the strings and would go stale the first time one is renamed. */
+function wipeStorage() {
+  const keys = [GRAFTS_KEY, TRACKPAD_KEY];
+  let n = 0;
+  try { n = Object.keys(readGrafts()).length; } catch (_) {}
+  const what = n ? n + (n === 1 ? ' saved question' : ' saved questions') : 'no saved questions';
+  if (!confirm('Clear this page\u2019s stored data (' + what +
+               ') and reload?\n\nYour tutor id is left alone.')) return;
+  try { for (const k of keys) localStorage.removeItem(k); } catch (_) {}
+  location.reload();
+}
+
 addEventListener('keydown', e => {
+  /* before the modal guard: this is a get-me-out-of-here key and should work
+     with a lesson open */
+  if (e.metaKey && e.shiftKey && e.code === 'KeyD') {
+    e.preventDefault();
+    wipeStorage();
+    return;
+  }
   if (Modal.anyOpen()) return;             // the modal's Esc is the modal's
   if (e.key === 'Escape') { clearFocus(); return; }
   if (e.key === 'ArrowRight') { e.preventDefault(); stepWalk('onward'); }
@@ -5767,8 +5800,14 @@ function leaveBuild() {
   for (const n of nodes) if (n.el) n.el.classList.remove('seed');
   for (const n of nodes) showEl(n, true);
   for (const l of links) showLink(l, true);
+  /* A SEAT CAN OUTLIVE ITS NODE. `seats` is a snapshot taken on the way in,
+     and a node can leave the map before the way out — dealBuild's dropMade()
+     on a re-deal, a query dropped, a kinds fan collapsed. Its `el` is null by
+     then and there is no seat left to restore, so it is skipped rather than
+     crashed on. Same guard as the `seed` sweep above. */
   for (const s of mapSave.seats) {
     const n = s.n;
+    if (!n.el) continue;
     n.x = s.x; n.y = s.y; n.tx = s.tx; n.ty = s.ty; n.pinned = s.pinned;
     n.vx = n.vy = 0;
     n.on = false;
@@ -5790,7 +5829,11 @@ function leaveBuild() {
   if (subject) {
     if (subject.mine) restoreGraft(subject);
     else if (subject.type === 'question' && (isQuery(subject) || !subject.el)) askQuestion(subject);
-    else if (byId[subject.id] === subject) { light(subject); focus(subject); }
+    /* `byId` IS THE INDEX, NOT THE MAP. dropMade and dropQuery both keep a
+       non-synthetic node indexed on purpose — an authored question has to
+       stay findable — while nulling its `el`, so the id check alone passes
+       for a card that is no longer on the page. `el` is what says it is. */
+    else if (byId[subject.id] === subject && subject.el) { light(subject); focus(subject); }
     /* and the reader's own camera is what they left the map at: the pan only
        happens when what they were reading is not already on the page */
     view = { ...mapSave.view }; touched = mapSave.touched;
