@@ -2923,8 +2923,14 @@ document.addEventListener('pointerdown', e => {
    names in its kinds fan. A kinds hit resolves to the card that holds it,
    because that is where the reader has to go to read it. */
 
+/* A QUESTION IS IN HERE ONLY IF IT HOLDS A LESSON. `l:water` hangs off
+   `q-medium`, so the water lesson was unreachable by typing `water` while
+   questions were excluded wholesale. It is searched by its LESSON alone — its
+   own text is what the dropdown already matches, and scoring it twice would
+   let the same words win in two tiers. */
 const SEARCHABLE = () => nodes.filter(n =>
-  !n.satellite && n.type !== 'ask' && n.type !== 'question' && n.name);
+  !n.satellite && n.type !== 'ask' &&
+  (n.type === 'question' ? !!lessonFor(n) : !!n.name));
 
 /* A CARD'S LESSON IS PART OF WHAT IT OFFERS. `membrane` is the case that
    forced this: the membrane lesson hangs off `selective-perm`, whose name and
@@ -2946,6 +2952,7 @@ const lessonStem = n => {
 /* a bare href is the lesson's home; `?step=` is a second door into the same
    page, so the home wins the word they share */
 const lessonIsHome = n => { const l = lessonOf(n); return !!l && !/[?#]/.test(l.href || ''); };
+const label = n => n.name || n.text || n.id;
 
 /* Scored, not just filtered, because "protein" is in a dozen claims and is
    the NAME of one card. Every term has to appear somewhere or the row is out,
@@ -2969,7 +2976,7 @@ function searchMap(text) {
   if (!terms.length) return null;
   const hits = [];
   for (const n of SEARCHABLE()) {
-    const name = n.name.toLowerCase();
+    const name = (n.name || '').toLowerCase();   /* a question has none */
     const nameScore = score(name, terms, 100);
     const stemScore = score(lessonStem(n), terms, 100);
     let best = nameScore + stemScore + score((n.claim || '').toLowerCase(), terms, 8) +
@@ -2993,7 +3000,7 @@ function searchMap(text) {
      shorter name — "RNA" over "RNA processing" for `rna` */
   hits.sort((a, b) => b.s - a.s ||
     (lessonIsHome(b.n) - lessonIsHome(a.n)) ||
-    a.n.name.length - b.n.name.length);
+    label(a.n).length - label(b.n).length);
   return hits[0] || null;
 }
 

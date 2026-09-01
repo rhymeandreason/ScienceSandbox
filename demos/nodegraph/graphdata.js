@@ -996,7 +996,10 @@
     ['anfinsen',         'evidence-for',    'folding',          2],
     ['van-helmont',      'evidence-for',    'carbon-fixation',  2],
     ['mitchell',         'evidence-for',    'chemiosmosis',     2],
-    ['q-treemass',       'answers',         'van-helmont',      2],
+    /* rank 1: the willow IS the answer to where a tree's mass comes from —
+       he weighed the pot for five years to rule out the soil. The other
+       evidence cards enrich a claim; this one settles a question. */
+    ['q-treemass',       'answers',         'van-helmont',      1],
 
     /* ---- macromolecules --------------------------------------------------
        ONE REACTION, FOUR CLASSES. dehydration already reaches peptide-bond
