@@ -245,11 +245,22 @@ for (const p of lib.PROTEINS) {
             is fitted onto nothing. Read off the BAKE's meta, which is where a
             residual belongs — the registry indexes the collection and does not
             carry a number about one structure's relation to another. */
+      /* `among` SCOPES A FIT TO THE VARIANTS THAT ARE STATES OF ONE THING.
+         Rubisco is the case: two views of one site are superposed, and the
+         sixteen-chain particle beside them is a SCALE of the same file with
+         nothing to be a state of — fitting it onto one of its own chains would
+         centre a 123 A ball on a corner of itself. A variant outside the scope
+         is then held to carrying NO fit, which is the half that keeps this
+         from being an escape hatch: it says the fit does not reach that view,
+         never that the view may quietly wear a different one. */
       if (p.fit && t.meta) {
+        const inFit = !p.fit.among || p.fit.among.includes(v.id);
         const isRef = v.id === p.fit.on;
-        if (isRef && t.meta.fitOn)
+        if (!inFit && t.meta.fitOn)
+          say(`${at}: outside fit.among, but baked as fitted onto ${t.meta.fitOn}`);
+        if (inFit && isRef && t.meta.fitOn)
           say(`${at}: the reference, but baked as fitted onto ${t.meta.fitOn}`);
-        if (!isRef && t.meta.fitOn !== p.fit.on)
+        if (inFit && !isRef && t.meta.fitOn !== p.fit.on)
           say(`${at}: baked fitted onto ${t.meta.fitOn || 'nothing'}, registry says ${p.fit.on}`);
       }
     }

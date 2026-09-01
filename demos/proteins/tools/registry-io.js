@@ -150,6 +150,12 @@ function validate(lib) {
        something nobody can look at. */
     if (p.fit && !ids.has(p.fit.on))
       bad.push(`${at}: fit.on '${p.fit.on}' is not a variant here`);
+    /* A scoped fit names variants, and the reference has to be one of them —
+       a scope that excludes what everything is fitted onto describes nothing. */
+    for (const id of (p.fit && p.fit.among) || [])
+      if (!ids.has(id)) bad.push(`${at}: fit.among '${id}' is not a variant here`);
+    if (p.fit && p.fit.among && !p.fit.among.includes(p.fit.on))
+      bad.push(`${at}: fit.among does not include the reference '${p.fit.on}'`);
     if (!p.fit && !p.fitWhy)
       bad.push(`${at}: no fit and no fitWhy — say whether it cannot or need not`);
 

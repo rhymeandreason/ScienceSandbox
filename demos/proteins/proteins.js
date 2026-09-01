@@ -770,6 +770,90 @@
         baked: "ferritin-site.json" } },
   ];
 
+  /* RUBISCO'S THREE, chosen off proteins/rubisco/rubisco-test.html. The two
+     site views are the same spinach enzyme before and after it is switched on,
+     and the switch is one residue: CO2 adds onto Lys201 as a carbamate and
+     Mg2+ clamps onto that carbamate. 8RUC deposits it as KCX and declares it
+     in MODRES; 1RCX has a plain lysine there and no magnesium in the file, so
+     the difference between the two entries is a residue name a checker can
+     read.
+
+     KCX IS A HETATM, which is why the baker passes `Bake.modResidues` to the
+     trace. Without it the activated chain bakes with a hole exactly where the
+     subject is, and the ribbon splines smoothly over it.
+
+     THE CO2 THAT ACTIVATES IS NOT THE CO2 THAT GETS FIXED. They arrive at the
+     same site and they are different molecules, which no single structure can
+     show — a lesson has to say it, and neither of these files can.
+
+     1RCX's ASYMMETRIC UNIT IS ALREADY THE BIOLOGICAL ASSEMBLY: sixteen chains,
+     identity BIOMT, no symmetry expansion. 8RUC deposits half of one and needs
+     a two-fold to complete it, which is why the whole particle is 1RCX's. */
+  const RUBISCO_VARIANTS = [
+    { id: '1RCX-L8S8', default: true,
+      purpose: 'the whole enzyme: eight large subunits, eight small, one particle',
+      species: 'spinach',
+      section: 'the whole enzyme', label: 'L\u2088S\u2088 hexadecamer', chip: '16 chains',
+      source: { kind: 'rcsb', id: '1RCX' },
+      chains: 'L,S,B,C,E,F,H,I,K,M,O,P,R,T,V,W',
+      subject: 'L,B,E,H,K,O,R,V',
+      /* LARGE AGAINST SMALL, and it is the only thing this protein colours by:
+         sixteen chains under the ss palette is one rope with no way to see
+         which half carries the sites. The second name in each pair is the gene
+         product, so the legend can say what a chain IS rather than which
+         letter it wears. */
+      roles: {
+        'L': ['large', 'rbcL'], 'B': ['large', 'rbcL'], 'E': ['large', 'rbcL'],
+        'H': ['large', 'rbcL'], 'K': ['large', 'rbcL'], 'O': ['large', 'rbcL'],
+        'R': ['large', 'rbcL'], 'V': ['large', 'rbcL'],
+        'S': ['small', 'rbcS'], 'C': ['small', 'rbcS'], 'F': ['small', 'rbcS'],
+        'I': ['small', 'rbcS'], 'M': ['small', 'rbcS'], 'P': ['small', 'rbcS'],
+        'T': ['small', 'rbcS'], 'W': ['small', 'rbcS'],
+      },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 16,
+        residues: 4720,
+        declared: 4784,
+        ec: "4.1.1.39",
+        baked: "rubisco-1RCX-L8S8.json" } },
+    { id: '1RCX-site',
+      purpose: 'switched off, with the substrate already in the site',
+      species: 'spinach',
+      section: 'the switch', label: 'switched off', chip: '2.40 \u00c5',
+      source: { kind: 'rcsb', id: '1RCX' },
+      chains: 'L,S',
+      subject: 'L',
+      /* WHICH RESIDUES MAKE THE SITE, per variant because the numbering is the
+         protein's and the atoms are not: 201 is the switch, 203 and 204 are the
+         two carboxylates that hold the metal with it. Lys175 and Lys334 are
+         catalytic and deliberately out — on this view they are not the point,
+         and a second subject is a second view. */
+      site: { switch: 201, grip: [203, 204] },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 16,
+        residues: 590,
+        declared: 598,
+        ec: "4.1.1.39",
+        baked: "rubisco-1RCX-site.json" } },
+    { id: '8RUC-site',
+      purpose: 'switched on: CO\u2082 on the lysine, magnesium on that',
+      species: 'spinach',
+      section: 'the switch', label: 'switched on', chip: 'Mg\u00b2\u207a',
+      source: { kind: 'rcsb', id: '8RUC' },
+      chains: 'A,I',
+      subject: 'A',
+      site: { switch: 201, grip: [203, 204] },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 8,
+        residues: 590,
+        declared: 598,
+        ec: "4.1.1.39",
+        baked: "rubisco-8RUC-site.json" } },
+  ];
+
   const PROTEINS = [
     {
       key: 'atp-synthase', name: 'ATP synthase', dir: 'proteins/atp-synthase',
@@ -1442,6 +1526,56 @@
                  why: 'the shell reads as 24 parts because the ribbon is '
                     + 'see-through; an SES closes the pores' },
       variants: FERRITIN_VARIANTS,
+    },
+    {
+      key: 'rubisco', name: 'Rubisco', dir: 'proteins/rubisco',
+      blurb: 'The enzyme that puts carbon into the biosphere: it takes CO\u2082 out '
+           + 'of the air and sticks it onto a five-carbon sugar, which is where '
+           + 'nearly every carbon atom in every living thing came in. It is slow '
+           + 'and it grabs oxygen by mistake, so plants make enormous amounts of '
+           + 'it \u2014 there is more rubisco on Earth than any other protein.',
+      /* EC 4.1.1.39, on the COMPND record of both entries. A lyase: it adds
+         CO2 across a double bond, which is the one kind of chemistry the class
+         is named for. */
+      does: 'enzyme',
+      pipeline: 'trace',
+      /* THE FIT IS BETWEEN THE TWO SITE VIEWS AND NOWHERE ELSE. They are one
+         enzyme before and after activation, so they have to wear one frame or
+         flipping between them turns the molecule and hides the carbamate
+         inside the rotation. The whole particle is a different SCALE of the
+         same file rather than a third state, and fitting it onto one of its
+         own sixteen chains would centre a 123 A ball on a corner of itself:
+         `among` is what says so, and the checker holds the rest of the
+         collection to carrying no fit at all. */
+      fit: { on: '1RCX-site', by: 'the large subunit\u2019s alpha-carbons, by residue number',
+             among: ['1RCX-site', '8RUC-site'] },
+      fitWhy: 'two states of one site, superposed; the assembly is a scale of '
+            + 'the same file and has nothing to be a state of',
+      /* Solved, per view. The L+S pair is elongated enough that its own shape
+         answers, and the two site views share that answer because they are
+         superposed. The particle is 123 A on every axis, so `frameOf` writes it
+         no basis at all and it opens in the deposited frame — which is the one
+         a human should replace with `copy this view`, since the picture that
+         says what this enzyme IS is the one down the four-fold. */
+      view: { by: 'measured', shared: false,
+              why: 'the pair solves its own axes; the particle is a sphere and '
+                 + 'no solved basis survives a re-bake of it' },
+      /* HOW THE TWO SUBUNITS ARE TOLD APART, here rather than on the bench
+         because the gallery card draws this protein too. The large subunit is
+         the house green; the small one is an olive that reads beside it
+         without shouting. Which chain is which is the variant\u2019s, so this
+         table says what a KIND is coloured and nothing about chain letters. */
+      draw: { byRole: {
+        large: 0x1f5f4f,          // deep green, the house accent
+        small: 0x8f9f3e,          // olive: present, and not where the sites are
+      } },
+      /* The claim on the site views is one residue inside a pocket, and an SES
+         would seal it; the claim on the particle is that it is built out of
+         sixteen parts, which the ribbon says and a skin would hide. */
+      surface: { bake: false,
+                 why: 'a site claim and an assembly claim, and a surface closes '
+                    + 'the first and merges the second' },
+      variants: RUBISCO_VARIANTS,
     },
   ];
 

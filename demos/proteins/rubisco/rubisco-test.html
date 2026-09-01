@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rubisco — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+     Review kept all three views, so which structures these are lives in
+     proteins/proteins.js with every other protein's; what this page SAYS
+     about them under this stage is below, in SAYS.
+
+     WHY THIS EXISTS. Photosynthesis is absent from the library, and
+     rubisco is where the carbon actually enters: every sugar in every
+     organism was, at some point, CO2 that this enzyme stuck onto a
+     five-carbon sugar. It is also the most abundant protein on Earth,
+     which is a fact ABOUT how bad it is — it is slow, and it grabs O2
+     by mistake, so plants compensate with quantity.
+
+     WHAT THE TWO SPINACH ENTRIES ARE FOR. The enzyme does not work
+     until it has been switched on, and the switch is one residue:
+     CO2 adds onto Lys201 as a carbamate, and Mg2+ then clamps onto
+     that carbamate. 8RUC has it — KCX in its own MODRES records, with
+     the magnesium 2.3 A away — and 1RCX does not. Same protein, same
+     numbering, one residue different. The bench draws that residue.
+
+     WHAT IT IS FOR SETTLING:
+
+       is the switch legible   201 is one residue inside a 470-residue
+                               subunit. If a reader cannot see the
+                               carbamate appear when the view changes,
+                               the activation is not a thing this
+                               representation can teach.
+       pair or assembly        L8S8 is the honest picture of the enzyme
+                               and 4720 residues of ribbon may read as
+                               a ball of wool. One L+S pair is legible
+                               and is a quarter of a lie.
+       the substrate           1RCX has RuBP sitting in a site that
+                               cannot act on it. Whether "loaded but
+                               switched off" reads as a state.
+       does the small subunit  it has no active site and nobody is sure
+       earn its colour         what it is for. Drawn beside the large
+                               one, does that absence say anything.
+
+     WHAT THIS BENCH CANNOT TELL YOU. Both files are stills of a site
+     with something in it; neither is the reaction. And the CO2 that
+     activates the enzyme and the CO2 it fixes are different molecules
+     at the same site, which no single structure can show.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* The shared chrome is ../protein-test.css. What stays here is what this
+     bench says with COLOUR: the two subunit kinds on the assembly view, and
+     the chip that marks a view as activated. The swatch beside each name is
+     the same number the ribbon is drawn with, read from one table. */
+  .kinds{display:flex;flex-wrap:wrap;gap:0.5rem 0.9rem;margin:0.5rem 0 0}
+  .kinds span{display:flex;align-items:center;gap:0.35rem;
+    font-size:0.78rem;color:var(--h-muted)}
+  .kinds i{width:0.7rem;height:0.7rem;border-radius:2px;display:block}
+  .chip.on{background:rgba(226,100,58,.16);color:var(--h-spark)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Rubisco</h1>
+    <p class="deck">The enzyme that puts carbon into the biosphere, and the
+      single residue that has to be switched on before it can.</p>
+
+    <h2>the switch</h2>
+    <button class="mode" id="v-1RCX-site" aria-pressed="false">
+      <span class="who">switched off &middot; 1RCX</span><span class="chip">2.40 &Aring;</span></button>
+    <button class="mode" id="v-8RUC-site" aria-pressed="false">
+      <span class="who">switched on &middot; 8RUC</span><span class="chip on">Mg²⁺</span></button>
+
+    <h2>the whole enzyme</h2>
+    <button class="mode" id="v-1RCX-L8S8" aria-pressed="true">
+      <span class="who">L₈S₈ hexadecamer &middot; 1RCX</span><span class="chip">16 chains</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>drawn</td><td id="d-drawn">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>residue 201</td><td id="d-201">&mdash;</td></tr>
+      <tr><td>magnesium</td><td id="d-mg">&mdash;</td></tr>
+      <tr><td>Mg to the carbamate</td><td id="d-mgc">&mdash;</td></tr>
+      <tr><td>Mg to Asp203 / Glu204</td><td id="d-mgg">&mdash;</td></tr>
+      <tr><td>in the site</td><td id="d-bound">&mdash;</td></tr>
+      <tr><td>KCX atoms in the file</td><td id="d-kcx">&mdash;</td></tr>
+      <tr><td>ligands</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>frame</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <div class="kinds" id="d-kinds"></div>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">The two site views are superposed on 1RCX by the large
+      subunit&rsquo;s C&alpha;, so flipping between them moves only what moved.
+      The assembly is a different object at a different scale and keeps its
+      own frame.</p>
+    <p class="note">Ribbon colour is secondary structure, the repo default,
+      except on L₈S₈ where it is subunit kind. The site is ball-and-stick:
+      residue 201, the two carboxylates that grip the metal, the magnesium if
+      the file has one, and whatever sugar is sitting in the mouth.</p>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, click copy, then paste into
+      <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code> once rubisco is registered.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
+<script>
+'use strict';
+
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('rubisco');
+
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  /* NULL TODAY, and the row that says so is `frame`: nobody has picked a
+     rotation for rubisco yet, so the site views wear the basis their own shape
+     solved and the particle opens in the deposited frame. `copy this view` is
+     how the first chosen one gets made. */
+  view: ProteinLib.viewOf(ME),
+  orbit: true,
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  sub: 10,
+});
+
+/* WHICH STRUCTURES, AND WHAT THEY CLAIM, ARE proteins/proteins.js's — the same
+   file the baker read to write these bakes, so a variant cannot be described
+   one way here and baked another. Panel order is the page's. */
+const VIEWS = ['1RCX-site', '8RUC-site', '1RCX-L8S8'];
+const said = id => ProteinLib.variantOf(ME, id);
+
+/* LARGE AGAINST SMALL, on the assembly only. Sixteen chains in the ss palette
+   is one green rope with no way to tell which half of the enzyme is which, and
+   which half carries the sites is the entire question that view asks. The
+   colours are the registry's and the assignment is the variant's, through
+   `colorsOf` — so the legend below and the gallery card cannot become two
+   opinions about which subunit is which. */
+const KIND = ME.draw.byRole;
+
+/* THE PAGE'S OWN COPY. What a structure IS is the baker's table today and the
+   registry's after review; what this bench SAYS about it is page copy, written
+   to be read under this stage, and it stays here either way. */
+const SAYS = {
+  '1RCX-site': {
+    claim: 'The enzyme switched off, with its substrate already in the site.',
+    prov:  'Spinach, X-ray at 2.40 A. Lysine 201 is a plain lysine and there is no '
+           + 'magnesium anywhere in the file. RuBP — the five-carbon sugar that CO2 '
+           + 'gets added to — is sitting in the mouth of an enzyme that cannot act '
+           + 'on it. One large subunit and the small one beside it.' },
+  '8RUC-site': {
+    claim: 'The same two chains, switched on: CO2 on the lysine, magnesium on that.',
+    prov:  'Spinach, 1.60 A. Residue 201 is deposited as KCX — lysine carrying a '
+           + 'carbamate — and the Mg2+ is held by it and by Asp203 and Glu204. '
+           + 'The bound molecule is CABP, a stable analogue shaped like the '
+           + 'six-carbon intermediate, which is why this structure is so sharp: it '
+           + 'cannot react and leave.' },
+  '1RCX-L8S8': {
+    claim: 'The whole enzyme: eight large subunits, eight small, one particle.',
+    prov:  'The asymmetric unit of 1RCX is already the biological assembly, so '
+           + 'nothing here is symmetry-generated. The eight active sites are all on '
+           + 'the large subunits, at the interfaces between pairs of them; the small '
+           + 'subunits cap the ends and have no site of their own.' },
+};
+
+const views = {};
+let view = null;
+const $ = id => document.getElementById(id);
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+window.bench = { views, box, get view() { return view; } };
+
+VIEWS.forEach(id => {
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(t => {
+    views[id] = t;
+    if (view === id) show(id);
+  });
+});
+
+function stats(t) {
+  const m = t.meta;
+  const modelled = m.counts.reduce((k, c) => k + c.modelled, 0);
+  const declared = m.counts.every(c => c.declared !== null)
+    ? m.counts.reduce((k, c) => k + c.declared, 0) : null;
+  let H = 0, E = 0, n = 0;
+  for (const id of t.order) {
+    const ss = t.chains[id].ss;
+    n += ss.length;
+    for (const c of ss) { if (c === 'H') H++; else if (c === 'E') E++; }
+  }
+  const segs = t.order.reduce((k, id) =>
+    k + 1 + t.chains[id].nums.filter((v, i, a) => i && v !== a[i - 1] + 1).length, 0);
+  const s = m.site;
+  return {
+    drawn: `${m.chainsDrawn} of ${m.chainsInFile} chains`,
+    res: `${modelled} residues` + (segs > t.order.length ? ` in ${segs} segments` : ''),
+    pct: declared === null ? '—'
+      : `${modelled} of ${declared} · ${Math.floor(100 * modelled / declared)}%`,
+    frag: declared === null ? 'no SEQRES records: completeness unknown'
+      : modelled >= declared ? `complete: ${modelled} of ${declared} deposited`
+      : `${declared - modelled} residues of ${declared} not modelled`,
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    /* SAID FROM THE FILE'S OWN RESIDUE NAME. KCX is the activation and LYS is
+       its absence, and typing either would be the one claim on this page that
+       nothing checks. */
+    r201: !s ? 'not drawn on this view'
+      : `${s.residue} 201 · ${s.carbamate ? 'carbamate present' : 'no carbamate'}`,
+    on: !!(s && s.carbamate),
+    mg: !s ? '—' : s.magnesium ? 'present' : 'none in this file',
+    mgc: s && s.mgToSwitch !== null ? `${s.mgToSwitch.toFixed(2)} Å` : '—',
+    mgg: s && s.mgToGrip !== null ? `${s.mgToGrip.toFixed(2)} Å` : '—',
+    bound: !s ? '—' : s.bound ? s.bound.join(', ') : 'nothing',
+    kcx: `${m.kcxAtoms}` + (m.modres.length ? ` · MODRES ${m.modres.join(', ')}`
+                                            : ' · no MODRES records'),
+    lig: m.ligands.length ? m.ligands.join(', ') : 'none',
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;
+  const v = said(id);
+  const s = stats(t), m = t.meta;
+  const assembly = !m.site;
+
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-meta').textContent = `${m.entry} · chains ${t.order.join(' ')} · ${m.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
+  $('d-drawn').textContent = s.drawn;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  $('d-frac').textContent = s.frac;
+  $('d-201').textContent = s.r201;
+  /* The one row that carries the claim, marked when the switch is on. */
+  $('d-201').classList.toggle('flag', s.on);
+  $('d-mg').textContent = s.mg;
+  $('d-mgc').textContent = s.mgc;
+  $('d-mgg').textContent = s.mgg;
+  $('d-bound').textContent = s.bound;
+  $('d-kcx').textContent = s.kcx;
+  $('d-lig').textContent = s.lig;
+  $('d-ext').textContent = s.ext;
+  $('d-view').textContent = m.fitOn
+    ? `superposed on ${m.fitOn} · Cα ${m.fitRmsd.toFixed(2)} Å over ${m.fitResidues} residues`
+    : `${t.frame} · this file’s own centre`;
+  $('d-prov').textContent = SAYS[id].prov;
+
+  /* The legend exists only where the ribbon is coloured by subunit, and it is
+     built from the same table that colours it. */
+  $('d-kinds').innerHTML = assembly
+    ? [['large subunit · 8 · every active site', KIND.large],
+       ['small subunit · 8 · no site of its own', KIND.small]]
+      .map(([label, c]) => `<span><i style="background:${hex(c)}"></i>${label}</span>`).join('')
+    : '';
+
+  /* Built by the registry from `source`, so an id and its links cannot
+     disagree — both site views and the particle come off two entries. */
+  const u = ProteinLib.urls(v);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${v.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${v.read.baked}`;
+
+  /* colorsOf returns null for a variant with no roles, which is both site
+     views: they are drawn the repo's one way, by secondary structure. */
+  box.setData(t, { colors: ProteinLib.colorsOf(ME, v) });
+  /* setData clears the previous site, so the assembly needs no call — and
+     must not get one: sixteen chains with one site drawn would say that seven
+     of the eight are empty. */
+  if (t.pocket) box.setPocket(t.pocket);
+}
+
+$('pick').addEventListener('click', () => {
+  const R = box.pickView();
+  const text = JSON.stringify(R);
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+VIEWS.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
+    show(id);
+  });
+});
+
+/* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id: which structure
+   a protein opens on is a decision, and it belongs in the file that holds the
+   other decisions about it. The pressed button is set from the same answer, so
+   the highlight and the stage cannot disagree. */
+const OPEN = ProteinLib.defaultOf(ME).id;
+VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === OPEN)));
+show(OPEN);
+</script>
+</body>
+</html>
