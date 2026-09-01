@@ -4395,6 +4395,7 @@ function ask(id) {
   if (!q) return;
   closeList();
   askIn.blur();
+  ASKED.push(q.text);           /* a follow-up can refer to it */
   askQuestion(q);
 }
 
@@ -4442,6 +4443,15 @@ askIn.addEventListener('keydown', e => {
   const typed = askIn.value;
   lastTyped = typed;
   note('');
+  /* A FOLLOW-UP IS ASKED OF WHAT IS ON SCREEN. "what are some examples" has
+     no subject of its own; run through the tiers it lands on whichever card
+     says the word. With something in view it goes straight to the model, with
+     the view attached. */
+  if (isFollowUp(typed) && contextCard() && !extendOff) {
+    askExtend(typed).then(ok => { if (!ok) miss(); land(ok ? 'followup' : 'miss'); });
+    askIn.blur(); closeList();
+    return;
+  }
   const named = namedCard(typed);
   if (goToNamed(typed)) { land('named', named && named.n); return; }
   if (rows[0]) { ask(rows[0].dataset.q); land('question', rows[0].dataset.q); return; }
@@ -5002,6 +5012,48 @@ const CHAFF = new Set(['a', 'an', 'the', 'is', 'are', 'do', 'does', 'did', 'how'
 const meat = t => (t || '').toLowerCase().split(/[^a-z0-9⁺⁻₀-₉α-ωΑ-Ω]+/)
   .filter(w => w && w.length > 1 && !CHAFF.has(w));
 
+/* words a follow-up is made of, on top of the chaff: strip them and a line
+   with nothing left is about whatever the reader is looking at */
+const FOLLOW = new Set(['example', 'examples', 'more', 'else', 'next', 'then', 'same',
+  'other', 'another', 'again', 'instead', 'mean', 'means', 'matter', 'matters',
+  'happen', 'happens', 'happened', 'work', 'works', 'about', 'these', 'those',
+  'like', 'some', 'any', 'really', 'exactly', 'here', 'go', 'tell', 'me',
+  'explain', 'show', 'give', 'say', 'simpler', 'simply', 'detail', 'important']);
+const PRONOUN = /\b(this|that|it|these|those|here)\b/i;
+function isFollowUp(text) {
+  const rest = meat(text).filter(w => !FOLLOW.has(w));
+  return rest.length === 0 || (rest.length <= 2 && PRONOUN.test(text));
+}
+
+/* the card a follow-up is about: what is focused, or Build's seed */
+function contextCard() {
+  let n = focused && focused.claim ? focused : null;
+  if (!n && focused && focused.satellite && focused.host && focused.host.claim) n = focused.host;
+  if (!n && mode === 'build' && buildSeed) n = buildSeed.claim ? buildSeed : byId[buildSeed.anchorId];
+  return n && n.name ? n : null;
+}
+
+/* what the reader can see, for the model: in Build the whole graph they
+   built; on the map the focused card's neighbourhood and the open graft */
+function viewContext() {
+  const f = contextCard();
+  const near = [];
+  if (mode === 'build') near.push(...buildNodes);   /* dealt, not yet revealed, still counts */
+  else if (f) {
+    near.push(f);
+    for (const l of linksOf(f)) if (l.rank <= 2) near.push(l.a === f ? l.b : l.a);
+    if (graft) near.push(...graft.nodes);
+  }
+  const shown = near.filter(n => n.name && n.claim && n.type !== 'question');
+  return {
+    focus: f ? { id: f.id, name: f.name, claim: f.claim } : null,
+    shown: shown.map(n => n.id),
+    asked: ASKED.slice(-6),
+    cards: shown.map(n => ({ id: n.id, name: n.name, claim: n.claim })),
+  };
+}
+const ASKED = [];
+
 function nearestMine(text) {
   const want = new Set(meat(text));
   if (want.size < 2) return null;
@@ -5088,7 +5140,12 @@ async function askExtend(text) {
     /* the cards an earlier question built are the likeliest hosts for the
        next one, and they have no vectors: they go in as candidates by hand */
     const made = liveMade().map(n => ({ id: n.id, name: n.name, claim: n.claim }));
-    candidates = made.concat(candidates);
+    /* the neighbourhood first: a follow-up almost always attaches to what is
+       in view, and the embedding does not know what is in view */
+    const ctx = viewContext();
+    const seen = new Set();
+    candidates = ctx.cards.concat(made, candidates)
+      .filter(c => !seen.has(c.id) && seen.add(c.id)).slice(0, 30);
     const index = nodes
       .filter(n => n.name && !n.satellite && n.type !== 'made')
       .map(n => ({ id: n.id, name: n.name }))
@@ -5096,7 +5153,8 @@ async function askExtend(text) {
 
     const r = await fetch('/api/extend', {
       method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ q: text, candidates, index, visitorId: VISITOR }),
+      body: JSON.stringify({ q: text, candidates, index, visitorId: VISITOR,
+                             context: { focus: ctx.focus, shown: ctx.shown, asked: ctx.asked } }),
     });
     if (!r.ok) {
       if ([404, 501, 503].includes(r.status)) extendOff = true;
@@ -5104,10 +5162,15 @@ async function askExtend(text) {
       return false;
     }
     const out = await r.json();
+    ASKED.push(text);
     if (!out.nodes || !out.nodes.length) {
       note(out.note ? esc(out.note) : '');
       return false;
     }
+    /* THE DOOR IS THE RESTATED QUESTION. "what are some examples" is what was
+       typed; what it meant names the card, stands alone in the drawer, and
+       cannot collide with the next reader's "what are some examples". */
+    if (out.question && out.question.length > 3) text = out.question;
     /* the host is the first EXISTING card any edge names: that is where the
        graft hangs, and where the camera goes */
     /* the anchor is the first card any edge names that already exists — a

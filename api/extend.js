@@ -2,7 +2,7 @@
  *  api/extend.js — the map reaching past itself, one question at a time
  * =============================================================================
  *  GET  /api/extend  → whether the endpoint is configured
- *  POST /api/extend  {q, candidates:[{id,name,claim}]} → {note, nodes, edges}
+ *  POST /api/extend  {q, candidates, index, context} → {question, note, nodes, edges}
  *
  *  A reader asks something Bio 101 does not cover — "how do fish breathe
  *  underwater?" — and the map has every PIECE (diffusion, surface-area-to-
@@ -54,7 +54,7 @@ const { local } = require('./_local.js');
 
 const MAXLEN = 400;              // a question, not a passage
 const MAXNODES = 6;             // a chain from the map's floor to the answer
-const MAXCANDIDATES = 20;
+const MAXCANDIDATES = 30;
 const MAXINDEX = 400;            // the whole map, with room to grow
 
 /* The grammar, cut to what a bridge can honestly claim. `part-of` and
@@ -68,6 +68,7 @@ const TYPES = ['causes', 'enables', 'prerequisite-of', 'produces', 'consumes',
 const SCHEMA = {
   type: 'object',
   properties: {
+    question: { type: 'string' },
     note: { type: 'string' },
     nodes: {
       type: 'array',
@@ -95,7 +96,7 @@ const SCHEMA = {
       },
     },
   },
-  required: ['note', 'nodes', 'edges'],
+  required: ['question', 'note', 'nodes', 'edges'],
 };
 
 const SYSTEM = `You extend a concept map for a college Biology 101 course.
@@ -122,6 +123,17 @@ shape. Never refuse a question for being above the map's scale.
 Attach to the card whose MECHANISM explains the answer, which is often not one
 of the candidates: the search ranks by wording, and the right card frequently
 does not use the reader's words at all. Read the index for it.
+
+THE READER IS LOOKING AT SOMETHING, and the question is asked of it. You are
+told the card in focus, the cards on screen and the questions asked before
+this one. A terse line — "what are some examples", "why?", "and then?" — is
+about the card in focus, and "this" or "that" means it. Examples arrive as
+cards, each wired with "illustrates" to what it exemplifies.
+
+"question" is the reader's line restated as one full question that stands on
+its own, under 90 characters, naming the card where they used a pronoun or
+none: "what are some examples" becomes "What are some examples of countercurrent
+exchange?". Keep a line that already stands alone as it is.
 
 An id beginning "made:" is a card the reader built from an earlier question
 this session, and it is in the index like any other. Where the new question
@@ -179,6 +191,17 @@ module.exports = async function handler(req, res) {
     .filter(c => c.id && c.name);
   if (!candidates.length) return res.status(400).json({ error: 'candidates are required' });
 
+  /* what the reader is looking at. Ids only for the screen; the focus card
+     carries its claim because a follow-up is asked OF it */
+  const raw = body.context || {};
+  const context = {
+    focus: raw.focus && raw.focus.id ? {
+      id: String(raw.focus.id).slice(0, 60), name: String(raw.focus.name || '').slice(0, 80),
+      claim: String(raw.focus.claim || '').slice(0, 240) } : null,
+    shown: (Array.isArray(raw.shown) ? raw.shown : []).slice(0, 60).map(x => String(x).slice(0, 60)),
+    asked: (Array.isArray(raw.asked) ? raw.asked : []).slice(-6).map(x => String(x).slice(0, MAXLEN)),
+  };
+
   /* SHARES THE SEARCH'S CAP, deliberately. A generation costs far more than an
    * embedding, but it only happens where a search has already failed, so the
    * two are one activity from the reader's side and rationing them apart would
@@ -195,23 +218,27 @@ module.exports = async function handler(req, res) {
     const gemini = require('./_providers/gemini.js');
     const idx = index.map(c => `${c.id} — ${c.name}`).join('\n');
     const known = candidates.map(c => `${c.id} — ${c.name}: ${c.claim}`).join('\n');
+    const ctx = [];
+    if (context.focus) ctx.push(`IN FOCUS\n${context.focus.id} — ${context.focus.name}: ${context.focus.claim}`);
+    if (context.shown.length) ctx.push(`ON SCREEN\n${context.shown.join(', ')}`);
+    if (context.asked.length) ctx.push(`ASKED BEFORE, oldest first\n${context.asked.join('\n')}`);
     const out = await gemini.ask({
       system: SYSTEM,
       messages: [{ role: 'user', content:
-        `INDEX\n${idx}\n\nCANDIDATES\n${known}\n\nQUESTION\n${q}` }],
+        `INDEX\n${idx}\n\nCANDIDATES\n${known}\n\n${ctx.join('\n\n')}\n\nQUESTION\n${q}` }],
       schema: SCHEMA,
     });
 
     const clean = validate(out.json, candidates.concat(index));
     if (!clean.nodes.length) {
-      return res.status(200).json({ note: out.json.note || '',
+      return res.status(200).json({ question: clean.question, note: out.json.note || '',
                                     nodes: [], edges: [], ms: Date.now() - t0 });
     }
     /* the VALIDATED answer, which is what the reader was shown — not the raw
        reply, whose dropped edges never reached anybody */
     finds.record({ visitorId: body.visitorId, cohort: who, q, kind: 'extend', isLocal: local(req),
                    ms: Date.now() - t0,
-                   answer: { note: clean.note,
+                   answer: { question: clean.question, note: clean.note,
                              nodes: clean.nodes, edges: clean.edges,
                              served: out.served } });
     return res.status(200).json({ ...clean, ms: Date.now() - t0, served: out.served });
@@ -226,6 +253,7 @@ module.exports = async function handler(req, res) {
  * a repaired edge is a claim nobody made. */
 function validate(json, candidates) {
   const known = new Set(candidates.map(c => c.id));
+  const question = String(json.question || '').trim().slice(0, 160);
   const seen = new Set();
   const nodes = [];
 
@@ -255,11 +283,12 @@ function validate(json, candidates) {
   /* A cluster with no edge to a real card is not an extension of anything, and
      the page would have nowhere to hang it. */
   const anchored = edges.some(e => known.has(e.from) || known.has(e.to));
-  if (!anchored) return { note: String(json.note || ''), nodes: [], edges: [] };
+  if (!anchored) return { question, note: String(json.note || ''), nodes: [], edges: [] };
 
   /* A node no surviving edge mentions would spawn with nothing attached. */
   const used = new Set(edges.flatMap(e => [e.from, e.to]));
   return {
+    question,
     note: String(json.note || '').slice(0, 240),
     nodes: nodes.filter(n => used.has(n.id)),
     edges,
