@@ -67,7 +67,18 @@
      the page whatever the button says. A PILL — it opens a panel rather than
      changing the stage, and the round end says so beside the round numbers. */
   #allsteps{position:absolute;right:22px;top:50%;transform:translateY(-50%);
-    border-radius:999px;padding:7px 16px}
+    border-radius:999px;padding:7px 16px;
+    /* THE RAIL'S OWN TYPE — .rnum.rend, the END pill it stands opposite:
+       display face, 12px, the micro-cap's weight and tracking. */
+    font-family:var(--font-display);font-size:12px;
+    font-weight:var(--cap-weight);letter-spacing:var(--cap-track);
+    text-transform:uppercase;
+    /* AS QUIET AS THE END PILL. Same ink and hairline; the rest of the match is
+       the fade .rnum.future carries — one value over text, icon and border, so
+       the pair reads as one weight of chrome. Full strength on hover, since
+       this one is always pressable and END mostly is not. */
+    border-width:1px;opacity:.55}
+  #allsteps:hover,#allsteps:focus-visible{opacity:1}
 
   /* THE SIDEBAR IS AN ACCORDION. The section is the card, so the two readouts
      give up their own paper inside it — but only inside it: the ledger keeps
@@ -126,7 +137,7 @@
     <!-- THE PATHWAY MAP'S DOOR, opposite the title: it is the ten numbers
          written out, so it belongs on their line. Absolutely positioned for
          the same reason the title is — the rail stays centred on the page. -->
-    <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> Show 10 steps</button>
+    <button id="allsteps"><i class="ph-bold ph-list-numbers"></i> All 10 steps</button>
   </div>
   <div id="stage">
     <!-- UNDER the canvas: glow shows through the alpha, so it sits behind the
