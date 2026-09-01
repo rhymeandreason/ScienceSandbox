@@ -978,6 +978,222 @@
   #lessonframe { flex: 1 1 auto; width: 100%; height: 100%; min-height: 0;
                  border: 0; display: block; }
 
+  /* ---- the video, over the map (ported from tests/question-composer.html) */
+  /* A VIDEO is 16:9 and a lesson is a sheet, so the card sizes to the content
+     rather than the two sharing one box with the wrong shape for one of them.
+     Black behind it: the letterbox belongs to the film, not to the paper. */
+  .modal.video .mcard { background: #0e0f11; }
+  .modal.video .mhead { border-bottom-color: rgba(255,255,255,.12); }
+  .modal.video .mhead > span:first-child { color: #f2f0ea; }
+  .modal.video .mclose { color: rgba(242,240,234,.6); }
+  .modal.video .mclose:hover { color: #fff; }
+  .modal.video .credit {
+    font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(242,240,234,.55);
+  }
+  /* THE VIDEO SETS THE HEIGHT and the column scrolls inside it. `.mcues` has
+     `overflow-y`, which zeroes its automatic minimum size, so 19 cues do not
+     drag the card taller than the picture — and `max-height` is what stops a
+     wide window from pushing the header off the top of the screen. */
+  .modal.video .mcard { width: min(1400px, 100%); height: auto;
+                        max-height: min(820px, 100%); }
+  /* The column is ABSOLUTE so it cannot size the row. A row flex container
+     takes its cross-axis height from the tallest item's content, and 19 cues
+     are taller than the picture — which held the card at its max height with a
+     band of dead black under the video. Out of flow, the video is the only
+     thing left to measure, so the card hugs it and the cues scroll in the gap
+     the margin leaves. */
+  .modal.video .mbody { position: relative; flex: 1; min-height: 0;
+                        overflow: hidden; }
+  .modal.video .mvideo { margin-right: 24rem; }
+  /* ---- our own player chrome -------------------------------------------
+     `controls=0` takes YouTube's bar away, and on its own that is not enough:
+     the title, the logo and the share button still fade in over the picture on
+     hover, which is the covering-the-science problem again in another form. So
+     the frame takes no pointer events at all and everything below is ours. The
+     cost is real and paid on purpose: fullscreen and the native scrubber are
+     gone, so we owe the reader a replacement for each. */
+  .modal.video .mstage { position: relative; }
+  .modal.video #videoframe, .modal.video #videoframe iframe { pointer-events: none; }
+  .modal.video .mtap {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    padding: 0; border: 0; background: none; cursor: pointer;
+  }
+  /* A SCRIM, not a picture. Mid-video this stands in front of YouTube's
+     paused overlay for the half second it takes to fade, and throwing the
+     title card over a 0:41 scene would be its own wrong. `.first` is the
+     pre-play state, where the poster IS the right image and the frame behind
+     it has nothing in it yet. */
+  .modal.video .mcover {
+    position: absolute; inset: 0; pointer-events: none;
+    background-color: rgba(14, 15, 17, .96);
+    background-position: center; background-size: cover;
+    background-repeat: no-repeat;
+    opacity: 0; transition: opacity .18s ease;
+  }
+  .modal.video .mcover.first { background-color: #0e0f11; }
+  .modal.video .mcard.covered .mcover { opacity: 1; }
+
+  /* The paused mark, centred. Only while paused, so a playing video is picture
+     and nothing else. */
+  .modal.video .mbig {
+    position: absolute; left: 50%; top: 50%; width: 3.4rem; height: 3.4rem;
+    transform: translate(-50%, -50%); pointer-events: none;
+    border-radius: 50%; background: rgba(14,15,17,.5);
+    border: 1px solid rgba(255,255,255,.7);
+    opacity: 0; transition: opacity .18s ease;
+  }
+  .modal.video .mbig::after {
+    content: ''; position: absolute; left: 56%; top: 50%;
+    transform: translate(-50%, -50%);
+    border: 0.62rem solid transparent; border-left: 1rem solid #fff;
+  }
+  /* Only while the cover is up. After that YouTube draws its own glyph on a
+     pause, and two play marks over one frame is worse than either. */
+  .modal.video .mcard.covered .mbig { opacity: 1; }
+
+  .modal.video .mctl {
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 0.55rem 0.9rem 0.7rem;
+  }
+  .modal.video .mctl button {
+    flex: none; width: 1.1rem; height: 1.1rem; padding: 0;
+    background: none; border: 0; cursor: pointer; position: relative;
+  }
+  .modal.video .mplay::before {
+    content: ''; position: absolute; left: 2px; top: 50%;
+    transform: translateY(-50%);
+    border: 0.42rem solid transparent; border-left: 0.62rem solid rgba(242,240,234,.75);
+  }
+  /* Two bars, drawn from one element and its border, so pause needs no glyph. */
+  .modal.video .mcard.playing .mplay::before {
+    border: 0; width: 0.28rem; height: 0.82rem; left: 1px;
+    background: rgba(242,240,234,.75);
+    box-shadow: 0.42rem 0 0 rgba(242,240,234,.75);
+  }
+  .modal.video .mctl button:hover::before { border-left-color: #fff; background-color: #fff; }
+  .modal.video .mfull::before {
+    content: ''; position: absolute; inset: 2px;
+    border: 1px solid rgba(242,240,234,.75); border-radius: 1px;
+  }
+  .modal.video .mfull:hover::before { border-color: #fff; }
+  .modal.video .mtime {
+    flex: none; font-family: var(--sans); font-size: 0.6rem;
+    letter-spacing: 0.06em; color: rgba(242,240,234,.75);
+    font-variant-numeric: tabular-nums;
+  }
+  .modal.video .mtime.dim { color: rgba(242,240,234,.4); }
+  /* Padded above and below so the 2px line is a 14px hit target: a scrubber
+     the reader has to aim at is one they will miss. */
+  .modal.video .mbar {
+    flex: 1; height: 2px; cursor: pointer;
+    background: rgba(255,255,255,.16);
+    border-top: 6px solid transparent; border-bottom: 6px solid transparent;
+    background-clip: padding-box;
+  }
+  .modal.video .mbar i {
+    display: block; height: 100%; width: 0; background: var(--spark);
+  }
+
+  /* `height: auto` is load-bearing: the IFrame API stamps width="640"
+     height="360" ATTRIBUTES on the iframe it builds, and a presentational
+     height beats `aspect-ratio` — the player came out 1030x356 in a box that
+     wanted 1030x579. */
+  #videoframe, #videoframe iframe {
+    display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; border: 0;
+  }
+
+  /* ---- the caption column ----------------------------------------------
+     The reason this modal is not simply a 16:9 box. YouTube's own captions
+     burn over the picture, and these videos PRINT their key terms on screen —
+     the caption lands on top of the word it is explaining. So captions are off
+     in the player and the text is here, beside it, where it can also be longer
+     than a caption line and clickable. */
+  .modal.video .mside {
+    position: absolute; inset: 0 0 0 auto; width: 24rem;
+    display: flex; flex-direction: column; min-height: 0;
+    border-left: 1px solid rgba(255,255,255,.1);
+  }
+  /* TWO TRACKS, and which one is showing is a fact about whose words these
+     are. The source under the switch is not decoration: the narration is the
+     video author's writing carried across, and a column of it with no name on
+     it reads as ours. */
+  .modal.video .mtracks {
+    flex: none; display: flex; align-items: center; gap: 0.35rem;
+    padding: 0.7rem 1rem 0.6rem;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .modal.video .mtracks button {
+    font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.14em;
+    text-transform: uppercase; cursor: pointer;
+    color: rgba(242,240,234,.45);
+    background: none; border: 1px solid rgba(255,255,255,.14);
+    border-radius: 3px; padding: 0.3rem 0.5rem;
+    transition: color .15s, border-color .15s;
+  }
+  .modal.video .mtracks button:hover { color: rgba(242,240,234,.8); }
+  .modal.video .mtracks button[aria-pressed="true"] {
+    color: #f4f2ec; border-color: rgba(255,255,255,.45);
+  }
+  .modal.video .mtracks .src {
+    margin-left: auto;
+    font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: rgba(242,240,234,.35);
+  }
+  /* Underlined rather than coloured: the column is already two greys and a
+     lit line, and a third colour here would read as another state. */
+  .modal.video .mtracks .src a,
+  .modal.video .credit a {
+    color: inherit; text-decoration: underline;
+    text-underline-offset: 2px; text-decoration-color: rgba(242,240,234,.3);
+  }
+  .modal.video .mtracks .src a:hover,
+  .modal.video .credit a:hover { color: #f4f2ec; text-decoration-color: currentColor; }
+  .modal.video .mcues {
+    flex: 1; min-height: 0;
+    margin: 0; padding: 0.6rem 0 1.2rem; list-style: none;
+    overflow-y: auto; overscroll-behavior: contain;
+  }
+  /* SERIF, and larger than a caption. This column is the only running prose
+     on the page a reader actually reads through, several sentences at a time
+     against a dark ground — which is what Literata is for and what a 0.78rem
+     system-ui was fighting. The timecode and the step number stay in `--sans`
+     below: those are labels, not prose. */
+  .modal.video .mcues li {
+    display: flex; gap: 0.7rem; align-items: baseline;
+    padding: 0.6rem 1.1rem; cursor: pointer;
+    color: rgba(242,240,234,.45);
+    font-family: var(--serif); font-size: 1.2rem; line-height: 1.6;
+    transition: color .18s ease;
+  }
+  .modal.video .mcues li:hover { color: rgba(242,240,234,.72); }
+  /* Not a cue: no padding, no hover, no pointer. Its height is set from JS. */
+  .modal.video .mcues li.pad { padding: 0; pointer-events: none; }
+  /* The lit line is the only one at full strength, so the column can be read
+     at a glance without hunting for where the video is. */
+  .modal.video .mcues li.on { color: #f4f2ec; }
+  .modal.video .mcues li.on .at { color: var(--spark); }
+  .modal.video .mcues .at {
+    flex: none; width: 2.4rem;
+    font-family: var(--sans); font-size: 0.62rem; letter-spacing: 0.06em;
+    color: rgba(242,240,234,.35);
+  }
+  /* A step number ties the line to the lesson's own ten, which is the same
+     numbering glycolysis-lab teaches. */
+  .modal.video .mcues .st {
+    flex: none; font-family: var(--sans); font-size: 0.55rem;
+    letter-spacing: 0.1em; color: rgba(242,240,234,.3);
+  }
+  /* Narrow: the column goes back into flow, under the video. */
+  @media (max-width: 900px) {
+    .modal.video .mbody { display: flex; flex-direction: column;
+                          overflow-y: auto; }
+    .modal.video .mvideo { margin-right: 0; }
+    .modal.video .mside { position: static; width: auto; flex: 1 1 auto;
+                          border-left: 0;
+                          border-top: 1px solid rgba(255,255,255,.1); }
+  }
+
   .hint {
     position: fixed; right: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 5;
     font-size: 0.7rem; letter-spacing: 0.06em; color: var(--muted);
@@ -1061,6 +1277,56 @@
       <button class="mclose" aria-label="Close">&times;</button>
     </div>
     <iframe id="lessonframe" title="lesson" allow="fullscreen"></iframe>
+  </div>
+</div>
+
+<!-- The video, over the map. A SECOND modal rather than the lesson's with a
+     different src: the two share nothing but the word "opens". A lesson is a
+     page we own, sized as a sheet, carrying its own chrome; a video is 16:9,
+     somebody else's, and its header has to say whose. kit/modal.js stacks
+     them, which is what it was built for. -->
+<div id="videomodal" class="modal video" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="videotitle">
+    <div class="mhead">
+      <span id="videotitle">the video</span>
+      <span id="videocredit" class="credit"></span>
+      <button class="mclose" aria-label="Close">&times;</button>
+    </div>
+    <div class="mbody">
+      <!-- A PLACEHOLDER, not the player. YouTube's IFrame API replaces this
+           node with its own iframe, and destroying the player takes that
+           iframe with it — which is what stops playback and ends the
+           third-party connection when the card closes. `mount()` puts a fresh
+           placeholder back. With no API (offline, blocked), `plain()` writes a
+           bare iframe here instead and the column simply does not follow. -->
+      <div class="mvideo">
+        <div class="mstage">
+          <div id="videoframe"></div>
+          <!-- A PAUSED player draws YouTube's own overlay: title, avatar,
+               "More videos", logo. pointer-events stops the HOVER chrome and
+               not that one, so the poster covers the frame whenever the video
+               is not running. It doubles as the loading state. -->
+          <div class="mcover"></div>
+          <!-- OUR click target. The frame below it is pointer-events:none, so
+               YouTube's hover chrome never appears over the picture; this is
+               what gives the click back. -->
+          <button type="button" class="mtap" id="videotap" aria-label="Play or pause"></button>
+          <span class="mbig" aria-hidden="true"></span>
+        </div>
+        <div class="mctl">
+          <button type="button" class="mplay" id="videoplay" aria-label="Play"></button>
+          <span class="mtime" id="videotime">0:00</span>
+          <div class="mbar" id="videobar"><i></i></div>
+          <span class="mtime dim" id="videodur">0:00</span>
+          <button type="button" class="mfull" id="videofull" aria-label="Fullscreen"></button>
+        </div>
+      </div>
+      <div class="mside">
+        <div class="mtracks" id="videotracks"></div>
+        <ol class="mcues" id="videocues"></ol>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2557,14 +2823,417 @@ const lessonModal = Modal.create({
   el: 'lessonmodal',
   onShow: c => {
     lessonTitle.textContent = c.name || 'the lesson';
-    /* youtube-nocookie, and the parameters are built here rather than
-       authored, so a row carries the id and nothing about playback */
-    lessonFrame.src = c.kind === 'video'
-      ? 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(c.src) +
-        '?rel=0&modestbranding=1&playsinline=1&autoplay=1'
-      : '../' + c.href;
+    lessonFrame.src = '../' + c.href;
   },
   onHide: () => { lessonFrame.src = 'about:blank'; },
+});
+
+/* ---- the video, over the map -----------------------------------------
+   youtube-nocookie, and the parameters are built here rather than authored in
+   graphcontent.js: the table holds the video's ID, which is the fact, and every
+   option below is this page's decision about how a card plays one.
+
+     cc_load_policy 0 — THE POINT OF THE COLUMN. These videos print their key
+                        terms on the picture, and a burned-in caption lands on
+                        top of the word it is explaining. The param is the
+                        documented way to ask; a reader whose account defaults
+                        captions on can still override it, which is what
+                        `unloadModule` on ready is for.
+     rel 0            — the end screen offers more of this channel rather than
+                        the whole of YouTube. A map is not a place to be
+                        recommended out of.
+     modestbranding 1 — the card already says whose work it is.
+     autoplay 1       — the reader clicked play. */
+const YT_VARS = {
+  rel: 0, modestbranding: 1, autoplay: 1, playsinline: 1,
+  cc_load_policy: 0, iv_load_policy: 3,
+  /* No YouTube bar. The strip under the picture is ours, and the frame takes
+     no pointer events, so the title and logo never fade in over the animation
+     either. `plain()` keeps the native controls, because with no API there is
+     nothing to drive a replacement with. */
+  controls: 0,
+};
+const ytSrc = (id, api) =>
+  'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?' +
+  new URLSearchParams({ ...YT_VARS, ...(api ? { enablejsapi: 1, origin: location.origin } : {}) });
+
+/* The API is loaded ON FIRST OPEN and never before: it is a third-party script,
+   and a map nobody has opened a video on should not have fetched one. Resolves
+   to null rather than throwing when it cannot load — offline, blocked, no
+   network — and the caller falls back to a plain iframe. */
+let ytReady = null;
+function loadYT() {
+  if (ytReady) return ytReady;
+  ytReady = new Promise(resolve => {
+    if (window.YT && window.YT.Player) return resolve(window.YT);
+    const t = setTimeout(() => resolve(null), 6000);
+    window.onYouTubeIframeAPIReady = () => { clearTimeout(t); resolve(window.YT); };
+    const el = document.createElement('script');
+    el.src = 'https://www.youtube.com/iframe_api';
+    el.onerror = () => { clearTimeout(t); resolve(null); };
+    document.head.appendChild(el);
+  });
+  return ytReady;
+}
+
+const cueList = document.getElementById('videocues');
+const trackBar = document.getElementById('videotracks');
+let player = null, tracks = [], cues = [], cueEls = [], lit = -1, ticker = 0;
+
+/* Which track the reader last chose, kept for the session only. A default that
+   followed them across visits would need storage this page does not otherwise
+   touch, and the default matters more than the memory: the video's OWN words
+   are what a reader watching somebody else's video should get first. */
+let trackPref = 'narration';
+
+
+const mmss = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+
+function renderCues() {
+  cueList.textContent = ''; cueEls = []; lit = -1;
+  for (const q of cues) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="at">' + mmss(q.t) + '</span>' +
+                   '<span class="tx">' + esc(q.text) + '</span>' +
+                   (q.step ? '<span class="st">' + q.step + '</span>' : '');
+    // Reading ahead is what the column is for, so a line is a seek target.
+    li.addEventListener('click', () => {
+      if (player && player.seekTo) { player.seekTo(q.t, true); player.playVideo(); }
+    });
+    cueList.appendChild(li);
+    cueEls.push(li);
+  }
+  /* A TAIL, so the last cue can still reach the top. Without it the column
+     runs out of scroll and the final few lines sit wherever they happen to
+     land, which breaks the one promise the alignment makes. Sized in pixels
+     from the list's height, because a percentage padding resolves against
+     WIDTH and would be silently wrong. */
+  const pad = document.createElement('li');
+  pad.className = 'pad';
+  pad.setAttribute('aria-hidden', 'true');
+  cueList.appendChild(pad);
+  sizePad();
+
+  // Straight back to where the video is, so switching track never loses the
+  // place. Instant rather than smooth: the list was just rebuilt, and animating
+  // a scroll from the top of a list the reader never saw is motion for nothing.
+  if (player && player.getCurrentTime) {
+    litAt(player.getCurrentTime());
+    scrollLit();
+  }
+}
+
+function sizePad() {
+  const pad = cueList.querySelector('.pad');
+  const last = cueEls[cueEls.length - 1];
+  if (!pad || !last) return;
+  pad.style.height = Math.max(0, cueList.clientHeight - last.offsetHeight) + 'px';
+}
+
+/* The lit line goes to the TOP of the column, not merely into view: the reader
+   is looking at one place, and a line that lands anywhere in a tall column is a
+   line they have to find.
+
+   Written as a scrollTop rather than scrollIntoView, which walks up the tree
+   and can scroll an ancestor as well. And INSTANT rather than smooth, which is
+   a measured decision and not a preference: `behavior: 'smooth'` is a no-op on
+   this container in some browsers — a raw `scrollTo({behavior:'smooth'})`
+   moved it not at all while `scrollTop =` moved it fine — so a smooth call
+   fails by silently not scrolling, which reads exactly like the alignment
+   being broken. A tween of our own would want rAF, which a backgrounded tab
+   does not run. */
+function scrollLit() {
+  const el = cueEls[lit];
+  if (!el) return;
+  cueList.scrollTop += el.getBoundingClientRect().top
+                     - cueList.getBoundingClientRect().top;
+}
+
+// The tail is a pixel height, so it is wrong the moment the window changes.
+addEventListener('resize', () => { sizePad(); scrollLit(); });
+
+function pickTrack(id) {
+  const t = tracks.find(x => x.id === id) || tracks[0];
+  if (!t) return;
+  trackPref = t.id;
+  cues = t.cues || [];
+  for (const b of trackBar.querySelectorAll('button'))
+    b.setAttribute('aria-pressed', String(b.dataset.track === t.id));
+  const src = trackBar.querySelector('.src');
+  if (src) src.innerHTML = t.sourceUrl
+    ? '<a href="' + esc(t.sourceUrl) + '" target="_blank" rel="noopener noreferrer">'
+      + esc(t.source || '') + '</a>'
+    : esc(t.source || '');
+  renderCues();
+}
+
+/* TWO TRACKS, and the default is the video's own. The narration is the film's
+   author writing about their own film, and a reader watching somebody else's
+   work should hear it in their words; ours is the same beats rewritten for a
+   Bio 101 reader, which is a summary and says so. The switch is only drawn
+   when there is more than one, so a single-track video shows no chrome. */
+function renderTracks() {
+  trackBar.textContent = '';
+  trackBar.hidden = tracks.length < 2;
+  if (trackBar.hidden) return;
+  for (const t of tracks) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.track = t.id;
+    b.textContent = t.label || t.id;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => pickTrack(t.id));
+    trackBar.appendChild(b);
+  }
+  const src = document.createElement('span');
+  src.className = 'src';
+  trackBar.appendChild(src);
+}
+
+/* Fetched per open and not cached: a video is opened once in a session far
+   more often than twice, and the file is a couple of KB. An empty column is a
+   fine failure — the video still plays. */
+async function loadCues(c) {
+  tracks = []; cues = []; cueEls = []; lit = -1;
+  cueList.textContent = ''; trackBar.textContent = ''; trackBar.hidden = true;
+  if (!c.captions) return;
+  try {
+    const doc = await fetch('../' + c.captions).then(r => r.json());
+    tracks = doc.tracks || [];
+  } catch (e) { return; }
+  renderTracks();
+  pickTrack(trackPref);
+}
+
+/* Which line is now. Linear from the last one rather than a search over all of
+   them: playback moves forward, and a seek is the only jump. */
+function litAt(t) {
+  let i = cues.length - 1;
+  while (i > 0 && cues[i].t > t) i--;
+  if (i === lit) return;
+  if (cueEls[lit]) cueEls[lit].classList.remove('on');
+  lit = i;
+  const el = cueEls[i];
+  if (!el) return;
+  el.classList.add('on');
+  scrollLit();
+}
+
+/* No API: the video still plays and the column still reads, it just does not
+   follow. Better than no video. */
+function plain(c) {
+  /* Native controls come back with the player, so ours would be a second set
+     that does nothing. */
+  const strip = document.querySelector('.mctl');
+  if (strip) strip.hidden = true;
+  const box = document.querySelector('.mstage');
+  box.innerHTML = '';
+  const f = document.createElement('iframe');
+  f.id = 'videoframe';
+  f.title = 'video';
+  f.allow = 'autoplay; encrypted-media; picture-in-picture';
+  f.allowFullscreen = true;
+  f.referrerPolicy = 'strict-origin-when-cross-origin';
+  f.src = ytSrc(c.src, false).replace('controls=0', 'controls=1');
+  box.appendChild(f);
+}
+
+/* WHERE THE CAPTIONS ACTUALLY GO OFF, and the whole reason the cue column can
+   exist. `cc_load_policy=0` only ASKS: a reader whose YouTube account defaults
+   captions on gets them anyway, and these videos print their key terms on the
+   picture, so the burned-in line lands on top of the word it is explaining.
+
+   Two calls because neither is documented and only their combination was
+   observed to clear the render. The getters keep reporting a live track
+   afterwards, so `getOption` cannot be used to check the result — the picture
+   is the only test. Retried on a delay as well as on the module event: the
+   module can load after the event that announced the last one. */
+function killCaptions(p) {
+  const go = () => {
+    try { p.setOption('captions', 'track', {}); } catch (e) {}
+    for (const m of ['captions', 'cc']) { try { p.unloadModule(m); } catch (e) {} }
+  };
+  go();
+  setTimeout(go, 1200);
+}
+
+/* ---- our own transport -----------------------------------------------
+   Every one of these exists because `controls=0` took YouTube's away. The
+   modal card carries `playing` / `paused` so the CSS can draw the state in two
+   places at once (the strip's button and the big centre mark) from one fact. */
+const vCard = () => document.querySelector('#videomodal .mcard');
+const vPlay = document.getElementById('videoplay');
+const vTap  = document.getElementById('videotap');
+const vBar  = document.getElementById('videobar');
+const vFill = vBar.querySelector('i');
+const vTime = document.getElementById('videotime');
+const vDur  = document.getElementById('videodur');
+
+function setPlaying(on) {
+  const card = vCard();
+  if (!card) return;
+  card.classList.toggle('playing', on);
+  card.classList.toggle('paused', !on);
+  vPlay.setAttribute('aria-label', on ? 'Pause' : 'Play');
+}
+
+/* THE COVER IS THE PRE-PLAY STATE ONLY, and that limit is a measured result
+   rather than a preference.
+
+   YouTube draws its own overlay — big glyph, title, avatar, "More videos",
+   logo — on every pause AND every seek, and it does not fade on a timer we can
+   wait out: measured at +0.5s, +2s and +8s after a resume, it was still up at
+   two and gone by eight. Covering it would mean hiding several seconds of the
+   film every time the reader touches a cue, which costs more than the chrome.
+
+   So the cover does the one job it can do cleanly: it hides the player's
+   start-up, where there is nothing behind it worth seeing anyway. Once the
+   picture has moved it never comes back, and a pause shows YouTube's own UI,
+   which is what a paused embed looks like. */
+function setCovered(on) {
+  const card = vCard();
+  if (card) card.classList.toggle('covered', on);
+}
+
+function toggle() {
+  if (!player || !player.getPlayerState) return;
+  const YT = window.YT;
+  if (player.getPlayerState() === YT.PlayerState.PLAYING) player.pauseVideo();
+  else player.playVideo();
+}
+vPlay.addEventListener('click', toggle);
+vTap.addEventListener('click', toggle);
+
+/* Seek from anywhere on the track, including the transparent padding that
+   makes a 2px line catchable. */
+vBar.addEventListener('click', e => {
+  if (!player || !player.getDuration) return;
+  const r = vBar.getBoundingClientRect();
+  const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  player.seekTo(f * player.getDuration(), true);
+  player.playVideo();
+});
+
+/* Ours, because the native button went with the rest of the chrome. The iframe
+   itself is what goes fullscreen, so the strip and the column stay behind. */
+document.getElementById('videofull').addEventListener('click', () => {
+  const f = player && player.getIframe && player.getIframe();
+  if (f && f.requestFullscreen) f.requestFullscreen();
+});
+
+function paintTime() {
+  if (!player || !player.getCurrentTime) return;
+  const t = player.getCurrentTime(), d = player.getDuration() || 0;
+  vTime.textContent = mmss(t);
+  vDur.textContent = mmss(d);
+  vFill.style.width = d ? (t / d * 100) + '%' : '0';
+  /* Lifted by the PICTURE moving rather than by the player reporting PLAYING,
+     which it does while its start-up card is still on screen. */
+  if (t >= 0.55) {
+    setCovered(false);
+    // The poster has done its job once the video is running; every later
+    // cover is a scrim over a frame the reader has already seen.
+    const cv = document.querySelector('.mcover');
+    if (cv && cv.classList.contains('first')) {
+      cv.classList.remove('first');
+      cv.style.backgroundImage = '';
+    }
+  }
+  litAt(t);
+}
+
+function mount(c) {
+  loadYT().then(YT => {
+    if (!videoModal.isOpen()) return;          // closed while the script loaded
+    if (!YT) return plain(c);
+    player = new YT.Player('videoframe', {
+      /* The API builds its iframe against www.youtube.com unless told
+         otherwise, which would quietly undo the nocookie host `plain()` uses. */
+      host: 'https://www.youtube-nocookie.com',
+      videoId: c.src,
+      playerVars: YT_VARS,
+      events: {
+        onReady: e => { killCaptions(e.target); e.target.playVideo(); },
+        // Fires whenever a module loads, which is the only moment the
+        // captions one can be taken away. It can fire more than once, and
+        // killCaptions is safe to repeat.
+        onApiChange: e => killCaptions(e.target),
+        onStateChange: e => {
+          clearInterval(ticker);
+          /* BUFFERING is not PAUSED. YouTube fires it after PLAYING and again
+             on every seek, and treating it as a stop threw the poster over a
+             running video for as long as the buffer took. The state is left
+             exactly as it was and the ticker stops, which is all buffering
+             actually means here. */
+          if (e.data === YT.PlayerState.BUFFERING) return;
+          setPlaying(e.data === YT.PlayerState.PLAYING);
+          /* THE END SCREEN IS THE LAST PIECE OF CHROME. `rel=0` narrows it to
+             this channel but does not remove it, and a grid of thumbnails over
+             the final frame is exactly what the reader came here to get away
+             from. Rewinding to the start puts frame 0 back and never lets it
+             draw. */
+          if (e.data === YT.PlayerState.ENDED) {
+            e.target.seekTo(0, true);
+            e.target.pauseVideo();
+            paintTime();
+            return;
+          }
+          if (e.data !== YT.PlayerState.PLAYING) { paintTime(); return; }
+          ticker = setInterval(paintTime, 250);
+        },
+      },
+    });
+  });
+}
+
+const videoModal = Modal.create({
+  el: 'videomodal',
+  onShow: c => {
+    document.getElementById('videotitle').textContent = c.name;
+    /* A link in the MODAL and plain text on the card. On the card, every click
+       is the map's — zoom, drag, or open the video — and one that leaves the
+       site would be competing with all three. Here the reader has already
+       watched it, and going to find more is the reasonable next thing. */
+    const credit = document.getElementById('videocredit');
+    const label = esc(c.credit) + (c.year ? ' · ' + esc(String(c.year)) : '');
+    credit.innerHTML = c.creditUrl
+      ? '<a href="' + esc(c.creditUrl) + '" target="_blank" rel="noopener noreferrer">'
+        + label + '</a>'
+      : label;
+    const cover = document.querySelector('.mcover');
+    if (cover) {
+      cover.classList.add('first');
+      cover.style.backgroundImage = 'url("../' + c.poster + '")';
+    }
+    setPlaying(false);
+    setCovered(true);             // and stays up until the picture moves
+    loadCues(c);
+    mount(c);
+  },
+  /* DESTROYING the player is what stops it. A hidden iframe keeps playing and
+     keeps talking to YouTube, so closing the card has to end both — and the
+     placeholder has to come back, because destroy() takes the node with it. */
+  onHide: () => {
+    clearInterval(ticker); ticker = 0;
+    if (player && player.destroy) player.destroy();
+    player = null; lit = -1;
+    setPlaying(false);
+    setCovered(true);
+    vFill.style.width = '0'; vTime.textContent = '0:00'; vDur.textContent = '0:00';
+    /* destroy() takes the iframe with it, so the STAGE is rebuilt — the frame
+       placeholder, our click target and the paused mark. Only the stage: the
+       strip below has live listeners bound to its nodes, and rebuilding
+       `.mvideo` would silently drop every one of them. */
+    const stage = document.querySelector('.mstage');
+    if (stage) stage.innerHTML =
+      '<div id="videoframe"></div>' +
+      '<div class="mcover"></div>' +
+      '<button type="button" class="mtap" id="videotap" aria-label="Play or pause"></button>' +
+      '<span class="mbig" aria-hidden="true"></span>';
+    document.getElementById('videotap').addEventListener('click', toggle);
+    const strip = document.querySelector('.mctl');
+    if (strip) strip.hidden = false;
+  },
 });
 
 document.addEventListener('click', e => {
@@ -2578,7 +3247,7 @@ document.addEventListener('click', e => {
   const open = e.target.closest('.opener[data-open]');
   if (open) {
     const c = BY_CONTENT.get(open.dataset.open);
-    if (c) lessonModal.show(c);
+    if (c) (c.kind === 'video' ? videoModal : lessonModal).show(c);
     return;
   }
   const b = e.target.closest('.chip');

@@ -156,32 +156,38 @@
        still for the same reason, and because a remote thumbnail would break
        the card the day the video moves.
 
-       No `captions` here: the composer authored two-track caption files for
-       all four, and this page has nothing that reads them yet. Naming a
-       field nothing reads is how a claim goes stale. */
+       `captions` names a local file of `{ tracks: [{ id, label, source,
+       cues: [{ t, text, step }] }] }`, authored rather than fetched: YouTube
+       publishes no caption text a page can read. Two tracks per file, and
+       the default is `narration` — the video's own words. `step` is the
+       lesson's own numbering, so a cue and the lesson cannot drift. */
     { id: 'v:glycolysis', kind: 'video', src: '1VrRl0UTlA8',
       name: 'Glycolysis',
       credit: 'WEHI', year: 2021,
       creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
-      poster: 'media/glycolysis-wehi.jpg' },
+      poster: 'media/glycolysis-wehi.jpg',
+      captions: 'media/glycolysis-wehi.captions.json' },
     { id: 'v:krebs', kind: 'video', src: 'aV-kI_ep1Rk',
       /* both names: the film says citric acid cycle, krebs-lab says Krebs */
       name: 'The Krebs cycle (citric acid cycle)',
       credit: 'Drew Berry, WEHI', year: 2020,
       creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
-      poster: 'media/krebs-wehi.jpg' },
+      poster: 'media/krebs-wehi.jpg',
+      captions: 'media/krebs-wehi.captions.json' },
     { id: 'v:etc', kind: 'video', src: 'nmoLoiFakxY',
       name: 'The electron transport chain',
       credit: 'Drew Berry, WEHI', year: 2019,
       creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
-      poster: 'media/etc-wehi.jpg' },
+      poster: 'media/etc-wehi.jpg',
+      captions: 'media/etc-wehi.captions.json' },
     { id: 'v:atp', kind: 'video', src: 'OT5AXGS1aL8',
       name: 'Synthesis of ATP',
       /* two names on it, and both are printed: the film has no dialogue for
          most of its run and the score is carrying the mechanism's rhythm */
       credit: 'Drew Berry & Franc Tétaz, WEHI', year: 2018,
       creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
-      poster: 'media/atp-wehi.jpg' },
+      poster: 'media/atp-wehi.jpg',
+      captions: 'media/atp-wehi.captions.json' },
   ];
 
   const PLACEMENTS = [
