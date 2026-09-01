@@ -199,6 +199,12 @@ A card's deferred questions also come with its fan, two at most and OUTSIDE the 
 
 **A question seed gets its chain's hops back.** Its only edge is the answer, and where it names a member there is a card between it and its host, so two hops off a question is a chain of three before the graph starts.
 
+**A saved question is its own graph here.** On the map a graft is satellites of a laid-out card — pinned, outside the layout, because a generated node must not be able to move the skeleton. Build has no skeleton to protect and no seats to spend, so the reader's question is a heading like any other and the cards it produced are ordinary nodes, dealt off the QUESTION because that is what they answer. Nothing is generated in the replay: the saved payload was already validated against `byId` when it was made, and the map's rule that a generated node must be one END of every generated edge is applied again anyway.
+
+**A new question builds a new graph rather than grafting onto someone else's card.** `askExtend` saves the answer and registers the door BEFORE it draws anything, so both modes read it from the same place; in Build it then seeds on the question it just made. The offer stands in both modes, and `nearestMine` runs in both — asking a saved question again costs no call in either.
+
+Leaving Build gives all of it back: the generated cards and their edges go with `dropMade`, while the door stays in `ASKABLE` and the graft stays in `localStorage`, so the map's own `restoreGraft` still draws it.
+
 **Switching modes carries the reading.** An open query outranks the card under it — it is what the reader is looking at — and a kind, a pill or a generated card is read through the card it hangs off, so `currentSeed` walks up `host` until it reaches something the graph can grow from. Nothing open falls back to the default seed.
 
 **A satellite is never built.** A kinds fan left open on the map is still in `nodes` when the reader switches over, and `clearFocus` does not always take it down (`syncPill(null)` reads a host with no query as still in the family). Dealt into a fan it arrives as a card the graph cannot grow from, so the candidate filter drops satellites outright rather than relying on the map having tidied up.

@@ -3308,9 +3308,7 @@ function askQuestion(q) {
     buildOnArrive = false;
     /* a deferred question is dealt its own card here, so it seeds as itself
        and the card it answers into arrives as its first hop */
-    /* a saved graft is a door with no card of its own and cards Build cannot
-       grow from, so it seeds the card it was grafted onto */
-    buildFrom(q.mine ? byId[q.anchorId] : q);
+    buildFrom(q);
     return;
   }
   /* the reader's own: deal the saved cards back rather than paying for a
@@ -3583,8 +3581,12 @@ askIn.addEventListener('keydown', e => {
   if (rows[0]) { ask(rows[0].dataset.q); return; }
   /* a graft you already own beats a card that merely shares a word: you asked
      this before, and the answer is sitting in the drawer */
-  const mine = mode === 'build' ? null : nearestMine(typed);   /* a graft is the map's */
-  if (mine) { closeList(); askIn.blur(); restoreGraft(mine); return; }
+  const mine = nearestMine(typed);
+  if (mine) {
+    closeList(); askIn.blur();
+    if (mode === 'build') buildFrom(mine); else restoreGraft(mine);
+    return;
+  }
   if (goToMatch(typed)) return;
   /* nothing deterministic matched: guess, say it is a guess, and offer the
      other thing that can be done with a question the map does not hold */
@@ -3592,7 +3594,7 @@ askIn.addEventListener('keydown', e => {
     /* no red flash when there is something to offer: a bar that reddens under
        the words "that's a new question" is telling the reader off for asking */
     if (!ok && extendOff) miss();
-    if (mode !== 'build') offerBuild(typed);   /* a graft is a map satellite */
+    offerBuild(typed);
   });
   askIn.blur(); closeList();
 });
@@ -4136,20 +4138,28 @@ async function askExtend(text) {
     const host = byId[anchorId];
     if (!host) { note(''); return false; }
 
-    light(host);
-    focus(host);
-    spawnGraft(host, out.nodes, out.edges, text);
     /* saved as the ANSWER, not as the request: the ids and edges are already
        validated and already resolved against this map, so a restore draws
-       exactly what was drawn and never asks anything again */
+       exactly what was drawn and never asks anything again. Saved BEFORE it is
+       drawn, so both modes read the answer from the same place. */
     rememberGraft(text, { host: host.id, nodes: out.nodes, edges: out.edges,
                           note: out.note || '', outside: !!out.outside });
     if (!ASKABLE.some(x => x.mine && x.text === text)) {
       ASKABLE.push(doorFor(text, readGrafts()[text] || { host: host.id }));
       sortAskable();
     }
-    for (const n of graft.nodes) n.el.classList.add('lit');
     note((out.outside ? '<em>outside the map.</em> ' : '') + esc(out.note || ''));
+    /* IN BUILD A NEW QUESTION IS A NEW GRAPH, not a graft on somebody else's
+       card: it seeds, and what it generated is its first hop. */
+    if (buildsNow()) {
+      buildOnArrive = false;
+      const door = ASKABLE.find(x => x.mine && x.text === text);
+      return buildFrom(door);
+    }
+    light(host);
+    focus(host);
+    spawnGraft(host, out.nodes, out.edges, text);
+    for (const n of graft.nodes) n.el.classList.add('lit');
     frameGraft(host);
     return true;
   } catch (e) {
@@ -4331,6 +4341,11 @@ function expand(n) {
     if (via && via !== n && !built.has(via) && !kids.includes(via)) kids.push(via);
     kids.push(q);
   }
+  /* what a saved question produced is dealt off the QUESTION, because that is
+     what it is the answer to — the edges themselves run to the map's cards */
+  if (n.graftNodes)
+    for (const m of n.graftNodes)
+      if (!built.has(m) && !kids.includes(m)) kids.push(m);
   /* AND THE REST OF THE FAN, once one member of it is on the graph. A question
      names one kind and the map deals the whole fan around it, because a member
      only means anything against the others — three kinds of mutagen is the
@@ -4508,6 +4523,60 @@ function buildQuery(q) {
   buildMade.links.push(l);
   return q;
 }
+/* A SAVED QUESTION IS ITS OWN GRAPH HERE. On the map a graft is satellites of
+   a laid-out card — pinned, outside the layout, because a generated node must
+   not be able to move the skeleton. Build has no skeleton to protect and no
+   seats to spend, so the reader's question is a heading like any other and the
+   cards it produced are ordinary nodes in the graph it opened. Nothing is
+   generated here: the saved payload is replayed, and it was already validated
+   against `byId` when it was made. */
+function buildMine(q) {
+  const g = readGrafts()[q.text] || q.graft;
+  const host = g && byId[g.host];
+  if (!host || !host.el) { note('That card is no longer on the map.'); return null; }
+  if (q.el) return q;
+
+  paintNode(q);
+  showEl(q, false);
+  q.satellite = false; q.pinned = false; q.host = null; q.on = false;
+  q.deg = 1; q.vx = 0; q.vy = 0;
+  q.el.classList.add('unlit');
+  nodes.push(q); byId[q.id] = q;
+  buildMade.nodes.push(q);
+  const ql = { a: q, b: host, type: 'answers', rank: 1, spine: true };
+  links.push(ql); paintLink(ql); showLink(ql, false); edgeRefresh(ql);
+  buildMade.links.push(ql);
+
+  const made = new Map();
+  for (const m of (g.nodes || [])) {
+    const id = 'made:' + m.id;
+    if (byId[id]) continue;              /* a live graft on the map owns that id */
+    const n = {
+      id, type: 'made', synthetic: true, name: m.name, claim: m.claim,
+      unit: host.unit, tint: host.tint,
+      satellite: false, pinned: false, on: false, deg: 0, vx: 0, vy: 0,
+    };
+    nodes.push(n); byId[id] = n; made.set(m.id, n);
+    paintNode(n); showEl(n, false);
+    buildMade.nodes.push(n);
+  }
+  const resolve = id => made.get(id) || byId['made:' + id] || byId[id] || null;
+  for (const e of (g.edges || [])) {
+    const a = resolve(e.from), b = resolve(e.to);
+    if (!a || !b || a === b) continue;
+    /* the map's rule, unchanged: a generated node has to be one END of every
+       generated edge, or a model's claim lands on the skeleton */
+    if (a.type !== 'made' && b.type !== 'made') continue;
+    const l = { a, b, type: e.type, rank: e.rank || 2, spine: false, made: true };
+    links.push(l); paintLink(l); showLink(l, false); edgeRefresh(l);
+    l.el.classList.add('made');
+    buildMade.links.push(l);
+  }
+  /* dealt off the question rather than off the host: they are its answer */
+  q.graftNodes = [...made.values()];
+  return q;
+}
+
 /* THE SEED IS WHATEVER THE READER ARRIVED AT. `q-machine` is only the default
    the toggle uses; the ask bar, a `?node=`/`?ask=`/`?q=` link and a keyword
    search all land here instead of on the map when Build is on, so the mode is
@@ -4540,7 +4609,8 @@ function dealBuild(seed) {
   built.clear(); buildNodes.length = 0; buildLinks.length = 0;
   stages.clear();
   dropMade();                    /* before the seed is painted, or it drops it */
-  if (isQuery(seed)) seed = buildQuery(seed) || byId[seed.anchorId];
+  if (seed && seed.mine) seed = buildMine(seed) || byId[seed.anchorId];
+  else if (isQuery(seed)) seed = buildQuery(seed) || byId[seed.anchorId];
   if (!seed || !seed.el) { console.warn('build seed missing'); return; }
   buildSeed = seed;
   /* before the reveal, which measures: the heading is a different box from the
@@ -4628,7 +4698,7 @@ for (const b of modeBtns) b.addEventListener('click', () => {
    mode cannot drift apart. A card that was never painted (an extension
    question, which has no seat) cannot be a seed; its anchor is. */
 function buildFrom(n) {
-  if (!n || (!n.el && !isQuery(n))) return false;
+  if (!n || (!n.el && !isQuery(n) && !n.mine)) return false;
   if (mode !== 'build') enterBuild(n);
   else { dealBuild(n); focus(n); follow = null; buildCamera(n); }
   syncModes();
@@ -4793,16 +4863,20 @@ function openFromUrl() {
       q.toLowerCase().split(/\s+/).filter(Boolean))) > 0);
     const exact = ASKABLE.find(x => x.text.toLowerCase() === q.toLowerCase());
     if (exact) { askQuestion(exact); return; }
-    const mine = buildsNow() ? null : nearestMine(q);   /* a graft is the map's */
-    if (mine) { restoreGraft(mine); return; }
+    const mine = nearestMine(q);
+    if (mine) {
+      if (buildsNow()) { buildOnArrive = false; buildFrom(mine); }
+      else restoreGraft(mine);
+      return;
+    }
     if (hit.length) { askQuestion(hit[0]); return; }
     if (goToMatch(q)) return;
     askIn.value = q;
     semanticGo(q).then(ok => {
       if (ok) return;
-      buildOnArrive = false;
       if (extendOff) miss();
-      if (mode !== 'build') offerBuild(q);          /* the graft is map-only */
+      offerBuild(q);       /* the offer stands in both modes; buildOnArrive
+                              is still set, so accepting it builds */
     });
   }
 }
