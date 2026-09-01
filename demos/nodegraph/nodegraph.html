@@ -138,7 +138,13 @@
   body.building #edges path, body.building #edges polygon,
   body.building #edges text { transition: opacity .5s ease; }
 
-  #canvas { position: fixed; inset: 0; cursor: grab; touch-action: none; }
+  /* the map is dragged, never read as a document: a pan that leaves a blue
+     smear of selected labels behind it looks like a broken gesture. The ask
+     bar and the lesson modal are outside #canvas and keep their selection. */
+  #canvas {
+    position: fixed; inset: 0; cursor: grab; touch-action: none;
+    -webkit-user-select: none; user-select: none;
+  }
   #canvas.panning { cursor: grabbing; }
   /* geometricPrecision: #world is zoomed above k=1, and whole-pixel glyph
      advances rewrap headings as k moves. */
