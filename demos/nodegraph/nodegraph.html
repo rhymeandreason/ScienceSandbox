@@ -4131,6 +4131,7 @@ function reveal(n, x, y, from) {
   n.tx = x; n.ty = y;
   n.x = x; n.y = y;
   n.vx = n.vy = 0;
+  n.hop = from ? (from.hop || 0) + 1 : 0;
   showEl(n, true);
   light(n);
   /* every edge to something already built, not just the one it arrived on:
@@ -4170,6 +4171,12 @@ function expand(n) {
   if (!kids.length) return [];
   const rankTo = m => Math.min(...linksOf(n)
     .filter(l => l.a === m || l.b === m).map(l => l.rank));
+  /* THE DRIFT WIDENS WITH DEPTH. The first fan is read against the card that
+     opened it and wants to stay tidy beside it; a second hop is five fans
+     landing at the same distance, and at one hop's width they arrive as a
+     wall. Running off the screen is the right trade — the reader came here by
+     clicking and can pan. */
+  const drift = BUILD_COL * (0.5 + 0.5 * (n.hop || 0));
 
   /* THE FAN OPENS RIGHT WHATEVER THE ARROW SAYS. On the map an edge's
      direction is the reading order and it decides which side a card sits;
@@ -4195,7 +4202,7 @@ function expand(n) {
        its middle, and the RANK, which puts enrichment further out than the
        spine — so how far right a card sits says how well it is attached. */
     m.tx = n.x + BUILD_COL - Math.abs(t) * 160 + (rankTo(m) - 1) * 150
-           + wobble(m.id, BUILD_COL * 0.45);
+           + wobble(m.id, drift);
     m.x = m.tx; m.y = m.ty; m.vx = m.vy = 0;
   });
   measure();
