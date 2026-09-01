@@ -217,6 +217,22 @@
     padding: 0 1rem 0 0.5rem; cursor: pointer; transition: color .15s;
   }
   .askcaret:hover { color: var(--ext); }
+  /* OUTSIDE THE FIELD, not in it. The caret belongs to the input — it opens
+     what the field searches — and this does not: it acts on the map. Round,
+     and off the end of the row, so the two are not read as a pair of controls
+     on one bar. */
+  .asklink {
+    position: absolute; left: calc(100% + 0.6rem); bottom: 0;
+    width: 2.6rem; height: 2.6rem; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.95rem;
+    background: var(--card); border: 1px solid var(--line);
+    color: var(--muted); cursor: pointer;
+    box-shadow: 0 14px 34px -18px rgba(20, 22, 26, .3);
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .asklink:hover { color: var(--ext); border-color: var(--ext); }
+  .asklink.done { background: var(--ext); border-color: var(--ext); color: var(--card); }
   /* A generated card wears its provenance. Same shape as a card so it reads in
      the same glance, dashed so it never reads as one. */
   .node.card.made {
@@ -924,6 +940,10 @@
     <button type="button" class="askcaret" id="askcaret"
             aria-label="all the questions"><i class="ph-bold ph-caret-down" aria-hidden="true"></i></button>
   </div>
+  <button type="button" class="asklink" id="asklink"
+          aria-label="copy a link to what is open" title="copy a link to this card">
+    <i class="ph-bold ph-link" aria-hidden="true"></i>
+  </button>
 </div>
 
 <!-- The lesson, over the map. The iframe is empty until it opens and emptied
@@ -3982,8 +4002,101 @@ function resetHighlight() {
   syncHilite();
   applyHighlight();
 }
+/* ---- a link to one card ---------------------------------------------------
+   THE URL IS A SEARCH RESULT, NOT A CAMERA. It names WHAT to open and lets the
+   page work out where that is, so a link keeps working after a re-bake moves
+   every column — which a saved x/y/zoom would not survive a single edit of.
+
+     ?node=simple-diffusion        a card
+     ?node=pigment&kind=Carotenoid a card with one of its kinds dealt
+     ?ask=q-sunburn                a question, authored or deferred
+     ?q=how+do+fish+breathe        whatever the bar would have done with it
+
+   `q` is the general one and runs the same pipeline Enter does, down to the
+   offer to build — so a question somebody grafted is shareable as the QUESTION
+   even though the graft itself lives in their own browser and not in the link.
+
+   Applied after `start()`, which fogs the map and frames the opening: this is
+   a reader arriving somewhere specific, so it happens last and wins. */
+
+const asklink = document.getElementById('asklink');
+
+function urlFor() {
+  const u = new URL(location.href);
+  u.search = '';
+  const n = focused;
+  /* a live graft is the reader's own and is not in the link — but the QUESTION
+     that made it is, so the far end can build their own answer to it */
+  if (graft && graft.nodes.length) {
+    const q = graft.nodes.find(m => m.type === 'question');
+    if (q) { u.searchParams.set('q', q.text); return u.href; }
+  }
+  if (!n) return u.href;
+  if (n.satellite && n.host) {
+    /* a kind has no id of its own that survives a reload: name its card and
+       the member, which is what `toggleKinds` deals from anyway */
+    const host = n.host.host || n.host;      /* satellite → pill → card */
+    if (host && host.id) {
+      u.searchParams.set('node', host.id);
+      if (n.name) u.searchParams.set('kind', n.name);
+      return u.href;
+    }
+  }
+  if (n.type === 'question') { u.searchParams.set('ask', n.id); return u.href; }
+  u.searchParams.set('node', n.id);
+  return u.href;
+}
+
+asklink.addEventListener('click', async () => {
+  const href = urlFor();
+  try {
+    await navigator.clipboard.writeText(href);
+  } catch (e) {
+    /* a page served over http, or a browser refusing the clipboard: select it
+       instead, so the reader can still copy what they asked for */
+    const t = document.createElement('textarea');
+    t.value = href; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); } catch (e2) { /* nothing left to try */ }
+    t.remove();
+  }
+  asklink.classList.add('done');
+  setTimeout(() => asklink.classList.remove('done'), 900);
+});
+
+function openFromUrl() {
+  const p = new URLSearchParams(location.search);
+  const nodeId = p.get('node'), askId = p.get('ask'), q = p.get('q');
+
+  if (nodeId && byId[nodeId]) {
+    const n = byId[nodeId];
+    light(n); focus(n);
+    const kind = p.get('kind');
+    if (kind && n.kinds && !n.sats) toggleKinds(n);
+    followK = ASK_ZOOM; touched = true; wake(0.4);
+    return;
+  }
+  if (askId && byId[askId]) { askQuestion(byId[askId]); return; }
+  if (q) {
+    /* the same tiers Enter walks, so a shared link and a typed line land in
+       the same place — including the offer, when the map has no answer */
+    if (goToNamed(q)) return;
+    const hit = ASKABLE.filter(x => questionScore(x, meat(q).concat(
+      q.toLowerCase().split(/\s+/).filter(Boolean))) > 0);
+    const exact = ASKABLE.find(x => x.text.toLowerCase() === q.toLowerCase());
+    if (exact) { askQuestion(exact); return; }
+    const mine = nearestMine(q);
+    if (mine) { restoreGraft(mine); return; }
+    if (hit.length) { askQuestion(hit[0]); return; }
+    if (goToMatch(q)) return;
+    askIn.value = q;
+    semanticGo(q).then(ok => { if (!ok && extendOff) miss(); offerBuild(q); });
+  }
+}
+
 document.getElementById('reset').addEventListener('click', resetHighlight);
 start();
+openFromUrl();
 </script>
 </body>
 </html>
