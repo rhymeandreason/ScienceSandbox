@@ -81,6 +81,33 @@
                              // over the nucleobases. Separate keys so
                              // retuning one cannot silently restyle the other.
     },
+    // ---- bases: a nucleotide's identity, carried by half a rung ---------
+    // kit/nucleic.js splits every base pair at its own hydrogen bonds and
+    // colours each half by which base it came from, the same split-stick
+    // convention kit/proteinbox.js uses inside a pocket. So these four are
+    // read at 2 A wide against the paper AND against each other, in pairs
+    // that are always adjacent: G with C, A with T or U.
+    //
+    // THE PAIRING PARTNERS ARE COMPLEMENTARY IN HUE, not merely different.
+    // A reader learns G-C and A-T as two colour combinations before learning
+    // them as letters, so the pair has to read as one object with two halves
+    // rather than as two unrelated bars. Purines are the darker half of each
+    // pair (G, A), which also puts the larger ring on the heavier colour.
+    //
+    // T and U are the SAME colour deliberately: they are the same base to
+    // everything except the 5-methyl, and a lesson comparing DNA to RNA wants
+    // the reader looking at the backbone, not at a colour change nobody
+    // explained.
+    bases: {
+      G: 0x3f6ae0,   // guanine  — indigo, cytosine's partner
+      C: 0x63c1d8,   // cytosine — pale cyan
+      A: 0xc4452f,   // adenine  — deep red, thymine/uracil's partner
+      T: 0xe0a03c,   // thymine  — warm amber
+      U: 0xe0a03c,   // uracil   — the same amber, on purpose
+      X: 0x8a8578,   // a base the file names and this repo cannot letter:
+                     // stone, so it reads as "not one of the four" rather
+                     // than as a fifth base
+    },
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks
     // every bond clears the sum of its two. See molecules.js's header.

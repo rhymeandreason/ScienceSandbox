@@ -40,10 +40,12 @@
  *  5MC and C are both 'C' to a reader and to the pairing test, and the
  *  difference between them is most of what a tRNA lesson is about.
  *
- *  PAIRING IS WATSON-CRICK ONLY and this molecule is where that under-claim
- *  becomes visible. tRNA's tertiary structure is held together by exactly the
- *  contacts basePairs refuses to find — the G15-C48 Levitt pair, G19-C56, the
- *  T-loop's reverse-Hoogsteen T54-A58 — so the L stays folded in the
+ *  PAIRING IS WATSON-CRICK AND G-U WOBBLE, and no further. This molecule is
+ *  where that under-claim becomes visible. The wobble is here — G4-U69 in the
+ *  acceptor stem, which a Watson-Crick test alone refuses and which is real
+ *  pairing — but tRNA's TERTIARY structure is held together by contacts
+ *  basePairs still will not find: the G15-C48 Levitt pair, G19-C56, the
+ *  T-loop's reverse-Hoogsteen T54-A58. So the L stays folded in the
  *  coordinates while the drawing shows the two arms joined by nothing. That is
  *  the honest picture of what was solved from the file, and the page says so
  *  rather than the bake inventing rungs to cover it.
@@ -83,8 +85,9 @@ for (const id of na) {
   }
 }
 
-const pairs = Bake.basePairs(chains);
+const rawPairs = Bake.basePairs(chains);
 const T = Bake.assembleNA(chains);
+const pairs = Bake.centrePairs(rawPairs, T.centre);
 
 /* THE FRAME IS SOLVED HERE, unlike the duplex's. A tRNA is an L and has no
    axis to stand it on, so `basisFrom` has nothing to be given; `frameOf` turns
@@ -102,7 +105,7 @@ const out = {
   what: 'yeast tRNA-Phe',
   method: Bake.method(text),
   resolution: Bake.resolution(text),
-  pairsFrom: 'geometry (N1...N3 Watson-Crick)',
+  pairsFrom: 'geometry — Watson-Crick (N1...N3), wobble (N1...O2 + O6...N3)',
   centre: T.centre,
   order: T.order,
   chains: T.chains,
@@ -119,7 +122,9 @@ fs.writeFileSync(dst, JSON.stringify(out));
 
 const n = T.order.reduce((k, id) => k + T.chains[id].nums.length, 0);
 console.log(dst);
-console.log('  ' + n + ' nucleotides, ' + pairs.length + ' Watson-Crick pairs, '
+const wob = pairs.filter(p => p.kind === 'wobble');
+console.log('  ' + n + ' nucleotides, ' + pairs.length + ' pairs ('
+  + wob.length + ' wobble: ' + wob.map(p => p.bases + p.a[1] + '-' + p.b[1]).join(' ') + '), '
   + (n - pairs.length * 2) + ' unpaired, ' + nMod + ' modified, radius '
   + out.radius + ' A, ' + (fs.statSync(dst).size / 1024).toFixed(1) + ' KB');
 console.log('  ' + out.extents.join(' x ') + ' A, frame ' + out.frame);

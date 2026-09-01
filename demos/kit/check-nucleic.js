@@ -29,6 +29,12 @@
  *    nearly what a rung does; the difference a reader sees is the void down
  *    the middle, and that void is the whole difference between "partners" and
  *    "opposite each other". Assert the gap, not the length.
+ *  · EVERY HALF IS FILED UNDER ITS OWN BASE, and the split between them is at
+ *    the pair's measured hydrogen bonds. A page colours by those keys, so a
+ *    half in the wrong bag draws a rung that lies about which base it is; and
+ *    a split at the geometric middle instead of the bonds looks identical on
+ *    Watson-Crick and erases a wobble's 2 A shift, which is the one thing the
+ *    wobble is worth drawing for.
  *  · A RUNG IS ANCHORED ON THE RIBBON. Its end is centred on the backbone's
  *    own spline with its width along that spline's tangent — the ribbon's
  *    cross-section. Build it from the residue's atoms instead and it is short
@@ -103,9 +109,27 @@ function chain(phase, dir, first) {
    i of A meets the residue opposite it — the A(i)/B(2N+1-i) rule 1BNA has. */
 const A = chain(0, 1, 1);
 const B = { ...chain(Math.PI, 1, 13) };
+const mid2 = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 const TRACE = {
   order: ['A', 'B'], chains: { A, B },
-  pairs: A.nums.map((n, i) => ['A', n, 'B', B.nums[i], 'CG']),
+  pairs: A.nums.map((n, i) => ({
+    a: ['A', n], b: ['B', B.nums[i]], bases: 'CG', kind: 'wc',
+    mid: mid2(A.C1[i], B.C1[i]),
+  })),
+};
+
+/* Every rung half in one list, for the assertions that do not care which base
+   a face belongs to. `build` returns them grouped because that is the unit a
+   page colours. */
+const allFaces = bag => Object.values(bag).flatMap(faces);
+const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const allVerts = bag => {
+  const out = [];
+  for (const g of Object.values(bag)) {
+    const a = g.attributes.position.array;
+    for (let i = 0; i < a.length; i += 3) out.push([a[i], a[i + 1], a[i + 2]]);
+  }
+  return out;
 };
 
 let bad = 0;
@@ -170,10 +194,22 @@ console.log('\nthe rung');
 {
   const o = NucleicLib.DEFAULTS;
   const parts = NucleicLib.build(THREE, TRACE, { sub: 6 });
-  const F = faces(parts.rungs);
-  /* A ruled box: 4 sides and 2 caps. */
-  ok(F.length === TRACE.pairs.length * 6, 'one rung per pair',
-     (F.length / 6) + ' of ' + TRACE.pairs.length);
+  const F = allFaces(parts.rungs);
+  /* TWO ruled boxes per pair now — one per base — 6 faces each. */
+  ok(F.length === TRACE.pairs.length * 12, 'two halves per pair, one per base',
+     (F.length / 12) + ' of ' + TRACE.pairs.length);
+
+  /* AND EACH HALF IS FILED UNDER ITS OWN BASE. The whole point of the split:
+     a page colours by these keys, so a half in the wrong bag is a rung that
+     lies about which base it is. */
+  const want = {};
+  for (const p of TRACE.pairs) for (const b of p.bases) want[b] = (want[b] || 0) + 1;
+  const got = {};
+  for (const [b, g] of Object.entries(parts.rungs))
+    got[b] = g.attributes.position.array.length / 12 / 6;
+  ok(JSON.stringify(want) === JSON.stringify(got),
+     'and each half is filed under its own base',
+     JSON.stringify(got) + ' vs ' + JSON.stringify(want));
 
   const d = unit(sub(B.C1[0], A.C1[0]));
   const proj = F.filter(f => Math.abs(f.c[0]) < 1e-6).map(f => dot(f.c, d));
@@ -189,9 +225,7 @@ console.log('\nthe rung');
      point at the phosphate. Measured as the cap's own centroid against the
      ribbon's centreline, so it cannot be satisfied by a longer straight bar. */
   const half = Math.hypot(o.rungWidth / 2, o.thick / 2);
-  const verts = [];
-  const pa = parts.rungs.attributes.position.array;
-  for (let i = 0; i < pa.length; i += 3) verts.push([pa[i], pa[i + 1], pa[i + 2]]);
+  const verts = allVerts(parts.rungs);
   const near = P => {
     let best = Infinity;
     for (const v of verts) best = Math.min(best, len(sub(v, P)));
@@ -199,7 +233,7 @@ console.log('\nthe rung');
   };
   let worst = 0;
   for (const p of TRACE.pairs) {
-    for (const [id, num] of [[p[0], p[1]], [p[2], p[3]]]) {
+    for (const [id, num] of [p.a, p.b]) {
       const ch = TRACE.chains[id];
       worst = Math.max(worst, near(ch.P[ch.nums.indexOf(num)]));
     }
@@ -217,7 +251,7 @@ console.log('\nan unpaired base');
   const cut = { ...TRACE, pairs: TRACE.pairs.slice(1) };
   const parts = NucleicLib.build(THREE, cut, { sub: 6 });
   ok(!!parts.stubs, 'a withheld pair produces stubs at all');
-  const S = faces(parts.stubs);
+  const S = allFaces(parts.stubs);
   ok(S.length === 2 * 6, 'two stubs, one per orphaned nucleotide',
      (S.length / 6) + ' of 2');
 
@@ -238,7 +272,7 @@ console.log('\nan unpaired base');
      (right - left).toFixed(2) + ' A of nothing, wants > 2');
 
   /* And the rung one position along, which IS paired, crosses its own middle. */
-  const rf = faces(parts.rungs).filter(f => Math.abs(f.c[0] - RISE) < 1e-6)
+  const rf = allFaces(parts.rungs).filter(f => Math.abs(f.c[0] - RISE) < 1e-6)
     .map(f => dot(f.c, d));
   ok(Math.min(...rf) < mid && Math.max(...rf) > mid,
      'a rung spans its middle', 'crosses ' + mid.toFixed(2));
@@ -280,21 +314,17 @@ console.log('\nthe rung\'s anchor');
   const T = {
     order: ['A', 'B'],
     chains: { A: strandOf(-1, 1), B: strandOf(1, 11) },
-    pairs: [['A', 2, 'B', 12, 'CG']],
+    pairs: [{ a: ['A', 2], b: ['B', 12], bases: 'CG', kind: 'wc' }],
   };
 
   const parts = NucleicLib.build(THREE, T, {});
-  const pa = parts.rungs.attributes.position.array;
+  const verts = allVerts(parts.rungs);
   /* DEDUPED FIRST. Every corner is pushed once per face it belongs to — a cap
      and two sides — so an undeduped "four smallest x" is the same corner three
      times over, and the centroid it yields is off by half the rung's width. */
   const seen = new Map();
-  for (let i = 0; i < pa.length; i += 3) {
-    const v = [pa[i], pa[i + 1], pa[i + 2]];
-    seen.set(v.map(x => x.toFixed(4)).join(','), v);
-  }
-  const verts = [...seen.values()];
-  const capA = verts.slice().sort((a, b) => a[0] - b[0]).slice(0, 4);
+  for (const v of verts) seen.set(v.map(x => x.toFixed(4)).join(','), v);
+  const capA = [...seen.values()].sort((a, b) => a[0] - b[0]).slice(0, 4);
   const mid = capA.reduce((s, v) => [s[0] + v[0] / 4, s[1] + v[1] / 4, s[2] + v[2] / 4],
                           [0, 0, 0]);
 
@@ -331,12 +361,67 @@ console.log('\nthe rung\'s anchor');
      + ', wants > 0.1');
 }
 
+/* ------------------------------------------------------------------ the split
+ *
+ *  THE SPLIT IS AT THE PAIR'S MEASURED HYDROGEN BONDS, not at the middle of
+ *  the bar. In Watson-Crick geometry the two land in nearly the same place, so
+ *  a split that silently ignored `mid` would pass every test above and every
+ *  look at 1BNA. It is a WOBBLE that tells them apart: the bases sit about
+ *  2 A out of register, so the bonds are off-centre, and drawing the split
+ *  there is what lets the picture say "shifted" without a caption.
+ *
+ *  Asserted by pushing `mid` well off centre and requiring the two halves to
+ *  follow it — one base's geometry must end where the other's begins, at the
+ *  offset, or the halves either overlap or leave a gap at the join.
+ */
+console.log('\nthe split');
+{
+  const SHIFT = 2.0;
+  const d = unit(sub(B.C1[0], A.C1[0]));
+  const off = TRACE.pairs.map(p => Object.assign({}, p, {
+    mid: add3(mid2(A.C1[0], B.C1[0]), [d[0] * SHIFT, d[1] * SHIFT, d[2] * SHIFT]),
+  }));
+  /* One pair only, so the two bags hold one half each and cannot be confused
+     with a neighbour's. */
+  const T = { order: ['A', 'B'], chains: { A, B }, pairs: [off[0]] };
+  const parts = NucleicLib.build(THREE, T, {});
+
+  /* THE JOINT RING IS TILTED, because its width axis follows the ribbon's
+     tangent and that tangent is not square to the pair axis. So the halves'
+     extremes along that axis are NOT the split — they sit half a thickness
+     either side of it, and measuring them reads as a 0.25 A gap that is not
+     there. What is actually claimed is that both halves share ONE ring: same
+     four corners, centred on the measured bonds. */
+  const nearest = bag => {
+    const seen = new Map();
+    for (const v of allVerts(bag)) seen.set(v.map(x => x.toFixed(4)).join(','), v);
+    return [...seen.values()]
+      .sort((x, y) => len(sub(x, off[0].mid)) - len(sub(y, off[0].mid))).slice(0, 4);
+  };
+  const centroid = R => R.reduce(
+    (s, v) => [s[0] + v[0] / 4, s[1] + v[1] / 4, s[2] + v[2] / 4], [0, 0, 0]);
+
+  const ringA = nearest({ C: parts.rungs.C }), ringB = nearest({ G: parts.rungs.G });
+  ok(len(sub(centroid(ringA), off[0].mid)) < 0.02,
+     'the first base ends at the measured bonds',
+     len(sub(centroid(ringA), off[0].mid)).toFixed(4) + ' A off the split');
+  ok(len(sub(centroid(ringB), off[0].mid)) < 0.02,
+     'and the second begins there — one shared ring, no gap and no overlap',
+     len(sub(centroid(ringB), off[0].mid)).toFixed(4) + ' A off the split');
+
+  /* And it really was off centre, or this proved only that halves meet. */
+  ok(len(sub(off[0].mid, mid2(A.C1[0], B.C1[0]))) > 1,
+     'and the split was genuinely off centre',
+     len(sub(off[0].mid, mid2(A.C1[0], B.C1[0]))).toFixed(2)
+     + ' A from the middle, wants > 1');
+}
+
 /* --------------------------------------------------------------- the stacking */
 console.log('\nthe base stack');
 {
   const parts = NucleicLib.build(THREE, TRACE, { sub: 6 });
-  const F = faces(parts.rungs).sort((a, b) => b.area - a.area);
-  const wide = F.slice(0, TRACE.pairs.length * 2);
+  const F = allFaces(parts.rungs).sort((a, b) => b.area - a.area);
+  const wide = F.slice(0, TRACE.pairs.length * 4);
   /* Every broad rung face is a base plane, and every base plane here is
      perpendicular to the helix axis. They must all agree. */
   let worst = 1;
@@ -348,6 +433,6 @@ console.log('\nthe base stack');
 console.log('\n' + (bad
   ? 'FAIL: ' + bad + ' assertion(s)'
   : 'PASS: the backbone shows its flat side outward, rungs span both strands '
-    + 'anchored on the ribbon itself, an unpaired position reads as a gap, '
-    + 'and the slabs stack parallel') + '\n');
+    + 'anchored on the ribbon itself, each half filed and split at its own '
+    + 'bonds, an unpaired position reads as a gap, and the slabs stack parallel') + '\n');
 process.exit(bad ? 1 : 0);

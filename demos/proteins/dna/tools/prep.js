@@ -58,21 +58,23 @@ if (aa.length) console.log('  protein chains present and NOT baked here: ' + aa.
 if (!na.length) { console.error('no nucleic chains'); process.exit(1); }
 
 const chains = Bake.naTrace(text, new Set(na));
-const pairs = Bake.basePairs(chains);
+const rawPairs = Bake.basePairs(chains);
 
 /* The helix axis, off the pairs rather than off the atoms: a base pair's
    centroid sits on the axis, and the line through the first and last is the
    axis to within a degree or two on a dodecamer. Chain A's own P-to-P vector
    would be off by the helical rise's worth of twist. */
-const mid = ([ai, an, bi, bn]) => {
-  const A = chains.get(ai).find(r => r.num === an);
-  const B = chains.get(bi).find(r => r.num === bn);
+const mid = p => {
+  const A = chains.get(p.a[0]).find(r => r.num === p.a[1]);
+  const B = chains.get(p.b[0]).find(r => r.num === p.b[1]);
   return [0, 1, 2].map(k => (A.Bc[k] + B.Bc[k]) / 2);
 };
-const m0 = mid(pairs[0]), m1 = mid(pairs[pairs.length - 1]);
+const m0 = mid(rawPairs[0]), m1 = mid(rawPairs[rawPairs.length - 1]);
 const axis = [0, 1, 2].map(k => m1[k] - m0[k]);
 
 const T = Bake.assembleNA(chains);
+/* The split points into the bake's own frame — see centrePairs. */
+const pairs = Bake.centrePairs(rawPairs, T.centre);
 
 /* Upright is wrong for a duplex — the field lays one across the page, so the
    helix axis goes to X. basisFrom puts `up` on Y, so pass a perpendicular as
@@ -101,7 +103,7 @@ const out = {
   what: 'Drew-Dickerson dodecamer, CGCGAATTCGCG',
   method: Bake.method(text),
   resolution: Bake.resolution(text),
-  pairsFrom: 'geometry (N1...N3 Watson-Crick)',
+  pairsFrom: 'geometry — Watson-Crick (N1...N3), wobble (N1...O2 + O6...N3)',
   centre: T.centre,
   order: T.order,
   chains: T.chains,

@@ -63,8 +63,9 @@
      rather than the module's: strand identity (antiparallel is only visible
      if the two are told apart) and pair-vs-no-partner. */
   #stage { width: 100%; height: 62vh; min-height: 380px; }
-  .swatch { display: inline-block; width: .85em; height: .85em; border-radius: 2px;
-            vertical-align: -1px; margin-right: .35em; }
+  .sw { display: inline-flex; align-items: center; gap: .35em;
+        font-variant-numeric: tabular-nums; }
+  .sw i { width: .85em; height: .85em; border-radius: 2px; display: inline-block; }
   .row { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;
          margin: .6rem 0 0; }
   .row label { display: flex; align-items: center; gap: .4rem; }
@@ -88,6 +89,8 @@
     <label>Samples/nt <input type="range" id="sub" min="2" max="16" value="8" style="width:8rem"></label>
     <span id="tris" class="n"></span>
   </div>
+
+  <div class="row" id="legend"></div>
 
   <table id="facts"></table>
 </main>
@@ -120,17 +123,39 @@ const box = CardStage.create({
   autoplay: false,
 });
 
-const INK = {
-  A: 0x3f6fb5,   /* the two strands: distinguishable, and neither one "right" */
-  B: 0xc2703a,
-  flat: 0x8a8578,
-  rung: 0x6f8f5f,   /* a pair — green, because it is the thing being claimed */
-  stub: 0xb03a48,   /* no partner — and it should read as an exception */
-};
+/* THE BACKBONES keep strand identity, because antiparallel is only visible if
+   the two are told apart. The RUNGS carry base identity instead — the two
+   claims cannot share one channel, and the backbone is the better home for
+   strand since it is the thing that runs. */
+/* TWO NEUTRALS, one cool and one warm. They were a blue and an orange until
+   the rungs started carrying base identity, and then strand A's blue sat on
+   guanine's indigo and strand B's orange on thymine's amber — the backbone
+   reading as a fifth and sixth base. Colour can only be loud in one place, and
+   the bases earned it. These two still separate far enough that antiparallel
+   is legible, which is the only thing the backbone's colour has to say. */
+const INK = { A: 0x778396, B: 0xa89986, flat: 0x8a8578 };
 
+/* THE BASE COLOURS ARE THE PALETTE'S, read back off the custom properties
+   tokens-from-palette.js published at load. Never typed here: a caption and
+   the slab it names cannot drift if both read the same token, which is the
+   whole reason that file exists. */
 const mats = {};
-const matFor = (key) => (mats[key] = mats[key] || new THREE.MeshStandardMaterial({
-  color: INK[key], roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide }));
+function baseMat(b) {
+  if (!mats[b]) {
+    const hex = getComputedStyle(document.documentElement)
+      .getPropertyValue('--base-' + b).trim() || '#8a8578';
+    mats[b] = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(hex), roughness: 0.5, metalness: 0.0,
+      side: THREE.DoubleSide });
+  }
+  return mats[b];
+}
+const chainMats = {};
+function chainMat(key) {
+  if (!chainMats[key]) chainMats[key] = new THREE.MeshStandardMaterial({
+    color: INK[key], roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide });
+  return chainMats[key];
+}
 
 let trace = null;
 const group = new THREE.Group();
@@ -151,12 +176,15 @@ function draw() {
 
   for (const s of parts.strands)
     group.add(new THREE.Mesh(s.geo,
-      matFor(document.getElementById('bychain').checked ? s.id : 'flat')));
+      chainMat(document.getElementById('bychain').checked ? s.id : 'flat')));
 
-  if (parts.rungs && document.getElementById('rungs').checked)
-    group.add(new THREE.Mesh(parts.rungs, matFor('rung')));
-  if (parts.stubs && document.getElementById('stubs').checked)
-    group.add(new THREE.Mesh(parts.stubs, matFor('stub')));
+  /* Half a rung IS one base, so colour by half is colour by base. */
+  if (document.getElementById('rungs').checked)
+    for (const [b, geo] of Object.entries(parts.rungs))
+      group.add(new THREE.Mesh(geo, baseMat(b)));
+  if (document.getElementById('stubs').checked)
+    for (const [b, geo] of Object.entries(parts.stubs))
+      group.add(new THREE.Mesh(geo, baseMat(b)));
 
   reframe();
   document.getElementById('tris').textContent =
@@ -214,16 +242,27 @@ function facts() {
     .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
 
   document.getElementById('lede').innerHTML =
-    'Every base pair is drawn as <b style="color:#5d7a50">one rung</b> joining the two '
-    + 'backbones, not as two stubs meeting in the middle. '
+    'Every base pair is drawn as <b>one rung</b> joining the two backbones, not '
+    + 'as two stubs meeting in the middle — split at its own hydrogen bonds, '
+    + 'each half coloured by its base. '
     + trace.pairs.length + ' pairs: '
     /* The two strands as the baker read them, not the pair letters run
        together — concatenating those spells a string that is not a sequence
        and reads exactly like one. */
     + trace.order.map(id => trace.chains[id].seq).join(' with ')
-    + '. A nucleotide with no Watson-Crick partner is '
-    + '<b style="color:#9c3340">half a rung</b> instead — there are '
+    + '. A nucleotide with no partner is half a rung instead — there are '
     + (n - trace.pairs.length * 2) + ' here.';
+}
+
+/* The legend is BUILT FROM THE BASES ACTUALLY PRESENT, and its swatches read
+   the same tokens the meshes do — so a page cannot claim a colour the palette
+   does not hold. `design-system.html` makes the same argument at length. */
+function legend() {
+  const seen = new Set();
+  for (const id of trace.order) for (const c of trace.chains[id].seq) seen.add(c);
+  document.getElementById('legend').innerHTML = [...seen].sort().map(b =>
+    '<span class="sw"><i style="background:var(--base-' + b + ')"></i>' + b
+    + '</span>').join('');
 }
 
 fetch('data/dna-1BNA.json')
@@ -232,6 +271,7 @@ fetch('data/dna-1BNA.json')
     trace = t;
     aim(t.view);
     facts();
+    legend();
     draw();
   })
   .catch(e => {

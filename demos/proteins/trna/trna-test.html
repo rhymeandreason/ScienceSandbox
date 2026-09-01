@@ -64,6 +64,9 @@
   #facts td:first-child { color: var(--h-muted); white-space: nowrap; }
   #facts .n { font-variant-numeric: tabular-nums; }
   #tris { color: var(--h-muted); }
+  .sw { display: inline-flex; align-items: center; gap: .35em;
+        font-variant-numeric: tabular-nums; }
+  .sw i { width: .85em; height: .85em; border-radius: 2px; display: inline-block; }
   .miss { color: var(--h-muted); max-width: 46rem; margin-top: 1rem;
           border-left: 2px solid var(--h-line); padding-left: .9rem; }
 </style>
@@ -82,6 +85,8 @@
     <label>Samples/nt <input type="range" id="sub" min="2" max="16" value="8" style="width:8rem"></label>
     <span id="tris" class="n"></span>
   </div>
+
+  <div class="row" id="legend"></div>
 
   <table id="facts"></table>
 
@@ -107,13 +112,27 @@ const box = CardStage.create({
   autoplay: false,
 });
 
-/* ONE COLOUR FOR THE CHAIN, because there is only one chain and colouring it
-   by anything here would be inventing a claim. The two that ARE claims: a pair
-   and a nucleotide without one. */
-const INK = { chain: 0x8a8578, rung: 0x6f8f5f, stub: 0xb03a48 };
+/* THE BASE COLOURS ARE THE PALETTE'S, read back off the custom properties
+   tokens-from-palette.js published at load. Never typed here: a caption and
+   the slab it names cannot drift if both read the same token, which is the
+   whole reason that file exists. */
 const mats = {};
-const matFor = k => (mats[k] = mats[k] || new THREE.MeshStandardMaterial({
-  color: INK[k], roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide }));
+function baseMat(b) {
+  if (!mats[b]) {
+    const hex = getComputedStyle(document.documentElement)
+      .getPropertyValue('--base-' + b).trim() || '#8a8578';
+    mats[b] = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(hex), roughness: 0.5, metalness: 0.0,
+      side: THREE.DoubleSide });
+  }
+  return mats[b];
+}
+const chainMats = {};
+function chainMat(key, hex) {
+  if (!chainMats[key]) chainMats[key] = new THREE.MeshStandardMaterial({
+    color: hex, roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide });
+  return chainMats[key];
+}
 
 let trace = null;
 const group = new THREE.Group();
@@ -132,11 +151,17 @@ function draw() {
   const sub = +document.getElementById('sub').value;
   const parts = NucleicLib.build(THREE, trace, { sub });
 
-  for (const s of parts.strands) group.add(new THREE.Mesh(s.geo, matFor('chain')));
-  if (parts.rungs && document.getElementById('rungs').checked)
-    group.add(new THREE.Mesh(parts.rungs, matFor('rung')));
-  if (parts.stubs && document.getElementById('stubs').checked)
-    group.add(new THREE.Mesh(parts.stubs, matFor('stub')));
+  for (const s of parts.strands)
+    group.add(new THREE.Mesh(s.geo, chainMat('chain', 0x8a8578)));
+  /* Half a rung IS one base, so colour by half is colour by base. Paired and
+     unpaired are told apart by SHAPE alone now — the gap down the middle of
+     two facing stubs — because colour is carrying which base. */
+  if (document.getElementById('rungs').checked)
+    for (const [b, geo] of Object.entries(parts.rungs))
+      group.add(new THREE.Mesh(geo, baseMat(b)));
+  if (document.getElementById('stubs').checked)
+    for (const [b, geo] of Object.entries(parts.stubs))
+      group.add(new THREE.Mesh(geo, baseMat(b)));
 
   reframe();
   document.getElementById('tris').textContent =
@@ -180,7 +205,9 @@ function facts() {
     ['Method', (trace.method || '?') + (trace.resolution ? ', ' + trace.resolution + ' A' : '')],
     ['Chain', trace.order.join('') + '  (' + n + ' nucleotides)'],
     ['Sequence', ch.seq],
-    ['Watson-Crick pairs', trace.pairs.length + '  — ' + trace.pairsFrom],
+    ['Pairs', trace.pairs.length + '  — ' + trace.pairsFrom],
+    ['Wobble pairs', trace.pairs.filter(p => p.kind === 'wobble')
+      .map(p => p.bases[0] + p.a[1] + '·' + p.bases[1] + p.b[1]).join(', ') || 'none'],
     ['Unpaired', unpaired + '  (' + Math.round(unpaired / n * 100) + '% of the chain)'],
     ['Modified bases', ch.mods.length + '  — ' + ch.mods.map(m => m.name + m.num).join(', ')],
     ['Extents', (trace.extents || []).join(' x ') + ' A'],
@@ -189,11 +216,17 @@ function facts() {
   document.getElementById('facts').innerHTML = rows
     .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
 
+  const wob = trace.pairs.filter(p => p.kind === 'wobble');
   document.getElementById('lede').innerHTML =
-    'Four stems and three loops. <b style="color:#5d7a50">' + trace.pairs.length
-    + ' Watson-Crick pairs</b> are drawn as rungs; the other '
-    + '<b style="color:#9c3340">' + unpaired + ' nucleotides</b> have no partner '
-    + 'the test would accept, and are drawn as half a rung. '
+    'Four stems and three loops. ' + trace.pairs.length + ' pairs are drawn as '
+    + 'rungs, each split at its own hydrogen bonds and each half coloured by '
+    + 'its base; the other ' + unpaired + ' nucleotides have no partner the '
+    + 'test accepts, and are drawn as half a rung going nowhere. '
+    + (wob.length ? wob.length + ' of the pairs '
+       + (wob.length === 1 ? 'is a ' : 'are ') + 'G·U <b>wobble</b> ('
+       + wob.map(p => p.bases[0] + p.a[1] + '·' + p.bases[1] + p.b[1]).join(', ')
+       + '), real pairing that is not Watson-Crick — the split sits off centre '
+       + 'there, which is the shift. ' : '')
     + ch.mods.length + ' of the ' + n + ' bases are chemically modified, and every '
     + 'one of them is a HETATM — read the file for ATOM records only and '
     + (n - ch.mods.length) + ' nucleotides come back instead of ' + n + '.';
@@ -206,16 +239,25 @@ function facts() {
     '<b>What this picture does not show.</b> The L is held shut by tertiary '
     + 'contacts, and every one of them is a pair the Watson-Crick test refuses: '
     + 'the G15·C48 Levitt pair, G19·C56, the reverse-Hoogsteen '
-    + 'T54·A58. Two stem positions are missing for the same reason — '
-    + 'G4·U69 is a G·U <b>wobble</b> at 3.92 Å between N1 and N3, '
-    + 'and A31·Ψ39 is a pseudouridine pair at 4.80 Å. Both are '
-    + 'real pairing that is not Watson-Crick. The drawing under-claims on '
-    + 'purpose: it never invents a rung it did not find.';
+    + 'T54·A58. One stem position is still missing too: A31·Ψ39, a '
+    + 'pseudouridine pair at 4.80 Å. The drawing under-claims on purpose — it '
+    + 'never invents a rung it did not find.';
+}
+
+/* The legend is BUILT FROM THE BASES ACTUALLY PRESENT, and its swatches read
+   the same tokens the meshes do — so a page cannot claim a colour the palette
+   does not hold. `design-system.html` makes the same argument at length. */
+function legend() {
+  const seen = new Set();
+  for (const id of trace.order) for (const c of trace.chains[id].seq) seen.add(c);
+  document.getElementById('legend').innerHTML = [...seen].sort().map(b =>
+    '<span class="sw"><i style="background:var(--base-' + b + ')"></i>' + b
+    + '</span>').join('');
 }
 
 fetch('data/trna-1EHZ.json')
   .then(r => r.json())
-  .then(t => { trace = t; aim(t.view); facts(); draw(); })
+  .then(t => { trace = t; aim(t.view); facts(); legend(); draw(); })
   .catch(e => {
     document.getElementById('lede').textContent =
       'No bake. Run: node proteins/trna/tools/prep.js  (' + e.message + ')';

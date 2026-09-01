@@ -411,6 +411,7 @@ const cross3 = (a, b) => [a[1] * b[2] - a[2] * b[1],
                           a[2] * b[0] - a[0] * b[2],
                           a[0] * b[1] - a[1] * b[0]];
 const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 function unit3(v) {
   const n = Math.hypot(v[0], v[1], v[2]) || 1;
   return [v[0] / n, v[1] / n, v[2] / n];
@@ -476,6 +477,12 @@ function naTrace(text, only, mod) {
       P: back, C1: c1, Bc: bc, Bn: ringNormal(ring),
       /* The Watson-Crick edge nitrogen: purine N1 faces pyrimidine N3. */
       edge: r.atoms.N9 ? r.atoms.N1 : r.atoms.N3,
+      /* THE OTHER EDGE ATOM, which is what a wobble uses instead. A G-U
+         wobble bonds G's N1-H to U's O2 and G's O6 to U's N3-H — the same two
+         bases, shifted about 2 A out of Watson-Crick register. Adenine has an
+         amine at position 6 and no O6, so an A-U pair simply fails the test
+         without anyone naming which bases may wobble. */
+      off: r.atoms.N9 ? r.atoms.O6 : r.atoms.O2,
     });
   };
 
@@ -518,6 +525,32 @@ function basePairs(chains, opts) {
   const flat = [];
   for (const [id, res] of chains) for (const r of res) flat.push({ id, r });
 
+  const mid2 = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+
+  /* Watson-Crick, or a wobble, or nothing. The two are told apart by WHICH
+     atoms are in contact, never by which bases are involved:
+
+       wc      purine N1 ... pyrimidine N3
+       wobble  purine N1 ... pyrimidine O2  AND  purine O6 ... pyrimidine N3
+
+     A wobble is a real pair — two hydrogen bonds, and it sits in a helix
+     without distorting it, which is why RNA is full of them. It is not
+     Watson-Crick, and the difference is the point: G3-U70 is the whole of how
+     alanyl-tRNA synthetase recognises its tRNA. */
+  function testPair(a, b) {
+    const pu = a.r.ring === 'pu' ? a : b, py = pu === a ? b : a;
+    if (Math.abs(dot3(a.r.Bn, b.r.Bn)) < COPLANAR) return null;
+    if (pu.r.edge && py.r.edge && dist3(pu.r.edge, py.r.edge) <= HB)
+      return { kind: 'wc', mid: mid2(pu.r.edge, py.r.edge) };
+    if (pu.r.edge && py.r.off && pu.r.off && py.r.edge
+        && dist3(pu.r.edge, py.r.off) <= HB && dist3(pu.r.off, py.r.edge) <= HB)
+      /* The split lands between the two bonds, which in a wobble is OFF the
+         C1'-C1' midpoint — the shift itself, showing in the drawing. */
+      return { kind: 'wobble',
+               mid: mid2(mid2(pu.r.edge, py.r.off), mid2(pu.r.off, py.r.edge)) };
+    return null;
+  }
+
   const out = [];
   const taken = new Set();
   const key = x => x.id + ':' + x.r.num;
@@ -525,17 +558,25 @@ function basePairs(chains, opts) {
     for (let j = i + 1; j < flat.length; j++) {
       const a = flat[i], b = flat[j];
       if (a.r.ring === b.r.ring) continue;         /* purine needs a pyrimidine */
-      if (!a.r.edge || !b.r.edge) continue;
       if (a.id === b.id && Math.abs(a.r.num - b.r.num) < 3) continue;
-      if (dist3(a.r.edge, b.r.edge) > HB) continue;
-      const dot = a.r.Bn[0] * b.r.Bn[0] + a.r.Bn[1] * b.r.Bn[1] + a.r.Bn[2] * b.r.Bn[2];
-      if (Math.abs(dot) < COPLANAR) continue;
       if (taken.has(key(a)) || taken.has(key(b))) continue;
+      const hit = testPair(a, b);
+      if (!hit) continue;
       taken.add(key(a)); taken.add(key(b));
-      out.push([a.id, a.r.num, b.id, b.r.num, a.r.base + b.r.base]);
+      out.push({ a: [a.id, a.r.num], b: [b.id, b.r.num],
+                 bases: a.r.base + b.r.base, kind: hit.kind, mid: hit.mid });
     }
   }
   return out;
+}
+
+/* The pairs moved into the frame `assembleNA` centred the coordinates on. A
+   split point left in the deposited frame is the one number in the bake that
+   would sit an entire crystal origin away from the molecule it belongs to. */
+function centrePairs(pairs, centre) {
+  return pairs.map(p => Object.assign({}, p, {
+    mid: p.mid.map((v, k) => r2(v - centre[k])),
+  }));
 }
 
 /* The nucleic counterpart of `assemble`. Same contract — centred coordinates,
@@ -598,5 +639,5 @@ module.exports = {
   modResidues,
   ecNumbers, EC_CLASS,
   assemble, frameOf, viewFor, breaks,
-  chainKinds, naTrace, basePairs, assembleNA, baseLetter,
+  chainKinds, naTrace, basePairs, centrePairs, assembleNA, baseLetter,
 };

@@ -62,11 +62,27 @@
  *  by bake-lib's assembleNA + basePairs).
  *
  *    const parts = NucleicLib.build(THREE, trace, { sub: 8 });
- *    // { strands: [{id, geo}], rungs: geo|null, stubs: geo|null }
+ *    // { strands: [{id, geo}], rungs: {G: geo, C: geo, …}, stubs: {…} }
  *
- *  Three geometries, not one, because they are three different claims and a
- *  page colours them separately: the backbone is the polymer, a rung is a pair,
- *  a stub is a base with no partner.
+ *  EVERY RUNG IS SPLIT AT ITS OWN HYDROGEN BONDS AND EACH HALF IS ITS BASE.
+ *  Half a rung already IS one base, so colouring by half is colouring by base,
+ *  and the sequence becomes readable off the structure with no labels: G-C and
+ *  A-T are two colour combinations before they are two pairs of letters. It is
+ *  the split-stick convention kit/proteinbox.js uses inside a pocket, for the
+ *  same reason — deposited coordinates carry no spec, so the drawing has to do
+ *  the work of saying what a thing is.
+ *
+ *  IT IS ALSO HOW A WOBBLE CAN BE DRAWN HONESTLY. A G-U wobble is a real pair
+ *  and belongs on the ladder, but it is not Watson-Crick and a drawing that
+ *  made it identical to G-C would erase the distinction that G3-U70 is
+ *  entirely about. With colour carrying WHICH bases, the rung can say "paired"
+ *  and "G with U" at once, and nothing has to be invented or suppressed. The
+ *  split is at the measured bonds, so a wobble's lands off-centre — the 2 A
+ *  shift, drawn rather than captioned.
+ *
+ *  SO PAIRED-VERSUS-UNPAIRED IS CARRIED BY SHAPE ALONE, which is the trade:
+ *  colour can only say one thing. The gap down the middle of two facing stubs
+ *  is the signal, and it is the more honest one.
  * ============================================================================= */
 const NucleicLib = (function () {
   'use strict';
@@ -270,22 +286,46 @@ const NucleicLib = (function () {
     }
 
     /* Rungs and stubs are cross-chain, so they are built over the whole trace
-       at once and a page gets one geometry of each rather than one per chain. */
+       at once. GROUPED BY BASE, one mesh per letter, because that is the unit
+       a page gives a colour to and the module still holds no materials. */
     const paired = new Set();
-    const rungs = new Mesh();
+    const rungs = {}, stubs = {};
+    const meshFor = (bag, b) => (bag[b] = bag[b] || new Mesh());
+
     for (const p of (trace.pairs || [])) {
-      const A = anchor.get(p[0] + ':' + p[1]), B = anchor.get(p[2] + ':' + p[3]);
+      const A = anchor.get(p.a[0] + ':' + p.a[1]);
+      const B = anchor.get(p.b[0] + ':' + p.b[1]);
       if (!A || !B) continue;
-      const ra = find(trace, p[0], p[1]), rb = find(trace, p[2], p[3]);
-      paired.add(p[0] + ':' + p[1]); paired.add(p[2] + ':' + p[3]);
+      const ra = find(trace, p.a[0], p.a[1]), rb = find(trace, p.b[0], p.b[1]);
+      paired.add(p.a[0] + ':' + p.a[1]); paired.add(p.b[0] + ':' + p.b[1]);
+
       /* One plane for the pair. The two bases are coplanar to a degree or so,
          and their deposited normals may point opposite ways round — averaging
          without the flip cancels them to nearly nothing. */
       const n2 = dot(ra.Bn, rb.Bn) < 0 ? mul(rb.Bn, -1) : rb.Bn;
-      ruled(rungs, A, B, unit(add(ra.Bn, n2)), o.rungWidth, o.rungThick);
+      const plane = unit(add(ra.Bn, n2));
+
+      /* THE SPLIT IS AT THE PAIR'S OWN HYDROGEN BONDS, which the baker
+         measured — not at the middle of the bar. In a Watson-Crick pair those
+         land near the middle anyway; in a WOBBLE they do not, because the
+         bases are shifted about 2 A out of register, and the off-centre split
+         is that shift showing in the drawing rather than being asserted in a
+         caption. A bake with no `mid` falls back to the midpoint, which is the
+         honest thing to draw when nothing measured the bonds. */
+      const cut = p.mid || mid(A.c, B.c);
+
+      /* The two halves share one ring at the cut or they do not meet: same
+         centre, and a width axis both sides agree on. `ruled` flips the far
+         end's tangent for the antiparallel case, so the flip happens here too
+         rather than twice with different answers. */
+      const uB = dot(A.u, B.u) < 0 ? mul(B.u, -1) : B.u;
+      const M = { c: cut, u: unit(add(A.u, uB)) };
+
+      ruled(meshFor(rungs, p.bases[0]), A, M, plane, o.rungWidth, o.rungThick);
+      ruled(meshFor(rungs, p.bases[1]), M, { c: B.c, u: uB }, plane,
+            o.rungWidth, o.rungThick);
     }
 
-    const stubs = new Mesh();
     for (const id of ids) {
       const ch = trace.chains[id];
       if (!ch || ch.kind !== 'na') continue;
@@ -294,16 +334,27 @@ const NucleicLib = (function () {
         const A = anchor.get(id + ':' + ch.nums[i]);
         if (!A) continue;
         /* Out to the base and a little past it. The far end keeps the near
-           end's width axis, so an unpaired base is visibly the same BAR as a
-           rung — just one that stops in the middle. */
+           end's width axis, so an unpaired base is visibly the same BAR as
+           half a rung — which is what it is. */
         const c1 = ch.C1[i];
         const far = add(c1, mul(sub(ch.Bc[i], c1), 1 + o.stub));
-        ruled(stubs, A, { c: far, u: A.u }, ch.Bn[i], o.rungWidth, o.rungThick);
+        ruled(meshFor(stubs, ch.seq[i] || 'X'), A, { c: far, u: A.u },
+              ch.Bn[i], o.rungWidth, o.rungThick);
       }
     }
 
-    return { strands, rungs: rungs.geo(THREE), stubs: stubs.geo(THREE) };
+    const bake = bag => {
+      const out = {};
+      for (const b of Object.keys(bag)) {
+        const g = bag[b].geo(THREE);
+        if (g) out[b] = g;
+      }
+      return out;
+    };
+    return { strands, rungs: bake(rungs), stubs: bake(stubs) };
   }
+
+  const mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 
   function find(trace, id, num) {
     const ch = trace.chains[id];
@@ -329,19 +380,17 @@ const NucleicLib = (function () {
   }
 
   /* Cost of a setting without building it: a strand is 4 quads per sample
-     plus 2 caps, a rung or stub is 6 faces. */
+     plus 2 caps, and every base — half a rung, or a whole stub — is 6 faces. */
   function triangles(trace, opts) {
     const o = Object.assign({}, DEFAULTS, opts || {});
-    let n = 0;
+    let n = 0, nres = 0;
     for (const id of trace.order) {
       const ch = trace.chains[id];
       if (!ch || ch.kind !== 'na') continue;
+      nres += ch.nums.length;
       for (const seg of runs(ch)) n += (seg.P.length - 1) * o.sub * 8 + 4;
     }
-    const nres = trace.order.reduce((k, id) =>
-      k + (trace.chains[id].kind === 'na' ? trace.chains[id].nums.length : 0), 0);
-    const np = (trace.pairs || []).length;
-    return n + np * 12 + (nres - np * 2) * 12;
+    return n + nres * 12;
   }
 
   return { build, triangles, strand, ruled, spline, runs, DEFAULTS };
