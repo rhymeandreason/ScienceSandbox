@@ -226,6 +226,13 @@
     position: fixed; left: 50%; transform: translateX(-50%);
     bottom: clamp(1rem, 3vh, 1.8rem); z-index: 8;
     width: min(34rem, calc(100vw - 8rem));
+    transition: transform .55s cubic-bezier(.4, 0, .2, 1);
+  }
+  /* BUILD WITH NOTHING IN IT IS A PROMPT, so the reader's own line is the page
+     rather than a strip along the bottom of one. Moved by TRANSFORM, not by
+     `top`: `bottom: auto` cannot be interpolated and the bar would jump. */
+  body.building.empty .askbar {
+    transform: translate(-50%, calc(-50vh + 3.2rem));
   }
   /* a pill, because the field is a line of speech and not a form control.
      The shadow arrives on focus rather than sitting there: it is what lifts
@@ -4375,7 +4382,6 @@ for (const l of links) paintLink(l);
    the reader ends with is the path they took through it. Growth is bounded
    by clicks, not by a depth cap, and what holds the layout together is the
    map's own relax running over the BUILT set alone. */
-const BUILD_SEED = 'q-machine';   /* How does a chain of molecules become a machine... */
 const BUILD_HOPS = 2;             /* dealt at the start; every click deals one more */
 const BUILD_COL = 820;            /* x between hops */
 const BUILD_GAP = 46;             /* y between siblings in one fan */
@@ -4714,7 +4720,17 @@ function enterBuild(seed) {
   document.body.classList.add('building');
   for (const n of nodes) { n.on = false; n.el.classList.add('unlit'); showEl(n, false); }
   for (const l of links) showLink(l, false);
-  dealBuild(seed || byId[BUILD_SEED]);
+  /* BUILD WITH NOTHING TO BUILD FROM IS A PROMPT. There is no default seed: a
+     reader who switched over with nothing open is asking to start something,
+     and the honest form of that is an empty page with the ask bar in the
+     middle of it. It moves back down the moment a graph exists. */
+  if (!seed) {
+    buildSeed = null;
+    document.body.classList.add('empty');
+    askIn.focus();
+    return;
+  }
+  dealBuild(seed);
 }
 
 /* one graph, grown from one card. Runs on the way in and again whenever the
@@ -4728,6 +4744,7 @@ function dealBuild(seed) {
   if (seed && seed.mine) seed = buildMine(seed) || byId[seed.anchorId];
   else if (isQuery(seed)) seed = buildQuery(seed) || byId[seed.anchorId];
   if (!seed || !seed.el) { console.warn('build seed missing'); return; }
+  document.body.classList.remove('empty');
   buildSeed = seed;
   /* before the reveal, which measures: the heading is a different box from the
      card it would otherwise be, and a fan spaced for the card holds the
@@ -4767,8 +4784,22 @@ function dealBuild(seed) {
   if (!document.body.classList.contains('intro')) { stagger(waiting); waiting = []; }
 }
 
+/* what Build was showing, said in the map's own terms: a kind is read through
+   the card it belongs to, a generated card through the one it was grafted onto,
+   and a question stays a question — the map has its own way of opening one. */
+function mapSubject() {
+  let n = focused && built.has(focused) ? focused : buildSeed;
+  while (n && n.synthetic && n.type !== 'question') {
+    const l = buildLinks.find(k => (k.a === n && k.b !== n) || (k.b === n && k.a !== n));
+    n = l ? (l.a === n ? l.b : l.a) : null;
+  }
+  if (n && n.type === 'made') n = byId[(readGrafts()[buildSeed.text] || {}).host] || null;
+  return n;
+}
+
 function leaveBuild() {
   if (mode !== 'build' || !mapSave) return;
+  const subject = mapSubject();
   mode = 'map';
   cineEnd();                     /* the opening move belongs to the graph it opened */
   document.body.classList.remove('building');
@@ -4787,10 +4818,39 @@ function leaveBuild() {
     if (s.on) light(n);                  /* light() is what re-mounts the box */
   }
   built.clear(); buildNodes.length = 0; buildLinks.length = 0;
+  buildSeed = null;
+  document.body.classList.remove('empty');
   for (const l of links) edgeRefresh(l);
   measure();
   view = { ...mapSave.view }; touched = mapSave.touched;
   applyView(); draw();
+
+  /* THE READING CARRIES BOTH WAYS. What Build was on is opened here, in the
+     map's own terms — an extension question through `askQuestion`, a saved one
+     through its graft — so a reader toggling back and forth is looking at the
+     same thing in two forms. */
+  if (subject) {
+    if (subject.mine) restoreGraft(subject);
+    else if (subject.type === 'question' && (isQuery(subject) || !subject.el)) askQuestion(subject);
+    else if (byId[subject.id] === subject) { light(subject); focus(subject); }
+    /* and the reader's own camera is what they left the map at: the pan only
+       happens when what they were reading is not already on the page */
+    view = { ...mapSave.view }; touched = mapSave.touched;
+    applyView();
+    /* the zoom is the reader's either way: a pan to something off the page is
+       worth it, a zoom they did not ask for is not */
+    followK = 0;
+    if (onScreen(subject)) follow = null;
+  }
+  draw();
+}
+
+/* is this card in the frame as it stands? */
+function onScreen(n) {
+  if (!n || !n.el) return false;
+  const w = innerWidth || 1440, h = innerHeight || 900;
+  const x = n.x * view.k + view.x, y = n.y * view.k + view.y;
+  return x > 40 && x < w - 40 && y > 60 && y < h - 60;
 }
 
 const modeBtns = [...document.querySelectorAll('#modes .mode')];

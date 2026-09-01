@@ -185,7 +185,13 @@ It is not `follow`, which centres its target while Build holds the seed a sevent
 
 **Switching modes costs the reader nothing.** `enterBuild` saves every node's baked x/y/tx/ty/pinned/lit and `leaveBuild` puts them back, so Map returns exactly as it was left, cards and camera included. `light()` refuses anything not in `built`, or focusing a question mounts a WebGL context for a card nobody can see; `focus()` skips the pills, the query and the graft for the same reason. The walk is refused outright.
 
-**Any card can be the seed.** `q-machine` is only what the toggle defaults to. `buildFrom` is the one door in: the ask bar, a keyword search and a shared link all pass through it, so seeding a graph and switching into the mode cannot drift apart. A card that was never painted cannot be a seed — an extension question has no seat, so it seeds the card it answers into.
+**Any card can be the seed, and there is no default one.** `buildFrom` is the one door in: the ask bar, a keyword search and a shared link all pass through it, so seeding a graph and switching into the mode cannot drift apart.
+
+**Build with nothing to build from is a PROMPT.** A reader who switches over with nothing open is asking to start something, and the honest form of that is an empty page with the ask bar in the middle of it — moved by `transform`, since `bottom: auto` cannot be interpolated and the bar would jump. It goes back down the moment a graph exists, which is `dealBuild`'s job rather than the bar's.
+
+**The reading carries BOTH ways.** Leaving Build opens what it was on in the map's own terms: an extension question through `askQuestion`, a saved one through its graft, a kind through the card it belongs to, a generated card through the one it was grafted onto. And the map comes back at the camera the reader left it at — the pan only happens when what they were reading is not already on the page, and the zoom is never touched, because a pan to something off-screen is worth it and a zoom nobody asked for is not.
+
+**What is in the ask bar stays there.** It is the reader's own line, not the mode's, so a mode switch does not clear it.
 
 **A deferred question has a seat here, and so does the kind it names.** The question is off the map because the map is laid out and a query has no place in a layout; Build has no layout to protect, so both are just nodes. On the map a kinds member is a satellite riding a pill — detail too small for a seat — and the chain reads question → member → pill → card; here it is question → member → card, with the member carrying its own id (`<host>::build:<i>`) so the map's fan and Build's card never stand in for each other. A question dealt into a fan brings its member WITH it and before it, since its only edge runs to the member and alone it would arrive attached to nothing.
 
