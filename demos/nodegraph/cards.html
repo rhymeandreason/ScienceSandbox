@@ -8,6 +8,9 @@
      Copying it here would drift the moment a card's look changes, and a
      gallery that lies about how a card looks is worse than no gallery. -->
 <style>
+  /* the map locks the body to the viewport and pans a world inside it; a
+     gallery is a long page, so it takes its scroll back */
+  html, body { height: auto; overflow: visible; }
   body {
     margin: 0; background: var(--paper, #f6f4ef);
     font-family: var(--sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
