@@ -5224,7 +5224,16 @@ function reveal(n, x, y, from) {
   n.tx = x; n.ty = y;
   n.x = x; n.y = y;
   n.vx = n.vy = 0;
-  n.hop = from ? (from.hop || 0) + 1 : 0;
+  /* KEPT WHEN THERE IS NO PARENT TO COUNT FROM. The wave parks every card and
+     re-admits it with no `from`, so zeroing here made the whole graph read as
+     hop 0 — which is the seed's number, and it drives the drift and the taper. */
+  n.hop = from ? (from.hop || 0) + 1 : (n.hop || 0);
+  /* DEPTH IS NOT HOP. A door and the member it names are a chain the reader
+     has not chosen anything with yet, so they cost no depth — otherwise a
+     question seed's first real card would be tapered as though the reader had
+     already followed two edges out of it. */
+  const chainish = from && (from.type === 'question' || from.synthetic);
+  n.depth = from ? (from.depth || 0) + (chainish ? 0 : 1) : (n.depth || 0);
   showEl(n, true);
   light(n);
   /* every edge to something already built, not just the one it arrived on:
@@ -5242,6 +5251,12 @@ function reveal(n, x, y, from) {
    enrichment fills in behind it. Uncapped, `func` and `protein-class` alone put
    seventeen cards in one fan. */
 const BUILD_FAN = 5;
+/* THE FAN TAPERS WITH DEPTH. Five edges branching twice is thirty-one cards
+   before the extras, and a hub seed spends the whole page on cards nobody
+   asked for. The first fan stays wide — it is what the seed IS — and the ring
+   past it narrows. A CLICK always deals the full five: that fan is the reader
+   choosing, and the taper is only for what the map deals on their behalf. */
+const BUILD_FAN_FAR = 3;
 const BUILD_ASKS = 2;             /* deferred questions a card may deal, on top */
 const BUILD_CHAIN = 400;          /* the short hop: a door or a kind, to its card */
 
@@ -5256,6 +5271,7 @@ function wobble(id, span) {
 }
 
 function expand(n) {
+  const fan = !dealing || !(n.depth || 0) ? BUILD_FAN : BUILD_FAN_FAR;
   const seen = new Set();
   const kids = linksOf(n)
     .slice()
@@ -5266,12 +5282,12 @@ function expand(n) {
        and it rides its host rather than holding a seat — dealt into a fan it
        arrives as a card the graph cannot grow from. */
     .filter(m => !m.satellite && !built.has(m) && !seen.has(m) && seen.add(m))
-    .slice(0, BUILD_FAN);
+    .slice(0, fan);
   /* AND THE QUESTIONS THE BAR IS HOLDING FOR IT, outside the five: they were
      never on the map competing for a seat, and a card that has one is a card
      the reader can ask about. */
   for (const q of QUERIES) {
-    if (kids.length >= BUILD_FAN + BUILD_ASKS) break;
+    if (kids.length >= fan + BUILD_ASKS) break;
     if (q.anchorId !== n.id || built.has(q)) continue;
     if (!buildQuery(q)) continue;
     /* the kind it names comes with it, and BEFORE it: the question's only edge
@@ -5565,6 +5581,9 @@ function dealBuild(seed) {
   if (!seed || !seed.el) { console.warn('build seed missing'); return; }
   document.body.classList.remove('empty');
   buildSeed = seed;
+  /* the counts belong to THIS graph: a card kept its hop from the last one, and
+     reveal now preserves what it finds rather than zeroing it */
+  for (const n of nodes) { n.hop = 0; n.depth = 0; }
   /* before the reveal, which measures: the heading is a different box from the
      card it would otherwise be, and a fan spaced for the card holds the
      heading badly */
