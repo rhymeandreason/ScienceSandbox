@@ -149,9 +149,21 @@ A query arrives from wherever the reader was, which may be the whole map at
 0.30, so `follow` carries a zoom and centres the CHAIN rather than the question
 — following either end puts the rest against a screen edge.
 
-**Not built yet**: the fuzzy match onto a typed question (Gemini), and the same
-field as a keyword search over the cards. Until then a typed miss reddens the
-bar rather than failing silently.
+**Typed words that match no question are a SEARCH.** Cards are deliberately not
+in the dropdown: a reader who wants one types its name and presses Enter, and
+does not need a list to confirm the name they just typed exists. The search
+reads what is visible on a card — name, claim, and the names in its `kinds` —
+and a kinds hit resolves to the card that holds it and deals the fan, because
+that is where the reader has to go to read it. Every term must appear or the
+row is out, so two words narrow. Scoring is whole-field > prefix > whole word >
+fragment: `trans` is a fatty acid AND the first five letters of translation,
+and the one it *is* wins. A miss reddens the bar.
+
+**Not built yet**: the semantic match onto a typed sentence. `api/find.js` and
+`tools/bake-vectors.js` already do this for the questions-composer, but they
+bake `lib/mapcontent.js`, which this map does not depend on — it needs a second
+bake from `graphdata.js` and a hook gate so a stale one cannot ship. The
+keyword search is the floor under it either way: no key, no network, no bake.
 
 ### What belongs here
 

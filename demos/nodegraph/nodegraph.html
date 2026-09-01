@@ -2784,7 +2784,8 @@ function renderList(filter) {
   const rows = ASKABLE.filter(q => !f || q.text.toLowerCase().includes(f));
   askList.innerHTML = '';
   if (!rows.length) {
-    askList.innerHTML = '<div class="askgroup">nothing matches yet</div>';
+    /* not a dead end: Enter still searches the cards from here */
+    askList.innerHTML = '<div class="askgroup">no question — Enter searches the map</div>';
     return rows;
   }
   let group = null;
@@ -2867,12 +2868,19 @@ askIn.addEventListener('keydown', e => {
   /* an empty field asks whatever the placeholder is offering: the rotation
      is a suggestion, and Enter is how you take it */
   if (!askIn.value.trim()) { ask(ASKABLE[suggestion].id); return; }
-  const pick = rows[0];
-  /* no match is not an error yet — the fuzzy match is the next piece of
-     work, and until it lands the bar says so rather than doing nothing */
-  if (pick) ask(pick.dataset.q);
-  else { askBar.classList.add('miss'); setTimeout(() => askBar.classList.remove('miss'), 600); }
+  /* Cards are not in the dropdown on purpose — a reader who wants a card types
+     its name and presses Enter, and does not need a list to tell them the name
+     they just typed exists. Order: a card NAMED this, then a question that
+     matches, then anything a claim or a kinds fan says. */
+  if (goToNamed(askIn.value)) return;
+  if (rows[0]) { ask(rows[0].dataset.q); return; }
+  if (!goToMatch(askIn.value)) miss();
 });
+
+function miss() {
+  askBar.classList.add('miss');
+  setTimeout(() => askBar.classList.remove('miss'), 600);
+}
 askCaret.addEventListener('click', () => {
   if (listOpen) { closeList(); return; }
   openList(askIn.value); askIn.focus();
@@ -2884,6 +2892,129 @@ askList.addEventListener('click', e => {
 document.addEventListener('pointerdown', e => {
   if (listOpen && !askBar.contains(e.target)) closeList();
 });
+
+/* ---- keyword search -------------------------------------------------------
+   OFFLINE, AND THE FLOOR UNDER EVERYTHING ELSE. A semantic match over baked
+   vectors is the better answer to a typed sentence and is a separate piece of
+   work; this is what runs when there is no key, no network, or no question
+   worth matching — which is every checkout by default.
+
+   It searches what a reader can SEE on a card: its name, its claim, and the
+   names in its kinds fan. A kinds hit resolves to the card that holds it,
+   because that is where the reader has to go to read it. */
+
+const SEARCHABLE = () => nodes.filter(n =>
+  !n.satellite && n.type !== 'ask' && n.type !== 'question' && n.name);
+
+/* A CARD'S LESSON IS PART OF WHAT IT OFFERS. `membrane` is the case that
+   forced this: the membrane lesson hangs off `selective-perm`, whose name and
+   claim never say the word, while `membrane-protein` says it and opens
+   nothing.
+
+   THE HREF STEM CARRIES IT, at name weight — `membrane-lab.html` is the
+   plainest statement of a lesson's subject that we hold, and it is two or
+   three words rather than prose. The lesson's title scores at claim weight and
+   its BLURB not at all: a blurb is a paragraph, and scoring it sent `water` to
+   the osmosis lesson and `pyruvate` to the bridge, over the cards actually
+   named those things. */
+const lessonOf = n => lessonFor(n);
+const lessonStem = n => {
+  const l = lessonOf(n);
+  return l ? (l.href || '').replace(/[?#].*$/, '').replace(/\.html$/, '')
+                           .replace(/[-_/]/g, ' ').toLowerCase() : '';
+};
+/* a bare href is the lesson's home; `?step=` is a second door into the same
+   page, so the home wins the word they share */
+const lessonIsHome = n => { const l = lessonOf(n); return !!l && !/[?#]/.test(l.href || ''); };
+
+/* Scored, not just filtered, because "protein" is in a dozen claims and is
+   the NAME of one card. Every term has to appear somewhere or the row is out,
+   so two words narrow rather than widen. */
+function score(hay, terms, weight) {
+  let total = 0;
+  for (const t of terms) {
+    const i = hay.indexOf(t);
+    if (i < 0) return 0;                       /* every term, or nothing */
+    /* the whole field beats a prefix of it, which beats a whole word inside
+       it, which beats a fragment: `trans` is the name of a fatty acid and the
+       first five letters of translation, and the one it IS should win */
+    const whole = new RegExp('\\b' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(hay);
+    total += weight * (hay === t ? 6 : i === 0 ? 3 : whole ? 2 : 1);
+  }
+  return total;
+}
+
+function searchMap(text) {
+  const terms = (text || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return null;
+  const hits = [];
+  for (const n of SEARCHABLE()) {
+    const name = n.name.toLowerCase();
+    const nameScore = score(name, terms, 100);
+    const stemScore = score(lessonStem(n), terms, 100);
+    let best = nameScore + stemScore + score((n.claim || '').toLowerCase(), terms, 8) +
+               score((lessonOf(n) ? lessonOf(n).name : '').toLowerCase(), terms, 8);
+    let kind = null;
+    for (const [k, claim] of n.kinds || []) {
+      const s = score(k.toLowerCase(), terms, 60) + score(claim.toLowerCase(), terms, 6);
+      if (s > 0 && s > (kind ? kind.s : 0)) kind = { k, s };
+    }
+    if (kind && kind.s > best) { best = kind.s; }
+    else kind = null;                          /* the card itself won */
+    if (best > 0) hits.push({ n, kind: kind && kind.k, s: best, nameScore, stemScore });
+  }
+  /* A CARD WITH A LESSON IS THE BETTER ARRIVAL. `membrane` names no card, but
+     `selective-perm` holds the membrane lesson and `membrane-protein` merely
+     has the word in its name — the reader typing it wants the one they can
+     open. Worth about a tier, so it settles near-misses without letting a
+     lesson outrank a card that is actually named what was typed. */
+  for (const h of hits) if (lessonOf(h.n)) h.s *= 1.6;
+  /* ties: the lesson's home page before one of its inner steps, then the
+     shorter name — "RNA" over "RNA processing" for `rna` */
+  hits.sort((a, b) => b.s - a.s ||
+    (lessonIsHome(b.n) - lessonIsHome(a.n)) ||
+    a.n.name.length - b.n.name.length);
+  return hits[0] || null;
+}
+
+/* A NAMED CARD OUTRANKS A QUESTION THAT MERELY MENTIONS IT. `protein` is the
+   name of a card and a word inside four questions; typing it should go to the
+   card. The bar is the reader saying what they want, and a name is the most
+   direct way to say it. The test is every term landing as a WHOLE WORD in the
+   name — 200 per term, the whole-word tier in `score` — so `cyanide`, which is
+   in a question and in no card's name, still asks the question. */
+function namedCard(text) {
+  const terms = (text || '').trim().split(/\s+/).filter(Boolean).length;
+  const hit = searchMap(text);
+  if (!hit || hit.kind) return null;
+  /* NAMED, or the SUBJECT OF ITS LESSON. Both are the reader saying plainly
+     what they want, so both outrank a question that merely contains the word:
+     `membrane` is the subject of the lesson on `selective-perm` and appears
+     inside "How does a membrane assemble itself?", and the lesson is the
+     better arrival. 200 per term is the whole-word tier in `score`. */
+  const floor = 200 * terms;
+  return (hit.nameScore >= floor || hit.stemScore >= floor) ? hit : null;
+}
+
+/* the same arrival an asked question gets, minus the question */
+const goToNamed = text => arriveAt(namedCard(text));
+const goToMatch = text => arriveAt(searchMap(text));
+
+function arriveAt(hit) {
+  if (!hit) return false;
+  closeList();
+  askIn.value = '';
+  askIn.blur();
+  startRotate();
+  light(hit.n);
+  focus(hit.n);
+  /* a kinds hit is not a card, so the fan is dealt to put it on screen */
+  if (hit.kind && hit.n.kinds && !hit.n.sats) toggleKinds(hit.n);
+  followK = ASK_ZOOM;
+  touched = true;
+  wake(0.4);
+  return true;
+}
 
 /* ---- the gutter ruler ---------------------------------------------------- */
 
