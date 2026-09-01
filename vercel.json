@@ -15,6 +15,7 @@
     { "source": "/demos/hemoglobin-lab.html",  "destination": "/protein",     "permanent": true },
     { "source": "/demos/glycolysis-lab.html",  "destination": "/glycolysis",  "permanent": true },
     { "source": "/demos/membrane-lab.html",    "destination": "/membrane",    "permanent": true },
+    { "source": "/demos/nodegraph/nodegraph.html", "destination": "/nodes",  "permanent": true },
 
     { "source": "/builder",                    "destination": "/molecular-bonds", "permanent": false },
     { "source": "/hemoglobin",                 "destination": "/protein",         "permanent": false }
@@ -24,7 +25,8 @@
     { "source": "/molecular-bonds", "destination": "/demos/molecule-builder.html" },
     { "source": "/protein",    "destination": "/demos/hemoglobin-lab.html" },
     { "source": "/glycolysis", "destination": "/demos/glycolysis-lab.html" },
-    { "source": "/membrane",   "destination": "/demos/membrane-lab.html" }
+    { "source": "/membrane",   "destination": "/demos/membrane-lab.html" },
+    { "source": "/nodes",      "destination": "/demos/nodegraph/nodegraph.html" }
   ],
   "headers": [
     { "source": "/api/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }

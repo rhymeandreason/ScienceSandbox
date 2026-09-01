@@ -45,10 +45,13 @@ matched before the filesystem, which is what makes it hold whichever way
 same treatment: an undeployed function is not a route at all, and the smoke
 test below checks that.
 
-## The five featured lessons have short URLs
+## Public pages have short URLs
 
-`vercel.json` rewrites a short URL onto each of the five `demos/*.html` files,
-and 301s the `/demos/….html` path onto it. `index.html` links the short form.
+`vercel.json` rewrites a short URL onto each public page's file, and 301s the
+file path onto it. `index.html` links the short form. The five featured lessons
+are `demos/*.html`; the node graph is `/nodes`, and it is the case that shows
+the `<base>` rule below is about the file's own folder rather than about
+`/demos/`.
 **The `rewrites` block is the list**; it is not repeated here, because a URL
 renamed there and not here is a doc that lies.
 
@@ -59,9 +62,10 @@ so a returning browser goes to the retired short URL from cache and never asks
 the server which page it wanted.
 
 A rewrite does not move the file, so every relative `src`, `href` and `fetch()`
-in those five pages would resolve against `/` instead of `/demos/`. Each of the
-five carries `<base href="/demos/">` for that reason, which is also correct at
-its own path and on the local dev server. **Adding a page to this list means
+in a rewritten page would resolve against `/` instead of against the folder the
+file sits in. Each one carries a `<base>` naming that folder for that reason —
+`/demos/` for the lessons, `/demos/nodegraph/` for the node graph — which is
+also correct at its own path and on the local dev server. **Adding a page to this list means
 adding the `<base>` tag too** - without it the short URL serves the HTML and
 then 404s every script in it.
 
