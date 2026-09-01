@@ -1087,6 +1087,7 @@ for (const q of QUERIES) {
   const answers = links.filter(l => (l.a === q || l.b === q) && l.type === 'answers');
   const best = answers.sort((a, b) => a.rank - b.rank)[0];
   q.anchorId = best ? (best.a === q ? best.b.id : best.a.id) : null;
+  q.anchorRank = best ? best.rank : 2;      /* Build re-makes this edge */
   if (!q.anchorId) console.warn('extension question answers nothing:', q.id);
   /* the degree was counted when the edge was built, and degree sizes hubs —
      so give it back, or every extension's answer reads one link heavier */
@@ -3175,9 +3176,11 @@ function askQuestion(q) {
   if (!q) return;
   if (buildsNow()) {
     buildOnArrive = false;
-    /* an extension question has no seat, so it cannot be a seed: the card it
-       answers into is what it is asking about */
-    buildFrom(q.qtype === 'extension' || !q.el ? byId[q.anchorId] : q);
+    /* a deferred question is dealt its own card here, so it seeds as itself
+       and the card it answers into arrives as its first hop */
+    /* a saved graft is a door with no card of its own and cards Build cannot
+       grow from, so it seeds the card it was grafted onto */
+    buildFrom(q.mine ? byId[q.anchorId] : q);
     return;
   }
   /* the reader's own: deal the saved cards back rather than paying for a
@@ -4160,6 +4163,7 @@ function reveal(n, x, y, from) {
    enrichment fills in behind it. Uncapped, `func` and `protein-class` alone put
    seventeen cards in one fan. */
 const BUILD_FAN = 5;
+const BUILD_ASKS = 2;             /* deferred questions a card may deal, on top */
 
 /* a deterministic per-card drift, hashed from the id: the bow and the rank
    only separate cards that DIFFER in those, and a fan of five rank-1 edges has
@@ -4177,8 +4181,20 @@ function expand(n) {
     .slice()
     .sort((a, b) => a.rank - b.rank)
     .map(l => (l.a === n ? l.b : l.a))
-    .filter(m => !built.has(m) && !seen.has(m) && seen.add(m))
+    /* A SATELLITE IS NOT A STATION. A kinds fan, a pill or a generated card
+       left open on the map is still in `nodes` when the reader switches over,
+       and it rides its host rather than holding a seat — dealt into a fan it
+       arrives as a card the graph cannot grow from. */
+    .filter(m => !m.satellite && !built.has(m) && !seen.has(m) && seen.add(m))
     .slice(0, BUILD_FAN);
+  /* AND THE QUESTIONS THE BAR IS HOLDING FOR IT, outside the five: they were
+     never on the map competing for a seat, and a card that has one is a card
+     the reader can ask about. */
+  for (const q of QUERIES) {
+    if (kids.length >= BUILD_FAN + BUILD_ASKS) break;
+    if (q.anchorId !== n.id || built.has(q)) continue;
+    if (buildQuery(q)) kids.push(q);
+  }
   if (!kids.length) return [];
   const rankTo = m => Math.min(...linksOf(n)
     .filter(l => l.a === m || l.b === m).map(l => l.rank));
@@ -4237,6 +4253,52 @@ function buildCamera(seed) {
   touched = true;
 }
 
+/* AN EXTENSION QUESTION HAS A SEAT HERE. It is off the map because the map is
+   laid out and a query has no place in a layout — but Build has no layout to
+   protect, so the question is just a node, and the reader who switched over
+   with one open should still be looking at it. The node is authored and
+   permanent; only its card and its `answers` edge are made for the session,
+   and both are given back when the mode ends or the seed changes. */
+const buildMade = { nodes: [], links: [] };
+const isQuery = n => QUERIES.includes(n);
+
+function dropMade() {
+  for (const l of buildMade.links) {
+    l.el.remove(); l.label.remove(); if (l.arrow) l.arrow.remove();
+  }
+  links = links.filter(l => !buildMade.links.includes(l));
+  for (const q of buildMade.nodes) {
+    if (q.el) q.el.remove();
+    const i = nodes.indexOf(q);
+    if (i >= 0) nodes.splice(i, 1);
+    /* the id stays in the index: the question is off the map exactly the way
+       it was before Build borrowed it, and `ask()` still finds it */
+    byId[q.id] = q;
+    q.el = null; q.on = false; q.satellite = false; q.host = null;
+  }
+  buildMade.nodes.length = 0; buildMade.links.length = 0;
+}
+
+/* paint a deferred question into the graph, with the edge the extraction took
+   off it. Returns null where its anchor is not a card, which is not a case the
+   data has but is one a re-bake could make. */
+function buildQuery(q) {
+  const host = byId[q.anchorId];
+  if (!host || !host.el) return null;
+  if (q.el) return q;
+  paintNode(q);
+  showEl(q, false);
+  q.satellite = false; q.pinned = false; q.host = null; q.on = false;
+  q.deg = 1; q.vx = 0; q.vy = 0;
+  q.el.classList.add('unlit');
+  nodes.push(q); byId[q.id] = q;
+  buildMade.nodes.push(q);
+  const l = { a: q, b: host, type: 'answers', rank: q.anchorRank, spine: true };
+  links.push(l); paintLink(l); showLink(l, false); edgeRefresh(l);
+  buildMade.links.push(l);
+  return q;
+}
+
 /* THE SEED IS WHATEVER THE READER ARRIVED AT. `q-machine` is only the default
    the toggle uses; the ask bar, a `?node=`/`?ask=`/`?q=` link and a keyword
    search all land here instead of on the map when Build is on, so the mode is
@@ -4264,15 +4326,21 @@ function enterBuild(seed) {
 /* one graph, grown from one card. Runs on the way in and again whenever the
    reader asks for a different seed without leaving the mode. */
 function dealBuild(seed) {
-  if (!seed || !seed.el) { console.warn('build seed missing'); return; }
   for (const n of buildNodes) { n.on = false; n.el.classList.add('unlit'); showEl(n, false); }
   for (const l of buildLinks) showLink(l, false);
   built.clear(); buildNodes.length = 0; buildLinks.length = 0;
   stages.clear();
+  dropMade();                    /* before the seed is painted, or it drops it */
+  if (isQuery(seed)) seed = buildQuery(seed) || byId[seed.anchorId];
+  if (!seed || !seed.el) { console.warn('build seed missing'); return; }
   buildSeed = seed;
   reveal(seed, 0, 0, null);
   let front = [seed];
-  for (let h = 0; h < BUILD_HOPS; h++) {
+  /* A QUESTION SPENDS A HOP ON ONE CARD. Its only edge is the answer, so two
+     hops off a question is a chain of three; a concept seed opens five. The
+     door gets the hop back. */
+  const hops = BUILD_HOPS + (isQuery(seed) ? 1 : 0);
+  for (let h = 0; h < hops; h++) {
     const next = [];
     for (const n of front) next.push(...expand(n));
     front = next;
@@ -4293,6 +4361,7 @@ function leaveBuild() {
   document.body.classList.remove('building');
   clearFocus();
   stages.clear();
+  dropMade();                    /* before the show-all, or a borrowed card stays */
   for (const n of nodes) showEl(n, true);
   for (const l of links) showLink(l, true);
   for (const s of mapSave.seats) {
@@ -4314,10 +4383,22 @@ const modeBtns = [...document.querySelectorAll('#modes .mode')];
 const syncModes = () => {
   for (const o of modeBtns) o.classList.toggle('on', o.dataset.mode === mode);
 };
+/* SWITCHING MODES CARRIES THE READING. An open query is what the reader is
+   looking at, so it outranks the card under it; a kind, a pill or a generated
+   card is read through the card it hangs off, so the walk up `host` is what
+   turns any of them into a seed. Nothing open falls back to the default. */
+function currentSeed() {
+  if (queryHost && queryHost.query) return queryHost.query;
+  let n = focused;
+  while (n && n.satellite && n.host) n = n.host;
+  if (n && n.type === 'made') n = graft && byId[graft.host.id] || null;
+  return n && byId[n.id] === n ? n : null;
+}
+
 for (const b of modeBtns) b.addEventListener('click', () => {
   const want = b.dataset.mode;
   if (want === mode) return;
-  if (want === 'build') enterBuild(); else leaveBuild();
+  if (want === 'build') enterBuild(currentSeed()); else leaveBuild();
   syncModes();
 });
 
@@ -4326,7 +4407,7 @@ for (const b of modeBtns) b.addEventListener('click', () => {
    mode cannot drift apart. A card that was never painted (an extension
    question, which has no seat) cannot be a seed; its anchor is. */
 function buildFrom(n) {
-  if (!n || !n.el) return false;
+  if (!n || (!n.el && !isQuery(n))) return false;
   if (mode !== 'build') enterBuild(n);
   else { dealBuild(n); focus(n); follow = null; buildCamera(n); }
   syncModes();

@@ -175,6 +175,14 @@ Two departures from the composer, both because these cards are not one size. The
 
 **Any card can be the seed.** `q-machine` is only what the toggle defaults to. `buildFrom` is the one door in: the ask bar, a keyword search and a shared link all pass through it, so seeding a graph and switching into the mode cannot drift apart. A card that was never painted cannot be a seed — an extension question has no seat, so it seeds the card it answers into.
 
+**A deferred question has a seat here.** It is off the map because the map is laid out and a query has no place in a layout; Build has no layout to protect, so the question is just a node. Its card and its `answers` edge are made for the session and given back — `dropMade` — when the mode ends or the seed changes, leaving the node exactly as the extraction left it, off the map and still in `byId`. A card's deferred questions also come with its fan, two at most and OUTSIDE the ranked five: they were never competing for a seat on the map, so they do not take one from the spine here.
+
+**A question seed gets a hop back.** Its only edge is the answer, so two hops off a question is a chain of three where a concept seed opens five.
+
+**Switching modes carries the reading.** An open query outranks the card under it — it is what the reader is looking at — and a kind, a pill or a generated card is read through the card it hangs off, so `currentSeed` walks up `host` until it reaches something the graph can grow from. Nothing open falls back to the default seed.
+
+**A satellite is never built.** A kinds fan left open on the map is still in `nodes` when the reader switches over, and `clearFocus` does not always take it down (`syncPill(null)` reads a host with no query as still in the family). Dealt into a fan it arrives as a card the graph cannot grow from, so the candidate filter drops satellites outright rather than relying on the map having tidied up.
+
 **In Build the ask bar reseeds instead of navigating.** It stays on screen (the highlight and the scale ruler do not) because it is how a reader picks a different starting card. The map's own facets are not dealt there, so a kinds or evidence hit seeds the card that holds it, and the graft offer is withheld: a generated card is a satellite of a laid-out map.
 
 **The URL carries the mode.** `?mode=build` composes with `node`, `ask` and `q` rather than replacing them — whatever the tier resolves to becomes the seed, which is what makes `?q=osmosis&mode=build` work — and `?build=<id>` is the shorthand. The flag is read before the tiers run and the arrival routes through `buildFrom`; switching the mode first would hide the map with nothing built yet. The link button emits `?node=<seed>&mode=build`: the graph is the reader's own clicks and does not travel, the card it grew from does.
