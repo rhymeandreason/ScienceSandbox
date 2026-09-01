@@ -612,6 +612,15 @@ const NOTES=Annot.create(THREE, document.getElementById('stage'), camera, {mode:
 let hintAt=null;
 const hintNote=NOTES.add({ text:'', at:()=>hintAt&&hintAt(), offset:[30,-26] });
 const _hintV=new THREE.Vector3();
+// THE CALLOUT'S OWN WIDTH, measured, plus the 30px it hangs off its dot. The
+// label is display:none until it has text, which measures 0 — so the last real
+// measurement stands, and 200 covers the first frame of the first hint.
+let _hintW=0;
+function hintWidth(){
+  const w=hintNote.label.getBoundingClientRect().width;
+  if(w) _hintW=w+30;
+  return _hintW||200;
+}
 const laneBondMid=(l,pair)=>{
   if(!l||!pair) return null;
   const u=l.g.userData;
@@ -627,6 +636,18 @@ function drawHint(){
       text=st.spot.say; hintAt=()=>laneBondMid(lanes[j], pair); }
   }
   if(text!==hintNote.el.dataset.t){ hintNote.el.dataset.t=text; hintNote.set(text); }
+  /* THE LABEL FLIPS RATHER THAN RUNNING UNDER THE COLUMN. The camera keeps the
+   * molecules out of the sidebar's strip (see sideReservePx), but a callout is
+   * screen-space and hangs 30px off its dot, so a target near the strip's edge
+   * puts the words behind the panel. HINT_W is the label's own measure, not a
+   * guess at the sentence. */
+  if(text && hintAt){
+    const p=hintAt();
+    if(p){ const c=canvas.getBoundingClientRect();
+      const x=(_hintV.copy(p).project(camera).x*0.5+0.5)*c.width;
+      const room=c.width-sideReservePx();
+      hintNote.setOffset([x+hintWidth()>room ? -30 : 30, -26]); }
+  }
   NOTES.show(!!text); NOTES.step();
 }
 function drawSpots(){
@@ -657,8 +678,28 @@ function capReservePx(){
   if(!e||!e.classList.contains('show')) return 0;
   return parseFloat(getComputedStyle(e).getPropertyValue('--caph'))||0;
 }
+/* THE SIDEBAR IS OVER THE CANVAS. pathways.css gives the stage the full width
+ * at the wide breakpoint and lays the readout column on top of it; both siblings
+ * already buy that room back with their tray's reserve on the other side, and
+ * this page has no tray, so its molecules ran under the panels. Measured, not
+ * typed: the column's width is a layout number, the same in every state, and an
+ * open accordion does not change it. Stacked clear of the stage on a narrow
+ * screen the column is not over the canvas at all, so the reserve is nothing
+ * there — ASKED AS A BOX INTERSECTION rather than a second copy of the
+ * breakpoint, and both axes have to overlap: stacked, the two boxes still share
+ * every column of x. Fit pays a side reserve SYMMETRICALLY, so this keeps the
+ * subject on the page's centre line instead of sliding it left. */
+const GUTTER=28;                    // air between the scene and the column
+function sideReservePx(){
+  const el=document.getElementById('side'); if(!el) return 0;
+  const r=el.getBoundingClientRect(), c=canvas.getBoundingClientRect();
+  if(!r.width||!c.height) return 0;
+  const over = r.left<c.right && r.right>c.left && r.top<c.bottom && r.bottom>c.top;
+  return over ? r.width+GUTTER : 0;
+}
 // NO LEFT RESERVE: there is no tray (see the stylesheet's header).
-const RESERVES=()=>({ top:plateHeightPx(), bottom:barReservePx()+capReservePx(), left:0 });
+const RESERVES=()=>({ top:plateHeightPx(), bottom:barReservePx()+capReservePx(),
+                      left:0, right:sideReservePx() });
 const FIT=Fit.create({canvas, camera, cam, reserve:()=>RESERVES()});
 const orthoFrustum=()=>FIT.frustum();
 let fitR=34, fitY=0;
