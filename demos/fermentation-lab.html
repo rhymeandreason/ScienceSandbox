@@ -834,7 +834,10 @@ const tallyOn=()=>!intro && !reviewing && done()>=nSteps();
 function drawTally(){
   const on=tallyOn();
   tallyEl.hidden=!on;
-  document.getElementById('toggles').hidden=on;
+  /* Nothing to switch on either end screen: on the tally the molecules are
+   * gone and the ledger stands in the grid whatever the checkbox says, and at
+   * the intro there is no step to have an enzyme and no arithmetic yet. */
+  document.getElementById('toggles').hidden=on||intro;
   const home=on?document.getElementById('tledger'):sideEl;
   if(ledgerEl.parentNode!==home){
     if(on) home.appendChild(ledgerEl); else sideEl.insertBefore(ledgerEl, sideEl.firstChild);

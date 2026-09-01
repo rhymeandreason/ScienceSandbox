@@ -1453,10 +1453,12 @@ const tallyOn=()=>!intro && !reviewing && done>=nSteps;
 function drawTally(){
   const on=tallyOn();
   tallyEl.hidden=!on;
-  /* THE SWITCHES GO DOWN WITH THE STAGE. Neither can change this screen: the
-   * molecules are gone, so the enzyme blobs have nothing to sit behind, and the
-   * ledger is standing in the grid whatever the checkbox says. */
-  document.getElementById('toggles').hidden=on;
+  /* THE SWITCHES GO DOWN WITH THE STAGE, and are not up yet at the intro:
+   * neither can change either screen. On the tally the molecules are gone, so
+   * the enzyme blobs have nothing to sit behind and the ledger is standing in
+   * the grid whatever the checkbox says; at the intro there is no step to have
+   * an enzyme and no arithmetic to show. */
+  document.getElementById('toggles').hidden=on||intro;
   // THE STICKER MOVES, never a second copy — drawLedger keeps writing into the
   // same element wherever it is standing. Only on a change of parent, so an
   // ordinary redraw does not re-run its pin-up animation.

@@ -1596,12 +1596,14 @@ function drawTallyNotes(){
  * box goes down with the stage: the molecules are gone, so the enzyme blobs
  * have nothing to sit behind; the ring is down; and the three notes are the
  * arithmetic, so a fourth card of it is noise. A control that cannot change
- * what you are looking at should not be asking to be read. */
+ * what you are looking at should not be asking to be read. The intro is the
+ * same case from the other end: no step, so no enzyme, no arithmetic, and the
+ * ring stays down whatever the checkbox says (see drawRing). */
 const TALLY_HIDES=['toggles'];
 function drawTally(){
   const on=tallyOn();
   tallyEl.hidden=!on;
-  TALLY_HIDES.forEach(id=>{ document.getElementById(id).hidden=on; });
+  TALLY_HIDES.forEach(id=>{ document.getElementById(id).hidden=on||intro; });
   if(on) drawTallyNotes();
   lanes.forEach(l=>{ l.g.visible=!on; });
   platesEl.style.visibility = on ? 'hidden' : '';
