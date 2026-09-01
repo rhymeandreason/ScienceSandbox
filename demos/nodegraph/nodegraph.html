@@ -5821,6 +5821,16 @@ const syncModes = () => {
    turns any of them into a seed. Nothing open falls back to the default. */
 function currentSeed() {
   if (queryHost && queryHost.query) return queryHost.query;
+  /* AN OPEN GRAFT OUTRANKS THE CARD UNDER IT. Seeding on the card would deal
+     the map's own neighbourhood and leave the generated cards behind; the
+     door for the newest question in the stack is what deals them, and its
+     chain brings the rest. */
+  if (graft) {
+    const qs = graft.nodes.filter(n => n.type === 'question');
+    const top = qs[qs.length - 1];
+    const door = top && ASKABLE.find(x => x.mine && x.text === top.text);
+    if (door) return door;
+  }
   let n = focused;
   while (n && n.satellite && n.host) n = n.host;
   if (n && n.type === 'made') n = byId[n.root] || null;
