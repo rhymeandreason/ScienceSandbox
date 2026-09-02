@@ -74,7 +74,7 @@ const fs = require('fs');
 const path = require('path');
 const SES = require('../../tools/ses.js');
 const { extract } = require('./chain.js');
-const { kabsch } = require('../../sickle/tools/bake-sickle.js');
+const { kabsch } = require('../../proteins/bake-lib.js');
 const { bakeQuaternary, IDENTITY, rotation, apply } = require('./bake-quaternary.js');
 const { readAtoms, tagResidues, encode } = require('./bake-surface.js');
 

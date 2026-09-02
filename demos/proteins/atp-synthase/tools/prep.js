@@ -84,7 +84,7 @@ const path = require('path');
 const Bake = require('../../bake-lib.js');
 const Cif = require('../../cif-lib.js');
 const FoldLib = require('../../../folding/folding.js');
-const { kabsch, mul } = require('../../../sickle/tools/bake-sickle.js');
+const { kabsch, mul } = Bake;
 
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');

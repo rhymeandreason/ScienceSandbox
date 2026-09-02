@@ -85,7 +85,7 @@ const KIND = { A: 'alpha', B: 'beta', C: 'alpha', D: 'beta' };
 const POCKET = [85, 88];
 
 const r2 = v => Math.round(v * 100) / 100;
-const mean = vs => [0, 1, 2].map(k => vs.reduce((s, v) => s + v[k], 0) / vs.length);
+const { mean } = require('../../proteins/bake-lib.js');
 
 /* Backbone atoms are backbone. A hydrophobicity colour is a claim about
    the SIDE CHAIN, so the sphere it paints sits at the side chain's own
@@ -151,99 +151,12 @@ function pocketOf(raw, id) {
   return out;
 }
 
-/* ------------------------------------------------------------------ Kabsch
- *
- *  Least-squares rigid superposition of P onto Q, matched pointwise. The
- *  rotation is the orthogonal factor of the covariance H = P^T Q, taken
- *  here as R = H (H^T H)^-1/2 through a Jacobi eigendecomposition of the
- *  3x3 symmetric H^T H — no SVD library, and no dependency this repo does
- *  not already have.
- *
- *  THE REFLECTION TRAP. That formula is happy to return a rotation with
- *  determinant -1, which superposes the points perfectly and MIRRORS the
- *  molecule doing it. On a protein that is invisible in a screenshot and
- *  fatal to the science — the same trap MolecularGeometry.md §1.3 sets up
- *  the handedness checker for. So the smallest-eigenvalue axis is flipped
- *  when the determinant comes out negative, and check-sickle.js asserts
- *  det = +1 on the shipped transform rather than trusting this comment.
- */
-function jacobi(Ain) {
-  const A = Ain.map(r => r.slice());
-  let V = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-  for (let sweep = 0; sweep < 64; sweep++) {
-    let off = 0;
-    for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) off += A[i][j] * A[i][j];
-    if (off < 1e-20) break;
-    for (let p = 0; p < 3; p++) for (let q = p + 1; q < 3; q++) {
-      if (Math.abs(A[p][q]) < 1e-18) continue;
-      const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]);
-      const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
-      const c = 1 / Math.sqrt(t * t + 1), s = t * c;
-      for (let k = 0; k < 3; k++) {
-        const akp = A[k][p], akq = A[k][q];
-        A[k][p] = c * akp - s * akq; A[k][q] = s * akp + c * akq;
-      }
-      for (let k = 0; k < 3; k++) {
-        const apk = A[p][k], aqk = A[q][k];
-        A[p][k] = c * apk - s * aqk; A[q][k] = s * apk + c * aqk;
-        const vkp = V[k][p], vkq = V[k][q];
-        V[k][p] = c * vkp - s * vkq; V[k][q] = s * vkp + c * vkq;
-      }
-    }
-  }
-  return [0, 1, 2].map(i => ({ val: A[i][i], vec: [V[0][i], V[1][i], V[2][i]] }))
-                 .sort((a, b) => b.val - a.val);
-}
+/* KABSCH, JACOBI AND THE REFLECTION TRAP ARE proteins/bake-lib.js's. They
+   were written here and moved when the sixth baker under proteins/ reached
+   across the repo for them; re-exported below so this folder's other scripts
+   and check-sickle.js still take them from where they always did. */
+const { kabsch, mul, det } = require('../../proteins/bake-lib.js');
 
-const mul = (R, p) => R.map(row => row[0] * p[0] + row[1] * p[1] + row[2] * p[2]);
-const det = R => R[0][0] * (R[1][1] * R[2][2] - R[1][2] * R[2][1])
-               - R[0][1] * (R[1][0] * R[2][2] - R[1][2] * R[2][0])
-               + R[0][2] * (R[1][0] * R[2][1] - R[1][1] * R[2][0]);
-
-function kabsch(P, Q) {
-  if (P.length !== Q.length) throw new Error('kabsch: unmatched point counts');
-  const cp = mean(P), cq = mean(Q);
-  const p = P.map(v => v.map((x, k) => x - cp[k]));
-  const q = Q.map(v => v.map((x, k) => x - cq[k]));
-
-  const H = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-  for (let n = 0; n < p.length; n++)
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) H[i][j] += p[n][i] * q[n][j];
-
-  const HtH = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
-    for (let k = 0; k < 3; k++) HtH[i][j] += H[k][i] * H[k][j];
-
-  const e = jacobi(HtH);
-  // (H^T H)^-1/2 in the eigenbasis, guarding the degenerate direction.
-  const Minv = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-  for (const { val, vec } of e) {
-    const inv = 1 / Math.sqrt(Math.max(val, 1e-12));
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
-      Minv[i][j] += inv * vec[i] * vec[j];
-  }
-  let R = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];         // R = (H Minv)^T, row-major on p
-  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
-    for (let k = 0; k < 3; k++) R[j][i] += H[i][k] * Minv[k][j];
-
-  if (det(R) < 0) {                                   // see THE REFLECTION TRAP
-    const bad = e[2].vec;
-    const F = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
-      F[i][j] = (i === j ? 1 : 0) - 2 * bad[i] * bad[j];
-    const R2 = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++)
-      for (let k = 0; k < 3; k++) R2[i][j] += R[i][k] * F[k][j];
-    R = R2;
-  }
-
-  let sd = 0;
-  for (let n = 0; n < p.length; n++) {
-    const r = mul(R, p[n]);
-    for (let k = 0; k < 3; k++) sd += (r[k] - q[n][k]) ** 2;
-  }
-  return { R, t: cq.map((v, k) => v - mul(R, cp)[k]), rmsd: Math.sqrt(sd / p.length) };
-}
 
 /* Matched Ca between our tetramer and one of 2HBS's, by chain role and
    residue number. Anything present in only one file is dropped rather than

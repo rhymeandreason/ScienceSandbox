@@ -78,7 +78,7 @@
 const fs = require('fs');
 const path = require('path');
 const Bake = require('../../bake-lib.js');
-const { kabsch, mul } = require('../../../sickle/tools/bake-sickle.js');
+const { kabsch, mul } = Bake;
 
 const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
@@ -320,15 +320,19 @@ function bake(v, ref) {
     bonds: site.bonds,
   };
 
-  /* Lysozyme is a small globular kidney bean and its three extents are close
-     enough that a solved basis would flip between rebakes — frameOf writes
-     none for one, and the bench opens deposited until a human turns it and
-     pastes a basis into the registry. Left as a call because the answer is
-     the shape's to give, and the extents it measures are printed either way. */
+  /* ONE FRAME, ONE BASIS. A fitted view must WEAR the reference's basis and
+     never solve its own. Lysozyme is a kidney bean whose three extents are
+     within a factor of two, so the solved axes are near-degenerate and their
+     signs are decided by noise: 1LYY came out with two of its three flipped
+     against the other four, which turns the molecule 180 degrees on the one
+     view whose entire subject is a loop that moved. A reader flipping to it
+     would have seen the protein spin and been unable to say what of that was
+     the mutation. The extents are still each view's own — they are a
+     measurement of that structure and the panel prints them. */
   const F = Bake.frameOf(out.chains[chain].CA);
-  if (F.view) out.view = F.view;
+  out.view = ref ? ref.view : F.view;
   out.extents = F.extents;
-  out.frame = F.frame;
+  out.frame = ref ? `${F.frame}, on ${REF}` : F.frame;
 
   const decl = Bake.declared(text);
   out.meta = {
@@ -379,7 +383,8 @@ function main() {
   const refOut = bake(refCand, null);
   const ref = { seq: caSeq(fs.readFileSync(path.join(SRC, REF + '.pdb'), 'utf8'),
                            refCand.chains),
-                ca: refOut.chains[refCand.chains].CA, centre: [0, 0, 0] };
+                ca: refOut.chains[refCand.chains].CA, centre: [0, 0, 0],
+                view: refOut.view };
 
   for (const v of CANDIDATES) {
     const out = v.id === REF ? refOut : bake(v, ref);
