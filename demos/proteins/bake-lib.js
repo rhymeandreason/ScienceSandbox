@@ -7,6 +7,10 @@
  *  byte-identical, which is where a rule starts to drift. The rules here are
  *  the ones a drifted copy breaks invisibly:
  *
+ *  · A NUCLEIC CHAIN IS DROPPED BY caTrace AND IT SAYS SO. DNA and RNA have
+ *    no CA, so a chain of either is skipped atom by atom and never appears in
+ *    the result — 1AOI bakes as eight histones and no DNA, and the render
+ *    looks fine. `caTrace` now reports what it dropped, unconditionally.
  *  · ONE COPY PER RESIDUE. An altLoc other than blank or 'A' is a second
  *    position for an atom already counted. Two copies of a residue put two
  *    points in the trace and the ribbon splines through both.
@@ -109,7 +113,37 @@ function caTrace(text, only, mod) {
     chains.get(id).push({ num: parseInt(line.slice(22, 26), 10),
                           x: p[0], y: p[1], z: p[2] });
   }
+  warnDropped(text, only, chains);
   return chains;
+}
+
+/* THE NUCLEIC CHAINS THIS JUST THREW AWAY, said out loud.
+ *
+ *  A DNA or RNA chain has no CA, so the loop above skips every one of its
+ *  atoms and the chain simply is not in the returned Map. Nothing throws and
+ *  nothing prints: 1AOI comes back as eight histones, the ribbon draws them
+ *  beautifully, and half the nucleosome is gone. That is the single most
+ *  expensive silent failure in this file, and `chainKinds` made it POSSIBLE to
+ *  see without making anyone look — seventeen callers would each have had to
+ *  remember to ask.
+ *
+ *  So it is not optional and there is no flag to turn it off. A baker that
+ *  genuinely wants protein only reads the line, shrugs, and moves on; a baker
+ *  that did not know finds out at the moment it happens rather than from a
+ *  render that looks fine. stderr, so a baker's own stdout stays parseable.
+ *
+ *  It says nothing when a nucleic chain was excluded ON PURPOSE by `only` —
+ *  that is a decision someone already made, and warning about it would teach
+ *  people to ignore the warning.
+ */
+function warnDropped(text, only, chains) {
+  const dropped = [];
+  for (const [id, kind] of chainKinds(text))
+    if (kind === 'na' && !chains.has(id) && (!only || only.has(id))) dropped.push(id);
+  if (!dropped.length) return;
+  console.error('  caTrace: ' + dropped.length + ' nucleic chain(s) dropped ('
+    + dropped.join(', ') + ') — DNA and RNA have no CA atom. Read them with '
+    + 'naTrace(); chainKinds() says what every chain in the file is.');
 }
 
 /* The depositors' own assignment, as {chain, from, to} ranges. */

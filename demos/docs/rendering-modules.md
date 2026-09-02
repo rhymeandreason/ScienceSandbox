@@ -1,4 +1,4 @@
-<!-- KIND: recipe + reference — load when drawing a PROTEIN from deposited coordinates: which of tube / ribbon / surface a page wants, what each one costs. Not needed for a lesson that only draws molecules from specs. -->
+<!-- KIND: recipe + reference — load when drawing a PROTEIN, DNA or RNA from deposited coordinates: which of tube / ribbon / nucleic / surface a page wants, what each one costs. Not needed for a lesson that only draws molecules from specs. -->
 
 # Rendering modules
 
@@ -62,6 +62,26 @@ Cα trace + secondary structure → a cartoon: helices as flat twisted bands, st
 
 * The orientation frame uses the neighbour **bisector**, not a cross product — a binormal rotates the band a quarter turn and it reads as a corkscrew while every other number stays right. The file's header explains the failure at length; `kit/check-ribbon.js` asserts it on an ideal helix, along with the rotating frame, the flat strand and the arrowhead. Every claim in that checker is a bug that shipped looking merely ugly, which is why it is gated on the module rather than on any page.
 
+**`kit/nucleic.js` — `NucleicLib`**
+
+DNA or RNA → a ladder: a flat backbone ribbon per strand, and one rung per base pair spanning **both** backbones. Same contract as `RibbonLib` — real ångströms in, plain `BufferGeometry` out, THREE passed in, no materials. `NucleicLib.build(THREE, trace, opts)` → `{ strands: [{id, geo}], rungs: {G: geo, C: geo, …}, stubs: {…} }`.
+
+* **The joined rung is the reason it exists.** 3Dmol and Mol\* both hang a separate stub off each strand, pointing inward and stopping in mid-air — correct, and it says "bases face inward" while saying nothing about which base is with which. For a reader meeting base pairing for the first time the pair IS the lesson. `viewer-compare.html` at the repo root is where both were looked at, on 1BNA and 1EHZ.
+
+* **An unpaired base is a STUB — half a rung, going nowhere** — and that is what makes the rung mean anything. A hairpin loop, a melted end, a bulge and every one of tRNA's tertiary contacts come out visibly not-a-ladder. The picture under-claims and never invents a pair.
+
+* **A rung's end is a CHORD OF THE RIBBON**: its centre is a point on the backbone's own spline and its width axis is that spline's tangent. This is the third construction the module has had and the other two are worth knowing, because both look reasonable: extending along the pair axis walks the end sideways PAST the ribbon (that axis does not point at the phosphate — every end lands 2 to 3.6 Å short on 1BNA), and bending through C1' to P arrives but reads as kinked wire. A rung anchored anywhere but on the drawn curve has to chase it, and the chase is what shows.
+
+* **Every rung is split at its own hydrogen bonds and each half is coloured by its base**, the split-stick convention `kit/proteinbox.js` uses inside a pocket. Half a rung already IS one base, so the sequence becomes readable off the structure with no labels. It is also how a **G·U wobble** is drawn honestly: the rung says *paired*, the colours say *G with U*, and the split lands off-centre because the bases are ~2 Å out of register — the shift drawn rather than captioned. Colour therefore cannot also carry paired-versus-unpaired; the gap down the middle does.
+
+* **The backbone's flat face points outward**, and this is the easy one to get backwards. The radial (C1'→P, with the local tangent rejected out) is the face's NORMAL, so it is the ribbon's THIN axis. Put the width along it and the backbone becomes a fin standing edge-on from the helix — still twisting, still following the phosphates, showing its narrow side all the way round. That shipped.
+
+* Colour is `lib/palette.js`'s `bases` and `strands`, published as `--base-*` / `--strand-*`. Nothing in the module types one.
+
+* `kit/check-nucleic.js` asserts all of the above on an ideal B-DNA it builds itself, plus an oblique case for the anchor and an off-centre split for the wobble. Every claim in it is a bug that shipped looking merely ugly, which is why it is gated on the module. **Two of its assertions carry non-degeneracy guards** — on ideal B-DNA the pair axis IS the radial, so an anchor test without one passes while proving nothing, and this checker did exactly that for two rounds.
+
+* **`kit/proteinbox.js` has no nucleic branch yet.** A page drawing DNA — or a mixed file — builds its own `CardStage`. `proteins/zif268/zif268-test.html` is the worked example and the argument for giving the box one.
+
 **`kit/surface.js` — `SurfLib`**
 
 The browser half of the SES1 format written by `bake-surface.js`.
@@ -93,6 +113,20 @@ A deposited PDB down to what a ribbon needs: `node tools/bake-trace.js <file.pdb
 * Secondary structure is READ from HELIX/SHEET, never detected. No records bakes as all coil and says `ssFrom:'none'`, so the card is visibly a worm rather than silently wrong.
 * The helix COUNT is from the records, because adjacent helices merge into one run of `H`: 2HHB's eight per chain read as six. A caption saying "eight" has to say it from `helices`.
 * 2HHB: 4 chains, 574 residues, 12 KB — against 453 KB of PDB, most of it atoms a ribbon discards.
+
+**`proteins/bake-lib.js`'s nucleic half** (baker, not a module)
+
+The reading side of the above. `naTrace(text, only, mod)` for the chains — P for the backbone, C1' for where the base hangs off, the base's ring centroid and plane normal so a slab can be drawn IN its plane; `assembleNA` for the trace shape, `centrePairs` to move the split points into it.
+
+* **`chainKinds(text)` says what every chain in a file IS**, and it is the first thing a baker should call on an unfamiliar entry. A nucleic chain has no CA, so `caTrace` skips it atom by atom — 1AOI comes back as eight histones and a perfectly good render. **`caTrace` now reports what it dropped**, unconditionally and on stderr, so this cannot happen quietly any more; it stays silent when `only` excluded the chain on purpose.
+
+* **`basePairs` is SOLVED, not read** — the format has no record for a base pair — so a bake says `pairsFrom` the way a trace says `ssFrom`. Watson-Crick is purine N1···pyrimidine N3; a **wobble** is N1···O2 *and* O6···N3, which adenine fails on its own because it has an amine at position 6 and no O6. Nothing names which bases may wobble. Hoogsteen, reverse-Hoogsteen and tRNA's tertiary contacts are all refused, which is why 1EHZ's L is drawn with its two arms joined by nothing.
+
+* **A modified base is a HETATM**, so `naTrace` takes the same opt-in `mod` set `caTrace` does, off the file's own MODRES records. 1EHZ is 14 of 76 — an ATOM-only read returns 62, in fourteen separate one-residue holes the ribbon splines across. Which ones are modified rides in the bake as `mods`, because `seq` cannot say it: 5MC and C are both `C`.
+
+* **A MIXED file's two polymers must share ONE centre.** `assemble` and `assembleNA` each solve their own when not given one, so a protein centred on its atoms and a duplex centred on its atoms overlap at the origin — each individually correct, the picture nonsense. `proteins/zif268/tools/prep.js` solves it over both.
+
+* Every bake carrying nucleic chains is indexed in **`proteins/nucleic-acids.js`**, not `proteins.js`, and `check-nucleic-acids.js` re-derives every number in it. The line between the two indexes is the bake, not the biology — Zif268 is a protein and is in the nucleic one.
 
 **`tools/bake-card-surface.js`** (baker, not a module)
 
