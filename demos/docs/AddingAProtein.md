@@ -29,18 +29,19 @@ One test page, every relevant structure as a ribbon, buttons to switch. Not a le
 **`triage.js` answers these; what they COST is below the examples.** Most candidates answer no to all of them, and no to all of them means copy rnase, bake chain A, ship — 1LZ1 is the case, and 1CA2 is one pocket away from it. 2POR is not: triage puts its asymmetric unit at a third of the biological trimer, which is the first row below rather than the third.
 
 * **Is the entry mmCIF-only?** Then stop and say so — see the one below that ends the recipe.
-* **Is there a nucleic-acid chain?** Not a blocker: `naTrace` / `basePairs` / `assembleNA` in `bake-lib.js` and `kit/nucleic.js` are the path, and `proteins/dna`, `proteins/trna` and `proteins/zif268` are the worked examples — duplex, folded single strand, and a mixed protein+DNA file. A mixed file's own trap is one centre solved over BOTH polymers; `zif268` is where that is written down.
+* **Is there a nucleic-acid chain?** Not a blocker: `naTrace` / `basePairs` / `assembleNA` in `bake-lib.js` and `kit/nucleic.js` are the path, and `proteins/dna`, `proteins/trna`, `proteins/zif268` and `proteins/nucleosome` are the worked examples — duplex, folded single strand, a small mixed protein+DNA file, and the same mixed problem at twenty times the size. A mixed file's own trap is one centre solved over BOTH polymers; `zif268` is where that is written down, and the nucleosome is proof it scales rather than a second mechanism. **Pairing tolerance comes off the file's own `REMARK 2`** — `hbFor(res)` — because an N1···N3 hydrogen bond does not vary but how well a 2.8 Å model knows where the atoms are does, and one tight cutoff drew blunt data as damaged DNA.
 * **Does the entry deposit its biological assembly as MODELS?** *The biological assembly is not what the file's first model holds.*
 * **Is there a chain in the file you are not drawing?** *A partner chain is in the file.*
 * **Is there a HETATM sitting in the site — a metal, a cofactor, a ligand?** *Something is bound in the site*, and *the pair is apo against holo* if you also hold the empty one.
 * **Does it declare MODRES, or carry no HELIX / SHEET records?** *A residue is modified*, and *the file carries no HELIX or SHEET records*.
 * **Is the entry a fragment or a construct, or does the literature number it differently from the file?** *An entry is a fragment or a construct*, and *the field quotes different numbers than the file*.
 
-5 examples. Copy rnase as the default. Copy prion if you have a disease or mutation variant. If you have a reason to use an advanced example, tell the human first.
+6 examples. Copy rnase as the default. Copy prion if you have a disease or mutation variant. If you have a reason to use an advanced example, tell the human first.
 
 * **`proteins/rnase/rnase-test.html` — one protein, several entries, chain A, ss read off the file. This is the primary example, and its baker is 171 lines.**
 * **`proteins/hexokinase/hexokinase-test.html` — enzyme with two states for motion.** Copy it when the views are states of one thing and have to be superposed. Its baker is 240 lines and most of them are the Kabsch fit and a trajectory read-back, so it is the wrong thing to copy for a single static structure.
 * **`proteins/prion/prion-test.html` — normal and misfolded disease variant, and extra assembly view for the disease.**
+* **`proteins/nucleosome/nucleosome-test.html` — two polymers, two vocabularies, one frame.** Eight histones and 146 bp, the frame solved by PCA because a disc's shortest axis IS the superhelical one. Copy it for a mixed file bigger than zif268; which chain is which histone is read off `COMPND`, never typed.
 * **`proteins/collagen/collagen-test.html` —**  **(Advanced)** More files were included on this page to show closeups, a mutation example,  and the whole structure. There are two stories here: scurvy and brittle bone disease.
 * **`proteins/atp-synthase/atp-synthase-test.html` —**  **(Advanced)** This assembly has many chains, and a custom rotation animation. Ask the human before doing animation. Tell her what should happen.
 
@@ -114,15 +115,29 @@ Each started as a bug that rendered beautifully, and collagen hit eight of them 
 * **The field quotes different numbers than the file.** Collagen positions are quoted from the start of the triple-helical domain; 3HR2 numbers from its telopeptide and runs 16 ahead of every number in a paper. Find the offset (look for where Gly-X-Y actually starts), print both numbers, and check the result against something known — `GFOGER` comes out at 502, which is where the literature puts it. Serine proteases and β-lactamases have the same habit, under their own conventions.
 * **The structure is very large or very long.** Nothing is needed from the page; `Proteinbox.fit` lifts `Stage.frame`'s solve limit and the camera's far plane off the radius it measured, and frames per AXIS. It is recorded because it was silent: one collagen molecule is 3016 Å, and clamped it opened showing a tenth of itself, unclamped it stood correctly behind the far plane and drew nothing.
 
+### What the bench is allowed to SAY
+
+The numbers on these pages are safe: every one is read from the bake at render time, and `check-proteins.js` / `check-nucleic-acids.js` re-derive the index's. **The sentences are not**, and that is where the mistakes have actually shipped.
+
+* **A claim that names a residue, a pair or a count has to be derivable, or do not make it.** Print it from the bake, or assert it in the baker, or leave it out. 1EHZ's bench and baker both said the Watson-Crick test refuses `G19-C56` — it finds it, and has all along; it is an ordinary cis pair that happens to be a tertiary contact. The same comment shipped in three files because it was written once from memory and copied. A number typed into prose is a claim nothing checks, exactly as `CLAUDE.md` says of a number typed into user-facing text; a residue id is a number.
+
+* **Beware the claim that is true of the PROTEIN and false of the FILE.** The nucleosome baker's header said H3 was modelled from 38 of 135 — true of the histone, and the entry's own SEQRES declares 116, so the coverage this repo prints is 96% of what was *expressed*. Both numbers are honest and they answer different questions. Say which one you are answering.
+
+* **Bake, then look, then write.** Two of the nucleosome's sentences were nearly invented: that the tails are "about a third" of H3, and that the unpaired positions open where the DNA kinks. The first was wrong. The second sounded right, and measuring showed the failures are scattered with no periodicity — so the honest sentence is that at 2.8 Å this data cannot separate coordinate error from real distortion, which is a better sentence than the one that would have been made up. **If a mechanism suggests itself while you are writing the copy, that is the moment to go and measure it**, not the moment to write it down.
+
+* **An under-claim is a finding, not a gap to paper over.** `basePairs` refuses Hoogsteen, reverse-Hoogsteen and trans-Watson-Crick, so 1EHZ's L is drawn with its two arms joined by nothing. That is an honest report of what was solved from the file and a dishonest picture of the molecule, and the page has to say so out loud. The fix is never to loosen a test until the picture looks right.
+
 ## 4. Human reviews the bench
 
 **Hand the bench over and stop.**
 
-## 5. Add selections to proteins.js
+## 5. Add selections to the registry
 
-**Now the protein goes into `proteins/proteins.js`**, selected set only — which is also what puts it on the gallery at `proteins/index.html`, since that page is nothing but the registry drawn. Move the `CANDIDATES` table out of the baker and into the registry's `variants`, and switch the baker to reading it — a few lines, and the diff is the record of what review decided. From here the registry is the single source for what a structure IS: which entries, which chains, which species, what each variant is for, and which one is the default. **Not what a bench SAYS about it** — that is page copy, written to be read under one particular stage, and it lives on the page in its `SAYS` table.
+**WHICH REGISTRY IS DECIDED BY THE BAKE, NOT THE BIOLOGY.** A bake carrying nucleic chains is indexed in `proteins/nucleic-acids.js` and checked by `proteins/check-nucleic-acids.js`; everything else goes in `proteins/proteins.js` under `check-proteins.js`. Zif268 is a protein and lives in the nucleic index, because 1ZAA's bake is the mixed shape and the protein checker cannot read one. `nucleic-acids.js`'s own header is the argument for two files; read it before adding to either.
 
-Then `node proteins/<name>/tools/prep.js` again to write the `read` block back, and `proteins/check-proteins.js`.
+**Now the protein goes into the registry**, selected set only — which is also what puts it on the gallery at `proteins/index.html`, since that page is nothing but the registry drawn. Move the `CANDIDATES` table out of the baker and into the registry's `variants`, and switch the baker to reading it — a few lines, and the diff is the record of what review decided. From here the registry is the single source for what a structure IS: which entries, which chains, which species, what each variant is for, and which one is the default. **Not what a bench SAYS about it** — that is page copy, written to be read under one particular stage, and it lives on the page in its `SAYS` table.
+
+Then `node proteins/<name>/tools/prep.js` again to write the `read` block back, and the checker for whichever index it went into.
 
 **What every field means and who owns it is `proteins/proteins.js`'s own header — read it before editing the file.** The said/read split and why a human never types a number into it, the method vocabulary, the derived URLs, `does`, `pipeline`; `Modules.md`'s row is the field list. None of it is repeated here. What is not in either:
 
