@@ -7,6 +7,13 @@
  *  (MolecularGeometry.md 1.5) and the cards beside it are the small-molecule
  *  family.
  *
+ *  IT DRAWS DNA AND RNA TOO, through kit/nucleic.js, on any chain the bake
+ *  marks `kind:'na'` — a backbone ribbon per strand and one rung per base
+ *  pair. A protein and a duplex in one bake share one box, one scale and one
+ *  centre; `proteins/zif268/` is the worked example. Load kit/nucleic.js
+ *  alongside kit/ribbon.js when a page has any, and the box says so if it is
+ *  missing rather than drawing half a structure.
+ *
  *  Three things it can show, and only the first is free:
  *
  *    ribbon   12 KB trace, tools/bake-trace.js       drawn on create
@@ -137,6 +144,11 @@
      three colours, and a copy is how a caption and the band it names drift.
      Every page that loads this file loads palette.js before it. */
   const RIB = MolPalette.ss;
+
+  /* Stands for "every nucleic chain, together" in the per-frame build queue.
+     A string nobody can collide with, because the queue otherwise holds chain
+     ids straight out of a PDB. */
+  const NA_STEP = '\u0000na';
   const SES_COLOUR = 0xdfe4ee;
 
   /* ---- BALL-AND-STICK, FOR THE FEW ATOMS THAT EARN IT ----
@@ -503,13 +515,30 @@
       }
 
       const drawn = [];
+
+      /* THE NUCLEIC CHAINS GO IN ONE STEP, NOT ONE PER FRAME, and the reason
+         is that a rung is CROSS-CHAIN: a base pair joins two backbones, so
+         there is no such thing as drawing one strand of a duplex on its own.
+         `NucleicLib.build` takes the whole trace for that reason, so the queue
+         carries a single sentinel standing for all of them. A duplex is ~2k
+         triangles and the nucleosome's 292 nucleotides about 25k — one
+         frame's work either way, which is what makes the sentinel affordable.
+
+         Anything without `kind:'na'` is a protein: every bake written before
+         2026-08-31 has no `kind` at all, and a Ca trace is the only thing
+         `assemble` has ever produced. */
+      const naIds = ids.filter(id => t.chains[id] && t.chains[id].kind === 'na');
+      const queue = ids.filter(id => !(t.chains[id] && t.chains[id].kind === 'na'));
+      if (naIds.length) queue.push(NA_STEP);
+
       /* One chain per frame. A tetramer is ~80k triangles and building all
          four in the frame the trace lands is a visible stall on a page that
          is usually animating something when it arrives. */
       const build = () => {
-        const cid = ids.shift();
+        const cid = queue.shift();
         if (cid === undefined || box.dead || mine !== generation) return;
-        const ch = t.chains[cid];
+        if (cid === NA_STEP) drawNucleic(t, naIds, drawn);
+        const ch = cid === NA_STEP ? null : t.chains[cid];
         if (ch) {
           for (const seg of runs(ch)) {
             if (seg.CA.length < 4) continue;   // RibbonLib needs a spline's worth
@@ -557,13 +586,90 @@
            thumbnail capture, a background tab a reader left open — lands
            there. setTimeout is throttled in that state but it does run, so
            the build finishes either way. */
-        if (ids.length) {
+        if (cid === NA_STEP && drawn.length) {
+          /* The nucleic step re-solves the framing the same way a chain does;
+             it is outside the `if (ch)` above because there is no single chain
+             to hang it off. */
+          stillMid = drawn.reduce((acc, p) => acc.add(p), new THREE.Vector3())
+                          .multiplyScalar(1 / drawn.length);
+          stillR = stillHX = stillHY = 0;
+          for (const p of drawn) {
+            stillR = Math.max(stillR, p.distanceTo(stillMid));
+            stillHX = Math.max(stillHX, Math.abs(p.x - stillMid.x));
+            stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
+          }
+          if (rep === 'ribbon') reframeStill();
+          box.draw();
+        }
+        if (queue.length) {
           if (typeof document !== 'undefined' && document.hidden) setTimeout(build, 0);
           else requestAnimationFrame(build);
         }
       };
       build();
     }
+
+    /* ---- THE NUCLEIC BRANCH ----------------------------------------------
+     *
+     *  DNA and RNA, drawn as kit/nucleic.js's ladder — a backbone ribbon per
+     *  strand and one rung per base pair, split at its own hydrogen bonds with
+     *  each half in its base's colour. Why a joined rung rather than the two
+     *  facing stubs every published viewer draws: that module's header, and
+     *  docs/rendering-modules.md.
+     *
+     *  IT IS THE SAME BOX AND THE SAME SCALE. Both polymers are real angstroms
+     *  out of one deposition, which is what lets a protein and a duplex share
+     *  a stage at all (MolecularGeometry.md 1.5) — and a mixed bake centres
+     *  them on ONE vector solved over both, so nothing here has to reconcile
+     *  two frames. `proteins/zif268/` is the worked example.
+     *
+     *  COLOUR IS THE PALETTE'S AND NOT AN ARGUMENT. `colors` is the ss palette
+     *  for a ribbon and means nothing to a base; a page that wants to say
+     *  something with the colour of a nucleotide is saying something this box
+     *  has no opinion about, and can draw it itself. `byChain` IS honoured for
+     *  the backbones, because "which strand" is the one thing a caller might
+     *  legitimately need to override — collagen's reason, one polymer over.
+     */
+    function drawNucleic(t, ids, drawn) {
+      if (typeof NucleicLib === 'undefined') {
+        console.warn('Proteinbox: this trace has nucleic chains and '
+          + 'kit/nucleic.js is not loaded — load it after kit/ribbon.js');
+        return;
+      }
+      const parts = NucleicLib.build(THREE, t,
+        { chains: ids, sub: opts.sub == null ? 6 : opts.sub });
+
+      const q = chainGroup.quaternion;
+      const keep = geo => {
+        /* Same rule the ribbon follows: `drawn` carries the ROTATED points, so
+           the centre and radius are solved in the frame the reader sees. */
+        const a = geo.attributes.position.array;
+        for (let i = 0; i < a.length; i += 3)
+          drawn.push(new THREE.Vector3(a[i], a[i + 1], a[i + 2]).applyQuaternion(q));
+      };
+
+      parts.strands.forEach((sd, i) => {
+        const over = paint.byChain && paint.byChain[sd.id];
+        const mesh = new THREE.Mesh(sd.geo, over ? over[0]
+          : naMat('strand:' + i, MolPalette.strands[i % 2 ? 'b' : 'a']));
+        mesh.userData.chain = sd.id;
+        chainGroup.add(mesh);
+        keep(sd.geo);
+      });
+      for (const bag of [parts.rungs, parts.stubs])
+        for (const b of Object.keys(bag)) {
+          chainGroup.add(new THREE.Mesh(bag[b], naMat('base:' + b,
+            MolPalette.bases[b] === undefined ? MolPalette.bases.X
+                                              : MolPalette.bases[b])));
+          keep(bag[b]);
+        }
+    }
+
+    /* Cached per box, like `paint` — a rebuild reuses them, and a box that
+       dies takes them with it. */
+    const naMats = {};
+    const naMat = (key, color) => (naMats[key] = naMats[key]
+      || Object.assign(Stage.bondMat(color), { side: THREE.DoubleSide }));
 
     /* A chain is drawn as one ribbon per CONSECUTIVE RUN of residues. Without
        `nums` a trace cannot say where it breaks, so it is treated as

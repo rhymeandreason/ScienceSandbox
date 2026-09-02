@@ -194,7 +194,9 @@
 <script src="../kit/ribbon.js"></script>
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/proteinbox.js"></script>
+<script src="../kit/nucleic.js"></script>
 <script src="proteins.js"></script>
+<script src="nucleic-acids.js"></script>
 <script>
 'use strict';
 
@@ -227,7 +229,19 @@ const dataOf = (p, file) => `../${p.dir}/data/${file}`;
    every card here stays live and the ceiling only bites past eight proteins.
    `onEvict` fires before the destroy, so a card that loses its box keeps the
    last frame it drew and reads as gone quiet rather than gone. */
-const POOL_LIMIT = Math.min(ProteinLib.PROTEINS.length, 8);
+/* TWO REGISTRIES, ONE GALLERY. `nucleic-acids.js` indexes the bakes that carry
+   DNA or RNA, and the ones with a protein in them belong on this page — Zif268
+   is a protein that arrives with a duplex, and leaving it off would make the
+   gallery incomplete for no reason a reader could see. A structure with no
+   protein does NOT come here: this is a gallery of proteins, and its benches
+   are reachable from admin.html. `withProtein()` is where that line lives. */
+const NA_KEYS = new Set(NucleicAcids.withProtein().map(s => s.key));
+const isNA = p => NA_KEYS.has(p.key);
+const ENTRIES = [...ProteinLib.PROTEINS, ...NucleicAcids.withProtein()];
+const entryOf = key => isNA({ key }) ? NucleicAcids.byKey(key) : ProteinLib.byKey(key);
+const defaultOf = p => isNA(p) ? NucleicAcids.defaultOf(p) : ProteinLib.defaultOf(p);
+
+const POOL_LIMIT = Math.min(ENTRIES.length, 8);
 const pool = CardStage.pool({
   limit: POOL_LIMIT,
   onEvict: (key, box) => { const url = box.snapshot && box.snapshot(); still(key, url); },
@@ -251,13 +265,13 @@ function still(key, url) {
    card drew it in a different frame from the bench for exactly as long as the
    parse and the solved view happened at load in two places. */
 function load(p) {
-  const v = ProteinLib.defaultOf(p);
+  const v = defaultOf(p);
   return fetch(dataOf(p, v.read.baked)).then(r => r.json());
 }
 
 /* Everything printed below is counted or read, never typed here. */
 function card(p) {
-  const v = ProteinLib.defaultOf(p), r = v.read;
+  const v = defaultOf(p), r = v.read;
   const el = document.createElement('article');
   el.className = 'card';
 
@@ -304,7 +318,9 @@ function card(p) {
        category and the class name — hydrolase, transferase — is the thing a
        reader recognizes without a lookup. The description goes in the title
        where a hover reaches it. */
-    const ec = ProteinLib.ecOf(p);
+    /* An EC number is a protein-registry fact; a nucleic entry has none and
+       asking for one would be reaching into the wrong index. */
+    const ec = isNA(p) ? null : ProteinLib.ecOf(p);
     const cls = ec && ProteinLib.EC_CLASS[+ec[0]];
     does.textContent = p.does + (cls ? ` · ${cls[0]}` : '');
     if (cls) does.title = cls[1];
@@ -344,9 +360,15 @@ function card(p) {
       const cov = document.createElement('span');
       cov.className = 'cover';
       const rr = w.read;
-      cov.innerHTML = rr.declared
-        ? `<b>${rr.residues}</b> of ${rr.declared} amino acids · ${Math.round(rr.residues / rr.declared * 100)}%`
-        : `<b>${rr.residues}</b> amino acids`;
+      /* WHAT A STRUCTURE HOLDS, in the units it is made of. A protein says how
+         much of itself was modelled; a complex has to say both polymers or the
+         DNA is invisible in the one place a reader is deciding what to open. */
+      cov.innerHTML = isNA(p)
+        ? `<b>${rr.nucleotides}</b> nucleotides · <b>${rr.pairs}</b> base pairs`
+          + (rr.residues ? ` · <b>${rr.residues}</b> amino acids` : '')
+        : rr.declared
+          ? `<b>${rr.residues}</b> of ${rr.declared} amino acids · ${Math.round(rr.residues / rr.declared * 100)}%`
+          : `<b>${rr.residues}</b> amino acids`;
       li.appendChild(cov);
     }
     /* WHAT ELSE IS BAKED FOR THIS VARIANT, where a protein's files are made in
@@ -366,12 +388,11 @@ function card(p) {
 }
 
 const grid = $('grid');
-for (const p of ProteinLib.PROTEINS) grid.appendChild(card(p));
+for (const p of ENTRIES) grid.appendChild(card(p));
 
 /* The tally, counted at render. */
-const variants = ProteinLib.PROTEINS.reduce((k, p) => k + p.variants.length, 0);
-$('tally').textContent =
-  `${ProteinLib.PROTEINS.length} proteins · ${variants} structures`;
+const variants = ENTRIES.reduce((k, p) => k + p.variants.length, 0);
+$('tally').textContent = `${ENTRIES.length} proteins · ${variants} structures`;
 
 /* A BOX IS ACQUIRED WHEN ITS CARD IS SEEN, and re-acquired on a click, because
    acquire is also bring-to-front: a card already live must re-acquire or the
@@ -389,7 +410,7 @@ const traces = {};                       // key -> the loaded chains
 
 function open(key, mount) {
   if (!mount.clientWidth || !mount.clientHeight) return;
-  const p = ProteinLib.byKey(key);
+  const p = entryOf(key);
   const draw = t => {
     mount.style.backgroundImage = '';    // the still gives way to the live box
     pool.acquire(key, () => Proteinbox.create({
@@ -410,11 +431,14 @@ function open(key, mount) {
          one green rope and the braid, which is the whole subject, is invisible
          on the card that indexes it. Read from the registry so this card and
          the bench cannot colour the same molecule two ways. */
-      colors: ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
+      /* Colour and a chosen rotation are the protein registry's to state. A
+         nucleic bake carries its own solved view and the ladder takes the
+         palette's base family, so both are left to the box. */
+      colors: isNA(p) ? null : ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
       /* And the same for the rotation, for the same reason: a chosen basis
          lives in the registry, so this card and the bench cannot face one
          molecule two ways. */
-      view: ProteinLib.viewOf(p),
+      view: isNA(p) ? null : ProteinLib.viewOf(p),
       data: t,
     }));
     /* THE POCKET, where a protein has one. Myoglobin without its heme is the

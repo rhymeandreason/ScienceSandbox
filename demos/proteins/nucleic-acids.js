@@ -40,6 +40,7 @@
   const STRUCTURES = [
     {
       key: 'dna', name: 'B-DNA', dir: 'proteins/dna', kind: 'dna',
+      does: 'genetic material',
       blurb: 'The Drew-Dickerson dodecamer: the first B-DNA any crystal '
            + 'structure showed, and still the molecule every textbook picture '
            + 'of the double helix is drawn from.',
@@ -67,6 +68,7 @@
     },
     {
       key: 'trna', name: 'tRNA-Phe', dir: 'proteins/trna', kind: 'rna',
+      does: 'adaptor',
       blurb: 'One strand that folds back on itself: four stems where the '
            + 'chain is paired to its own distant parts, three loops where it '
            + 'is not, and an L when you stop drawing it flat.',
@@ -94,6 +96,12 @@
     },
     {
       key: 'zif268', name: 'Zif268', dir: 'proteins/zif268', kind: 'complex',
+      /* `does` is printed by proteins/index.html beside the name, the same
+         word `proteins.js` prints. It is not on `ProteinLib.DOES` and does not
+         need to be: that list is validated for protein entries by
+         check-proteins.js, and this file's checker does not police vocabulary
+         it has one member of. It becomes a list here the day there are three. */
+      does: 'DNA-binding',
       blurb: 'Three zinc fingers reading eleven base pairs: the smallest '
            + 'package in biology for recognising one DNA sequence and not '
            + 'another. A zinc finger is not a fold that binds zinc — it is a '
@@ -124,6 +132,14 @@
 
   const KINDS = ['dna', 'rna', 'complex'];
 
+  /* THE ONES proteins/index.html SHOWS: a structure with a protein in it. That
+     page is a gallery of proteins, and a duplex on it would be a category
+     error — but Zif268 is a protein that happens to arrive with DNA, and
+     leaving it off would make the gallery incomplete for no reason a reader
+     could see. Self-maintaining: TBP, p53 and the nucleosome all bake as
+     `complex` and appear the day they are indexed. */
+  const withProtein = () => STRUCTURES.filter(s => s.kind === 'complex');
+
   const byKey = k => STRUCTURES.find(s => s.key === k);
   const variantOf = (s, id) => {
     const e = typeof s === 'string' ? byKey(s) : s;
@@ -150,7 +166,7 @@
   });
 
   global.NucleicAcids = { STRUCTURES, KINDS, byKey, variantOf, defaultOf,
-                          bakedPath, urls };
+                          bakedPath, urls, withProtein };
   if (typeof module === 'object' && module.exports)
     module.exports = global.NucleicAcids;
 })(typeof window !== 'undefined' ? window : globalThis);
