@@ -390,9 +390,19 @@ function card(p) {
 const grid = $('grid');
 for (const p of ENTRIES) grid.appendChild(card(p));
 
-/* The tally, counted at render. */
+/* THE TALLY, COUNTED AT RENDER, and it names the two registries separately
+   rather than adding them up. A nucleosome IS proteins, so "16 proteins" was
+   not wrong — but it flattened the one distinction this page now makes, which
+   is that some of these entries arrive with a nucleic acid in the same file.
+   A reader who sees "2 complexes" knows there is something here to look for.
+   The word is dropped entirely when there are none, so the day this page is
+   proteins again it stops advertising an empty category. */
+const nComplex = NucleicAcids.withProtein().length;
 const variants = ENTRIES.reduce((k, p) => k + p.variants.length, 0);
-$('tally').textContent = `${ENTRIES.length} proteins · ${variants} structures`;
+$('tally').textContent =
+  `${ProteinLib.PROTEINS.length} proteins`
+  + (nComplex ? ` · ${nComplex} complexes` : '')
+  + ` · ${variants} structures`;
 
 /* A BOX IS ACQUIRED WHEN ITS CARD IS SEEN, and re-acquired on a click, because
    acquire is also bring-to-front: a card already live must re-acquire or the
