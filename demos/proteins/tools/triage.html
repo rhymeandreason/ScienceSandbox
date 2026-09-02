@@ -65,8 +65,10 @@
     <label><input type="checkbox" id="het" checked> hetero atoms</label>
     <label><input type="checkbox" id="spin"> spin</label>
   </div>
+  <p class="note" id="why" hidden></p>
   <p class="note">Run <code>node proteins/tools/triage.js &lt;ids&gt;</code> first
-    &mdash; it answers everything except whether the shape says anything.</p>
+    &mdash; it answers everything except whether the shape says anything.
+    <span id="permalink"></span></p>
 </header>
 
 <div id="grid"></div>
@@ -131,6 +133,7 @@ async function load() {
   grid.innerHTML = '';
   const asm = $('assembly').checked;
   const ids = $('ids').value.toUpperCase().split(/[\s,]+/).filter(Boolean);
+  toUrl();
 
   for (const id of ids) {
     const cell = document.createElement('div');
@@ -188,11 +191,46 @@ async function load() {
   apply();
 }
 
+/* THE URL IS THE WHOLE STATE, so a candidate set is something to hand over
+   rather than something to describe. `?ids=5P21,4Q21&why=...` is what an agent
+   writes into a message; the toggles ride along so a view someone tuned by
+   hand is the same link back. Every key is optional and the defaults below are
+   what the page opens on without one. */
+const FLAGS = ['assembly', 'bychain', 'het', 'spin'];
+
+function fromUrl() {
+  const q = new URLSearchParams(location.search);
+  if (q.has('ids')) $('ids').value = q.get('ids').replace(/[,+]/g, ' ').trim();
+  for (const f of FLAGS)
+    if (q.has(f)) $(f).checked = q.get(f) !== '0' && q.get(f) !== 'false';
+  /* Set as TEXT. The note is whatever was in the link, and a link is not a
+     trusted author — assigning it as HTML would make the query string a
+     script tag on a page that fetches. */
+  const why = q.get('why');
+  if (why) { $('why').textContent = why; $('why').hidden = false; }
+}
+
+function toUrl() {
+  const q = new URLSearchParams();
+  q.set('ids', $('ids').value.trim().split(/[\s,]+/).filter(Boolean).join(','));
+  for (const f of FLAGS) if ($(f).checked !== DEFAULTS[f]) q.set(f, $(f).checked ? '1' : '0');
+  const why = $('why').hidden ? '' : $('why').textContent;
+  if (why) q.set('why', why);
+  const url = location.pathname + '?' + q;
+  history.replaceState(null, '', url);
+  $('permalink').innerHTML =
+    ' <a href="' + url.replace(/"/g, '%22') + '">link to this view</a>';
+}
+
+const DEFAULTS = {};
+for (const f of FLAGS) DEFAULTS[f] = $(f).checked;
+fromUrl();
+
 $('go').addEventListener('click', load);
 $('ids').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
 $('assembly').addEventListener('change', load);
 for (const id of ['bychain', 'het', 'spin'])
-  $(id).addEventListener('change', apply);
+  $(id).addEventListener('change', () => { apply(); toUrl(); });
 
 load();
 </script>

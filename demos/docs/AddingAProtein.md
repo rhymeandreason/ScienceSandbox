@@ -20,6 +20,14 @@ It fetches each entry (cached to `tools/.cache/`, which the root `.gitignore` co
 
 **Then look at it.** `proteins/tools/triage.html` (local only, `.vercelignore`d) draws the entries side by side in 3Dmol, with a *biological assembly* checkbox that is the whole ferritin trap in one click: the asymmetric unit is a four-helix bundle, the assembly is the ball. An outside viewer is allowed here and nowhere else, because nothing it draws is committed and no lesson loads it. The script answers everything except whether the shape says anything, which is the one question that needs eyes.
 
+**The URL is the whole state, so hand the human a link rather than instructions.**
+
+```
+http://localhost:8817/demos/proteins/tools/triage.html?ids=5P21,4Q21&why=Ras+on+against+off
+```
+
+`ids` is the only required key. `why` prints one line of context above the grid; `assembly`, `bychain`, `het` and `spin` take `1`/`0` and are written back only where they differ from the page's defaults, so a link stays short. Changing anything restamps the address bar, so a view tuned by hand is the same link back out.
+
 The human reviews before the next step.
 
 ## 3. Build the bench
