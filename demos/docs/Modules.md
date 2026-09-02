@@ -172,6 +172,12 @@ Most of this is already taught by the folders — `kit/`, `reaction/`, `energy/`
 
 **The checker is not optional either**, for this repo's standing reason: a claim ships with its assertion. Assert the things that break silently, not the things a missing file would announce. `reaction/check-reaction.js` is the model — it fails an `fx:` no verb registers, because the old code swallowed that in a bare `else` and ran a 280 ms swap with nothing visibly wrong.
 
+**A GEOMETRIC CHECKER HAS TO PROVE IT IS NOT VACUOUS.** These checkers build their own ideal case — an alpha helix, a pleated strand, a B-DNA duplex — because a generated case tests the arithmetic without also testing the reader. The cost is that an ideal case is often SYMMETRIC in exactly the way that makes the assertion meaningless, and it still prints `ok`.
+
+`kit/check-nucleic.js` did this twice while being written. Its rung-anchor test ran on ideal B-DNA, where the base-pair axis IS the radial — so a rung built the right way and one built the wrong way land in the same place, and the assertion passed without touching what it was for. Its mitred-cap test gave each chain one residue, so there was no tangent, so the code fell back to the branch the test was meant to exercise. Both passed. Both proved nothing.
+
+**So assert the precondition beside the assertion that rides on it**, and print it. `and the test case was genuinely oblique · pair axis . ribbon tangent = 0.472, wants > 0.1` is a line whose only job is to fail the day someone simplifies the fixture. A degenerate fixture is the one bug a green checker cannot tell you about.
+
 **What stays out.** No lesson state. A module reaching for `done`, `busy`, `intro`, `lanes` or the tray is the lesson's physics migrating into shared code; `check-reaction.js` asserts this by name for `reaction/`, and the rule is general. A module answers questions about the *stage*; the page answers questions about the *chemistry*.
 
 **Where a module may appear.** A 2D module that abstracts a statistical or thermodynamic point — `massaction/`, `diffusion/`, `coupling/` — is never a lesson's primary UX. It goes behind a `kit/modal.js` side door, as a second simulation the student opens when they doubt what the 3D stage just did. This is the boundary the folders cannot show you: they look like templates for a main stage, and they are not one. `energy/` is a third kind again — a figure, no canvas and no loop. `reaction/` is the exception that drives the 3D stage rather than replacing it.
