@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="/demos/proteins/lysozyme/">
+<title>Lysozyme — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS EXISTS. Of everything lysozyme is famous for, which parts
+     are things a student would SEE? The bench draws two depositions in
+     one camera, as themselves, to find out.
+
+       the cleft    the first enzyme mechanism ever solved: a groove
+                    with six sugar subsites and two acidic residues at
+                    the bottom of it. 1LZ1 has that groove empty, 1LZS
+                    has a four-ring sugar chain lying in it, and those
+                    two files agree on species, numbering and every
+                    letter of the ss assignment — so the sugar is the
+                    only thing that differs between them.
+
+     AND A THIRD STRUCTURE THAT IS BAKED BUT NOT DRAWN. 1REX is another
+     crystal of the same empty protein by another group. Fitted the same
+     way, it says what two crystals of one molecule differ by — 0.12 A,
+     no residue past 1 A — which is the scale 1LZS's 0.49 A is read on.
+     Without it that figure has nothing to be large against. It is a row
+     on the panel rather than a button, it has no bake of its own
+     because nothing loads one, and tools/prep.js marks it
+     `baselineOnly`.
+
+     ONE THING THE BENCH LOST WITH THAT BUTTON, recorded because it is
+     worth knowing and not worth a view: 1REX's HELIX and SHEET records
+     disagree with 1LZ1's over coordinates that agree to 0.12 A — 8
+     helices and 2 strands against 5 and 5, in both directions, with
+     1LZ1's assignment matching hen lysozyme's element for element from
+     the same crystallographic lineage. Secondary structure here is read
+     and never detected, so that is a real disagreement between
+     depositors. The two files this page draws happen to share an
+     assignment exactly, which is what makes their comparison clean and
+     also what makes them unable to show this. tools/prep.js's header
+     has the residue numbers.
+
+     WHAT WAS DROPPED, AND WHY IT IS A NOTE INSTEAD. The amyloid
+     variants I56T (1LOZ) and D67H (1LYY) were baked and reviewed here.
+     The fit found them nothing alike — 0.23 A and 1.92 A against a
+     0.12 A baseline, one invisible and one with two loops 9.7 A out —
+     and yet both cause the same rare illness by the same route, a loss
+     of stability that lets the protein transiently unfold. So the
+     structural difference does not track the disease, and drawing both
+     would tell a reader it does. The panel carries a sentence saying
+     the disease exists. The reasoning is in proteins.js's own comment
+     beside LYSOZYME_VARIANTS, the files are still in data/src/, and
+     re-adding them is two entries.
+
+     WHAT THIS BENCH CANNOT TELL YOU. Catalysis. Lysozyme cuts the
+     sugar backbone it holds, and 1LZS is that sugar held still in the
+     groove — a picture of the substrate in place, not of the chemistry
+     happening to it. What the enzyme actually does is a proton off
+     Glu35 and a nucleophile from Asp53, at a scale the ribbon does not
+     resolve and on a timescale a crystal does not have. If a lesson
+     wants the mechanism, the ribbon is the wrong representation, and
+     drawing the sugar must not be allowed to imply otherwise.
+
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+/* The measured row, which is the whole reason the disease views are here.
+   Muted where the answer is "nothing moved" — the null result is the finding
+   on this bench and it should not read as a missing value. */
+#d-dev.none{color:var(--h-muted)}
+#d-dev.moved{color:var(--h-spark);font-weight:500}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Lysozyme</h1>
+    <p class="deck">130 residues that cut the sugar backbone of a bacterial cell
+      wall, and the first enzyme anyone watched work. One camera,
+      <span id="d-count">&mdash;</span>.</p>
+
+    <h2>the enzyme</h2>
+    <button class="mode" id="v-1LZ1" aria-pressed="true">
+      <span class="who">empty cleft &middot; 1LZ1</span><span class="chip">apo</span></button>
+    <button class="mode" id="v-1LZS" aria-pressed="false">
+      <span class="who">sugar in the cleft &middot; 1LZS</span><span class="chip" id="chip-1LZS">&mdash;</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>segments</td><td id="d-seg">&mdash;</td></tr>
+      <tr><td>disulfides</td><td id="d-ss">&mdash;</td></tr>
+      <tr><td>catalytic pair</td><td id="d-cat">&mdash;</td></tr>
+      <tr><td>in the cleft</td><td id="d-lig">&mdash;</td></tr>
+      <tr class="hi"><td id="d-devlabel">vs the reference</td><td id="d-dev">&mdash;</td></tr>
+      <tr><td>same-protein baseline</td><td id="d-base">&mdash;</td></tr>
+      <tr><td>where it moves</td><td id="d-where">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">The baseline row is a structure this page does not draw:
+      another crystal of the empty protein, by another group, fitted the same
+      way. It is what says whether the row above it is a large number. Colour is
+      secondary structure, the repo default. The
+      ball-and-stick is the catalytic pair, and the sugar where a view has one.
+      Every figure above is counted off the deposition by the baker.</p>
+
+    <p class="note"><strong>Not drawn: the disease.</strong> Point substitutions
+      in this protein cause hereditary systemic amyloidosis, in which lysozyme
+      deposits as fibrils in the liver, kidney and spleen over decades. It is
+      rare, and it is not something a crystal shows: the variants fold correctly
+      and what the mutation costs is stability, so the aggregating form is a
+      partly unfolded state no deposition contains. Two variant structures were
+      baked during review and dropped — I56T is 0.23 &Aring; from wild type,
+      inside the noise, while D67H throws two loops 9.7 &Aring; out, and both
+      cause the same illness the same way. Drawn side by side they would say the
+      visible one is the worse one, which is false.</p>
+
+    <button class="mode" id="pocket" aria-pressed="true" style="margin-top:12px">
+      <span class="who">active site</span><span class="chip">shown</span></button>
+    <button class="mode" id="pick" style="margin-top:6px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Paste into
+      <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>, then reload. No re-bake: a chosen basis is
+      read at draw time.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
+<script>
+'use strict';
+
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('lysozyme');
+
+/* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
+   Camera, framing, the turn and the WebGL context are the module's; the chains
+   are tools/prep.js's, baked, so nothing here parses a deposition. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a basis a
+     human picked is taste, so re-aiming this protein is an edit to proteins.js
+     and a reload, with no re-bake anywhere. Both views wear it because they are
+     superposed onto each other. */
+  view: ProteinLib.viewOf(ME),
+  orbit: true,
+  /* Trackball, not turntable: a turntable clamps its pitch about a hundred
+     pixels into an upward drag, which runs out exactly when someone is trying
+     to look at the top of the molecule. */
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  /* RibbonLib's own default. Proteinbox asks for 6 because a card is a
+     thumbnail; at full height 6 shows as faceting wherever the chain turns
+     hard, which is the spline showing rather than the protein. */
+  sub: 10,
+});
+
+/* Panel order, which is the page's business: the working enzyme first, then
+   the two variants that break it, then the entry that shows what an ss
+   assignment is worth. */
+/* Panel order, which is the page's business: the enzyme pair the lesson is
+   about, then the disease pair, then the structure everything is fitted onto.
+   The reference is LAST and it is not the default — it is here because a bench
+   may not superpose onto something nobody can look at, which is the rule
+   registry-io.js enforces on `fit.on` once this protein is registered. */
+const VIEWS = ['1LZ1', '1LZS'];
+const said = id => ProteinLib.variantOf(ME, id);
+/* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id: which structure
+   a protein opens on is a decision, and it belongs with the other decisions
+   about it. */
+const OPEN = ProteinLib.defaultOf(ME).id;
+
+/* THE PAGE'S OWN COPY, keyed by entry so a button and its paragraph cannot
+   come apart. Nothing numeric lives here: every figure in the panel is read
+   out of the bake at render time, so a re-bake cannot leave a sentence
+   claiming something the coordinates stopped saying. */
+const SAYS = {
+  '1LZ1': {
+    claim: 'Human lysozyme, wild type, nothing in the cleft.',
+    prov:  'The deep groove across the front is the substrate site: six sugar '
+           + 'subsites in a row, with the catalytic pair at the bottom of it. '
+           + 'Flip to 1LZS to fill it. Those two files agree on species, on '
+           + 'numbering and on every letter of the secondary-structure '
+           + 'assignment, so the sugar is the only thing that differs between '
+           + 'them.' },
+  '1LZS': {
+    claim: 'The same protein with a four-ring sugar chain lying in the cleft.',
+    prov:  'The residues that move are 103-104 and 110-111, which line the '
+           + 'groove. Read that against the baseline row under it: two crystals '
+           + 'of the same EMPTY protein, which ought to differ by nothing, and '
+           + 'they move no residue past 1 Å at all. Several times the baseline '
+           + 'is enough to ask whether the cleft closes on its substrate. It is '
+           + 'not enough to answer it, because these are still two crystals.' },
+};
+
+const views = {};                        // entry id -> baked trace + meta
+let view = null, showPocket = true;
+const $ = id => document.getElementById(id);
+
+/* Counted off the view list, not typed: this bench gained an entry mid-review
+   and the deck went on claiming five. */
+const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+               'eight', 'nine', 'ten'];
+$('d-count').textContent =
+  `${WORDS[VIEWS.length] || VIEWS.length} depositions`;
+
+window.bench = { views, box, get view() { return view; } };
+
+VIEWS.forEach(id => {
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(t => {
+    views[id] = t;
+    /* The chip counts rings off the bake rather than saying "3": a re-bake
+       that changed which sugar chain is kept would falsify a typed number
+       silently. */
+    if (t.meta.sugarRings) $('chip-' + id).textContent = `${t.meta.sugarRings} sugars`;
+    if (view === id) show(id);           // clicked before the fetch landed
+  });
+});
+
+/* Every figure below is counted off the bake, which counted it off the file. */
+function stats(t) {
+  const c = t.chains[t.meta.chain];
+  const letters = c.ss, n = letters.length;
+  const H = [...letters].filter(x => x === 'H').length;
+  const E = [...letters].filter(x => x === 'E').length;
+  const segs = 1 + c.nums.filter((v, i, a) => i && v !== a[i - 1] + 1).length;
+  const k = t.meta.counts[0];
+
+  return {
+    res: `${k.modelled} residues, ${c.first}–${c.nums[c.nums.length - 1]}`,
+    /* Floored, not rounded: a percentage may never say whole about something
+       that is not. */
+    pct: k.declared === null ? '—'
+      : `${k.modelled} of ${k.declared} · ${Math.floor(100 * k.modelled / k.declared)}%`,
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%` +
+          ` · ${t.meta.helices} helices, ${t.meta.strands} strands`,
+    seg: segs === 1 ? 'one unbroken chain' : `${segs} segments`,
+    ss: t.meta.ss.length ? `${t.meta.ss.length} · ${t.meta.ss.join(' ')}` : 'none in file',
+    lig: t.meta.ligands.length ? t.meta.ligands.join(', ') : 'nothing',
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+/* THE MEASUREMENT, phrased from the numbers rather than judged in prose. A
+   deviation is only a difference if it clears what two crystals of the same
+   protein differ by, so the sentence says the cutoff it used and the count it
+   found — a reader can disagree with the threshold and still have the data. */
+function deviation(t) {
+  const d = t.meta.dev;
+  if (!d) return { text: 'this is the reference — everything else is fitted onto it',
+                   where: '—', cls: '' };
+  if (!d.over1) return {
+    text: `${d.rmsd} Å RMSD · nothing past ${d.max} Å`,
+    where: 'nowhere: no residue moves 1 Å',
+    cls: 'none' };
+  return {
+    text: `${d.rmsd} Å RMSD · ${d.over1} of ${d.of} residues past 1 Å, worst ${d.max} Å`,
+    where: d.worst.map(w => `${w.num} (${w.d} Å)`).join(', '),
+    cls: 'moved' };
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;                        // fetch still in flight
+  const m = t.meta, s = stats(t), dev = deviation(t);
+
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-meta').textContent = `${m.entry} · ${said(id).read.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '') +
+    ` · chain ${m.chain} of ${m.chainsInFile} in the file`;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-frac').textContent = s.frac;
+  $('d-seg').textContent = s.seg;
+  $('d-ss').textContent = s.ss;
+  /* Named from what the baker FOUND at those numbers, not from what it was
+     asked for — the assertion that they match is in prep.js, and this row
+     prints its answer. */
+  $('d-cat').textContent = m.cat.names;
+  $('d-lig').textContent = m.sugarRings
+    ? `${m.sugarRings} NAG rings · file also holds ${s.lig}` : s.lig;
+  /* The row NAMES what it compares against, off the bake — the reference has
+     moved once already during review, and a typed label outlives the fit it
+     describes. */
+  $('d-devlabel').textContent = m.fitOn ? `vs ${m.fitOn}` : 'the reference';
+  /* THE SCALE, ON EVERY VIEW, so the row above is never a bare figure. It is a
+     structure this page does not draw — a second crystal of the empty protein
+     by another group — and what it differs by is what two crystals differ by.
+     Counted in the baker on every re-bake, never typed. */
+  const b = m.baseline;
+  $('d-base').textContent = `${b.entry}, another crystal of the empty protein: ` +
+    `${b.rmsd} Å, ${b.over1 ? `${b.over1} past 1 Å` : 'nothing past 1 Å'}`;
+  $('d-dev').textContent = dev.text;
+  $('d-dev').className = dev.cls;
+  $('d-where').textContent = dev.where;
+  $('d-ext').textContent = s.ext;
+  /* Named by WHERE THE FRAME CAME FROM. `computed` is the baker solving a
+     basis off the shape; it stays that way until a human turns the molecule
+     and pastes one into the registry, which is what the copy button is for. */
+  /* The bake's own word for where the frame came from — which already names
+     the reference for a fitted view — plus how good the alignment behind that
+     fit was. */
+  $('d-view').textContent = t.frame +
+    (m.fitOn ? ` · aligned at ${m.fitIdentity}% identity` : '');
+  $('d-prov').textContent = SAYS[id].prov;
+
+  /* Built by the registry from `source`, so an id and its links cannot
+     disagree — and so an AlphaFold variant would get AlphaFold's URLs. */
+  const v = said(id), u = ProteinLib.urls(v);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${v.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${v.read.baked}`;
+
+  box.setData(t);
+  /* AFTER setData, ALWAYS: the box clears the pocket with the ribbon on every
+     swap, which is what stops the last structure's heme hanging in the middle
+     of the next one. */
+  if (showPocket) box.setPocket(t.pocket);
+}
+
+$('pocket').addEventListener('click', () => {
+  showPocket = !showPocket;
+  $('pocket').setAttribute('aria-pressed', String(showPocket));
+  $('pocket').querySelector('.chip').textContent = showPocket ? 'shown' : 'hidden';
+  box.setPocket(showPocket ? views[view].pocket : null);
+});
+
+/* kit/proteinbox.js's, because the correct answer needs the chain group's
+   rotation as well as the camera's and only the box can see it. */
+$('pick').addEventListener('click', () => {
+  const text = JSON.stringify(box.pickView());
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+VIEWS.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
+    show(id);
+  });
+});
+
+show(OPEN);
+</script>
+</body>
+</html>

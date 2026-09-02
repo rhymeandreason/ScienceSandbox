@@ -22,26 +22,52 @@
  *  the bake: the page prints what the crystals actually differ by, and
  *  if that is nothing it says so.
  *
- *  THE FIVE, and each is one question:
+ *  THE THREE:
  *
- *    1REX  human native at 1.5 A, 130/130, nothing bound. The reference,
- *          and the wild type the variants are read against.
- *    1LOZ  I56T. Amyloidogenic variant, same construct, same numbering.
- *    1LYY  D67H. The other amyloidogenic variant.
- *    1HEW  hen lysozyme with a (NAG)3 trisaccharide sitting in the
- *          cleft. The substrate in the site, which no human entry here
- *          has. Different species, different numbering.
- *    1LZ1  human native at 1.5 A as well — the entry the wishlist names.
+ *    1LZ1  human native, empty cleft. The apo half of the pair, what
+ *          the bench opens on, and what everything is fitted onto.
+ *    1LZS  the same protein with a four-ring NAG chain in the cleft.
+ *          The holo half — and a controlled one, because it and 1LZ1
+ *          agree on species, numbering and every letter of the ss
+ *          assignment, so the sugar is the only thing that differs.
+ *    1REX  human native again, by another group. NOT DRAWN — it is
+ *          baked only to measure what two crystals of the same empty
+ *          protein differ by, which is the scale 1LZS is read on. The
+ *          answer is 0.12 A and no residue past 1 A, and it rides in
+ *          every bake's `meta.baseline`.
  *
- *  WHY 1REX AND NOT 1LZ1 IS THE REFERENCE, though 1LZ1 is the cited
- *  entry. SECONDARY STRUCTURE IS READ, NEVER DETECTED, so it is the
- *  depositors' assignment and not a property of the molecule: 1LZ1
- *  records 5 helices and 5 strands, 1REX records 8 and 2, and the two
- *  are the same protein at the same resolution. 1LOZ and 1LYY carry
- *  1REX's assignment. Baking the variants against 1LZ1 would colour a
- *  difference in convention as a difference in fold, on the one bench
- *  whose whole subject is how little the fold differs. 1LZ1 is kept as a
- *  view precisely so that difference is visible and attributable.
+ *  THE DISEASE VARIANTS WERE BAKED AND DROPPED, and the reason is a
+ *  measurement rather than a preference. Hereditary systemic
+ *  amyloidosis is caused by point substitutions in this protein, and
+ *  1LOZ (I56T) and 1LYY (D67H) were on this bench through review. What
+ *  the fit found: I56T is 0.23 A from wild type with nothing past 0.75
+ *  A, against a same-protein baseline of 0.12 A — invisible. D67H is
+ *  1.92 A with two loops hanging 9.7 A out — extremely visible. Both
+ *  cause the same illness by the same route, a loss of stability that
+ *  lets the protein transiently unfold, so the structural difference
+ *  does not track the disease and a reader shown both ribbons would
+ *  conclude that it does. That, plus how rare the disease is, is why
+ *  the page carries one sentence saying it exists instead of two views
+ *  implying something false about it. Re-add them to CANDIDATES to see
+ *  it again; the files are still in data/src/.
+ *
+ *  ONE ASSIGNMENT, ALMOST. SECONDARY STRUCTURE IS READ, NEVER
+ *  DETECTED, so it is the depositors' and not a property of the
+ *  molecule: 1LZ1 and 1LZS record 5 helices and 5 strands, 1REX records
+ *  8 and 2, over coordinates that agree to 0.12 A. The pair the bench
+ *  is about shares an assignment exactly, so nothing but the sugar
+ *  changes between them; 1REX is the only view that crosses the
+ *  boundary, and it says so.
+ *
+ *  The disagreement runs in BOTH directions, which is what makes it a
+ *  convention rather than one group seeing less. 1LZ1 calls 1-3 against
+ *  38-40 a sheet and adds 59-61 to the beta domain, and every one of
+ *  those residues has a partner at 4.3-5.4 A in 1REX's own coordinates;
+ *  1REX in exchange annotates three short 3-10 helices (20-22, 105-108,
+ *  122-124) that 1LZ1 leaves as coil. 1LZ1's assignment is not even an
+ *  independent reading of the human protein — it matches hen lysozyme's
+ *  element for element, offset by a residue or two, from the same
+ *  crystallographic lineage.
  *
  *  THE FIT IS ON THE Ca TRACE, matched by a Needleman-Wunsch alignment
  *  of the two sequences rather than by residue number. Four of the five
@@ -64,7 +90,7 @@
  *  SOURCES, for a re-run from scratch. The raw files live in data/src/
  *  and are 590 KB against the ~110 KB this bakes out of them:
  *
- *    for id in 1REX 1LZ1 1LOZ 1LYY 1HEW; do
+ *    for id in 1LZ1 1LZS 1REX; do
  *      curl -o proteins/lysozyme/data/src/$id.pdb \
  *        https://files.rcsb.org/download/$id.pdb
  *    done
@@ -84,23 +110,28 @@ const HERE = path.join(__dirname, '..');
 const SRC = path.join(HERE, 'data', 'src');
 const DATA = path.join(HERE, 'data');
 
-/* THE VIEW TABLE, HERE RATHER THAN IN THE REGISTRY, because none of these
-   is a decision yet — see the header. `cat` is the catalytic pair by
-   residue number, which is the species' and not a constant. */
-const REF = '1REX';
+/* THE VIEW TABLE IS proteins/proteins.js, with every other protein's. What
+   each entry is, which chain is drawn, which residues make the site and what
+   the collection says it is FOR all live there now; this file turns that into
+   files under data/ and writes the counted half back.
 
-const CANDIDATES = [
-  { id: '1REX', chains: 'A', cat: { acid: 35, base: 53 },
-    what: 'human native, the wild type every variant is read against' },
-  { id: '1LOZ', chains: 'A', cat: { acid: 35, base: 53 },
-    what: 'I56T — amyloidogenic variant' },
-  { id: '1LYY', chains: 'A', cat: { acid: 35, base: 53 },
-    what: 'D67H — the other amyloidogenic variant' },
-  { id: '1HEW', chains: 'A', cat: { acid: 35, base: 52 }, sugar: 'B',
-    what: 'hen, with (NAG)3 in the cleft — the substrate in the site' },
-  { id: '1LZ1', chains: 'A', cat: { acid: 35, base: 53 },
-    what: 'human native again, under the other ss assignment' },
-];
+   WHAT DID NOT MOVE THERE, and the reason is the registry's own rule that
+   every entry in it is something a reader can open. 1REX is a second crystal
+   of the same empty protein by another group, fitted here to measure what two
+   crystals of one molecule differ by. It is a measurement input rather than a
+   selection: no bake of its own is written because nothing loads one, and it
+   would be an entry on the gallery that opens nothing. So it stays here. */
+const REG = require('../../proteins.js');
+const IO = require('../../tools/registry-io.js');
+const ME = REG.byKey('lysozyme');
+const VIEWS = ME.variants;
+const REF = ME.fit.on;
+
+/* NOT A VARIANT, AND NOT DRAWN. Fitted onto the reference like everything
+   else, purely so `meta.baseline` can say what two crystals differ by — the
+   scale every other figure on the bench is read on. */
+const BASELINE = { id: '1REX', chains: 'A', pocket: { acid: 35, base: 53 },
+                   baselineOnly: true };
 
 const r2 = Bake.r2, xyz = Bake.xyz;
 const elOf = l => (l.slice(76, 78).trim() || l.slice(12, 14).trim()).toUpperCase();
@@ -192,7 +223,7 @@ function pocket(text, v) {
     } else if (line.startsWith('ATOM')) {
       if (line[21] !== v.chains) continue;
       const num = parseInt(line.slice(22, 26), 10);
-      const which = num === v.cat.acid ? 'acid' : num === v.cat.base ? 'base' : null;
+      const which = num === v.pocket.acid ? 'acid' : num === v.pocket.base ? 'base' : null;
       if (!which) continue;
       found[which] = line.slice(17, 20).trim();
       /* Side chain only; CB stays as the stub saying which way the residue
@@ -207,9 +238,9 @@ function pocket(text, v) {
      nucleophile an aspartate in every lysozyme, so anything else at those
      numbers means the numbering is not what the candidate claims. */
   if (found.acid !== 'GLU')
-    throw new Error(`${v.id}: residue ${v.cat.acid} is ${found.acid}, expected GLU`);
+    throw new Error(`${v.id}: residue ${v.pocket.acid} is ${found.acid}, expected GLU`);
   if (found.base !== 'ASP')
-    throw new Error(`${v.id}: residue ${v.cat.base} is ${found.base}, expected ASP`);
+    throw new Error(`${v.id}: residue ${v.pocket.base} is ${found.base}, expected ASP`);
 
   const bonds = [], seen = new Set();
   const add = (i, j) => {
@@ -249,7 +280,8 @@ function pocket(text, v) {
 /* ---- one view -------------------------------------------------------- */
 
 function bake(v, ref) {
-  const text = fs.readFileSync(path.join(SRC, v.id + '.pdb'), 'utf8');
+  const id = v.source ? v.source.id : v.id;
+  const text = fs.readFileSync(path.join(SRC, id + '.pdb'), 'utf8');
   const chain = v.chains;
   const R = Bake.ssRanges(text);
 
@@ -311,7 +343,7 @@ function bake(v, ref) {
                                                            y: r.p[1], z: r.p[2] }))]]),
                           R, c);
 
-  const out = { source: v.id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
+  const out = { source: id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
                 order: T.order, chains: T.chains, radius: T.radius };
   out.centreRaw = c;
   out.pocket = {
@@ -330,13 +362,21 @@ function bake(v, ref) {
      the mutation. The extents are still each view's own — they are a
      measurement of that structure and the panel prints them. */
   const F = Bake.frameOf(out.chains[chain].CA);
-  out.view = ref ? ref.view : F.view;
+  /* A CHOSEN BASIS IS THE REGISTRY'S AND IS NEVER BAKED — `viewFor` writes no
+     view where a human has picked one, so `frame` reads 'chosen in the
+     registry' and kit/proteinbox.js reads the basis at draw time. What is left
+     here is the fallback for a frame nobody has aimed: the reference's solved
+     basis, worn by every fitted view rather than each solving its own, because
+     this molecule's extents are near-degenerate and the signs of a solved
+     basis flip between re-bakes. */
+  const V = Bake.viewFor(ME, F, v);
+  out.view = V.view !== undefined ? V.view : (ref ? ref.view : F.view);
   out.extents = F.extents;
-  out.frame = ref ? `${F.frame}, on ${REF}` : F.frame;
+  out.frame = V.frame;
 
   const decl = Bake.declared(text);
   out.meta = {
-    entry: v.id, chain, chainsDrawn: out.order.length,
+    entry: id, chain, chainsDrawn: out.order.length,
     method: Bake.method(text), resolution: Bake.resolution(text),
     title: Bake.line1(text, 'TITLE'), models: Bake.models(text),
     chainsInFile: Bake.chainCount(text),
@@ -351,8 +391,8 @@ function bake(v, ref) {
        what is in the cleft is a claim, and the ligand row has to be able to
        disagree with it. */
     ligands: Bake.ligands(text, null),
-    cat: { acid: v.cat.acid, base: v.cat.base,
-           names: `${site.found.acid}${v.cat.acid} / ${site.found.base}${v.cat.base}` },
+    cat: { acid: v.pocket.acid, base: v.pocket.base,
+           names: `${site.found.acid}${v.pocket.acid} / ${site.found.base}${v.pocket.base}` },
     /* Rings, counted as anomeric carbons rather than as residue names: three
        NAG residues under one chain id are three rings, and `new Set` of the
        name would report one. */
@@ -368,7 +408,7 @@ function bake(v, ref) {
     residues: res.length,
     declared: out.meta.counts[0].declared,
     ec: Bake.ecNumbers(text)[0] || null,
-    baked: `lz-${v.id}.json`,
+    baked: `lz-${id}.json`,
   };
   return out;
 }
@@ -379,28 +419,55 @@ function main() {
   /* TWO PASSES. The reference is baked first in its own frame, centred on
      its own trace; every other view is fitted onto that already-centred
      copy, so the fit and the centring are one step. */
-  const refCand = CANDIDATES.find(v => v.id === REF);
+  const refCand = VIEWS.find(v => v.id === REF);
   const refOut = bake(refCand, null);
   const ref = { seq: caSeq(fs.readFileSync(path.join(SRC, REF + '.pdb'), 'utf8'),
                            refCand.chains),
                 ca: refOut.chains[refCand.chains].CA, centre: [0, 0, 0],
                 view: refOut.view };
 
-  for (const v of CANDIDATES) {
-    const out = v.id === REF ? refOut : bake(v, ref);
+  const baked = VIEWS.concat([BASELINE])
+    .map(v => ({ v, out: v.id === REF ? refOut : bake(v, ref) }));
+
+  /* THE SCALE EVERY OTHER NUMBER IS READ ON, measured rather than asserted:
+     the baseline candidate is the same protein as the reference, empty, from
+     another group, so what it differs by is what two crystals differ by. It
+     goes into EVERY bake rather than being looked up across views, so a page
+     showing one structure has the scale for the figure it is printing without
+     depending on which fetches have landed. */
+  const base = baked.find(b => b.v.baselineOnly);
+  if (!base) throw new Error('no baselineOnly candidate: nothing calibrates the fit');
+  const baseline = { entry: base.v.id, rmsd: base.out.meta.dev.rmsd,
+                     over1: base.out.meta.dev.over1, of: base.out.meta.dev.of,
+                     max: base.out.meta.dev.max };
+  for (const b of baked) b.out.meta.baseline = baseline;
+
+  const blocks = {};
+  for (const { v, out } of baked) {
+    const m = out.meta;
+    if (v.baselineOnly) {
+      console.log(`${v.id}  baseline only, not written: ${m.dev.rmsd} Å over ` +
+        `${m.dev.of} residues, ${m.dev.over1} past 1 Å, worst ${m.dev.max} Å`);
+      continue;
+    }
     const { read, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, read.baked), JSON.stringify(bakeOut));
-    const m = out.meta, kb = (fs.statSync(path.join(DATA, read.baked)).size / 1024).toFixed(0);
+    blocks[v.id] = read;
+    const kb = (fs.statSync(path.join(DATA, read.baked)).size / 1024).toFixed(0);
     console.log(`${v.id}  ${read.residues}/${read.declared} res, ` +
       `${m.helices}H ${m.strands}E, ${m.ss.length} SS, ${m.cat.names}, ` +
       `sugar ${m.sugarRings} rings, ` +
-      (m.dev ? `fit ${m.dev.rmsd} A over ${m.fitAtoms} pairs (${m.fitIdentity}% id), ` +
-               `max ${m.dev.max} A at ${m.dev.worst[0].num}, ` +
-               `${m.dev.over1}/${m.dev.of} over 1 A`
+      (m.dev ? `fit ${m.dev.rmsd} Å over ${m.fitAtoms} pairs (${m.fitIdentity}% id), ` +
+               `max ${m.dev.max} Å at ${m.dev.worst[0].num}, ` +
+               `${m.dev.over1}/${m.dev.of} past 1 Å`
              : 'reference frame') +
       `, view ${out.frame}, ${kb} KB`);
   }
+  /* The counted half goes back into proteins.js, where a card reads it. The
+     said half of that file is untouched by this write. */
+  const touched = IO.write('lysozyme', blocks);
+  console.log(`registry  proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();
-module.exports = { bake, pocket, align, CANDIDATES };
+module.exports = { bake, pocket, align, VIEWS };

@@ -301,6 +301,26 @@
        frame() already solves per axis; this is what lets it. Null falls back
        to the radius, which is what the surface and the fold still give. */
     let stillHX = 0, stillHY = 0;
+    /* THE POINTS THEMSELVES, kept so the framing can be solved EXACTLY rather
+       than from half-extents. A perspective frustum widens with depth, and
+       `Stage.frame` solves the two on-screen axes at the content's middle
+       plane — right for everything else it frames, which is flat (a row of
+       molecules is a few ångströms deep), and wrong for a protein, which is as
+       deep as it is wide. Whatever is nearest the camera is magnified past the
+       edge: lysozyme overflowed by 19% under a rotation a human had chosen
+       precisely so the cleft would face the reader, and myoglobin by 4% on
+       its own.
+
+       IT IS SOLVED HERE AND NOT THERE because the answer needs the POINTS.
+       Standing back by the half-depth assumes the bounding corner is occupied
+       and pulled lysozyme back 46%, leaving it at 60% of the stage — framing
+       badly in the other direction. Treating the item as an ellipsoid closes
+       the form and is tighter, and still cropped myoglobin, whose shape is not
+       an ellipsoid. No summary of a point cloud answers this for every protein
+       in the repo; the cloud does, it is a thousand points, and this module is
+       the only caller that has one. So `Stage.frame`'s own solve stays the
+       floor and the exact requirement is passed as `min`. */
+    let stillPts = [];
     /* Bumped by every setData. The chain loop below yields to rAF between
        chains, so a switch that lands mid-build leaves the OLD loop running:
        it keeps adding meshes to a group the new call already cleared, and
@@ -318,6 +338,38 @@
        read back, or the first wheel event jumps the card. Same shape as
        molbox's fit() and the same reason; it re-runs from onResize because the
        aspect it solved against is gone the moment a card grows. */
+    /* THE NEAREST FACE IS WHAT HAS TO FIT. For a point at (x,y,z) relative to
+       the framed centre, a perspective camera at distance d shows it inside
+       the frustum when |x| <= (d - z)·tan·aspect, so that point alone needs
+       d >= z + |x|/(tan·aspect), and the same in y without the aspect. The
+       answer is the largest of those over everything drawn — exact, with no
+       assumption about the shape.
+
+       IT IS SOLVED PER fit() AND NOT ONCE, because tan and aspect are the
+       camera's and the aspect changes with the pane: a value cached at build
+       time is right until a reader resizes, which is the kind of wrong that
+       only appears on someone else's screen. The ribbon is wider than the
+       trace it splines through, and the pad is what covers that.
+
+       Returns 0 before there is anything to measure, which is what `min` was
+       before this and leaves Stage.frame's own answer standing. */
+    const needed = () => {
+      if (rep !== 'ribbon' || !stillPts.length || !stillMid) return 0;
+      if (box.camera.isOrthographicCamera) return 0;   // no widening with depth
+      const tan = Math.tan(box.camera.fov * Math.PI / 360);
+      const asp = box.camera.aspect;
+      if (!tan || !asp || !isFinite(asp)) return 0;
+      let need = 0;
+      for (const p of stillPts) {
+        const x = p.x - stillMid.x, y = p.y - stillMid.y, z = p.z - stillMid.z;
+        const dx = z + Math.abs(x) / (tan * asp);
+        const dy = z + Math.abs(y) / tan;
+        if (dx > need) need = dx;
+        if (dy > need) need = dy;
+      }
+      return need * (opts.pad || 1.12);
+    };
+
     const fit = () => {
       if (!radius || !mount.clientWidth || !mount.clientHeight) return;
       box.stage.resize();
@@ -332,7 +384,7 @@
                          [{ x: 0, y: 0,
                             rxz: rep === 'ribbon' && stillHX ? stillHX : radius,
                             hy:  rep === 'ribbon' && stillHY ? stillHY : radius }],
-                         { pad: opts.pad || 1.12, min: 0, max: Infinity });
+                         { pad: opts.pad || 1.12, min: needed(), max: Infinity });
       if (box.camera.isOrthographicCamera) box.cam.r = box.camera.top;
       /* THE ZOOM CLAMP FOLLOWS THE FRAMING, because scene.js's default is a
          fixed 5-60 and a protein's size is not: 1DFJ frames at 63 and every
@@ -577,6 +629,7 @@
               stillHX = Math.max(stillHX, Math.abs(p.x - stillMid.x));
               stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
             }
+            stillPts = drawn;
             if (rep === 'ribbon') reframeStill();
           }
           box.draw();
@@ -600,6 +653,7 @@
             stillHX = Math.max(stillHX, Math.abs(p.x - stillMid.x));
             stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
           }
+          stillPts = drawn;
           if (rep === 'ribbon') reframeStill();
           box.draw();
         }

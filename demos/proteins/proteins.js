@@ -789,6 +789,62 @@
      1RCX's ASYMMETRIC UNIT IS ALREADY THE BIOLOGICAL ASSEMBLY: sixteen chains,
      identity BIOMT, no symmetry expansion. 8RUC deposits half of one and needs
      a two-fold to complete it, which is why the whole particle is 1RCX's. */
+  /* TWO ENTRIES AND A THIRD THAT IS NOT ONE. The pair is apo against holo,
+     and it is a CONTROLLED pair rather than merely a matched one: 1LZ1 and
+     1LZS are the same species at the same numbering, and their HELIX and
+     SHEET records agree residue for residue, so the ribbon is identical
+     between them and the sugar is the only thing that changes.
+
+     1REX is deliberately absent. It is a second crystal of the same empty
+     protein by another group, and the baker fits it to measure what two
+     crystals of one molecule differ by — 0.12 A, no residue past 1 A — which
+     is the scale the 0.49 A between apo and holo is read on. That is a
+     MEASUREMENT INPUT and not a selection: it has no bake of its own because
+     nothing loads one, so it stays in the baker under `BASELINE` rather than
+     here, where every entry is something a reader can open.
+
+     Two amyloid variants were baked through review and dropped, and the
+     reason is in the bench's header: I56T is invisible at 0.23 A and D67H
+     throws two loops 9.7 A out, yet both cause the same illness the same way,
+     so the pair drawn together would say the visible one is the worse one. */
+  const LYSOZYME_VARIANTS = [
+    { id: '1LZ1', default: true,
+      purpose: 'the cleft, empty',
+      species: 'human',
+      section: 'the enzyme', label: 'empty cleft', chip: 'apo',
+      source: { kind: 'rcsb', id: '1LZ1' },
+      chains: 'A',
+      /* The catalytic pair by number, which is the SPECIES' and not a
+         constant — hen puts the aspartate at 52. The baker asserts that what
+         it finds at these numbers is a glutamate and an aspartate, because a
+         number off by one draws the neighbouring threonine and looks fine. */
+      pocket: { acid: 35, base: 53 },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 1,
+        residues: 130,
+        declared: 130,
+        ec: "3.2.1.17",
+        baked: "lz-1LZ1.json" } },
+    { id: '1LZS',
+      purpose: 'the same cleft with its substrate lying in it',
+      species: 'human',
+      section: 'the enzyme', label: 'sugar in the cleft', chip: 'holo',
+      source: { kind: 'rcsb', id: '1LZS' },
+      chains: 'A',
+      /* Chain C of five: the deposition holds two protein chains and three
+         separate saccharides, and this is the one in chain A's groove. */
+      sugar: 'C',
+      pocket: { acid: 35, base: 53 },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 2,
+        residues: 130,
+        declared: 130,
+        ec: "3.2.1.17",
+        baked: "lz-1LZS.json" } },
+  ];
+
   const RUBISCO_VARIANTS = [
     { id: '1RCX-L8S8', default: true,
       purpose: 'the whole enzyme: eight large subunits, eight small, one particle',
@@ -1581,6 +1637,61 @@
                  why: 'a site claim and an assembly claim, and a surface closes '
                     + 'the first and merges the second' },
       variants: RUBISCO_VARIANTS,
+    },
+    {
+      key: 'lysozyme', name: 'Lysozyme', dir: 'proteins/lysozyme',
+      blurb: 'The enzyme in tears and saliva that cuts open bacterial cell '
+           + 'walls. It was the first enzyme whose mechanism anyone worked out '
+           + 'from a structure, and the groove down its face is where that '
+           + 'happens \u2014 six sugar subsites in a row, with two acidic '
+           + 'residues at the bottom.',
+      /* EC 3.2.1.17, on the COMPND record of both entries. A hydrolase: it
+         puts water across the glycosidic bond it is holding. */
+      does: 'enzyme',
+      pipeline: 'trace',
+      /* FITTED ONTO THE APO ENTRY, which is also the default, which is also
+         the state the other one is a change FROM. Those three coincide here
+         and they do not always \u2014 myoglobin opens on Kendrew's 1MBN and
+         superposes onto deoxy 1BZP \u2014 so it is worth saying that this is
+         an agreement and not a rule.
+
+         The alignment is by sequence rather than by residue number even
+         though these two share a numbering, because the baker was written
+         against a hen entry that does not, and an alignment that returns the
+         identity mapping for a co-numbered pair is a check on itself: the
+         bench prints 100% identity over 130 pairs, and anything less would
+         mean the two files are not the protein they claim to be. */
+      fit: { on: '1LZ1', by: 'a Needleman-Wunsch alignment of the alpha-carbons' },
+      fitWhy: 'apo against holo, one state a change from the other, so they '
+            + 'have to wear one frame or the sugar arrives inside a rotation',
+      /* Turned on the bench and pasted. Lysozyme is a kidney bean whose three
+         extents are within a factor of two, so its solved axes are
+         near-degenerate and their SIGNS are decided by noise \u2014 a dropped
+         variant came out with two of three flipped against the rest, which
+         would have spun the molecule 180 degrees on the one view whose
+         subject was a loop that moved. The baker now hands every fitted view
+         the reference's basis rather than letting each solve its own, and this
+         is what the reference wears. Shared across both because they are
+         superposed. */
+      view: { by: 'human', shared: true,
+              why: 'a globular bean: no solved basis survives a re-bake with '
+                 + 'its signs intact, and the cleft has to face the reader or '
+                 + 'neither view says anything',
+              basis: [[0.4757, 0.0748, -0.8745],
+                      [0.8678, -0.1943, 0.453],
+                      [-0.1385, -0.9757, -0.1567]] },
+      /* THE ONE ENTRY IN THIS FILE WHERE THE CRITERION SAYS YES AND THE ANSWER
+         IS STILL NOT YET. A groove with something lying in it is a surface
+         claim by SCIENCE.md's test, and an SES is what would show that the
+         sugar is held in a channel rather than resting against a face. What
+         stops it is that nothing asks yet: the bench's claim is the pair of
+         measurements beside the ribbon, and the groove reads at ribbon width.
+         The day a lesson wants the cleft as a shape, this is the strongest
+         surface candidate in the collection. */
+      surface: { bake: false,
+                 why: 'a genuine surface claim with no lesson asking for it '
+                    + 'yet \u2014 the first to bake when one does' },
+      variants: LYSOZYME_VARIANTS,
     },
   ];
 
