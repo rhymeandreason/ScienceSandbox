@@ -38,9 +38,11 @@
                           not exist without them, so they are baked and
                           drawn rather than left as a caption.
 
-     WHAT IT STILL DOES NOT TEST. A chain break: chain C is modelled
-     3-87 of a declared 1-87, so the missing pair is terminal and runs()
-     sees one contiguous run. The duplex does carry two unpaired 5'
+     WHAT IT STILL DOES NOT TEST. An internal break in a NUCLEIC
+     chain: chain C's two missing residues are terminal and neither
+     duplex strand has a hole, so kit/nucleic.js's `runs()` has never
+     split one. kit/proteinbox.js's `runs()` splits them routinely — same
+     name, different function, and only one of the two is untested. The duplex does carry two unpaired 5'
      overhangs, which is the first stub drawn on a duplex rather than in
      a loop.
      =================================================================== -->

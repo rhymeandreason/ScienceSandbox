@@ -44,10 +44,14 @@
                           holds the SPOOL and the page has to say the
                           rest is unseen.
 
-     WHAT IT STILL DOES NOT TEST. An internal chain break: every chain
-     here is contiguous and the missing residues are terminal, so runs()
-     has still never met a gap. Four entries in, that keeps being nearly
-     true and is not the same as tested.
+     WHAT IT STILL DOES NOT TEST. An internal break in a NUCLEIC chain.
+     Every chain here is contiguous with its missing residues at the
+     termini, and no duplex or RNA in the repo has an unmodelled stretch
+     in the middle, so kit/nucleic.js's `runs()` has never split a strand.
+     The protein side of that question is long settled — ferritin,
+     collagen, rnase and three others carry internal breaks, and
+     kit/proteinbox.js's `runs()` draws them. Two functions with one
+     name, and only one of them is untested.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">

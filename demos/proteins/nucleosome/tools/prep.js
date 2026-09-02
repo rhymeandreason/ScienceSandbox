@@ -39,9 +39,13 @@
  *  and from SEQRES, and SEQRES is itself the CONSTRUCT rather than the whole
  *  histone — so "96% modelled" is 96% of what was expressed, not of H3.
  *
- *  Every chain is modelled CONTIGUOUSLY: the missing residues are at the
- *  termini, so `runs()` still has not met an internal break. Said out loud
- *  because it keeps being nearly true and is not the same as being tested.
+ *  Every chain here is modelled CONTIGUOUSLY: the missing residues are at the
+ *  termini. That is worth saying only about the NUCLEIC side — kit/nucleic.js's
+ *  `runs()` has still never split a strand, because no duplex or RNA in the
+ *  repo has an unmodelled stretch in the middle. The protein side is well
+ *  covered: ferritin, collagen, rnase, napump, hexokinase and atp-synthase all
+ *  carry internal breaks and kit/proteinbox.js's `runs()` has been splitting
+ *  them for a long time. Two functions, one name, different coverage.
  * ============================================================================= */
 'use strict';
 

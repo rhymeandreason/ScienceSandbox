@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Triage — look at a candidate before baking it</title>
+
+<!-- ===================================================================
+     LOCAL TOOL, NOT A LESSON, NOT DEPLOYED. It is in .vercelignore.
+
+     WHY AN OUTSIDE VIEWER IS ALLOWED HERE AND NOWHERE ELSE. The rule in
+     rendering-modules.md is about what a lesson SHIPS: a student's page
+     draws with kit/proteinbox.js so every protein in the repo behaves
+     the same way and every claim on screen is one this repo made. That
+     argument says nothing about what you look at while deciding whether
+     a deposition is worth a bake at all. 3Dmol is loaded from a CDN,
+     fetches from RCSB, and nothing it draws is committed.
+
+     IT ANSWERS ONE QUESTION. triage.js answers the rest, off the
+     records — nucleic chains, assembly-as-models, partner chains,
+     MODRES, ligands, missing HELIX/SHEET, fragments — and answers them
+     better than eyes do. What is left is whether the shape SAYS
+     anything, which is a judgement and needs looking. Run the script
+     first; open this to decide.
+     =================================================================== -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/3Dmol/2.1.0/3Dmol-min.js"></script>
+<style>
+  :root { --ink:#1a1a1a; --muted:#6b6b6b; --line:#e0ddd8; --paper:#faf8f5; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+         font:14px/1.5 -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+  header { padding:1rem 1.25rem .75rem; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 .5rem; font-size:1rem; font-weight:600; letter-spacing:.01em; }
+  .bar { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; }
+  input[type=text] { font:inherit; padding:.35rem .5rem; width:22rem;
+                     border:1px solid var(--line); border-radius:3px;
+                     background:#fff; }
+  button { font:inherit; padding:.35rem .8rem; border:1px solid var(--line);
+           background:#fff; border-radius:3px; cursor:pointer; }
+  button:hover { border-color:var(--ink); }
+  label { display:flex; align-items:center; gap:.3rem; color:var(--muted); }
+  .note { color:var(--muted); font-size:.8rem; margin:.5rem 0 0; }
+  #grid { display:grid; gap:1px; background:var(--line);
+          grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); }
+  .cell { background:var(--paper); position:relative; }
+  .cell h2 { margin:0; padding:.5rem .75rem; font-size:.8rem; font-weight:600;
+             letter-spacing:.08em; text-transform:uppercase;
+             border-bottom:1px solid var(--line); }
+  .cell h2 small { font-weight:400; text-transform:none; letter-spacing:0;
+                   color:var(--muted); margin-left:.5rem; }
+  .view { width:100%; height:min(60vh, 460px); position:relative; }
+  .fail { padding:1rem .75rem; color:var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Triage &mdash; look at a candidate before baking it</h1>
+  <div class="bar">
+    <input type="text" id="ids" value="1IG8 3B8A" spellcheck="false"
+           placeholder="PDB ids, space or comma separated">
+    <button id="go">Load</button>
+    <label><input type="checkbox" id="assembly"> biological assembly</label>
+    <label><input type="checkbox" id="bychain" checked> colour by chain</label>
+    <label><input type="checkbox" id="het" checked> hetero atoms</label>
+    <label><input type="checkbox" id="spin"> spin</label>
+  </div>
+  <p class="note">Run <code>node proteins/tools/triage.js &lt;ids&gt;</code> first
+    &mdash; it answers everything except whether the shape says anything.</p>
+</header>
+
+<div id="grid"></div>
+
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+const grid = $('grid');
+const viewers = [];
+
+/* THE ASSEMBLY IS A DIFFERENT FILE, which is the trap triage.js flags and
+   this is the way to see it: ferritin's asymmetric unit is a four-helix
+   bundle and its assembly is the ball, and nothing about the bundle says a
+   ball was meant. */
+const url = (id, asm) => `https://files.rcsb.org/download/${id}.pdb` + (asm ? '1' : '');
+
+/* KEYED ON THE CHAIN ID, NOT ON MODEL ORDER. 3Dmol's own 'chain' scheme
+   colours by the order a model was added, so the same chain A came out pale
+   blue in one cell and teal in the next — which reads as a difference between
+   the two structures when there is none. Chain A is one colour everywhere. */
+const CHAIN = ['#4a7fb5', '#c96a4a', '#5a9e6f', '#9b6bb0', '#c9a34a',
+               '#4aa5a5', '#b5527f', '#7a8a5a'];
+const chainColor = id =>
+  CHAIN[(id.charCodeAt(0) - 65 + CHAIN.length) % CHAIN.length];
+
+function apply() {
+  for (const { v, chains, copies } of viewers) {
+    if (!$('bychain').checked)
+      v.setStyle({}, { cartoon: { color: 'spectrum' } });
+    /* AN ASSEMBLY'S COPIES ALL CARRY ONE CHAIN ID, so colouring by chain would
+       paint ferritin's twenty-four subunits one colour and the ball would read
+       as a solid lump. Where the copies are models, they are what to tell
+       apart; where there is one model, the chains are. */
+    else if (copies > 1)
+      for (let i = 0; i < copies; i++)
+        v.setStyle({ model: i }, { cartoon: { color: CHAIN[i % CHAIN.length] } });
+    else
+      for (const c of chains)
+        v.setStyle({ chain: c }, { cartoon: { color: chainColor(c) } });
+
+    /* WATER IS NOT CARGO. Left in, a 2 A entry's solvent is a red haze over
+       the whole molecule and the one ligand that matters is somewhere inside
+       it — which is the opposite of what this page is being opened for. */
+    if ($('het').checked)
+      v.setStyle({ hetflag: true, not: { resn: 'HOH' } },
+                 { stick: { radius: 0.18 }, sphere: { scale: 0.3 } });
+    v.spin($('spin').checked ? 'y' : false);
+    v.render();
+  }
+}
+
+/* EVERY LOAD CARRIES A TOKEN. The fetches are awaited one at a time, so a
+   second load started while the first is in flight clears the grid and then
+   the first one's cells arrive into it — the page ends up showing structures
+   nobody asked for, under the ids of the ones they did. */
+let gen = 0;
+
+async function load() {
+  const mine = ++gen;
+  viewers.length = 0;
+  grid.innerHTML = '';
+  const asm = $('assembly').checked;
+  const ids = $('ids').value.toUpperCase().split(/[\s,]+/).filter(Boolean);
+
+  for (const id of ids) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.innerHTML = `<h2>${id}<small></small></h2><div class="view"></div>`;
+    grid.appendChild(cell);
+    const head = cell.querySelector('small');
+    const mount = cell.querySelector('.view');
+
+    let text;
+    try {
+      const r = await fetch(url(id, asm));
+      if (mine !== gen) return;
+      /* A 404 on the plain file is the mmCIF-only answer; on the assembly it
+         only means this entry deposits none, which is not a verdict. */
+      if (!r.ok) throw new Error(r.status === 404
+        ? (asm ? 'no biological assembly deposited' : 'no legacy .pdb — mmCIF only')
+        : 'HTTP ' + r.status);
+      text = await r.text();
+    } catch (e) {
+      if (mine !== gen) return;
+      mount.outerHTML = `<p class="fail">${e.message}</p>`;
+      continue;
+    }
+
+    /* CHAIN IDS OFF THE TEXT, not out of the viewer: 3Dmol's atom list is not
+       a plain array, and an assembly's copies all carry the same id anyway. */
+    const chains = [...new Set(text.split('\n')
+      .filter(l => l.startsWith('ATOM') || l.startsWith('HETATM'))
+      .map(l => l[21]).filter(c => c && c !== ' '))].sort();
+
+    /* THE CHAIN IDS ARE IN THE HEADER because the colouring keys on them and
+       two entries of one protein need not agree: hexokinase open is chain A
+       and closed is chain X, so the two cells come out different colours and
+       nothing on screen would otherwise say why. */
+    const title = (text.split('\n').find(l => l.startsWith('TITLE')) || '')
+      .slice(10).trim().toLowerCase();
+    const models = (text.match(/^MODEL /gm) || []).length;
+    head.textContent = `chain ${chains.join(',')}` +
+      (models > 1 ? `  ·  ${models} models` : '') + '  ·  ' + title;
+
+    const v = $3Dmol.createViewer(mount, { backgroundColor: '#faf8f5' });
+    /* ONE addModel PER MODEL RECORD. 3Dmol's own multimodel read draws the
+       first and keeps the rest as animation frames, so an assembly deposited
+       as models opens as a single subunit — which is the exact mistake this
+       page is here to catch, rendering as a perfectly good protein. */
+    const blocks = models > 1
+      ? text.split(/^MODEL /m).slice(1).map(b => 'MODEL ' + b)
+      : [text];
+    for (const b of blocks) v.addModel(b, 'pdb');
+    v.zoomTo();
+    viewers.push({ v, chains, copies: blocks.length });
+    if (mine !== gen) return;
+  }
+  apply();
+}
+
+$('go').addEventListener('click', load);
+$('ids').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+$('assembly').addEventListener('change', load);
+for (const id of ['bychain', 'het', 'spin'])
+  $(id).addEventListener('change', apply);
+
+load();
+</script>
+</body>
+</html>

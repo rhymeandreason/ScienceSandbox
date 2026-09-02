@@ -35,9 +35,11 @@
  *  not a fold that happens to bind zinc — it does not exist without it. Three
  *  fingers, three zincs, and the file says so with three ZN records.
  *
- *  WHAT THIS ENTRY STILL DOES NOT TEST: a chain break. Chain C is modelled
- *  3-87 of a declared 1-87, so the two missing residues are TERMINAL and
- *  `runs()` sees one contiguous run. The duplex does carry two unpaired 5'
+ *  WHAT THIS ENTRY STILL DOES NOT TEST: an internal break in a NUCLEIC chain.
+ *  Chain C is modelled 3-87 of a declared 1-87, so its two missing residues
+ *  are TERMINAL, and neither duplex strand has a hole. kit/nucleic.js's
+ *  `runs()` has therefore never split one; kit/proteinbox.js's has split many
+ *  (ferritin, collagen, rnase and more). Same name, different function. The duplex does carry two unpaired 5'
  *  overhangs (A1, B1), which is the first time a stub has been drawn on a
  *  duplex rather than in a loop.
  * ============================================================================= */
