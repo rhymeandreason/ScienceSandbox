@@ -106,6 +106,7 @@
 <script src="../../lib/scene.js"></script>
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/nucleic.js"></script>
+<script src="../nucleic-acids.js"></script>
 <script>
 'use strict';
 
@@ -265,7 +266,11 @@ function legend() {
     + '</span>').join('');
 }
 
-fetch('data/dna-1BNA.json')
+/* THE BAKE IS NAMED BY THE INDEX, not typed here. proteins/nucleic-acids.js
+   is the one place that says which files this repo holds, and
+   check-nucleic-acids.js fails a name that is not on disk — so a renamed bake
+   is one edit there rather than a page that silently fetches nothing. */
+fetch('data/' + NucleicAcids.defaultOf('dna').read.baked)
   .then(r => r.json())
   .then(t => {
     trace = t;

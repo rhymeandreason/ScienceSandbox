@@ -10,22 +10,36 @@ Workflow: A separate agent session looks at proteins-wishlist and does a first p
 
 ## 1. Pull the data from proteins/proteins-wishlist.md
 
-## 2. Build the bench
+## 2. Triage the candidate before baking anything
+
+```bash
+node proteins/tools/triage.js 1IG8 3B8A
+```
+
+It fetches each entry (cached to `tools/.cache/`, which the root `.gitignore` covers) and prints the answer to every screening question below, off the records: chains and what kind each is, models against `REMARK 350`'s assembly count, HELIX/SHEET, MODRES, ligands, SEQRES against what is modelled, chain breaks, EC. Then a line per condition it hit, or `default path`. The parsing is `bake-lib.js`'s, so it cannot disagree with the baker you are about to write.
+
+**Then look at it.** `proteins/tools/triage.html` (local only, `.vercelignore`d) draws the entries side by side in 3Dmol, with a *biological assembly* checkbox that is the whole ferritin trap in one click: the asymmetric unit is a four-helix bundle, the assembly is the ball. An outside viewer is allowed here and nowhere else, because nothing it draws is committed and no lesson loads it. The script answers everything except whether the shape says anything, which is the one question that needs eyes.
+
+The human reviews before the next step.
+
+## 3. Build the bench
 
 One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can review. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
 
-**First, read your file and answer these. Each names what it costs, and the list below the examples is where each answer is spelled out.** Most candidates answer no to all of them, and no to all of them means copy hexokinase, bake chain A, ship — 1LZ1 is the case, and 1CA2 and 2POR are one pocket away from it.
+**`triage.js` answers these; what they COST is below the examples.** Most candidates answer no to all of them, and no to all of them means copy rnase, bake chain A, ship — 1LZ1 is the case, and 1CA2 is one pocket away from it. 2POR is not: triage puts its asymmetric unit at a third of the biological trimer, which is the first row below rather than the third.
 
-* **Is there a nucleic-acid chain, or is the entry mmCIF-only?** Then stop and say so — see the two below that end the recipe.
+* **Is the entry mmCIF-only?** Then stop and say so — see the one below that ends the recipe.
+* **Is there a nucleic-acid chain?** Not a blocker: `naTrace` / `basePairs` / `assembleNA` in `bake-lib.js` and `kit/nucleic.js` are the path, and `proteins/dna`, `proteins/trna` and `proteins/zif268` are the worked examples — duplex, folded single strand, and a mixed protein+DNA file. A mixed file's own trap is one centre solved over BOTH polymers; `zif268` is where that is written down.
 * **Does the entry deposit its biological assembly as MODELS?** *The biological assembly is not what the file's first model holds.*
 * **Is there a chain in the file you are not drawing?** *A partner chain is in the file.*
 * **Is there a HETATM sitting in the site — a metal, a cofactor, a ligand?** *Something is bound in the site*, and *the pair is apo against holo* if you also hold the empty one.
 * **Does it declare MODRES, or carry no HELIX / SHEET records?** *A residue is modified*, and *the file carries no HELIX or SHEET records*.
 * **Is the entry a fragment or a construct, or does the literature number it differently from the file?** *An entry is a fragment or a construct*, and *the field quotes different numbers than the file*.
 
-4 examples. Copy hexokinase as the default. Copy prion if you have a disease or mutation variatn. If you have a reason to use an advanced example, tell the human first.
+5 examples. Copy rnase as the default. Copy prion if you have a disease or mutation variant. If you have a reason to use an advanced example, tell the human first.
 
-* **`proteins/hexokinase/hexokinase-test.html` — enzyme with two states for motion. This is the primary example.**
+* **`proteins/rnase/rnase-test.html` — one protein, several entries, chain A, ss read off the file. This is the primary example, and its baker is 171 lines.**
+* **`proteins/hexokinase/hexokinase-test.html` — enzyme with two states for motion.** Copy it when the views are states of one thing and have to be superposed. Its baker is 240 lines and most of them are the Kabsch fit and a trajectory read-back, so it is the wrong thing to copy for a single static structure.
 * **`proteins/prion/prion-test.html` — normal and misfolded disease variant, and extra assembly view for the disease.**
 * **`proteins/collagen/collagen-test.html` —**  **(Advanced)** More files were included on this page to show closeups, a mutation example,  and the whole structure. There are two stories here: scurvy and brittle bone disease.
 * **`proteins/atp-synthase/atp-synthase-test.html` —**  **(Advanced)** This assembly has many chains, and a custom rotation animation. Ask the human before doing animation. Tell her what should happen.
@@ -36,9 +50,8 @@ One test page, every relevant structure as a ribbon, buttons to switch. Not a le
 
 **While the protein is under review its candidates live in the baker**, as a `CANDIDATES` table at the top of `proteins/<name>/tools/prep.js`: id, chains, and one line saying what each is meant to show. Nothing goes into `proteins/proteins.js` yet, because everything in that file is a decision and none has been made. Bake generously here — a candidate that turns out to say nothing is what step 4 is for, and it is cheaper to look at one than to argue about it. **Every example bench above is POST-review and its baker shows it** — hexokinase's `proteins/hexokinase/tools/prep.js` opens `REG.byKey('hexokinase')` and takes its view table out of the registry. Copy the page, not that: yours reads its own `CANDIDATES` until the human has decided.
 
-**Two candidates end the recipe rather than complicate it, and both are invisible until a baker returns nothing.** Say so and stop; neither is a thing to work around beside a bench.
+**One candidate ends the recipe rather than complicating it, and it is invisible until a baker returns nothing.** Say so and stop; it is not a thing to work around beside a bench.
 
-* **A nucleic-acid chain.** `caTrace` keys on the `CA` atom, and DNA and RNA have none, so a chain of either bakes as nothing at all. Four candidates on the wishlist carry one — the nucleosome's two 146-mers, the two DNA-binding Tier 1 entries, the polymerase pair — so it is a one-time engineering cost that opens four at once, and it is a decision about what the trace shape IS, not a baker's to make alone.
 * **A deposition with no legacy `.pdb`.** Every record read here is a PDB record: `HELIX` / `SHEET`, `SEQRES`, `SSBOND`, `MODRES`, `CONECT`, `MODEL`. A structure large enough to be mmCIF-only is also large enough that the bake, the framing and the lesson are all different questions from the ones this file answers.
 
 **Reading the file is `proteins/bake-lib.js`, and a new baker does not re-implement it.** The altloc rule, secondary structure read rather than detected, ss indexed by residue number, `nums` beside `first`, the centring, the solved frame, SEQRES / SSBOND / HETATM — each carries the trap it exists to prevent, and three copies is where those start to drift. What a baker writes for itself is the VIEW table and whatever its protein is about. It composes its own output object from `assemble` and `frameOf` rather than handing off to a shared writer, because the bakes are committed artefacts and a shared writer reorders every one of them the day it changes its mind about a key. Along with the trace, that baker writes a `meta` block holding every figure the panel prints: the declared length off `SEQRES`, the disulfides off `SSBOND`, the ligands off `HETATM`, the model count. A number counted in the baker is re-counted on every re-bake; the same number typed into a panel is not. Chain A unless the assembly is the point, alt-locs blank or `A` only, and the file's own `HELIX` / `SHEET` records ride along. Secondary structure is **read, never detected**: for a lesson about folding, detecting it is inventing the claim.

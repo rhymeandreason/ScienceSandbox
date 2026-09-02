@@ -453,6 +453,25 @@ else
   echo "pre-commit: skipping check-ribbon.js — kit/ribbon.js not staged"
 fi
 
+# nucleic-acids.js is an INDEX, so it is gated on itself and on the bakes it
+# describes: every number in it is one the bake can produce, and the whole
+# point of the file is that it never becomes a second source. It also catches
+# the orphan — a bake in one of these folders that no variant claims, which is
+# what the three nucleic folders each were before the index existed, with
+# check-proteins.js walking past them because it only reads registered dirs.
+if git diff --cached --name-only | grep -qE '^demos/proteins/(nucleic-acids\.js|(dna|trna|zif268)/)'; then
+  if ! node proteins/check-nucleic-acids.js > /tmp/cna.$$ 2>&1; then
+    tail -20 /tmp/cna.$$; rm -f /tmp/cna.$$
+    echo ""
+    echo "pre-commit FAILED: check-nucleic-acids.js — the index and the bakes"
+    echo "  disagree, or a bake is on disk that no variant claims."
+    exit 1
+  fi
+  rm -f /tmp/cna.$$
+else
+  echo "pre-commit: skipping check-nucleic-acids.js — no nucleic index or bake staged"
+fi
+
 # nucleic.js is gated the same way and for the same reason: it is the ladder
 # every DNA/RNA page will draw, no one lesson owns it, and its failures are the
 # ribbon's failures wearing different clothes. The flat-face-outward assertion
