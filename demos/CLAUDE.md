@@ -148,6 +148,8 @@ The human uses molecule-viewer.html to manually choose a good default rotation f
 
 **Don’t write a changelog in a code file’s comments. Comments should be active voice, and only document things that are not obvious from reading the code.**
 
+**Read a module’s own header before using it a way you have not used it before.** The load-bearing reasoning in this repo lives in the file headers, not only in `docs/` — and most of it is a trap that ships looking merely ugly, so it is written where someone about to fall in will be looking. `kit/ribbon.js` says not to slice a chain and build per secondary-structure element; a page did it anyway and drew the protein as scattered splinters.
+
 ## Never use these structures:
 
 * "It's not just X — it's Y"

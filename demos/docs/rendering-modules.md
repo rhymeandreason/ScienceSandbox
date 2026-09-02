@@ -60,6 +60,8 @@ Cα trace + secondary structure → a cartoon: helices as flat twisted bands, st
 
 * `frames`, `smooth` and the tuning constants (`PROFILE`, `ARROW`, `SMOOTH_W`, `TENSION`) are exported for the test bench and for pages that need to retune rather than retype.
 
+* **One geometry per contiguous run, coloured by its own GROUPS — never one build per secondary-structure element.** `build` stamps geometry groups with material index 0/1/2 for coil, helix and strand, so three colours come out of one call and the caller passes an array of three materials. Slicing the chain and calling `build` per element is the obvious way to get the same thing and it is wrong twice over: the arrowhead logic re-runs on every slice so each strand grows a duplicate head, and the bands come out as disconnected fragments with the coil between them missing. `proteins/zif268` did it that way first and rendered the protein as splinters around an intact duplex.
+
 * The orientation frame uses the neighbour **bisector**, not a cross product — a binormal rotates the band a quarter turn and it reads as a corkscrew while every other number stays right. The file's header explains the failure at length; `kit/check-ribbon.js` asserts it on an ideal helix, along with the rotating frame, the flat strand and the arrowhead. Every claim in that checker is a bug that shipped looking merely ugly, which is why it is gated on the module rather than on any page.
 
 **`kit/nucleic.js` — `NucleicLib`**
