@@ -249,11 +249,13 @@
        shape and rendering nothing, which reads as a broken box. */
     /* TWO CONVENTIONS, and the registry means both. A protein on its own
        pipeline carries a `bake` block naming every artefact by role, so that
-       block is authoritative: hemoglobin's 2HBS has no `trace` in it because it
-       is deposited for a surface, and no ribbon exists. A protein on the shared
-       `trace` pipeline has no `bake` block at all, and `read.baked` IS its
-       trace — which is four of the six. Reading `read.baked` unconditionally
-       would hand 2HBS's quaternary json to a ribbon drawer. */
+       block is authoritative and a variant with no `trace` role in it has no
+       ribbon to draw. A protein on the shared `trace` pipeline has no `bake`
+       block at all, and `read.baked` IS its trace. Reading `read.baked`
+       unconditionally would hand a ribbon drawer whichever file that pipeline
+       happened to call its default — a surface, a quaternary json — and the
+       box would fetch the wrong shape and render nothing, which reads as a
+       broken box rather than as a missing role. */
     const ribbon = v.bake ? (bake.trace || null) : (v.read && v.read.baked) || null;
     if (!opts.trace && !opts.data && !ribbon) {
       console.warn('Proteinbox: ' + opts.protein + ' ' + v.id

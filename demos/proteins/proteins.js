@@ -1205,96 +1205,79 @@
       ],
     },
     {
-      key: 'hemoglobin', name: 'Haemoglobin', dir: 'hemoglobin',
+      key: 'hemoglobin', name: 'Haemoglobin', dir: 'proteins/hemoglobin',
       blurb: 'The oxygen carrier in red blood cells: four chains, each holding '
            + 'one iron. Binding one oxygen changes the shape of the whole '
            + 'tetramer, so the next three bind more easily and all four are '
            + 'released together in tissue.',
       does: 'oxygen carrier',
-      /* NOT THIS REGISTRY'S PIPELINE, and that is the whole of the entry. Its
-         bakes feed hemoglobin-lab's folding trajectory and are made by
-         `hemoglobin/tools/`, on their own schedule and in their own formats —
-         a trace, a quaternary file with hemes and irons, a surface, an 830 KB
-         fold. `pipeline:'own'` says so: check-proteins.js verifies the `read`
-         block against the DEPOSITION each variant names rather than against a
-         bake it did not shape, and leaves that folder's files alone.
+      /* THIS IS THE GALLERY'S HALF OF HAEMOGLOBIN, AND NOT THE LESSON'S.
+         `proteins/hemoglobin/tools/prep.js` bakes what every other protein
+         here bakes — a trace, the hemes, the two histidines that hold each
+         iron — so a card and a bench read this protein through the same path
+         as the other sixteen and there is no branch on pipeline anywhere.
 
-         It is in here because a gallery that omitted the repo's most developed
-         protein would read as broken, and because "what do we hold" is a
-         question about the repo and not about which script wrote a file. */
-      pipeline: 'own',
-      /* Its bench is not at the derived path, so it is named. `surface-test`
-         is where these two variants get reviewed against each other — it
-         toggles 2HHB against 2HBS with both SES surfaces — which is the same
-         job every other protein's `<key>-test.html` does. */
-      page: 'hemoglobin/surface-test.html',
+         The folding trajectory, the quaternary placement and the two SES
+         surfaces are hemoglobin-lab's, they are made by `hemoglobin/tools/`
+         in formats built for that lesson, and they are NOT named here. That
+         is the point of the split: a lesson's private artefacts are not facts
+         about the collection, and the day this entry claimed them it had to
+         opt out of its own checker to do it. */
+      pipeline: 'trace',
       /* The only protein here that already has a LESSON. A card links it
          second, because the gallery is about what we hold and the lesson is
          what one of them became. */
       lesson: 'hemoglobin-lab.html',
-      /* Two crystals of the same protein, one mutation apart. Not states of
-         one thing in a frame sense — 2HBS is two tetramers in the asymmetric
-         unit and the fibre contact is what it is deposited for — so nothing is
-         superposed and each opens in its own frame. */
+      /* Two crystals of the same protein, one mutation apart, and NOT two
+         states of one thing in a frame sense: 2HHB is one tetramer and 2HBS
+         is two, deposited for the contact BETWEEN them, so there is no
+         superposition that leaves both saying what they are for. Each opens
+         in its own frame and the bench says so. */
       fit: null,
-      fitWhy: 'two entries, not two states of one; the sickle file is deposited '
-            + 'for a contact between tetramers, which a fit onto one of them '
-            + 'would move',
+      fitWhy: 'one tetramer against two; the sickle file is deposited for a '
+            + 'contact between tetramers, which a fit onto one of them would '
+            + 'move',
       view: { by: 'deposited', shared: false,
               why: 'a tetramer is round enough that a solved basis would flip '
                  + 'between rebakes, and no human has picked one yet' },
-      surface: { bake: true,
-                 why: 'baked already, and the one case that earns it: the '
-                    + 'sickle lesson is a CONTACT between two tetramers, which '
-                    + 'is a claim about surfaces' },
+      /* The lesson's two surfaces still exist and still earn their cost; they
+         are just not this registry's, and nothing on a card or a bench asks
+         for one. `SurfaceCost.md` is the argument. */
+      surface: { bake: false,
+                 why: 'the claim on this bench is the fold and the one changed '
+                    + 'residue, and an SES buries both' },
       variants: [
         { id: '2HHB', default: true,
-          purpose: 'the tetramer, deoxy — what the lesson folds',
+          purpose: 'the tetramer, deoxy — four chains, four irons',
           species: 'human', state: 'healthy',
+          chains: 'A,B,C,D', alpha: 'A,C', beta: 'B,D',
           source: { kind: 'repo', id: '2HHB', path: 'hemoglobin/data/2HHB.pdb' },
-          /* EVERY BAKE THIS ENTRY HAS, BY ROLE. A protein whose files another
-             pipeline writes has several in several shapes, and which is which
-             is a decision rather than something a filename proves — so the
-             roles are said here, `check-proteins.js` fails a name that is not
-             on disk, and `read.baked` is the one a card draws.
-
-               trace    the Cα ribbon, what a gallery card and a bench draw
-               quaternary  chains + hemes + irons, hemoglobin-lab's level 4
-               surface  the full SES, 1.5 MB, for a page that shows skin
-               card     the same surface cut down for a thumbnail
-               fold     the folding trajectory, chain B, 830 KB */
-          bake: { trace: '2HHB.trace.json',
-                  quaternary: '2HHB-quaternary.json',
-                  surface: '2HHB.surf.bin',
-                  card: '2HHB.card.surf.bin',
-                  fold: '2HHB-B.fold.bin' },
           read: {
             method: "x-ray diffraction",
             chainsInFile: 4,
             residues: 574,
             declared: 574,
             ec: null,
-            baked: "2HHB.trace.json" } },
+            baked: "hb-2HHB.json" } },
         { id: '2HBS',
-          purpose: 'sickle haemoglobin, one mutation away',
+          purpose: 'sickle haemoglobin: the same fold, and the contact the one '
+                 + 'changed residue makes',
           species: 'human', state: 'mutant',
-          chains: 'A,B,C,D',
+          /* ALL EIGHT CHAINS, WHICH IS THE WHOLE REASON TO BAKE THIS FILE.
+             The asymmetric unit is two tetramers and the lateral contact is
+             between them — beta6 valine of one packing against the pocket on
+             a beta chain of the other. Bake one tetramer and the mutation is
+             a side chain pointing at nothing, which is what it looks like in
+             2HHB too. */
+          chains: 'A,B,C,D,E,F,G,H', alpha: 'A,C,E,G', beta: 'B,D,F,H',
           source: { kind: 'repo', id: '2HBS', path: 'hemoglobin/data/2HBS.pdb' },
-          /* The first of the two tetramers in the asymmetric unit. NO TRACE,
-             and that is a fact worth reading off this list: the sickle side is
-             baked for its SURFACE, because what it is deposited for is a
-             contact between tetramers, and a contact is a claim about skin
-             rather than about a backbone. Its quaternary file carries the
-             chains, hemes and irons that surface-test draws beside it. */
-          bake: { quaternary: '2HBS-T1-quaternary.json',
-                  surface: '2HBS-T1.surf.bin' },
           read: {
             method: "x-ray diffraction",
             chainsInFile: 8,
-            residues: 574,
-            declared: 574,
+            residues: 1148,
+            declared: 1148,
             ec: null,
-            baked: "2HBS-T1-quaternary.json" } },
+            baked: "hb-2HBS.json" } },
       ],
     },
     {

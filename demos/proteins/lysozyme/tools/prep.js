@@ -1,0 +1,401 @@
+#!/usr/bin/env node
+/* =====================================================================
+ *  prep.js — five lysozyme depositions down to what the bench draws,
+ *  plus the one measurement the bench exists to settle.
+ *
+ *  Run:  node proteins/lysozyme/tools/prep.js    (offline, no dependencies)
+ *
+ *  UNDER REVIEW. Nothing is in proteins/proteins.js yet, so the view
+ *  table is CANDIDATES below rather than the registry's `variants`, and
+ *  this script writes no `read` block back. Both change at step 5 of
+ *  docs/AddingAProtein.md, once a human has said which of these earn a
+ *  place.
+ *
+ *  THE QUESTION THIS BAKE ANSWERS. Lysozyme's disease story is
+ *  hereditary systemic amyloidosis: I56T and D67H deposit as fibrils in
+ *  liver and kidney. The mechanism is a loss of stability, not a wrong
+ *  fold — the variants are natively folded and reported to look very
+ *  nearly like wild type in the crystal. So a bench that draws three
+ *  ribbons risks drawing three identical pictures and letting a reader
+ *  believe they show the disease. Every variant is therefore superposed
+ *  on 1REX and its per-residue Ca deviation measured and written into
+ *  the bake: the page prints what the crystals actually differ by, and
+ *  if that is nothing it says so.
+ *
+ *  THE FIVE, and each is one question:
+ *
+ *    1REX  human native at 1.5 A, 130/130, nothing bound. The reference,
+ *          and the wild type the variants are read against.
+ *    1LOZ  I56T. Amyloidogenic variant, same construct, same numbering.
+ *    1LYY  D67H. The other amyloidogenic variant.
+ *    1HEW  hen lysozyme with a (NAG)3 trisaccharide sitting in the
+ *          cleft. The substrate in the site, which no human entry here
+ *          has. Different species, different numbering.
+ *    1LZ1  human native at 1.5 A as well — the entry the wishlist names.
+ *
+ *  WHY 1REX AND NOT 1LZ1 IS THE REFERENCE, though 1LZ1 is the cited
+ *  entry. SECONDARY STRUCTURE IS READ, NEVER DETECTED, so it is the
+ *  depositors' assignment and not a property of the molecule: 1LZ1
+ *  records 5 helices and 5 strands, 1REX records 8 and 2, and the two
+ *  are the same protein at the same resolution. 1LOZ and 1LYY carry
+ *  1REX's assignment. Baking the variants against 1LZ1 would colour a
+ *  difference in convention as a difference in fold, on the one bench
+ *  whose whole subject is how little the fold differs. 1LZ1 is kept as a
+ *  view precisely so that difference is visible and attributable.
+ *
+ *  THE FIT IS ON THE Ca TRACE, matched by a Needleman-Wunsch alignment
+ *  of the two sequences rather than by residue number. Four of the five
+ *  files share a numbering and would align trivially; 1HEW does not —
+ *  hen and human lysozyme are homologous but not co-numbered, and
+ *  residue 52 of one is not residue 52 of the other. Aligning first
+ *  costs forty lines and makes the human-hen comparison a measurement
+ *  instead of a refusal. The identity and the pair count are printed
+ *  with the residual, so a fit made on a bad alignment is visible.
+ *
+ *  THE POCKET is the catalytic pair and whatever is in the cleft. The
+ *  residue NUMBERS differ by species and are named per candidate, never
+ *  assumed — human puts the aspartate at 53 and hen at 52 — and the
+ *  baker asserts the residue it found is the residue that was asked
+ *  for, because a number off by one draws a threonine and calls it the
+ *  catalytic aspartate. 1HEW's three NAG rings come with it; the four
+ *  human entries have an empty cleft, and that absence is half of the
+ *  comparison rather than a gap.
+ *
+ *  SOURCES, for a re-run from scratch. The raw files live in data/src/
+ *  and are 590 KB against the ~110 KB this bakes out of them:
+ *
+ *    for id in 1REX 1LZ1 1LOZ 1LYY 1HEW; do
+ *      curl -o proteins/lysozyme/data/src/$id.pdb \
+ *        https://files.rcsb.org/download/$id.pdb
+ *    done
+ *
+ *  EVERY NUMBER THE PANEL PRINTS IS COUNTED HERE, off the file: the
+ *  declared length from SEQRES, the disulfides from SSBOND, the ligands
+ *  from HETATM, the deviations from the coordinates after the fit.
+ * ===================================================================== */
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const Bake = require('../../bake-lib.js');
+const { kabsch, mul } = require('../../../sickle/tools/bake-sickle.js');
+
+const HERE = path.join(__dirname, '..');
+const SRC = path.join(HERE, 'data', 'src');
+const DATA = path.join(HERE, 'data');
+
+/* THE VIEW TABLE, HERE RATHER THAN IN THE REGISTRY, because none of these
+   is a decision yet — see the header. `cat` is the catalytic pair by
+   residue number, which is the species' and not a constant. */
+const REF = '1REX';
+
+const CANDIDATES = [
+  { id: '1REX', chains: 'A', cat: { acid: 35, base: 53 },
+    what: 'human native, the wild type every variant is read against' },
+  { id: '1LOZ', chains: 'A', cat: { acid: 35, base: 53 },
+    what: 'I56T — amyloidogenic variant' },
+  { id: '1LYY', chains: 'A', cat: { acid: 35, base: 53 },
+    what: 'D67H — the other amyloidogenic variant' },
+  { id: '1HEW', chains: 'A', cat: { acid: 35, base: 52 }, sugar: 'B',
+    what: 'hen, with (NAG)3 in the cleft — the substrate in the site' },
+  { id: '1LZ1', chains: 'A', cat: { acid: 35, base: 53 },
+    what: 'human native again, under the other ss assignment' },
+];
+
+const r2 = Bake.r2, xyz = Bake.xyz;
+const elOf = l => (l.slice(76, 78).trim() || l.slice(12, 14).trim()).toUpperCase();
+
+/* ---- sequence, for the alignment the fit needs ----------------------- */
+
+/* One letter per Ca, in trace order, under the same altloc rule caTrace
+   applies — so the sequence and the coordinates it aligns cannot come out
+   different lengths. */
+const AA = { ALA:'A', ARG:'R', ASN:'N', ASP:'D', CYS:'C', GLN:'Q', GLU:'E',
+             GLY:'G', HIS:'H', ILE:'I', LEU:'L', LYS:'K', MET:'M', PHE:'F',
+             PRO:'P', SER:'S', THR:'T', TRP:'W', TYR:'Y', VAL:'V' };
+
+function caSeq(text, chain) {
+  const out = [];
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('ATOM')) continue;
+    if (line.slice(12, 16).trim() !== 'CA') continue;
+    const alt = line[16];
+    if (alt !== ' ' && alt !== 'A') continue;
+    if (line[21] !== chain) continue;
+    out.push(AA[line.slice(17, 20).trim()] || 'X');
+  }
+  return out;
+}
+
+/* NEEDLEMAN-WUNSCH, global, flat gap penalty. Enough for two sequences
+   that are 60% identical over 130 residues with at most a couple of
+   indels; it is checked by what comes out of it, not trusted — the
+   identity, the pair count and the RMSD are all printed, and a bad
+   alignment shows up in every one of them. Returns index pairs into the
+   two traces. */
+function align(a, b, gap = -2) {
+  const n = a.length, m = b.length;
+  const S = Array.from({ length: n + 1 }, () => new Float64Array(m + 1));
+  const P = Array.from({ length: n + 1 }, () => new Int8Array(m + 1));
+  for (let i = 1; i <= n; i++) { S[i][0] = i * gap; P[i][0] = 1; }
+  for (let j = 1; j <= m; j++) { S[0][j] = j * gap; P[0][j] = 2; }
+  for (let i = 1; i <= n; i++) for (let j = 1; j <= m; j++) {
+    const d = S[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 1 : -1);
+    const u = S[i - 1][j] + gap, l = S[i][j - 1] + gap;
+    if (d >= u && d >= l) { S[i][j] = d; P[i][j] = 0; }
+    else if (u >= l) { S[i][j] = u; P[i][j] = 1; }
+    else { S[i][j] = l; P[i][j] = 2; }
+  }
+  const pairs = [];
+  let i = n, j = m, same = 0;
+  while (i > 0 || j > 0) {
+    const p = i === 0 ? 2 : j === 0 ? 1 : P[i][j];
+    if (p === 0) { pairs.push([i - 1, j - 1]); if (a[i - 1] === b[j - 1]) same++; i--; j--; }
+    else if (p === 1) i--;
+    else j--;
+  }
+  pairs.reverse();
+  return { pairs, identity: pairs.length ? same / pairs.length : 0 };
+}
+
+/* ---- the pocket ------------------------------------------------------ */
+
+/* The catalytic pair, and whatever is sitting in the cleft. One chain's
+   worth as a flat atom list plus bonds, in the same shape myoglobin's
+   baker writes, so kit/proteinbox.js draws it with no new branch.
+
+   NOT CENTRED HERE. The trace decides the centre and the pocket is moved
+   by the same vector, because a pocket centred on itself sits at the
+   origin with the protein around it somewhere else, and that reads as a
+   bug in the ribbon rather than as a bug in the bake. */
+function pocket(text, v) {
+  const lines = text.split('\n');
+  const atoms = [], bySerial = new Map();
+  const keep = (line, group) => {
+    const alt = line[16];
+    if (alt !== ' ' && alt !== 'A') return;
+    bySerial.set(+line.slice(6, 11), atoms.length);
+    atoms.push({ name: line.slice(12, 16).trim(), el: elOf(line),
+                 res: line.slice(17, 20).trim(), group, p: xyz(line) });
+  };
+  /* What was actually found at the numbers the candidate named. A pair
+     off by one draws the neighbouring residue and looks entirely
+     plausible; 1REX has a threonine at 52, one place from the aspartate
+     hen numbers there. */
+  const found = {};
+
+  for (const line of lines) {
+    if (line.startsWith('HETATM')) {
+      if (!v.sugar || line[21] !== v.sugar) continue;
+      if (line.slice(17, 20).trim() !== 'NAG') continue;
+      keep(line, 'sugar');
+    } else if (line.startsWith('ATOM')) {
+      if (line[21] !== v.chains) continue;
+      const num = parseInt(line.slice(22, 26), 10);
+      const which = num === v.cat.acid ? 'acid' : num === v.cat.base ? 'base' : null;
+      if (!which) continue;
+      found[which] = line.slice(17, 20).trim();
+      /* Side chain only; CB stays as the stub saying which way the residue
+         is attached. Backbone here would be ball-and-stick inside a ribbon
+         that already draws it. */
+      const name = line.slice(12, 16).trim();
+      if (name === 'N' || name === 'C' || name === 'O') continue;
+      keep(line, which);
+    }
+  }
+  /* Asserted, not hoped for: the general acid is a glutamate and the
+     nucleophile an aspartate in every lysozyme, so anything else at those
+     numbers means the numbering is not what the candidate claims. */
+  if (found.acid !== 'GLU')
+    throw new Error(`${v.id}: residue ${v.cat.acid} is ${found.acid}, expected GLU`);
+  if (found.base !== 'ASP')
+    throw new Error(`${v.id}: residue ${v.cat.base} is ${found.base}, expected ASP`);
+
+  const bonds = [], seen = new Set();
+  const add = (i, j) => {
+    const lo = Math.min(i, j), hi = Math.max(i, j);
+    if (lo === hi || seen.has(lo + ':' + hi)) return;
+    seen.add(lo + ':' + hi); bonds.push([lo, hi]);
+  };
+  /* Deposited connectivity for the sugar — the glycosidic bonds BETWEEN the
+     three rings are the whole point of drawing a trisaccharide rather than
+     three sugars, and a distance cutoff wide enough to catch them also
+     fills each pyranose in with its diagonals. */
+  for (const line of lines) {
+    if (!line.startsWith('CONECT')) continue;
+    const a = bySerial.get(+line.slice(6, 11));
+    if (a === undefined) continue;
+    for (let c = 11; c + 5 <= line.length; c += 5) {
+      const f = line.slice(c, c + 5).trim();
+      if (!f) continue;
+      const b = bySerial.get(+f);
+      if (b !== undefined) add(a, b);
+    }
+  }
+  /* The two side chains are ATOM records with no CONECT of their own, so
+     their internal bonds come from distance, inside one residue where
+     nothing else is near enough to be wrong about. */
+  const near = (a, b) => Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1], a.p[2] - b.p[2]);
+  for (let i = 0; i < atoms.length; i++)
+    for (let j = i + 1; j < atoms.length; j++) {
+      const A = atoms[i], B = atoms[j];
+      if (A.group !== B.group) continue;
+      if (A.group === 'sugar') continue;
+      if (near(A, B) < 1.9) add(i, j);
+    }
+  return { atoms, bonds, found };
+}
+
+/* ---- one view -------------------------------------------------------- */
+
+function bake(v, ref) {
+  const text = fs.readFileSync(path.join(SRC, v.id + '.pdb'), 'utf8');
+  const chain = v.chains;
+  const R = Bake.ssRanges(text);
+
+  const traced = Bake.caTrace(text, new Set([chain]));
+  if (!traced.size) throw new Error(v.id + ': no CA on chain ' + chain);
+  const res = traced.get(chain).map(r => ({ num: r.num, p: [r.x, r.y, r.z] }));
+  const seq = caSeq(text, chain);
+  if (seq.length !== res.length)
+    throw new Error(v.id + ': sequence and trace disagree on length');
+
+  const site = pocket(text, v);
+
+  /* SUPERPOSE BEFORE CENTRING, in the crystal's own coordinates: the fit is
+     a rotation about the reference's origin, and centring first would fit
+     the two centroids to each other instead. Applied to the trace and the
+     pocket alike, which are one object. */
+  let fit = null, dev = null;
+  if (ref) {
+    const A = align(seq, ref.seq);
+    const P = A.pairs.map(([i]) => res[i].p);
+    const Q = A.pairs.map(([, j]) => ref.ca[j]);
+    const k = kabsch(P, Q);
+    const put = p => mul(k.R, p).map((x, i) => x + k.t[i]);
+    for (const a of site.atoms) a.p = put(a.p);
+    for (const r of res) r.p = put(r.p);
+    fit = { rmsd: k.rmsd, n: P.length, identity: A.identity };
+
+    /* THE MEASUREMENT THE BENCH IS FOR: where, and by how much, this
+       structure actually differs from wild type once the two are in one
+       frame. Per aligned pair, so it is a distance between residues that
+       correspond rather than between residues that share a number. */
+    const each = A.pairs.map(([i, j]) => ({
+      num: res[i].num,
+      d: Math.hypot(res[i].p[0] - ref.ca[j][0], res[i].p[1] - ref.ca[j][1],
+                    res[i].p[2] - ref.ca[j][2]),
+    }));
+    const worst = each.slice().sort((a, b) => b.d - a.d).slice(0, 6);
+    dev = {
+      rmsd: +k.rmsd.toFixed(2),
+      max: +worst[0].d.toFixed(2),
+      /* How much of the chain moves further than the coordinate error of
+         these files is worth arguing about. Reported as a count at a stated
+         cutoff rather than as a verdict. */
+      over1: each.filter(e => e.d > 1).length,
+      of: each.length,
+      worst: worst.map(e => ({ num: e.num, d: +e.d.toFixed(2) })),
+    };
+  }
+
+  /* One centre for the trace and its pocket, and the REFERENCE's centre for
+     every fitted view — centring each on its own centroid would slide the
+     structures back apart by the half-angstrom their centroids differ by,
+     undoing most of the fit just made. */
+  const c = ref ? ref.centre
+    : [0, 1, 2].map(k => res.reduce((s, r) => s + r.p[k], 0) / res.length);
+  const shift = p => p.map((x, k) => r2(x - c[k]));
+
+  const T = Bake.assemble(new Map([[chain, res.map(r => ({ num: r.num, x: r.p[0],
+                                                           y: r.p[1], z: r.p[2] }))]]),
+                          R, c);
+
+  const out = { source: v.id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
+                order: T.order, chains: T.chains, radius: T.radius };
+  out.centreRaw = c;
+  out.pocket = {
+    atoms: site.atoms.map(a => ({ name: a.name, el: a.el, res: a.res,
+                                  group: a.group, p: shift(a.p) })),
+    bonds: site.bonds,
+  };
+
+  /* Lysozyme is a small globular kidney bean and its three extents are close
+     enough that a solved basis would flip between rebakes — frameOf writes
+     none for one, and the bench opens deposited until a human turns it and
+     pastes a basis into the registry. Left as a call because the answer is
+     the shape's to give, and the extents it measures are printed either way. */
+  const F = Bake.frameOf(out.chains[chain].CA);
+  if (F.view) out.view = F.view;
+  out.extents = F.extents;
+  out.frame = F.frame;
+
+  const decl = Bake.declared(text);
+  out.meta = {
+    entry: v.id, chain, chainsDrawn: out.order.length,
+    method: Bake.method(text), resolution: Bake.resolution(text),
+    title: Bake.line1(text, 'TITLE'), models: Bake.models(text),
+    chainsInFile: Bake.chainCount(text),
+    helices: out.chains[chain].helices, strands: out.chains[chain].strands,
+    counts: [{ chain, modelled: res.length,
+               declared: decl[chain] === undefined ? null : decl[chain] }],
+    /* Four disulfides hold this fold together and they are why boiling an
+       egg white does not finish lysozyme off. Read off SSBOND, never counted
+       from cysteines. */
+    ss: Bake.disulfides(text, new Set([chain])),
+    /* Every HETATM the file carries, whether or not the pocket kept it —
+       what is in the cleft is a claim, and the ligand row has to be able to
+       disagree with it. */
+    ligands: Bake.ligands(text, null),
+    cat: { acid: v.cat.acid, base: v.cat.base,
+           names: `${site.found.acid}${v.cat.acid} / ${site.found.base}${v.cat.base}` },
+    /* Rings, counted as anomeric carbons rather than as residue names: three
+       NAG residues under one chain id are three rings, and `new Set` of the
+       name would report one. */
+    sugarRings: site.atoms.filter(a => a.group === 'sugar' && a.name === 'C1').length,
+    fitOn: ref ? REF : null,
+    fitAtoms: fit ? fit.n : null,
+    fitIdentity: fit ? +(100 * fit.identity).toFixed(0) : null,
+    dev,
+  };
+  out.read = {
+    method: Bake.method(text),
+    chainsInFile: Bake.chainCount(text),
+    residues: res.length,
+    declared: out.meta.counts[0].declared,
+    ec: Bake.ecNumbers(text)[0] || null,
+    baked: `lz-${v.id}.json`,
+  };
+  return out;
+}
+
+function main() {
+  fs.mkdirSync(DATA, { recursive: true });
+
+  /* TWO PASSES. The reference is baked first in its own frame, centred on
+     its own trace; every other view is fitted onto that already-centred
+     copy, so the fit and the centring are one step. */
+  const refCand = CANDIDATES.find(v => v.id === REF);
+  const refOut = bake(refCand, null);
+  const ref = { seq: caSeq(fs.readFileSync(path.join(SRC, REF + '.pdb'), 'utf8'),
+                           refCand.chains),
+                ca: refOut.chains[refCand.chains].CA, centre: [0, 0, 0] };
+
+  for (const v of CANDIDATES) {
+    const out = v.id === REF ? refOut : bake(v, ref);
+    const { read, ...bakeOut } = out;
+    fs.writeFileSync(path.join(DATA, read.baked), JSON.stringify(bakeOut));
+    const m = out.meta, kb = (fs.statSync(path.join(DATA, read.baked)).size / 1024).toFixed(0);
+    console.log(`${v.id}  ${read.residues}/${read.declared} res, ` +
+      `${m.helices}H ${m.strands}E, ${m.ss.length} SS, ${m.cat.names}, ` +
+      `sugar ${m.sugarRings} rings, ` +
+      (m.dev ? `fit ${m.dev.rmsd} A over ${m.fitAtoms} pairs (${m.fitIdentity}% id), ` +
+               `max ${m.dev.max} A at ${m.dev.worst[0].num}, ` +
+               `${m.dev.over1}/${m.dev.of} over 1 A`
+             : 'reference frame') +
+      `, view ${out.frame}, ${kb} KB`);
+  }
+}
+
+if (require.main === module) main();
+module.exports = { bake, pocket, align, CANDIDATES };

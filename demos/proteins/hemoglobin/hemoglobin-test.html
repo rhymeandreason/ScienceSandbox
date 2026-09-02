@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- SERVED AT A SHORT URL BY A vercel.json REWRITE, which does not move the
+     file: without this every ../../ path would resolve against `/`.
+     Correct at its own path and on the dev server too. docs/deploy.md. -->
+<base href="/demos/proteins/hemoglobin/">
+<title>Haemoglobin — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html and
+     the gallery card.
+
+     THERE IS ALREADY A HAEMOGLOBIN LESSON, and this bench is not it.
+     hemoglobin-lab.html is the protein-structure lesson: it folds one
+     beta chain, drops a heme into the pocket and docks the other three
+     chains, off a folding trajectory that hemoglobin/tools/ bakes in a
+     format built for that page.
+
+     What this bench is for is the OTHER question, the gallery's: what do
+     we hold, and what can be seen by putting the two depositions in one
+     camera. Two files, one mutation apart.
+
+     WHAT IT IS FOR SETTLING:
+
+       the tetramer     four chains, two kinds, four irons — and whether
+                        alpha and beta are tellable apart by eye at all.
+       the mutation     beta6 is glutamate in 2HHB and valine in 2HBS.
+                        One residue out of 574. Is it findable?
+       the contact      2HBS is deposited as TWO tetramers because the
+                        point is the contact between them: beta6 valine
+                        of one packing into Phe85/Leu88 of the next. That
+                        contact is the first step of a sickle fibre, and
+                        it is the only thing on this bench that a healthy
+                        tetramer cannot do.
+
+     WHAT THIS BENCH CANNOT TELL YOU. A fibre. Two tetramers touching is
+     the nucleus of one, not one — sickle/fibre-test.html is where the
+     built fibre lives, and it draws surfaces because a contact is a claim
+     about skin.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+<style>
+  /* THE ONLY THING THIS PAGE SAYS WITH COLOUR, and it is prion's rust rather
+     than a second one: healthy against disease is the same distinction on both
+     benches, and two colours for it would read as two different claims. */
+  button.mode.disease[aria-pressed=true]{background:#b3300c;border-color:#b3300c}
+  .chip.disease{background:rgba(179,48,12,.14);color:#8f2708}
+  /* The contact row is two numbers that have to be compared across a click,
+     and proportional digits move the decimal point between them. */
+  .contact{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Haemoglobin</h1>
+    <p class="deck">Four chains, four irons, one job. And the single residue
+      that turns it into a disease.</p>
+
+    <h2>the two</h2>
+    <button class="mode" id="v-2HHB" aria-pressed="true">
+      <span class="who">deoxy &middot; 2HHB</span><span class="chip">healthy</span></button>
+    <button class="mode disease" id="v-2HBS" aria-pressed="false">
+      <span class="who">deoxy haemoglobin S &middot; 2HBS</span><span class="chip disease">sickle</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <table>
+      <tr><td>assembly</td><td id="d-quat">&mdash;</td></tr>
+      <tr><td>chains</td><td id="d-span">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr><td>heme</td><td id="d-heme">&mdash;</td></tr>
+      <tr><td>residue &beta;6</td><td id="d-beta6">&mdash;</td></tr>
+      <tr class="hi"><td>&beta;6 to the pocket</td><td class="contact" id="d-contact">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note">Colour is secondary structure (helix, strand, coil), the repo
+      default &mdash; haemoglobin is all helix, so the ribbon is nearly one colour
+      and the chains read by shape. Ball-and-stick inside: the hemes with their
+      irons in rust, the two histidines that hold each one, and &beta;6 with the
+      pocket it reaches for.</p>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Paste into
+      <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>, then re-run the baker.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+      <a href="../../hemoglobin-lab.html">the lesson &rarr;</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
+<script>
+'use strict';
+
+/* Read before the box, which asks it which way this protein faces. */
+const ME = ProteinLib.byKey('hemoglobin');
+
+/* THE BOX IS kit/proteinbox.js, and this page's job stops at choosing a file.
+   Camera, framing, the turn and the WebGL context are the module's, so this
+   bench orbits and frames exactly like every protein in the repo. The chains
+   and the pocket are tools/prep.js's, so nothing here parses a deposition.
+
+   ONE BOX, RE-FED. setData() swaps the structure without replacing the box,
+   so a reader who turned the molecule keeps that view across the switch —
+   which is the whole point of a bench comparing two structures. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  view: ProteinLib.viewOf(ME),
+  orbit: true,
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  sub: 10,
+});
+
+const VIEWS = ['2HHB', '2HBS'];
+const said = id => ProteinLib.variantOf(ME, id);
+
+/* THE PAGE'S OWN COPY. What a structure IS lives in the registry; what this
+   bench SAYS about it under this particular stage is page copy and belongs
+   here. Keyed by variant id, so a button and its paragraph cannot come apart. */
+const SAYS = {
+  '2HHB': {
+    claim: 'Human deoxyhaemoglobin: two alpha chains and two beta, each folded '
+         + 'around one heme.',
+    prov:  'Fermi and Perutz, X-ray at 1.74 A. The T state — no oxygen bound, '
+         + 'which is the shape the molecule holds in tissue after it has let go. '
+         + 'Every iron here is empty and waiting.' },
+  '2HBS': {
+    claim: 'The same protein with one residue changed, and the contact that '
+         + 'change makes.',
+    prov:  'X-ray at 2.05 A. Glutamate 6 of each beta chain is a valine: charged '
+         + 'swapped for greasy, on the outside of the molecule. Two tetramers are '
+         + 'in the file because the valine of one docks into a hydrophobic pocket '
+         + 'on the next, and that pair is where a sickle fibre starts.' },
+};
+
+const views = {};                        // id -> baked trace + pocket + meta
+let view = null;
+const $ = id => document.getElementById(id);
+
+/* A bench is a thing you poke at from the console. */
+window.bench = { views, box, get view() { return view; } };
+
+VIEWS.forEach(id => {
+  fetch(`data/${said(id).read.baked}`).then(r => r.json()).then(t => {
+    views[id] = t;
+    if (view === id) show(id);           // clicked before the fetch landed
+  });
+});
+
+/* Every figure below is counted off the bake, which counted it off the file.
+   A typed number is a claim nothing checks, and a re-bake falsifies it
+   silently. */
+function stats(t, v) {
+  const ids = t.order;
+  const letters = ids.map(c => t.chains[c].ss).join('');
+  const n = letters.length;
+  const H = [...letters].filter(c => c === 'H').length;
+  const E = [...letters].filter(c => c === 'E').length;
+  const m = t.meta;
+
+  const counts = m.counts;
+  const modelled = counts.reduce((k, c) => k + c.modelled, 0);
+  const declared = counts.every(c => c.declared !== null)
+    ? counts.reduce((k, c) => k + c.declared, 0) : null;
+
+  const frag = declared === null ? 'no SEQRES records: completeness unknown'
+    : modelled >= declared ? `complete: ${modelled} of ${declared} deposited`
+    : `fragment: ${modelled} out of ${declared} deposited`;
+
+  /* Alpha and beta are counted off the bake's own lists rather than the chain
+     total, because "four chains" is true of 2HHB and says nothing about 2HBS,
+     where the same four kinds arrive twice over. */
+  const quat = m.tetramers === 1
+    ? `one tetramer: ${m.alpha.length} alpha + ${m.beta.length} beta`
+    : `${m.tetramers} tetramers in the asymmetric unit, ` +
+      `${m.alpha.length} alpha + ${m.beta.length} beta in all`;
+
+  return {
+    quat,
+    span: `alpha ${m.alpha.join(' ')} · beta ${m.beta.join(' ')}`,
+    res: `${modelled} residues in ${ids.length} chains`,
+    /* Floored, not rounded: a percentage may never say whole about something
+       that is not. */
+    pct: declared === null ? '—'
+      : `${modelled} of ${declared} · ${Math.floor(100 * modelled / declared)}%`,
+    frag,
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    heme: `${m.hemes} hemes · ${m.irons} irons · held by His 87/58 in alpha, 92/63 in beta`,
+    ext: t.extents.map(x => x.toFixed(0)).join(' × '),
+  };
+}
+
+/* THE ONE ROW THIS BENCH EXISTS FOR, and it is a measurement in both files
+   rather than a sentence that is only true of one. The baker looked for the
+   closest approach between a beta6 side chain and the Phe85/Leu88 pocket on a
+   DIFFERENT beta chain; in the healthy tetramer the nearest such pair is most
+   of the molecule apart, which is the honest way to say that the contact is
+   not there rather than leaving the row blank. */
+function contactRow(m) {
+  if (!m.contact) return 'no beta6 / pocket pair in the file';
+  const c = m.contact;
+  const near = c.d < 5;
+  return `${c.d} Å · ${c.from} → ${c.to}` +
+         (near ? ' · in contact' : ' · nowhere near: no contact');
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;                        // fetch still in flight
+
+  /* Prose from the registry and this page, figures from the bake — the same
+     split the registry file makes. */
+  const v = said(id), r = v.read;
+  const s = stats(t, v), m = t.meta;
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-meta').textContent = `${v.source.id} · ${r.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å` : '');
+  $('d-quat').textContent = s.quat;
+  $('d-span').textContent = s.span;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-frag').textContent = s.frag;
+  $('d-frac').textContent = s.frac;
+  $('d-heme').textContent = s.heme;
+  /* Read off the deposition by the baker, never typed: this row IS the
+     difference between the two files, and a hard-coded "GLU / VAL" would be
+     the one string on the page that a wrong bake could not contradict. */
+  $('d-beta6').textContent = m.beta6.join(' + ') +
+    ` · ${m.beta.length} beta chain${m.beta.length > 1 ? 's' : ''}`;
+  $('d-contact').textContent = contactRow(m);
+  $('d-ext').textContent = s.ext;
+  /* Named by WHERE THE FRAME CAME FROM: `computed` is the baker solving one
+     off the shape, `deposited` is the file left alone, `chosen in the
+     registry` is a human's, read at draw time rather than baked. */
+  $('d-view').textContent = t.frame;
+  $('d-prov').textContent = SAYS[id].prov;
+
+  const u = ProteinLib.urls(v);
+  $('d-rcsb').href = u.entry;
+  $('d-rcsb-label').textContent = `RCSB ${v.source.id}`;
+  $('d-raw').href = u.file;
+  $('d-baked').href = `data/${r.baked}`;
+
+  box.setData(t);
+  /* AFTER setData, WHICH CLEARS IT. The pocket is drawn in the structure's own
+     frame and moved by the trace's centre vector, so it lands inside the
+     ribbon rather than at the origin with the protein around it. */
+  if (t.pocket) box.setPocket(t.pocket);
+}
+
+$('pick').addEventListener('click', () => {
+  const R = box.pickView();
+  const text = JSON.stringify(R);
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+VIEWS.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
+    show(id);
+  });
+});
+
+/* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id. */
+const OPEN = ProteinLib.defaultOf(ME).id;
+VIEWS.forEach(id => $('v-' + id).setAttribute('aria-pressed', String(id === OPEN)));
+show(OPEN);
+</script>
+</body>
+</html>

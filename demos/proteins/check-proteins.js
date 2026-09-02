@@ -113,11 +113,10 @@ for (const p of lib.PROTEINS) {
           every reduced file it writes. */
     /* A protein whose files another pipeline writes is verified against the
        DEPOSITION it names, not against a bake this registry did not shape.
-       Haemoglobin is the case: `hemoglobin/tools/` writes a trace, a
-       quaternary file, a surface and an 830 KB fold for the folding lesson,
-       in formats with no `meta` block to cross-check and no reason to grow
-       one. The invariant survives — every read field is still answerable by a
-       committed file — it is just a different file. */
+       Amylase is the case: `amylase/tools/` writes its site measurements and
+       its trace together, in a format with no `meta` block to cross-check and
+       no reason to grow one. The invariant survives — every read field is
+       still answerable by a committed file — it is just a different file. */
     if (p.pipeline === 'own') {
       /* Every bake the entry names, by role, has to be on disk. This is the
          only place that notices when another pipeline renames or drops one —

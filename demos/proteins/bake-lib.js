@@ -43,8 +43,11 @@
  *  Used by: proteins/rnase/tools/prep.js, proteins/myoglobin/tools/prep.js,
  *  tools/bake-trace.js.
  *
- *  ONE BAKER DELIBERATELY DOES NOT USE IT: `hemoglobin/tools/` feeds the
- *  folding trajectory and is a pipeline of its own. `proteins/prion/tools/`
+ *  ONE BAKER DELIBERATELY DOES NOT USE IT: `hemoglobin/tools/` feeds
+ *  hemoglobin-lab's folding trajectory and is a pipeline of its own. That is
+ *  the LESSON's haemoglobin and not the collection's — `proteins/hemoglobin/
+ *  tools/prep.js` bakes the same two depositions through this file for the
+ *  gallery, which is why the registry entry is an ordinary one. `proteins/prion/tools/`
  *  writes traces like the rest now, but through `PrionLib` rather than through
  *  this file — its sources are already cut and aligned to each other by that
  *  library, and re-reading them here would be a second parse of files a
