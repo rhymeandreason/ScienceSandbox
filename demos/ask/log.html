@@ -23,26 +23,24 @@
     /* Whatever the OS considers its interface face. No download, no swap
        flash, and it matches the rest of the machine's dense UI. */
     --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    /* Futura is the site's display face and is used for names and nothing
+       else. Named here rather than linked: whatever is installed is used, and
+       system-ui carries the title where it is not. */
+    --display: 'Futura', 'Futura PT', 'Jost', var(--sans);
     --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 
-    --paper:  #f7f6f3;
+    /* The house palette, the values proteins/protein-test.css declares, so a
+       tool and a bench are the same paper and the same green. */
+    --paper:  #faf8f4;
     --ink:    #14161a;
     --muted:  #6d6f76;
-    --faint:  #8e9098;
-    --line:   #e3e1db;
+    --faint:  #63656d;
+    --line:   #e4e0d7;
     --card:   #ffffff;
     --accent: #1f5f4f;   /* pointed at this lesson */
     --away:   #6d55a3;   /* pointed at another one */
-    --spark:  #d1542c;   /* failed */
+    --spark:  #e2643a;   /* failed */
     --shadow: 0 1px 2px rgba(20, 22, 26, .04);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --paper: #141619; --ink: #e9e8e4; --muted: #9a9ca2; --faint: #7c7e85;
-      --line: #2a2d32; --card: #1b1e22;
-      --accent: #6cc0a5; --away: #b39ddb; --spark: #f0845c;
-      --shadow: none;
-    }
   }
 
   * { box-sizing: border-box; }
@@ -54,7 +52,9 @@
   }
   .wrap { max-width: 64rem; margin: 0 auto; }
 
-  h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 .2rem; letter-spacing: -.01em; }
+  h1 { font-family: var(--display); font-size: 1.7rem; font-weight: 500;
+       text-transform: lowercase; letter-spacing: -.035em; line-height: 1;
+       margin: 0 0 .35rem; }
   .sub { color: var(--muted); font-size: .875rem; margin: 0 0 1.5rem; }
 
   /* ---- the numbers ---- */
@@ -187,32 +187,32 @@
   .qlist div { padding: .3rem 0; border-top: 1px solid var(--line, #2a2d33);
                display: flex; flex-wrap: wrap; gap: .8rem; align-items: baseline; }
   .qlist div:first-child { border-top: 0; }
-  .qlist time { color: var(--faint, #6d6f76); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .qlist time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   /* WHICH ENDPOINT WROTE THE ROW. A search and a generation are one question
      apiece in this list, and without the tag a question that was searched and
      then built reads as the same question asked twice. */
   .qlist .kind {
     font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
     align-self: center; padding: .12rem .38rem; border-radius: 2px;
-    border: 1px solid currentColor; white-space: nowrap; opacity: .75;
+    border: 1px solid currentColor; white-space: nowrap;
   }
-  .qlist .kind.extend { color: #7aa2f7; opacity: 1; }
-  .qlist .kind.find { color: var(--faint, #6d6f76); }
+  .qlist .kind.extend { color: var(--accent); }
+  .qlist .kind.find { color: var(--muted); }
   .qlist .q { flex: 1; }
   /* WHAT THE READER WAS SHOWN, under the question that got it. Only an extend
      row has one: a search is ranked in the page and the server never learns
      where it landed. */
   .qlist .ans {
     flex-basis: 100%; margin: .25rem 0 .1rem 0; padding-left: .6rem;
-    border-left: 2px solid #7aa2f7; font-size: .82rem;
+    border-left: 2px solid var(--accent); font-size: .82rem;
   }
   .qlist .ans .card { display: block; }
   .qlist .ans .card b { font-weight: 600; }
   .qlist .ans .out {
     font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
-    color: #7aa2f7; margin-right: .4rem;
+    color: var(--accent); margin-right: .4rem;
   }
-  .qlist .ans .note { color: var(--faint, #6d6f76); display: block; margin-top: .2rem; }
+  .qlist .ans .note { color: var(--muted); display: block; margin-top: .2rem; }
   /* a landing is one line, not a block: the tier, where it went, and the score
      when there was one */
   .qlist .ans.landed { display: flex; gap: .5rem; align-items: baseline; border-left-color: var(--faint, #6d6f76); }
@@ -222,18 +222,20 @@
     color: var(--faint, #6d6f76);
   }
   /* the two that mean the map could not answer */
-  .qlist .tier.offer, .qlist .tier.miss { color: #e0af68; }
+  .qlist .tier.offer, .qlist .tier.miss { color: var(--spark); }
   /* OFF BY DEFAULT, so the queue reads as what students asked. A session spent
      testing the bar is dozens of questions nobody wanted answered. */
   /* the one control here that is a STATE rather than an action, so it fills
      when it is on — the same thing the map's own primary pill does */
   button.act[aria-pressed="true"] {
-    background: #7aa2f7; border-color: #7aa2f7; color: #10131a; font-weight: 500;
+    background: var(--accent); border-color: var(--accent); color: var(--paper); font-weight: 500;
   }
-  .qlist div.local { opacity: .55; }
+  /* Local rows are dimmed, not hidden — on paper .55 washed them out to
+     nearly nothing, so the dim is only enough to rank them below real ones. */
+  .qlist div.local { opacity: .9; }
   .qlist .here {
     font-size: .62rem; letter-spacing: .1em; text-transform: uppercase;
-    color: #e0af68; align-self: center;
+    color: var(--spark); align-self: center;
   }
 </style>
 </head>
