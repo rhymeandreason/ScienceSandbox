@@ -85,3 +85,10 @@ viewer-compare/
 # than deleted, but a student following a link into one would be reading a
 # lesson this repo no longer stands behind.
 demos/attic/
+
+# Candidate triage: a script that greps a deposition's records and a page that
+# looks at one in 3Dmol, both used while deciding whether a structure is worth
+# a bake. The page loads an outside viewer from a CDN, which is exactly what a
+# lesson must not do — rendering-modules.md's rule is about what ships, and
+# nothing here does. Neither is linked from a lesson.
+demos/proteins/tools/triage.html
