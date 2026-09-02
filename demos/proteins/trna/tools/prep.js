@@ -44,8 +44,12 @@
  *  where that under-claim becomes visible. The wobble is here — G4-U69 in the
  *  acceptor stem, which a Watson-Crick test alone refuses and which is real
  *  pairing — but tRNA's TERTIARY structure is held together by contacts
- *  basePairs still will not find: the G15-C48 Levitt pair, G19-C56, the
- *  T-loop's reverse-Hoogsteen T54-A58. So the L stays folded in the
+ *  basePairs still will not find: the G15-C48 Levitt pair (a TRANS Watson-Crick
+ *  pair, so it clears the distance test at a looser tolerance but is not the
+ *  cis geometry the label would claim) and the T-loop's reverse-Hoogsteen
+ *  T54-A58. G19-C56 IS found — it is an ordinary cis Watson-Crick pair that
+ *  happens to be a tertiary contact, and an earlier version of this comment
+ *  listed it among the refusals, which was simply wrong. So the L stays folded in the
  *  coordinates while the drawing shows the two arms joined by nothing. That is
  *  the honest picture of what was solved from the file, and the page says so
  *  rather than the bake inventing rungs to cover it.
@@ -85,7 +89,12 @@ for (const id of na) {
   }
 }
 
-const rawPairs = Bake.basePairs(chains);
+/* THE TOLERANCE THIS ENTRY'S RESOLUTION EARNS, off its own REMARK 2 — see
+   bake-lib's hbFor. Never a number typed here: a sharp structure and a blunt
+   one need different allowances for the same chemistry, and the bake records
+   which was used. */
+const hb = Bake.hbFor(Bake.resolution(text));
+const rawPairs = Bake.basePairs(chains, { hb });
 const T = Bake.assembleNA(chains);
 const pairs = Bake.centrePairs(rawPairs, T.centre);
 
@@ -105,7 +114,8 @@ const out = {
   what: 'yeast tRNA-Phe',
   method: Bake.method(text),
   resolution: Bake.resolution(text),
-  pairsFrom: 'geometry — Watson-Crick (N1...N3), wobble (N1...O2 + O6...N3)',
+  pairsFrom: 'geometry — Watson-Crick (N1...N3), wobble (N1...O2 + O6...N3), '
+           + 'C1\'-C1\' 8.4-12.6 A, N...N within ' + hb + ' A',
   centre: T.centre,
   order: T.order,
   chains: T.chains,

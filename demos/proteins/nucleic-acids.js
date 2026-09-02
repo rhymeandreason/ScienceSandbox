@@ -128,6 +128,35 @@
             baked: 'zif268-1ZAA.json' } },
       ],
     },
+    {
+      key: 'nucleosome', name: 'Nucleosome', dir: 'proteins/nucleosome',
+      kind: 'complex', does: 'structural',
+      blurb: 'Two metres of DNA go into a nucleus ten microns across, and '
+           + 'this is the first fold of it: 146 base pairs wound 1.65 turns '
+           + 'around eight histones, two copies each of four proteins.',
+      /* THE HIGHEST-VALUE ENTRY ON THE WISHLIST, and the last one that was
+         gated on engineering rather than on choice — until kit/nucleic.js
+         existed its DNA baked as nothing at all. It is proteins/zif268/ at
+         twenty times the size and not a new mechanism, which is the whole
+         reason the small one was built first. */
+      pipeline: 'trace',
+      variants: [
+        { id: '1AOI',
+          purpose: 'DNA packaged, and the tails that are not there',
+          species: 'Xenopus histones, human DNA',
+          label: 'core particle', chip: '10 chains',
+          source: { kind: 'rcsb', id: '1AOI' },
+          read: {
+            method: 'x-ray diffraction',
+            chains: 10,
+            nucleotides: 292,
+            residues: 805,
+            pairs: 132,
+            wobble: 0,
+            modified: 0,
+            baked: 'nucleosome-1AOI.json' } },
+      ],
+    },
   ];
 
   const KINDS = ['dna', 'rna', 'complex'];

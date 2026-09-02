@@ -80,7 +80,8 @@ const centre = [0, 1, 2].map(k => all.reduce((s, p) => s + p[k], 0) / all.length
 
 const P = Bake.assemble(prot, R, centre);
 const D = Bake.assembleNA(dna, centre);
-const rawPairs = Bake.basePairs(dna);
+const hb = Bake.hbFor(Bake.resolution(text));
+const rawPairs = Bake.basePairs(dna, { hb });
 const pairs = Bake.centrePairs(rawPairs, centre);
 
 /* The duplex's own axis, off the base-pair centroids — the same convention
@@ -133,7 +134,8 @@ const out = {
   method: Bake.method(text),
   resolution: Bake.resolution(text),
   ssFrom: Bake.ssFrom(R),
-  pairsFrom: 'geometry — Watson-Crick (N1...N3), wobble (N1...O2 + O6...N3)',
+  pairsFrom: 'geometry — Watson-Crick (N1...N3), wobble (N1...O2 + O6...N3), '
+           + 'C1\'-C1\' 8.4-12.6 A, N...N within ' + hb + ' A',
   centre: P.centre,
   order,
   chains,

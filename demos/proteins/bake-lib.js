@@ -559,10 +559,36 @@ function naTrace(text, only, mod) {
  *  tertiary contacts come back unpaired, and unpaired renders as a stub rather
  *  than a rung — so the picture under-claims instead of inventing a ladder.
  */
+/* THE H-BOND TOLERANCE A STRUCTURE'S RESOLUTION EARNS.
+ *
+ *  The Watson-Crick N1...N3 distance is ~2.85 A and essentially invariant —
+ *  it is a hydrogen bond, not a variable. What varies is how well the model
+ *  knows where the atoms are. 1BNA at 1.9 A has a median of 2.87; 1AOI at
+ *  2.8 A has 3.04, with a long tail. A single tight cutoff therefore does not
+ *  mean one thing across a collection: it finds every pair in a sharp
+ *  structure and drops a fifth of them in a blunt one, and the ladder comes
+ *  out looking damaged where the DATA is blunt rather than the DNA.
+ *
+ *  So the tolerance is derived from the number the file states about itself,
+ *  and the bake records what was used. 0.25 A per A beyond 2.0 is a
+ *  coordinate-error allowance, not a claim about chemistry.
+ *
+ *  IT IS ONLY SAFE BECAUSE OF THE C1'-C1' WINDOW BELOW. Loosening a lone
+ *  distance test admits stacked neighbours, which sit 3.4 A apart and
+ *  beautifully coplanar; a pair's sugars are ~10.5 A apart and a stack's are
+ *  ~5, so the two criteria fail on completely different things. */
+const hbFor = res => Math.round((3.3 + 0.25 * Math.max(0, (res || 2) - 2)) * 100) / 100;
+
 function basePairs(chains, opts) {
   const o = opts || {};
   const HB = o.hb || 3.3;            /* N1...N3, ~2.85 A in a good structure */
   const COPLANAR = o.coplanar || 0.6;  /* |n1 . n2|, a pair is near-antiparallel */
+  /* THE SPAN ACROSS THE PAIR, sugar to sugar. A second criterion that fails on
+     a different thing from the first: every Watson-Crick pair puts its two C1'
+     about 10.5 A apart whatever the bases are, and nothing else in a nucleic
+     structure does. It is what lets HB be loosened for a blunt structure
+     without the test starting to find base STACKS. */
+  const C1LO = o.c1lo || 8.4, C1HI = o.c1hi || 12.6;
   const flat = [];
   for (const [id, res] of chains) for (const r of res) flat.push({ id, r });
 
@@ -581,6 +607,8 @@ function basePairs(chains, opts) {
   function testPair(a, b) {
     const pu = a.r.ring === 'pu' ? a : b, py = pu === a ? b : a;
     if (Math.abs(dot3(a.r.Bn, b.r.Bn)) < COPLANAR) return null;
+    const span = dist3(a.r.C1, b.r.C1);
+    if (span < C1LO || span > C1HI) return null;
     if (pu.r.edge && py.r.edge && dist3(pu.r.edge, py.r.edge) <= HB)
       return { kind: 'wc', mid: mid2(pu.r.edge, py.r.edge) };
     if (pu.r.edge && py.r.off && pu.r.off && py.r.edge
@@ -680,5 +708,5 @@ module.exports = {
   modResidues,
   ecNumbers, EC_CLASS,
   assemble, frameOf, viewFor, breaks,
-  chainKinds, naTrace, basePairs, centrePairs, assembleNA, baseLetter,
+  chainKinds, naTrace, basePairs, centrePairs, assembleNA, baseLetter, hbFor,
 };

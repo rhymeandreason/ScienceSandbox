@@ -32,8 +32,9 @@
 
      WHAT THE PICTURE DELIBERATELY DOES NOT SHOW. The L is held shut by
      tertiary contacts, and every one of them is a pair `basePairs`
-     refuses to find: the G15-C48 Levitt pair, G19-C56, the
-     reverse-Hoogsteen T54-A58. So the two arms are drawn joined by
+     refuses to find: the G15-C48 Levitt pair and the reverse-Hoogsteen
+     T54-A58. G19-C56 IS found — an ordinary Watson-Crick pair that
+     happens to be a tertiary contact. So the two arms are drawn joined by
      nothing, which is an honest report of what a Watson-Crick test
      found and NOT an honest picture of the molecule. A lesson has to
      say so out loud, or it teaches that the fold is held by the
@@ -53,49 +54,68 @@
 <link rel="stylesheet" href="../protein-test.css">
 
 <style>
-  body { background: var(--h-paper); color: var(--h-ink);
-         font-family: var(--h-ui); }
-  .wrap { max-width: 62rem; margin: 0 auto; padding: 1.5rem 1.5rem 3rem; }
-  h1 { font-family: var(--h-display); font-weight: 500; margin: 0 0 .3rem; }
-  .lede { max-width: 46rem; margin: 0 0 1rem; }
-  #stage { width: 100%; height: 62vh; min-height: 380px; }
-  .row { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center;
-         margin: .6rem 0 0; }
-  .row label { display: flex; align-items: center; gap: .4rem; }
-  #facts { margin-top: .8rem; }
-  #facts td { padding: .1rem .9rem .1rem 0; border-top: 1px solid var(--h-line);
-              vertical-align: top; }
-  #facts td:first-child { color: var(--h-muted); white-space: nowrap; }
-  #facts .n { font-variant-numeric: tabular-nums; }
-  #tris { color: var(--h-muted); }
+  /* The panel chrome is ../protein-test.css. What stays here is what this
+     bench has and a single-structure page does not: a colour legend, a mesh
+     density control, and the under-claim note. */
+  #stage { min-height: 0; }
+
+  .row { display: flex; align-items: center; gap: var(--space-2);
+         margin: 6px 0; font-size: 0.8rem; color: var(--h-ink); }
+  .row label { display: flex; align-items: center; gap: 6px; flex: 1; }
+  .row input[type=checkbox] { accent-color: var(--h-accent); }
+  .row input[type=range] { width: 110px; accent-color: var(--h-accent); }
+
+  #legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
+            margin: var(--space-2) 0 0; font-size: 0.75rem;
+            color: var(--h-muted); }
   .sw { display: inline-flex; align-items: center; gap: .35em;
         font-variant-numeric: tabular-nums; }
-  .sw i { width: .85em; height: .85em; border-radius: 2px; display: inline-block; }
-  .miss { color: var(--h-muted); max-width: 46rem; margin-top: 1rem;
-          border-left: 2px solid var(--h-line); padding-left: .9rem; }
+  .sw i { width: .8em; height: .8em; border-radius: 2px; display: inline-block; }
+
+  /* The figures here are sentences and sequences, not single numbers, so the
+     value column reads left-aligned. Everything else is the shared table. */
+  #facts td:last-child { text-align: left; font-weight: 400; font-size: 0.78rem;
+                         padding-left: var(--space-3); overflow-wrap: anywhere; }
+  #tris { color: var(--h-muted); font-variant-numeric: tabular-nums;
+          font-size: 0.75rem; }
+
+  /* The under-claim is ruled off because it is the one paragraph that talks
+     about what is NOT on screen. */
+  .miss { border-left: 2px solid var(--h-spark); padding-left: .8rem; }
 </style>
 </head>
 <body>
 
-<main class="wrap">
-  <h1>tRNA-Phe, and where the ladder stops</h1>
-  <p class="lede" id="lede">Loading…</p>
-
+<div id="app">
   <div id="stage"></div>
+  <div class="panel">
+    <h1>tRNA-Phe</h1>
+    <p class="deck">Where the ladder stops. Four stems, three loops, and most
+      of the chain with no partner the Watson-Crick test accepts.</p>
 
-  <div class="row">
-    <label><input type="checkbox" id="rungs" checked> Pairs</label>
-    <label><input type="checkbox" id="stubs" checked> Unpaired</label>
-    <label>Samples/nt <input type="range" id="sub" min="2" max="16" value="8" style="width:8rem"></label>
-    <span id="tris" class="n"></span>
+    <h2>what is drawn</h2>
+    <div class="row"><label><input type="checkbox" id="rungs" checked> pairs</label></div>
+    <div class="row"><label><input type="checkbox" id="stubs" checked> unpaired</label></div>
+    <div class="row"><label>samples / nt</label><input type="range" id="sub" min="2" max="16" value="8"></div>
+    <div id="tris"></div>
+
+    <h2>colour</h2>
+    <div id="legend"></div>
+
+    <h2>the claim</h2>
+    <p class="claim" id="lede">Loading…</p>
+
+    <h2>measured, not typed</h2>
+    <table id="facts"></table>
+
+    <p class="note miss" id="miss"></p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a href="data/">what this page loads</a>
+    </p>
   </div>
-
-  <div class="row" id="legend"></div>
-
-  <table id="facts"></table>
-
-  <p class="miss" id="miss"></p>
-</main>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../../lib/palette.js"></script>
@@ -221,6 +241,12 @@ function facts() {
   document.getElementById('facts').innerHTML = rows
     .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
 
+  /* The provenance link names the entry the bake came from, so a re-bake
+     against a different deposition retargets it. */
+  document.getElementById('d-rcsb').href =
+    'https://www.rcsb.org/structure/' + trace.entry;
+  document.getElementById('d-rcsb-label').textContent = 'RCSB ' + trace.entry;
+
   const wob = trace.pairs.filter(p => p.kind === 'wobble');
   document.getElementById('lede').innerHTML =
     'Four stems and three loops. ' + trace.pairs.length + ' pairs are drawn as '
@@ -243,7 +269,7 @@ function facts() {
   document.getElementById('miss').innerHTML =
     '<b>What this picture does not show.</b> The L is held shut by tertiary '
     + 'contacts, and every one of them is a pair the Watson-Crick test refuses: '
-    + 'the G15·C48 Levitt pair, G19·C56, the reverse-Hoogsteen '
+    + 'the G15·C48 Levitt pair and the reverse-Hoogsteen '
     + 'T54·A58. One stem position is still missing too: A31·Ψ39, a '
     + 'pseudouridine pair at 4.80 Å. The drawing under-claims on purpose — it '
     + 'never invents a rung it did not find.';

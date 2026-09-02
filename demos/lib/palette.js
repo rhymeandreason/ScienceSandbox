@@ -117,6 +117,25 @@
                      // stone, so it reads as "not one of the four" rather
                      // than as a fifth base
     },
+    // ---- the four histones ------------------------------------------------
+    // A nucleosome is eight chains of ONE fold, so the ss palette answers the
+    // wrong question there: what a reader has to tell apart is which histone,
+    // and the octamer's whole shape is (H3-H4)2 with two H2A-H2B dimers. The
+    // two copies of a histone share a colour, because they are the same
+    // protein and the picture should say the octamer is four PAIRS.
+    //
+    // They have to clear two families at once, which is what fixes them here
+    // rather than leaving them to a page: `bases` sits on the rungs threading
+    // right through the octamer, and `strands` is the DNA's own backbone
+    // wrapped around it. Green and magenta are spoken for by the second, and
+    // indigo, cyan, red and amber by the first — so these four are muted and
+    // sit in the gaps between: teal, ochre, violet, terracotta.
+    histones: {
+      H3:  0x3f7f8c,
+      H4:  0xa8823f,
+      H2A: 0x6d5f9e,
+      H2B: 0x9c5f52,
+    },
     // ---- secondary structure: how kit/ribbon.js's cartoon is coloured -----
     // The house ss palette, and it lived inside kit/proteinbox.js as `RIB`
     // until a second consumer needed it. Coil is a warm grey so the parts that

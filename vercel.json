@@ -34,6 +34,7 @@
     { "source": "/demos/proteins/rubisco/rubisco-test.html", "destination": "/proteins/rubisco", "permanent": true },
     { "source": "/demos/proteins/trna/trna-test.html", "destination": "/proteins/trna", "permanent": true },
     { "source": "/demos/proteins/zif268/zif268-test.html", "destination": "/proteins/zif268", "permanent": true },
+    { "source": "/demos/proteins/nucleosome/nucleosome-test.html", "destination": "/proteins/nucleosome", "permanent": true },
 
 
     { "source": "/builder",                    "destination": "/molecular-bonds", "permanent": false },
@@ -63,7 +64,8 @@
     { "source": "/proteins/rnase", "destination": "/demos/proteins/rnase/rnase-test.html" },
     { "source": "/proteins/rubisco", "destination": "/demos/proteins/rubisco/rubisco-test.html" },
     { "source": "/proteins/trna", "destination": "/demos/proteins/trna/trna-test.html" },
-    { "source": "/proteins/zif268", "destination": "/demos/proteins/zif268/zif268-test.html" }
+    { "source": "/proteins/zif268", "destination": "/demos/proteins/zif268/zif268-test.html" },
+    { "source": "/proteins/nucleosome", "destination": "/demos/proteins/nucleosome/nucleosome-test.html" }
   ],
   "headers": [
     { "source": "/api/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }

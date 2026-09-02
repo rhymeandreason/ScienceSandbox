@@ -6,43 +6,48 @@
 <!-- SERVED AT A SHORT URL BY A vercel.json REWRITE, which does not move the
      file: without this every ../../ path would resolve against `/`.
      Correct at its own path and on the dev server too. docs/deploy.md. -->
-<base href="/demos/proteins/zif268/">
-<title>Zif268 — a protein reading DNA</title>
+<base href="/demos/proteins/nucleosome/">
+<title>The nucleosome — DNA on a spool</title>
 
 <!-- ===================================================================
      SCRATCH. Not a lesson, not linked from anywhere but admin.html.
 
-     WHY THIS ENTRY. It is the first bake in the repo where a protein and
-     a nucleic acid come out of ONE deposition and have to share ONE
-     frame. 1BNA was a duplex alone and 1EHZ an RNA alone; both drew
-     themselves in a scene with nothing else in it. Eight wishlist rows
-     are mixed files, the nucleosome among them, and every one of them is
-     this problem at a larger size.
+     WHY THIS ENTRY. It is the highest-value structure on the wishlist
+     and it was the last one gated on engineering rather than on choice:
+     eight histones and 146 base pairs, and until kit/nucleic.js existed
+     the DNA baked as nothing at all. It is also the answer to a question
+     a student asks and a textbook diagram dodges — two metres of DNA in
+     a nucleus ten microns across, and this is the first fold of it.
 
-     SO WHAT THIS BENCH IS FOR SETTLING:
+     IT IS proteins/zif268/ AT TWENTY TIMES THE SIZE and NOT A NEW
+     MECHANISM: one centre solved over both polymers, one frame, two
+     vocabularies in one scene. Building the small one first is why this
+     one is a content decision rather than three untested things at once.
 
-       one frame          the protein and the duplex are centred on ONE
-                          vector solved over both. If either had solved
-                          its own, they would overlap at the origin —
-                          each individually correct, the picture
-                          nonsense. Look for the protein sitting IN the
-                          major groove, not inside the DNA.
-       one scale          real angstroms for both, so a 85-residue
-                          protein and 11 base pairs come out at the sizes
-                          they actually have relative to each other.
-       two vocabularies   a ribbon says helix and strand; a ladder says
-                          paired and unpaired. They have to read as two
-                          KINDS of thing without either one looking like
-                          a mistake.
-       the zincs          three fingers, three zincs. A zinc finger does
-                          not exist without them, so they are baked and
-                          drawn rather than left as a caption.
+     WHAT TO LOOK AT:
 
-     WHAT IT STILL DOES NOT TEST. A chain break: chain C is modelled
-     3-87 of a declared 1-87, so the missing pair is terminal and runs()
-     sees one contiguous run. The duplex does carry two unpaired 5'
-     overhangs, which is the first stub drawn on a duplex rather than in
-     a loop.
+       the wrap           1.65 turns, and it should read as a spool
+                          rather than as a tangle. The frame is SOLVED
+                          here, unlike the duplexes: a nucleosome is a
+                          disc, so its shortest axis is the superhelical
+                          one and "shortest into the screen" is the
+                          face-on view a textbook draws.
+       the ladder at size 146 rungs. If base pairing stops reading at
+                          this scale, the ladder is a card-sized idea and
+                          a lesson would want the tube instead.
+       what is missing    the tails. Every histone chain simply starts
+                          late, and the two copies of one histone do not
+                          start at the same residue — a fact about what
+                          was ordered enough to see, not about the
+                          protein. The tails carry the marks the whole of
+                          chromatin regulation is about, so the file
+                          holds the SPOOL and the page has to say the
+                          rest is unseen.
+
+     WHAT IT STILL DOES NOT TEST. An internal chain break: every chain
+     here is contiguous and the missing residues are terminal, so runs()
+     has still never met a gap. Four entries in, that keeps being nearly
+     true and is not the same as tested.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -86,14 +91,14 @@
 <div id="app">
   <div id="stage"></div>
   <div class="panel">
-    <h1>Zif268</h1>
-    <p class="deck">Three zinc fingers in the major groove. A protein and a
-      duplex out of one deposition, in one frame at one scale.</p>
+    <h1>The nucleosome</h1>
+    <p class="deck">146 base pairs wound 1.65 turns around eight histones —
+      the first fold in getting two metres of DNA into a ten-micron nucleus.</p>
 
     <h2>what is drawn</h2>
     <div class="row"><label><input type="checkbox" id="protein" checked> protein</label></div>
     <div class="row"><label><input type="checkbox" id="dna" checked> DNA</label></div>
-    <div class="row"><label><input type="checkbox" id="zinc" checked> zinc</label></div>
+    <div class="row"><label><input type="checkbox" id="byhist" checked> colour by histone</label></div>
     <div class="row"><label>samples / nt</label><input type="range" id="sub" min="2" max="16" value="8"></div>
     <div id="tris"></div>
 
@@ -184,12 +189,26 @@ function runs(ch) {
    splinters around an intact duplex. */
 const RIB_MATS = ['C', 'H', 'E'].map(c => ssMat(c));
 
-function drawProtein(ch) {
+/* EIGHT CHAINS OF FOUR PROTEINS, so the ss palette is the wrong question here:
+   what a reader has to tell apart is WHICH HISTONE, and every one of them is
+   the same fold. Same reason collagen overrides it, one polymer over. The two
+   copies of a histone share a colour, because they are the same protein and
+   the picture should say the octamer is four pairs. */
+/* Keyed off the name COMPND gave the chain, so a file that calls them
+   something else falls back rather than mislabelling one. */
+const histMat = name => mat('hist:' + name,
+  MolPalette.histones[String(name).replace('HISTONE ', '').trim()]
+    !== undefined
+    ? MolPalette.histones[String(name).replace('HISTONE ', '').trim()]
+    : MolPalette.ss.C);
+
+function drawProtein(ch, byHistone) {
   for (const seg of runs(ch)) {
     if (seg.CA.length < 4) continue;   // RibbonLib needs a spline's worth
     const pts = seg.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-    group.add(new THREE.Mesh(
-      RibbonLib.build(THREE, pts, seg.ss.split(''), { sub: 10 }), RIB_MATS));
+    const geo = RibbonLib.build(THREE, pts, seg.ss.split(''), { sub: 8 });
+    group.add(new THREE.Mesh(geo, byHistone && ch.molecule
+      ? histMat(ch.molecule) : RIB_MATS));
   }
 }
 
@@ -200,7 +219,8 @@ function draw() {
 
   if (document.getElementById('protein').checked)
     for (const id of trace.order)
-      if ((trace.chains[id].kind || 'aa') === 'aa') drawProtein(trace.chains[id]);
+      if ((trace.chains[id].kind || 'aa') === 'aa')
+        drawProtein(trace.chains[id], document.getElementById('byhist').checked);
 
   if (document.getElementById('dna').checked) {
     /* NucleicLib walks the same `chains` object and skips anything that is not
@@ -220,22 +240,6 @@ function draw() {
     for (const [b, geo] of Object.entries(parts.stubs))
       group.add(new THREE.Mesh(geo, baseMat(b)));
   }
-
-  if (document.getElementById('zinc').checked)
-    for (const z of trace.zinc) {
-      /* SIZED THE WAY kit/proteinbox.js SIZES A HEME'S IRON, at its own
-         proportions: a shrunk carbon times FE_BALL. A deposition-only metal
-         has a colour in the palette and deliberately no display radius,
-         because how big it should look depends on what else is in the frame —
-         and at a true ionic ~1.4 A a zinc is invisible from across a 47 A
-         complex, which is the framing this is judged at. The subject is the
-         metal's PLACE in the finger, not its volume. */
-      const m = new THREE.Mesh(
-        new THREE.SphereGeometry(MolPalette.radii.C * 0.72 * 2.7, 20, 14),
-        mat('zn', MolPalette.atoms.Zn));
-      m.position.set(z.xyz[0], z.xyz[1], z.xyz[2]);
-      group.add(m);
-    }
 
   reframe();
   document.getElementById('tris').textContent =
@@ -266,17 +270,22 @@ function facts() {
   const aa = trace.order.filter(id => (trace.chains[id].kind || 'aa') === 'aa');
   const na = trace.order.filter(id => trace.chains[id].kind === 'na');
   const nnt = na.reduce((k, id) => k + trace.chains[id].nums.length, 0);
-  const p = trace.chains[aa[0]];
+  const nres = aa.reduce((k, id) => k + trace.chains[id].nums.length, 0);
 
   const rows = [
     ['Entry', trace.entry + ' — ' + trace.what],
     ['Method', (trace.method || '?') + (trace.resolution ? ', ' + trace.resolution + ' A' : '')],
-    ['Protein', aa.join(', ') + '  (' + p.nums.length + ' residues, '
-      + p.helices + ' helices, ' + p.strands + ' strands, ss ' + trace.ssFrom + ')'],
-    ['DNA', na.map(id => id + ' ' + trace.chains[id].seq).join('   ')],
+    /* EIGHT CHAINS, FOUR PROTEINS, listed by what COMPND calls them rather
+       than by letter: which chain is which histone is exactly the thing a
+       typed map gets wrong in a way the render cannot show. */
+    ['Histones', aa.map(id => id + ' ' + (trace.chains[id].molecule || '?')
+      .replace('HISTONE ', '')).join(' · ')],
+    ['Modelled', nres + ' residues across ' + aa.length + ' chains, ss '
+      + trace.ssFrom + ' — every chain contiguous, the tails simply start late'],
+    ['DNA', na.map(id => id + ' ' + trace.chains[id].nums.length + ' nt').join('   ')
+      + '  (' + (nnt / 2) + ' positions)'],
     ['Base pairs', trace.pairs.length + '  — ' + trace.pairsFrom],
-    ['Unpaired', (nnt - trace.pairs.length * 2) + "  (5' overhangs)"],
-    ['Zinc', trace.zinc.length],
+    ['Unpaired', (nnt / 2 - trace.pairs.length) + ' positions'],
     ['Extents', (trace.extents || []).join(' x ') + ' A'],
     ['Frame', trace.frame],
   ];
@@ -284,12 +293,15 @@ function facts() {
     .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
 
   document.getElementById('lede').innerHTML =
-    'Three zinc fingers gripping ' + trace.pairs.length + ' base pairs. The '
-    + 'protein and the DNA come out of one deposition and are centred on one '
-    + 'vector solved over both — centre them separately and each is correct '
-    + 'while the picture puts the protein inside the duplex. Two vocabularies '
-    + 'in one scene at one scale: a ribbon says helix and strand, a ladder says '
-    + 'paired and unpaired.';
+    (nnt / 2) + ' base-pair positions wound 1.65 turns around eight histones, '
+    + 'two copies each of four proteins. <b>' + trace.pairs.length + '</b> of '
+    + 'those positions pair by the geometric test at this resolution; the '
+    + '<b>' + (nnt / 2 - trace.pairs.length) + '</b> that do not are scattered '
+    + 'rather than periodic, and at 2.8 Å this data cannot separate coordinate '
+    + 'error from real distortion in sharply bent DNA — so the ladder is drawn '
+    + 'with the gaps it actually found. What is NOT here is the tails: every '
+    + 'histone chain starts late, and they carry the marks the whole of '
+    + 'chromatin regulation is about.';
 
   /* The provenance link names the entry the bake came from, so a re-bake
      against a different deposition retargets it. */
@@ -299,9 +311,13 @@ function facts() {
 
   const seen = new Set();
   for (const id of na) for (const c of trace.chains[id].seq) seen.add(c);
+  /* The legend follows what colour is CARRYING, which here is which histone
+     rather than secondary structure — eight chains of one fold. */
+    const hist = [...new Set(aa.map(id => trace.chains[id].molecule))];
   document.getElementById('legend').innerHTML =
-    ['C', 'H', 'E'].map(c => '<span class="sw"><i style="background:var(--ss-'
-      + c + ')"></i>' + ({ C: 'coil', H: 'helix', E: 'strand' })[c] + '</span>').join('')
+    hist.map(h => '<span class="sw"><i style="background:'
+      + '#' + histMat(h).color.getHexString() + '"></i>'
+      + h.replace('HISTONE ', '') + '</span>').join('')
     + [...seen].sort().map(b => '<span class="sw"><i style="background:var(--base-'
       + b + ')"></i>' + b + '</span>').join('');
 }
@@ -310,7 +326,7 @@ function facts() {
    is the one place that says which files this repo holds, and
    check-nucleic-acids.js fails a name that is not on disk — so a renamed bake
    is one edit there rather than a page that silently fetches nothing. */
-fetch('data/' + NucleicAcids.defaultOf('zif268').read.baked)
+fetch('data/' + NucleicAcids.defaultOf('nucleosome').read.baked)
   .then(r => r.json())
   .then(t => { trace = t; aim(t.view); facts(); draw(); })
   .catch(e => {
@@ -321,7 +337,7 @@ fetch('data/' + NucleicAcids.defaultOf('zif268').read.baked)
 new ResizeObserver(() => { if (trace) { reframe(); box.draw(); } })
   .observe(document.getElementById('stage'));
 
-for (const id of ['protein', 'dna', 'zinc', 'sub'])
+for (const id of ['protein', 'dna', 'byhist', 'sub'])
   document.getElementById(id).addEventListener('input', draw);
 </script>
 </body>

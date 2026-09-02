@@ -58,7 +58,12 @@ if (aa.length) console.log('  protein chains present and NOT baked here: ' + aa.
 if (!na.length) { console.error('no nucleic chains'); process.exit(1); }
 
 const chains = Bake.naTrace(text, new Set(na));
-const rawPairs = Bake.basePairs(chains);
+/* THE TOLERANCE THIS ENTRY'S RESOLUTION EARNS, off its own REMARK 2 — see
+   bake-lib's hbFor. Never a number typed here: a sharp structure and a blunt
+   one need different allowances for the same chemistry, and the bake records
+   which was used. */
+const hb = Bake.hbFor(Bake.resolution(text));
+const rawPairs = Bake.basePairs(chains, { hb });
 
 /* The helix axis, off the pairs rather than off the atoms: a base pair's
    centroid sits on the axis, and the line through the first and last is the
@@ -103,7 +108,8 @@ const out = {
   what: 'Drew-Dickerson dodecamer, CGCGAATTCGCG',
   method: Bake.method(text),
   resolution: Bake.resolution(text),
-  pairsFrom: 'geometry — Watson-Crick (N1...N3), wobble (N1...O2 + O6...N3)',
+  pairsFrom: 'geometry — Watson-Crick (N1...N3), wobble (N1...O2 + O6...N3), '
+           + 'C1\'-C1\' 8.4-12.6 A, N...N within ' + hb + ' A',
   centre: T.centre,
   order: T.order,
   chains: T.chains,
