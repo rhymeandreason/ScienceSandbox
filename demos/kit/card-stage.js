@@ -138,7 +138,21 @@
      * intent, the observer sets whether it may run. */
     let raf = 0, last = 0, wanted = false, visible = true, dead = false;
 
+    /* A ResizeObserver delivers on the rendering steps, and a tab that is
+       not compositing (hidden, or a probe pane) never gets them — the
+       canvas has a new size and nobody has heard. Checked on every draw as
+       well, which is one integer compare per frame. */
+    let sizedW = 0, sizedH = 0;
+    function sized() {
+      const W = canvas.clientWidth, H = canvas.clientHeight;
+      if (W === sizedW && H === sizedH) return;
+      sizedW = W; sizedH = H;
+      stage.resize();
+      layout();
+      if (opts.onResize) opts.onResize();
+    }
     function draw() {
+      sized();
       if (opts.frame) opts.frame();
       stage.applyCam();
       stage.renderer.render(stage.scene, stage.camera);
@@ -222,16 +236,15 @@
       stage.camera.updateProjectionMatrix();
     }
     const ro = new ResizeObserver(() => {
+      sizedW = canvas.clientWidth; sizedH = canvas.clientHeight;   // draw() need not repeat this
       stage.resize();                    // Stage has its own too; this one is ours
       layout();
-      if (opts.onResize) opts.onResize();
+      if (opts.onResize) opts.onResize();   // AFTER Stage.resize: the builder's frustum rule overwrites it
       if (!raf) draw();                  // a paused box must re-frame, not stretch
     });
     ro.observe(canvas);
 
-    stage.resize();
-    layout();
-    if (opts.onResize) opts.onResize();
+    sized();
     // One frame now, so the box is never blank in the gap before rAF runs — and
     // so a card created paused still shows its subject.
     draw();
