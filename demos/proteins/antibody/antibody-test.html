@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="/demos/proteins/antibody/">
+<title>Antibody — deposited structures</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+
+     WHY THIS EXISTS. An antibody is the one protein a Bio 101 student
+     already has a mental picture of, and the picture is a cartoon Y
+     with two sticky tips. The question this bench is for is which
+     parts of the real object are worth putting in front of them:
+
+       the Y            1IGT models all 1316 residues of an intact
+                        antibody. Does it read as a Y at all, or as a
+                        blob, and does the hinge show?
+       one fold, twelve the whole thing is one domain repeated. The
+                        count is off SSBOND (one disulfide pins each
+                        domain shut), so it is a claim the baker
+                        asserts rather than the page states.
+       recognition      3HFM is a Fab holding hen lysozyme, which this
+                        repo already has as a protein. The only view
+                        here where something is being DONE.
+       the sugar        both intact views draw the Fc glycan, which a
+                        ribbon cannot show and which is a third of what
+                        makes an antibody a drug rather than a protein.
+
+     WHAT THIS BENCH CANNOT TELL YOU. Every antibody here is one
+     antibody. Diversity is the entire biology — 10^11 different
+     binding sites made by cutting and rejoining a handful of gene
+     segments — and it is a fact about a repertoire, not about a
+     structure. No deposition shows it, and a lesson would need
+     something other than a ribbon to make the point.
+
+     ALSO NOT HERE: how an antibody is made, class switching, and the
+     B cell. Those are the surrounding lesson, not this bench.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* The shared chrome is ../protein-test.css. What this bench adds is the one
+     thing it says with COLOUR: which chain is heavy, which is light, and which
+     is not an antibody at all. The swatches are written by the script off the
+     same table the ribbon is painted from, so they cannot drift. */
+  .legend{display:flex;flex-wrap:wrap;gap:var(--space-2);margin:0 0 var(--space-3)}
+  .legend span{display:inline-flex;align-items:center;gap:5px;
+    font-size:0.72rem;color:var(--h-muted)}
+  .legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .legend[hidden]{display:none}
+  .row{display:flex;gap:var(--space-2);margin:0 0 var(--space-3)}
+  .row .mode{flex:1}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Antibody</h1>
+    <p class="deck">Two heavy chains and two light chains, disulfide-bonded into
+      a Y. Both tips recognise; the stem is the same in every antibody you make.
+      One fold, repeated twelve times.</p>
+
+    <h2>the whole molecule</h2>
+    <button class="mode" id="v-1IGT" aria-pressed="true">
+      <span class="who">intact IgG, mouse &middot; 1IGT</span><span class="chip">4 chains</span></button>
+    <button class="mode" id="v-1HZH" aria-pressed="false">
+      <span class="who">intact IgG, human &middot; 1HZH</span><span class="chip">4 chains</span></button>
+
+    <h2>mouse against human</h2>
+    <button class="mode" id="v-FC" aria-pressed="false">
+      <span class="who">the stem, superposed &middot; 1IGT + 1HZH</span><span class="chip">4 chains</span></button>
+
+    <h2>the parts</h2>
+    <button class="mode" id="v-3HFM" aria-pressed="false">
+      <span class="who">Fab on its antigen &middot; 3HFM</span><span class="chip">3 chains</span></button>
+
+    <h2>what you are looking at</h2>
+    <p class="claim" id="d-claim">&mdash;</p>
+    <p class="meta" id="d-meta">&mdash;</p>
+
+    <div class="row">
+      <button class="mode" id="c-ss" aria-pressed="false">colour: fold</button>
+      <button class="mode" id="c-chain" aria-pressed="true">colour: chain</button>
+    </div>
+    <div class="legend" id="d-legend" hidden></div>
+
+    <table>
+      <tr><td>assembly</td><td id="d-quat">&mdash;</td></tr>
+      <tr class="hi"><td>Ig domains</td><td id="d-ig">&mdash;</td></tr>
+      <tr><td>chains</td><td id="d-chains">&mdash;</td></tr>
+      <tr><td>modelled</td><td id="d-res">&mdash;</td></tr>
+      <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
+      <tr><td>numbered</td><td id="d-nums">&mdash;</td></tr>
+      <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
+      <tr class="hi"><td>disulfides</td><td id="d-ss">&mdash;</td></tr>
+      <tr><td>between chains</td><td id="d-inter">&mdash;</td></tr>
+      <tr><td>sugar</td><td id="d-gly">&mdash;</td></tr>
+      <tr><td>interface</td><td id="d-int">&mdash;</td></tr>
+      <tr class="hi"><td>superposed</td><td id="d-fit">&mdash;</td></tr>
+      <tr><td>per domain</td><td id="d-cmp">&mdash;</td></tr>
+      <tr><td>bound</td><td id="d-lig">&mdash;</td></tr>
+      <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
+      <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+    </table>
+
+    <p class="frag" id="d-frag">&mdash;</p>
+    <p class="prov" id="d-prov">&mdash;</p>
+    <p class="note" id="d-note">&mdash;</p>
+
+    <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
+    <p class="note" id="pick-note">Turn the molecule, then copy. This protein is
+      not in <code>proteins.js</code> yet, so paste it into the review notes
+      rather than into a registry entry.</p>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-raw" href="https://files.rcsb.org/" target="_blank" rel="noopener">deposited .pdb<svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a id="d-baked" href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script>
+'use strict';
+
+/* UNDER REVIEW, so nothing here reads proteins/proteins.js — this protein is
+   not in it. The four candidates are tools/prep.js's CANDIDATES table and the
+   ids below match it; both move into the registry at step 5 of
+   docs/AddingAProtein.md, once a human has said which of these earn a place.
+   Until then there is no chosen basis to read, and each bake's own solved
+   basis stands. */
+const VIEWS = ['1IGT', '1HZH', 'FC', '3HFM'];
+
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true,
+  /* Trackball, not turntable: a turntable clamps its pitch about a hundred
+     pixels into an upward drag, which runs out exactly where someone is trying
+     to look down the axis of the Y. */
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  /* RibbonLib's own default, not the box's card-sized 6: an antibody is mostly
+     beta and every strand turns hard at both ends, which is where 6 samples
+     per residue show as faceting. */
+  sub: 10,
+});
+
+/* WHAT THIS BENCH SAYS about each entry. Page copy, written to be read under
+   this stage, keyed by entry id so a button and its paragraph cannot come
+   apart. Every FIGURE below the copy is read from the bake instead. */
+const SAYS = {
+  '1IGT': {
+    claim: 'A whole antibody: two heavy chains, two light chains, one Y.',
+    prov:  'X-ray at 2.8 Å, mouse IgG2a. Every residue of every chain is '
+           + 'modelled, hinge included, which the human entry beside it cannot '
+           + 'say.',
+    note:  'The two arms are not symmetric. They are the same protein twice, so '
+           + 'what differs between them is how far the hinge let each one swing '
+           + 'in this crystal.' },
+  '1HZH': {
+    claim: 'A human antibody, b12, which neutralises HIV.',
+    prov:  'X-ray at 2.7 Å, human IgG1. One hinge disulfide here against three '
+           + 'in the mouse IgG2a — the hinge is what the classes differ in most.',
+    note:  'The only real chain breaks on this bench are in heavy chain K: two '
+           + 'stretches where the density ran out. Everything else that looks '
+           + 'like a break in the deposited numbering is not one.' },
+  'FC': {
+    claim: 'A mouse antibody’s stem and a human one’s, lying on top of each other.',
+    prov:  'Not a deposition: the Fc of 1IGT and the Fc of 1HZH, fitted. Where the '
+           + 'Fc starts is taken from each file’s own hinge — the last disulfide '
+           + 'running between its two heavy chains — so the mouse’s three-bond '
+           + 'hinge and the human’s one-bond hinge each answer for themselves.',
+    /* Every figure in this sentence is the bake's, because every one of them is
+       a measurement this view exists to make. */
+    note:  t => `The stem is the same protein in both: ${t.meta.fit.identity}% ` +
+      `identical over ${t.meta.fit.n} aligned residues, and ` +
+      t.meta.compare.map(c => `${c.domain} superposes to ${c.rmsd} Å`).join(', ') +
+      `. The whole ` +
+      `Fc fits worse than either half of it (${t.meta.fit.rmsd} Å), which says the ` +
+      `two domains sit at slightly different angles to each other, not that the ` +
+      `domains differ. The variable domains are deliberately not compared here: ` +
+      `these are two different antibodies, so a difference there would be about ` +
+      `what they bind, not about the species.` },
+  '3HFM': {
+    claim: 'One arm of an antibody, holding what it was raised against.',
+    prov:  'X-ray at 3.0 Å. A Fab — a whole light chain plus the first half of a '
+           + 'heavy one — gripping hen lysozyme, which is in this repo as a '
+           + 'protein in its own right.',
+    /* The count is not typed here: `note` takes the bake, because the whole
+       claim is a measurement and a sentence carrying it has to be re-made
+       whenever the bake is. */
+    note:  t => `The grip is made by both chains at once — ${
+      t.meta.interface.contacts.L} light-chain residues and ${
+      t.meta.interface.contacts.H} heavy-chain ones, on ${
+      t.meta.interface.epitope.length} residues of the lysozyme.` },
+};
+
+/* CHAIN COLOUR IS BY ROLE, and the roles are the baker's — read off COMPND
+   where the file names them and off the domain count where it does not. Naming
+   a chain letter here instead would be a second opinion about which chain is
+   heavy, and the two would drift the first time an entry was swapped. */
+const ROLE_COLORS = { heavy: 0x2f6f8f, light: 0xc08a3e, variable: 0xc08a3e,
+                      other: 0x7d8a5c };
+/* THE SUPERPOSITION NEEDS A DIFFERENT QUESTION ANSWERED. Every chain in it is
+   a heavy chain, so a role palette paints four chains one colour and the view
+   says nothing; what a reader has to tell apart there is WHICH ENTRY. The bake
+   asks for this by name — `meta.palette` — rather than the page guessing from
+   the shape of the data. */
+const ENTRY_COLORS = [0x2f6f8f, 0xb4532f];
+const ROLE_LABEL = { heavy: 'heavy chain', light: 'light chain',
+                     variable: 'variable domain', other: 'not an antibody chain' };
+
+/* WHAT A CHAIN IS CALLED, and `antigen` is the one label that is not a
+   property of the chain. Zero Ig domains says only that a chain is not an
+   immunoglobulin — the same lysozyme is an enzyme in its own bench two folders
+   over. What makes it an antigen is that the antibody is HOLDING it, so the
+   word is licensed by the measured interface and by nothing else: a non-Ig
+   chain the baker found no contacts for keeps the honest label. */
+function labelOf(t, c) {
+  /* In the superposition a chain's useful name is which structure it came
+     from, not what kind of chain it is — they are all heavy chains. */
+  if (t.meta.palette === 'species') return `${t.meta.species[c]} heavy chain`;
+  const role = t.meta.roles[c].role;
+  const I = t.meta.interface;
+  return role === 'other' && I && I.partner.includes(c)
+    ? 'antigen' : ROLE_LABEL[role];
+}
+
+/* THE SECOND COPY OF A ROLE IS PAINTED LIGHTER, and every copy after that
+   lighter again. An antibody is two of each chain, so a strict role palette
+   draws four chains in two colours and a reader cannot tell one arm from the
+   other or say which light chain belongs to which heavy — 1REI is the extreme
+   case, two chains and one colour. The tint carries no claim: it says these
+   are copies of the same thing, which is what the shared hue already says. */
+function tint(hex, step) {
+  if (!step) return hex;
+  const f = Math.min(0.6, 0.26 * step);
+  const ch = i => {
+    const v = (hex >> (16 - 8 * i)) & 255;
+    return Math.round(v + (255 - v) * f);
+  };
+  return (ch(0) << 16) | (ch(1) << 8) | ch(2);
+}
+
+/* Chain -> colour, in draw order, so the ribbon and the swatches below it come
+   off one table. */
+function chainColors(t) {
+  if (t.meta.palette === 'species') {
+    const of = {}, out = {};
+    for (const c of t.order) {
+      const e = t.meta.species[c];
+      if (of[e] === undefined) of[e] = Object.keys(of).length;
+      out[c] = tint(ENTRY_COLORS[of[e] % ENTRY_COLORS.length],
+                    (out[c] = 0, t.order.filter(x => t.meta.species[x] === e).indexOf(c)));
+    }
+    return out;
+  }
+  const seen = {}, out = {};
+  for (const c of t.order) {
+    const role = t.meta.roles[c].role;
+    out[c] = tint(ROLE_COLORS[role], seen[role] = (seen[role] || 0));
+    seen[role]++;
+  }
+  return out;
+}
+
+const views = {};
+let view = null, byChain = true;
+const $ = id => document.getElementById(id);
+
+window.bench = { views, box, get view() { return view; } };
+
+VIEWS.forEach(id => {
+  fetch(`data/ab-${id}.json`).then(r => r.json()).then(t => {
+    views[id] = t;
+    if (view === id) show(id);
+  });
+});
+
+/* Every figure here is counted off the bake, which counted it off the file. */
+function stats(t) {
+  const m = t.meta, ids = t.order;
+  const letters = ids.map(c => t.chains[c].ss).join('');
+  const n = letters.length;
+  const H = [...letters].filter(c => c === 'H').length;
+  const E = [...letters].filter(c => c === 'E').length;
+
+  const modelled = m.counts.reduce((k, c) => k + c.modelled, 0);
+  const declared = m.counts.every(c => c.declared !== null)
+    ? m.counts.reduce((k, c) => k + c.declared, 0) : null;
+  const gaps = Object.values(m.renumbered).reduce((k, f) => k + f.gaps, 0);
+  const fake = Object.values(m.renumbered).reduce((k, f) => k + f.spurious, 0);
+
+  /* THE DOMAIN COUNT IS THE POINT OF THE BENCH, so it is spelled out per chain
+     rather than totalled: 4 + 4 + 2 + 2 is the sentence, and 12 alone is not. */
+  const per = ids.map(c => `${c} ${m.roles[c].domains}`).join(', ');
+
+  return {
+    quat: `${m.chainsDrawn} chains drawn of ${m.chainsInFile} in the file`,
+    ig: `${m.igDomains} · ${per}`,
+    chains: ids.map(c => `${c} ${labelOf(t, c)}`).join(', '),
+    res: `${modelled} residues` + (gaps ? ` in ${ids.length + gaps} segments` : '') +
+         ` × ${ids.length} chains`,
+    pct: declared === null ? '—'
+      /* Floored, not rounded: 1315 of 1316 rounds to 100% and would sit above a
+         line calling the same structure a fragment. */
+      : `${modelled} of ${declared} · ${Math.floor(100 * modelled / declared)}%`,
+    frag: declared === null ? 'no SEQRES records: completeness unknown'
+      : modelled >= declared ? `complete: ${modelled} of ${declared} deposited`
+      : `fragment: ${modelled} out of ${declared} deposited`,
+    /* WHAT THE RENUMBERING FOUND, printed rather than hidden. The deposited
+       numbering is Kabat/EU and jumps wherever a loop is shorter than the
+       convention allows for; the ribbon is broken on the geometry instead, so
+       these are jumps that are NOT breaks in the chain. */
+    nums: m.counts.map(c => `${c.chain} ${c.span}`).join(', ') +
+      (fake ? ` · ${fake} numbering jump${fake > 1 ? 's' : ''} that are not breaks` : '') +
+      (gaps ? ` · ${gaps} real gap${gaps > 1 ? 's' : ''}` : ' · no real gaps'),
+    frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
+    /* BROKEN DOWN RATHER THAN LISTED. Fifteen residue pairs is a wall of
+       numbers a reader cannot do anything with; what the disulfides SAY here
+       is the architecture, so the row counts them by job. `other` is every
+       intrachain bond that is not pinning an Ig domain shut — zero in an
+       antibody, four in the lysozyme 3HFM carries, which is the same span
+       filter the domain count rests on, reported from the other side. */
+    /* The paired view carries no disulfide ledger of its own: it is two
+       entries' Fc regions and the bonds belong to the entries, which have their
+       own views on this bench. Saying nothing beats totalling two files. */
+    ss: !m.ss.length ? 'see each entry’s own view'
+      : `${m.ss.length} · ${m.igDomains} pin a domain shut, ${m.inter.length} between chains`
+      + ((o => o ? `, ${o} other` : '')(m.ss.length - m.igDomains - m.inter.length)),
+    inter: m.hinges
+      ? m.hinges.map(h => `${h.entry} hinge: ${h.bonds}`).join(', ')
+      : m.inter.length ? `${m.inter.join(', ')} · hinge: ${m.hinge}` : 'none',
+    gly: m.glycan
+      ? `${m.glycan.rings} sugar rings on ${m.glycan.anchors.join(' and ')}` +
+        ` · N–C1 ${m.glycan.link.map(d => d.toFixed(2)).join(' / ')} Å`
+      : 'none in the file',
+    /* MEASURED, at the baker's 4 Å. `shared` is the residues the antigen
+       touches with both antibody chains at once, and it is what licenses the
+       sentence below the table — without it the site could be one chain's. */
+    int: m.interface
+      ? `${m.interface.epitope.length} residues of the antigen, within ` +
+        `${m.interface.cut} Å of ` +
+        Object.entries(m.interface.contacts)
+          .map(([c, n]) => `${n} on ${c}`).join(' and ') +
+        ` · ${m.interface.shared.length} touched by both (${m.interface.shared.join(', ')})`
+      : 'no partner chain drawn',
+    /* Named by what it was fitted ONTO and how well, because a `view:
+       deposited` row is a half-truth the moment anything is superposed. */
+    fit: m.fit
+      ? `on ${m.fit.on} · RMSD ${m.fit.rmsd} Å over ${m.fit.n} aligned pairs · ` +
+        `${m.fit.identity}% identical`
+      : 'nothing — as deposited',
+    cmp: m.compare
+      ? m.compare.map(c => `${c.domain} ${c.identity}% · ${c.rmsd} Å over ${c.n}`).join(', ')
+      : '—',
+    lig: m.ligands.length ? m.ligands.join(', ') : 'nothing',
+    ext: t.extents.map(v => v.toFixed(0)).join(' × '),
+  };
+}
+
+/* One argument, built off the baker's roles, so the ribbon and the swatches
+   below it are painted from the same table. */
+function colorsOf(t) {
+  return byChain ? { byChain: chainColors(t) } : null;
+}
+
+function paint() {
+  const t = views[view];
+  if (!t) return;
+  /* SAME BAKE, DIFFERENT PALETTE: repaint, do not rebuild. setData would
+     re-spline four chains of ribbon, a chain per frame, so the reader watches
+     an antibody reassemble itself to change nothing but its colour. */
+  box.setColors(colorsOf(t));
+  const leg = $('d-legend');
+  leg.hidden = !byChain;
+  if (!byChain) { leg.innerHTML = ''; return; }
+  /* One swatch per CHAIN, not per role: with two copies of each chain the
+     reader's question is which of them they are looking at. */
+  const col = chainColors(t);
+  leg.innerHTML = t.order.map(c =>
+    `<span><i style="background:#${col[c].toString(16).padStart(6, '0')}"></i>` +
+    `${c} ${labelOf(t, c)}</span>`).join('');
+}
+
+function show(id) {
+  view = id;
+  const t = views[id];
+  if (!t) return;                        // fetch still in flight
+  const m = t.meta, s = stats(t);
+
+  $('d-claim').textContent = SAYS[id].claim;
+  $('d-meta').textContent = `${m.entry} · ${m.method}` +
+    (m.resolution ? ` · ${m.resolution.toFixed(2)} Å`
+      : m.resolutions ? ' · ' + m.resolutions.map(r => `${r.res.toFixed(2)} Å`).join(' / ') : '');
+  $('d-quat').textContent = s.quat;
+  $('d-ig').textContent = s.ig;
+  $('d-chains').textContent = s.chains;
+  $('d-res').textContent = s.res;
+  $('d-pct').textContent = s.pct;
+  $('d-nums').textContent = s.nums;
+  $('d-frac').textContent = s.frac;
+  $('d-ss').textContent = s.ss;
+  $('d-inter').textContent = s.inter;
+  $('d-gly').textContent = s.gly;
+  $('d-int').textContent = s.int;
+  $('d-fit').textContent = s.fit;
+  $('d-cmp').textContent = s.cmp;
+  $('d-lig').textContent = s.lig;
+  $('d-ext').textContent = s.ext;
+  /* Named by WHERE THE FRAME CAME FROM. Nothing in a PDB says which way a
+     structure should face: what is deposited is the experiment's frame. */
+  $('d-view').textContent = t.frame;
+  $('d-frag').textContent = s.frag;
+  $('d-prov').textContent = SAYS[id].prov;
+  /* A note may be a function of the bake where what it says is a measurement.
+     Prose that quotes a number and is not re-made from the data is a claim
+     nothing checks. */
+  $('d-note').textContent = typeof SAYS[id].note === 'function'
+    ? SAYS[id].note(t) : SAYS[id].note;
+
+  /* A paired view has two entries and one link each would be a lie by
+     omission, so the label carries both and the href goes to the reference. */
+  const es = m.entries || [m.entry];
+  $('d-rcsb').href = `https://www.rcsb.org/structure/${es[0]}`;
+  $('d-rcsb-label').textContent = `RCSB ${es.join(' · ')}`;
+  $('d-raw').href = `https://files.rcsb.org/download/${es[0]}.pdb`;
+  $('d-baked').href = `data/ab-${id}.json`;
+
+  box.setData(t, { colors: colorsOf(t) });
+  /* The Fc sugar, where the baker put one there. Ball-and-stick proportions
+     and the split sticks are the box's; what is IN it is the baker's. */
+  box.setPocket(t.pocket || null);
+  paint();
+}
+
+$('pick').addEventListener('click', () => {
+  /* kit/proteinbox.js's, because the answer needs the chain group's rotation
+     as well as the camera's and only the box can see both. */
+  const text = JSON.stringify(box.pickView());
+  navigator.clipboard && navigator.clipboard.writeText(text);
+  $('pick-note').textContent = text;
+  console.log(`view for ${view}:`, text);
+});
+
+VIEWS.forEach(id => {
+  $('v-' + id).addEventListener('click', () => {
+    VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === id)));
+    show(id);
+  });
+});
+
+[['c-chain', true], ['c-ss', false]].forEach(([el, on]) => {
+  $(el).addEventListener('click', () => {
+    byChain = on;
+    $('c-chain').setAttribute('aria-pressed', String(byChain));
+    $('c-ss').setAttribute('aria-pressed', String(!byChain));
+    paint();
+  });
+});
+
+show('1IGT');
+</script>
+</body>
+</html>
