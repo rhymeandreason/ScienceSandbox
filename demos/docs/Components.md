@@ -174,6 +174,8 @@ m.reset();                       // zero the counters after a change of scene
 m.spend();                       // one ATP, one pump turn; false if a turn is running or no Na⁺ inside
 ```
 
+Or in millimolar, which is how a page should say it: `units: 'mM'` in the mount params, then `contents: { inside: { K:140, NA:12 }, outside: { NA:470, CL:550 } }` and the module turns it into counts, one particle per 20 mM, with water filling each side. Leave water out; the module fills it. `state().concentration[kind].inside / .outside` reads back in mM, so print that rather than typing a molarity. Blood is about 150 mM Na⁺, seawater 470, a river under 1.
+
 Changing `contents` adds and removes only the difference, by current side, so a water that already crossed stays crossed. **The budget is 220 particles on stage, of which at most 110 ions**; past it nothing more is added. Keep the same particle count per side and fewer free waters where the solute is; that is what makes osmosis a headcount rather than a pull. About 78 particles a side reads well: 78 water on the fresh side, and on a salty side 26 water with 26 Na⁺ and 26 Cl⁻.
 
 For one molecule placed by hand there is `m.add(kind, opts)` with `opts.x, .y, .z`, and `m.scatter(kind, n, side, opts)` with side 1 outside, −1 inside.
@@ -186,6 +188,7 @@ Defaults do the right thing: ions walk slower and are blocked by the bilayer, wa
 | --- | --- |
 | `t` | sim seconds |
 | `counts[kind].inside / .outside` | every kind on stage, by side |
+| `concentration[kind].inside / .outside`, `mMPerParticle` | the same in mM, one particle per `mMPerParticle` (20); print this, never a typed molarity |
 | `net` | `'entering'`, `'leaving'` or `'balanced'`: the verdict to print for water. It is read off the free-water headcount per side, which is what osmosis is, so it is right from the first frame |
 | `crossings.up / .down`, `netRecent` | what actually happened: lifetime crossings each way, and a recent net that decays to 0 at equilibrium (positive means leaving the cell). Noisy for the first half minute at this crowd size, so print it as a count, not a direction |
 | `mV`, `equilibrium.K`, `equilibrium.CL` | membrane potential and each ion's equilibrium potential |

@@ -87,6 +87,18 @@
        adding and removing, counted by CURRENT side, so a water that crossed
        stays crossed and only the difference moves. */
     contents: null,
+    /* CONCENTRATION IN UNITS. With units:'mM' the numbers in `contents` are
+       millimolar and the module turns them into counts: one drawn particle
+       per `mMPerParticle`, and water fills each side up to
+       `particlesPerSide` so the headcount rule holds without the page doing
+       arithmetic. 20 mM a particle puts seawater's 470 mM Na⁺ at 24 ions and
+       blood's 150 at 8, which the frame can hold. It is an exaggeration in
+       one declared number: real water is 55 M, and drawn to scale the salt
+       would be one ion in a screen of water. state().concentration reads
+       the counts back in mM, so a page never types a molarity. */
+    units: 'count',           // 'count' | 'mM'
+    mMPerParticle: 20,
+    particlesPerSide: 78,
   };
 
   function create(THREE, root, camera, opts = {}) {
@@ -396,7 +408,18 @@
     /* Reconcile the stage to `contents`, by current side. Removal takes the
        nearest to the membrane first, so what a student watched cross is the
        last thing to vanish. */
+    /* mM → counts, water filling the side. A water figure given in mM is
+       ignored: the headcount is the model's, not the page's. */
+    function toCounts(side) {
+      if (!side) return side;
+      const out = {};
+      let solute = 0;
+      for (const k in side) if (k !== 'water') { out[k] = Math.max(0, Math.round(side[k] / P.mMPerParticle)); solute += out[k]; }
+      out.water = Math.max(0, P.particlesPerSide - solute);
+      return out;
+    }
     function setContents(c) {
+      if (P.units === 'mM' && c) c = { inside: toCounts(c.inside), outside: toCounts(c.outside) };
       P.contents = c;
       for (const [sideName, side] of [['inside', -1], ['outside', 1]]) {
         const want = (c && c[sideName]) || {};
@@ -884,11 +907,14 @@
          they are noise for the first half minute — a 50/50 stage read
          "leaving" and a 26/46 one read "balanced". `crossings` and
          `netRecent` stay for a page that wants to show what happened. */
+      /* Read back in mM off the counts, whichever way they were set. */
+      const concentration = {};
+      for (const k in counts) if (k !== 'water') concentration[k] = { inside: counts[k].inside * P.mMPerParticle, outside: counts[k].outside * P.mMPerParticle };
       const w = counts.water || { inside: 0, outside: 0 };
       const nW = w.inside + w.outside;
       const diff = w.inside - w.outside;
       const net = Math.abs(diff) <= Math.max(2, 0.08 * nW) ? 'balanced' : diff > 0 ? 'leaving' : 'entering';
-      return { t:elapsed, counts, mV, chargeOut, crossed:Object.assign({}, crossed), layers: layers(),
+      return { t:elapsed, counts, concentration, mMPerParticle: P.mMPerParticle, mV, chargeOut, crossed:Object.assign({}, crossed), layers: layers(),
         crossings:Object.assign({}, crossings), netRecent, net, netPush:netPush(),
         atpSpent, pumpRunning:running, pumpPhase:phase, pumpT,
         equilibrium: { K:equilibriumOf('K'), CL:equilibriumOf('CL') } };
@@ -904,7 +930,7 @@
       if (next.proteins) layout(next.proteins);
       if (next.shells != null) setShells(next.shells);
       if (next.cut != null) setCut(next.cut);
-      for (const k of Object.keys(next)) if (!(k in { proteins:1, shells:1, cut:1, contents:1 })) P[k] = next[k];
+      for (const k of Object.keys(next)) if (!(k in { proteins:1, shells:1, cut:1, contents:1 })) P[k] = next[k];   // units before contents, so a set carrying both reads right
       if (next.E) P.E = Object.assign({}, DEFAULTS.E, next.E);
       if (next.contents !== undefined) setContents(next.contents);
     }
