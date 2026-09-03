@@ -57,21 +57,27 @@ function read() {
  *  checked on every save as well as by check-proteins.js, because a
  *  half-valid registry written by a baker is worse than a refused write:
  *  the bake succeeded, so nobody looks. */
-function validate(lib) {
+/* ---- the rules both registries keep ----------------------------------
+ *
+ *  proteins.js and nucleic-acids.js hold different facts and are checked by
+ *  different files, but the SHAPE they agree on is the part a hand-edit gets
+ *  wrong: an entry with no key, a variant with no purpose, two variants
+ *  claiming one id, nobody marked default. Those were written once here and
+ *  read by both, because the version that lived in `validate` alone left the
+ *  newer registry with none of them — which is how nucleic-acids.js came to
+ *  hold four variants and not one default mark.
+ *
+ *  `what` names the thing for the message: a protein, a structure.
+ */
+function common(entries, what) {
   const bad = [];
   const keys = new Set();
 
-  for (const p of lib.PROTEINS) {
+  for (const p of entries) {
     const at = p.key || '(no key)';
     if (!p.key || !p.name || !p.dir) bad.push(`${at}: needs key, name and dir`);
     if (keys.has(p.key)) bad.push(`${at}: duplicate key`);
     keys.add(p.key);
-    /* One word from the vocabulary, and every protein has one — `unknown` is
-       an answer, so a missing `does` is a question nobody asked rather than a
-       function nobody knows. */
-    if (!p.does) bad.push(`${at}: no does — say what it is for, or 'unknown'`);
-    else if (!lib.DOES.includes(p.does))
-      bad.push(`${at}: does '${p.does}' is not one of ${lib.DOES.join(', ')}`);
 
     if (!Array.isArray(p.variants) || !p.variants.length)
       { bad.push(`${at}: no variants`); continue; }
@@ -84,16 +90,52 @@ function validate(lib) {
       if (ids.has(v.id)) bad.push(`${vat}: duplicate id`);
       ids.add(v.id);
       if (!v.purpose) bad.push(`${vat}: needs a purpose — what is this variant FOR`);
-      if (v.default) defaults++;
+      /* SPECIES AND SOURCE ARE REQUIRED because every consumer assumes them:
+         a panel prints the organism, and `urls()` builds the RCSB links out
+         of `source.id`, so a variant without one renders a dead link rather
+         than an error. All 54 variants carried both before this asked. */
+      if (!v.species) bad.push(`${vat}: needs a species`);
+      if (!v.source || !v.source.id)
+        bad.push(`${vat}: needs a source with an id — the links are built from it`);
       if (!v.read || typeof v.read !== 'object')
         bad.push(`${vat}: needs a read block, even an empty one`);
+      if (v.default) defaults++;
 
       /* A cut of another variant (prion's stack, an NMR ensemble) names the
-         entry it came out of, and that entry has to be in the list — or the
-         bench offers a view of something the registry never described. */
+         entry it came out of, and that entry has to be in the list. */
       if (v.of && !p.variants.some(o => o.id === v.of))
         bad.push(`${vat}: of:'${v.of}' is not a variant here`);
+    }
 
+    /* EXACTLY ONE DEFAULT. None is the failure worth naming: with no mark the
+       choice falls to whichever variant the list starts with, so re-ordering
+       the list re-aims the bench and the card without anyone touching a
+       decision. Mark the first entry if nothing else earns it. */
+    if (defaults === 0)
+      bad.push(`${at}: no variant marked default — mark one, the first if nothing else`);
+    if (defaults > 1) bad.push(`${at}: ${defaults} variants marked default`);
+  }
+  return bad;
+}
+
+function validate(lib) {
+  const bad = common(lib.PROTEINS, 'protein');
+
+  for (const p of lib.PROTEINS) {
+    const at = p.key || '(no key)';
+    /* One word from the vocabulary, and every protein has one — `unknown` is
+       an answer, so a missing `does` is a question nobody asked rather than a
+       function nobody knows. */
+    if (!p.does) bad.push(`${at}: no does — say what it is for, or 'unknown'`);
+    else if (!lib.DOES.includes(p.does))
+      bad.push(`${at}: does '${p.does}' is not one of ${lib.DOES.join(', ')}`);
+
+    if (!Array.isArray(p.variants) || !p.variants.length)
+      { bad.push(`${at}: no variants`); continue; }
+
+    const ids = new Set(p.variants.map(v => v.id));
+    for (const v of p.variants) {
+      const vat = `${at}/${v.id || '(no id)'}`;
       /* THE MEASURED / PREDICTED SPLIT, which is the one this file exists to
          keep honest: a prediction that reads like an experiment is the error
          a collection makes silently. The registry indexes on the METHOD; a
@@ -125,10 +167,6 @@ function validate(lib) {
         bad.push(`${vat}: chain ${v.chains} models ${v.read.residues} residues ` +
                  `against ${v.read.declared} declared`);
     }
-    /* EXACTLY ONE DEFAULT. None is the failure worth naming: with no mark the
-       choice falls to whichever variant the list starts with, so re-ordering
-       the list re-aims the bench and the card without anyone touching a
-       decision. Mark the first entry if nothing else earns it. */
     /* AN ENZYME HAS AN EC NUMBER, and every variant that carries one has to
        carry the SAME one: they are meant to be entries of one protein, and
        two numbers means one of them is filed under the wrong key. The other
@@ -141,10 +179,6 @@ function validate(lib) {
       bad.push(`${at}: does 'enzyme' and no variant carries an EC number`);
     if (p.does !== 'enzyme' && ecs.length)
       bad.push(`${at}: carries EC ${ecs[0]} but does is '${p.does}'`);
-
-    if (defaults === 0)
-      bad.push(`${at}: no variant marked default — mark one, the first if nothing else`);
-    if (defaults > 1) bad.push(`${at}: ${defaults} variants marked default`);
 
     /* The reference has to be one of the variants, or a bench superposes onto
        something nobody can look at. */
@@ -272,4 +306,4 @@ if (require.main === module) {
   console.log(`proteins.js ok — ${lib.PROTEINS.length} proteins, ${n} variants`);
 }
 
-module.exports = { FILE, read, parse, validate, write, spliceRead, serialise };
+module.exports = { FILE, read, parse, common, validate, write, spliceRead, serialise };

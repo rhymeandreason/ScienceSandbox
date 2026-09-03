@@ -52,6 +52,7 @@
       variants: [
         { id: '1BNA',
           purpose: 'the double helix, as it was first seen',
+          default: true,
           species: 'synthetic',
           label: 'CGCGAATTCGCG', chip: '2 chains',
           source: { kind: 'rcsb', id: '1BNA' },
@@ -80,6 +81,7 @@
       variants: [
         { id: '1EHZ',
           purpose: 'the adaptor, and where the ladder stops',
+          default: true,
           species: 'yeast',
           label: 'yeast tRNA-Phe', chip: '1 chain',
           source: { kind: 'rcsb', id: '1EHZ' },
@@ -114,6 +116,7 @@
       variants: [
         { id: '1ZAA',
           purpose: 'a protein reading a sequence',
+          default: true,
           species: 'mouse',
           label: 'Zif268 on DNA', chip: '3 chains',
           source: { kind: 'rcsb', id: '1ZAA' },
@@ -143,6 +146,7 @@
       variants: [
         { id: '1AOI',
           purpose: 'DNA packaged, and the tails that are not there',
+          default: true,
           species: 'Xenopus histones, human DNA',
           label: 'core particle', chip: '10 chains',
           source: { kind: 'rcsb', id: '1AOI' },
@@ -174,9 +178,14 @@
     const e = typeof s === 'string' ? byKey(s) : s;
     return e && e.variants.find(v => v.id === id);
   };
+  /* THE MARK, NEVER THE FIRST ENTRY. Falling back to `variants[0]` makes the
+     order of the list a decision nobody wrote down: adding a second variant
+     above the first silently re-aims every bench and card that opens on this
+     structure. `proteins.js` learned this already; the rule is the same one
+     and `check-nucleic-acids.js` fails a structure with no mark. */
   const defaultOf = s => {
     const e = typeof s === 'string' ? byKey(s) : s;
-    return e && e.variants[0];
+    return (e && e.variants.find(v => v.default)) || null;
   };
 
   /* The bake's path, from the entry and the variant — so a bench names a

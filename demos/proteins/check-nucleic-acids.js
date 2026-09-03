@@ -34,10 +34,18 @@ const path = require('path');
 
 const HERE = __dirname;
 const lib = require(path.join(HERE, 'nucleic-acids.js'));
+/* THE SHAPE RULES ARE proteins/tools/registry-io.js's, and shared on purpose:
+   the two registries hold different facts but agree about what an entry and a
+   variant have to carry, and a second copy of that list is how the two drift. */
+const IO = require(path.join(HERE, 'tools', 'registry-io.js'));
 
 let bad = 0;
 const say = m => { console.log('  FAIL ' + m); bad++; };
 const ok = m => console.log('  ok    ' + m);
+
+/* The rules the two registries share, run here because a registry is also
+   edited by hand. */
+for (const m of IO.common(lib.STRUCTURES, 'structure')) say(m);
 
 for (const s of lib.STRUCTURES) {
   const dir = path.join(HERE, '..', s.dir);
@@ -112,7 +120,8 @@ console.log('\n' + (bad
   ? `FAIL: ${bad} problem(s)`
   : `PASS: ${lib.STRUCTURES.length} structures, `
     + `${lib.STRUCTURES.reduce((k, s) => k + s.variants.length, 0)} variants — `
-    + 'every variant has its bake and every bake a variant; methods, chain, '
-    + 'nucleotide, residue, pair, wobble and modified counts all agree with '
-    + 'what was baked') + '\n');
+    + 'every entry has a key, a default and a purpose, species and source per '
+    + 'variant; every variant has its bake and every bake a variant; methods, '
+    + 'chain, nucleotide, residue, pair, wobble and modified counts all agree '
+    + 'with what was baked') + '\n');
 process.exit(bad ? 1 : 0);
