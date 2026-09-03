@@ -38,6 +38,8 @@
       <button type="button" id="regen">regenerate</button>
     </div>
 
+    <div class="grp" id="panel"></div>
+
     <div class="grp">
       <div class="hd">thickness</div>
       <label>palisade <input id="palisade" type="range" min="1" max="4" step="0.1" value="2.4"></label>
@@ -74,6 +76,7 @@ for (const n of [...Leaf.ORDER].reverse()) {
 $('explode').oninput = e => L.set({ explode: +e.target.value });
 $('rot').onchange = e => L.set({ autoRotate: e.target.checked });
 $('regen').onclick = () => L.set({ seed: (Math.random() * 1e9) >>> 0 });
+CardStage.showPanel($('panel'), L);
 /* Isolating a layer also names it, the way a student would ask. */
 L.on('select', n => n ? L.notes([n]) : L.notes(false));
 $('palisade').oninput = e => L.set({ layers: { palisade: +e.target.value } });

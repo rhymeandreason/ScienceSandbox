@@ -31,6 +31,8 @@ Events: `frame` always. Add named events for things a page wants to react to (`c
 
 **Anchors and a library**, returned by `create` and wired by `mount` through `Notebook.create` in `lib/annotate.js`. `anchors` is name → function returning a live world point, or null when that part is not on stage. `library` is name → `{text, card, offset}`: the label and a two-sentence card, in a tutor's voice, for each part. This is how a generated page answers "what is that?" with a callout on the thing instead of a paragraph, so write the library as carefully as the header. The mount exposes `note`, `notes`, `clearNotes` and `anchors`; copy the five lines from `leaf/leaf.js`'s mount. List the anchor names in the Components.md section.
 
+**Layers and a palette.** `layers()` lists what can be shown or hidden as `{name, label, on}`, `show(name, on)` does it by visibility (the sim keeps running: a hidden water still crosses), and `palette()` says what the colours mean. `CardStage.showPanel` turns all three into chips, so a component that declares them gets its "point at / show / colours" UI without a page writing a button. List the layer names in the Components.md section too.
+
 ## 2. The stack
 
 - **Three r128, global script, no modules, no build.** The prototypes for Leaf and Tree were ES-module Three 0.17x and both were ported down; the library is not moving up (Modules.md). `lib/geo.js` holds the geometry the r128 build lacks: capsule, rounded box, merge. Add to it rather than vendoring an addon.

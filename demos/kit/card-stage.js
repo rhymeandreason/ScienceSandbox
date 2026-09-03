@@ -345,5 +345,57 @@
     };
   }
 
-  global.CardStage = { create, pool };
+  /* ---- the show panel ----
+     Chips for everything a component can point at (its anchors) and show or
+     hide (its layers), and a legend from its palette. One call on the
+     component's handle, so a generated page gets the whole "show me" UI
+     without writing a button. Styled here, not in a stylesheet, so there is
+     no second file to forget. `only` limits which of the three appear. */
+  let panelCss = false;
+  function showPanel(container, c, opts = {}) {
+    if (!panelCss) {
+      panelCss = true;
+      const st = document.createElement('style');
+      st.textContent = `
+.show-panel { display:flex; flex-direction:column; gap:10px; font-size:13px; }
+.show-panel .show-hd { font-size:11px; letter-spacing:.12em; text-transform:uppercase; opacity:.65; margin:0 0 4px; }
+.show-panel .show-row { display:flex; flex-wrap:wrap; gap:6px; }
+.show-panel .show-chip { font:inherit; font-size:13px; padding:5px 11px; border-radius:999px; border:1.5px solid rgba(0,0,0,.18); background:#fff; color:inherit; cursor:pointer; opacity:.75; }
+.show-panel .show-chip[aria-pressed=true] { border-color:currentColor; opacity:1; font-weight:600; }
+.show-panel .show-legend { display:flex; flex-wrap:wrap; gap:6px 14px; }
+.show-panel .show-legend span { display:inline-flex; align-items:center; gap:6px; }
+.show-panel .show-legend i { width:10px; height:10px; border-radius:50%; display:inline-block; }`;
+      document.head.appendChild(st);
+    }
+    const want = opts.only || ['notes', 'layers', 'legend'];
+    const el = document.createElement('div');
+    el.className = 'show-panel';
+    const group = (hd, items, isOn, toggle) => {
+      if (!items.length) return;
+      const h = document.createElement('div'); h.className = 'show-hd'; h.textContent = hd; el.appendChild(h);
+      const row = document.createElement('div'); row.className = 'show-row'; el.appendChild(row);
+      for (const it of items) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'show-chip'; b.textContent = it.label || it.text || it.name;
+        b.setAttribute('aria-pressed', String(!!isOn(it)));
+        b.addEventListener('click', () => { const on = b.getAttribute('aria-pressed') !== 'true'; toggle(it, on); b.setAttribute('aria-pressed', String(on)); });
+        row.appendChild(b);
+      }
+    };
+    if (want.includes('notes') && c.anchors) {
+      const open = new Set();
+      group(opts.notesLabel || 'point at', c.anchors(), () => false,
+        (it, on) => { if (on) { open.add(it.name); c.note(it.name); } else { open.delete(it.name); c.notes([...open]); } });
+    }
+    if (want.includes('layers') && c.layers) group(opts.layersLabel || 'show', c.layers(), it => it.on, (it, on) => c.show(it.name, on));
+    if (want.includes('legend') && c.palette) {
+      const h = document.createElement('div'); h.className = 'show-hd'; h.textContent = opts.legendLabel || 'colours'; el.appendChild(h);
+      const lg = document.createElement('div'); lg.className = 'show-legend'; el.appendChild(lg);
+      for (const p of c.palette()) { const s = document.createElement('span'); s.innerHTML = `<i style="background:${p.color}"></i>${p.name}`; lg.appendChild(s); }
+    }
+    container.appendChild(el);
+    return el;
+  }
+
+  global.CardStage = { showPanel, create, pool };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

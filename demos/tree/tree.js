@@ -501,7 +501,7 @@
       return s;
     }
     function state() {
-      return { growth: tree.getGrowth(), daylight, treeOpacity, potScene: P.potScene,
+      return { growth: tree.getGrowth(), daylight, treeOpacity, potScene: P.potScene, layers: layers(),
         flows: Object.fromEntries(Object.keys(flows).map(k => [k, flows[k].intensity])),   // off the flows, not the params: a step may drive one directly
         piles: piles.exploded ? piles.mode : null,
         saplingGrowth: sapling.getGrowth() };
@@ -519,6 +519,25 @@
       (listeners[ev] || (listeners[ev] = [])).push(fn);
       return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); };
     }
+
+    /* ---- what can be shown or hidden ---- */
+    const FLOW_LABEL = { co2: 'CO₂ in', o2: 'O₂ out', h2o: 'water up', minerals: 'minerals up', ambient: 'the air' };
+    const LAYERS = {};
+    for (const k in flows) LAYERS[k] = { label: FLOW_LABEL[k], get: () => flows[k].intensity > 0, set: v => setFlows({ [k]: v ? 1 : 0 }) };
+    LAYERS.piles  = { label: 'the tree taken apart', get: () => piles.exploded, set: v => setPiles(v ? (piles.mode || 'dry') : null) };
+    LAYERS.person = { label: 'a person for scale', get: () => person.visible, set: v => { person.visible = v && !P.potScene; } };
+    LAYERS.sun    = { label: 'the sun', get: () => sunDisc.visible, set: v => { sunDisc.visible = v && daylight > 0.02; } };
+    const layers = () => Object.keys(LAYERS).map(k => ({ name: k, label: LAYERS[k].label, on: !!LAYERS[k].get() }));
+    function show(name, on = true) {
+      const L = LAYERS[name];
+      if (!L) { console.warn('tree.js: no layer named ' + name + '; have ' + Object.keys(LAYERS).join(', ')); return; }
+      L.set(!!on);
+    }
+    const palette = () => [
+      { name: 'CO₂', color: '#3b4252' }, { name: 'O₂', color: '#9dd2ea' }, { name: 'water', color: '#2f6fb5' },
+      { name: 'minerals', color: '#b0702e' }, { name: 'wood', color: '#6b4f3a' }, { name: 'leaves', color: '#4f8a3c' },
+      { name: 'from the air', color: '#3b4252' }, { name: 'from water', color: '#2f6fb5' }, { name: 'from the soil', color: '#b0702e' },
+    ];
 
     /* Named parts. */
     const _a = new THREE.Vector3();
@@ -551,7 +570,7 @@
     showPotScene(P.potScene); setFlows(P.flows);
     if (P.piles) piles.explode(P.piles);
 
-    return { step, state, set, on, tweens, tree, sapling, flows, piles, anchors, library,
+    return { step, state, set, on, tweens, tree, sapling, flows, piles, anchors, library, layers, show, palette,
       setDaylight, setTreeOpacity, showPotScene, flowsOff, params: () => P, easeOut, easeInOut };
   }
 
@@ -634,6 +653,7 @@
       sim, box, flyTo, layout,
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
+      layers: sim.layers, show: (n, on) => { sim.show(n, on); return this; }, palette: sim.palette,
       set(next) { sim.set(next); return this; },
       state: () => last || sim.state(),
       on: sim.on,

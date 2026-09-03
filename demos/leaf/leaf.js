@@ -115,6 +115,7 @@
       if (top) {
         const cut = new THREE.Mesh(roundedBox(THREE, W + 0.2, P.layers.cuticle, D + 0.2, 2, 0.05), M.cuticle);
         cut.position.set(0, y + h + P.layers.cuticle / 2 + 0.06, 0);
+        cut.userData.layer = 'cuticle';
         g.add(cut);
       } else {
         /* Stomata: two guard cells, a pore between. Real density is a few
@@ -167,6 +168,7 @@
         }
       }
       mesh.count = i; bands.count = b;
+      bands.userData.layer = 'chloroplasts';
       g.add(shadow(mesh), shadow(bands));
     }
 
@@ -210,6 +212,7 @@
         }
       }
       cells.count = ci; dark.count = di; chloro.count = ch;
+      chloro.userData.layer = 'chloroplasts';
       g.add(shadow(cells), shadow(dark), shadow(chloro));
     }
 
@@ -278,6 +281,7 @@
       buildBundle(layer('bundle', Y.spongy));
       buildEpidermis(layer('lowerEpi', Y.lowerEpi), Y.lowerEpi, H.lowerEpi, false);
       applyExplode(); applyIsolate(); applyHighlight();
+      if (typeof applyVis === 'function') applyVis();
     }
 
     function applyExplode() {
@@ -337,7 +341,7 @@
       return s;
     }
     function state() {
-      return { explode: P.explode, seed: P.seed, isolate: P.isolate, hovered,
+      return { explode: P.explode, seed: P.seed, isolate: P.isolate, hovered, layersShown: layersOf(),
         layers: ORDER.map(n => ({ name: n, y: (Y[n === 'bundle' ? 'spongy' : n] || 0) + (layers[n] ? layers[n].position.y : 0),
                                   height: n === 'bundle' ? bundle.r * 2 : P.layers[n] })) };
     }
@@ -353,6 +357,25 @@
       (listeners[ev] || (listeners[ev] = [])).push(fn);
       return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); };
     }
+
+    /* ---- what can be shown or hidden ---- */
+    const vis = { chloroplasts: true, cuticle: true };
+    for (const n of ORDER) vis[n] = true;
+    const applyVis = () => {
+      for (const n of ORDER) if (layers[n]) layers[n].visible = vis[n];
+      block.traverse(o => { if (o.userData.layer) o.visible = vis[o.userData.layer]; });
+    };
+    const LABEL = { lowerEpi: 'lower epidermis', spongy: 'spongy mesophyll', bundle: 'vein', palisade: 'palisade', upperEpi: 'upper epidermis', chloroplasts: 'chloroplasts', cuticle: 'cuticle' };
+    const layersOf = () => Object.keys(vis).map(k => ({ name: k, label: LABEL[k], on: vis[k] }));
+    function show(name, on = true) {
+      if (!(name in vis)) { console.warn('leaf.js: no layer named ' + name + '; have ' + Object.keys(vis).join(', ')); return; }
+      vis[name] = !!on; applyVis();
+    }
+    const palette = () => [
+      { name: 'epidermis', color: '#c9d878' }, { name: 'cuticle', color: '#d6dfa2' }, { name: 'palisade cell', color: '#d6b93a' },
+      { name: 'spongy cell', color: '#7fa23a' }, { name: 'chloroplast', color: '#3f6b1e' }, { name: 'bundle sheath', color: '#6f8cad' },
+      { name: 'xylem', color: '#f0a020' }, { name: 'phloem', color: '#e8c75a' }, { name: 'guard cell', color: '#8fb040' },
+    ];
 
     /* Named parts: the front face of each layer, mid-block, following explode. */
     const _a = new THREE.Vector3();
@@ -376,7 +399,8 @@
       stoma:    { text: 'stoma', offset: [40, 26], card: 'Two guard cells and the pore between them. They swell to open it for CO₂ and close it to keep water in.' },
     };
     build();
-    return { step, state, set, on, point, pick, select, height, block, layers, anchors, library, params: () => P, ORDER };
+    return { step, state, set, on, point, pick, select, height, block, layers, anchors, library, params: () => P, ORDER,
+      layersOf, show, palette };
   }
 
   /* ---- one box ----
@@ -434,6 +458,7 @@
       sim: leaf, box,
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
+      layers: leaf.layersOf, show: (n, on) => { leaf.show(n, on); if (!box.running) box.draw(); return this; }, palette: leaf.palette,
       set(next) { leaf.set(next); if (next.explode != null || next.layers) frame(); return this; },
       state: () => last || leaf.state(),
       on: leaf.on,

@@ -25,7 +25,8 @@
  *  ctx.ui, for steps:
  *      controls(html)  fill the slot · q(sel) / qa(sel) inside it · show(el) /
  *      hide(el) · setNext(label, visible) · range(input, onChange) paints the
- *      track and fires once with the current value
+ *      track and fires once with the current value · showPanel(component,
+ *      {only:['notes','layers','legend']}) appends the component's own chips
  *
  *  Chrome is css/lesson-shell.css; `body.lshell-page` is set here. A step's
  *  `body` may be a function of ctx, for copy that depends on what the
@@ -83,6 +84,9 @@
       show(e) { if (!e) return; e.classList.remove('is-hidden'); e.classList.add('rise'); },
       hide(e) { if (e) e.classList.add('is-hidden'); },
       setNext(label, visible = true) { els.next.textContent = label; els.next.classList.toggle('is-hidden', !visible); },
+      /* The component's own "point at / show / colours" chips, appended to
+         the controls slot. kit/card-stage.js draws it; this only places it. */
+      showPanel(c, opts) { return global.CardStage.showPanel(els.controls, c, opts); },
       range(input, onChange) {
         const paint = () => input.style.setProperty('--p', `${((input.value - input.min) / (input.max - input.min)) * 100}%`);
         input.addEventListener('input', () => { paint(); onChange(+input.value); });

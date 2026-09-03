@@ -78,6 +78,27 @@ c.anchors();                                      // the names this component ha
 
 Notes follow their part as it moves and as the camera turns. Show two or three at once, never ten. A step that changes subject should `notes(false)` first. Each component's section lists its anchor names.
 
+### Layers: showing and hiding
+
+Every component declares what can be switched off without stopping the sim: a hidden water still crosses and still counts.
+
+```js
+c.layers();                 // [{name, label, on}]
+c.show('shells', true);     // one layer; returns c
+c.palette();                // [{name, color}] what the colours mean, for a legend
+```
+
+### The show panel
+
+The chips for all three, point at, show, and colours, in one call. **Use this instead of writing your own buttons for notes or layers.**
+
+```js
+CardStage.showPanel(container, c);                   // on the sidebar page: into a .grp
+ctx.ui.showPanel(c, { only: ['notes', 'layers'] });  // on the step-through shell: into the step's controls
+```
+
+`only` picks any of `'notes'`, `'layers'`, `'legend'`. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
+
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 
 ## WaterSim — liquid water and what follows from hydrogen bonds
@@ -115,7 +136,7 @@ What it models, and the numbers `state()` returns every frame:
 
 Events: `frame` (state) · `dissociate` (na, cl, at) when water wedges a salt pair apart · `saltchange` when the phase-change points move. The freezing point in the readout is `-dTf`, the boiling point `100 + dTb`.
 
-Anchors for `note()`: `water` (one molecule), `O` and `H` (its atoms, with the partial charges), and with salt on stage `Na` and `Cl`.
+Anchors for `note()`: `water` (one molecule), `O` and `H` (its atoms, with the partial charges), and with salt on stage `Na` and `Cl`. Layers for `show()`: `hbonds`, `ions`.
 
 Good for: temperature, phase change, why ice floats, salt dissolving, colligative properties. Not for: anything the water is in (no container, no membrane, no surface).
 
@@ -175,6 +196,8 @@ Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `
 
 Anchors for `note()`: `channel.K`, `channel.CL`, `pump` (each only when that protein is in the layout), `heads` and `tails` (the bilayer's two halves), `outside`, `inside`, and one molecule of each kind on stage: `water`, `NA`, `K`, `CL`, `A`. "What are the two proteins?" is `m.notes(['channel.K', 'pump'])`.
 
+Layers for `show()`: `water`, `ions`, `badges` (the charge signs), `shells`, `cut` (proteins cut open), `membrane`.
+
 Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, active transport and its cost, a cell in a changed environment. Not for: a specific real protein's shape, receptors, vesicles, anything at whole-cell scale.
 
 ## Proteinbox — a real protein, from the library
@@ -228,6 +251,8 @@ Layer names, bottom to top: `lowerEpi` (with stomata), `spongy` (air spaces, cel
 
 Anchors for `note()`: `upperEpi`, `cuticle`, `palisade`, `spongy`, `bundle`, `lowerEpi`, `stoma`. Each carries the library's two-sentence card on what that tissue does.
 
+Layers for `show()`: the five tissues by the same names, plus `chloroplasts` and `cuticle`.
+
 Good for: leaf anatomy, where gas exchange and photosynthesis happen, what a vein is, structure and function of each tissue. Not for: a single cell's interior, or any process; nothing moves in it.
 
 ## Tree — a tree, the air around it, and where its mass came from
@@ -254,6 +279,8 @@ T.flyTo([5.2, 3.6, 7], [0, 2.3, 0], 1.6);    // a camera flight; a drag cancels 
 The organism scale, and choreography rather than physics: CO₂ drifts into the canopy, O₂ leaves it, water and minerals climb the trunk, and the piles show the lesson's shares of dry mass (about 93% from CO₂, 6% from water's hydrogen, 1% minerals). `Tree.PILES` holds those numbers for a legend. `state()` returns the params at their current values. Events: `frame` (state, dt) · `night` (bool), which a page uses to switch the shell's theme.
 
 Anchors for `note()`: `trunk`, `canopy`, `leaves`, `roots`, `soil`, `sun`, `person`, `air`, and with `potScene` on, `pot` and `willow`.
+
+Layers for `show()`: the flows `co2`, `o2`, `h2o`, `minerals`, `ambient`, and `piles`, `person`, `sun`.
 
 Good for: where a plant's mass comes from, photosynthesis as traffic, Van Helmont's experiment, scale of carbon stored in a tree. Not for: a leaf's interior (that is Leaf), or any molecule.
 
@@ -298,4 +325,4 @@ Draw one as an inline SVG from a series the page collects in its `frame` handler
 
 A tutor for a college Bio 101 student. Concise, no repetition, one claim per paragraph, in bold, that the picture is showing right now. Prefer a question the student can answer by touching a control. No em dashes.
 
-**Show, do not tell.** When a student asks what something is, put a note on it. When they ask what happens if, add a control that does it, or a step that shows it. Add a paragraph only when neither is possible. A panel body stays under two short paragraphs, and an edit that would push it past that replaces text rather than adding it. When something asked for is beyond the components, say so in one sentence in the page rather than faking it.
+**Show, do not tell.** When a student asks what something is, put a note on it, in the step where they asked. When they ask what happens if, add a control that does it, or a step that shows it. When they ask to see or hide something, it is a layer. A note names the part it is on, not the whole scene. Add a paragraph only when none of those is possible. A panel body stays under two short paragraphs, and an edit that would push it past that replaces text rather than adding it. When something asked for is beyond the components, say so in one sentence in the page rather than faking it.

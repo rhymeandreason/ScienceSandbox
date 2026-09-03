@@ -108,8 +108,24 @@
     };
     nb = global.Notebook ? global.Notebook.create({ box, anchors, library }) : null;
 
+    /* What can be shown or hidden. The H-bond network is a param already;
+       ions hide by visibility so the shells and the freezing point hold. */
+    const vis = { ions: true };
+    const LAYERS = {
+      hbonds: { label: 'hydrogen bonds', get: () => P.hbonds, set: v => { P.hbonds = v; } },
+      ions:   { label: 'ions', get: () => vis.ions, set: v => { vis.ions = v; for (const m of sim.salt) m.visible = v; } },
+    };
+    const layers = () => Object.keys(LAYERS).map(k => ({ name: k, label: LAYERS[k].label, on: !!LAYERS[k].get() }));
+    const show = (n, on = true) => { const L = LAYERS[n]; if (!L) console.warn('watersim-mount.js: no layer named ' + n); else L.set(!!on); };
+    const hex = n => '#' + n.toString(16).padStart(6, '0');
+    const A = global.MolLib.PALETTE.atoms, B = global.MolLib.PALETTE.bonds;
+    const palette = () => [
+      { name: 'oxygen', color: hex(A.O) }, { name: 'hydrogen', color: hex(A.H) }, { name: 'Na⁺', color: hex(A.Na) }, { name: 'Cl⁻', color: hex(A.Cl) },
+      { name: 'hydrogen bond', color: hex(B.hbond) }, { name: 'ion–dipole bond', color: hex(B.iondipole) },
+    ];
+
     return {
-      sim, box,
+      sim, box, layers, show, palette,
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
       set(next) { Object.assign(P, next); reconcile(); return this; },

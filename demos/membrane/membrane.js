@@ -326,6 +326,7 @@
       if (t.walk) repick(t);
       if (t.born != null) { t.bornScale = obj.scale.x; obj.scale.setScalar(0.001); }
       travellers.push(t);
+      applyVis();
       return t;
     }
     const farY = () => P.extent * 0.94;
@@ -841,7 +842,7 @@
       const nW = w.inside + w.outside;
       const diff = w.inside - w.outside;
       const net = Math.abs(diff) <= Math.max(2, 0.08 * nW) ? 'balanced' : diff > 0 ? 'leaving' : 'entering';
-      return { t:elapsed, counts, mV, chargeOut, crossed:Object.assign({}, crossed),
+      return { t:elapsed, counts, mV, chargeOut, crossed:Object.assign({}, crossed), layers: layers(),
         crossings:Object.assign({}, crossings), netRecent, net, netPush:netPush(),
         atpSpent, pumpRunning:running, pumpPhase:phase, pumpT,
         equilibrium: { K:equilibriumOf('K'), CL:equilibriumOf('CL') } };
@@ -865,6 +866,38 @@
       (listeners[ev] || (listeners[ev] = [])).push(fn);
       return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); };
     }
+
+    /* ---- what can be shown or hidden, by name ----
+       Hiding is visibility only: a hidden water still crosses and still
+       counts, so a readout stays true with the crowd out of the way. */
+    const eachOf = (kinds, fn) => { for (const t of travellers) if (kinds.includes(t.kind)) fn(t); };
+    const vis = { water: true, ions: true, badges: true };
+    const applyVis = () => {
+      eachOf(['water', 'o2', 'co2'], t => { t.obj.visible = vis.water; });
+      eachOf(['NA', 'K', 'CL', 'A'], t => { t.obj.visible = vis.ions; if (t.obj.userData.badge) t.obj.userData.badge.visible = vis.badges; });
+    };
+    const LAYERS = {
+      water:    { label: 'water',            get: () => vis.water,  set: v => { vis.water = v; applyVis(); } },
+      ions:     { label: 'ions',             get: () => vis.ions,   set: v => { vis.ions = v; applyVis(); } },
+      badges:   { label: 'charge signs',     get: () => vis.badges, set: v => { vis.badges = v; applyVis(); } },
+      shells:   { label: 'hydration shells', get: () => P.shells,   set: v => setShells(v) },
+      cut:      { label: 'proteins cut open',get: () => cut,        set: v => setCut(v) },
+      membrane: { label: 'the bilayer',      get: () => MEM.group.visible, set: v => { MEM.group.visible = v; } },
+    };
+    const layers = () => Object.keys(LAYERS).map(k => ({ name: k, label: LAYERS[k].label, on: !!LAYERS[k].get() }));
+    function show(name, on = true) {
+      const L = LAYERS[name];
+      if (!L) { console.warn('membrane.js: no layer named ' + name + '; have ' + Object.keys(LAYERS).join(', ')); return; }
+      L.set(!!on);
+    }
+    /* What the colours mean, for a legend a page did not have to write. */
+    const hex = n => '#' + n.toString(16).padStart(6, '0');
+    const palette = () => [
+      { name: 'water', color: global.MolLib.PALETTE.atoms.O ? hex(global.MolLib.PALETTE.atoms.O) : '#c33' },
+      { name: 'Na⁺', color: hex(global.Parts.ION.NA.color) }, { name: 'K⁺', color: hex(global.Parts.ION.K.color) },
+      { name: 'Cl⁻', color: hex(global.Parts.ION.CL.color) }, { name: 'anion that cannot leave', color: '#8f7fae' },
+      { name: 'K⁺ channel', color: '#5b9bd5' }, { name: 'Cl⁻ channel', color: '#b58a4f' }, { name: 'Na⁺/K⁺ pump', color: '#4f9e78' },
+    ];
 
     /* ---- the parts a page can point at, by name (Notebook, in lib/annotate.js) ----
        Live functions: a pore moves with the layout, an ion with itself. The
@@ -910,7 +943,7 @@
     setShells(P.shells);
     if (P.contents) setContents(P.contents);
 
-    return { step, state, reset, set, on, spend, anchors, library,
+    return { step, state, reset, set, on, spend, anchors, library, layers, show, palette,
       add, scatter, remove, clear, travellers,
       params: () => P, pores: () => PORES.slice(),
       get height() { return T.height; },
@@ -948,6 +981,7 @@
       sim, box,
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
+      layers: sim.layers, show: (n, on) => { sim.show(n, on); if (!box.running) box.draw(); return this; }, palette: sim.palette,
       set(next) { sim.set(next); return this; },
       state: () => last || sim.state(),
       on: sim.on, spend: sim.spend,

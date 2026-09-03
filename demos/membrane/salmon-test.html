@@ -49,10 +49,7 @@
       <label>speed <input id="speed" type="range" min="1" max="4" step="1" value="1"></label>
     </div>
 
-    <div class="grp">
-      <div class="hd">point at</div>
-      <div id="notes"></div>
-    </div>
+    <div class="grp" id="panel"></div>
 
     <div class="grp">
       <div class="hd">free water on each side</div>
@@ -138,13 +135,8 @@ for (const b of document.querySelectorAll('[data-env]')) b.onclick = () => {
 $('pumpOn').onchange = e => m.set({ pumpOn: e.target.checked });
 $('shells').onchange = e => m.set({ shells: e.target.checked });
 $('speed').oninput = e => m.set({ timeScale: +e.target.value });
-/* Every anchor the component names, as a toggle: the library's own note. */
-for (const a of m.anchors()) {
-  const b = document.createElement('button');
-  b.type = 'button'; b.textContent = a.text || a.name; b.setAttribute('aria-pressed', 'false');
-  b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); on ? m.note(a.name) : m.sim && m.clearNotes(); };
-  $('notes').appendChild(b);
-}
+/* The component's own chips: point at, show, colours. Nothing here was written for this page. */
+CardStage.showPanel($('panel'), m);
 
 /* ---- the chart: free water per side, over the last two minutes ---- */
 const series = [];
