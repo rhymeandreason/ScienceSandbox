@@ -120,19 +120,22 @@ const m = Membrane.mount(el, {
 
 Outside is +y (top), inside is −y (bottom). The sheet is an oily bilayer: water and small gases cross it, ions do not. A K⁺ channel admits K⁺ by hydration (Na⁺ is smaller and still refused, because it holds its water too tightly). A Cl⁻ channel admits by charge. The Na⁺/K⁺ pump carries 3 Na⁺ out and 2 K⁺ in per ATP, never open at both ends. With the potential on, every K⁺ leaving builds the voltage that stops the leak.
 
-Populating it. The box starts empty; a page puts molecules in:
+Populating it. The box starts empty. Say what is dissolved on each side and the module keeps the stage matching it:
 
 ```js
-m.scatter(kind, n, side, opts)   // kind: 'water' | 'o2' | 'co2' | 'NA' | 'K' | 'CL' | 'A' (an impermeant anion)
-                                 // side: 1 outside, -1 inside, 0 alternate
-m.add(kind, opts)                // one, placed by hand: opts.x, .y, .z
-m.clear(); m.reset();            // empty the stage; zero the counters
+m.set({ contents: {
+  inside:  { water:46, K:20, NA:4, A:8 },     // kind: 'water' | 'o2' | 'co2' | 'NA' | 'K' | 'CL' | 'A' (an impermeant anion)
+  outside: { water:26, NA:26, CL:26 },
+} });
+m.reset();                       // zero the counters after a change of scene
 m.spend();                       // one ATP, one pump turn; false if a turn is running or no Na⁺ inside
 ```
 
-`scatter` sets sensible defaults: ions walk slower and are blocked by the bilayer, water is kept out of the pores. Useful `opts`: `conducts:'K'` or `'CL'` lets an ion use that channel, `seeks:true` makes it try and be refused, `speed:[lo,hi]`, `yband:[lo,hi]` keeps it in part of a compartment, `blocked:false` lets a molecule through the lipid (the default for water and gases).
+Changing `contents` adds and removes only the difference, by current side, so a water that already crossed stays crossed. **The budget is 220 particles on stage in total**; past it nothing more is added. Keep the same particle count per side and fewer free waters where the solute is; that is what makes osmosis a headcount rather than a pull. About 78 particles a side reads well: 78 water on the fresh side, and on a salty side 26 water with 26 Na⁺ and 26 Cl⁻.
 
-Keep the same particle count per side and fewer free waters where the solute is; that is what makes osmosis a headcount rather than a pull. About 78 particles a side reads well.
+For one molecule placed by hand there is `m.add(kind, opts)` with `opts.x, .y, .z`, and `m.scatter(kind, n, side, opts)` with side 1 outside, −1 inside.
+
+Defaults do the right thing: ions walk slower and are blocked by the bilayer, water and gases cross it and keep out of the pores, a K⁺ or Cl⁻ ion uses a channel of its kind when one stands in the sheet, and the anions stay deep inside. `opts` on `add`/`scatter` can override: `conducts:'K'`, `seeks:true` (tries the channel and is refused, what Na⁺ does), `speed:[lo,hi]`, `blocked:false`.
 
 `state()`:
 

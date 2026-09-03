@@ -41,7 +41,10 @@
  *  Travellers are add(kind, opts) with membrane-lab's own option names —
  *  walk · speed · blocked · bounded · shell · seeks · conducts · keepout ·
  *  yband · coreSpeed · exits — and `conducts` may name a pore by kind ('K',
- *  'CL') instead of by x. scatter(kind, n, side, opts) is the common case.
+ *  'CL') instead of by x. scatter(kind, n, side, opts) is the common case,
+ *  and `contents` — counts per side per kind — is the declarative one:
+ *  set({contents}) adds and removes only the difference. add() refuses past
+ *  `maxTravellers`, because a crowd is a frame budget, not a preference.
  *
  *  WHAT IS EXAGGERATED is declared where it is set (EXAG, MV_PER_ION); the
  *  physics comments are membrane-lab's and travel with the code they explain.
@@ -68,6 +71,16 @@
     turnSeconds: 11,
     shells: false,
     lipidMotion: true,
+    /* THE BUDGET. Ion spacing is quadratic in the crowd, and a page that
+       scatters 400 things spends its whole frame keeping them apart. Refused
+       at add(), not clamped later, so the count a page reads is the count it
+       has. About 78 particles a side reads as a solution. */
+    maxTravellers: 220,
+    /* What is dissolved on each side, declaratively: {inside:{water:46, K:20},
+       outside:{water:26, NA:26, CL:26}}. set() reconciles the stage to it by
+       adding and removing, counted by CURRENT side, so a water that crossed
+       stays crossed and only the difference moves. */
+    contents: null,
   };
 
   function create(THREE, root, camera, opts = {}) {
@@ -286,7 +299,12 @@
     const WATER_CORE = 1.0;
     const ION_GAP = 2 * global.Parts.ION.K.r * global.Parts.ION.exaggeration + 2.6;
     const CHANNEL_KEEPOUT = 26;
+    let warnedBudget = false;
     function add(kind, opts = {}) {
+      if (travellers.length >= P.maxTravellers) {
+        if (!warnedBudget) { warnedBudget = true; console.warn(`membrane.js: ${P.maxTravellers} travellers is the budget; add() refused`); }
+        return null;
+      }
       const o = Object.assign({ x:0, z:0, y:0, vy:0, blocked:false }, opts);
       if (typeof o.conducts === 'string') { o.conductsKind = o.conducts; o.conducts = poreX(o.conducts); }
       const obj = kind === 'A' ? makeAnion()
@@ -306,13 +324,17 @@
     const farY = () => P.extent * 0.94;
     const inCompartment = side => side * rnd(HALF + 4, farY());
     /* Ions default to ion speed, water to walking; blocked unless the bilayer
-       lets it through (a gas, or water). Anything can be overridden. */
+       lets it through (a gas, or water). An ion with a channel of its kind on
+       stage uses it. The anions sit deep in the cytosol, heavy and slow,
+       because protein and phosphate are the bulk of the interior and not a
+       layer lining the membrane. Anything can be overridden. */
     function scatter(kind, n, side, opts = {}) {
       const ion = !!ELEMENT_OF[kind] || kind === 'A';
       const out = [];
       for (let i = 0; i < n; i++) {
         const s = side === 0 ? (i % 2 ? 1 : -1) : side;
-        out.push(add(kind, Object.assign({
+        const far = farY();
+        const def = {
           x: opts.clear === false ? rnd(-SPREAD(), SPREAD()) : rndClear(SPREAD() * (opts.span || 1)),
           z: rnd(-11, 11), y: inCompartment(s),
           walk:true, bounded:true,
@@ -320,9 +342,33 @@
           blocked: ion, coreSpeed: kind === 'water' ? WATER_CORE : undefined,
           keepout: kind === 'water' ? CHANNEL_KEEPOUT : undefined,
           shell: ion && kind !== 'A' && P.shells,
-        }, opts)));
+          conducts: (kind === 'K' || kind === 'CL') && poreX(kind) != null ? kind : undefined,
+        };
+        if (kind === 'A') Object.assign(def, { speed:[2, 5], y: s * far * (0.42 + Math.random() * 0.5),
+                                               yband: s < 0 ? [-far, -far * 0.38] : [far * 0.38, far] });
+        const t = add(kind, Object.assign(def, opts));
+        if (!t) break;
+        out.push(t);
       }
       return out;
+    }
+    /* Reconcile the stage to `contents`, by current side. Removal takes the
+       nearest to the membrane first, so what a student watched cross is the
+       last thing to vanish. */
+    function setContents(c) {
+      P.contents = c;
+      for (const [sideName, side] of [['inside', -1], ['outside', 1]]) {
+        const want = (c && c[sideName]) || {};
+        const kinds = new Set([...Object.keys(want),
+          ...travellers.filter(t => Math.sign(t.y) === side).map(t => t.kind)]);
+        for (const kind of kinds) {
+          const n = want[kind] | 0;
+          const have = travellers.filter(t => t.kind === kind && !t.aboard && Math.sign(t.y) === side)
+            .sort((a, b) => Math.abs(b.y) - Math.abs(a.y));
+          if (have.length > n) for (const t of have.slice(n)) remove(t);
+          else if (have.length < n) scatter(kind, n - have.length, side);
+        }
+      }
     }
     function remove(t) {
       const i = travellers.indexOf(t);
@@ -760,8 +806,9 @@
       if (next.proteins) layout(next.proteins);
       if (next.shells != null) setShells(next.shells);
       if (next.cut != null) setCut(next.cut);
-      for (const k of Object.keys(next)) if (!(k in { proteins:1, shells:1, cut:1 })) P[k] = next[k];
+      for (const k of Object.keys(next)) if (!(k in { proteins:1, shells:1, cut:1, contents:1 })) P[k] = next[k];
       if (next.E) P.E = Object.assign({}, DEFAULTS.E, next.E);
+      if (next.contents !== undefined) setContents(next.contents);
     }
     function on(ev, fn) {
       (listeners[ev] || (listeners[ev] = [])).push(fn);
@@ -770,6 +817,7 @@
 
     layout(P.proteins);
     setShells(P.shells);
+    if (P.contents) setContents(P.contents);
 
     return { step, state, reset, set, on, spend,
       add, scatter, remove, clear, travellers,

@@ -60,11 +60,11 @@
 
     <div class="grp">
       <div class="hd">what this app had to reach for</div>
-      <p class="note">Nothing under <code>m.sim</code>. Two things the params
-      could not say: which side the cell's anions keep to (<code>yband</code>
-      on <code>add</code>), and the environment as a whole, which is a
-      <code>clear()</code> and a fresh <code>scatter()</code> rather than a
-      parameter. A concentration per side per species would make it one.</p>
+      <p class="note">Nothing. The first draft reached under the params twice,
+      to keep the anions deep in the cytosol and to swap the environment by
+      clearing and re-scattering; <code>scatter</code>'s anion default and the
+      <code>contents</code> param took both. Switching waters now moves only
+      the difference, so the water that already crossed stays where it went.</p>
     </div>
   </div>
 </div>
@@ -110,22 +110,14 @@ const CLAIM = {
 let env = 'sea';
 const solute = o => Object.values(o).reduce((a, b) => a + b, 0);
 
+/* The environment is one set(): the module adds and removes the difference. */
 function populate() {
-  m.clear(); m.reset();
   const out = OUTSIDE[env];
-  m.scatter('K',  INSIDE.K,  -1, { conducts:'K' });
-  m.scatter('NA', INSIDE.NA, -1);
-  /* Deep in the cytosol, not lining the membrane: protein and phosphate
-     anions are the bulk of the interior. */
-  const far = m.sim.params().extent * 0.94;
-  for (let i = 0; i < INSIDE.A; i++)
-    m.add('A', { x:(Math.random() - .5) * 300, z:(Math.random() - .5) * 22,
-                 y:-far * (0.42 + Math.random() * 0.5), yband:[-far, -far * 0.38],
-                 walk:true, speed:[2, 5], blocked:true, bounded:true });
-  m.scatter('water', PARTICLES - solute(INSIDE), -1);
-  m.scatter('NA', out.NA, 1);
-  m.scatter('CL', out.CL, 1);
-  m.scatter('water', PARTICLES - solute(out), 1);
+  m.set({ contents: {
+    inside:  Object.assign({ water: PARTICLES - solute(INSIDE) }, INSIDE),
+    outside: Object.assign({ water: PARTICLES - solute(out) }, out),
+  } });
+  m.reset();
   $('claim').innerHTML = CLAIM[env];
   series.length = 0;
 }
