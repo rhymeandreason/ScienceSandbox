@@ -73,6 +73,18 @@ function block(src, key) {
     const n = rest.exec(src);
     return { from, to: n ? n.index : src.length };
   }
+  // form 3 — `const key = {` at the top of a domain file, then registered by
+  // name. mol-nucleic.js's shape: the spec has to be a binding because a
+  // correction (moveH) runs on it before it is registered.
+  const decl = new RegExp(`^[ \\t]*(?:const|let|var)\\s+${key}\\s*=\\s*\\{`, 'm');
+  m = decl.exec(src);
+  if (m) {
+    const from = m.index + m[0].length;
+    const end = /^[ \t]*(?:const|let|var)\s+\w+\s*=|^[ \t]*register\(/gm;
+    end.lastIndex = from;
+    const n = end.exec(src);
+    return { from, to: n ? n.index : src.length };
+  }
   // form 2 — `key: {` as a property of register()'s object literal. The key's
   // indent is the delimiter: siblings share it, nested objects are deeper.
   const prop = new RegExp(`^([ \\t]*)${key}\\s*:\\s*\\{`, 'm');

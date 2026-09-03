@@ -290,6 +290,7 @@
 <script src="lib/mol-krebs.js"></script>
 <script src="lib/mol-lipids.js"></script>
 <script src="lib/mol-vitamins.js"></script>
+<script src="lib/mol-nucleic.js"></script>
 <!-- The flat view is drawn by SmilesDrawer from each spec's generated `smiles`
      — the same library and the same strings contrast-lab.html uses. -->
 <script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
@@ -340,6 +341,17 @@ const oxOf=(s,c)=>(s.bonds||[]).filter(b=>b[0]===c||b[1]===c)
   .map(b=>b[0]===c?b[1]:b[0]).filter(i=>s.atoms[i].el==='O');
 
 const SHELF=[
+  { key:'phosphate', card:'Phosphate',
+    blurb:'One phosphorus, four oxygens, drawn as the <b>neutral acid</b> so the '
+        + '–OH that leaves is visible. It is the third part of a nucleotide, and '
+        + 'the part that makes DNA an acid: at cell pH two of these oxygens have '
+        + 'lost their hydrogens and the group carries a charge.',
+    focus:{ title:'The –OH that reacts',
+            body:'A phosphoester bond costs one of these hydroxyls. It meets the '
+               + 'sugar\u2019s <b>5\u2032 –OH</b>, a water leaves, and the '
+               + 'oxygen left bridging is the sugar\u2019s, not the phosphate\u2019s.',
+            atoms:s=>[s.condense.roles[0].keep, ...s.condense.roles[0].leaves] },
+  },
   { key:'atp', card:'ATP', alt:'atpSkel',
     blurb:'The cell’s spendable energy. Adenine and a ribose — the same '
         + 'handle RNA is built from — with <b>three phosphates</b> chained in a '

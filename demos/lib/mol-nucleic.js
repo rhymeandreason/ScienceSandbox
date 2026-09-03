@@ -132,6 +132,11 @@
     wc:{ partner:'thymine', bonds:[
       { self:3,  role:'acceptor', partner:'N3', partnerAtom:2 },   // N1 ··· H–N3
       { self:4,  role:'donor',    partner:'O4', partnerAtom:0 } ]},// N6–H ··· O4
+    // The glycosidic site: N9 is where the sugar attaches, and the hydrogen on
+    // it is what leaves as half of the water. Declared here, on the base,
+    // because it is a fact about the base and not about the page that draws it
+    // — the same shape mol-monomers.js's amino acids use for the peptide bond.
+    condense:{ roles:[ { key:'glyco', label:'N9\u2013H', keep:1, leaves:[10] } ] },
     view:VIEW.flatRing,
     src:PUBCHEM({ name:'adenine', cid:190, conformer:'000000BE00000001' })
   };
@@ -156,6 +161,11 @@
     wc:{ partner:'adenine', bonds:[
       { self:2,  role:'donor',    partner:'N1', partnerAtom:3 },
       { self:0,  role:'acceptor', partner:'N6', partnerAtom:4 } ]},
+    // The glycosidic site: N1 is where the sugar attaches, and the hydrogen on
+    // it is what leaves as half of the water. Declared here, on the base,
+    // because it is a fact about the base and not about the page that draws it
+    // — the same shape mol-monomers.js's amino acids use for the peptide bond.
+    condense:{ roles:[ { key:'glyco', label:'N1\u2013H', keep:3, leaves:[11] } ] },
     view:VIEW.flatRing,
     src:PUBCHEM({ name:'thymine', cid:1135, conformer:'0000046F00000001',
                  regen:'exact' })
@@ -179,6 +189,11 @@
       { self:0,  role:'acceptor', partner:'N4', partnerAtom:2 },   // O6 ··· H–N4
       { self:2,  role:'donor',    partner:'N3', partnerAtom:1 },   // N1–H ··· N3
       { self:5,  role:'donor',    partner:'O2', partnerAtom:0 } ]},// N2–H ··· O2
+    // The glycosidic site: N9 is where the sugar attaches, and the hydrogen on
+    // it is what leaves as half of the water. Declared here, on the base,
+    // because it is a fact about the base and not about the page that draws it
+    // — the same shape mol-monomers.js's amino acids use for the peptide bond.
+    condense:{ roles:[ { key:'glyco', label:'N9\u2013H', keep:4, leaves:[11] } ] },
     view:VIEW.flatRing,
     src:PUBCHEM({ name:'guanine', cid:135398634, conformer:'081204EA00000001' })
   };
@@ -201,6 +216,11 @@
       { self:2,  role:'donor',    partner:'O6', partnerAtom:0 },
       { self:1,  role:'acceptor', partner:'N1', partnerAtom:2 },
       { self:0,  role:'acceptor', partner:'N2', partnerAtom:5 } ]},
+    // The glycosidic site: N1 is where the sugar attaches, and the hydrogen on
+    // it is what leaves as half of the water. Declared here, on the base,
+    // because it is a fact about the base and not about the page that draws it
+    // — the same shape mol-monomers.js's amino acids use for the peptide bond.
+    condense:{ roles:[ { key:'glyco', label:'N1\u2013H', keep:3, leaves:[8] } ] },
     view:VIEW.flatRing,
     src:PUBCHEM({ name:'cytosine', cid:597, conformer:'0000025500000001' })
   };
@@ -209,6 +229,46 @@
   // guanine's N1–H needs, and the reason G–C has three bonds and not two.
   moveH(cytosine, 8, 1, 3, [[3,7,1],[4,5,1],[1,4,2],[5,7,2]]);
 
-  register({ adenine, thymine, guanine, cytosine }, SELFNAME);
+  /* ---- phosphate ------------------------------------------------------
+   * Phosphoric acid, as fetched (CID 1004). The nucleotide's third part, and
+   * the only one of the three this file has to add — the sugar already exists
+   * as MOLECULES.deoxyribose, built by mol-contrast.js.
+   *
+   * WHY THE NEUTRAL ACID AND NOT THE ION. At pH 7 free phosphate is HPO4²⁻ and
+   * the phosphate in a nucleotide carries a negative charge; that charge is the
+   * whole reason DNA is an acid and binds histones. But the reaction step 2
+   * shows is a CONDENSATION, and a condensation needs the –OH that leaves. So
+   * this spec is the protonated form, which is honest about the bond being
+   * made and understates the charge. A page that draws the finished backbone
+   * owes the ionised form; this one owes the leaving group.
+   *
+   * 0 P  1,2,3 O(H)  4 O(double)  5,6,7 the three hydroxyl H
+   */
+  const phosphate = {
+    name:'Phosphate', formula:'H₃O₄P', charge:0, class:'acid',
+    units:'angstrom',
+    atoms:[{el:'P',pos:[0.077,-0.027,-0.046]},{el:'O',pos:[-1.3,-0.531,-0.724]},{el:'O',pos:[-0.055,-0.494,1.495]},{el:'O',pos:[-0.042,1.582,0]},{el:'O',pos:[1.319,-0.531,-0.724]},{el:'H',pos:[-2.154,-0.257,-0.327]},{el:'H',pos:[-0.84,-0.212,2.011]},{el:'H',pos:[0.152,2.097,-0.812]}],
+    bonds:[[0,1],[0,2],[0,3],[0,4,2],[1,5],[2,6],[3,7]],
+    names:['P','O1','O2','O3','O4','HO1','HO2','HO3'],
+    // The three –OH are equivalent, so which one esterifies is arbitrary; O1 is
+    // named as the one that reacts only so the page has something to point at.
+    // The other two are what carry the charge once this is in a backbone.
+    condense:{
+      roles:[ { key:'ester', label:'P\u2013OH', keep:0, leaves:[1,5] } ] },
+    // Two acceptors per oxygen either way; the finder reads them off lobes.js.
+    // A tetrahedron has no informative default angle \u2014 every rotation of it
+    // looks like the last one \u2014 so what this molecule is gets said by the
+    // viewer's 2D layout, not by `view:`. Both fields below are generated
+    // (spec2smiles.js, bake-flat2d.js); an authored value here would be a
+    // second description of the geometry, free to drift from it.
+    flat:true,
+    smiles:'O=P(O)(O)O',
+    flat2d:[[0,0],[-1.374,-0.793],[-0.793,1.374],[0.793,-1.374],[1.374,0.793]],
+    view:VIEW.flatRing,
+    src:PUBCHEM({ name:'phosphate', cid:1004, conformer:'000003EC00000001',
+                 regen:'exact' })
+  };
+
+  register({ adenine, thymine, guanine, cytosine, phosphate }, SELFNAME);
 
 })(typeof window !== 'undefined' ? window : globalThis);

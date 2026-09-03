@@ -1,7 +1,7 @@
 # tools/sdf/ — the committed PubChem inputs
 
 The source records for every `src:{path:'pubchem'}` spec in `molecules.js`.
-Nine files, 64 KB. They are **build-time inputs, never a page dependency** — no
+Ten files, 65 KB. They are **build-time inputs, never a page dependency** — no
 HTML here loads them, and nothing fetches at runtime.
 
 Committed because path 2 was the one path that could not be re-run from this
@@ -36,11 +36,12 @@ by `src.sdf` exists.
 | `cysteine.sdf` | 5862 | `000016E600000001` | `exact` | rebuilds to 0.000 |
 | `amp.sdf` | 15938965 | `00F3359500000005` | `exact` | rebuilds to 0.000 |
 | `atp.sdf` | 5461108 | `0053547400000001` | `exact` | rebuilds to 0.000 |
+| `phosphate.sdf` | 1004 | `000003EC00000001` | `exact` | rebuilds to 0.000 |
 | `proline.sdf` | 145742 | `0002394E00000001` | `manual` | `sdf2spec.js` throws on it |
 | `glutamine.sdf` | 5961 | `0000174900000002` | **`lost`** | does *not* rebuild the spec |
 | `glutamate.sdf` | 33032 | `0000810800000001` | **`lost`** | does *not* rebuild the spec |
 
-Verified 2026-07-30, `atp.sdf` added 2026-08-12. Six of nine rebuild exactly; the three that do not are
+Verified 2026-07-30, `atp.sdf` added 2026-08-12, `phosphate.sdf` 2026-09-02. Seven of ten rebuild exactly; the three that do not are
 each a different problem, and the two marked `lost` are the ones to be careful
 with.
 
