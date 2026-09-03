@@ -186,7 +186,7 @@ const bases = KEYS.map(key => {
   tag.textContent = spec.name;
   document.getElementById('stage').appendChild(tag);
 
-  return { key, spec, mol, centre, reach, tag, partner:null };
+  return { key, spec, mol, centre, reach, tag, partner:null, wcKeys:null };
 });
 const byMol = m => bases.find(b => b.mol === m);
 const centreOf = b => b.centre.clone().applyQuaternion(b.mol.quaternion).add(b.mol.position);
@@ -295,7 +295,8 @@ const toWorld = e => {
 };
 
 function unpair(b){
-  if(b.partner){ b.partner.partner = null; b.partner = null; }
+  if(b.partner){ b.partner.wcKeys = null; b.partner.partner = null; }
+  b.wcKeys = null; b.partner = null;
 }
 
 canvas.addEventListener('pointerdown', e => {
@@ -355,12 +356,26 @@ function tryLatch(){
       const target = (b === held) ? t : latchWorld(b, a);
       if(!target) continue;
       held.partner = other; other.partner = held;
+      // WHICH ATOMS. The solve already knows the donor/acceptor pairs that
+      // hold this pair together; anything else that drifts within range —
+      // a ring N passing an exocyclic O on the far edge — is a contact, not
+      // one of the pair's bonds, and drawing it solid would teach that a base
+      // pair is however many bonds happen to be short enough.
+      held.wcKeys = other.wcKeys = wcKeys(a, b, t.solved);
+      // The pair is bonded, so the pose is no longer the pointer's to set.
+      // Dropping the drag here lets the tween land it exactly on the solved
+      // pose instead of fighting a cursor that is still moving.
+      held = null; dragging = [];
       L.motion.cancel('latch:'+move.key);
       const from = move.mol.position.clone(), fq = move.mol.quaternion.clone();
       L.motion.seq([
         { dur:0.28, ease:'outBack', onUpdate:u=>{
             move.mol.position.lerpVectors(from, target.pos, u);
             THREE.Quaternion.slerp(fq, target.quat, move.mol.quaternion, u);
+            // The drag is over, so nothing else is redrawing the bonds while
+            // the tween runs — and the bonds are what the student is waiting
+            // to see. They appear as soon as the geometry earns them.
+            refresh();
           }},
         // ONE FLARE PER HYDROGEN BOND, ON THE BOND. Firing a single ring at the
         // molecule's transform origin put it in the middle of a ring system,
@@ -372,7 +387,7 @@ function tryLatch(){
         { call:()=>{
             if(!L.fx) return;
             for(const q of liveBonds()){
-              if(q.donor.owner.partner !== q.acceptor.owner) continue;
+              if(q.donor.owner.partner !== q.acceptor.owner || !isWC(q)) continue;
               L.fx.spawnRing(new THREE.Vector3(
                 (q.h[0]+q.p[0])/2, (q.h[1]+q.p[1])/2, (q.h[2]+q.p[2])/2),
                 MolLib.PALETTE.bonds.hbond, null, 0.5);
@@ -383,6 +398,20 @@ function tryLatch(){
     }
   }
 }
+
+/* The bonds the solve found, as owner-agnostic keys into the two specs.
+ * `a` is the pose solver's fixed base and `b` its moved one, which is the
+ * framing pairing.js tags its own sites with. */
+function wcKeys(a, b, solved){
+  const who = o => (o === 'fixed' ? a : b).key;
+  return new Set(solved.bonds.map(
+    q => who(q.donor.owner) + ':' + q.donor.id + '|' + who(q.acceptor.owner) + ':' + q.acceptor.id));
+}
+const isWC = q => {
+  const s = q.donor.owner.wcKeys;
+  return !!s && s.has(q.donor.owner.key + ':' + q.donor.id + '|' +
+                      q.acceptor.owner.key + ':' + q.acceptor.id);
+};
 
 /* ---- hydrogen bonds, found where the molecules actually are --------------- */
 const MAXD = HBond.DEFAULTS.maxDist * S;
@@ -404,11 +433,14 @@ function liveBonds(){
 function refresh(){
   const live = liveBonds();
   // A bond belongs to the solid layer only if its two owners are a latched
-  // pair. Everything else is a real contact that is not a pair — faint, so the
-  // two read differently without a word of explanation.
-  const isPair = q => q.donor.owner.partner === q.acceptor.owner;
-  HBpair.set(live.filter(isPair));
-  HBnear.set(live.filter(q => !isPair(q)));
+  // pair AND it is one the solve found. Everything else is a real contact that
+  // is not a pair — faint, so the two read differently without a word of
+  // explanation. The exception is a spare contact INSIDE a latched pair: it is
+  // real, but drawn beside the bonds that hold the pair it reads as a fourth
+  // one, so it is dropped.
+  const latched = q => q.donor.owner.partner === q.acceptor.owner;
+  HBpair.set(live.filter(q => latched(q) && isWC(q)));
+  HBnear.set(live.filter(q => !latched(q)));
   for(const b of bases) b.tag.classList.toggle('paired', !!b.partner);
 }
 
