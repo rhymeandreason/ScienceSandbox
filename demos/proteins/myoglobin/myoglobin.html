@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- SERVED AT A SHORT URL BY A vercel.json REWRITE, which does not move the
+     file: without this every ../../ path would resolve against `/`.
+     Correct at its own path and on the dev server too. docs/deploy.md. -->
+<base href="/demos/proteins/myoglobin/">
+<title>Myoglobin — Kodolab</title>
+
+<!-- ===================================================================
+     THE STUDENT'S MYOGLOBIN. Public, browsable, and the thing
+     proteins/index.html's card leads to.
+
+     IT IS NOT THE BENCH AND MUST NOT BECOME ONE. myoglobin-test.html is
+     where a human decides which of seven depositions earn a place and
+     reads the residual off each fit; that page is a workshop and it says
+     so. This one asks a reader to look at six things in order, and every
+     control it does not have is deliberate: no variant list, no
+     representation toggle, no residue picker, no copy-the-view button.
+     Scrolling is the only input.
+
+     FOUR SECTIONS, FOUR STRUCTURES. 1ABS — the CO cut loose by a laser and
+     frozen at 20 K — was here and came out: it is the best thing on the
+     bench and one claim too many for a first read, since it asks a reader
+     who has just met a binding site to hold a photolysed intermediate as
+     well. It stays baked and it stays on the bench.
+
+     THE STRUCTURE FOLLOWS THE PROSE. One box, held still at the top of
+     the viewport, re-fed as each section comes into view — so the reader
+     never chooses a PDB id and never loses the molecule off screen. A
+     switch keeps the camera (Proteinbox.setData), which is what makes
+     four states of one site read as four states rather than four
+     molecules.
+
+     EVERY NUMBER IS READ FROM THE BAKE AT RENDER TIME. The distances are
+     measured off the pocket by heme-metrics.js — shared with the bench so
+     the two pages cannot print different answers — and the counts come
+     off the trace. Nothing in the copy below is a typed figure, which is
+     what lets the prose stand through a re-bake.
+
+     ONE EXCEPTION, MARKED AS ONE: the whale paragraph's comparison is
+     from the literature, not from a file here, so it is written without a
+     number rather than with one nothing checks.
+
+     The blurbs are informed by PDB-101's Molecule of the Month #1; the
+     words are this repo's.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../kit/proteinbox.css">
+
+<style>
+  /* THE COLLECTION'S PAPER, which is the homepage's. A reader arrives here
+     from proteins/index.html and should not feel the floor change: same
+     Futura display face, same warm paper, same green. Nothing here is a
+     colour a molecule uses; those come from the palette through
+     tokens-from-palette.js. */
+  :root{
+    --sans:'Futura','Futura PT','Jost',-apple-system,'Segoe UI',sans-serif;
+    --ui:system-ui,-apple-system,'Segoe UI',sans-serif;
+
+    --paper:#faf8f4;
+    --ink:#14161a;
+    --muted:#6d6f76;
+    --line:#e4e0d7;
+    --card:#ffffff;
+    --accent:#1f5f4f;
+    --spark:#e2643a;
+  }
+
+  *{box-sizing:border-box}
+
+  body{font-family:var(--ui);background:var(--paper);color:var(--ink);
+    margin:0;line-height:1.6;-webkit-font-smoothing:antialiased}
+
+  a{color:var(--accent)}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(1.25rem,5vw,4rem)}
+
+  /* ---- masthead ------------------------------------------------------ */
+
+  header{padding:clamp(2.5rem,6vw,4.5rem) 0 1.5rem}
+  .back{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--muted);text-decoration:none}
+  .back:hover{color:var(--accent)}
+  /* An outbound offer, not a heading: it reads as running text with a rule
+     over it, so it cannot be mistaken for the next section starting. */
+  .onward{margin-top:1.4rem;padding-top:.9rem;border-top:1px solid var(--line);
+    font-size:.9rem}
+  .onward a{text-decoration:none;border-bottom:1px solid currentColor;
+    padding-bottom:1px}
+  h1{font-family:var(--sans);font-weight:400;font-size:clamp(2.6rem,7vw,4.4rem);
+    line-height:1;margin:.6rem 0 0;letter-spacing:-.01em}
+  .deck{font-size:clamp(1.05rem,1.9vw,1.3rem);color:var(--muted);
+    max-width:34em;margin:.9rem 0 0;font-weight:300}
+
+  /* ---- the two columns ------------------------------------------------
+     The molecule is STICKY and the prose scrolls past it. Below 900px the
+     stage pins to the top of the viewport instead of beside the text, which
+     keeps the same relationship — read a paragraph, the structure is
+     already in front of you — on a narrow window. */
+
+  .lesson{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:clamp(2rem,5vw,4rem);align-items:start;
+    padding-bottom:clamp(4rem,10vw,8rem)}
+
+  .viewer{position:sticky;top:clamp(1rem,4vh,3rem)}
+  .stage{width:100%;aspect-ratio:1/1;max-height:70vh;
+    background:var(--card);border:1px solid var(--line);border-radius:4px}
+  /* WHAT IS ON SCREEN, NAMED. A reader who has scrolled three sections is
+     looking at a different file than they started on, and a caption that
+     says which is the difference between a demo and evidence. */
+  .cap{display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:baseline;
+    margin:.7rem 0 0;font-size:.8rem;color:var(--muted)}
+  .cap .pdb{font-family:var(--sans);letter-spacing:.04em;color:var(--ink)}
+  .cap a{color:var(--muted)}
+
+  /* ---- the sections --------------------------------------------------- */
+
+  section{padding:12vh 0;border-top:1px solid var(--line)}
+  section:first-child{border-top:0;padding-top:2vh}
+  section h2{font-family:var(--sans);font-weight:400;
+    font-size:clamp(1.5rem,2.6vw,2rem);line-height:1.15;margin:0 0 .8rem;
+    letter-spacing:-.005em}
+  section p{margin:0 0 1rem;max-width:34em}
+  .kicker{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--spark);margin:0 0 .5rem;font-weight:600}
+
+  /* A MEASUREMENT, NOT A DECORATION. Each figure below is computed from the
+     file being shown, so it is set beside the sentence it supports rather
+     than inside it, where a re-bake would break the grammar. */
+  .measure{display:flex;flex-wrap:wrap;gap:1.25rem 1.75rem;margin:1.2rem 0 0;
+    padding:1.2rem 0 0;border-top:1px solid var(--line)}
+  .measure div{min-width:8rem}
+  .measure .n{font-family:var(--sans);font-size:1.2rem;display:block;
+    line-height:1.1}
+  .measure .l{font-size:.75rem;color:var(--muted);display:block;margin-top:.2rem}
+
+  footer{border-top:1px solid var(--line);padding:2rem 0 5rem;
+    font-size:.82rem;color:var(--muted)}
+  footer a{margin-right:1.2rem}
+
+  @media (max-width:900px){
+    .lesson{grid-template-columns:1fr;gap:1rem}
+    .viewer{top:0;padding:.6rem 0;background:var(--paper);z-index:2}
+    .stage{aspect-ratio:4/3;max-height:44vh}
+    section{padding:8vh 0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <a class="back" href="/proteins">&larr; all proteins</a>
+  <h1>Myoglobin</h1>
+  <p class="deck">One chain wrapped around one iron atom. It holds oxygen in
+    your muscle until the muscle needs it. This was the first protein to have its shape solved.</p>
+</header>
+
+<div class="lesson">
+
+  <div class="viewer">
+    <div class="stage" id="stage"></div>
+    <p class="cap">
+      <span class="pdb" id="c-pdb">&mdash;</span>
+      <span id="c-what">&mdash;</span>
+      <a id="c-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener">at the PDB &rarr;</a>
+    </p>
+    <!-- WHAT WAS MEASURED OFF THE FILE ON SCREEN, under the file on screen.
+         These are figures ABOUT the picture, so they belong beside it rather
+         than at the end of a paragraph, where a reader looking at the molecule
+         has to leave it to find out how big it is. Filled by show(). -->
+    <div class="measure" id="measures"></div>
+  </div>
+
+  <div class="read">
+
+    <section data-view="1BZP">
+      <p class="kicker">what it is</p>
+      <h2>A single chain, all helix, folded around a hole</h2>
+<p><a href="https://pdb101.rcsb.org/motm/1" target="_blank"
+        rel="noopener">PDB Molecule of the Month article
+        &rarr;</a></p>
+      <p>Myoglobin's fold creates a gap in the middle that holds a <em>heme group</em>. Heme is a flat ring molecule that holds an iron ion in its center. That iron ion binds oxygen. </p>
+      <p>Myoglobin is why muscle is red, and why some meat is darker than
+        others: more myoglobin, more colour.</p>
+
+      <!-- WHAT THE PROTEIN IS, IN THREE NUMBERS, at the end of the section
+           that says what it is. Read from the file on screen like everything
+           else here: the chain count and the helix count come off the trace,
+           and the year is the HEADER's, which the baker now carries. -->
+      <div class="measure" id="m-about"></div>
+    </section>
+
+    <section data-view="1A6M" data-close="yes">
+      <p class="kicker">the site</p>
+      <h2>Oxygen, held at an angle</h2>
+      <p>Here is the same protein with oxygen bound. The O&#8322; sits on top
+        of the iron, leaning over rather than standing straight up, and a
+        histidine side chain above it leans in to steady it with a hydrogen
+        bond. Below the ring, a second histidine anchors the iron from the
+        other side.</p>
+      <p>Look at what the iron does. In the empty protein it is pulled
+        slightly below the plane of the ring, towards the histidine holding
+        it. Bind oxygen and it snaps into the plane. It is a small move for
+        a molecule, and in myoglobin&rsquo;s four-chain cousin haemoglobin
+        that same move is the whole mechanism.</p>
+    </section>
+
+    <section data-view="1MBC" data-close="yes">
+      <p class="kicker">carbon monoxide</p>
+      <h2>The same site, the wrong molecule</h2>
+      <p>Carbon monoxide binds to the same iron, in the same place, and it
+        binds hard. Once CO is on, the site is occupied and the protein is
+        useless for the job it exists to do. That is carbon monoxide
+        poisoning: not damage to the tissue, but a parking space taken.</p>
+      <p>The protein does defend itself. That distal histidine, the one
+        steadying the oxygen from above, is shaped to favour a bent
+        molecule &mdash; and CO would rather stand straight. It cannot make
+        the site prefer oxygen outright, but it narrows the gap by a large
+        factor, which is why a lungful of ordinary air does not poison you.</p>
+    </section>
+
+    <section data-view="1MBN">
+      <p class="kicker">The Breakthrough</p>
+      <h2>The first protein structure solved, and it came out of a whale</h2>
+      <p>John Kendrew determined the atomic three-dimensional structure of myoglobin using X-ray crystallography in 1957 and 1958. Kendrew chose myoglobin because it is small (about 1/4 the size of hemoglobin), stable, and crystallizes easily. Yet he still had to examine 110 crystals and measure the intensities of around 250,000 X-ray reflections to solve its structure.
+Kendrew shared the 1962 Nobel Prize with Max Perutz, who was doing the same work for haemoglobin.</p>
+<p>
+<a href="https://www.nobelprize.org/prizes/chemistry/1962/perspectives/" target="blank" >nobelprize.org &rarr;</a></p>
+      <p>Kendrew used sperm whale cells because he needed a lot of pure protein and
+        diving mammals are packed with it. Whale
+        muscle is nearly black with myoglobin, which is part of how they can dive for so long. The fold, the ring, the iron and the
+        two histidines are the same in humans.</p>
+
+    </section>
+
+  </div>
+</div>
+
+<footer>
+  <a href="/proteins">all proteins</a>
+
+</footer>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
+<script src="heme-metrics.js"></script>
+<script>
+'use strict';
+
+const ME = ProteinLib.byKey('myoglobin');
+const $ = id => document.getElementById(id);
+
+/* One box for the whole page, re-fed as the reader scrolls. The chosen
+   rotation is the registry's, the same one the bench and the collection card
+   wear, so this protein faces one way everywhere in the repo. */
+const box = Proteinbox.create({
+  mount: $('stage'),
+  view: ProteinLib.viewOf(ME),
+  orbit: true,
+  stage: { ortho: false, turn: 'trackball' },
+  pad: 1.15,
+  sub: 10,
+});
+
+/* WHAT EACH SECTION SHOWS, and what the caption says about it. The ids are
+   the registry's variants; the sentence is page copy, because a database of
+   structures is not the place for a caption written for one stage. Two
+   sections share 1MBN and that is not a mistake: Kendrew's file is both the
+   history and the whale. */
+const SAYS = {
+  '1BZP': 'the empty site, waiting',
+  '1A6M': 'oxygen bound to the iron',
+  '1MBC': 'carbon monoxide in the same place',
+  '1MBN': 'Kendrew&rsquo;s sperm whale myoglobin',
+};
+
+/* HOW CLOSE, PER SECTION, AND IT IS THE POINT OF THE PAGE. Seven myoglobin
+   files drawn whole are seven identical ribbons: the fold is the same in all
+   of them and every difference this page is about is one or two angstroms
+   across a forty-angstrom protein. So the sections that make a claim about
+   the SITE are framed on the iron, close enough that a bound molecule is a
+   thing you can see, and the ones that make a claim about the PROTEIN are
+   framed on the protein.
+
+   The radius is in angstroms and it is the pocket and no more: the heme is
+   about 10 A across, so 8 fills the box with the ring, the two histidines
+   above and below it, and whatever is sitting on the iron. Set it much wider
+   and the protein comes back, which is the failure this is fixing.
+
+   THE CLOSE-UP HAS ITS OWN BASIS, picked by a human on the bench the way
+   every rotation in this repo is: the angle that shows the whole fold puts
+   the heme edge-on, and a molecule bound to the iron then hides behind the
+   ring it sits on. This one looks at the face of the ring. It is the site's
+   angle and not the protein's, which is why it lives beside the framing here
+   rather than in the registry, where `view` is what the PROTEIN faces. */
+const SITE_VIEW = [[0.1221, -0.4973, 0.859],
+                   [0.9244, 0.372, 0.084],
+                   [-0.3613, 0.7838, 0.5051]];
+const FRAME = { '1BZP': null, '1A6M': 8, '1MBC': 8, '1MBN': null };
+
+/* Long enough to read as one move and short enough that a reader scrolling
+   fast is not waiting on it. */
+const TWEEN = 620;
+
+/* Sections are keyed by variant, and 1BZP appears in two framings: whole in
+   section one, and leaned in on for the comparison the oxygen section makes
+   against it. The section says which. */
+const closeUp = sec => sec.dataset.close === 'yes';
+
+const traces = {};
+let showing = null;
+
+/* THE PAGE'S ONE HANDLE, for the reason myoglobin-test.html has one: an
+   automated check runs in a hidden tab where requestAnimationFrame never
+   fires, so a screenshot of this page is the last frame it managed to draw
+   and proves nothing. What CAN be checked there is the camera — where it is
+   pointed and how far back — and this is what a checker reads it from. */
+window.page = { box, traces, get showing() { return showing; } };
+
+/* Every figure printed below comes off the file it describes. `fmt` is what
+   keeps a missing measurement honest: deoxy has no iron-to-ligand distance
+   because nothing is bound, and an em dash says that where a zero would
+   lie. */
+const A = v => v === null ? '&mdash;' : v.toFixed(2) + ' &Aring;';
+
+function measures(id, t) {
+  const v = ProteinLib.variantOf(ME, id), r = v.read, m = t.meta;
+  const c = m.counts[0];
+  const feL = HemeMetrics.ironToLigand(t);
+  const oop = HemeMetrics.ironOutOfPlane(t);
+
+  /* WHAT EVERY ENTRY ANSWERS, in the same three tiles in the same order.
+     These say which file is on screen and how good it is, and a reader
+     comparing two states cannot do that if the identity moves around or goes
+     missing between them: a species that appears only under the whale reads
+     as a fact about whales rather than as a fact about the file. */
+  const spine = [
+    [v.species, 'species'],
+    /* ALWAYS "x of y", NEVER THE BARE COUNT. The four files declare different
+       lengths — one construct is 151 residues where the others are 153 — and a
+       single number invites a reader to compare two things that are not the
+       same measurement. The pair says what was modelled and what was
+       deposited; the percentage is the part that compares across files. */
+    [c.declared ? c.modelled + ' of ' + c.declared : c.modelled,
+     c.declared ? `residues, ${Math.round(100 * c.modelled / c.declared)}%`
+                : 'residues; no SEQRES to compare against'],
+    [m.resolution ? m.resolution.toFixed(2) + ' &Aring;' : '&mdash;', r.method],
+  ];
+
+  /* And what THIS section is about, after it. */
+  const extra = {
+    '1BZP': [
+      [ch(t).helices, 'helices, no sheet'],
+      [A(oop), 'iron below the ring'],
+    ],
+    '1A6M': [
+      [A(feL), 'iron to oxygen'],
+      [A(oop), 'iron out of the ring &mdash; now flat'],
+    ],
+    '1MBC': [
+      [A(feL), 'iron to carbon'],
+      [A(oop), 'iron out of the ring'],
+    ],
+    '1MBN': [
+      [ch(t).helices, 'helices, no sheet'],
+      [t.extents.map(x => x.toFixed(0)).join(' &times; '), 'the whole protein, &Aring;'],
+    ],
+  }[id] || [];
+
+  return spine.concat(extra).map(([n, l]) =>
+    `<div><span class="n">${n}</span><span class="l">${l}</span></div>`).join('');
+}
+
+const ch = t => t.chains[t.order[0]];
+
+/* THE RIBBON GETS OUT OF THE WAY WHEN THE SITE IS THE SUBJECT. Leaning in on
+   the iron puts the camera inside the protein, where an opaque ribbon is a
+   wall across the picture. Ghosting it keeps the container legible — you can
+   still see the helices the site is buried in — without it hiding the forty
+   atoms the section is about. Done from the page, on the box's own chain
+   group, because it is a decision about what THIS lesson claims. */
+function show(id, close) {
+  const first = showing === null;
+  const key = id + (close ? '+' : '');
+  if (showing === key) return;
+  const t = traces[id];
+  if (!t) return;
+  const same = showing && showing.slice(0, 4) === id;
+  showing = key;
+
+  const v = ProteinLib.variantOf(ME, id);
+  $('c-pdb').textContent = v.source.id;
+  $('measures').innerHTML = measures(id, t);
+  $('c-what').innerHTML = SAYS[id];
+  $('c-rcsb').href = ProteinLib.urls(v).entry;
+
+  /* Only re-feed the box when the STRUCTURE changes. Two sections showing one
+     file at two framings would otherwise rebuild the ribbon to say something
+     only the camera needs to hear. */
+  if (!same) { box.setData(t); box.setPocket(t.pocket); }
+
+  /* The iron, in the coordinates the bake wrote — measured, never typed, and
+     the same atom heme-metrics.js takes its distances from.
+
+     TURN, LEAN IN AND FADE AS ONE MOVE. The box tweens all three together;
+     doing them separately would say three times, slightly out of step, what
+     one move says at once — that this is the same molecule seen closer. The
+     first draw snaps, because there is nothing to travel from. */
+  const fe = HemeMetrics.iron(t);
+  box.focus(close && fe
+    ? { at: fe.p, radius: FRAME[id], view: SITE_VIEW, ghost: 0.16 }
+    : null, first ? 0 : TWEEN);
+}
+
+/* THE OPENING SECTION'S OWN THREE, filled once from the structure it shows.
+   They describe the PROTEIN rather than the state on screen, which is why
+   they sit in the prose and do not change as the reader scrolls. */
+function about(t) {
+  const m = t.meta;
+  return [
+    [m.chainsInFile, m.chainsInFile === 1 ? 'chain' : 'chains'],
+    [ch(t).helices, m.strands ? 'helices' : 'helices, no sheet'],
+    /* TYPED, AND THE ONLY TYPED NUMBER ON THE PAGE. It is a date in the
+       history of the field, not a fact about any file: Kendrew solved
+       myoglobin in 1958 and the PDB did not exist until 1971, so every
+       deposition here carries a year decades later — 1MBN says 1973 and the
+       structure on screen says 1998. The story is 1958, so 1958 is
+       what this says, and no re-bake can falsify it because no bake has an
+       opinion about it. */
+    [1958, 'first solved, by Kendrew'],
+  ].map(([n, l]) => `<div><span class="n">${n}</span><span class="l">${l}</span></div>`)
+   .join('');
+}
+
+const SECTIONS = [...document.querySelectorAll('section[data-view]')];
+const NEEDED = [...new Set(SECTIONS.map(s => s.dataset.view))];
+
+Promise.all(NEEDED.map(id => {
+  const v = ProteinLib.variantOf(ME, id);
+  return fetch(`data/${v.read.baked}`).then(r => r.json()).then(t => { traces[id] = t; });
+})).then(() => {
+  $('m-about').innerHTML = about(traces[SECTIONS[0].dataset.view]);
+  show(SECTIONS[0].dataset.view, closeUp(SECTIONS[0]));
+
+  /* THE SECTION NEAREST THE MIDDLE OF THE VIEWPORT WINS, and it is settled on
+     scroll rather than by an observer's callback order: two adjacent sections
+     can both be intersecting, and an observer that acts on whichever fired
+     last makes the molecule flicker between them on a slow scroll. */
+  const pick = () => {
+    const mid = innerHeight / 2;
+    let best = null, d = Infinity;
+    for (const s of SECTIONS) {
+      const r = s.getBoundingClientRect();
+      const gap = Math.abs(r.top + r.height / 2 - mid);
+      if (gap < d) { d = gap; best = s; }
+    }
+    if (best) show(best.dataset.view, closeUp(best));
+  };
+  addEventListener('scroll', pick, { passive: true });
+  addEventListener('resize', pick);
+  pick();
+});
+</script>
+</body>
+</html>

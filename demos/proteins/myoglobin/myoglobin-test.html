@@ -143,6 +143,7 @@
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/proteinbox.js"></script>
 <script src="../proteins.js"></script>
+<script src="heme-metrics.js"></script>
 <script>
 'use strict';
 
@@ -228,45 +229,14 @@ window.bench = { views, box, get view() { return view; } };
    pocket, which the baker decided: the ring, whatever is on the iron, and the
    two histidines that make the site. */
 
-/* ---- the two measurements only the pocket can give -------------------- */
+/* ---- the two measurements only the pocket can give --------------------
 
-const dist = (a, b) => Math.hypot(a.p[0] - b.p[0], a.p[1] - b.p[1], a.p[2] - b.p[2]);
-const iron = t => t.pocket && t.pocket.atoms.find(a => a.el === 'FE');
+   Both live in heme-metrics.js, because myoglobin.html prints the same
+   numbers and two implementations of one measurement is two answers waiting
+   to disagree in front of a reader. */
 
-/* Iron to whatever is bound, nearest atom of it. Null when nothing is bound,
-   which is deoxy's whole point and not a missing number. 1ABS is the reason
-   this is a MEASUREMENT and not a lookup: its CO is photolysed and sitting in
-   a docking site, so the distance is the evidence that the bond is broken. */
-function ironToLigand(t) {
-  const fe = iron(t);
-  if (!fe) return null;
-  const bound = t.pocket.atoms.filter(a => a.group === 'bound');
-  if (!bound.length) return null;
-  return Math.min(...bound.map(a => dist(fe, a)));
-}
-
-/* How far the iron sits out of the porphyrin plane, signed only in size.
-   The plane is the four pyrrole nitrogens — NA, NB, NC, ND — averaged and
-   fitted, and the number is the classic one: near zero when something is
-   bound, a few tenths of an ångström when the site is empty and the iron is
-   pulled down towards the proximal histidine. Measured here rather than
-   quoted, because the whole page's rule is that a printed number came off
-   the file. */
-function ironOutOfPlane(t) {
-  const fe = iron(t);
-  if (!fe) return null;
-  const N = t.pocket.atoms.filter(a => a.group === 'heme' && a.el === 'N');
-  if (N.length < 3) return null;
-  const c = [0, 1, 2].map(k => N.reduce((s, a) => s + a.p[k], 0) / N.length);
-  /* The plane's normal from the two widest in-plane directions: opposite
-     nitrogens, which for a porphyrin are N1-N3 and N2-N4 in file order. */
-  const v = (a, b) => [0, 1, 2].map(k => a.p[k] - b.p[k]);
-  const u = v(N[0], N[2]), w = v(N[1], N[3] || N[2]);
-  const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2],
-             u[0] * w[1] - u[1] * w[0]];
-  const L = Math.hypot(...n) || 1;
-  return Math.abs([0, 1, 2].reduce((s, k) => s + (fe.p[k] - c[k]) * n[k] / L, 0));
-}
+const ironToLigand = HemeMetrics.ironToLigand;
+const ironOutOfPlane = HemeMetrics.ironOutOfPlane;
 
 /* ---- the panel -------------------------------------------------------- */
 
@@ -306,7 +276,7 @@ function stats(t, v) {
     fe: feL === null ? '—' : `${feL.toFixed(2)} Å`,
     /* A bond is about 1.8-2.1 Å. Anything past 3 is a molecule sitting NEAR
        the iron rather than on it, which for 1ABS is the entire result. */
-    feBroken: feL !== null && feL > 3,
+    feBroken: feL !== null && feL > HemeMetrics.BROKEN,
     oop: oop === null ? '—' : `${oop.toFixed(2)} Å`,
     ext: t.extents.map(v => v.toFixed(0)).join(' × '),
   };
