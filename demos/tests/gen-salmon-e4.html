@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Salmon Osmoregulation: Gill Epithelium</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+.flux-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.flux-badge.leaving { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.flux-badge.entering { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.flux-badge.balanced { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.env-desc {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dim, #888);
+  margin-top: 6px;
+}
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../membrane/parts.js"></script>
+<script src="../membrane/pump.js"></script>
+<script src="../membrane/membrane.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+
+<script>
+const internalFluids = { water: 48, K: 16, NA: 6, A: 8 };
+
+const environments = {
+  ocean: {
+    title: 'Ocean Water',
+    contents: { water: 26, NA: 26, CL: 26 },
+    pumpOn: true,
+    urine: 'Scanty & Concentrated',
+    urineSub: 'Conserves body water',
+    desc: 'Hypertonic seawater draws water out. Gill epithelium pumps salt out into the sea while the kidneys produce minimal concentrated urine.'
+  },
+  estuary: {
+    title: 'Estuary (Brackish)',
+    contents: { water: 48, NA: 15, CL: 15 },
+    pumpOn: true,
+    urine: 'Moderate Volume',
+    urineSub: 'Isotonic balance',
+    desc: 'Intermediate salinity matching internal fluids. Gill epithelial ion transport reaches equilibrium with minimal osmotic flux.'
+  },
+  river: {
+    title: 'Freshwater Stream',
+    contents: { water: 74, NA: 2, CL: 2 },
+    pumpOn: false,
+    urine: 'Copious & Dilute',
+    urineSub: 'Flushes excess water',
+    desc: 'Hypotonic freshwater pushes water into the fish. Gill epithelium absorbs scarce ions while the kidneys flush copious dilute urine.'
+  }
+};
+
+let activeEnv = 'ocean';
+let simSpeed = 2;
+
+function speedControlsHTML() {
+  return `
+    <div class="grp" style="margin-top:10px;">
+      <div class="hd">Simulation Speed</div>
+      <div class="chips">
+        <button class="chip ${simSpeed === 1 ? 'selected' : ''}" data-speed="1">1×</button>
+        <button class="chip ${simSpeed === 2 ? 'selected' : ''}" data-speed="2">2×</button>
+        <button class="chip ${simSpeed === 3 ? 'selected' : ''}" data-speed="3">3×</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindSpeedControls(ctx) {
+  ctx.ui.qa('.chip[data-speed]').forEach(btn => {
+    btn.onclick = () => {
+      ctx.ui.qa('.chip[data-speed]').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      simSpeed = parseInt(btn.dataset.speed, 10);
+    };
+  });
+}
+
+const shell = LessonShell.create({
+  brand: 'Salmon Osmoregulation',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { state: {} },
+  steps: [
+    {
+      eyebrow: 'Phase 1: In the Ocean',
+      title: 'Gill Epithelium in Hypertonic Seawater',
+      body: `
+        <p><strong>The gill epithelium is the delicate surface tissue lining salmon gills, forming the direct barrier between internal blood and outside water.</strong> Specialized epithelial cells called ionocytes pack their membranes with transport proteins to regulate water and electrolyte exchange.</p>
+        <p><strong>Seawater is hypertonic to salmon body fluids, pulling water outward across the epithelial bilayer by osmosis.</strong> Outside (+y) is crowded with sodium and chloride ions, leaving a higher concentration of free water inside the cell (-y).</p>
+        <p><strong>Epithelial transport proteins actively excrete ions to prevent toxic salt overload.</strong> The Na+/K+ pump on the right burns ATP to drive sodium out into the sea, while the passive potassium channel on the left maintains electrochemical balance.</p>
+      `,
+      nextLabel: 'Enter the River',
+      onEnter(ctx) {
+        setEnvironment('ocean');
+        ctx.ui.controls(`
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">Net Water Flow</div>
+              <div class="stat-value" id="net-flux">Monitoring...</div>
+              <div class="stat-sub">Across Epithelium</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Urine Production</div>
+              <div class="stat-value">Scanty & Concentrated</div>
+              <div class="stat-sub">Conserves Water</div>
+            </div>
+          </div>
+          ${speedControlsHTML()}
+          <div class="callout" style="margin-top:10px; font-size:12px; line-height:1.4;">
+            <strong>Left Protein:</strong> Passive K+ Channel (facilitated diffusion)<br>
+            <strong>Right Protein:</strong> Active Na+/K+ Pump (ATP-driven excretion)
+          </div>
+        `);
+        bindSpeedControls(ctx);
+      }
+    },
+    {
+      eyebrow: 'Phase 2: Upstream Migration',
+      title: 'Gill Epithelium in Hypotonic Freshwater',
+      body: `
+        <p><strong>In freshwater, the osmotic gradient across the gill epithelium reverses, driving water into salmon tissues.</strong> Because the gill epithelium must remain ultra-thin for respiratory gas exchange, large volumes of water continuously leak into the bloodstream.</p>
+        <p><strong>Gill epithelial cells remodel their molecular machinery to capture scarce environmental ions.</strong> Rather than excreting salts, the epithelium actively imports sodium and chloride from river water to prevent depletion.</p>
+        <p><strong>The kidneys work alongside the gill epithelium by producing copious dilute urine to purge excess water.</strong> Salmon stop drinking entirely while their epithelial transport mechanisms preserve internal electrolyte balance.</p>
+      `,
+      nextLabel: 'Interactive Comparison',
+      onEnter(ctx) {
+        setEnvironment('river');
+        ctx.ui.controls(`
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">Net Water Flow</div>
+              <div class="stat-value" id="net-flux">Monitoring...</div>
+              <div class="stat-sub">Across Epithelium</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Urine Production</div>
+              <div class="stat-value">Copious & Dilute</div>
+              <div class="stat-sub">Expels Influx</div>
+            </div>
+          </div>
+          ${speedControlsHTML()}
+          <div class="callout" style="margin-top:10px; font-size:12px; line-height:1.4;">
+            <strong>Left Protein:</strong> Passive K+ Channel (facilitated diffusion)<br>
+            <strong>Right Protein:</strong> Active Na+/K+ Pump (ion gradient maintenance)
+          </div>
+        `);
+        bindSpeedControls(ctx);
+      }
+    },
+    {
+      eyebrow: 'Phase 3: Environmental Comparison',
+      title: 'Gill Epithelial Adaptation Across Salinities',
+      body: `
+        <p><strong>Gill epithelial remodeling allows anadromous salmon to survive dramatic shifts in ambient salinity.</strong> When migrating through estuaries, hormones trigger epithelial ionocytes to switch between salt excretion and salt absorption.</p>
+        <p><strong>The lipid bilayer and transport proteins together define the functional capabilities of the gill epithelium.</strong> Select a salinity below to observe how changing external ion levels alters osmotic flow across the epithelial boundary.</p>
+      `,
+      nextLabel: 'Restart',
+      onEnter(ctx) {
+        ctx.ui.controls(`
+          <div class="grp">
+            <div class="hd">Select Salinity Environment</div>
+            <div class="choices">
+              <button class="choice selected" data-env="ocean">Ocean (Hypertonic)</button>
+              <button class="choice" data-env="estuary">Estuary (Isotonic)</button>
+              <button class="choice" data-env="river">River (Hypotonic)</button>
+            </div>
+            <div class="env-desc" id="env-text">${environments.ocean.desc}</div>
+          </div>
+          <div class="stats" style="margin-top:12px;">
+            <div class="stat">
+              <div class="stat-label">Water Status</div>
+              <div class="stat-value" id="net-flux">Monitoring...</div>
+              <div class="stat-sub">Epithelial Net</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Kidney Output</div>
+              <div class="stat-value" id="urine-status">${environments.ocean.urine}</div>
+              <div class="stat-sub" id="urine-sub">${environments.ocean.urineSub}</div>
+            </div>
+          </div>
+          ${speedControlsHTML()}
+          <div class="callout" style="margin-top:10px; font-size:12px; line-height:1.4;">
+            <strong>Left Protein:</strong> Passive K+ Channel (facilitated diffusion)<br>
+            <strong>Right Protein:</strong> Active Na+/K+ Pump (ATP-powered transport)
+          </div>
+        `);
+
+        bindSpeedControls(ctx);
+
+        ctx.ui.qa('.choice').forEach(btn => {
+          btn.onclick = () => {
+            ctx.ui.qa('.choice').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            const env = btn.dataset.env;
+            setEnvironment(env);
+            const desc = ctx.ui.q('#env-text');
+            if (desc) desc.textContent = environments[env].desc;
+            const uStatus = ctx.ui.q('#urine-status');
+            if (uStatus) uStatus.textContent = environments[env].urine;
+            const uSub = ctx.ui.q('#urine-sub');
+            if (uSub) uSub.textContent = environments[env].urineSub;
+          };
+        });
+      }
+    }
+  ]
+});
+
+const m = Membrane.mount(shell.stage, {
+  proteins: { K: { x: -36 }, CL: null, pump: { x: 36 } },
+  potential: 'nernst',
+  pumpAuto: true,
+  pumpOn: true,
+  cut: true,
+  shells: false,
+  viewOffset: shell.viewOffset
+});
+
+function setEnvironment(envKey) {
+  activeEnv = envKey;
+  const cfg = environments[envKey];
+  m.set({
+    pumpOn: cfg.pumpOn,
+    contents: {
+      inside: internalFluids,
+      outside: cfg.contents
+    }
+  });
+  m.reset();
+}
+
+let stepping = false;
+m.on('frame', (s, dt) => {
+  if (!stepping && simSpeed > 1) {
+    stepping = true;
+    const delta = dt || 0.016;
+    for (let i = 1; i < simSpeed; i++) {
+      m.pump(delta);
+    }
+    stepping = false;
+  }
+
+  const badgeEl = document.getElementById('net-flux');
+  if (badgeEl && s.net) {
+    let label = s.net;
+    let cls = s.net;
+    if (s.net === 'leaving') label = 'Leaving Cell';
+    else if (s.net === 'entering') label = 'Entering Cell';
+    else label = 'Equilibrium';
+    badgeEl.innerHTML = `<span class="flux-badge ${cls}">${label}</span>`;
+  }
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>

@@ -29,6 +29,8 @@ Two layers, both exported:
 
 Events: `frame` always. Add named events for things a page wants to react to (`cross`, `turn`, `hover`, `select`, `night`), and emit nothing a page can read off `frame` anyway.
 
+**Anchors and a library**, returned by `create` and wired by `mount` through `Notebook.create` in `lib/annotate.js`. `anchors` is name → function returning a live world point, or null when that part is not on stage. `library` is name → `{text, card, offset}`: the label and a two-sentence card, in a tutor's voice, for each part. This is how a generated page answers "what is that?" with a callout on the thing instead of a paragraph, so write the library as carefully as the header. The mount exposes `note`, `notes`, `clearNotes` and `anchors`; copy the five lines from `leaf/leaf.js`'s mount. List the anchor names in the Components.md section.
+
 ## 2. The stack
 
 - **Three r128, global script, no modules, no build.** The prototypes for Leaf and Tree were ES-module Three 0.17x and both were ported down; the library is not moving up (Modules.md). `lib/geo.js` holds the geometry the r128 build lacks: capsule, rounded box, merge. Add to it rather than vendoring an addon.

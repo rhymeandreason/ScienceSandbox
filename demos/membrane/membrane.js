@@ -866,7 +866,7 @@
       return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); };
     }
 
-    /* ---- the parts a page can point at, by name (kit/notebook.js) ----
+    /* ---- the parts a page can point at, by name (Notebook, in lib/annotate.js) ----
        Live functions: a pore moves with the layout, an ion with itself. The
        words are the lesson's own callouts, so a generated page answers in
        the library's voice. */
@@ -876,8 +876,8 @@
       'channel.K':  () => { const x = poreX('K');  return x == null ? null : _a.set(x, T.height * 0.95, 0); },
       'channel.CL': () => { const x = poreX('CL'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
       pump:    () => P.proteins.pump ? _a.set(pumpX, T.height * 0.98, 0) : null,
-      heads:   () => _a.set(-96, HALF, 0),
-      tails:   () => _a.set(-96, 0, 0),
+      heads:   () => _a.set(150, HALF, 0),        // right of the proteins: a shell's panel covers the left
+      tails:   () => _a.set(150, 0, 0),
       outside: () => _a.set(-SPREAD() * 0.06, farY() * 0.34, 0),
       inside:  () => _a.set(-SPREAD() * 0.06, -farY() * 0.34, 0),
       water: () => firstOf('water'), NA: () => firstOf('NA'), K: () => firstOf('K'), CL: () => firstOf('CL'), A: () => firstOf('A'),
@@ -889,9 +889,9 @@
         card: 'Chloride is high outside, so it runs inward, the opposite way to the K⁺ beside it. Direction is set by the gradient, never by the protein.' },
       pump: { text: 'a carrier, not a pore', offset: [42, -30],
         card: 'It binds its cargo and changes shape, so it is never open to both sides at once. One ATP buys one turn: 3 Na⁺ out and 2 K⁺ in, both uphill.' },
-      heads: { text: 'hydrophilic heads', offset: [-34, -30],
+      heads: { text: 'hydrophilic heads', offset: [34, -30],
         card: 'The head carries charge and sits happily in water, so it turns outward on both faces. That is why a bilayer assembles itself and then holds together.' },
-      tails: { text: 'hydrophobic tails', offset: [-34, 26],
+      tails: { text: 'hydrophobic tails', offset: [34, 26],
         card: 'The tails are hydrocarbon and will not mix with water, so they hide in the middle. Everything crossing this membrane has to get through that oil.' },
       outside: { text: 'outside the cell', offset: [-38, -26],
         card: 'Every solute particle sits where a water would have been, so fewer of the molecules here are water. More solute, less free water.' },

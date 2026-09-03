@@ -40,7 +40,6 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 <!-- Leaf needs only three.min.js, palette.js, tokens-from-palette.js, molecules.js, scene.js and card-stage.js -->
 <script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
-<script src="../kit/notebook.js"></script>
 <!-- then the component(s), then the page script -->
 </body>
 </html>
