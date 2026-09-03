@@ -29,17 +29,20 @@
                         alpha and beta are tellable apart by eye at all.
        the mutation     beta6 is glutamate in 2HHB and valine in 2HBS.
                         One residue out of 574. Is it findable?
-       the contact      2HBS is deposited as TWO tetramers because the
-                        point is the contact between them: beta6 valine
-                        of one packing into Phe85/Leu88 of the next. That
-                        contact is the first step of a sickle fibre, and
-                        it is the only thing on this bench that a healthy
-                        tetramer cannot do.
+       the answer       the two backbones superpose at 0.585 A. Sickle-cell
+                        disease is not a misshapen protein: the fold is
+                        fine, and what changed is one patch of surface
+                        chemistry. The right outcome of the toggle is
+                        "they look the same".
 
-     WHAT THIS BENCH CANNOT TELL YOU. A fibre. Two tetramers touching is
-     the nucleus of one, not one — sickle/fibre-test.html is where the
-     built fibre lives, and it draws surfaces because a contact is a claim
-     about skin.
+     WHAT THIS BENCH CANNOT TELL YOU. What the valine DOES. It docks into
+     the Phe85/Leu88 pocket of the NEXT molecule, and one tetramer cannot
+     show a contact between two — the pocket is drawn here so a reader can
+     see where it is going, and nothing reaches it. 2HBS is deposited with
+     two tetramers for exactly that reason; this bench takes tetramer 1,
+     as hemoglobin/tools/bake-hbs.js does. The contact and the fibre are
+     sickle/fibre-test.html's, which draws surfaces because that is what a
+     contact is a claim about.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,8 +58,8 @@
      benches, and two colours for it would read as two different claims. */
   button.mode.disease[aria-pressed=true]{background:#b3300c;border-color:#b3300c}
   .chip.disease{background:rgba(179,48,12,.14);color:#8f2708}
-  /* The contact row is two numbers that have to be compared across a click,
-     and proportional digits move the decimal point between them. */
+  /* The fit row is a number compared across a click, and proportional digits
+     move the decimal point between the two readings of it. */
   .contact{font-variant-numeric:tabular-nums}
 </style>
 </head>
@@ -85,8 +88,8 @@
       <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
       <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
       <tr><td>heme</td><td id="d-heme">&mdash;</td></tr>
-      <tr><td>residue &beta;6</td><td id="d-beta6">&mdash;</td></tr>
-      <tr class="hi"><td>&beta;6 to the pocket</td><td class="contact" id="d-contact">&mdash;</td></tr>
+      <tr class="hi"><td>residue &beta;6</td><td id="d-beta6">&mdash;</td></tr>
+      <tr><td>fit onto 2HHB</td><td class="contact" id="d-fit">&mdash;</td></tr>
       <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
       <tr><td>view</td><td id="d-view">&mdash;</td></tr>
     </table>
@@ -160,12 +163,13 @@ const SAYS = {
          + 'which is the shape the molecule holds in tissue after it has let go. '
          + 'Every iron here is empty and waiting.' },
   '2HBS': {
-    claim: 'The same protein with one residue changed, and the contact that '
-         + 'change makes.',
-    prov:  'X-ray at 2.05 A. Glutamate 6 of each beta chain is a valine: charged '
-         + 'swapped for greasy, on the outside of the molecule. Two tetramers are '
-         + 'in the file because the valine of one docks into a hydrophobic pocket '
-         + 'on the next, and that pair is where a sickle fibre starts.' },
+    claim: 'The same protein with one residue changed, superposed on the healthy '
+         + 'one so the change is what moves.',
+    prov:  'X-ray at 2.05 A, tetramer 1 of the two in the file. Glutamate 6 of '
+         + 'each beta chain is a valine: charged swapped for greasy, on the '
+         + 'outside of the molecule. The backbones land on each other — the fold '
+         + 'is fine, and a sickle cell is caused by one patch of surface '
+         + 'chemistry that makes this molecule stick to the next one.' },
 };
 
 const views = {};                        // id -> baked trace + pocket + meta
@@ -202,13 +206,12 @@ function stats(t, v) {
     : modelled >= declared ? `complete: ${modelled} of ${declared} deposited`
     : `fragment: ${modelled} out of ${declared} deposited`;
 
-  /* Alpha and beta are counted off the bake's own lists rather than the chain
-     total, because "four chains" is true of 2HHB and says nothing about 2HBS,
-     where the same four kinds arrive twice over. */
-  const quat = m.tetramers === 1
-    ? `one tetramer: ${m.alpha.length} alpha + ${m.beta.length} beta`
-    : `${m.tetramers} tetramers in the asymmetric unit, ` +
-      `${m.alpha.length} alpha + ${m.beta.length} beta in all`;
+  /* Counted off the bake's own chain lists. Both views are one tetramer; where
+     the file holds more than the bake draws, the row says so rather than
+     leaving a reader to assume the deposition is what is on screen. */
+  const inFile = m.chainsInFile;
+  const quat = `one tetramer: ${m.alpha.length} alpha + ${m.beta.length} beta` +
+    (inFile > ids.length ? ` · ${inFile} chains in the file, ${inFile / 4} tetramers` : '');
 
   return {
     quat,
@@ -225,18 +228,13 @@ function stats(t, v) {
   };
 }
 
-/* THE ONE ROW THIS BENCH EXISTS FOR, and it is a measurement in both files
-   rather than a sentence that is only true of one. The baker looked for the
-   closest approach between a beta6 side chain and the Phe85/Leu88 pocket on a
-   DIFFERENT beta chain; in the healthy tetramer the nearest such pair is most
-   of the molecule apart, which is the honest way to say that the contact is
-   not there rather than leaving the row blank. */
-function contactRow(m) {
-  if (!m.contact) return 'no beta6 / pocket pair in the file';
-  const c = m.contact;
-  const near = c.d < 5;
-  return `${c.d} Å · ${c.from} → ${c.to}` +
-         (near ? ' · in contact' : ' · nowhere near: no contact');
+/* THE ROW THAT IS THE ANSWER. A fit this tight is the claim rather than a
+   caveat about it: two crystals of a protein one residue apart, and the
+   backbones land on each other. The reference view has nothing to fit onto
+   and says so, instead of printing a zero that would read as a measurement. */
+function fitRow(m) {
+  if (m.fitRmsd === null) return 'the reference — everything else fits onto this';
+  return `${m.fitRmsd.toFixed(3)} Å rmsd over ${m.fitAtoms} Cα · the fold is the same`;
 }
 
 function show(id) {
@@ -263,7 +261,7 @@ function show(id) {
      the one string on the page that a wrong bake could not contradict. */
   $('d-beta6').textContent = m.beta6.join(' + ') +
     ` · ${m.beta.length} beta chain${m.beta.length > 1 ? 's' : ''}`;
-  $('d-contact').textContent = contactRow(m);
+  $('d-fit').textContent = fitRow(m);
   $('d-ext').textContent = s.ext;
   /* Named by WHERE THE FRAME CAME FROM: `computed` is the baker solving one
      off the shape, `deposited` is the file left alone, `chosen in the

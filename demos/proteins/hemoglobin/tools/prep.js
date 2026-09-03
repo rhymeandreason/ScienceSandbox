@@ -22,17 +22,33 @@
  *          two alpha chains, two beta, four hemes, four irons. What the
  *          molecule IS.
  *    2HBS  deoxy haemoglobin S at 2.05 A. The same fold with beta6
- *          glutamate replaced by valine, and TWO tetramers in the
- *          asymmetric unit because the thing it was deposited to show is
- *          the contact between them.
+ *          glutamate replaced by valine. Tetramer 1 of the two in the
+ *          asymmetric unit.
  *
- *  BOTH TETRAMERS OF 2HBS, AND THAT IS THE POINT. The lateral contact is
- *  beta6 valine of one tetramer packing into a hydrophobic pocket on a
- *  beta chain of the next. Bake one tetramer and the mutation is a side
- *  chain pointing at empty space — which is exactly what it looks like in
- *  2HHB as well, so the bench would draw two files and show no difference
- *  it was built to show. This baker MEASURES that contact rather than
- *  asserting it, and prints the pair and the distance it found.
+ *  ONE TETRAMER OF 2HBS, THE SAME FOUR CHAINS bake-hbs.js TAKES. The file
+ *  holds two because what it was deposited to show is the lateral contact
+ *  between them — but a contact is a claim about two molecules and this
+ *  bench draws one. Baking both put 116 A of structure on a stage showing
+ *  2HHB's 60, so a click between the two halved the molecule: a framing
+ *  artefact that reads as a difference in the protein. The contact is
+ *  sickle/fibre-test.html's, and it draws surfaces because that is what a
+ *  contact is a claim about.
+ *
+ *  2HBS IS SUPERPOSED ONTO 2HHB, AND IT HAS TO BE. Two crystals are two
+ *  arbitrary orientations: toggle them raw and the whole molecule turns,
+ *  which is large, dramatic and meaningless, and the one substituted
+ *  residue is invisible underneath it. The fit is Kabsch on the
+ *  alpha-carbons the two files share, matched by chain and residue number
+ *  — hemoglobin is one numbering across both, unlike the myoglobin bench
+ *  where the reference had to be the heme.
+ *
+ *  THE ANSWER IS THAT THEY LOOK THE SAME, and that is the lesson rather
+ *  than a negative result. bake-hbs.js reached 0.585 A over the matched
+ *  alpha-carbons for surface-test; this baker re-derives it by a different
+ *  route and prints what it gets, so a disagreement between two
+ *  independent fits of the same two files would be visible. Sickle-cell
+ *  disease is not a misshapen protein: the fold is fine, and what changed
+ *  is one patch of surface chemistry.
  *
  *  SECONDARY STRUCTURE IS READ off each file's HELIX records. Haemoglobin
  *  is all helix and no sheet — a claim these files make and this script
@@ -56,6 +72,7 @@
 const fs = require('fs');
 const path = require('path');
 const Bake = require('../../bake-lib.js');
+const { kabsch, mul } = Bake;
 
 const HERE = path.join(__dirname, '..');
 const DATA = path.join(HERE, 'data');
@@ -65,6 +82,7 @@ const REG = require('../../proteins.js');
 const IO = require('../../tools/registry-io.js');
 const ME = REG.byKey('hemoglobin');
 const VIEWS = ME.variants;
+const REF = ME.fit.on;
 
 /* WHICH RESIDUE HOLDS THE IRON IS A PROPERTY OF THE PROTEIN, not of a
    variant, so it lives here and not in the registry: the alpha chain puts
@@ -74,13 +92,12 @@ const VIEWS = ME.variants;
    file's own COMPND record. */
 const SITE = { alpha: { prox: 87, dist: 58 }, beta: { prox: 92, dist: 63 } };
 
-/* THE SICKLE POSITION AND THE POCKET IT LANDS IN. Beta6 is glutamate in
-   2HHB and valine in 2HBS — one residue, one disease, and the reason both
-   files are here. Phe85 and Leu88 are the acceptor pocket on the partner
-   beta chain; they are named rather than found because a search for
-   "whatever is near beta6" in a file with eight chains answers with
-   crystal packing as readily as with the contact. Whether the contact is
-   THERE is still measured. */
+/* THE SICKLE POSITION AND THE POCKET IT WOULD LAND IN. Beta6 is glutamate
+   in 2HHB and valine in 2HBS — one residue, one disease, and the reason
+   both files are here. Phe85 and Leu88 are the hydrophobic pocket the
+   valine docks into, drawn so a reader can see where it is going; within a
+   SINGLE tetramer it never gets there, because the pocket it reaches is on
+   the next molecule. That is the fibre, and the fibre is fibre-test's. */
 const MUT = 6;
 const ACCEPTOR = [85, 88];
 
@@ -177,33 +194,29 @@ function pocket(text, kindOf) {
   return { atoms, bonds };
 }
 
-/* ---- the contact ------------------------------------------------------
-
-   The closest approach between a beta6 side chain and an acceptor residue
-   on a DIFFERENT beta chain. Measured, not declared: in 2HHB it comes back
-   at ~25 A, which is the honest way to say that the healthy tetramer makes
-   no such contact, and in 2HBS it comes back under 4 A between the two
-   tetramers of the asymmetric unit. A number either way beats a sentence
-   that is only true of one of the files. */
-function contact(site) {
-  const from = site.atoms.filter(a => a.group === 'mutation' && a.el === 'C'
-                                      && a.name !== 'CA');
-  const to = site.atoms.filter(a => a.group === 'acceptor');
-  let best = null;
-  for (const f of from) for (const t of to) {
-    if (f.chain === t.chain) continue;
-    const d = dist(f.p, t.p);
-    if (!best || d < best.d) best = { d, f, t };
-  }
-  if (!best) return null;
-  return { d: +best.d.toFixed(2),
-           from: `${best.f.res}${best.f.num}${best.f.chain}.${best.f.name}`,
-           to: `${best.t.res}${best.t.num}${best.t.chain}.${best.t.name}` };
-}
-
 /* ---- one view --------------------------------------------------------- */
 
-function bake(v) {
+/* Matched alpha-carbons between two structures, by chain id and residue
+   number. Both files are human haemoglobin under one numbering, so a number
+   means the same residue in each — which is what makes this a match rather
+   than a guess, and what the myoglobin bench could NOT do across a whale and
+   a beta chain. Anything modelled in only one file drops out, and the count
+   is printed so a fit made on too few is visible rather than silent. */
+function matchCA(a, b) {
+  const P = [], Q = [];
+  for (const [id, res] of a) {
+    const ref = b.get(id);
+    if (!ref) continue;
+    const byNum = new Map(ref.map(r => [r.num, r]));
+    for (const r of res) {
+      const q = byNum.get(r.num);
+      if (q) { P.push([r.x, r.y, r.z]); Q.push([q.x, q.y, q.z]); }
+    }
+  }
+  return { P, Q };
+}
+
+function bake(v, ref) {
   const text = fs.readFileSync(path.join(ROOT, v.source.path), 'utf8');
   const chains = split(v.chains);
   const kindOf = {};
@@ -219,13 +232,34 @@ function bake(v) {
 
   const site = pocket(text, kindOf);
 
-  /* ONE CENTRE FOR BOTH. The trace decides it — the ribbon is what the box
-     frames — and the pocket is moved by the same vector so every iron stays
-     where the protein put it. Solved here rather than left to `assemble`
-     because the pocket needs the unrounded one; the trace's own copy is
-     rounded to 0.01 A on the way out. */
+  /* SUPERPOSE BEFORE CENTRING, in the crystal's own coordinates, because the
+     fit is a rotation about the reference's origin and centring first would
+     fit the two centroids to each other instead. Applied to the trace and the
+     pocket alike — they are one object, and a pocket left behind by the
+     rotation would sit outside the ribbon it belongs in. */
+  let fit = null;
+  if (ref) {
+    const { P, Q } = matchCA(traced, ref.ca);
+    if (P.length >= 3) {
+      const k = kabsch(P, Q);
+      fit = { rmsd: k.rmsd, n: P.length };
+      const put = p => mul(k.R, p).map((x, i) => x + k.t[i]);
+      for (const res of traced.values())
+        for (const r of res) { const p = put([r.x, r.y, r.z]); r.x = p[0]; r.y = p[1]; r.z = p[2]; }
+      for (const a of site.atoms) a.p = put(a.p);
+    }
+  }
+
+  /* ONE CENTRE FOR BOTH, AND ONE CENTRE FOR BOTH FILES. The trace decides it
+     — the ribbon is what the box frames — and the pocket is moved by the same
+     vector so every iron stays where the protein put it. The REFERENCE's
+     centre is what a superposed view then uses: centring on its own centroid
+     would undo most of the fit that was just made. Solved here rather than
+     left to `assemble` because the pocket needs the unrounded one; the
+     trace's own copy is rounded to 0.01 A on the way out. */
   const all = [...traced.values()].flat();
-  const c = [0, 1, 2].map(k => all.reduce((s, r) => s + [r.x, r.y, r.z][k], 0) / all.length);
+  const c = ref ? ref.centre
+    : [0, 1, 2].map(k => all.reduce((s, r) => s + [r.x, r.y, r.z][k], 0) / all.length);
   const shift = p => p.map((val, k) => r2(val - c[k]));
 
   const T = Bake.assemble(traced, R, c);
@@ -233,6 +267,7 @@ function bake(v) {
     source: v.source.id + '.pdb', ssFrom: Bake.ssFrom(R),
     centre: T.centre, order: T.order, chains: T.chains, radius: T.radius,
   };
+  out.centreRaw = c;                     // for the next view to be moved by
   out.pocket = {
     atoms: site.atoms.map(a => ({ name: a.name, el: a.el, res: a.res,
                                   chain: a.chain, num: a.num, group: a.group,
@@ -279,7 +314,12 @@ function bake(v) {
        pair in a string nothing checks. */
     beta6: [...new Set(site.atoms.filter(a => a.group === 'mutation')
                                  .map(a => a.res))],
-    contact: contact(site),
+    /* WHAT THE COMPARISON COST, and the number the panel leads on. A fit
+       this tight IS the claim — two crystals of a protein one residue
+       apart, and the backbones land on each other. */
+    fitOn: ref ? REF : null,
+    fitAtoms: fit ? fit.n : null,
+    fitRmsd: fit ? +fit.rmsd.toFixed(3) : null,
   };
 
   out.read = {
@@ -297,23 +337,32 @@ function bake(v) {
 
 function main() {
   const blocks = {};
+
+  /* TWO PASSES. The reference is baked first, in its own frame and centred on
+     its own trace; the other view is then fitted onto that copy in the
+     crystal's coordinates and moved by the SAME centre, so the fit and the
+     centring are one step rather than two that partly undo each other. */
+  const refView = VIEWS.find(v => v.id === REF);
+  const refOut = bake(refView, null);
+  const refCA = Bake.caTrace(fs.readFileSync(path.join(ROOT, refView.source.path), 'utf8'),
+                             new Set(split(refView.chains)));
+  const ref = { ca: refCA, centre: refOut.centreRaw };
+
   for (const v of VIEWS) {
-    const out = bake(v);
-    const { read, ...bakeOut } = out;
+    const out = v.id === REF ? refOut : bake(v, ref);
+    const { read, centreRaw, ...bakeOut } = out;
     fs.writeFileSync(path.join(DATA, read.baked), JSON.stringify(bakeOut));
     const m = out.meta, kb = (fs.statSync(path.join(DATA, read.baked)).size / 1024).toFixed(0);
     blocks[v.id] = read;
-    console.log(`${v.id.padEnd(6)} ${read.residues} residues in ${m.counts.length} chains ` +
-      `(${m.tetramers} tetramer${m.tetramers > 1 ? 's' : ''}), ${m.helices} helices, ` +
-      `${m.strands} strands, ${m.hemes} hemes / ${m.irons} irons, ` +
-      `beta6 ${m.beta6.join('+')}, ` +
-      (m.contact ? `closest beta6 to acceptor ${m.contact.d} A ` +
-                   `(${m.contact.from} - ${m.contact.to})` : 'no acceptor pair') +
-      `, ${kb} KB`);
+    console.log(`${v.id.padEnd(6)} ${read.residues} residues in ${m.counts.length} chains, ` +
+      `${m.helices} helices, ${m.strands} strands, ` +
+      `${m.hemes} hemes / ${m.irons} irons, beta6 ${m.beta6.join('+')}, ` +
+      (m.fitOn ? `fit on ${m.fitOn} ${m.fitRmsd} A over ${m.fitAtoms} Ca`
+               : 'reference frame') + `, ${kb} KB`);
   }
   const touched = IO.write('hemoglobin', blocks);
   console.log(`registry proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();
-module.exports = { pocket, contact, bake };
+module.exports = { pocket, bake };

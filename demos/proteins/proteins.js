@@ -1371,15 +1371,26 @@
          second, because the gallery is about what we hold and the lesson is
          what one of them became. */
       lesson: 'hemoglobin-lab.html',
-      /* Two crystals of the same protein, one mutation apart, and NOT two
-         states of one thing in a frame sense: 2HHB is one tetramer and 2HBS
-         is two, deposited for the contact BETWEEN them, so there is no
-         superposition that leaves both saying what they are for. Each opens
-         in its own frame and the bench says so. */
-      fit: null,
-      fitWhy: 'one tetramer against two; the sickle file is deposited for a '
-            + 'contact between tetramers, which a fit onto one of them would '
-            + 'move',
+      /* Two crystals of the same protein, one mutation apart, so the fit is
+         the whole point rather than a convenience: two crystals are two
+         arbitrary orientations, and flipping between them unfitted turns the
+         entire molecule — a large, dramatic, meaningless difference with the
+         one substituted residue invisible underneath it.
+
+         `hemoglobin/tools/bake-hbs.js` solved this first, for surface-test,
+         and reached 0.585 A over the matched alpha-carbons. This pipeline
+         re-derives it independently and the two agree, which is worth more
+         than either number alone. Where they differ is only in HOW the motion
+         is carried: bake-hbs stores it as an additive `align` field because
+         2HHB's files sit in FoldLib.orient()'s frame and must not be
+         disturbed, while here the fit is baked into the coordinates and
+         DECLARED below, which is what makes it visible downstream —
+         check-proteins.js re-derives it from the bakes and fails a
+         disagreement. */
+      fit: { on: '2HHB', by: 'the alpha-carbons they share, by residue number' },
+      fitWhy: 'one fold in two crystals; the shared frame is what makes a '
+            + 'single substituted residue legible as the difference rather '
+            + 'than lost under a rotation',
       view: { by: 'deposited', shared: false,
               why: 'a tetramer is round enough that a solved basis would flip '
                  + 'between rebakes, and no human has picked one yet' },
@@ -1406,19 +1417,22 @@
           purpose: 'sickle haemoglobin: the same fold, and the contact the one '
                  + 'changed residue makes',
           species: 'human', state: 'mutant',
-          /* ALL EIGHT CHAINS, WHICH IS THE WHOLE REASON TO BAKE THIS FILE.
-             The asymmetric unit is two tetramers and the lateral contact is
-             between them — beta6 valine of one packing against the pocket on
-             a beta chain of the other. Bake one tetramer and the mutation is
-             a side chain pointing at nothing, which is what it looks like in
-             2HHB too. */
-          chains: 'A,B,C,D,E,F,G,H', alpha: 'A,C,E,G', beta: 'B,D,F,H',
+          /* TETRAMER 1 ONLY, the same four chains bake-hbs.js takes. The
+             asymmetric unit holds two, because what 2HBS is deposited for is
+             the lateral contact between them — but a contact is a claim about
+             two molecules and this bench draws one. Baking both put 116 A of
+             structure on a stage that shows 2HHB's 60, so clicking between
+             them halved the molecule: a framing artefact that reads as a
+             difference in the protein. The contact belongs to
+             sickle/fibre-test.html, which draws it as surfaces because that
+             is what a contact is a claim about. */
+          chains: 'A,B,C,D', alpha: 'A,C', beta: 'B,D',
           source: { kind: 'repo', id: '2HBS', path: 'hemoglobin/data/2HBS.pdb' },
           read: {
             method: "x-ray diffraction",
             chainsInFile: 8,
-            residues: 1148,
-            declared: 1148,
+            residues: 574,
+            declared: 574,
             ec: null,
             baked: "hb-2HBS.json" } },
       ],
