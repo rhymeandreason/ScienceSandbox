@@ -83,6 +83,25 @@ No randomness, same map every session, so spatial memory can form.
 
 **Repulsion separates BOXES, on the axis of least overlap.** It used the circumscribed circle, so every card reserved its own diagonal in all directions — and the widest cards are the questions, so every hole in the paper had a door in the middle of it: measured, the thirteen loosest nodes on the map were all questions, at 600–780px of clearance against a 313px median. `sizeOf` is half-width and half-height, and the push takes the shorter way out. A wide flat card stops shoving neighbours down for a height it does not have.
 
+
+## Zoom is level of detail, and landmarks
+
+**Zooming out shows less, not smaller.** Three bands off `view.k`, written on the body by `setLod`: **far** (< 0.5) draws the landmarks alone, **mid** (< 0.82) adds the anchoring questions, **near** is the whole map. Bands, not a continuous fade, so nothing shimmers under a pinch. Below `LOD_FAR` a mark's counter-scale would otherwise be the only thing zooming out did, and two hundred labels merely got smaller together.
+
+**A landmark is a city name**: `landmark: true` in `graphdata.js`, twelve of them, one or two per unit. **Authored, never derived.** It is a fact about the reader — the topics a Bio 101 student knows the name of before any biology — so no degree count produces it. A hub the edges happen to make (`hbond`) is a *finding*, and the highlight menu is what that is for; a theme is a query wearing a node, and says nothing from across the map.
+
+**Nothing groups them.** Units are not tidy regions on this map, and drawing them as territory would claim a shape the bake does not produce. A landmark sits wherever placement puts it, wearing its unit tint.
+
+Three invariants, each of which shipped looking fine when broken:
+
+* **Only fogged nodes are culled.** A node the reader opened is their trail, and a trail that vanishes when you pull back to get your bearings is the opposite of a map.
+* **A landmark is drawn as a landmark whether or not it has been opened.** Lit cards do not counter-scale, so an opened landmark was a four-pixel speck beside the fogged ones that read fine — the reader's own progress made the map worse.
+* **The culling is opacity, never `display`.** The seats are baked and every mark keeps its own at every zoom, so pulling back and coming in again lands on the same paper. It is also why nothing here transitions: a CSS fade on `.node` left cards stuck at zero.
+
+`centre()` may land in the far band, and `K_MIN` is the floor for both it and `zoomAt` — otherwise the reader can never get back to the shot the map opened on. Load frames the **landmarks**, not the two doors: the doors are 2,000px apart and framing them filled the screen with the paper between them.
+
+**A landmark keeps its picture through the fog** — the one exception to "a mark has no thumb", and only for the stills. A landmark whose view is a live box stays dark rather than spending one of `CardStage`'s four contexts on a card nobody opened.
+
 ## Extension questions, and the ask bar
 
 **An extension question is not on the map.** It is a query, and a query has no seat: it arrives at whatever it asked about and leaves with it. `graphdata.js` authors it like any other question, and the page pulls it out **before layout** (`QUERIES`), keeping only `anchorId`. Leaving them in cost nothing visible and moved every neighbour they repelled. The degree they added is given back, or the card they answer reads one link heavier than it is.

@@ -22,6 +22,14 @@
  *  size, it has a location), an emergent property `emergesAt`, and a
  *  concept carries nothing: null level is correct, not missing.
  *
+ *  `landmark: true` is the map's zoom-out tier — the dozen names a
+ *  student already recognizes before any biology ("Cellular respiration",
+ *  "DNA structure", "Photosynthesis"). Hand-authored on purpose: it is a
+ *  fact about the reader, not about the graph, so it cannot be derived
+ *  from degree or unit, and a hub the edges happen to produce (hbond) is a
+ *  finding the highlight menu is for, not a signpost. One or two per unit,
+ *  and the map shows only these when zoomed out.
+ *
  *  `unit` picks the tint (UNITS). `subject:'chemistry'` marks a
  *  cross-subject prerequisite — the edges students stall on, flagged so
  *  the map can offer a bridge instead of a dead end.
@@ -79,7 +87,7 @@
     claim:'One atom takes the electron rather than sharing it. Opposite charges then hold the ions in a lattice.' },
 
   /* ---- water: cause → mechanism → properties → consequences ----------- */
-  { id:'water-mol', type:'structure', unit:'water', level:1, name:'Water molecule',
+  { id:'water-mol', landmark:true, type:'structure', unit:'water', level:1, name:'Water molecule',
     claim:'Two hydrogens on one oxygen, held at 104.5°. The bend is why the pull toward oxygen does not cancel out.' },
   { id:'hbond', type:'concept', unit:'water', name:'Hydrogen bonding',
     claim:'A hydrogen bonded to oxygen or nitrogen carries a partial +, and it is pulled toward the partial − on the next O or N.' },
@@ -118,7 +126,7 @@
 
   { id:'amphipathic', type:'concept', unit:'water', name:'Amphipathic',
     claim:'One end dissolves in water, the other cannot. Every membrane and micelle follows from that split.' },
-  { id:'dna-structure', type:'structure', unit:'macro', level:2, name:'DNA structure',
+  { id:'dna-structure', landmark:true, type:'structure', unit:'macro', level:2, name:'DNA structure',
     claim:'Two antiparallel strands, paired base to base and twisted. Backbone outside, bases stacked in.' },
 
   /* ---- macromolecule bridges ------------------------------------------ */
@@ -128,7 +136,7 @@
     claim:'Water is added back to break the bond. Digestion is this, run enzymatically.' },
   { id:'phospholipid', type:'structure', unit:'macro', level:1, name:'Phospholipid',
     claim:'A charged head on two oily tails.' },
-  { id:'bilayer', type:'structure', unit:'macro', level:2, name:'Phospholipid bilayer',
+  { id:'bilayer', landmark:true, type:'structure', unit:'macro', level:2, name:'Phospholipid bilayer',
     claim:'Tails cannot face water, so they close into a double sheet with heads out. Water is what holds it together.' },
 
   /* ---- macromolecules: the shared pattern, and where it breaks --------
@@ -178,7 +186,7 @@
       ['Cytosine', 'A pyrimidine, and guanine\u2019s partner in both DNA and RNA.'],
       ['Uracil', 'Thymine without its methyl. RNA uses it; DNA does not, which helps repair spot damage.'],
     ] },
-  { id:'protein-class', type:'structure', unit:'macro', level:2, name:'Protein',
+  { id:'protein-class', landmark:true, type:'structure', unit:'macro', level:2, name:'Protein',
     claim:'Amino acids in a chain. The only class whose monomers come in twenty kinds.' },
 
   /* ---- proteins: the spine is the levels of structure ----------------- */
@@ -238,7 +246,7 @@
       ['Motor', 'Turns ATP into movement. Myosin, kinesin, the flagellar motor.'],
     ] },
 
-  { id:'enzyme', type:'structure', unit:'proteins', level:2, name:'Enzyme',
+  { id:'enzyme', landmark:true, type:'structure', unit:'proteins', level:2, name:'Enzyme',
     claim:'A protein that lowers the barrier and comes out the other side unchanged.',
     kinds:[
       ['Oxidoreductase', 'Moves electrons. The dehydrogenases that load NAD⁺ are these.'],
@@ -321,7 +329,7 @@
 
   { id:'cell-theory', type:'concept', unit:'cell', name:'Cell theory',
     claim:'Every living thing is cells, and every cell comes from a cell.' },
-  { id:'cell', type:'structure', unit:'cell', level:4, name:'Cell',
+  { id:'cell', landmark:true, type:'structure', unit:'cell', level:4, name:'Cell',
     claim:'The smallest thing that is alive. Nothing inside it is.' },
   { id:'sa-v', type:'concept', unit:'cell', name:'Surface area to volume',
     claim:'Double the width and volume grows eightfold while surface grows fourfold. The inside outruns its supply line.' },
@@ -395,13 +403,13 @@
   { id:'mitochondrion', type:'structure', unit:'resp', level:3, name:'Mitochondrion',
     claim:'Two membranes, and the inner one is folded because the chain lives in it. Area is the point.' },
 
-  { id:'respiration', type:'process', unit:'resp', occursAt:4, name:'Cellular respiration',
+  { id:'respiration', landmark:true, type:'process', unit:'resp', occursAt:4, name:'Cellular respiration',
     claim:'Glucose is taken apart one pair of electrons at a time, and the energy is banked as ATP.' },
-  { id:'glycolysis', type:'process', unit:'resp', occursAt:4, name:'Glycolysis',
+  { id:'glycolysis', landmark:true, type:'process', unit:'resp', occursAt:4, name:'Glycolysis',
     claim:'Glucose splits into two pyruvate in the cytosol. Two ATP spent, four made, two carriers loaded.' },
   { id:'pyr-ox', type:'process', unit:'resp', occursAt:3, name:'Pyruvate oxidation',
     claim:'One carbon leaves as CO₂ and the rest becomes acetyl-CoA. The first carbon you breathe out.' },
-  { id:'krebs', type:'process', unit:'resp', occursAt:3, name:'Krebs cycle',
+  { id:'krebs', landmark:true, type:'process', unit:'resp', occursAt:3, name:'Krebs cycle',
     claim:'Two more carbons leave as CO₂, and every turn loads three NADH, one FADH₂, one ATP. The eight intermediates are the conveyor that does it.' },
   { id:'etc', type:'process', unit:'resp', occursAt:3, name:'Electron transport chain',
     claim:'Electrons fall from carrier to carrier, and every drop pumps protons across the membrane.' },
@@ -452,7 +460,7 @@
   { id:'strand-asymmetry', type:'concept', unit:'genetics', name:'Leading and lagging',
     claim:'One new strand runs continuously, the other in backward pieces. The asymmetry is forced by the antiparallel strands.' },
 
-  { id:'transcription', type:'process', unit:'genetics', occursAt:3, name:'Transcription',
+  { id:'transcription', landmark:true, type:'process', unit:'genetics', occursAt:3, name:'Transcription',
     claim:'One gene is copied into RNA. The DNA itself never leaves the nucleus, which is the whole reason for a messenger.' },
   { id:'rna', type:'structure', unit:'genetics', level:2, name:'RNA',
     claim:'One strand, ribose, uracil for thymine. It carries messages, and it also builds things and catalyses.' },
@@ -461,7 +469,7 @@
   { id:'rna-processing', type:'process', unit:'genetics', occursAt:3, name:'RNA processing',
     claim:'Introns cut out, exons joined. Splice the same transcript differently and one gene yields several proteins.' },
 
-  { id:'translation', type:'process', unit:'genetics', occursAt:4, name:'Translation',
+  { id:'translation', landmark:true, type:'process', unit:'genetics', occursAt:4, name:'Translation',
     claim:'The ribosome reads the message three bases at a time and builds the chain the message names.' },
   { id:'genetic-code', type:'concept', unit:'genetics', name:'The genetic code',
     claim:'The rule that assigns each codon to one amino acid. It is nearly identical in every organism alive, which is why the code is evidence of common ancestry.' },
@@ -586,7 +594,7 @@
   { id:'photorespiration', type:'process', unit:'photo', occursAt:3, name:'Photorespiration',
     claim:'Rubisco binds O₂ instead of CO₂, and the plant spends ATP undoing the result. Worse when it is hot and the pores are shut.' },
 
-  { id:'photosynthesis', type:'process', unit:'photo', occursAt:4, name:'Photosynthesis',
+  { id:'photosynthesis', landmark:true, type:'process', unit:'photo', occursAt:4, name:'Photosynthesis',
     claim:'Light energy into chemical bonds, using water and air. Respiration read backwards, and the source of both.' },
 
   /* ---- themes ---------------------------------------------------------- */
