@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Salmon Osmoregulation</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../css/annotate.css">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.tag-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.tag-hyper { background: rgba(220, 100, 50, 0.2); color: #e06c3a; }
+.tag-hypo  { background: rgba(50, 150, 220, 0.2); color: #38a5e0; }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../lib/annotate.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../membrane/parts.js"></script>
+<script src="../membrane/pump.js"></script>
+<script src="../membrane/membrane.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+
+<script>
+let m;
+
+const shell = LessonShell.create({
+  brand: 'Osmoregulation in Migrating Salmon',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { state: {} },
+  steps: [
+    {
+      eyebrow: 'Ocean Phase',
+      title: 'Hypertonic Seawater',
+      body: '<p><b>In the ocean, the surrounding seawater has a much higher solute concentration than the salmon’s body fluids.</b> High external salinity means there are fewer free water molecules per volume outside than inside the cell.</p><p>As a result, water naturally diffuses outward across gill membranes via osmosis. To survive, the salmon drinks seawater continuously and must actively eliminate the excess salt.</p>',
+      nextLabel: 'Active transport',
+      onEnter(ctx) {
+        m.set({
+          contents: {
+            inside: { water: 46, K: 20, NA: 4, A: 8 },
+            outside: { water: 26, NA: 26, CL: 26 }
+          },
+          proteins: { K: { x: -36 }, CL: null, NA: { x: 0 }, AQP: null, pump: { x: 36 } },
+          pumpOn: true,
+          pumpAuto: true
+        });
+        m.reset();
+        m.notes(['outside', 'inside', 'pump']);
+
+        ctx.ui.controls(`
+          <div class="callout">
+            <span class="tag-badge tag-hyper">Seawater: Hypertonic</span>
+            <div class="stat-grid">
+              <div class="stat"><div class="stat-label">Water Tendency</div><div class="stat-value" id="net-water">--</div></div>
+              <div class="stat"><div class="stat-label">ATP Burned</div><div class="stat-value" id="atp-count">0</div></div>
+            </div>
+          </div>
+        `);
+        ctx.ui.showPanel(m, { only: ['notes', 'layers', 'legend'] });
+      }
+    },
+    {
+      eyebrow: 'Gill Adaptation',
+      title: 'Active Salt Secretion in the Sea',
+      body: '<p><b>Specialized gill cells (chloride cells) pump sodium and chloride out of the body against steep concentration gradients.</b> The Na⁺/K⁺ pump exports 3 Na⁺ ions outward for every 2 K⁺ brought in, burning ATP on every turn.</p><p>Sodium continually leaks in through leak channels, giving the pump a constant workload to keep internal salinity stable.</p>',
+      nextLabel: 'Enter the river',
+      onEnter(ctx) {
+        m.set({
+          contents: {
+            inside: { water: 46, K: 20, NA: 4, A: 8 },
+            outside: { water: 26, NA: 26, CL: 26 }
+          },
+          proteins: { K: { x: -36 }, CL: null, NA: { x: 0 }, AQP: null, pump: { x: 36 } },
+          pumpOn: true,
+          pumpAuto: true
+        });
+        m.notes(['pump', 'channel.NA']);
+
+        ctx.ui.controls(`
+          <div class="choices">
+            <button class="btn secondary" id="btn-spend">Spend 1 ATP manually</button>
+            <button class="btn secondary" id="btn-toggle-pump">Pause Auto-Pump</button>
+          </div>
+          <div class="stat-grid" style="margin-top:10px;">
+            <div class="stat"><div class="stat-label">Na⁺ Inside</div><div class="stat-value" id="na-in">--</div></div>
+            <div class="stat"><div class="stat-label">Na⁺ Outside</div><div class="stat-value" id="na-out">--</div></div>
+          </div>
+        `);
+
+        let auto = true;
+        ctx.ui.q('#btn-spend').onclick = () => m.spend();
+        ctx.ui.q('#btn-toggle-pump').onclick = () => {
+          auto = !auto;
+          m.set({ pumpAuto: auto, pumpOn: auto });
+          ctx.ui.q('#btn-toggle-pump').textContent = auto ? 'Pause Auto-Pump' : 'Resume Auto-Pump';
+        };
+        ctx.ui.showPanel(m, { only: ['notes', 'layers'] });
+      }
+    },
+    {
+      eyebrow: 'River Transition',
+      title: 'Entering Fresh River Water',
+      body: '<p><b>When the salmon swims into freshwater, the osmotic gradient reverses completely.</b> River water has almost no dissolved ions, making it hypotonic relative to the salmon’s tissues.</p><p>Free water is now far more concentrated outside than inside, causing water to rush into the gill cells by osmosis.</p>',
+      nextLabel: 'Cellular remodel',
+      onEnter(ctx) {
+        m.set({
+          contents: {
+            inside: { water: 46, K: 20, NA: 4, A: 8 },
+            outside: { water: 78, NA: 0, CL: 0 }
+          },
+          proteins: { K: { x: -36 }, CL: null, NA: null, AQP: null, pump: { x: 36 } },
+          pumpOn: true,
+          pumpAuto: true
+        });
+        m.reset();
+        m.notes(['outside', 'inside', 'water']);
+
+        ctx.ui.controls(`
+          <div class="callout">
+            <span class="tag-badge tag-hypo">River: Hypotonic</span>
+            <div class="stat-grid">
+              <div class="stat"><div class="stat-label">Water Tendency</div><div class="stat-value" id="net-water">--</div></div>
+              <div class="stat"><div class="stat-label">Outside Ions</div><div class="stat-value" id="ions-out">0</div></div>
+            </div>
+          </div>
+        `);
+        ctx.ui.showPanel(m, { only: ['notes', 'layers', 'legend'] });
+      }
+    },
+    {
+      eyebrow: 'Freshwater Acclimation',
+      title: 'Conserving Salts and Flushing Water',
+      body: '<p><b>Hormones like prolactin trigger gill remodeling to retain scarce ions and survive in freshwater.</b> The salmon stops drinking water, produces large amounts of dilute urine, and shifts gill transport to actively uptake ions rather than secrete them.</p><p>Use the toggle below to compare how the gill membrane responds in ocean versus river water.</p>',
+      nextLabel: 'Restart',
+      onEnter(ctx) {
+        ctx.ui.controls(`
+          <div class="choices">
+            <button class="btn secondary" id="env-ocean">Simulate Ocean Water</button>
+            <button class="btn secondary" id="env-river">Simulate River Water</button>
+          </div>
+          <div class="stat-grid" style="margin-top:10px;">
+            <div class="stat"><div class="stat-label">Water Flow</div><div class="stat-value" id="net-water">--</div></div>
+            <div class="stat"><div class="stat-label">Membrane Potential</div><div class="stat-value" id="vm">--</div></div>
+          </div>
+        `);
+
+        ctx.ui.q('#env-ocean').onclick = () => {
+          m.set({
+            contents: {
+              inside: { water: 46, K: 20, NA: 4, A: 8 },
+              outside: { water: 26, NA: 26, CL: 26 }
+            },
+            proteins: { K: { x: -36 }, CL: null, NA: { x: 0 }, AQP: null, pump: { x: 36 } }
+          });
+          m.reset();
+          m.notes(['outside', 'pump']);
+        };
+
+        ctx.ui.q('#env-river').onclick = () => {
+          m.set({
+            contents: {
+              inside: { water: 46, K: 20, NA: 4, A: 8 },
+              outside: { water: 78, NA: 0, CL: 0 }
+            },
+            proteins: { K: { x: -36 }, CL: null, NA: null, AQP: null, pump: { x: 36 } }
+          });
+          m.reset();
+          m.notes(['outside', 'water']);
+        };
+
+        ctx.ui.showPanel(m, { only: ['notes', 'layers', 'legend'] });
+      }
+    }
+  ]
+});
+
+m = Membrane.mount(shell.stage, {
+  viewOffset: shell.viewOffset,
+  proteins: { K: { x: -36 }, CL: null, NA: { x: 0 }, AQP: null, pump: { x: 36 } },
+  potential: 'nernst',
+  pumpAuto: true,
+  pumpOn: true,
+  timeScale: 1.5,
+  shells: false,
+  cut: true
+});
+
+m.on('frame', s => {
+  if (!s) return;
+  const netEl = document.getElementById('net-water');
+  if (netEl) {
+    if (s.net === 'leaving') netEl.textContent = 'Leaving cell (dehydration)';
+    else if (s.net === 'entering') netEl.textContent = 'Entering cell (swelling)';
+    else netEl.textContent = 'Balanced';
+  }
+
+  const atpEl = document.getElementById('atp-count');
+  if (atpEl) atpEl.textContent = s.atpSpent;
+
+  const naInEl = document.getElementById('na-in');
+  if (naInEl && s.counts && s.counts.NA) naInEl.textContent = s.counts.NA.inside;
+
+  const naOutEl = document.getElementById('na-out');
+  if (naOutEl && s.counts && s.counts.NA) naOutEl.textContent = s.counts.NA.outside;
+
+  const ionsOutEl = document.getElementById('ions-out');
+  if (ionsOutEl && s.counts) {
+    const naO = s.counts.NA ? s.counts.NA.outside : 0;
+    const clO = s.counts.CL ? s.counts.CL.outside : 0;
+    ionsOutEl.textContent = naO + clO;
+  }
+
+  const vmEl = document.getElementById('vm');
+  if (vmEl) vmEl.textContent = Math.round(s.mV) + ' mV';
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>

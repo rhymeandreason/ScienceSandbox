@@ -141,8 +141,23 @@
     root.add(CHANNEL.group, CLCHAN.group, NACHAN.group, AQP.group, PUMP.group);
     let MEM = null, T = PUMP, PORES = [], pumpX = 0, cut = false;
 
+    /* Two machines closer than this share lipid and read as one lump. A
+       page names x by taste and the reference gives a rule, but a generated
+       page put a channel between two others 36 apart; so the layout keeps
+       the order a page chose and spreads what is too close, symmetrically
+       about where the crowd was. */
+    const PORE_GAP = 72;
+    function spaced(pr) {
+      const on = Object.keys(pr).filter(k => pr[k]).map(k => ({ k, x: pr[k].x || 0 })).sort((a, b) => a.x - b.x);
+      for (let i = 1; i < on.length; i++) if (on[i].x - on[i - 1].x < PORE_GAP) on[i].x = on[i - 1].x + PORE_GAP;
+      const mean0 = on.length ? Object.keys(pr).filter(k => pr[k]).reduce((s, k) => s + (pr[k].x || 0), 0) / on.length : 0;
+      const mean1 = on.length ? on.reduce((s, o) => s + o.x, 0) / on.length : 0;
+      const out = {};
+      for (const o of on) out[o.k] = Object.assign({}, pr[o.k], { x: Math.round(o.x - mean1 + mean0) });
+      return Object.assign({ K:null, CL:null, NA:null, AQP:null, pump:null }, out);
+    }
     function layout(proteins) {
-      P.proteins = Object.assign({ K:null, CL:null, NA:null, AQP:null, pump:null }, proteins);
+      P.proteins = spaced(Object.assign({ K:null, CL:null, NA:null, AQP:null, pump:null }, proteins));
       const pr = P.proteins;
       const holes = [];
       PORES = [];
