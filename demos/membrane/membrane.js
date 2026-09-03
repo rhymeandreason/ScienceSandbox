@@ -33,7 +33,9 @@
  *  from a DOM button — is the page's, which calls spend() when the chip lands.
  *
  *  Proteins are a LAYOUT, not a step:
- *      proteins: { K:{x:-34} | null, CL:{x:34} | null, pump:{x:0} | null }
+ *      proteins: { K:{x} | null, CL:{x} | null, NA:{x} | null, AQP:{x} | null, pump:{x} | null }
+ *  K, CL and NA are channels for their ion; AQP is an aquaporin, a pore for
+ *  water and nothing charged, single file, direction by headcount alone.
  *  The sheet is rebuilt with one hole per protein, so a hole can never stand
  *  without its protein. Rebuilding is a few hundred instanced lipids, fine on
  *  a change; it is not meant to be animated.
@@ -62,9 +64,9 @@
     exag: 5.0,                // one exaggeration for everything that crosses (see below)
     extent: 90,               // half-height of each compartment, in world units
     spread: null,             // ±x scatter; default reach * 0.55
-    proteins: { K:null, CL:null, pump:null },
+    proteins: { K:null, CL:null, NA:null, AQP:null, pump:null },
     potential: 'off',
-    E: { K:-90, CL:-75 },     // mV, the Nernst potentials of the gradients drawn
+    E: { K:-90, CL:-75, NA:60 },   // mV, the Nernst potentials of the gradients drawn
     mvPerIon: -2.5,           // stage timing, not a measurement (see netPush)
     pumpAuto: false,
     pumpOn: true,
@@ -124,13 +126,23 @@
     const K_HOLE = K_R * (1 + K_LOBE) + 0.5, CL_HOLE = CL_R * (1 + CL_LOBE) + 0.5;
     const CHANNEL = global.Parts.transporter({ half:HALF, site:7.2, mouth:8.8, radius:K_R, lobes:4, lobeDepth:K_LOBE });
     const CLCHAN  = global.Parts.transporter({ half:HALF, site:7.2, mouth:8.0, radius:CL_R, lobes:2, lobeDepth:CL_LOBE, color:0xb58a4f });
+    /* A Na⁺ LEAK: the epithelial sodium channel is a TRIMER, and it is what
+       lets sodium in down its gradient, which is the whole reason the pump
+       has work to do. Violet, the sodium family's colour. */
+    const NA_R = 13.5, NA_LOBE = 0.12, NA_HOLE = NA_R * (1 + NA_LOBE) + 0.5;
+    const NACHAN  = global.Parts.transporter({ half:HALF, site:7.0, mouth:8.4, radius:NA_R, lobes:3, lobeDepth:NA_LOBE, color:0x9b6fd8 });
+    /* An AQUAPORIN: a TETRAMER whose pore passes water in single file and
+       nothing charged. Slimmer than the ion channels; teal, so it reads as a
+       different kind of door. */
+    const AQP_R = 12.0, AQP_LOBE = 0.10, AQP_HOLE = AQP_R * (1 + AQP_LOBE) + 0.5;
+    const AQP     = global.Parts.transporter({ half:HALF, site:6.4, mouth:8.4, radius:AQP_R, lobes:4, lobeDepth:AQP_LOBE, color:0x3fa7a0 });
     const PUMP    = global.Parts.transporter({ half:HALF, color:0x4f9e78 });
-    const ALL = [CHANNEL, CLCHAN, PUMP];
-    root.add(CHANNEL.group, CLCHAN.group, PUMP.group);
+    const ALL = [CHANNEL, CLCHAN, NACHAN, AQP, PUMP];
+    root.add(CHANNEL.group, CLCHAN.group, NACHAN.group, AQP.group, PUMP.group);
     let MEM = null, T = PUMP, PORES = [], pumpX = 0, cut = false;
 
     function layout(proteins) {
-      P.proteins = Object.assign({ K:null, CL:null, pump:null }, proteins);
+      P.proteins = Object.assign({ K:null, CL:null, NA:null, AQP:null, pump:null }, proteins);
       const pr = P.proteins;
       const holes = [];
       PORES = [];
@@ -140,11 +152,17 @@
       CLCHAN.group.visible = !!pr.CL;
       if (pr.CL) { CLCHAN.group.position.x = pr.CL.x; CLCHAN.setGates(1, 1);
         holes.push([pr.CL.x, CL_HOLE]); PORES.push({ x:pr.CL.x, R:CL_R, lumen:8.0, kind:'CL' }); }
+      NACHAN.group.visible = !!pr.NA;
+      if (pr.NA) { NACHAN.group.position.x = pr.NA.x; NACHAN.setGates(1, 1);
+        holes.push([pr.NA.x, NA_HOLE]); PORES.push({ x:pr.NA.x, R:NA_R, lumen:8.4, kind:'NA' }); }
+      AQP.group.visible = !!pr.AQP;
+      if (pr.AQP) { AQP.group.position.x = pr.AQP.x; AQP.setGates(1, 1);
+        holes.push([pr.AQP.x, AQP_HOLE]); PORES.push({ x:pr.AQP.x, R:AQP_R, lumen:8.4, kind:'water' }); }
       PUMP.group.visible = !!pr.pump;
       if (pr.pump) { pumpX = pr.pump.x; PUMP.group.position.x = pumpX;
         /* MOUTH rather than site — the site is narrowest and would seat an ion in the wall. */
         holes.push([pumpX, 15.0]); PORES.push({ x:pumpX, R:14.5, lumen:7.6, kind:null }); }
-      T = pr.pump ? PUMP : pr.K ? CHANNEL : pr.CL ? CLCHAN : PUMP;
+      T = pr.pump ? PUMP : pr.K ? CHANNEL : pr.CL ? CLCHAN : pr.NA ? NACHAN : pr.AQP ? AQP : PUMP;
       if (MEM) root.remove(MEM.group);
       /* `exclude` is a signed distance, so holes union as the MINIMUM. */
       MEM = global.Parts.membrane({ half:HALF, reach:MEM_REACH,
@@ -350,7 +368,7 @@
           blocked: ion, coreSpeed: kind === 'water' ? WATER_CORE : undefined,
           keepout: kind === 'water' ? CHANNEL_KEEPOUT : undefined,
           shell: ion && kind !== 'A' && P.shells,
-          conducts: (kind === 'K' || kind === 'CL') && poreX(kind) != null ? kind : undefined,
+          conducts: (kind === 'K' || kind === 'CL' || kind === 'NA' || kind === 'water') && poreX(kind) != null ? kind : undefined,
         };
         if (kind === 'A') Object.assign(def, { speed:[2, 5], y: s * far * (0.42 + Math.random() * 0.5),
                                                yband: s < 0 ? [-far, -far * 0.38] : [far * 0.38, far] });
@@ -433,7 +451,10 @@
         const d = _fv.length();
         if (d > 0.001 && d < FUNNEL_R) {
           _fv.multiplyScalar(1 / d);
-          const k = FUNNEL_PULL * (t.seeks ? SEEK_PULL : 1) * (1 - d / FUNNEL_R) * dt;
+          /* Water is drawn to its pore gently: an aquaporin's vestibule is
+             not an electrostatic well, and pulled like an ion every water
+             on stage queues at one door. */
+          const k = FUNNEL_PULL * (t.seeks ? SEEK_PULL : t.kind === 'water' ? 0.35 : 1) * (1 - d / FUNNEL_R) * dt;
           t.vx += _fv.x * k; t.vy += _fv.y * k; t.vz += _fv.z * k;
           const sp = (t.speed || WALK_SPEED)[1], v = Math.hypot(t.vx, t.vy, t.vz);
           if (v > sp) { const s = sp / v; t.vx *= s; t.vy *= s; t.vz *= s; }
@@ -454,7 +475,9 @@
       return c.outside > c.inside ? 1 : -1;
     }
     const potentialOn = () => P.potential !== 'off';
-    const mayEnter = t => t.seeks ? true : potentialOn() || Math.sign(t.y) === crowdedSide(t.kind);
+    const mayEnter = t => t.seeks ? true
+      : t.kind === 'water' ? Math.sign(t.y) === crowdedSide('water')   // osmosis: the crowded side sends, always
+      : potentialOn() || Math.sign(t.y) === crowdedSide(t.kind);
     function refuseAt(t, lane) {
       const away = Math.sign(t.y) || 1, sp = (t.speed || WALK_SPEED)[1];
       t.exitPt = { x:t.x, y:t.y, z:t.z };
@@ -496,7 +519,7 @@
        mV per ion — a membrane needs millions of ions for 100 mV, so
        mvPerIon lands the effect in the seconds a student is watching. */
     let mV = 0, chargeOut = 0;
-    const crossed = { K:0, CL:0 };
+    const crossed = { K:0, CL:0, NA:0, water:0 };
     function nernst(kind) {
       const c = sideCount(kind), z = kind === 'CL' ? -1 : 1;
       return (61 / z) * Math.log10((c.outside + 0.5) / (c.inside + 0.5));
@@ -504,7 +527,12 @@
     const equilibriumOf = kind => P.potential === 'nernst' ? nernst(kind) : (P.E[kind] != null ? P.E[kind] : P.E.K);
     /* Signed, never clamped: negative means the voltage has overshot this
        ion's equilibrium and drives it back — the Goldman result, emerging. */
-    const drive = kind => !potentialOn() ? 0 : (mV - equilibriumOf(kind)) / -equilibriumOf(kind);
+    /* Positive means the CATION LEAVES (Cl⁻ flips it where it is used).
+       Normalised by |E|, not −E: K⁺'s equilibrium is negative and Na⁺'s is
+       positive, and dividing by −E sent sodium out of the cell down a
+       gradient that runs in. */
+    const drive = kind => { if (!potentialOn() || kind === 'water') return 0;
+      const E = equilibriumOf(kind); return (mV - E) / Math.max(1, Math.abs(E)); };
     function netPush() {
       let nK = 0, nCl = 0;
       for (const t of travellers) { if (t.conducts == null) continue; if (t.kind === 'K') nK++; else if (t.kind === 'CL') nCl++; }
@@ -518,9 +546,9 @@
     function tickQueue(t, dt) {
       if (Math.abs(t.y) > T.height) {
         if (t.inPore) {
-          const q = (t.kind === 'CL' ? -1 : 1) * Math.sign(t.y);
-          chargeOut += q; crossed[t.kind] = (crossed[t.kind] || 0) + q;
-          mV = Math.min(0, Math.max(floorMV(), P.mvPerIon * chargeOut));
+          const q = t.kind === 'water' ? 0 : (t.kind === 'CL' ? -1 : 1) * Math.sign(t.y);
+          chargeOut += q; crossed[t.kind] = (crossed[t.kind] || 0) + Math.sign(t.y);
+          if (q) mV = Math.min(0, Math.max(floorMV(), P.mvPerIon * chargeOut));
           emit('conduct', t, Math.sign(t.y));
         }
         t.inPore = false; t.hop = null; t.lane = null;
@@ -543,7 +571,7 @@
         const gap = Math.max(ION_GAP, bulkRadius(t) * 2 + 1.2);
         if (queueAhead(t) < gap) { t.obj.position.y = t.y; return true; }
         h.moving = true; h.t = 0;
-        if (!potentialOn()) h.dir = Math.sign(t.vy);
+        if (!potentialOn() || t.kind === 'water') h.dir = Math.sign(t.vy);
         else {
           /* p(forward) = ½ + ½·push: net flux proportional to driving force. */
           const pref = (t.kind === 'CL' ? -1 : 1) * (push >= 0 ? 1 : -1);
@@ -579,9 +607,12 @@
       t.x += t.vx * dt; t.z += t.vz * dt;
       if (t.x > x1) { t.x = x1; t.vx = -t.vx; }
       if (t.x < x0) { t.x = x0; t.vx = -t.vx; }
-      if (t.keepout && PORES.length && laneGap(t.x) < t.keepout) {
-        let near = PORES[0].x;
-        for (const Q of PORES) if (Math.abs(t.x - Q.x) < Math.abs(t.x - near)) near = Q.x;
+      /* Kept out of every pore but its own: a water with an aquaporin to
+         use is steered to it by the funnel and must not be shoved off. */
+      const others = t.conducts == null ? PORES : PORES.filter(Q => Q.x !== t.conducts);
+      if (t.keepout && others.length && others.reduce((m, Q) => Math.min(m, Math.abs(t.x - Q.x)), Infinity) < t.keepout) {
+        let near = others[0].x;
+        for (const Q of others) if (Math.abs(t.x - Q.x) < Math.abs(t.x - near)) near = Q.x;
         t.x = near + Math.sign(t.x - near || 1) * t.keepout;
         t.vx = -t.vx;
       }
@@ -848,7 +879,7 @@
         equilibrium: { K:equilibriumOf('K'), CL:equilibriumOf('CL') } };
     }
     function reset() {
-      mV = 0; chargeOut = 0; crossed.K = crossed.CL = 0;
+      mV = 0; chargeOut = 0; crossed.K = crossed.CL = crossed.NA = crossed.water = 0;
       crossings = { up:0, down:0 }; netRecent = 0;
       pumpT = 0; running = false; atpSpent = 0; lastPhase = '';
       for (const t of travellers) t.aboard = false;
@@ -896,7 +927,8 @@
       { name: 'water', color: global.MolLib.PALETTE.atoms.O ? hex(global.MolLib.PALETTE.atoms.O) : '#c33' },
       { name: 'Na⁺', color: hex(global.Parts.ION.NA.color) }, { name: 'K⁺', color: hex(global.Parts.ION.K.color) },
       { name: 'Cl⁻', color: hex(global.Parts.ION.CL.color) }, { name: 'anion that cannot leave', color: '#8f7fae' },
-      { name: 'K⁺ channel', color: '#5b9bd5' }, { name: 'Cl⁻ channel', color: '#b58a4f' }, { name: 'Na⁺/K⁺ pump', color: '#4f9e78' },
+      { name: 'K⁺ channel', color: '#5b9bd5' }, { name: 'Cl⁻ channel', color: '#b58a4f' }, { name: 'Na⁺ leak channel', color: '#9b6fd8' },
+      { name: 'aquaporin', color: '#3fa7a0' }, { name: 'Na⁺/K⁺ pump', color: '#4f9e78' },
     ];
 
     /* ---- the parts a page can point at, by name (Notebook, in lib/annotate.js) ----
@@ -908,6 +940,8 @@
     const anchors = {
       'channel.K':  () => { const x = poreX('K');  return x == null ? null : _a.set(x, T.height * 0.95, 0); },
       'channel.CL': () => { const x = poreX('CL'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
+      'channel.NA': () => { const x = poreX('NA'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
+      aquaporin:    () => { const x = poreX('water'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
       pump:    () => P.proteins.pump ? _a.set(pumpX, T.height * 0.98, 0) : null,
       heads:   () => _a.set(150, HALF, 0),        // right of the proteins: a shell's panel covers the left
       tails:   () => _a.set(150, 0, 0),
@@ -920,6 +954,10 @@
         card: 'A water-lined pore straight through, so a K⁺ crosses without ever touching the oil. It is open, it is free, and nothing about it is switched on.' },
       'channel.CL': { text: 'Cl⁻ channel', offset: [40, -30],
         card: 'Chloride is high outside, so it runs inward, the opposite way to the K⁺ beside it. Direction is set by the gradient, never by the protein.' },
+      'channel.NA': { text: 'Na⁺ leak channel', offset: [40, -30],
+        card: 'Sodium is high outside, so it leaks in whenever a door is open. This is the door, and every ion through it is one the pump has to throw back out.' },
+      aquaporin: { text: 'aquaporin', offset: [40, -30],
+        card: 'A pore for water and nothing charged, in single file. Water still crosses the lipid on its own, slowly; this is why some cells move it fast.' },
       pump: { text: 'a carrier, not a pore', offset: [42, -30],
         card: 'It binds its cargo and changes shape, so it is never open to both sides at once. One ATP buys one turn: 3 Na⁺ out and 2 K⁺ in, both uphill.' },
       heads: { text: 'hydrophilic heads', offset: [34, -30],

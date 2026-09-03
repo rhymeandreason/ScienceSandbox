@@ -150,7 +150,7 @@ Good for: temperature, phase change, why ice floats, salt dissolving, colligativ
 
 ```js
 const m = Membrane.mount(el, {
-  proteins: { K:{ x:-36 }, CL:null, pump:{ x:36 } },  // which machines stand in the sheet, and where (±x, world units; keep |x| ≤ 60 and pores 70 apart)
+  proteins: { K:{ x:-36 }, CL:null, NA:null, AQP:null, pump:{ x:36 } },  // which machines stand in the sheet, and where (±x, world units; keep |x| ≤ 110 and pores 70 apart)
   potential: 'nernst',   // 'off': pores conduct forever · 'fixed': E_K, E_Cl constant · 'nernst': from the live counts
   E: { K:-90, CL:-75 },  // mV, used by 'fixed'
   pumpAuto: true,        // the pump re-arms itself; false waits for m.spend()
@@ -161,7 +161,7 @@ const m = Membrane.mount(el, {
 });
 ```
 
-Outside is +y (top), inside is −y (bottom). The sheet is an oily bilayer: water and small gases cross it, ions do not. A K⁺ channel admits K⁺ by hydration (Na⁺ is smaller and still refused, because it holds its water too tightly). A Cl⁻ channel admits by charge. The Na⁺/K⁺ pump carries 3 Na⁺ out and 2 K⁺ in per ATP, never open at both ends. With the potential on, every K⁺ leaving builds the voltage that stops the leak.
+Outside is +y (top), inside is −y (bottom). The sheet is an oily bilayer: water and small gases cross it, ions do not. A K⁺ channel admits K⁺ by hydration (Na⁺ is smaller and still refused, because it holds its water too tightly). A Cl⁻ channel admits by charge. A Na⁺ leak channel (`NA`) lets sodium in down its gradient, which is what gives the pump work to do. An aquaporin (`AQP`) passes water in single file and nothing charged, so water crosses fast where one stands; it still seeps through the lipid on its own. The Na⁺/K⁺ pump carries 3 Na⁺ out and 2 K⁺ in per ATP, never open at both ends. With the potential on, every K⁺ leaving builds the voltage that stops the leak. A cell that is honest about seawater has `NA`, `K` and `pump`; an osmosis lesson at the kidney has `AQP`.
 
 Populating it. The box starts empty. Say what is dissolved on each side and the module keeps the stage matching it:
 
@@ -189,12 +189,12 @@ Defaults do the right thing: ions walk slower and are blocked by the bilayer, wa
 | `net` | `'entering'`, `'leaving'` or `'balanced'`: the verdict to print for water. It is read off the free-water headcount per side, which is what osmosis is, so it is right from the first frame |
 | `crossings.up / .down`, `netRecent` | what actually happened: lifetime crossings each way, and a recent net that decays to 0 at equilibrium (positive means leaving the cell). Noisy for the first half minute at this crowd size, so print it as a count, not a direction |
 | `mV`, `equilibrium.K`, `equilibrium.CL` | membrane potential and each ion's equilibrium potential |
-| `crossed.K`, `crossed.CL` | net charge through each channel |
+| `crossed.K`, `crossed.CL`, `crossed.NA`, `crossed.water` | net transits through each channel, signed outward |
 | `atpSpent`, `pumpRunning`, `pumpPhase`, `pumpT` | the pump's ledger and where it is in its cycle |
 
 Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `conduct` (traveller, dir) through a channel · `turn` (n) a pump turn starting · `turned` (n) one finishing.
 
-Anchors for `note()`: `channel.K`, `channel.CL`, `pump` (each only when that protein is in the layout), `heads` and `tails` (the bilayer's two halves), `outside`, `inside`, and one molecule of each kind on stage: `water`, `NA`, `K`, `CL`, `A`. "What are the two proteins?" is `m.notes(['channel.K', 'pump'])`.
+Anchors for `note()`: `channel.K`, `channel.CL`, `channel.NA`, `aquaporin`, `pump` (each only when that protein is in the layout), `heads` and `tails` (the bilayer's two halves), `outside`, `inside`, and one molecule of each kind on stage: `water`, `NA`, `K`, `CL`, `A`. "What are the two proteins?" is `m.notes(['channel.K', 'pump'])`.
 
 Layers for `show()`: `water`, `ions`, `badges` (the charge signs), `shells`, `cut` (proteins cut open), `membrane`.
 

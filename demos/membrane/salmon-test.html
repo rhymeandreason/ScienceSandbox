@@ -88,10 +88,12 @@
 <script>
 const $ = id => document.getElementById(id);
 
-/* One cell, a K⁺ channel and a Na⁺/K⁺ pump in its membrane, as at rest in
-   membrane-lab. The pump runs itself: a fish does not press a button. */
+/* One cell with the four doors a gill cell needs: a Na⁺ leak so salt gets
+   in, the K⁺ channel and the pump as at rest in membrane-lab, and an
+   aquaporin so water moves the way a gill's does. The pump runs itself: a
+   fish does not press a button. */
 const m = Membrane.mount($('stage'), {
-  proteins: { K:{ x:-36 }, pump:{ x:36 } },
+  proteins: { NA:{ x:-108 }, K:{ x:-36 }, pump:{ x:36 }, AQP:{ x:108 } },
   potential: 'nernst', pumpAuto: true, pumpOn: true,
 });
 
