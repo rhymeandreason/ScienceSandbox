@@ -654,6 +654,7 @@
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
       layers: sim.layers, show: (n, on) => { sim.show(n, on); return this; }, palette: sim.palette,
+      featured: () => ({ notes: ['canopy', 'trunk', 'roots', 'air'], layers: ['co2', 'o2', 'h2o', 'piles'] }),
       set(next) { sim.set(next); return this; },
       state: () => last || sim.state(),
       on: sim.on,

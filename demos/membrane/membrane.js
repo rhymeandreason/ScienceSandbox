@@ -1035,6 +1035,10 @@
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
       layers: sim.layers, show: (n, on) => { sim.show(n, on); if (!box.running) box.draw(); return this; }, palette: sim.palette,
+      /* What the panel offers first: the proteins standing in the sheet and
+         the two compartments; the switches a student reaches for. */
+      featured: () => ({ notes: ['channel.K', 'channel.CL', 'channel.NA', 'aquaporin', 'pump', 'outside', 'inside'],
+                         layers: ['shells', 'badges', 'water'] }),
       set(next) { sim.set(next); return this; },
       state: () => last || sim.state(),
       on: sim.on, spend: sim.spend,

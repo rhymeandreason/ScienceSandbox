@@ -626,7 +626,13 @@ window.Notebook = (function () {
       clear();
       if (names) for (const n of names) note(n);
     }
-    const list = () => Object.keys(anchors).map(k => Object.assign({ name: k }, library[k] || {}));
+    /* `present` is whether the part is on stage right now, so a panel can
+       leave out the pump in a layout with no pump. */
+    const list = () => Object.keys(anchors).map(k => {
+      const a = anchors[k];
+      const present = typeof a === 'function' ? !!a() : true;
+      return Object.assign({ name: k, present }, library[k] || {});
+    });
     function step() { if (layer) layer.step(); }
     return { note, unnote, notes, clear, list, step, get layer() { return layer; } };
   }

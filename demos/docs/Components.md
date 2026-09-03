@@ -97,7 +97,7 @@ CardStage.showPanel(container, c);                   // on the sidebar page: int
 ctx.ui.showPanel(c, { only: ['notes', 'layers'] });  // on the step-through shell: into the step's controls
 ```
 
-`only` picks any of `'notes'`, `'layers'`, `'legend'`. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
+`only` picks any of `'notes'`, `'layers'`, `'legend'`. The panel is curated: it offers the component's featured few and a "more…" chip for the rest, and never a part that is not on stage. Pass `notes: ['pump', 'outside']` or `layers: ['water']` to choose exactly what a step offers, which is usually right: a step about the pump offers the pump. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
 
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 
