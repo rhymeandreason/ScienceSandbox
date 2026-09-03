@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Leaf Cross-Section</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #f4f6f2; }
+  canvas { display: block; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "lil-gui": "https://cdn.jsdelivr.net/npm/lil-gui@0.19.2/dist/lil-gui.esm.js"
+  }
+}
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import GUI from 'lil-gui';
+
+// ---------- seeded random ----------
+let seed = 1337;
+function rand() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+function rrange(a, b) { return a + (b - a) * rand(); }
+
+// ---------- renderer / scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf4f6f2);
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(16, 10, 20);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(0, 1.5, 0);
+controls.maxPolarAngle = Math.PI * 0.55;
+
+// ---------- lights ----------
+scene.add(new THREE.HemisphereLight(0xdfe9d0, 0x6b7a4a, 0.9));
+const key = new THREE.DirectionalLight(0xfff4e0, 2.2);
+key.position.set(12, 18, 10);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -14; key.shadow.camera.right = 14;
+key.shadow.camera.top = 14; key.shadow.camera.bottom = -14;
+key.shadow.bias = -0.0004;
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xcfe0ff, 0.6);
+fill.position.set(-10, 6, -8);
+scene.add(fill);
+
+// ---------- dimensions ----------
+const W = 14, D = 7;            // block width (x) and depth (z)
+const H = {                     // layer heights
+  cuticle: 0.12, upperEpi: 0.7, palisade: 2.4, spongy: 2.6, lowerEpi: 0.7,
+};
+// y positions (bottom of each layer)
+const Y = {};
+Y.lowerEpi = 0;
+Y.spongy = Y.lowerEpi + H.lowerEpi;
+Y.palisade = Y.spongy + H.spongy;
+Y.upperEpi = Y.palisade + H.palisade;
+Y.cuticle = Y.upperEpi + H.upperEpi;
+
+// ---------- materials ----------
+function mat(color, opts = {}) {
+  return new THREE.MeshPhysicalMaterial({
+    color, roughness: 0.55, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.5, ...opts,
+  });
+}
+const M = {
+  epiWall: mat(0xe6e9b3, { roughness: 0.45 }),
+  epiCell: mat(0xc9d878, { roughness: 0.4, clearcoat: 0.5 }),
+  cuticle: mat(0xd6dfa2, { transparent: true, opacity: 0.55, roughness: 0.15, clearcoat: 1 }),
+  palisade: mat(0xd6b93a, { roughness: 0.5 }),
+  palisadeBand: mat(0x6f8a2c, { roughness: 0.6 }),
+  spongy: mat(0x7fa23a, { roughness: 0.65 }),
+  spongyDark: mat(0x5d7f2a, { roughness: 0.7 }),
+  chloro: mat(0x3f6b1e, { roughness: 0.6 }),
+  sheath: mat(0x6f8cad, { roughness: 0.4, clearcoat: 0.6 }),
+  sheathInner: mat(0x4a6482, { roughness: 0.5 }),
+  xylem: mat(0xf0a020, { roughness: 0.35, clearcoat: 0.7 }),
+  phloem: mat(0xe8c75a, { roughness: 0.45 }),
+  guard: mat(0x8fb040, { roughness: 0.4, clearcoat: 0.6 }),
+  base: mat(0xdfe5c4, { roughness: 0.8 }),
+};
+
+// ---------- layer groups ----------
+const layers = {};
+const root = new THREE.Group();
+scene.add(root);
+function layer(name, baseY) {
+  const g = new THREE.Group();
+  g.userData.baseY = baseY;
+  g.userData.name = name;
+  layers[name] = g;
+  root.add(g);
+  return g;
+}
+
+function setShadow(m) { m.castShadow = true; m.receiveShadow = true; return m; }
+
+// ---------- builders ----------
+function buildEpidermis(g, y, h, top) {
+  const cellW = 0.85, cellD = 0.85;
+  const nx = Math.round(W / cellW), nz = Math.round(D / cellD);
+  const wall = new RoundedBoxGeometry(cellW * 0.96, h, cellD * 0.96, 3, 0.16);
+  const inner = new RoundedBoxGeometry(cellW * 0.7, h * 0.62, cellD * 0.7, 3, 0.14);
+  const wallMesh = new THREE.InstancedMesh(wall, M.epiWall, nx * nz);
+  const innerMesh = new THREE.InstancedMesh(inner, M.epiCell, nx * nz);
+  const dummy = new THREE.Object3D();
+  let i = 0;
+  for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) {
+    const x = -W / 2 + (ix + 0.5) * cellW + rrange(-0.04, 0.04);
+    const z = -D / 2 + (iz + 0.5) * cellD + rrange(-0.04, 0.04);
+    const wave = Math.sin(x * 0.55) * 0.12 * (top ? 1 : 0.6);
+    dummy.position.set(x, y + h / 2 + wave, z);
+    dummy.rotation.set(0, 0, 0);
+    dummy.scale.set(1, rrange(0.92, 1.06), 1);
+    dummy.updateMatrix();
+    wallMesh.setMatrixAt(i, dummy.matrix);
+    innerMesh.setMatrixAt(i, dummy.matrix);
+    i++;
+  }
+  g.add(setShadow(wallMesh), setShadow(innerMesh));
+
+  if (top) {
+    // cuticle sheet
+    const cut = new THREE.Mesh(new RoundedBoxGeometry(W + 0.2, H.cuticle, D + 0.2, 2, 0.05), M.cuticle);
+    cut.position.set(0, y + h + H.cuticle / 2 + 0.06, 0);
+    g.add(cut);
+  } else {
+    // stomata on lower epidermis
+    const guardGeo = new THREE.CapsuleGeometry(0.14, 0.42, 6, 14);
+    const count = Math.round(W * D * 0.14);
+    for (let s = 0; s < count; s++) {
+      const x = rrange(-W / 2 + 0.6, W / 2 - 0.6), z = rrange(-D / 2 + 0.6, D / 2 - 0.6);
+      const rot = rrange(0, Math.PI);
+      const st = new THREE.Group();
+      st.position.set(x, y - 0.02, z);
+      st.rotation.y = rot;
+      for (const side of [-1, 1]) {
+        const gm = setShadow(new THREE.Mesh(guardGeo, M.guard));
+        gm.rotation.z = Math.PI / 2;
+        gm.rotation.x = side * 0.15;
+        gm.position.x = 0;
+        gm.position.z = side * 0.17;
+        // bend outward: scale a bit
+        gm.scale.set(1, 1, 1.15);
+        st.add(gm);
+      }
+      g.add(st);
+    }
+  }
+}
+
+function buildPalisade(g, y, h) {
+  const r = 0.28, sx = 0.66, sz = 0.66;
+  const nx = Math.floor(W / sx), nz = Math.floor(D / sz);
+  const geo = new THREE.CapsuleGeometry(r, h - 2 * r, 4, 12);
+  const bandGeo = new THREE.TorusGeometry(r * 0.98, 0.045, 6, 18);
+  const mesh = new THREE.InstancedMesh(geo, M.palisade, nx * nz);
+  const bandCountPer = 5;
+  const bands = new THREE.InstancedMesh(bandGeo, M.palisadeBand, nx * nz * bandCountPer);
+  const dummy = new THREE.Object3D();
+  let i = 0, b = 0;
+  for (let ix = 0; ix < nx; ix++) for (let iz = 0; iz < nz; iz++) {
+    const x = -W / 2 + (ix + 0.5) * sx + (iz % 2 ? sx * 0.25 : 0) + rrange(-0.05, 0.05);
+    const z = -D / 2 + (iz + 0.5) * sz + rrange(-0.05, 0.05);
+    if (x > W / 2 - r) continue;
+    const hh = h * rrange(0.9, 1.0);
+    const tilt = rrange(-0.05, 0.05);
+    dummy.position.set(x, y + h / 2, z);
+    dummy.rotation.set(tilt, 0, rrange(-0.05, 0.05));
+    dummy.scale.set(rrange(0.9, 1.05), hh / h, rrange(0.9, 1.05));
+    dummy.updateMatrix();
+    mesh.setMatrixAt(i++, dummy.matrix);
+    // chloroplast bands
+    for (let k = 0; k < bandCountPer; k++) {
+      const t = (k + 0.5) / bandCountPer + rrange(-0.05, 0.05);
+      const by = y + r + (hh - 2 * r) * t;
+      dummy.position.set(x, by, z);
+      dummy.rotation.set(Math.PI / 2 + tilt, 0, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      bands.setMatrixAt(b++, dummy.matrix);
+    }
+  }
+  mesh.count = i; bands.count = b;
+  g.add(setShadow(mesh), setShadow(bands));
+}
+
+function buildSpongy(g, y, h, bundle) {
+  const cellGeo = new THREE.SphereGeometry(1, 14, 10);
+  const chloroGeo = new THREE.SphereGeometry(0.075, 6, 5);
+  const placed = [];
+  const attempts = 9000;
+  for (let a = 0; a < attempts; a++) {
+    const rx = rrange(0.3, 0.6), ry = rrange(0.24, 0.42), rz = rrange(0.3, 0.6);
+    const x = rrange(-W / 2 + rx, W / 2 - rx);
+    const z = rrange(-D / 2 + rz, D / 2 - rz);
+    const yy = rrange(y + ry * 0.9, y + h - ry * 0.9);
+    // keep out of vascular bundle
+    const dx = x - bundle.x, dy = yy - bundle.y;
+    if (Math.sqrt(dx * dx + dy * dy) < bundle.r + Math.max(rx, ry) * 0.9) continue;
+    let ok = true;
+    for (const p of placed) {
+      const ddx = p.x - x, ddy = p.y - yy, ddz = p.z - z;
+      const minD = (p.r + Math.max(rx, rz)) * 0.62;
+      if (ddx * ddx + ddy * ddy + ddz * ddz < minD * minD) { ok = false; break; }
+    }
+    if (!ok) continue;
+    placed.push({ x, y: yy, z, r: Math.max(rx, rz), rx, ry, rz });
+  }
+  const cells = new THREE.InstancedMesh(cellGeo, M.spongy, placed.length);
+  const cellsDark = new THREE.InstancedMesh(cellGeo, M.spongyDark, placed.length);
+  const chloro = new THREE.InstancedMesh(chloroGeo, M.chloro, placed.length * 8);
+  const dummy = new THREE.Object3D();
+  let ci = 0, di = 0, ch = 0;
+  placed.forEach((p) => {
+    dummy.position.set(p.x, p.y, p.z);
+    dummy.rotation.set(rrange(0, 3), rrange(0, 3), rrange(0, 3));
+    dummy.scale.set(p.rx, p.ry, p.rz);
+    dummy.updateMatrix();
+    if (rand() < 0.35) cellsDark.setMatrixAt(di++, dummy.matrix); else cells.setMatrixAt(ci++, dummy.matrix);
+    for (let k = 0; k < 8; k++) {
+      const th = rrange(0, Math.PI * 2), ph = Math.acos(rrange(-1, 1));
+      dummy.position.set(
+        p.x + p.rx * 0.95 * Math.sin(ph) * Math.cos(th),
+        p.y + p.ry * 0.95 * Math.cos(ph),
+        p.z + p.rz * 0.95 * Math.sin(ph) * Math.sin(th));
+      dummy.rotation.set(0, 0, 0);
+      dummy.scale.set(1, 1, 1);
+      dummy.updateMatrix();
+      chloro.setMatrixAt(ch++, dummy.matrix);
+    }
+  });
+  cells.count = ci; cellsDark.count = di; chloro.count = ch;
+  g.add(setShadow(cells), setShadow(cellsDark), setShadow(chloro));
+}
+
+function buildBundle(g, bundle) {
+  const len = D + 0.3;
+  const sheath = setShadow(new THREE.Mesh(new THREE.CylinderGeometry(bundle.r, bundle.r, len, 40, 1), M.sheath));
+  sheath.rotation.x = Math.PI / 2;
+  sheath.position.set(bundle.x, bundle.y, 0);
+  g.add(sheath);
+  // sheath cells (bumps) around the outside
+  const bumpGeo = new THREE.SphereGeometry(0.16, 8, 6);
+  const n = 26, rows = Math.round(len / 0.32);
+  const bumps = new THREE.InstancedMesh(bumpGeo, M.sheathInner, n * rows);
+  const dummy = new THREE.Object3D();
+  let bi = 0;
+  for (let rw = 0; rw < rows; rw++) for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2 + (rw % 2) * (Math.PI / n);
+    dummy.position.set(bundle.x + Math.cos(a) * bundle.r, bundle.y + Math.sin(a) * bundle.r, -len / 2 + (rw + 0.5) * 0.32);
+    dummy.scale.set(1, 1, 1.2);
+    dummy.rotation.set(0, 0, 0);
+    dummy.updateMatrix();
+    bumps.setMatrixAt(bi++, dummy.matrix);
+  }
+  g.add(setShadow(bumps));
+  // inner core disc (darker) on cut face
+  const core = new THREE.Mesh(new THREE.CylinderGeometry(bundle.r * 0.8, bundle.r * 0.8, len + 0.02, 40, 1), M.sheathInner);
+  core.rotation.x = Math.PI / 2;
+  core.position.set(bundle.x, bundle.y, 0);
+  g.add(core);
+  // xylem: hex packed tubes in upper half, phloem smaller tubes in lower half
+  const tubeGeo = new THREE.CylinderGeometry(1, 1, len + 0.06, 10, 1);
+  const xy = [], ph = [];
+  const rr = bundle.r * 0.8;
+  const step = 0.19;
+  for (let j = -8; j <= 8; j++) for (let i = -8; i <= 8; i++) {
+    const px = (i + (j % 2 ? 0.5 : 0)) * step;
+    const py = j * step * 0.87;
+    const d = Math.sqrt(px * px + py * py);
+    if (py > 0.1) { if (d < rr - 0.12) xy.push([px, py, step * 0.5 * rrange(0.85, 1)]); }
+    else if (py < -0.05) { if (d < rr - 0.12) ph.push([px, py, step * 0.36 * rrange(0.8, 1)]); }
+  }
+  const xylem = new THREE.InstancedMesh(tubeGeo, M.xylem, xy.length);
+  const phloem = new THREE.InstancedMesh(tubeGeo, M.phloem, ph.length);
+  const fillTube = (mesh, arr) => {
+    arr.forEach(([px, py, r], idx) => {
+      dummy.position.set(bundle.x + px, bundle.y + py, 0);
+      dummy.rotation.set(Math.PI / 2, 0, 0);
+      dummy.scale.set(r, 1, r);
+      dummy.updateMatrix();
+      mesh.setMatrixAt(idx, dummy.matrix);
+    });
+  };
+  fillTube(xylem, xy); fillTube(phloem, ph);
+  g.add(setShadow(xylem), setShadow(phloem));
+}
+
+// ---------- assemble ----------
+const bundle = { x: 2.2, y: Y.spongy + H.spongy * 0.5, r: 1.15 };
+
+function build() {
+  for (const k in layers) { root.remove(layers[k]); delete layers[k]; }
+  buildEpidermis(layer('upperEpi', Y.upperEpi), Y.upperEpi, H.upperEpi, true);
+  buildPalisade(layer('palisade', Y.palisade), Y.palisade, H.palisade);
+  buildSpongy(layer('spongy', Y.spongy), Y.spongy, H.spongy, bundle);
+  buildBundle(layer('bundle', Y.spongy), bundle);
+  buildEpidermis(layer('lowerEpi', Y.lowerEpi), Y.lowerEpi, H.lowerEpi, false);
+  applyExplode();
+}
+
+// ground shadow catcher
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.6;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// ---------- interaction ----------
+const params = { explode: 0, regenerate: () => { seed = (Math.random() * 1e9) >>> 0; build(); }, autoRotate: false };
+const order = ['lowerEpi', 'bundle', 'spongy', 'palisade', 'upperEpi'];
+function applyExplode() {
+  order.forEach((n, i) => {
+    const g = layers[n];
+    if (!g) return;
+    const idx = n === 'bundle' ? 2 : i; // bundle explodes with spongy
+    g.position.y = params.explode * idx * 1.6;
+  });
+}
+const gui = new GUI({ title: '' });
+gui.add(params, 'explode', 0, 1, 0.01).onChange(applyExplode);
+gui.add(params, 'autoRotate');
+gui.add(params, 'regenerate');
+
+// hover highlight per layer
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2(-2, -2);
+let hovered = null;
+addEventListener('pointermove', (e) => {
+  pointer.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+});
+addEventListener('click', () => {
+  if (!hovered) return;
+  // toggle a gentle isolate: fade other layers
+  const isolate = !root.userData.isolated || root.userData.isolated !== hovered;
+  root.userData.isolated = isolate ? hovered : null;
+  for (const n in layers) {
+    layers[n].traverse((o) => {
+      if (!o.isMesh) return;
+      const mm = o.material;
+      if (!mm.userData.baseOpacity) { mm.userData.baseOpacity = mm.opacity; mm.userData.baseTransparent = mm.transparent; }
+      const dim = isolate && n !== hovered;
+      mm.transparent = dim ? true : mm.userData.baseTransparent;
+      mm.opacity = dim ? 0.12 : mm.userData.baseOpacity;
+      mm.depthWrite = !dim;
+    });
+  }
+});
+
+function findLayer(obj) {
+  let o = obj;
+  while (o && !o.userData.name) o = o.parent;
+  return o ? o.userData.name : null;
+}
+
+// ---------- loop ----------
+build();
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const emissiveMap = new Map();
+function setHighlight(name, on) {
+  const g = layers[name];
+  if (!g) return;
+  g.traverse((o) => {
+    if (!o.isMesh) return;
+    o.material.emissive = o.material.emissive || new THREE.Color();
+    o.material.emissive.setHex(on ? 0x223311 : 0x000000);
+  });
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.autoRotate = params.autoRotate;
+  controls.update();
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(root.children, true);
+  const name = hits.length ? findLayer(hits[0].object) : null;
+  if (name !== hovered) {
+    if (hovered) setHighlight(hovered, false);
+    hovered = name;
+    if (hovered) setHighlight(hovered, true);
+    document.body.style.cursor = hovered ? 'pointer' : 'default';
+  }
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

@@ -51,10 +51,6 @@
     /* the extension door: a blue that belongs to no unit, so it reads as a
        kind of question rather than as a region */
     --ext: #2f5fb5;
-    /* the map is a canvas filling the window, so the geometric face is the
-       page's voice here rather than only its display face */
-    --sans:  var(--font-display);
-    --serif: var(--font-editorial);
   }
 
   /* THE MAP IS THE WHOLE WINDOW. Nothing scrolls: pan and zoom are the only
@@ -75,9 +71,9 @@
   /* kodo.css's `.btn` is the sketchbook's drawn rectangle. The map's is a
      quiet micro-cap chip, so it is stated in full rather than modified. */
   .btn {
-    font-family: var(--sans); font-size: 0.68rem; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.68rem; font-weight: 500;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
-    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 3px;
     padding: 0.45rem 0.75rem; cursor: pointer;
     transition: color .15s, border-color .15s;
   }
@@ -91,10 +87,10 @@
   .modes {
     position: fixed; left: clamp(1rem, 3vw, 2rem); bottom: 1.1rem; z-index: 8;
     display: flex; gap: 2px; padding: 2px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 999px;
   }
   .modes .mode {
-    font-family: var(--sans); font-size: 0.62rem; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.62rem; font-weight: 500;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
     background: none; border: 0; border-radius: 999px;
     padding: 0.4rem 0.85rem; cursor: pointer;
@@ -139,7 +135,7 @@
            text-rendering: geometricPrecision; -webkit-text-size-adjust: none; }
   #edges { position: absolute; overflow: visible; pointer-events: none; }
   #edges text {
-    font-family: var(--sans); font-size: 10px; font-weight: 500;
+    font-family: var(--font-display); font-size: 10px; font-weight: 500;
     letter-spacing: 0.12em; text-transform: uppercase;
     fill: var(--muted); opacity: 0; transition: opacity .18s;
     paint-order: stroke; stroke: var(--paper); stroke-width: 3px;
@@ -154,9 +150,9 @@
   .hilite { position: relative; margin-right: 0.9rem; }
   .hilite select { display: none; }
   .hbtn {
-    font-family: var(--ui); font-size: 0.7rem; letter-spacing: 0.04em;
-    color: var(--ink); background: var(--card);
-    border: 1px solid var(--line); border-radius: 3px;
+    font-family: var(--font-ui); font-size: 0.7rem; letter-spacing: 0.04em;
+    color: var(--ink); background: var(--surface-card);
+    border: 1px solid var(--border-hair); border-radius: 3px;
     padding: 0.35rem 0.55rem; cursor: pointer;
     display: inline-flex; align-items: center; gap: 0.5rem; min-width: 9rem;
     transition: border-color .15s;
@@ -171,7 +167,7 @@
   .hmenu {
     position: absolute; top: calc(100% + 0.35rem); right: 0; z-index: 20;
     min-width: 13rem; max-height: 62vh; overflow-y: auto;
-    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 3px;
     box-shadow: 0 14px 34px -12px rgba(20, 22, 26, .28);
     padding: 0.25rem 0;
   }
@@ -179,13 +175,13 @@
   /* the rule rides on the heading, so every group is divided from what is
      above it and the first one is divided from the `all` row */
   .hmenu .hgroup {
-    font-family: var(--sans); font-size: 0.52rem; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.52rem; font-weight: 500;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
     padding: 0.55rem 0.7rem 0.25rem;
-    border-top: 1px solid var(--line); margin-top: 0.3rem;
+    border-top: 1px solid var(--border-hair); margin-top: 0.3rem;
   }
   .hmenu .hopt {
-    font-family: var(--ui); font-size: 0.72rem; color: var(--ink);
+    font-family: var(--font-ui); font-size: 0.72rem; color: var(--ink);
     display: flex; align-items: center; gap: 0.5rem; width: 100%;
     background: none; border: 0; text-align: left; cursor: pointer;
     padding: 0.32rem 0.7rem;
@@ -200,7 +196,7 @@
   body.highlighting:not(.focusing) .node.unlit { opacity: 0.28; }
   body.highlighting:not(.focusing) .node.unlit.hi { opacity: 1; }
   body.highlighting:not(.focusing) .node.card.unlit.hi {
-    background: var(--card); border-color: var(--line);
+    background: var(--surface-card); border-color: var(--border-hair);
   }
   body.highlighting:not(.focusing) .node.card.unlit.hi .name {
     font-size: 0.92em; color: var(--ink); font-weight: 600;
@@ -232,7 +228,7 @@
      the bar off the map for the moment the reader is in it. */
   .askrow {
     display: flex; align-items: stretch;
-    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 999px;
     box-shadow: 0 6px 18px -14px rgba(20, 22, 26, .3);
     transition: border-color .15s, box-shadow .2s;
   }
@@ -244,7 +240,7 @@
      built yet, and a dead Enter with no answer reads as a broken field */
   .askbar.miss .askrow { border-color: var(--spark); }
   #askinput {
-    flex: 1; min-width: 0; font-family: var(--serif); font-size: 1rem;
+    flex: 1; min-width: 0; font-family: var(--font-editorial); font-size: 1rem;
     color: var(--ink); background: none; border: 0; outline: none;
     padding: 0.6rem 0.4rem 0.6rem 1.15rem;
   }
@@ -267,18 +263,18 @@
     width: 2.6rem; height: 2.6rem; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-size: 0.95rem;
-    background: var(--card); border: 1px solid var(--line);
+    background: var(--surface-card); border: 1px solid var(--border-hair);
     color: var(--muted); cursor: pointer;
     box-shadow: 0 14px 34px -18px rgba(20, 22, 26, .3);
     transition: color .15s, border-color .15s, background .15s;
   }
   .asklink:hover { color: var(--ext); border-color: var(--ext); }
-  .asklink.done { background: var(--ext); border-color: var(--ext); color: var(--card); }
+  .asklink.done { background: var(--ext); border-color: var(--ext); color: var(--surface-card); }
   /* A generated card wears its provenance. Same shape as a card so it reads in
      the same glance, dashed so it never reads as one. */
   .node.card.made {
     border-style: dashed; border-color: var(--ext);
-    background: color-mix(in srgb, var(--ext) 4%, var(--card));
+    background: color-mix(in srgb, var(--ext) 4%, var(--surface-card));
   }
   .node.card.made .name { color: var(--ext); }
   /* THE READER'S OWN QUESTION, ON THE MAP. It is the reason everything under
@@ -286,7 +282,7 @@
      same blue, because it is no more authored than the cards it produced. */
   .node.question.made {
     border-style: dashed; border-color: var(--ext);
-    background: color-mix(in srgb, var(--ext) 4%, var(--card));
+    background: color-mix(in srgb, var(--ext) 4%, var(--surface-card));
   }
   .tag.made { color: var(--ext); border-color: color-mix(in srgb, var(--ext) 35%, transparent); }
   /* a generated EDGE is dashed too: the claim it makes was not authored either */
@@ -295,9 +291,9 @@
   /* the same primary pill a concept wears for its lesson, in the extension
      blue: the map's one filled control, and this is the same kind of act */
   .askbuild {
-    font-family: var(--sans); font-size: 0.72rem; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.72rem; font-weight: 500;
     letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--card); background: var(--ext);
+    color: var(--surface-card); background: var(--ext);
     border: 1px solid transparent; border-radius: 999px;
     padding: 0.62em 1.15em; margin-left: 0.7rem;
     cursor: pointer; white-space: nowrap;
@@ -316,7 +312,7 @@
      size that is read rather than squinted at. It sits above a 1rem field and
      under nothing, and it was losing to both at 0.68. */
   .asknote {
-    font-family: var(--serif); font-size: 1.15rem; line-height: 1.35;
+    font-family: var(--font-editorial); font-size: 1.15rem; line-height: 1.35;
     letter-spacing: -0.01em; color: var(--ink);
     text-align: center; padding: 0 0.2rem 0.55rem;
   }
@@ -333,20 +329,20 @@
   .asklist {
     position: absolute; left: 0; right: 0; bottom: calc(100% + 0.4rem);
     max-height: 46vh; overflow-y: auto;
-    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 3px;
     box-shadow: 0 14px 34px -12px rgba(20, 22, 26, .28);
     padding: 0.25rem 0;
   }
   .asklist[hidden] { display: none; }
   .askgroup {
-    font-family: var(--sans); font-size: 0.52rem; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.52rem; font-weight: 500;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
     padding: 0.55rem 0.7rem 0.25rem;
-    border-top: 1px solid var(--line); margin-top: 0.3rem;
+    border-top: 1px solid var(--border-hair); margin-top: 0.3rem;
   }
   .asklist .askgroup:first-child { border-top: 0; margin-top: 0; }
   .askopt {
-    font-family: var(--serif); font-size: 0.85rem; color: var(--ink);
+    font-family: var(--font-editorial); font-size: 0.85rem; color: var(--ink);
     display: block; width: 100%; text-align: left;
     background: none; border: 0; cursor: pointer; padding: 0.34rem 0.7rem;
   }
@@ -372,7 +368,7 @@
     color: #c9c5ba; transition: color .18s;
   }
   .gutter .rung i {
-    width: 14px; height: 2px; background: var(--line); flex: none;
+    width: 14px; height: 2px; background: var(--border-hair); flex: none;
     transition: background .18s, width .18s;
   }
   .gutter .rung.on { color: var(--ink); }
@@ -402,8 +398,8 @@
   .node.card {
     width: 17.5rem;
     padding: 0.85rem 1rem 0.9rem;
-    background: var(--card);
-    border: 1px solid var(--line);
+    background: var(--surface-card);
+    border: 1px solid var(--border-hair);
     text-align: left;
   }
   .node.card .name {
@@ -414,10 +410,10 @@
   /* the dot is the UNIT; chemistry nodes wear the cross-subject tint */
   .node.card .name::before {
     content: ''; width: 7px; height: 7px; border-radius: 50%;
-    background: var(--dot, var(--line)); flex: none;
+    background: var(--dot, var(--border-hair)); flex: none;
   }
   .node.card .claim {
-    font-family: var(--serif); font-size: 1rem; line-height: 1.28;
+    font-family: var(--font-editorial); font-size: 1rem; line-height: 1.28;
     color: var(--ink); margin-top: 0.35rem; letter-spacing: -0.005em;
     display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
     overflow: hidden;
@@ -433,7 +429,7 @@
   .node .thumb {
     position: relative; overflow: hidden;
     width: 100%; aspect-ratio: 4 / 3; margin: 0.65rem 0 0.25rem;
-    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+    background: #eceae4; border: 1px solid var(--border-hair); border-radius: 3px;
   }
   .node .thumb .ph {
     position: absolute; inset: 0;
@@ -461,7 +457,7 @@
     font-size: 0.55rem; letter-spacing: 0.06em; color: var(--muted);
     margin-top: 0.3rem;
   }
-  .node.card .credit a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
+  .node.card .credit a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--border-hair); }
   .node.card .credit a:hover { color: var(--accent); border-bottom-color: var(--accent); }
   .node.card.unlit .credit { display: none; }
   /* a poster fills its frame; the generated stills are 16:9 in a 4:3 thumb */
@@ -471,9 +467,9 @@
   /* the word the cursor is already saying, for whoever does not read cursors */
   #expandtip {
     position: fixed; top: 0; left: 0; z-index: 9; pointer-events: none;
-    font-family: var(--sans); font-size: 0.55rem; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.55rem; font-weight: 500;
     letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
-    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 3px;
     padding: 0.24rem 0.42rem;
     box-shadow: 0 6px 16px -10px rgba(20, 22, 26, .5);
   }
@@ -488,7 +484,7 @@
   .node.card .tag {
     font-size: 0.52em; font-weight: 500; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted);
-    border: 1px solid var(--line); border-radius: 2px;
+    border: 1px solid var(--border-hair); border-radius: 2px;
     padding: 0.14em 0.34em;
   }
   .node.card .tag.chem   { color: #8a5cc0; border-color: #ded2ef; }
@@ -498,13 +494,13 @@
      runs under its text; only the WHITE ground is reserved for structures */
   .node.card.concept { background: var(--paper); border-color: transparent; }
   .node.card.concept:hover,
-  .node.card.concept.hub { background: var(--card); border-color: var(--line); }
+  .node.card.concept.hub { background: var(--surface-card); border-color: var(--border-hair); }
   .node.card.chem { background: var(--paper); border: 1px dashed #cdbfe3; }
   /* evidence is an experiment, not a claim: card ground, and a rule down the
      left the way a process wears one */
-  .node.card.evidence { border-left: 3px solid var(--dot, var(--line)); }
+  .node.card.evidence { border-left: 3px solid var(--dot, var(--border-hair)); }
   .node.card .tag.eviD { color: var(--dot, var(--accent)); border-color: currentColor; }
-  .node.card.process { border-left: 3px solid var(--dot, var(--line)); }
+  .node.card.process { border-left: 3px solid var(--dot, var(--border-hair)); }
   .node.card.process .name .run {
     color: var(--dot, var(--muted)); font-weight: 600; margin-right: 0.05rem;
   }
@@ -515,20 +511,20 @@
      event rather than another chip. */
   .node.askpill {
     padding: 0.4rem 0.9rem; border-radius: 999px; cursor: pointer;
-    background: var(--card); border: 1px solid var(--dot, var(--accent));
+    background: var(--surface-card); border: 1px solid var(--dot, var(--accent));
     color: var(--dot, var(--accent));
-    font-family: var(--sans); font-size: 0.62rem; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.62rem; font-weight: 500;
     letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
     box-shadow: 0 6px 18px -10px rgba(20,22,26,.35);
     transition: background .15s, color .15s;
   }
-  .node.askpill:hover { background: var(--dot, var(--accent)); color: var(--card); }
+  .node.askpill:hover { background: var(--dot, var(--accent)); color: var(--surface-card); }
 
   /* a revealed kind: a small card, no dot, no chips. It is a leaf and it
      says so by being visibly lighter than the card it hangs off. */
   .node.card.satellite {
     width: 13rem; padding: 0.6rem 0.75rem;
-    background: var(--card); border-color: var(--line);
+    background: var(--surface-card); border-color: var(--border-hair);
     box-shadow: 0 6px 18px -12px rgba(20,22,26,.3);
   }
   .node.card.satellite .name { font-size: 0.55em; }
@@ -542,26 +538,26 @@
      serif and leading, claim demoted to a caption, provenance quiet and
      tabular, EC class as the tag. No dot. */
   .node.card.specimen .name {
-    font-family: var(--serif); font-size: 1.1rem; line-height: 1.2;
+    font-family: var(--font-editorial); font-size: 1.1rem; line-height: 1.2;
     font-weight: 400; letter-spacing: -0.01em; text-transform: none;
     color: var(--ink); display: block;
   }
   .node.card.specimen .name::before { display: none; }
   .node.card.specimen .claim {
-    font-family: var(--ui); font-size: 0.72rem; line-height: 1.4;
+    font-family: var(--font-ui); font-size: 0.72rem; line-height: 1.4;
     color: var(--muted); margin-top: 0.5rem; letter-spacing: 0;
     -webkit-line-clamp: 3;
   }
   .node.card.specimen .thumb { margin-top: 0.55rem; }
   .node.card.specimen .prov {
-    font-family: var(--ui); font-size: 0.63rem; line-height: 1.35;
+    font-family: var(--font-ui); font-size: 0.63rem; line-height: 1.35;
     color: #9a9ca3; margin-top: 0.35rem;
     font-variant-numeric: tabular-nums;
   }
   .node.card.specimen .tag {
     display: inline-flex; align-items: baseline; gap: 0.4rem;
     margin-top: 0.3rem; border: 0; padding: 0;
-    font-family: var(--sans); font-size: 0.56em; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.56em; font-weight: 500;
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent);
   }
   .node.card.specimen .tag span {
@@ -574,7 +570,7 @@
      it does NOT fade with the rest of a card's controls. */
   .node.card.content { width: 15rem; }
   .node.card.content .name {
-    font-family: var(--serif); font-size: 1.05rem; line-height: 1.2;
+    font-family: var(--font-editorial); font-size: 1.05rem; line-height: 1.2;
     font-weight: 400; letter-spacing: -0.01em; text-transform: none;
     color: var(--ink); display: block;
   }
@@ -583,7 +579,7 @@
     display: inline-block; margin-top: 0.4em;
     font-size: 0.52em; font-weight: 500; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted);
-    border: 1px solid var(--line); border-radius: 2px; padding: 0.14em 0.34em;
+    border: 1px solid var(--border-hair); border-radius: 2px; padding: 0.14em 0.34em;
   }
   .node.card.content .thumb { margin-top: 0.55rem; }
   .node.card.content .opens { margin-top: 0.5rem; }
@@ -597,7 +593,7 @@
      on the map, which is the whole point of a call to action. */
   .node.card.content.lesson {
     width: 19rem;
-    border-color: var(--line);
+    border-color: var(--border-hair);
     border-left: 3px solid var(--dot, var(--accent));
     box-shadow: 0 10px 30px -14px rgba(20, 22, 26, 0.3);
   }
@@ -606,16 +602,16 @@
     color: var(--dot, var(--accent)); border-color: currentColor;
   }
   .node.card.content.lesson .claim {
-    font-family: var(--serif); font-size: 0.82em; line-height: 1.34;
+    font-family: var(--font-editorial); font-size: 0.82em; line-height: 1.34;
     color: var(--muted); margin-top: 0.5em;
   }
   .node.card.content.lesson .opener {
-    background: var(--dot, var(--accent)); color: var(--card);
+    background: var(--dot, var(--accent)); color: var(--surface-card);
     border-color: transparent; padding: 0.5em 0.85em; font-size: 0.6em;
     box-shadow: none;
   }
   .node.card.content.lesson .opener:hover {
-    background: var(--ink); color: var(--card); border-color: transparent;
+    background: var(--ink); color: var(--surface-card); border-color: transparent;
   }
   /* fogged, a lesson still reads as the biggest mark in its neighbourhood:
      white ground and its region's rule, against everything else's bare text.
@@ -624,7 +620,7 @@
   .node.card.content.lesson.unlit {
     width: max-content;
     border-left: 3px solid var(--dot, var(--accent));
-    background: var(--card);
+    background: var(--surface-card);
   }
   .node.card.content.lesson.unlit .name { font-size: 0.95em; }
   /* THE TAG SURVIVES THE FOG. Everything else on a content card is withheld
@@ -642,9 +638,9 @@
      display:none. Nothing to click, and clicking did nothing. The name is
      also just truer: this button opens a film as often as a lesson. */
   .node .opener {
-    font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.14em;
+    font-family: var(--font-display); font-size: 0.55rem; letter-spacing: 0.14em;
     text-transform: uppercase; color: var(--muted); cursor: pointer;
-    background: var(--card); border: 1px solid var(--line); border-radius: 3px;
+    background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 3px;
     padding: 0.3rem 0.5rem; box-shadow: 0 5px 16px -8px rgba(0,0,0,.4);
     transition: opacity .18s ease, color .15s, border-color .15s;
   }
@@ -658,14 +654,14 @@
      call to action, so unlike the other controls it does not fade on a card
      that is merely open rather than focused. */
   .node .opener.primary {
-    background: var(--dot, var(--accent)); color: var(--card);
+    background: var(--dot, var(--accent)); color: var(--surface-card);
     border-color: transparent; border-radius: 999px;
     padding: 0.45em 0.95em; font-size: 0.58rem; font-weight: 500;
     opacity: 1; pointer-events: auto;
     box-shadow: 0 6px 18px -8px rgba(20, 22, 26, 0.55);
   }
   .node .opener.primary:hover {
-    background: var(--ink); color: var(--card); border-color: transparent;
+    background: var(--ink); color: var(--surface-card); border-color: transparent;
   }
   /* fogged, a card is a mark: no thumb, no claim, and no button either */
   .node.unlit > .opens { display: none; }
@@ -727,11 +723,11 @@
     color: var(--paper); text-align: center;
   }
   .node.theme .name {
-    font-family: var(--serif); font-size: 1.35rem; line-height: 1.15;
+    font-family: var(--font-editorial); font-size: 1.35rem; line-height: 1.15;
     letter-spacing: -0.015em;
   }
   .node.theme .claim {
-    font-family: var(--ui); font-size: 0.72rem; color: #b6b2a8;
+    font-family: var(--font-ui); font-size: 0.72rem; color: #b6b2a8;
     margin-top: 0.4rem;
   }
 
@@ -744,7 +740,7 @@
     padding: 0.7rem 0.9rem;
     background: var(--paper);
     border: 1px solid transparent;
-    font-family: var(--serif); font-size: 1.6rem; line-height: 1.16;
+    font-family: var(--font-editorial); font-size: 1.6rem; line-height: 1.16;
     letter-spacing: -0.015em; color: var(--ink);
     text-align: center;
   }
@@ -795,7 +791,7 @@
        draw straight through the words — it leaves at the box's centre, which
        is the middle line of the text. */
     background: var(--paper); border-color: transparent; box-shadow: none;
-    font-family: var(--serif); font-size: 3.4rem; line-height: 1.06;
+    font-family: var(--font-editorial); font-size: 3.4rem; line-height: 1.06;
     letter-spacing: -0.025em; font-style: normal;
     color: var(--ink); text-align: left;
   }
@@ -813,7 +809,7 @@
   .node.card.unlit .claim, .node.card.unlit .tags { display: none; }
   .node.card.unlit.process { border-left-color: transparent; }
   .node.theme.unlit {
-    background: var(--paper); border: 1px dashed var(--line); color: var(--ink);
+    background: var(--paper); border: 1px dashed var(--border-hair); color: var(--ink);
     width: max-content;
   }
   /* A MARK IS A MAP LABEL. Below k=1 it counter-scales, so a name stays the
@@ -838,11 +834,11 @@
   .node.card.evidence .name::before { display: none; }
   .node.card.evidence .name .flask {
     flex: none; font-size: 0.95em; width: 1.75em; height: 1.75em;
-    border-radius: 50%; background: var(--dot, var(--line));
+    border-radius: 50%; background: var(--dot, var(--border-hair));
     color: var(--paper); line-height: 1;
     display: inline-flex; align-items: center; justify-content: center;
   }
-  .node.card.evidence:not(.unlit) .name .flask { color: var(--card); }
+  .node.card.evidence:not(.unlit) .name .flask { color: var(--surface-card); }
   /* a mark's name is already 2.4x, so the same em would give a 38px disc.
      This holds the flask at the same ratio to the dot it replaces. */
   .node.card.evidence.unlit .name .flask { font-size: 0.65em; }
@@ -853,25 +849,25 @@
   .node.card.unlit:hover,
   .node.theme.unlit:hover,
   .node.question.unlit:hover {
-    background: var(--card); border-color: var(--line); border-style: solid;
+    background: var(--surface-card); border-color: var(--border-hair); border-style: solid;
   }
   /* a focused card's neighbours present themselves: a mark in the hops
      takes the card ground, so the offer reads as an offer rather than as
      fog that happens to be near */
   .focusing .node.card.unlit.lit {
-    background: var(--card); border-color: var(--line);
+    background: var(--surface-card); border-color: var(--border-hair);
   }
   .focusing .node.theme.unlit.lit {
-    background: var(--card); border-style: solid; border-color: var(--line);
+    background: var(--surface-card); border-style: solid; border-color: var(--border-hair);
   }
 
   /* the focused card's neighbour groups: the direction of learning */
   .node .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; }
   .node .chips:empty { display: none; }
   .chip {
-    font-family: var(--sans); font-size: 0.55rem; font-weight: 500;
+    font-family: var(--font-display); font-size: 0.55rem; font-weight: 500;
     letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
-    background: var(--card); border: 1px solid #cfdcd7; border-radius: 2px;
+    background: var(--surface-card); border: 1px solid #cfdcd7; border-radius: 2px;
     padding: 0.28rem 0.5rem; cursor: pointer;
     transition: color .15s, border-color .15s;
   }
@@ -885,18 +881,18 @@
   .node.question .thumb { margin-top: 0.8rem; }
   .node.question > .opens { justify-content: center; margin-top: 0.6rem; }
   .node.question.haslesson { font-size: 1.5rem; }
-  .node.question.haslesson.lit { background: var(--card); border-color: var(--line); }
+  .node.question.haslesson.lit { background: var(--surface-card); border-color: var(--border-hair); }
   .node.theme .chip { background: transparent; }
 
   .node:hover { border-color: var(--accent); }
-  .node.question:hover { background: var(--card); border-color: var(--line); color: var(--ink); }
+  .node.question:hover { background: var(--surface-card); border-color: var(--border-hair); color: var(--ink); }
 
   /* the number is DIM.out in the script; this is its fallback */
   .focusing .node { opacity: var(--dim-out, 0.18); pointer-events: none; }
   .focusing .node.lit { opacity: 1; pointer-events: auto; }
   .focusing .node.hop2 { opacity: 1; }
   .focusing .node.question.lit {
-    background: var(--card); border-color: var(--line); color: var(--ink);
+    background: var(--surface-card); border-color: var(--border-hair); color: var(--ink);
   }
   /* the blue is the extension door's identity, so it outlives hover and
      focus — both of which repaint a question in ink. Stated after them
@@ -911,7 +907,7 @@
   .node.question.made:hover,
   .focusing .node.question.made.lit {
     border-style: dashed; border-color: var(--ext);
-    background: color-mix(in srgb, var(--ext) 4%, var(--card));
+    background: color-mix(in srgb, var(--ext) 4%, var(--surface-card));
   }
 
   /* ---- the lesson, over the map (kit/modal.js reads this markup) ------- */
@@ -930,7 +926,7 @@
     position: relative;
     display: flex; flex-direction: column; min-height: 0;
     width: min(1280px, 100%); height: min(860px, 100%);
-    background: var(--card); border-radius: 6px; overflow: hidden;
+    background: var(--surface-card); border-radius: 6px; overflow: hidden;
     box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .5);
     animation: mrise .24s cubic-bezier(.2, .9, .3, 1);
   }
@@ -943,7 +939,7 @@
   .modal .mhead {
     flex: none; display: flex; align-items: center; gap: 1rem;
     padding: 0.7rem 0.6rem 0.7rem 1.1rem;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--border-hair);
   }
   .modal .mhead > span:first-child {
     flex: 1;
@@ -951,7 +947,7 @@
     letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted);
   }
   .modal .mclose {
-    font-family: var(--sans); font-size: 1.35rem; line-height: 1;
+    font-family: var(--font-display); font-size: 1.35rem; line-height: 1;
     background: none; border: none; color: var(--muted);
     cursor: pointer; padding: 0.2rem 0.5rem;
   }
@@ -1109,7 +1105,7 @@
   }
   .modal.video .mfull:hover::before { border-color: #fff; }
   .modal.video .mtime {
-    flex: none; font-family: var(--sans); font-size: 0.6rem;
+    flex: none; font-family: var(--font-display); font-size: 0.6rem;
     letter-spacing: 0.06em; color: rgba(242,240,234,.75);
     font-variant-numeric: tabular-nums;
   }
@@ -1155,7 +1151,7 @@
     border-bottom: 1px solid rgba(255,255,255,.08);
   }
   .modal.video .mtracks button {
-    font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.14em;
+    font-family: var(--font-display); font-size: 0.55rem; letter-spacing: 0.14em;
     text-transform: uppercase; cursor: pointer;
     color: rgba(242,240,234,.45);
     background: none; border: 1px solid rgba(255,255,255,.14);
@@ -1168,7 +1164,7 @@
   }
   .modal.video .mtracks .src {
     margin-left: auto;
-    font-family: var(--sans); font-size: 0.55rem; letter-spacing: 0.12em;
+    font-family: var(--font-display); font-size: 0.55rem; letter-spacing: 0.12em;
     text-transform: uppercase; color: rgba(242,240,234,.35);
   }
   /* Underlined rather than coloured: the column is already two greys and a
@@ -1194,7 +1190,7 @@
     display: flex; gap: 0.7rem; align-items: baseline;
     padding: 0.6rem 1.1rem; cursor: pointer;
     color: rgba(242,240,234,.45);
-    font-family: var(--serif); font-size: 1.2rem; line-height: 1.6;
+    font-family: var(--font-editorial); font-size: 1.2rem; line-height: 1.6;
     transition: color .18s ease;
   }
   .modal.video .mcues li:hover { color: rgba(242,240,234,.72); }
@@ -1206,13 +1202,13 @@
   .modal.video .mcues li.on .at { color: var(--spark); }
   .modal.video .mcues .at {
     flex: none; width: 2.4rem;
-    font-family: var(--sans); font-size: 0.62rem; letter-spacing: 0.06em;
+    font-family: var(--font-display); font-size: 0.62rem; letter-spacing: 0.06em;
     color: rgba(242,240,234,.35);
   }
   /* A step number ties the line to the lesson's own ten, which is the same
      numbering glycolysis-lab teaches. */
   .modal.video .mcues .st {
-    flex: none; font-family: var(--sans); font-size: 0.55rem;
+    flex: none; font-family: var(--font-display); font-size: 0.55rem;
     letter-spacing: 0.1em; color: rgba(242,240,234,.3);
   }
   /* Narrow: the column goes back into flow, under the video. */
