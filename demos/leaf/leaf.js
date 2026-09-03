@@ -29,9 +29,7 @@
  *  Events: 'hover' (name | null) · 'select' (name | null) · 'frame' (state)
  *
  *  Three r128 has no CapsuleGeometry and no RoundedBoxGeometry in the global
- *  build, so both are made here: the capsule as a lathe, the rounded box by
- *  clamping a subdivided box's vertices to an inner box and pushing them out
- *  by the radius, which is what the addon does.
+ *  build; lib/geo.js carries both, so load it first.
  * ========================================================================== */
 (function (global) {
   'use strict';
@@ -43,38 +41,8 @@
   };
   const ORDER = ['lowerEpi', 'bundle', 'spongy', 'palisade', 'upperEpi'];
 
-  /* ---- geometry the global build lacks ---- */
-  function capsule(THREE, r, len, capSeg = 6, radial = 14) {
-    const pts = [];
-    for (let i = 0; i <= capSeg; i++) {
-      const a = -Math.PI / 2 + (i / capSeg) * (Math.PI / 2);
-      pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r - len / 2));
-    }
-    for (let i = 0; i <= capSeg; i++) {
-      const a = (i / capSeg) * (Math.PI / 2);
-      pts.push(new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r + len / 2));
-    }
-    return new THREE.LatheGeometry(pts, radial);
-  }
-  function roundedBox(THREE, w, h, d, seg, r) {
-    const g = new THREE.BoxGeometry(w, h, d, seg * 2, seg * 2, seg * 2);
-    const pos = g.attributes.position, nor = g.attributes.normal;
-    const inner = new THREE.Vector3(w / 2 - r, h / 2 - r, d / 2 - r);
-    const p = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
-    for (let i = 0; i < pos.count; i++) {
-      p.fromBufferAttribute(pos, i);
-      c.set(Math.max(-inner.x, Math.min(inner.x, p.x)),
-            Math.max(-inner.y, Math.min(inner.y, p.y)),
-            Math.max(-inner.z, Math.min(inner.z, p.z)));
-      n.subVectors(p, c);
-      if (n.lengthSq() < 1e-12) n.fromBufferAttribute(nor, i);
-      n.normalize();
-      p.copy(c).addScaledVector(n, r);
-      pos.setXYZ(i, p.x, p.y, p.z);
-      nor.setXYZ(i, n.x, n.y, n.z);
-    }
-    return g;
-  }
+  const capsule = (T, ...a) => global.Geo.capsule(T, ...a);
+  const roundedBox = (T, ...a) => global.Geo.roundedBox(T, ...a);
 
   function create(THREE, root, camera, opts = {}) {
     const P = Object.assign({}, DEFAULTS, opts);
@@ -396,6 +364,7 @@
      tissue block needs the layers to shade each other. */
   function mount(el, params = {}) {
     if (!global.CardStage) throw new Error('leaf.js: load kit/card-stage.js first');
+    if (!global.Geo) throw new Error('leaf.js: load lib/geo.js first');
     let leaf = null, last = null;
     const box = global.CardStage.create({
       mount: el,

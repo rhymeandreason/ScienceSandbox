@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where does a tree’s mass come from?</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/geo.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script src="../tree/tree.js"></script>
+<script src="../tree/tree-steps.js"></script>
+<script>
+/* The lesson is three things wired together: the shell (panel, steps,
+   progress), the Tree scene in the shell's stage, and the steps' content.
+   This file is the wiring, and it is the shape a generated step-through
+   app takes. */
+const shell = LessonShell.create({
+  brand: 'The Mass of a Tree',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: TreeSteps.steps,
+  ctx: { state: { guess: null, grown: false, year: 0, diameter: 60, flows: { co2: true, h2o: false, o2: false }, sunOn: true } },
+  onStep(step) {
+    const cam = (shell.narrow() && step.cameraPortrait) || step.camera;
+    if (cam) T.flyTo(cam.pos, cam.target);
+  },
+});
+
+const T = Tree.mount(shell.stage, {
+  growth: 0.02,
+  /* Centre the scene in the room the panel leaves: half the panel's width
+     on a laptop, half its height when it docks to the bottom. */
+  viewOffset: (W, H) => {
+    const r = shell.panelRect();
+    return shell.narrow() ? { x: 0, y: Math.round(r.height / 2) } : { x: -Math.round(r.right / 2), y: 0 };
+  },
+});
+T.on('night', on => shell.theme('is-night', on));
+
+/* The steps talk to the scene through ctx, by the names they were written with. */
+Object.assign(shell.ctx, {
+  tree: T.sim.tree, sapling: T.sim.sapling, flows: T.sim.flows, piles: T.sim.piles, tweens: T.sim.tweens,
+  setDaylight: T.sim.setDaylight, setTreeOpacity: T.sim.setTreeOpacity,
+  showPotScene: T.sim.showPotScene, flowsOff: T.sim.flowsOff, flyTo: T.flyTo,
+});
+
+shell.goTo((() => {
+  const m = /[?&]step=(\d+)/.exec(location.search);
+  return m ? Math.max(1, Math.min(TreeSteps.steps.length, +m[1])) - 1 : 0;
+})());
+</script>
+</body>
+</html>

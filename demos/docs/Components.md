@@ -175,6 +175,64 @@ Layer names, bottom to top: `lowerEpi` (with stomata), `spongy` (air spaces, cel
 
 Good for: leaf anatomy, where gas exchange and photosynthesis happen, what a vein is, structure and function of each tissue. Not for: a single cell's interior, or any process; nothing moves in it.
 
+## Tree — a tree, the air around it, and where its mass came from
+
+```html
+<script src="../lib/geo.js"></script>          <!-- before card-stage.js -->
+<script src="../tree/tree.js"></script>
+```
+
+```js
+const T = Tree.mount(el, {
+  growth: 1,            // 0..1 of the oak; 1 is a 25 m tree
+  daylight: 1,          // 0..1, tweened; below 0.5 the page hears 'night'
+  treeOpacity: 1,       // the oak ghosts so the piles can be read
+  potScene: false,      // Van Helmont's willow in its pot instead of the oak
+  flows: { co2:0, o2:0, h2o:0, minerals:0, ambient:0 },   // each 0..1
+  piles: null,          // 'dry' | 'fresh' takes the tree apart by origin: air, water, soil
+  saplingGrowth: 1,
+  pos: [21, 9.5, 28], target: [0, 6.5, 0],   // first camera
+});
+T.flyTo([5.2, 3.6, 7], [0, 2.3, 0], 1.6);    // a camera flight; a drag cancels it
+```
+
+The organism scale, and choreography rather than physics: CO₂ drifts into the canopy, O₂ leaves it, water and minerals climb the trunk, and the piles show the lesson's shares of dry mass (about 93% from CO₂, 6% from water's hydrogen, 1% minerals). `Tree.PILES` holds those numbers for a legend. `state()` returns the params at their current values. Events: `frame` (state, dt) · `night` (bool), which a page uses to switch the shell's theme.
+
+Good for: where a plant's mass comes from, photosynthesis as traffic, Van Helmont's experiment, scale of carbon stored in a tree. Not for: a leaf's interior (that is Leaf), or any molecule.
+
+## The step-through shell
+
+For an app with a sequence of steps, use the shell instead of the sidebar page. It is the same look every generated lesson takes: a full-window scene, a glass panel with eyebrow, title, body and controls, Back and Next, progress dots.
+
+```html
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+...
+<script src="../kit/lesson-shell.js"></script>
+```
+
+```js
+const shell = LessonShell.create({
+  brand: 'The Mass of a Tree',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { state: {} },                        // handed to every step; the shell adds ui and goTo
+  steps: [{
+    eyebrow: 'Start here', title: 'Where does a tree’s mass come from?',
+    body: '<p>...</p>',                       // or a function of ctx
+    nextLabel: 'Test it',
+    camera: { pos: [21, 9.5, 28], target: [0, 6.5, 0] },
+    onEnter(ctx) { ctx.ui.controls('<button class="btn secondary" id="go">Go</button>'); ctx.ui.q('#go').onclick = ...; },
+    onExit(ctx) {},
+  }],
+  onStep(step) { if (step.camera) T.flyTo(step.camera.pos, step.camera.target); },
+});
+const T = Tree.mount(shell.stage, { viewOffset: (W, H) => ({ x: -Math.round(shell.panelRect().right / 2), y: 0 }) });
+T.on('night', on => shell.theme('is-night', on));
+shell.goTo(0);
+```
+
+`ctx.ui` inside a step: `controls(html)` fills the slot, `q(sel)` and `qa(sel)` find inside it, `show(el)` and `hide(el)`, `setNext(label, visible)`, and `range(input, onChange)`, which paints a slider's track and fires once with its value. The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`. `shell.panelRect()` is what a scene needs to centre itself beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.
+
 ## A chart
 
 Draw one as an inline SVG from a series the page collects in its `frame` handler, one sample a second, over a fixed window. A `<path>` per line, `viewBox="0 0 300 110"`, `preserveAspectRatio="none"`, and the y-axis labelled with the same number the series is bounded by. No chart library.
