@@ -26,11 +26,12 @@
 </head>
 <body>
 <div id="app-sidebar">
-  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="stage"></div>
   <div id="side">
     <h1 style="font-size:17px">water, with no lesson around it</h1>
     <p class="note">
-      <code>water/watersim.js</code> driven directly. Everything here is the
+      <code>water/watersim.js</code> through <code>WaterSim.mount</code>, the
+      declarative box a generated page gets. Everything here is the
       module: the H-bond network, the ice I<sub>h</sub> lattice, the hydration
       shells and the temperature continuum. No steps, no callouts, no tabs.
       Rulebook: <code>docs/WaterSim.md</code>.
@@ -70,21 +71,24 @@
 <script src="../lib/molecules.js"></script>
 <script src="../lib/mol-solvation.js"></script>
 <script src="../lib/scene.js"></script>
+<script src="../kit/card-stage.js"></script>
 <script src="../water/watersim.js"></script>
+<script src="../water/watersim-mount.js"></script>
 <script>
-const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(
-  document.getElementById('c'), {cam:{theta:0.5, phi:1.15, r:26}});
-
-const SALT='nacl';
-const sim = WaterSim.create(THREE, root);
-for(let i=0;i<16;i++) sim.spawn();
-
 const $=id=>document.getElementById(id);
 const T=$('t'), rd=$('rd'), inv=$('inv');
-$('addw').onclick=()=>{ if(sim.mols.length<60){ sim.spawn(); if(sim.salt.length) sim.assignShells(); } };
-$('remw').onclick=()=>{ if(sim.mols.length>1){ sim.remove(); if(sim.salt.length) sim.assignShells(); } };
-$('adds').onclick=()=>{ if(sim.salt.length<8) sim.addSalt(SALT); };
-$('clrs').onclick=()=>sim.clearSalt();
+
+/* The whole stand-up. Every control below is a set(); every number is a state(). */
+const w = WaterSim.mount($('stage'), { nWater:16, temperature:+T.value, freeze:true });
+const sim = w.sim;                               // the invariants read the molecules themselves
+
+$('addw').onclick=()=>w.set({ nWater:Math.min(60, w.params().nWater+1) });
+$('remw').onclick=()=>w.set({ nWater:Math.max(1,  w.params().nWater-1) });
+$('adds').onclick=()=>w.set({ salt:'nacl', nSalt:Math.min(4, w.params().nSalt+1) });
+$('clrs').onclick=()=>w.set({ nSalt:0 });
+T.oninput=()=>w.set({ temperature:+T.value });
+$('freeze').onchange=e=>w.set({ freeze:e.target.checked });
+$('hb').onchange=e=>w.set({ hbonds:e.target.checked });
 
 const row=(k,v,cls)=>`<tr><td>${k}</td><td class="${cls||''}">${v}</td></tr>`;
 
@@ -107,11 +111,8 @@ function invariants(){
     :'≤4 H-bonds per molecule · no merged oxygens';
 }
 
-function loop(){
-  const temp=+T.value;
-  $('tv').textContent=temp+'°C';
-  const p=sim.step({ solvent:sim.salt.length>0, showHbonds:$('hb').checked,
-    tempEnabled:true, temperature:temp, freezeEnabled:$('freeze').checked });
+w.on('frame', p=>{
+  $('tv').textContent=w.params().temperature+'°C';
   rd.innerHTML=
     row('water', p.nWater)+
     row('ions', p.nIons)+
@@ -124,10 +125,7 @@ function loop(){
     row('boils at', (100+p.dTb).toFixed(1)+'°C')+
     (sim.salt.length?row('shells', sim.salt.map(s=>s.userData.shellCount).join(' / ')):'');
   invariants();
-  applyCam(); renderer.render(scene,camera); requestAnimationFrame(loop);
-}
-resize(); window.addEventListener('resize',resize);
-requestAnimationFrame(loop);
+});
 </script>
 </body>
 </html>

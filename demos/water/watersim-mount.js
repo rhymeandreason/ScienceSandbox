@@ -1,0 +1,107 @@
+/* =============================================================================
+ *  water/watersim-mount.js — WaterSim as one declarative box
+ * =============================================================================
+ *  watersim.js is a per-frame push API on purpose: it takes an Object3D, never
+ *  a stage, so water-lab and capillary/ can run one liquid under two cameras.
+ *  That is the right shape for a bespoke lesson and the wrong one for a page
+ *  that only wants "some water at 80°C with a pinch of salt": it has to own a
+ *  canvas, a loop, a resize, and re-type the frame object every tick.
+ *
+ *  This is the other shape. One element in, one handle out:
+ *
+ *      const w = WaterSim.mount(el, { nWater:16, temperature:80, salt:'nacl', nSalt:2 });
+ *      w.set({ temperature:-5, freeze:true });
+ *      w.state().hbondCount
+ *      const off = w.on('frame', s => label.textContent = s.fz.toFixed(2));
+ *      w.destroy();
+ *
+ *  Params (every one may change live through set):
+ *      nWater       molecule count; reconciled by spawn/remove
+ *      salt         a dissociating spec key ('nacl') or null
+ *      nSalt        crystal PAIRS. The sim removes salt only as a whole, so a
+ *                   decrease clears and re-drops the remainder
+ *      temperature  °C, or null for room temperature with the continuum off
+ *      freeze       whether cooling may build ice
+ *      hbonds       draw the dashed network
+ *      still        no thermal jiggle (one molecule under inspection)
+ *      solvent      the dissolving scene's spacing; defaults to nSalt>0
+ *      cam          Stage.create's cam, first mount only
+ *      tuning       WaterSim.TUNING overrides, first mount only; live tuning
+ *                   is `w.sim.cfg`
+ *
+ *  Events: 'frame' (step's return, every tick) · 'dissociate' (na, cl, at) ·
+ *  'saltchange'. `on` returns the unsubscribe.
+ *
+ *  It adds no physics. `w.sim` is the underlying WaterSim and `w.box` the
+ *  CardStage, so a page that outgrows the params keeps everything it had.
+ *  The box comes from kit/card-stage.js because a destroy that does not give
+ *  the WebGL context back is the failure every earlier private loop had.
+ * ========================================================================== */
+(function (global) {
+  'use strict';
+
+  const DEFAULTS = { nWater:16, salt:null, nSalt:0, temperature:null, freeze:false,
+    hbonds:true, still:false, solvent:undefined };
+
+  function mount(el, params = {}) {
+    if (!global.CardStage) throw new Error('watersim-mount.js: load kit/card-stage.js first');
+    if (!global.WaterSim || !global.WaterSim.create) throw new Error('watersim-mount.js: load water/watersim.js first');
+
+    const P = Object.assign({}, DEFAULTS, params);
+    const listeners = { frame:[], dissociate:[], saltchange:[] };
+    const emit = (ev, ...a) => listeners[ev].forEach(fn => fn(...a));
+    let last = null, sim = null;
+
+    const box = global.CardStage.create({
+      mount: el,
+      cam: params.cam || { theta:0.5, phi:1.15, r:26 },
+      step: () => {
+        if (!sim) return;               // CardStage may tick before create returns
+        const solvent = P.solvent === undefined ? sim.salt.length > 0 : !!P.solvent;
+        last = sim.step({ still:P.still, solvent, showHbonds:P.hbonds,
+          tempEnabled: P.temperature !== null, temperature: P.temperature === null ? 22 : P.temperature,
+          freezeEnabled: P.freeze });
+        emit('frame', last);
+      }
+    });
+
+    sim = global.WaterSim.create(THREE, box.root, {
+      tuning: params.tuning,
+      onDissociate: (na, cl, at) => emit('dissociate', na, cl, at),
+      onSaltChange: () => emit('saltchange') });
+
+    /* Reconcile counts toward the params; everything else is read per frame. */
+    function reconcile() {
+      while (sim.mols.length < P.nWater) sim.spawn();
+      while (sim.mols.length > P.nWater) sim.remove();
+      const want = P.salt ? Math.max(0, P.nSalt | 0) : 0;
+      const have = sim.salt.length / 2;
+      if (want < have || (want && sim.salt.length && sim.salt[0].userData.role !== saltCation(P.salt))) sim.clearSalt();
+      for (let i = sim.salt.length / 2; i < want; i++) sim.addSalt(P.salt);
+      if (sim.salt.length) sim.assignShells();
+    }
+    function saltCation(key) {
+      const spec = global.MolLib.MOLECULES[key];
+      return spec && spec.dissociates ? spec.dissociates.find(d => d.charge > 0).ion : null;
+    }
+
+    reconcile();
+    box.pump();                       // a first frame with the water in it
+
+    return {
+      sim, box,
+      set(next) { Object.assign(P, next); reconcile(); return this; },
+      params: () => Object.assign({}, P),
+      state: () => last,
+      on(ev, fn) {
+        if (!listeners[ev]) throw new Error(`watersim-mount.js: no event '${ev}'`);
+        listeners[ev].push(fn);
+        return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); };
+      },
+      start: box.start, stop: box.stop, pump: box.pump,
+      destroy() { box.destroy(); Object.keys(listeners).forEach(k => listeners[k].length = 0); }
+    };
+  }
+
+  global.WaterSim.mount = mount;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
