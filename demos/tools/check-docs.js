@@ -47,7 +47,6 @@ const SCIENCE = rd('docs/SCIENCE.md');
 const KNOWN_ABSENT = {
   // molecules-wishlist.md's proposed re-partition. These five are the files the
   // class-based split would create; nothing is moved yet, and the doc says so.
-  'mol-sugars.js':      'molecules-wishlist.md proposal — not built',
   'mol-glycans.js':     'molecules-wishlist.md proposal — not built',
   'mol-carriers.js':    'molecules-wishlist.md proposal — not built',
   'mol-glycolysis.js':  'molecules-wishlist.md proposal — not built',

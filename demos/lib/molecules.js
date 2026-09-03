@@ -281,6 +281,9 @@
                            //   not topic: FAD and CoA are the two largest Skel
                            //   builds here and glycolysis-lab draws neither.
                            //   See that file's header for the argument.
+    'mol-sugars.js',       // needs skel.js — the monosaccharides, split OUT of
+                           //   mol-contrast.js: four pages wanted one sugar
+                           //   each and were parsing proline to get it.
     'mol-contrast.js',     // needs skel.js AND mol-monomers.js
     'mol-compare.js',      // needs skel.js — the derivation comparison, viewer only
     'mol-lipids.js',       // family B, literals — needs no builder

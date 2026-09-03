@@ -1,4 +1,4 @@
-<!-- KIND: argument — the proposed re-partition of the mol-*.js files, and every molecule we have decided is worth adding. Load when deciding WHICH molecule to build next, before moving a spec between domain files, or to find the record a planned spec is generated from. `AddingAMolecule.md` is the recipe for building one once it is chosen; `MolecularGeometry.md` §1 is the rulebook both obey. Nothing here is built yet. -->
+<!-- KIND: argument — the proposed re-partition of the mol-*.js files, and every molecule we have decided is worth adding. Load when deciding WHICH molecule to build next, before moving a spec between domain files, or to find the record a planned spec is generated from. `AddingAMolecule.md` is the recipe for building one once it is chosen; `MolecularGeometry.md` §1 is the rulebook both obey. `mol-sugars.js` is the first row built; the rest is not. -->
 
 # Molecules wishlist
 
@@ -21,7 +21,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 
 | File | Existing | Additions |
 | --- | --- | --- |
-| `mol-sugars.js` | glucose, α-glucose, galactose, ribose, deoxyribose, ascorbate | **fructose**, **acarbose** |
+| `mol-sugars.js` **(built)** | α-glucose, galactose, ribose, deoxyribose — moved out of `mol-contrast.js`; glucose and ascorbate still to come | **fructose**, **acarbose** |
 | `mol-glycans.js` | maltose, cellobiose, lactose, galactobiose | **sucrose** |
 | `mol-aminoacids.js` | gly, ala, ser, cys, D-ala, pro, gln, glu | **hydroxyproline**, **tyrosine**, **histidine**, **lysine**, **aspartate**, **tryptophan** |
 | `mol-carriers.js` | ATP, AMP, Pi, NADH, FAD, FADH₂, CoA, acetyl-CoA, succinyl-CoA, atpSkel, nadhSkel | **ADP**, **NAD⁺**, **2,3-BPG** |
