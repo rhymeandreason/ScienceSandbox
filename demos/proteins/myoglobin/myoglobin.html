@@ -87,8 +87,13 @@
     padding-bottom:clamp(4rem,10vw,8rem)}
 
   .viewer{position:sticky;top:clamp(1rem,4vh,3rem)}
-  .stage{width:100%;aspect-ratio:1/1;max-height:70vh;
-    background:var(--surface-card);border:1px solid var(--border-hair);border-radius:4px}
+  /* `#stage` AND NOT `.stage`. kodo.css styles `#stage` as a lesson's full-bleed
+     drag surface, and this element carries that id for the JS; an id there beats
+     a class here, which is how this frame quietly wore a lesson shell's paper
+     and its dotted grid. Stated by id, it wins and says what it is. */
+  #stage{width:100%;aspect-ratio:1/1;max-height:70vh;
+    background:var(--surface-stage);background-image:none;
+    border:1px solid var(--border-hair);border-radius:4px}
   /* WHAT IS ON SCREEN, NAMED. A reader who has scrolled three sections is
      looking at a different file than they started on, and a caption that
      says which is the difference between a demo and evidence. */
@@ -121,7 +126,7 @@
   @media (max-width:900px){
     .lesson{grid-template-columns:1fr;gap:1rem}
     .viewer{top:0;padding:.6rem 0;background:var(--paper);z-index:2}
-    .stage{aspect-ratio:4/3;max-height:44vh}
+    #stage{aspect-ratio:4/3;max-height:44vh}
     section{padding:8vh 0}
   }
 </style>

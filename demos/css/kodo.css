@@ -99,6 +99,11 @@ html.bare .chrome-title { display: none !important }
   --surface-rule:    var(--cream-400);   /* the dots printed on it */
   --surface-raised:  var(--cream-200);   /* a card or panel lying on the paper */
   --surface-card:    var(--cream-50);    /* a sticky note, brighter than the page */
+  /* THE GROUND A MOLECULE IS DRAWN ON. A step warmer than the paper, so a
+     framed viewer reads as a window cut into the page rather than as a border
+     drawn on it. The 3D canvas is alpha:true — this is the colour behind it,
+     and no renderer knows it exists. */
+  --surface-stage:   var(--cream-200);
   --border-hair:     var(--cream-500);
   --border-strong:   var(--clay-900);    /* the drawn 2px line round a button */
 
@@ -294,6 +299,9 @@ html.bare .chrome-title { display: none !important }
   --surface-rule:   transparent;      /* this paper is flat; see §10.1 */
   --surface-raised: var(--paper-white);
   --surface-card:   var(--paper-card);
+  /* Warmer than this paper on purpose. #faf8f4 behind a molecule on #faf8f4
+     paper is a frame with nothing in it. */
+  --surface-stage:  #f1ece3;
   --border-hair:    var(--rule-line);
   --border-strong:  var(--ink-900);
 
