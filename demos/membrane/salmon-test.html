@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>salmon-test — one gill cell, two waters</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<style>
+  /* The first app written in the shape a generated page takes: one mounted
+     component, controls that are set(), readouts that are state(). The
+     membrane module is judged on whether THIS file had to reach past its
+     params, and the answer is recorded in the sidebar. */
+  #side { overflow-y:auto; }
+  .grp { margin-bottom:16px; }
+  .hd { font-weight:600; margin-bottom:6px; }
+  label { display:block; margin:7px 0; font-size:14px; }
+  button { margin:0 6px 6px 0; }
+  p.note { font-size:13px; opacity:.8; line-height:1.45; }
+  table.rd { font-size:13px; border-collapse:collapse; width:100%; }
+  table.rd td { padding:2px 0; }
+  table.rd td:last-child { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .env { display:flex; gap:6px; }
+  .env button[aria-pressed=true] { outline:2px solid currentColor; }
+  svg.chart { width:100%; height:110px; display:block; }
+  svg.chart .in  { fill:none; stroke:#3b6fd6; stroke-width:1.6; }
+  svg.chart .out { fill:none; stroke:#c9702c; stroke-width:1.6; }
+  svg.chart text { font-size:10px; fill:currentColor; opacity:.7; }
+  .key { font-size:12px; opacity:.8; }
+  .key .in { color:#3b6fd6; } .key .out { color:#c9702c; }
+</style>
+</head>
+<body>
+<div id="app-sidebar">
+  <div id="stage"></div>
+  <div id="side">
+    <h1 style="font-size:17px">a gill cell, seawater or freshwater</h1>
+    <p class="note" id="claim"></p>
+
+    <div class="grp">
+      <div class="hd">the water outside</div>
+      <div class="env">
+        <button type="button" data-env="sea" aria-pressed="true">seawater</button>
+        <button type="button" data-env="fresh" aria-pressed="false">freshwater</button>
+      </div>
+      <label><input id="pumpOn" type="checkbox" checked> the pump is paid for</label>
+      <label><input id="shells" type="checkbox"> draw hydration shells</label>
+    </div>
+
+    <div class="grp">
+      <div class="hd">free water on each side</div>
+      <svg class="chart" id="chart" viewBox="0 0 300 110" preserveAspectRatio="none"></svg>
+      <div class="key"><span class="in">■ inside the cell</span> · <span class="out">■ outside</span></div>
+    </div>
+
+    <div class="grp">
+      <div class="hd">what the module says</div>
+      <table class="rd" id="rd"></table>
+    </div>
+
+    <div class="grp">
+      <div class="hd">what this app had to reach for</div>
+      <p class="note">Nothing under <code>m.sim</code>. Two things the params
+      could not say: which side the cell's anions keep to (<code>yband</code>
+      on <code>add</code>), and the environment as a whole, which is a
+      <code>clear()</code> and a fresh <code>scatter()</code> rather than a
+      parameter. A concentration per side per species would make it one.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../membrane/parts.js"></script>
+<script src="../membrane/pump.js"></script>
+<script src="../membrane/membrane.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+
+/* One cell, a K⁺ channel and a Na⁺/K⁺ pump in its membrane, as at rest in
+   membrane-lab. The pump runs itself: a fish does not press a button. */
+const m = Membrane.mount($('stage'), {
+  proteins: { K:{ x:-36 }, pump:{ x:36 } },
+  potential: 'nernst', pumpAuto: true, pumpOn: true,
+});
+
+/* SAME PARTICLE COUNT PER SIDE, FEWER FREE WATERS WHERE THE SALT IS — the
+   osmosis step's rule, so the only asymmetry is the headcount. The inside
+   is the same cell in both waters: a salmon's blood does not change, which
+   is the whole reason the gill has work to do.
+
+   Real order of magnitude: seawater ~470 mM Na⁺, blood ~150 mM, a river
+   under 1 mM. Drawn as a ratio the frame can hold, not as millimolar. */
+const PARTICLES = 78;
+const INSIDE = { K:20, NA:4, A:8 };            // solute 32, water 46
+const OUTSIDE = {
+  sea:   { NA:26, CL:26 },                     // solute 52, water 26: hypertonic
+  fresh: { NA:2,  CL:2  },                     // solute 4,  water 74: hypotonic
+};
+const CLAIM = {
+  sea:   '<b>Seawater is saltier than the fish. Water leaves, salt leaks in, and the pump spends ATP throwing sodium back out.</b>',
+  fresh: '<b>The river is nearly pure water. Water floods in, salt leaks out, and the same pump is what holds the inside together.</b>',
+};
+let env = 'sea';
+const solute = o => Object.values(o).reduce((a, b) => a + b, 0);
+
+function populate() {
+  m.clear(); m.reset();
+  const out = OUTSIDE[env];
+  m.scatter('K',  INSIDE.K,  -1, { conducts:'K' });
+  m.scatter('NA', INSIDE.NA, -1);
+  /* Deep in the cytosol, not lining the membrane: protein and phosphate
+     anions are the bulk of the interior. */
+  const far = m.sim.params().extent * 0.94;
+  for (let i = 0; i < INSIDE.A; i++)
+    m.add('A', { x:(Math.random() - .5) * 300, z:(Math.random() - .5) * 22,
+                 y:-far * (0.42 + Math.random() * 0.5), yband:[-far, -far * 0.38],
+                 walk:true, speed:[2, 5], blocked:true, bounded:true });
+  m.scatter('water', PARTICLES - solute(INSIDE), -1);
+  m.scatter('NA', out.NA, 1);
+  m.scatter('CL', out.CL, 1);
+  m.scatter('water', PARTICLES - solute(out), 1);
+  $('claim').innerHTML = CLAIM[env];
+  series.length = 0;
+}
+
+for (const b of document.querySelectorAll('[data-env]')) b.onclick = () => {
+  env = b.dataset.env;
+  for (const o of document.querySelectorAll('[data-env]')) o.setAttribute('aria-pressed', o === b);
+  populate();
+};
+$('pumpOn').onchange = e => m.set({ pumpOn: e.target.checked });
+$('shells').onchange = e => m.set({ shells: e.target.checked });
+
+/* ---- the chart: free water per side, over the last two minutes ---- */
+const series = [];
+const SPAN = 120;                                 // seconds on screen
+function chart() {
+  const svg = $('chart');
+  if (series.length < 2) { svg.innerHTML = ''; return; }
+  const t0 = series[0].t, t1 = Math.max(series[series.length - 1].t, t0 + 10);
+  const X = t => 300 * (t - t0) / (t1 - t0);
+  const Y = n => 100 - 90 * n / PARTICLES;
+  const path = key => series.map((s, i) => (i ? 'L' : 'M') + X(s.t).toFixed(1) + ' ' + Y(s[key]).toFixed(1)).join(' ');
+  svg.innerHTML =
+    `<path class="in" d="${path('in')}"/><path class="out" d="${path('out')}"/>` +
+    `<text x="2" y="10">${PARTICLES}</text><text x="2" y="104">0</text>`;
+}
+
+const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+/* On the sim's own clock: a backgrounded tab freezes the sim and the chart
+   together, and a bench driving pump() by hand still plots. */
+m.on('frame', s => {
+  const w = s.counts.water || { inside:0, outside:0 };
+  if (!series.length || s.t - series[series.length - 1].t >= 1) {
+    series.push({ t:s.t, in:w.inside, out:w.outside });
+    while (series.length && s.t - series[0].t > SPAN) series.shift();
+    chart();
+  }
+  const na = s.counts.NA || { inside:0, outside:0 };
+  const k = s.counts.K || { inside:0, outside:0 };
+  const net = s.netRecent;
+  $('rd').innerHTML =
+    row('water in / out', `${w.inside} / ${w.outside}`) +
+    row('net water, recent', net > 0.5 ? 'leaving the cell' : net < -0.5 ? 'entering the cell' : 'balanced') +
+    row('Na⁺ in / out', `${na.inside} / ${na.outside}`) +
+    row('K⁺ in / out', `${k.inside} / ${k.outside}`) +
+    row('membrane', s.mV.toFixed(0) + ' mV') +
+    row('E_K (Nernst)', s.equilibrium.K.toFixed(0) + ' mV') +
+    row('ATP spent', s.atpSpent) +
+    row('pump', s.pumpRunning ? s.pumpPhase : 'idle');
+});
+
+populate();
+</script>
+</body>
+</html>
