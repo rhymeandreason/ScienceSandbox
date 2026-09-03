@@ -19,8 +19,8 @@
  *  It owns the DOM and the step index and nothing about the scene: the
  *  camera flight a step names in `camera` is the page's to fly, in onStep,
  *  because the shell does not know which component is behind the glass.
- *  `shell.panelRect()` is what a scene needs to centre itself in the room
- *  the panel leaves.
+ *  `shell.viewOffset` is the function every component's mount takes to
+ *  centre its scene in the room the panel leaves.
  *
  *  ctx.ui, for steps:
  *      controls(html)  fill the slot · q(sel) / qa(sel) inside it · show(el) /
@@ -137,6 +137,12 @@
       goTo, get current() { return current; },
       panelRect: () => els.panel.getBoundingClientRect(),
       narrow: () => window.innerWidth <= 760,
+      /* Hand this to any component's mount as `viewOffset`: half the panel's
+         width on a laptop, half its height when it docks to the bottom. */
+      viewOffset() {
+        const r = els.panel.getBoundingClientRect();
+        return window.innerWidth <= 760 ? { x: 0, y: Math.round(r.height / 2) } : { x: -Math.round(r.right / 2), y: 0 };
+      },
       theme(name, on) { document.body.classList.toggle(name, !!on); },
       destroy() { window.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('lshell-page'); },
     };

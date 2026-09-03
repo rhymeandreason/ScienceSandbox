@@ -25,8 +25,7 @@
  *  current value. Events: 'frame' (state, dt) · 'night' (bool).
  *
  *  mount adds flyTo(pos, target, seconds), a camera flight in Stage's own
- *  theta/phi/r, cancelled by a drag; and `viewOffset`, a function returning
- *  the pixel offset that centres the scene in the room a panel leaves.
+ *  theta/phi/r, cancelled by a drag. `viewOffset` is kit/card-stage.js's.
  *
  *  What is NOT physics: the flows are choreography, the piles' shares are
  *  the lesson's numbers (Tree.PILES), and the tree's shape is a random
@@ -552,6 +551,7 @@
       stage: Object.assign({ phiMin: 0.15, phiMax: Math.PI / 2 - 0.02, rMin: 2.5, rMax: 80 }, params.stage || {}),
       step: dt => { if (sim) { flyStep(dt); last = sim.step(dt); } },
       afterFrame: () => { if (sim) sim.piles.place(project); },
+      viewOffset: params.viewOffset,
       onResize: layout,
     });
     if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
@@ -563,14 +563,11 @@
     for (const o of box.camera.children) if (o.isLight) o.intensity *= 0.25;
     for (const o of box.scene.children) if (o.isAmbientLight) o.intensity = 0.2;
 
+    /* Widen on a portrait canvas; the offset is CardStage's. */
     function layout() {
       if (!box) return;
-      const W = box.canvas.clientWidth, H = box.canvas.clientHeight;
-      if (!W || !H) return;
       const cam = box.camera;
       cam.fov = Math.min(72, 36 * Math.max(1, 1.35 / cam.aspect));
-      const off = params.viewOffset ? params.viewOffset(W, H) : null;
-      if (off) cam.setViewOffset(W, H, off.x || 0, off.y || 0, W, H); else cam.clearViewOffset();
       cam.updateProjectionMatrix();
     }
     const _p = new V();

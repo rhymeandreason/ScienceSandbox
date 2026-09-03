@@ -202,14 +202,31 @@
     }, { threshold: 0.01 });
     io.observe(canvas);
 
+    /* THE ROOM A PANEL LEAVES. A lesson shell covers part of the canvas with
+       glass, and a scene centred on the canvas is half under it. `viewOffset`
+       is a function of the canvas size returning the pixel shift that
+       centres the scene in what is left; the projection is offset, the
+       canvas is not, so the scene still draws behind the glass. Applied on
+       every resize, after Stage's own, and exposed as layout() for a page
+       whose panel moved. */
+    function layout() {
+      const W = canvas.clientWidth, H = canvas.clientHeight;
+      if (!W || !H) return;
+      const off = opts.viewOffset ? opts.viewOffset(W, H) : null;
+      if (off && (off.x || off.y)) stage.camera.setViewOffset(W, H, off.x || 0, off.y || 0, W, H);
+      else if (stage.camera.view) stage.camera.clearViewOffset();
+      stage.camera.updateProjectionMatrix();
+    }
     const ro = new ResizeObserver(() => {
       stage.resize();                    // Stage has its own too; this one is ours
+      layout();
       if (opts.onResize) opts.onResize();
       if (!raf) draw();                  // a paused box must re-frame, not stretch
     });
     ro.observe(canvas);
 
     stage.resize();
+    layout();
     if (opts.onResize) opts.onResize();
     // One frame now, so the box is never blank in the gap before rAF runs — and
     // so a card created paused still shows its subject.
@@ -220,7 +237,7 @@
       canvas, stage,
       scene: stage.scene, camera: stage.camera, renderer: stage.renderer,
       root: stage.root, cam: stage.cam, applyCam: stage.applyCam,
-      start, stop, draw, pump, snapshot,
+      start, stop, draw, pump, snapshot, layout,
       get running() { return !!raf; },
       get dead() { return dead; },
       destroy() {

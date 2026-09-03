@@ -55,6 +55,7 @@
     const box = global.CardStage.create({
       mount: el,
       cam: params.cam || { theta:0.5, phi:1.15, r:26 },
+      viewOffset: params.viewOffset,
       step: () => {
         if (!sim) return;               // CardStage may tick before create returns
         const solvent = P.solvent === undefined ? sim.salt.length > 0 : !!P.solvent;

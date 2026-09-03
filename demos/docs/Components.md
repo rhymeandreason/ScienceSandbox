@@ -60,6 +60,8 @@ c.destroy();                     // gives the WebGL context back
 c.sim; c.box;                    // the layers under it, for a page that outgrows the params
 ```
 
+Every `mount` also takes `viewOffset`, a function of the canvas size returning the pixel shift that centres the scene in the room a panel leaves. On the step-through shell pass `viewOffset: shell.viewOffset`; on the sidebar page leave it out.
+
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 
 ## WaterSim — liquid water and what follows from hydrogen bonds
@@ -132,7 +134,7 @@ m.reset();                       // zero the counters after a change of scene
 m.spend();                       // one ATP, one pump turn; false if a turn is running or no Na⁺ inside
 ```
 
-Changing `contents` adds and removes only the difference, by current side, so a water that already crossed stays crossed. **The budget is 220 particles on stage in total**; past it nothing more is added. Keep the same particle count per side and fewer free waters where the solute is; that is what makes osmosis a headcount rather than a pull. About 78 particles a side reads well: 78 water on the fresh side, and on a salty side 26 water with 26 Na⁺ and 26 Cl⁻.
+Changing `contents` adds and removes only the difference, by current side, so a water that already crossed stays crossed. **The budget is 220 particles on stage, of which at most 110 ions**; past it nothing more is added. Keep the same particle count per side and fewer free waters where the solute is; that is what makes osmosis a headcount rather than a pull. About 78 particles a side reads well: 78 water on the fresh side, and on a salty side 26 water with 26 Na⁺ and 26 Cl⁻.
 
 For one molecule placed by hand there is `m.add(kind, opts)` with `opts.x, .y, .z`, and `m.scatter(kind, n, side, opts)` with side 1 outside, −1 inside.
 
@@ -144,7 +146,8 @@ Defaults do the right thing: ions walk slower and are blocked by the bilayer, wa
 | --- | --- |
 | `t` | sim seconds |
 | `counts[kind].inside / .outside` | every kind on stage, by side |
-| `crossings.up / .down`, `netRecent` | water through the bilayer: lifetime, and a recent net that decays to 0 at equilibrium (positive means leaving the cell) |
+| `net` | `'entering'`, `'leaving'` or `'balanced'`: the verdict to print for water through the bilayer, thresholded for the crowd's own noise |
+| `crossings.up / .down`, `netRecent` | the counts behind it: lifetime, and a recent net that decays to 0 at equilibrium (positive means leaving the cell) |
 | `mV`, `equilibrium.K`, `equilibrium.CL` | membrane potential and each ion's equilibrium potential |
 | `crossed.K`, `crossed.CL` | net charge through each channel |
 | `atpSpent`, `pumpRunning`, `pumpPhase`, `pumpT` | the pump's ledger and where it is in its cycle |
@@ -226,12 +229,12 @@ const shell = LessonShell.create({
   }],
   onStep(step) { if (step.camera) T.flyTo(step.camera.pos, step.camera.target); },
 });
-const T = Tree.mount(shell.stage, { viewOffset: (W, H) => ({ x: -Math.round(shell.panelRect().right / 2), y: 0 }) });
+const T = Tree.mount(shell.stage, { viewOffset: shell.viewOffset });
 T.on('night', on => shell.theme('is-night', on));
 shell.goTo(0);
 ```
 
-`ctx.ui` inside a step: `controls(html)` fills the slot, `q(sel)` and `qa(sel)` find inside it, `show(el)` and `hide(el)`, `setNext(label, visible)`, and `range(input, onChange)`, which paints a slider's track and fires once with its value. The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`. `shell.panelRect()` is what a scene needs to centre itself beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.
+`ctx.ui` inside a step: `controls(html)` fills the slot, `q(sel)` and `qa(sel)` find inside it, `show(el)` and `hide(el)`, `setNext(label, visible)`, and `range(input, onChange)`, which paints a slider's track and fires once with its value. The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`. `shell.viewOffset` is what every mount takes to centre its scene beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.
 
 ## A chart
 

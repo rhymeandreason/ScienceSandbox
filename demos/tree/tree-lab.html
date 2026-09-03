@@ -36,12 +36,7 @@ const shell = LessonShell.create({
 
 const T = Tree.mount(shell.stage, {
   growth: 0.02,
-  /* Centre the scene in the room the panel leaves: half the panel's width
-     on a laptop, half its height when it docks to the bottom. */
-  viewOffset: (W, H) => {
-    const r = shell.panelRect();
-    return shell.narrow() ? { x: 0, y: Math.round(r.height / 2) } : { x: -Math.round(r.right / 2), y: 0 };
-  },
+  viewOffset: shell.viewOffset,          // centred in the room the panel leaves
 });
 T.on('night', on => shell.theme('is-night', on));
 

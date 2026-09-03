@@ -371,6 +371,7 @@
       cam: params.cam || { theta: 0.65, phi: 1.15, r: 24 },
       stage: Object.assign({ phiMax: 1.72, rMin: 8, rMax: 60 }, params.stage || {}),
       step: dt => { if (leaf) last = leaf.step(dt); },
+      viewOffset: params.viewOffset,
     });
     const r = box.renderer;
     r.shadowMap.enabled = true;

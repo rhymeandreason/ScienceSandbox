@@ -76,6 +76,9 @@
        at add(), not clamped later, so the count a page reads is the count it
        has. About 78 particles a side reads as a solution. */
     maxTravellers: 220,
+    /* IONS ARE THE EXPENSIVE ONES: the spacing pass is over ions and anions
+       only, and a hydrated ion is the biggest thing on stage. Separate cap. */
+    maxIons: 110,
     /* What is dissolved on each side, declaratively: {inside:{water:46, K:20},
        outside:{water:26, NA:26, CL:26}}. set() reconciles the stage to it by
        adding and removing, counted by CURRENT side, so a water that crossed
@@ -295,14 +298,17 @@
        One pool. Each carries where it is going and how fast and NOTHING
        else: a traveller does not know what scene it is in. */
     const travellers = [];
+    let nextId = 1;
     const WALK_SPEED = [14, 24], ION_SPEED = [8, 16], DRIFT_SPEED = [12, 18];
     const WATER_CORE = 1.0;
     const ION_GAP = 2 * global.Parts.ION.K.r * global.Parts.ION.exaggeration + 2.6;
     const CHANNEL_KEEPOUT = 26;
     let warnedBudget = false;
     function add(kind, opts = {}) {
-      if (travellers.length >= P.maxTravellers) {
-        if (!warnedBudget) { warnedBudget = true; console.warn(`membrane.js: ${P.maxTravellers} travellers is the budget; add() refused`); }
+      const ion = !!ELEMENT_OF[kind] || kind === 'A';
+      const nIons = ion ? travellers.reduce((n, t) => n + (ELEMENT_OF[t.kind] || t.kind === 'A' ? 1 : 0), 0) : 0;
+      if (travellers.length >= P.maxTravellers || (ion && nIons >= P.maxIons)) {
+        if (!warnedBudget) { warnedBudget = true; console.warn(`membrane.js: budget is ${P.maxTravellers} travellers and ${P.maxIons} ions; add() refused`); }
         return null;
       }
       const o = Object.assign({ x:0, z:0, y:0, vy:0, blocked:false }, opts);
@@ -312,7 +318,7 @@
       if (o.shell) hydrate(obj, kind);
       obj.position.set(o.x, o.y, o.z);
       root.add(obj);
-      const t = Object.assign({ kind, obj }, o);
+      const t = Object.assign({ kind, obj, id: nextId++ }, o);
       if (t.blocked) t.bounded = true;    // cannot cross, so must not leave and come back either
       t.spin = { x:rnd(-.9,.9), y:rnd(-.9,.9), z:rnd(-.9,.9) };
       t.flipEvery = rnd(0.55, 1.15); t.since = Math.random() * t.flipEvery;
@@ -612,25 +618,52 @@
       }
     }
     const atMouth = t => t.conducts != null && Math.hypot(t.x - t.conducts, t.z) < CAPTURE_R * 2 && Math.abs(t.y) < T.height * 1.4;
-    /* Hydrated ions do not interpenetrate: a spacing rule, not a force. */
+    /* Hydrated ions do not interpenetrate: a spacing rule, not a force.
+       BUCKETED, because all pairs is quadratic in the crowd and a generated
+       page with eighty ions spent its whole frame here. The cell is the
+       widest thing that can collide, a hydrated chloride, so only the 27
+       neighbouring cells can hold a partner. Rebuilt per pass: a push moves
+       an ion, and the second pass must see where it went. */
+    const CELL = 2 * (shellDist('CL') + rO_()) + 1;
+    const _grid = new Map();
+    const _key = (x, y, z) => ((x + 512) << 20) ^ ((y + 512) << 10) ^ (z + 512);
     function keepClear(list) {
-      for (let pass = 0; pass < 2; pass++)
-        for (let i = 0; i < list.length; i++)
-          for (let j = i + 1; j < list.length; j++) {
-            const a = list[i], b = list[j];
-            if (atMouth(a) || atMouth(b)) continue;
-            const min = bulkRadius(a) + bulkRadius(b);
-            let dx = b.obj.position.x - a.obj.position.x, dy = b.y - a.y, dz = b.obj.position.z - a.obj.position.z;
-            const d2 = dx*dx + dy*dy + dz*dz;
-            if (d2 >= min * min || d2 < 1e-6) continue;
-            const aFree = a.lane == null, bFree = b.lane == null;
-            if (!aFree && !bFree) continue;
-            const share = (aFree && bFree) ? 0.5 : 1;
-            const d = Math.sqrt(d2), push = (min - d) * share / d;
-            dx *= push; dy *= push; dz *= push;
-            if (aFree) { a.x -= dx; a.y -= dy; a.z -= dz; a.obj.position.set(a.x, a.y, a.z); }
-            if (bFree) { b.x += dx; b.y += dy; b.z += dz; b.obj.position.set(b.x, b.y, b.z); }
+      for (let pass = 0; pass < 2; pass++) {
+        _grid.clear();
+        for (const t of list) {
+          const k = _key(Math.floor(t.obj.position.x / CELL), Math.floor(t.y / CELL), Math.floor(t.obj.position.z / CELL));
+          const b = _grid.get(k); if (b) b.push(t); else _grid.set(k, [t]);
+        }
+        for (const a of list) {
+          if (atMouth(a)) continue;
+          const cx = Math.floor(a.obj.position.x / CELL), cy = Math.floor(a.y / CELL), cz = Math.floor(a.obj.position.z / CELL);
+          for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+            const bucket = _grid.get(_key(cx + dx, cy + dy, cz + dz));
+            if (!bucket) continue;
+            for (const b of bucket) {
+              if (b === a || b.id <= a.id) continue;      // each pair once
+              if (atMouth(b)) continue;
+              pushApart(a, b);
+            }
           }
+        }
+      }
+    }
+    function pushApart(a, b) {
+      const min = bulkRadius(a) + bulkRadius(b);
+      let dx = b.obj.position.x - a.obj.position.x, dy = b.y - a.y, dz = b.obj.position.z - a.obj.position.z;
+      const d2 = dx*dx + dy*dy + dz*dz;
+      if (d2 >= min * min || d2 < 1e-6) return;
+      /* A QUEUED ION IS NOT SHOVED OFF ITS LANE — sideways is the wall. The
+         free partner takes the whole correction, two free ions split it,
+         and two queued ones are left to the file's waiting rule. */
+      const aFree = a.lane == null, bFree = b.lane == null;
+      if (!aFree && !bFree) return;
+      const share = (aFree && bFree) ? 0.5 : 1;
+      const d = Math.sqrt(d2), push = (min - d) * share / d;
+      dx *= push; dy *= push; dz *= push;
+      if (aFree) { a.x -= dx; a.y -= dy; a.z -= dz; a.obj.position.set(a.x, a.y, a.z); }
+      if (bFree) { b.x += dx; b.y += dy; b.z += dz; b.obj.position.set(b.x, b.y, b.z); }
     }
 
     /* Where a traveller is allowed to be. The bilayer's interior is oily: a
@@ -677,6 +710,7 @@
        on the far side changes the counts and moves the voltage. pump.js owns
        the choreography; this only decides WHICH ions ride. */
     let pumpT = 0, running = false, atpSpent = 0, lastPhase = '';
+    const lastGates = { top: NaN, bottom: NaN };
     const cargo = { NA:[], K:[] };
     const PUMP_LOAD = { NA:-1, K:1 };
     function recruit(kind, n) {
@@ -722,7 +756,12 @@
         if (pumpT >= 1) { pumpT = 0; running = false; deliver('K'); finishCycle(); lastPhase = ''; emit('turned', atpSpent); }
       }
       const st = global.Pump.at(pumpT);
-      PUMP.setGates(st.gates.top, st.gates.bottom);
+      /* setGates rebuilds the lathe, which costs a frame's worth of time on
+         its own; an idle pump asks for the same gates every frame. */
+      if (st.gates.top !== lastGates.top || st.gates.bottom !== lastGates.bottom) {
+        PUMP.setGates(st.gates.top, st.gates.bottom);
+        lastGates.top = st.gates.top; lastGates.bottom = st.gates.bottom;
+      }
       if (running && st.phase !== lastPhase) {
         if (st.phase === 'load-k') { deliver('NA'); cargo.K = recruit('K', 2); }
         lastPhase = st.phase;
@@ -790,8 +829,13 @@
         const c = counts[t.kind] || (counts[t.kind] = { inside:0, outside:0 });
         if (t.y >= 0) c.outside++; else c.inside++;
       }
+      /* THE VERDICT A PAGE PRINTS. netRecent is a decaying count and its
+         noise scales with the crowd, so the threshold does too: a 50/50
+         stage wandered to +3.6 in twenty seconds and read "leaving". */
+      const nW = counts.water ? counts.water.inside + counts.water.outside : 0;
+      const net = Math.abs(netRecent) < Math.max(1, 0.03 * nW) ? 'balanced' : netRecent > 0 ? 'leaving' : 'entering';
       return { t:elapsed, counts, mV, chargeOut, crossed:Object.assign({}, crossed),
-        crossings:Object.assign({}, crossings), netRecent, netPush:netPush(),
+        crossings:Object.assign({}, crossings), netRecent, net, netPush:netPush(),
         atpSpent, pumpRunning:running, pumpPhase:phase, pumpT,
         equilibrium: { K:equilibriumOf('K'), CL:equilibriumOf('CL') } };
     }
@@ -839,6 +883,7 @@
       cam: params.cam || { theta:0, phi:Math.PI / 2 - 0.10, r:300 },
       stage: Object.assign({ orbit:false, rMin:50, rMax:600 }, params.stage || {}),
       step: dt => { if (sim) last = sim.step(dt); },
+      viewOffset: params.viewOffset,
       onResize: () => { if (sim) sim.set({ extent: extentOf() }); },
     });
     box.renderer.localClippingEnabled = true;

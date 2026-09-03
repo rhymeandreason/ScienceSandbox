@@ -157,10 +157,9 @@ m.on('frame', s => {
   }
   const na = s.counts.NA || { inside:0, outside:0 };
   const k = s.counts.K || { inside:0, outside:0 };
-  const net = s.netRecent;
   $('rd').innerHTML =
     row('water in / out', `${w.inside} / ${w.outside}`) +
-    row('net water, recent', net > 0.5 ? 'leaving the cell' : net < -0.5 ? 'entering the cell' : 'balanced') +
+    row('net water, recent', s.net === 'balanced' ? 'balanced' : s.net + ' the cell') +
     row('Na⁺ in / out', `${na.inside} / ${na.outside}`) +
     row('K⁺ in / out', `${k.inside} / ${k.outside}`) +
     row('membrane', s.mV.toFixed(0) + ' mV') +
