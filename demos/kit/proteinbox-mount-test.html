@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>proteinbox-mount-test — a protein by name, as one box</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../kit/proteinbox.css">
+<style>
+  #side { overflow-y:auto; }
+  .grp { margin-bottom:16px; }
+  .hd { font-weight:600; margin-bottom:6px; }
+  button { margin:0 6px 6px 0; }
+  select { font-size:14px; }
+  p.note { font-size:13px; opacity:.8; line-height:1.45; }
+  table.rd { font-size:13px; border-collapse:collapse; width:100%; }
+  table.rd td { padding:2px 0; vertical-align:top; }
+  table.rd td:last-child { text-align:right; font-weight:600; }
+  .reps button[aria-pressed=true] { outline:2px solid currentColor; }
+</style>
+</head>
+<body>
+<div id="app-sidebar">
+  <div id="stage"></div>
+  <div id="side">
+    <h1 style="font-size:17px">a protein, by name</h1>
+    <p class="note"><code>kit/proteinbox.js</code> through <code>Proteinbox.mount</code>:
+      the registry answers for the files, and the page only names the protein.
+      Every control is a <code>set()</code>; every line below is <code>state()</code>.</p>
+    <div class="grp">
+      <div class="hd">which</div>
+      <select id="which"></select>
+    </div>
+    <div class="grp">
+      <div class="hd">shown as</div>
+      <div class="reps" id="reps"></div>
+    </div>
+    <div class="grp">
+      <div class="hd">what the registry says</div>
+      <table class="rd" id="rd"></table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../folding/folding.js"></script>
+<script src="../kit/ribbon.js"></script>
+<script src="../kit/nucleic.js"></script>
+<script src="../kit/surface.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/proteinbox.js"></script>
+<script src="../proteins/proteins.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const P = Proteinbox.mount($('stage'), { protein: 'myoglobin' });
+
+for (const p of ProteinLib.PROTEINS) {
+  const o = document.createElement('option');
+  o.value = p.key; o.textContent = p.name;
+  $('which').appendChild(o);
+}
+$('which').value = 'myoglobin';
+$('which').onchange = e => P.set({ protein: e.target.value });
+
+const row = (k, v) => `<tr><td>${k}</td><td>${v == null ? '—' : v}</td></tr>`;
+function paint() {
+  const s = P.state();
+  $('reps').innerHTML = '';
+  for (const r of ['ribbon', 'surface', 'fold']) {
+    if (r !== 'ribbon' && !s.available[r]) continue;
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = r; b.setAttribute('aria-pressed', s.rep === r);
+    b.onclick = () => { P.set({ rep: r }); paint(); };
+    $('reps').appendChild(b);
+  }
+  $('rd').innerHTML =
+    row('name', s.name) + row('does', s.does) + row('variant', s.variant) +
+    row('species', s.species) + row('method', s.method) + row('residues', s.residues) +
+    row('chains', s.chains) + row('shown as', s.rep) +
+    `<tr><td colspan="2"><p class="note">${s.blurb || ''}</p></td></tr>`;
+}
+P.on('rep', paint);
+P.on('load', paint);
+paint();
+</script>
+</body>
+</html>

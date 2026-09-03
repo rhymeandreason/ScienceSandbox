@@ -451,6 +451,7 @@
 
     const box = CardStage.create({
       mount,
+      viewOffset: opts.viewOffset,
       cam: { theta: 0.6, phi: 1.1, r: 40 },
       /* orbit:false by default — on a map, a drag on this canvas is a drag on
          the card, and a molecule that spins under the pointer leaves a reader
@@ -1108,6 +1109,7 @@
     setRep('ribbon');
 
     box.drop = () => { setRep('ribbon'); dropSurface(); };
+    box.setRep = setRep;
 
     /* Replace what is drawn without replacing the box. A page that switches
        between structures keeps one WebGL context, one camera and one turn,
@@ -1235,5 +1237,72 @@
     return box;
   }
 
-  global.Proteinbox = { create, RIB };
+  /* ---- one box, on the contract every component shares ----
+     `create` is the card the door map and the shelf pool; this is the shape
+     a generated page takes: name a protein, get set / state / on / destroy.
+     A page one folder below demos/ passes nothing for `base`.
+
+       const P = Proteinbox.mount(el, { protein:'hemoglobin', rep:'ribbon' });
+       P.set({ rep:'surface' });            // 'ribbon' | 'surface' | 'fold', where the registry has them
+       P.set({ protein:'myoglobin' });       // fetches the trace and redraws in the same box
+       P.state().residues */
+  function mount(el, params = {}) {
+    const lib = (typeof ProteinLib !== 'undefined' && ProteinLib) || global.ProteinLib;
+    if (!lib) throw new Error('proteinbox.js: mount needs proteins/proteins.js loaded first');
+    const P = Object.assign({ base: '../', rep: 'ribbon', orbit: true }, params);
+    const listeners = {};
+    const emit = (ev, ...a) => (listeners[ev] || []).forEach(fn => fn(...a));
+    const entry = () => {
+      const p = lib.PROTEINS.find(x => x.key === P.protein);
+      const v = p && (P.variant ? p.variants.find(x => x.id === P.variant) : (p.variants.find(x => x.default) || p.variants[0]));
+      return { p, v };
+    };
+    const box = create(Object.assign({ mount: el }, P, {
+      onRep: r => { P.rep = r; emit('rep', r); },
+    }));
+    if (!box) throw new Error('proteinbox.js: mount could not create a box; see the warning above');
+    const has = () => { const o = fromRegistry(Object.assign({}, P)); return { surface: !!o.surface, fold: !!o.fold }; };
+    function applyRep() {
+      const h = has();
+      const want = P.rep === 'surface' && !h.surface ? 'ribbon' : P.rep === 'fold' && !h.fold ? 'ribbon' : P.rep;
+      if (want !== box.rep) box.setRep(want);
+    }
+    function state() {
+      const { p, v } = entry();
+      const r = (v && v.read) || {};
+      return { protein: P.protein, variant: v ? v.id : null, name: p ? p.name : null, does: p ? p.does : null,
+        blurb: p ? p.blurb : null, species: v ? v.species : null, purpose: v ? v.purpose : null,
+        method: r.method || null, residues: r.residues || null, chains: v ? v.chains : null,
+        rep: box.rep, available: has() };
+    }
+    function set(next) {
+      const swap = (next.protein && next.protein !== P.protein) || (next.variant && next.variant !== P.variant);
+      Object.assign(P, next);
+      if (swap) {
+        const o = fromRegistry(Object.assign({}, P, { trace: null, surface: null, fold: null, view: null }));
+        if (!o.trace) return this;
+        fetch(o.trace).then(r => r.json()).then(t => {
+          box.drop();
+          box.setData(t, { view: o.view, chains: o.chains });
+          if (next.colors) box.setColors(next.colors);
+          applyRep();
+          emit('load', state());
+        });
+        return this;
+      }
+      if (next.colors) box.setColors(next.colors);
+      if (next.rep) applyRep();
+      return this;
+    }
+    if (P.rep !== 'ribbon') applyRep();
+    return {
+      sim: box, box, set, state,
+      on(ev, fn) { (listeners[ev] || (listeners[ev] = [])).push(fn);
+        return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); }; },
+      start: box.start, stop: box.stop, pump: box.pump, draw: box.draw,
+      destroy: () => box.destroy(),
+    };
+  }
+
+  global.Proteinbox = { create, mount, RIB };
 })(this);

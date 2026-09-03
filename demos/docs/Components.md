@@ -156,6 +156,35 @@ Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `
 
 Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, active transport and its cost, a cell in a changed environment. Not for: a specific real protein's shape, receptors, vesicles, anything at whole-cell scale.
 
+## Proteinbox — a real protein, from the library
+
+```html
+<link rel="stylesheet" href="../kit/proteinbox.css">
+...
+<script src="../folding/folding.js"></script>
+<script src="../kit/ribbon.js"></script>
+<script src="../kit/nucleic.js"></script>
+<script src="../kit/surface.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/proteinbox.js"></script>
+<script src="../proteins/proteins.js"></script>
+```
+
+```js
+const P = Proteinbox.mount(el, {
+  protein: 'hemoglobin',   // a key from the list below
+  variant: undefined,      // a PDB id the registry holds for it; omit for the default
+  rep: 'ribbon',           // 'ribbon' | 'surface' | 'fold'; the last two only where state().available says so
+  colors: undefined,       // omit: helices, sheets and loops in the library's palette. {byChain:{A:0x..., B:0x...}} to tell chains apart
+});
+```
+
+These are deposited structures drawn at real ångströms from files this repo baked, so a page can make measured claims about them, and `state()` carries the facts to print: `name`, `does`, `blurb`, `variant`, `species`, `purpose`, `method` (how it was solved), `residues`, `chains`, `rep`, and `available` for surface and fold. Never type a residue count or a method; read them. `set({protein})` fetches and redraws in the same box. Drag turns the molecule.
+
+Proteins: `atp-synthase`, `napump` (the sodium-potassium pump), `prion`, `amylase`, `hexokinase`, `chymotrypsin`, `hemoglobin`, `collagen`, `rnase`, `insulin`, `myoglobin`, `gfp`, `ferritin`, `rubisco`, `lysozyme`, `antibody`. Through the registry nearly all of them are ribbon only; ask `state().available` before offering a surface or fold control, and do not promise one in the copy. Events: `rep` (name) when the representation changes · `load` (state) when a swapped protein has drawn.
+
+Good for: what a protein looks like, primary to quaternary structure, comparing two proteins side by side in two boxes, enzymes and their shape. Not for: animation of function (nothing here moves except hemoglobin's fold), or any protein not in the list.
+
 ## Leaf — a leaf in cross-section, tissue by tissue
 
 ```html
