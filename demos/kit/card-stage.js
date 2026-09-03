@@ -231,8 +231,14 @@
         stage.renderer.dispose();
         // dispose() alone does NOT hand the context back — the header's first
         // trap, and the half kit/molbox.js was missing before it moved here.
-        const lose = stage.renderer.getContext().getExtension('WEBGL_lose_context');
-        if (lose) lose.loseContext();
+        // The browser may have taken the context already, over its own cap on
+        // live ones; asking a lost context to lose itself is an INVALID_OPERATION
+        // in the console and nothing else, so check before asking.
+        const gl = stage.renderer.getContext();
+        if (gl && !gl.isContextLost()) {
+          const lose = gl.getExtension('WEBGL_lose_context');
+          if (lose) lose.loseContext();
+        }
         if (canvas.parentElement) canvas.parentElement.removeChild(canvas);
       },
     };

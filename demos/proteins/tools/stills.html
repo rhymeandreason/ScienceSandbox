@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<base href="/demos/proteins/tools/">
+<title>Bake the gallery's stills</title>
+
+<!-- ===================================================================
+     THE GALLERY'S FIRST FRAME, BAKED. proteins/index.html hands out a
+     rationed pool of WebGL contexts, so a card is either live, showing
+     the last frame it drew, or — before it has ever been live — empty.
+     The empty case is the glitch: a reader scrolling a grid of blank
+     rectangles cannot tell a slow page from a broken one.
+
+     This bench draws every entry once, in the SAME box the gallery uses
+     with the SAME registry colour and rotation, and POSTs each frame to
+     the dev server, which writes proteins/stills/<key>.webp. One context,
+     reused, so the browser's cap is never near.
+
+     INTERNAL TOOL, DEV SERVER ONLY. /api/stills is local-only; the PNGs
+     it writes are committed and deploy.
+     =================================================================== -->
+
+<style>
+  body{font:14px/1.5 system-ui,-apple-system,sans-serif;margin:2rem;background:#faf8f4;color:#14161a}
+  h1{font-size:1.2rem;margin:0 0 .4rem}
+  p{color:#6d6f76;margin:0 0 1.2rem}
+  button{font:inherit;padding:.45rem 1rem;border:1px solid #14161a;background:#fff;border-radius:3px;cursor:pointer}
+  /* The mount is 2x a card's 330x230 box: the still is a background-image on
+     a retina screen, and a 1x bake is visibly soft next to the live canvas. */
+  #mount{width:660px;height:460px;margin:1.2rem 0;border:1px solid #e4e0d7;background:#faf8f4}
+  #log{font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap}
+  .bad{color:#c0392b}
+</style>
+</head>
+<body>
+<h1>Gallery stills</h1>
+<p>Draws every protein once and writes <code>proteins/stills/&lt;key&gt;.webp</code>. Dev server only.</p>
+<button id="go">Bake all</button>
+<div id="mount"></div>
+<div id="log"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script src="../../kit/nucleic.js"></script>
+<script src="../proteins.js"></script>
+<script src="../nucleic-acids.js"></script>
+<script>
+'use strict';
+
+/* The gallery's own reading of the two registries, so a still cannot be baked
+   for an entry the gallery does not show — or, worse, in a different frame. */
+const NA_KEYS = new Set(NucleicAcids.withProtein().map(s => s.key));
+const isNA = p => NA_KEYS.has(p.key);
+const ENTRIES = [...ProteinLib.PROTEINS, ...NucleicAcids.withProtein()];
+const defaultOf = p => isNA(p) ? NucleicAcids.defaultOf(p) : ProteinLib.defaultOf(p);
+const dataOf = (p, file) => `../../${p.dir}/data/${file}`;
+
+const mount = document.getElementById('mount');
+const logEl = document.getElementById('log');
+const say = (t, bad) => {
+  const d = document.createElement('div');
+  if (bad) d.className = 'bad';
+  d.textContent = t; logEl.appendChild(d);
+};
+
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+async function bake(p) {
+  const v = defaultOf(p);
+  const t = await fetch(dataOf(p, v.read.baked)).then(r => r.json());
+
+  /* Same options as the card, minus the reader: no orbit, and the wheel and
+     the turn are nobody's here. Everything that decides what the frame LOOKS
+     like — pad, sub, colour, rotation — has to match index.html or the still
+     jumps when the live box replaces it. */
+  const box = Proteinbox.create({
+    mount, orbit: false, pad: 1.15, sub: 8,
+    stage: { ortho: false },
+    colors: isNA(p) ? null : ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
+    view: isNA(p) ? null : ProteinLib.viewOf(p),
+    data: t,
+  });
+  if (box.setPocket && t.pocket) box.setPocket(t.pocket);
+
+  // A few frames, not one: the fit runs off a resize and the pocket lands
+  // after the ribbon, and a snapshot taken before either is the wrong frame.
+  for (let i = 0; i < 4; i++) { box.draw(); await wait(60); }
+
+  /* THE RIBBON ON NOTHING. The renderer's context is alpha and the still keeps
+     it, so the card's paper shows through and a still is not pinned to one
+     background colour. WebP because PNG at this size is 400 KB a card. */
+  box.draw();                            // the buffer is only readable now
+  const webp = box.canvas.toDataURL('image/webp', 0.85);
+  box.destroy();
+  /* A browser with no WebP ENCODER hands back a PNG under the name asked for,
+     silently, and the bake would then write 400 KB files with the wrong
+     extension. Checked rather than trusted; the fix is to run this in a
+     browser that can, not to accept the PNG. */
+  if (!/^data:image\/webp;/.test(webp)) {
+    throw new Error('this browser will not encode WebP — run the bake in Chrome');
+  }
+
+  const r = await fetch('/api/stills', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key: p.key, webp }),
+  });
+  const out = await r.json();
+  if (!r.ok) throw new Error(out.error || r.status);
+  return out.bytes;
+}
+
+document.getElementById('go').addEventListener('click', async () => {
+  document.getElementById('go').disabled = true;
+  logEl.textContent = '';
+  for (const p of ENTRIES) {
+    try {
+      const bytes = await bake(p);
+      say(`${p.key} — ${Math.round(bytes / 1024)} KB`);
+    } catch (e) {
+      say(`${p.key} — ${e.message}`, true);
+    }
+  }
+  say('done.');
+  document.getElementById('go').disabled = false;
+});
+</script>
+</body>
+</html>

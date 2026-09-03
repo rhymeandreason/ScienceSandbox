@@ -408,6 +408,52 @@ function images(req, res, json) {
   });
 }
 
+/* ---- the gallery's still frames -------------------------------------------
+ * POST → { key, webp } where webp is a data: URL, written to
+ * proteins/stills/<key>.webp. Local-only, like every other writer here.
+ *
+ * WEBP, and the reason is both halves at once. PNG keeps the alpha and costs
+ * 6.5 MB across the gallery, which is a worse first frame than the empty
+ * rectangle this replaces; JPEG is affordable but has no alpha, so the still
+ * would carry a baked-in paper colour and stop being usable the day a card
+ * sits on anything else. WebP is a fifth of the PNG and keeps the transparency.
+ * Safari has decoded it since 14; ENCODING is the capture bench's problem, and
+ * it says so if the browser it runs in cannot.
+ *
+ * The stills DO deploy: they are the gallery's first frame, and the reason a
+ * card that has not got a WebGL context yet shows the protein rather than an
+ * empty rectangle. Only `proteins/tools/stills.html` posts here.
+ */
+function stills(req, res, json) {
+  if (!require(path.join(ROOT, 'api/_local.js')).local(req)) {
+    return json(403, { error: 'stills are written from this machine only' });
+  }
+  if (req.method !== 'POST') return json(405, { error: 'POST only' });
+
+  let raw = '';
+  req.on('data', d => { raw += d; if (raw.length > 2e7) req.destroy(); });
+  req.on('end', () => {
+    let body;
+    try { body = JSON.parse(raw); }
+    catch { return json(400, { error: 'body is not JSON' }); }
+
+    // The key becomes a filename, so it is checked rather than trusted.
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(body.key || '')) {
+      return json(400, { error: 'key must be lowercase, digits and dashes' });
+    }
+    const m = /^data:image\/webp;base64,(.+)$/.exec(body.webp || '');
+    if (!m) return json(400, { error: 'webp must be a data:image/webp;base64 URL' });
+
+    const dir = path.join(DEMOS, 'proteins/stills');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `${body.key}.webp`);
+    const buf = Buffer.from(m[1], 'base64');
+    fs.writeFileSync(file, buf);
+    console.log(`  proteins/stills/${body.key}.webp \u2190 ${Math.round(buf.length / 1024)} KB`);
+    return json(200, { ok: true, bytes: buf.length });
+  });
+}
+
 /* ---- the question bank ----------------------------------------------------
  * GET  → the rows on disk, and the mtime a save has to match.
  * POST → validate and rewrite demos/questions.js.
@@ -577,6 +623,7 @@ function api(url, req, res) {
   if (url === '/api/mapcontent') return editable(req, res, json, 'mapcontent');
   if (url === '/api/clips') return clips(req, res, json);
   if (url === '/api/images') return images(req, res, json);
+  if (url === '/api/stills') return stills(req, res, json);
 
   if (url !== '/api/ask' && url !== '/api/log' && url !== '/api/find' &&
       url !== '/api/extend' && url !== '/api/land')
