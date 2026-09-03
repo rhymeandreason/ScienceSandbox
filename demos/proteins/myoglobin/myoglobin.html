@@ -67,15 +67,6 @@
   .onward a { text-decoration: none; border-bottom: 1px solid currentColor;
     padding-bottom: 1px }
 
-  /* THE NAV SAYS WHERE THIS PAGE SITS; this says where to go from it. They
-     point at the same place and are not the same thing: a crumb reads as
-     chrome, and a reader at the end of one protein wants a way back that looks
-     like a link. */
-  .back { display: block; margin-bottom: .6rem;
-    font-size: .78rem; letter-spacing: .06em; text-transform: uppercase;
-    color: var(--text-muted); text-decoration: none }
-  .back:hover { color: var(--accent) }
-
   /* ---- the two columns ------------------------------------------------
      The molecule is STICKY and the prose scrolls past it. Below 900px the
      stage pins to the top of the viewport instead of beside the text, which
@@ -143,7 +134,6 @@
      section, and a heavy line here would read as a section boundary one
      paragraph before the first section. -->
 <header class="pagehead open">
-  <a class="back" href="/proteins">&larr; all proteins</a>
   <h1 class="proper">Myoglobin</h1>
   <p class="deck">One chain wrapped around one iron atom. It holds oxygen in
     your muscle until the muscle needs it. This was the first protein to have its shape solved.</p>
