@@ -11,13 +11,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
-<link rel="stylesheet" href="css/main.css">          <!-- design system: tokens, type, buttons -->
+<link rel="stylesheet" href="css/kodo.css">          <!-- design system: tokens, type, buttons -->
 <link rel="stylesheet" href="css/sandbox.css">
 <link rel="stylesheet" href="css/pathways.css">     <!-- the pathway lesson chrome, shared with krebs-lab -->
 <link rel="stylesheet" href="kit/enzyme-blob.css">    <!-- ships with kit/enzyme-blob.js; its JS depends on these rules -->
 <link rel="stylesheet" href="massaction/massaction.css">
 <link rel="stylesheet" href="energy/energy.css">  <!-- the free-energy figures -->
-<link rel="stylesheet" href="css/editorial.css">  <!-- opt in to the homepage system; LAST, it retones the sheets above -->
 <style>
   /* WHAT THIS PAGE OWNS. Everything else is pathways.css. */
 
@@ -56,7 +55,7 @@
   #enzrail #enzmeta{align-items:flex-start}
   /* pathways.css sets these on the ids, so inheriting left is not enough */
   #enzrail #enznote,#tools #enzname{text-align:left}
-  /* the note keeps editorial.css's 232px measure — it was set for the rag */
+  /* the note keeps kodo.css's 232px measure — it was set for the rag */
   #enzmeta,#enznote{position:static;right:auto;bottom:auto}
   #enzmeta{max-width:100%}
   /* the verdicts are pressable; the rail itself is not (see drawEnzMeta) */
@@ -1758,7 +1757,7 @@ function placeEnz(){
              {key:enzKey(), pin:split && on.every(laneSettled)});
 }
 const actEl=document.getElementById('actbtn');
-// The button is main.css's .pill. Every className write below REPLACES the
+// The button is kodo.css's .pill. Every className write below REPLACES the
 // attribute, so the base has to be re-stated each time — a bare '' silently
 // strips the component and leaves a UA button.
 const ACT_BASE='pill';

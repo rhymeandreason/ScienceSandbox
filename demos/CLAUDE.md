@@ -64,7 +64,7 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 
 ## Making a new lesson
 
-**Ask the human which existing page is closest, and copy it.** The shared modules live in `lib/`, so a lesson at the top level loads `lib/scene.js` and `css/main.css`, and a bench in `tests/` reaches them through `../`; prose names them bare. Every page loads `molecules.js` + `scene.js`; everything above that is chosen — the `mol-*.js` domains it draws, the `kit/` pieces its mechanic needs, and rarely a standalone module. A page loading a domain it never draws is paying for someone else's molecules.
+**Ask the human which existing page is closest, and copy it.** The shared modules live in `lib/`, so a lesson at the top level loads `lib/scene.js` and `css/kodo.css`, and a bench in `tests/` reaches them through `../`; prose names them bare. Every page loads `molecules.js` + `scene.js`; everything above that is chosen — the `mol-*.js` domains it draws, the `kit/` pieces its mechanic needs, and rarely a standalone module. A page loading a domain it never draws is paying for someone else's molecules.
 
 **Never type an atom or bond colour.** `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*` at load, so a caption and the sphere it names cannot drift. `design-system.html` draws every token on the stage's own paper.
 

@@ -8,105 +8,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css">
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="demos/css/kodo.css">
 <style>
-  :root {
-    /* Futura where it exists on the machine; Jost is the geometric stand-in. */
-    --sans: 'Futura', 'Futura PT', 'Jost', -apple-system, 'Segoe UI', sans-serif;
-    --serif: 'Literata', Georgia, serif;
-
-    --paper:  #faf8f4;
-    --ink:    #14161a;
-    --muted:  #6d6f76;
-    --line:   #e4e0d7;
-    --card:   #ffffff;
-    --accent: #1f5f4f;   /* deep green */
-    --spark:  #e2643a;   /* warm counterpoint */
-
-    --gap: clamp(1rem, 2.2vw, 1.5rem);
-  }
-
-  * { box-sizing: border-box; }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    font-family: var(--sans);
-    background: var(--paper);
-    color: var(--ink);
-    margin: 0;
-    padding: clamp(3rem, 7vw, 6rem) clamp(1.25rem, 5vw, 4rem) 7rem;
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
-    font-weight: 400;
-  }
-
-  .wrap { max-width: 1080px; margin: 0 auto; }
-
-  /* ---- masthead ------------------------------------------------------ */
-
-  .mast {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: end;
-    gap: var(--gap);
-    padding-bottom: 1.75rem;
-    border-bottom: 2px solid var(--ink);
-    margin-bottom: clamp(2.5rem, 6vw, 4.5rem);
-  }
-
-  .logo {
-    font-size: clamp(2.8rem, 9vw, 5.5rem);
-    font-weight: 500;
-    letter-spacing: -0.045em;
-    line-height: 0.9;
-    margin: 0;
-    text-transform: lowercase;
-  }
-  .logo em {
-    font-style: normal;
-    color: var(--accent);
-  }
-  .logo .dot { color: var(--spark); }
-
-  .tagline {
-    font-family: var(--serif);
-    font-size: clamp(1rem, 1.6vw, 1.22rem);
-    color: var(--muted);
-    max-width: 26ch;
-    margin: 0 0 0.35rem;
-    text-align: right;
-    line-height: 1.35;
-  }
-
-  /* ---- section headers ----------------------------------------------- */
-
-  section { margin-bottom: clamp(3rem, 6vw, 4.5rem); }
-
-  .head {
-    display: flex;
-    align-items: baseline;
-    gap: 1rem;
-    margin: 0 0 1.5rem;
-  }
-
-  h2 {
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.22em;
-    margin: 0;
-  }
-
-  .head .rule { flex: 1; height: 1px; background: var(--line); }
-  .head .count { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--muted); }
+  /* The site sheet owns the paper, the wordmark, the masthead and the section
+     heads. What is left here is the homepage's own furniture: the two card
+     shapes, the manifesto and its inline chips. */
+  :root { --page-max: 1080px }
 
   /* ---- featured grid -------------------------------------------------- */
 
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-    gap: var(--gap);
+    gap: var(--page-gap);
     list-style: none;
     padding: 0; margin: 0;
   }
@@ -127,8 +41,8 @@
     gap: 0.5rem;
     height: 100%;
     padding: 1.5rem 1.4rem 1.6rem;
-    background: var(--card);
-    border: 1px solid var(--line);
+    background: var(--surface-card);
+    border: 1px solid var(--border-hair);
     border-radius: 4px;
     color: inherit;
     text-decoration: none;
@@ -141,13 +55,14 @@
     font-weight: 600;
   }
   .card .name {
+    font-family: var(--font-display);
     font-size: 1.35rem;
     font-weight: 500;
     letter-spacing: -0.02em;
     line-height: 1.12;
   }
   .card .note {
-    font-family: var(--serif);
+    font-family: var(--font-editorial);
     font-size: 0.92rem;
     color: var(--muted);
     margin-top: auto;
@@ -178,8 +93,8 @@
   .spec {
     display: flex; flex-direction: column; flex: 1;
     padding: 0.85rem 1rem 0.9rem;
-    background: var(--card);
-    border: 1px solid var(--line);
+    background: var(--surface-card);
+    border: 1px solid var(--border-hair);
     border-radius: 4px;
     color: inherit; text-decoration: none;
     transition: border-color .18s, transform .18s, box-shadow .18s;
@@ -193,7 +108,7 @@
      an inline thumb ignores aspect-ratio and collapses to nothing. */
   .spec .name, .spec .thumb, .spec .claim, .spec .prov { display: block; }
   .spec .name {
-    font-family: var(--serif); font-size: 1.1rem; line-height: 1.2;
+    font-family: var(--font-editorial); font-size: 1.1rem; line-height: 1.2;
     font-weight: 400; letter-spacing: -0.01em; color: var(--ink);
   }
   .spec .tag {
@@ -207,7 +122,7 @@
   .spec .thumb {
     position: relative; overflow: hidden;
     width: 100%; aspect-ratio: 4 / 3; margin: 0.55rem 0 0.25rem;
-    background: #eceae4; border: 1px solid var(--line); border-radius: 3px;
+    background: #eceae4; border: 1px solid var(--border-hair); border-radius: 3px;
   }
   .spec .thumb.mounted { background: #f2f0ea; }
   .spec .thumb > canvas { display: block; width: 100%; height: 100%; }
@@ -220,11 +135,6 @@
     font-size: 0.63rem; line-height: 1.35; color: #9a9ca3;
     font-variant-numeric: tabular-nums;
   }
-  .head .more {
-    font-size: 0.72rem; letter-spacing: 0.1em; color: var(--muted); text-decoration: none;
-  }
-  .head .more:hover { color: var(--accent); }
-
   /* ---- coming soon ---------------------------------------------------- */
 
   .card.soon {
@@ -235,7 +145,7 @@
   .card.soon .idx  { color: var(--muted); }
   .card.soon .name { color: var(--muted); }
   .card.soon:hover {
-    border-color: var(--line);
+    border-color: var(--border-hair);
     transform: none;
     box-shadow: none;
   }
@@ -249,7 +159,7 @@
   }
 
   .statement {
-    font-family: var(--serif);
+    font-family: var(--font-editorial);
     font-weight: 400;
     font-size: clamp(1.9rem, 4.6vw, 3.5rem);
     line-height: 1.14;
@@ -290,6 +200,7 @@
   }
 
   .cta {
+    font-family: var(--font-display);
     display: inline-flex;
     align-items: center;
     gap: 0.6em;
@@ -314,44 +225,20 @@
     box-shadow: 0 8px 20px rgba(226,100,58,.25);
   }
 
-  footer {
-    margin-top: 4rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--line);
-    font-size: 0.8rem;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  footer a {
-    color: var(--muted);
-    text-decoration: none;
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 1px;
-    transition: color .15s, border-color .15s;
-  }
-  footer a:hover { color: var(--accent); border-color: var(--accent); }
-  footer .sep { opacity: .5; margin: 0 0.15rem; }
-
-  @media (max-width: 700px) {
-    .mast { grid-template-columns: 1fr; align-items: start; }
-    .tagline { text-align: left; margin-top: 0.9rem; }
-  }
 </style>
 </head>
-<body>
-<div class="wrap">
+<body class="kodo">
+<div class="page">
 
-<header class="mast">
-  <h1 class="logo">kodo<em>lab</em><span class="dot">.</span></h1>
+<header class="pagehead">
+  <h1 class="mark hero">kodo<em>lab</em><span class="dot">.</span></h1>
   <p class="tagline">Interactive 3D simulations for college level Biology.</p>
 </header>
 
+<main>
+
 <section>
-  <div class="head"><h2>Lessons</h2><span class="rule"></span><span class="count">05</span></div>
+  <div class="sechead"><h2>Lessons</h2><span class="rule"></span><span class="count">05</span></div>
   <ul class="grid lessons">
     <li><a class="card" href="/water">
       <span class="idx">01</span>
@@ -383,13 +270,13 @@
 
 
 <section>
-  <div class="head"><h2>Proteins</h2><span class="rule"></span>
+  <div class="sechead"><h2>Proteins</h2><span class="rule"></span>
     <a class="more" href="/proteins">the whole collection &rarr;</a></div>
   <ul class="grid proteins" id="shelf"></ul>
 </section>
 
 <section>
-  <div class="head"><h2>Coming soon</h2><span class="rule"></span><span class="count">02</span></div>
+  <div class="sechead"><h2>Coming soon</h2><span class="rule"></span><span class="count">02</span></div>
   <ul class="grid">
     <li><span class="card soon">
       <span class="idx">06</span>
@@ -425,7 +312,9 @@
   <a class="cta" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener"><i class="ph-bold ph-heart" aria-hidden="true"></i>I love this</a>
 </section>
 
-<footer>
+</main>
+
+<footer class="sitefoot">
   <span>Kodolab · <a href="https://www.linkedin.com/in/maryhuang1/" target="_blank" rel="noopener">Mary Huang</a>
  · <a href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Send feedback</a></span>
   <span>open source · CC-BY-NC · github coming soon</span>

@@ -50,68 +50,31 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/kodo.css">
 <link rel="stylesheet" href="../../kit/proteinbox.css">
 
 <style>
-  /* THE COLLECTION'S PAPER, which is the homepage's. A reader arrives here
-     from proteins/index.html and should not feel the floor change: same
-     Futura display face, same warm paper, same green. Nothing here is a
-     colour a molecule uses; those come from the palette through
-     tokens-from-palette.js. */
-  :root{
-    --sans:'Futura','Futura PT','Jost',-apple-system,'Segoe UI',sans-serif;
-    --ui:system-ui,-apple-system,'Segoe UI',sans-serif;
+  /* The site sheet owns the paper, the wordmark, the masthead and the gutter.
+     What is left here is the reading page itself: the sticky viewer beside the
+     prose, and the figures measured off whichever file is on screen. */
 
-    --paper:#faf8f4;
-    --ink:#14161a;
-    --muted:#6d6f76;
-    --line:#e4e0d7;
-    --card:#ffffff;
-    --accent:#1f5f4f;
-    --spark:#e2643a;
-  }
+  a { color: var(--accent) }
 
-  *{box-sizing:border-box}
+  /* An outbound offer, not a heading: it reads as running text with a rule over
+     it, so it cannot be mistaken for the next section starting. */
+  .onward { margin-top: 1.4rem; padding-top: .9rem;
+    border-top: 1px solid var(--border-hair); font-size: .9rem }
+  .onward a { text-decoration: none; border-bottom: 1px solid currentColor;
+    padding-bottom: 1px }
 
-  /* ---- site nav ------------------------------------------------------
-     The same bar the collection wears, and the homepage's wordmark letter for
-     letter. What changes per page is the crumb beside it. */
-  .nav{display:flex;flex-wrap:wrap;align-items:baseline;gap:.75rem;
-    padding:clamp(2rem,4vw,2rem) 0 0}
-  .nav .mark{font-family:var(--sans);font-size:1.35rem;font-weight:500;
-    letter-spacing:-.035em;text-transform:lowercase;color:var(--ink);
-    text-decoration:none;line-height:1}
-  .nav .mark em{font-style:normal;color:var(--accent)}
-  .nav .mark .dot{color:var(--spark)}
-  .nav .here{font-size:.74rem;letter-spacing:.18em;text-transform:uppercase;
-    color:var(--muted);font-weight:600;text-decoration:none}
-  .nav .here:hover{color:var(--accent)}
-
-  body{font-family:var(--ui);background:var(--paper);color:var(--ink);
-    margin:0;line-height:1.6;-webkit-font-smoothing:antialiased}
-
-  a{color:var(--accent)}
-
-  .wrap{max-width:1180px;margin:0 auto;padding:0 clamp(1.25rem,5vw,4rem)}
-
-  /* ---- masthead ------------------------------------------------------ */
-
-  header{padding:clamp(1.5rem,4vw,2.5rem) 0 1.5rem}
-  .back{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;
-    color:var(--muted);text-decoration:none}
-  .back:hover{color:var(--accent)}
-  /* An outbound offer, not a heading: it reads as running text with a rule
-     over it, so it cannot be mistaken for the next section starting. */
-  .onward{margin-top:1.4rem;padding-top:.9rem;border-top:1px solid var(--line);
-    font-size:.9rem}
-  .onward a{text-decoration:none;border-bottom:1px solid currentColor;
-    padding-bottom:1px}
-  h1{font-family:var(--sans);font-weight:400;font-size:clamp(2.6rem,7vw,4.4rem);
-    line-height:1;margin:.6rem 0 0;letter-spacing:-.01em}
-  .deck{font-size:clamp(1.05rem,1.9vw,1.3rem);color:var(--muted);
-    max-width:34em;margin:.9rem 0 0;font-weight:300}
+  /* THE NAV SAYS WHERE THIS PAGE SITS; this says where to go from it. They
+     point at the same place and are not the same thing: a crumb reads as
+     chrome, and a reader at the end of one protein wants a way back that looks
+     like a link. */
+  .back { display: block; margin-bottom: .6rem;
+    font-size: .78rem; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--text-muted); text-decoration: none }
+  .back:hover { color: var(--accent) }
 
   /* ---- the two columns ------------------------------------------------
      The molecule is STICKY and the prose scrolls past it. Below 900px the
@@ -125,20 +88,20 @@
 
   .viewer{position:sticky;top:clamp(1rem,4vh,3rem)}
   .stage{width:100%;aspect-ratio:1/1;max-height:70vh;
-    background:var(--card);border:1px solid var(--line);border-radius:4px}
+    background:var(--surface-card);border:1px solid var(--border-hair);border-radius:4px}
   /* WHAT IS ON SCREEN, NAMED. A reader who has scrolled three sections is
      looking at a different file than they started on, and a caption that
      says which is the difference between a demo and evidence. */
   .cap{display:flex;flex-wrap:wrap;gap:.4rem .8rem;align-items:baseline;
     margin:.7rem 0 0;font-size:.8rem;color:var(--muted)}
-  .cap .pdb{font-family:var(--sans);letter-spacing:.04em;color:var(--ink)}
+  .cap .pdb{font-family:var(--font-display);letter-spacing:.04em;color:var(--ink)}
   .cap a{color:var(--muted)}
 
   /* ---- the sections --------------------------------------------------- */
 
-  section{padding:12vh 0;border-top:1px solid var(--line)}
+  section{padding:12vh 0;border-top:1px solid var(--border-hair)}
   section:first-child{border-top:0;padding-top:2vh}
-  section h2{font-family:var(--sans);font-weight:400;
+  section h2{font-family:var(--font-display);font-weight:400;
     font-size:clamp(1.5rem,2.6vw,2rem);line-height:1.15;margin:0 0 .8rem;
     letter-spacing:-.005em}
   section p{margin:0 0 1rem;max-width:34em}
@@ -149,15 +112,11 @@
      file being shown, so it is set beside the sentence it supports rather
      than inside it, where a re-bake would break the grammar. */
   .measure{display:flex;flex-wrap:wrap;gap:1.25rem 1.75rem;margin:1.2rem 0 0;
-    padding:1.2rem 0 0;border-top:1px solid var(--line)}
+    padding:1.2rem 0 0;border-top:1px solid var(--border-hair)}
   .measure div{min-width:8rem}
-  .measure .n{font-family:var(--sans);font-size:1.2rem;display:block;
+  .measure .n{font-family:var(--font-display);font-size:1.2rem;display:block;
     line-height:1.1}
   .measure .l{font-size:.75rem;color:var(--muted);display:block;margin-top:.2rem}
-
-  footer{border-top:1px solid var(--line);padding:2rem 0 5rem;
-    font-size:.82rem;color:var(--muted)}
-  footer a{margin-right:1.2rem}
 
   @media (max-width:900px){
     .lesson{grid-template-columns:1fr;gap:1rem}
@@ -167,26 +126,25 @@
   }
 </style>
 </head>
-<body>
-<div class="wrap">
+<body class="kodo">
+<div class="page">
 
-<nav class="nav">
+<nav class="sitenav">
   <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
-  <span class="here">biology</span>
+  <a class="crumb" href="/proteins">proteins</a>
 </nav>
 
-<header>
-  <!-- THE NAV SAYS WHERE THIS PAGE SITS; this says where to go from it. They
-       point at the same place and are not the same thing: a crumb is read as
-       chrome, and a reader at the end of one protein wants a way to the next
-       one that looks like a link. -->
+<!-- `.open`: no rule under the name. The deck runs straight into the first
+     section, and a heavy line here would read as a section boundary one
+     paragraph before the first section. -->
+<header class="pagehead open">
   <a class="back" href="/proteins">&larr; all proteins</a>
-  <h1>Myoglobin</h1>
+  <h1 class="proper">Myoglobin</h1>
   <p class="deck">One chain wrapped around one iron atom. It holds oxygen in
     your muscle until the muscle needs it. This was the first protein to have its shape solved.</p>
 </header>
 
-<div class="lesson">
+<main class="lesson">
 
   <div class="viewer">
     <div class="stage" id="stage"></div>
@@ -265,11 +223,10 @@ Kendrew shared the 1962 Nobel Prize with Max Perutz, who was doing the same work
     </section>
 
   </div>
-</div>
+</main>
 
-<footer>
+<footer class="sitefoot">
   <a href="/proteins">all proteins</a>
-
 </footer>
 
 </div>

@@ -7,12 +7,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
-<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/kodo.css">
 <link rel="stylesheet" href="css/sandbox.css">
 <link rel="stylesheet" href="css/pathways.css">
 <link rel="stylesheet" href="kit/enzyme-blob.css">
 <link rel="stylesheet" href="energy/energy.css">
-<link rel="stylesheet" href="css/editorial.css">  <!-- opt in to the homepage system; LAST of the shared sheets -->
 <style>
   /* WHAT THIS PAGE OWNS. Everything else is pathways.css.
 
@@ -1205,7 +1204,7 @@ const goToStep=k=>{ if(busy) return; intro=false; reviewing=false; setDone(k);
   laneDone.clear(); renderLanes(done()); refresh(); };
 
 const actEl=document.getElementById('actbtn');
-// The button is main.css's .pill. Every className write below REPLACES the
+// The button is kodo.css's .pill. Every className write below REPLACES the
 // attribute, so the base has to be re-stated each time — a bare '' silently
 // strips the component and leaves a UA button.
 const ACT_BASE='pill';

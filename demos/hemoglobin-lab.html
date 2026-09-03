@@ -11,9 +11,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
-<link rel="stylesheet" href="css/main.css">          <!-- design system: tokens, type, buttons -->
+<link rel="stylesheet" href="css/kodo.css">          <!-- design system: tokens, type, buttons -->
 <link rel="stylesheet" href="css/sandbox.css">
-<link rel="stylesheet" href="css/editorial.css">  <!-- opt in to the homepage system -->
 <style>
   :root{ --hb:#0042aa; --core:#c2571b; --coil:#8a8378; --quat:#8a5a12; }
 
@@ -29,7 +28,7 @@
     text-align:center;pointer-events:none}
 
   /* Anything else that has to go when this is not the whole window goes here.
-     The title itself is marked .chrome-title and hidden by main.css; lib/embed.js
+     The title itself is marked .chrome-title and hidden by kodo.css; lib/embed.js
      is what decides the page is framed. */
 
   #molname{position:absolute;left:50%;bottom:100px;transform:translateX(-50%);
@@ -694,7 +693,7 @@ const HEME_STICK = RADII.C * 0.36;
    words lying across the one thing level 2 wants looked at. They are level
    1's content anyway: which units, in what order. */
 const FOCUS_LABEL_EVERY = 5;
-const FOCUS_NAME_INK = '#3a3d44', FOCUS_NUM_INK = '#6d6f76';  /* editorial.css --text-body / --text-muted */
+const FOCUS_NAME_INK = '#3a3d44', FOCUS_NUM_INK = '#6d6f76';  /* kodo.css --text-body / --text-muted */
 
 /* ---------- amino acid classes, for the intro's pearls ----------
    The four-class grouping AP Bio teaches — nonpolar, polar uncharged,

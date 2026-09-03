@@ -30,84 +30,24 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="../kit/proteinbox.css">
 
 <style>
-  /* THE HOMEPAGE'S PAPER, not a bench's. `index.html` at the repo root sets
-     the house style — Futura over Jost for display, the warm paper and the
-     deep green — and a collection page is the closest
-     thing here to that shelf, so it wears it rather than main.css's stage
-     tokens. Nothing below is a colour a molecule uses; those still come from
-     the palette, through `tokens-from-palette.js`. */
-  :root{
-    /* Futura is the display face and nothing else — the masthead and the
-       card titles. `--ui` is what the whole page is actually read in. */
-    --sans:'Futura','Futura PT','Jost',-apple-system,'Segoe UI',sans-serif;
-    --ui:system-ui,-apple-system,'Segoe UI',sans-serif;
-
-    --paper:#faf8f4;
-    --ink:#14161a;
-    --muted:#6d6f76;
-    --line:#e4e0d7;
-    --card:#ffffff;
-    --accent:#1f5f4f;
-    --spark:#e2643a;
-
-    --gap:clamp(1rem,2.2vw,1.5rem);
-  }
-
-  *{box-sizing:border-box}
-
-  /* ---- site nav ------------------------------------------------------
-     The mark is the homepage's, letter for letter: `lab` in the green and the
-     full stop in the spark. Two spellings of a product name is one too many,
-     so if the homepage's ever changes this is the other place to change. */
-  .nav{display:flex;align-items:baseline;gap:.75rem;
-    padding:0 0 clamp(1.5rem,4vw,2.5rem)}
-  .nav .mark{font-family:var(--sans);font-size:1.35rem;font-weight:500;
-    letter-spacing:-.035em;text-transform:lowercase;color:var(--ink);
-    text-decoration:none;line-height:1}
-  .nav .mark em{font-style:normal;color:var(--accent)}
-  .nav .mark .dot{color:var(--spark)}
-  .nav .here{font-size:.74rem;letter-spacing:.18em;text-transform:uppercase;
-    color:var(--muted);font-weight:600}
-
-  /* FUTURA IS FOR THE NAMES ONLY — the masthead and each card's title.
-     Geometric caps at 0.7rem turn into a puzzle: the chips, the counts and
-     the running text are system-ui, which is what they are read in. */
-  body{font-family:var(--ui);background:var(--paper);color:var(--ink);
-    margin:0;padding:clamp(2rem,7vw,2rem) clamp(1.25rem,5vw,4rem) 6rem;
-    line-height:1.55;-webkit-font-smoothing:antialiased;font-weight:400}
-  .wrap{max-width:1180px;margin:0 auto}
-
-  /* ---- masthead ------------------------------------------------------ */
-
-  header{display:flex;flex-wrap:wrap;align-items:baseline;
-    gap:0 var(--gap);padding-bottom:1.5rem;border-bottom:2px solid var(--ink);
-    margin-bottom:clamp(2rem,5vw,3.25rem)}
-  h1{font-family:var(--sans);font-size:clamp(2.4rem,7vw,4.2rem);font-weight:500;
-    letter-spacing:-0.045em;line-height:0.9;margin:0;text-transform:lowercase}
-  /* The tally is counted from the registry at render, so it cannot drift from
-     the cards under it — the one number on this page most likely to be typed
-     and then quietly falsified by a fourth protein. */
-  .tally{margin-left:auto;font-size:0.74rem;letter-spacing:0.18em;
-    text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:0}
-
-  @media (max-width:700px){
-    .tally{margin:0.9rem 0 0;width:100%}
-  }
+  /* The site sheet owns the paper, the wordmark, the masthead and the gutter.
+     What is left here is the shelf: the card, and the one number on the page
+     that is counted from the registry rather than typed. */
+  :root { --page-max: 1180px }
 
   /* ---- the grid ------------------------------------------------------- */
 
   /* 290px, not 330: three columns is the layout this page is composed for,
      and a 330 track dropped to two at ~1150px — a laptop, not a tablet. The
      card is legible narrower than the widest it wants to be. */
-  .grid{display:grid;gap:var(--gap);
+  .grid{display:grid;gap:var(--page-gap);
     grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:4px;
+  .card{background:var(--surface-card);border:1px solid var(--border-hair);border-radius:4px;
     overflow:hidden;display:flex;flex-direction:column;
     transition:border-color .18s,transform .18s,box-shadow .18s;cursor:pointer}
   .card:hover{border-color:var(--accent);transform:translateY(-3px);
@@ -116,10 +56,10 @@
      rows are sized by their 3D box is a grid that reflows while the boxes
      fit, and every card jumps. */
   .stage{position:relative;height:230px;background:var(--paper);
-    border-bottom:1px solid var(--line)}
+    border-bottom:1px solid var(--border-hair)}
   .body{padding:1.5rem 1.4rem 1.6rem;display:flex;flex-direction:column;flex:1}
 
-  .name{font-family:var(--sans);font-size:1.35rem;font-weight:500;letter-spacing:-0.02em;
+  .name{font-family:var(--font-display);font-size:1.35rem;font-weight:500;letter-spacing:-0.02em;
     line-height:1.12;margin:0}
   /* One word, above the blurb: what KIND of thing this is, which is the
      first question a reader has and the one a ribbon cannot answer. */
@@ -141,7 +81,7 @@
   .facts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 1rem}
   .fact{font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;
     font-weight:600;padding:3px 8px;border-radius:999px;
-    border:1px solid var(--line);background:var(--paper);color:var(--muted)}
+    border:1px solid var(--border-hair);background:var(--paper);color:var(--muted)}
   /* MEASURED AND PREDICTED MUST NOT READ ALIKE. Nothing here is predicted
      yet, and the day one is, it says so in the loudest chip on the card
      rather than in a field a reader has to go looking for. */
@@ -164,22 +104,25 @@
     margin:0 0 clamp(1.75rem,4vw,2.5rem)}
 </style>
 </head>
-<body>
-<div class="wrap">
-  <nav class="nav">
+<body class="kodo">
+<div class="page">
+  <nav class="sitenav">
     <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
-    <span class="here">biology</span>
+    <span class="crumb">biology</span>
   </nav>
 
-  <header>
+  <header class="pagehead">
     <h1>proteins</h1>
-    <p class="tally" id="tally">&mdash;</p>
+    <!-- Counted from the registry at render, so it cannot drift from the cards
+         under it — the one number here most likely to be typed and then quietly
+         falsified by a fourth protein. -->
+    <p class="meta" id="tally">&mdash;</p>
   </header>
 
   <p class="lede">Proteins are what your genes are for. All of these
     proteins were measured in a lab with x-rays. Their shape is the job the do.</p>
 
-  <div class="grid" id="grid"></div>
+  <main class="grid" id="grid"></main>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
