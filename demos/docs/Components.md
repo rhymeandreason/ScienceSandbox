@@ -36,6 +36,7 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 <script src="../lib/mol-solvation.js"></script>    <!-- WaterSim only: its water and salts -->
 <script src="../lib/scene.js"></script>
 <script src="../lib/atomkit.js"></script>          <!-- Membrane only -->
+<!-- Leaf needs only three.min.js, palette.js, tokens-from-palette.js, molecules.js, scene.js and card-stage.js -->
 <script src="../kit/card-stage.js"></script>
 <!-- then the component(s), then the page script -->
 </body>
@@ -151,6 +152,28 @@ Defaults do the right thing: ions walk slower and are blocked by the bilayer, wa
 Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `conduct` (traveller, dir) through a channel · `turn` (n) a pump turn starting · `turned` (n) one finishing.
 
 Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, active transport and its cost, a cell in a changed environment. Not for: a specific real protein's shape, receptors, vesicles, anything at whole-cell scale.
+
+## Leaf — a leaf in cross-section, tissue by tissue
+
+```html
+<script src="../leaf/leaf.js"></script>
+```
+
+```js
+const L = Leaf.mount(el, {
+  explode: 0,          // 0..1, the layers lifted apart
+  seed: 1337,          // any integer; a new seed is a new leaf
+  isolate: null,       // a layer name kept opaque while the rest fade
+  autoRotate: false,
+  layers: { cuticle:0.12, upperEpi:0.7, palisade:2.4, spongy:2.6, lowerEpi:0.7 },  // heights; changing one rebuilds
+});
+```
+
+Layer names, bottom to top: `lowerEpi` (with stomata), `spongy` (air spaces, cells with chloroplasts), `bundle` (the vein: xylem above, phloem below), `palisade` (columns packed with chloroplasts, where most photosynthesis happens), `upperEpi` with the waxy cuticle on top. Hovering a layer lights it and clicking isolates it; the page can do the same with `set({isolate})`. Nothing here is measured: the proportions are a textbook diagram's, and the page should say so if it makes a claim about size.
+
+`state()`: `explode`, `seed`, `isolate`, `hovered`, and `layers` as a list of `{name, y, height}`. Events: `frame` (state) · `hover` (name or null) · `select` (name or null).
+
+Good for: leaf anatomy, where gas exchange and photosynthesis happen, what a vein is, structure and function of each tissue. Not for: a single cell's interior, or any process; nothing moves in it.
 
 ## A chart
 

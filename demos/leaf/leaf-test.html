@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>leaf-test — a leaf in cross-section, as one box</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<style>
+  #side { overflow-y:auto; }
+  .grp { margin-bottom:16px; }
+  .hd { font-weight:600; margin-bottom:6px; }
+  label { display:block; margin:7px 0; font-size:14px; }
+  input[type=range] { width:100%; }
+  button { margin:0 6px 6px 0; }
+  p.note { font-size:13px; opacity:.8; line-height:1.45; }
+  table.rd { font-size:13px; border-collapse:collapse; width:100%; }
+  table.rd td { padding:2px 0; }
+  table.rd td:last-child { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .layers button[aria-pressed=true] { outline:2px solid currentColor; }
+</style>
+</head>
+<body>
+<div id="app-sidebar">
+  <div id="stage"></div>
+  <div id="side">
+    <h1 style="font-size:17px">a leaf, cut across</h1>
+    <p class="note"><code>leaf/leaf.js</code> through <code>Leaf.mount</code>.
+      Hover a layer to light it, click to isolate it. Everything here is a
+      <code>set()</code>; every number is a <code>state()</code>.</p>
+
+    <div class="grp">
+      <div class="hd">layers</div>
+      <label>explode <input id="explode" type="range" min="0" max="1" step="0.01" value="0"></label>
+      <div class="layers" id="layers"></div>
+      <label><input id="rot" type="checkbox"> turn slowly</label>
+      <button type="button" id="regen">regenerate</button>
+    </div>
+
+    <div class="grp">
+      <div class="hd">thickness</div>
+      <label>palisade <input id="palisade" type="range" min="1" max="4" step="0.1" value="2.4"></label>
+      <label>spongy <input id="spongy" type="range" min="1" max="4" step="0.1" value="2.6"></label>
+    </div>
+
+    <div class="grp">
+      <div class="hd">what the module says</div>
+      <table class="rd" id="rd"></table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../leaf/leaf.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const L = Leaf.mount($('stage'), { explode: 0 });
+
+const NAMES = { lowerEpi:'lower epidermis', spongy:'spongy mesophyll', bundle:'vein', palisade:'palisade', upperEpi:'upper epidermis' };
+for (const n of [...Leaf.ORDER].reverse()) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = NAMES[n]; b.dataset.layer = n; b.setAttribute('aria-pressed', 'false');
+  b.onclick = () => L.set({ isolate: L.state().isolate === n ? null : n });
+  $('layers').appendChild(b);
+}
+$('explode').oninput = e => L.set({ explode: +e.target.value });
+$('rot').onchange = e => L.set({ autoRotate: e.target.checked });
+$('regen').onclick = () => L.set({ seed: (Math.random() * 1e9) >>> 0 });
+$('palisade').oninput = e => L.set({ layers: { palisade: +e.target.value } });
+$('spongy').oninput = e => L.set({ layers: { spongy: +e.target.value } });
+
+const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
+L.on('frame', s => {
+  for (const b of document.querySelectorAll('[data-layer]')) b.setAttribute('aria-pressed', b.dataset.layer === s.isolate);
+  $('rd').innerHTML =
+    row('seed', s.seed) +
+    row('hovered', s.hovered ? NAMES[s.hovered] : '—') +
+    row('isolated', s.isolate ? NAMES[s.isolate] : '—') +
+    s.layers.map(l => row(NAMES[l.name] + ' height', l.height.toFixed(2))).join('');
+});
+</script>
+</body>
+</html>

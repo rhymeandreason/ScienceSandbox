@@ -3,7 +3,7 @@
  *  gen-app.js — one generated app, from the component reference alone
  *
  *  Run, from the repo root or demos/:
- *    node demos/tools/gen-app.js "a teacher's request" out.html [--model gemini-3.7-flash]
+ *    node demos/tools/gen-app.js "a teacher's request" <path to write> [--model gemini-3.7-flash]
  *
  *  The eval for docs/Components.md: the model gets that file as its whole
  *  system prompt and a request, and writes a page. Nothing else — no repo,
@@ -27,7 +27,7 @@ const args = process.argv.slice(2);
 const mi = args.indexOf('--model');
 const MODEL = mi >= 0 ? args.splice(mi, 2)[1] : (process.env.GEMINI_MODEL || 'gemini-3.7-flash');
 const [request, out] = args;
-if (!request || !out) { console.error('usage: gen-app.js "request" out.html [--model m]'); process.exit(2); }
+if (!request || !out) { console.error('usage: gen-app.js "request" <path to write> [--model m]'); process.exit(2); }
 if (!process.env.GEMINI_API_KEY) { console.error('GEMINI_API_KEY is not set'); process.exit(2); }
 
 const reference = fs.readFileSync(path.join(ROOT, 'demos', 'docs', 'Components.md'), 'utf8');
