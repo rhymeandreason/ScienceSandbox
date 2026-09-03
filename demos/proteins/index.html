@@ -20,11 +20,6 @@
      page types none of it — which is the point of the registry, and the
      reason a card cannot go stale against the files it describes.
 
-     IT IS NOT A LESSON AND NOT A BENCH. A bench is where a human decides
-     which structures earn a place; this is what that decision left, laid
-     out so the collection can be seen at once. `AddingAProtein.md` is the
-     workflow either end of it.
-
      CONTEXTS ARE RATIONED, NOT COUNTED (ConceptMap.md invariant 1):
      browsers cap WebGL contexts near 8-16 and drop the OLDEST with no
      error, so the boxes come out of a CardStage pool and a card that
@@ -65,11 +60,25 @@
 
   *{box-sizing:border-box}
 
+  /* ---- site nav ------------------------------------------------------
+     The mark is the homepage's, letter for letter: `lab` in the green and the
+     full stop in the spark. Two spellings of a product name is one too many,
+     so if the homepage's ever changes this is the other place to change. */
+  .nav{display:flex;align-items:baseline;gap:.75rem;
+    padding:0 0 clamp(1.5rem,4vw,2.5rem)}
+  .nav .mark{font-family:var(--sans);font-size:1.35rem;font-weight:500;
+    letter-spacing:-.035em;text-transform:lowercase;color:var(--ink);
+    text-decoration:none;line-height:1}
+  .nav .mark em{font-style:normal;color:var(--accent)}
+  .nav .mark .dot{color:var(--spark)}
+  .nav .here{font-size:.74rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);font-weight:600}
+
   /* FUTURA IS FOR THE NAMES ONLY — the masthead and each card's title.
      Geometric caps at 0.7rem turn into a puzzle: the chips, the counts and
      the running text are system-ui, which is what they are read in. */
   body{font-family:var(--ui);background:var(--paper);color:var(--ink);
-    margin:0;padding:clamp(3rem,7vw,6rem) clamp(1.25rem,5vw,4rem) 6rem;
+    margin:0;padding:clamp(2rem,7vw,2rem) clamp(1.25rem,5vw,4rem) 6rem;
     line-height:1.55;-webkit-font-smoothing:antialiased;font-weight:400}
   .wrap{max-width:1180px;margin:0 auto}
 
@@ -174,6 +183,11 @@
 </head>
 <body>
 <div class="wrap">
+  <nav class="nav">
+    <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+    <span class="here">biology</span>
+  </nav>
+
   <header>
     <h1>proteins</h1>
     <p class="tally" id="tally">&mdash;</p>
@@ -258,6 +272,15 @@ function still(key, url) {
   el.style.backgroundRepeat = 'no-repeat';
 }
 
+/* THE BAKED FIRST FRAME. A card that has not had a context yet has nothing to
+   keep the last frame OF, so it drew an empty rectangle until it did — the one
+   state on this page a reader cannot tell from a broken one, and the one that
+   lasts longest on a slow connection because the trace has to arrive first.
+   `proteins/tools/stills.html` bakes these from the same box, colour and
+   rotation, so the live canvas replaces the picture with the same picture.
+   A missing file just fails to load: the card is then as it was. */
+const stillSrc = key => `stills/${key}.webp`;
+
 /* One protein's default variant, as chains the box can draw — every protein
    bakes the same shape now, so there is one path and no branch on pipeline.
    Prion was reduced PDB text until the unfold animation was dropped, and the
@@ -281,7 +304,7 @@ function card(p) {
   const facts = [v.species, r.method].filter(Boolean);
 
   el.innerHTML = `
-    <div class="stage" data-key="${p.key}"></div>
+    <div class="stage" data-key="${p.key}" style="background-image:url(${stillSrc(p.key)});background-size:contain;background-position:center;background-repeat:no-repeat"></div>
     <div class="body">
       <h3 class="name"></h3>
       <p class="does"></p>
@@ -421,7 +444,6 @@ function open(key, mount) {
   if (!mount.clientWidth || !mount.clientHeight) return;
   const p = entryOf(key);
   const draw = t => {
-    mount.style.backgroundImage = '';    // the still gives way to the live box
     pool.acquire(key, () => Proteinbox.create({
       mount, orbit: true, pad: 1.15, sub: 8,
       /* Perspective and trackball, matching the benches: a card here is a
@@ -456,6 +478,10 @@ function open(key, mount) {
        Fed after the box exists; the box owns how it is drawn. */
     const box = pool.get && pool.get(key);
     if (box && box.setPocket && t.pocket) box.setPocket(t.pocket);
+    /* The still gives way to the live box only once that box has drawn. Clearing
+       it before the create meant a frame of empty card on every acquire, which
+       on a page that re-acquires as you scroll is the flicker. */
+    mount.style.backgroundImage = '';
   };
   if (traces[key]) draw(traces[key]);
   else load(p).then(t => { traces[key] = t; draw(t); })
