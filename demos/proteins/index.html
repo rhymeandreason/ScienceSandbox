@@ -131,8 +131,12 @@
     font-weight:600;color:var(--accent)}
   .does.carrier{color:var(--spark)}
 
+  /* Three lines, hard. The card takes the first sentence, and this is the
+     backstop for a protein whose first sentence is a paragraph. */
   .blurb{font-size:0.9rem;color:var(--muted);
-    line-height:1.5;margin:0.55rem 0 0.9rem}
+    line-height:1.5;margin:0.55rem 0 0.9rem;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;
+    overflow:hidden}
 
   .facts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 1rem}
   .fact{font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;
@@ -323,7 +327,13 @@ function card(p) {
     if (cls) does.title = cls[1];
     does.classList.add(p.does === 'enzyme' ? 'enzyme' : 'carrier');
   } else does.remove();
-  el.querySelector('.blurb').textContent = p.blurb;
+  /* THE FIRST SENTENCE, not the whole blurb. The registry's blurb is written
+     for the node graph's card, where it is the claim and has room to be one;
+     on a shelf, four lines of it is what a reader has to get past to reach the
+     next protein. Cut here rather than shortened there — the same text is a
+     graph node's claim and is baked into its vector. The clamp in the CSS is
+     the backstop for a first sentence that is itself long. */
+  el.querySelector('.blurb').textContent = p.blurb.split(/(?<=\.)\s+/)[0];
 
   const fx = el.querySelector('.facts');
   for (const f of facts) {
