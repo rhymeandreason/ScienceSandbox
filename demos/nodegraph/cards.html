@@ -158,7 +158,9 @@ for (const [cid, ranks] of PLACED) {
 }
 const ALL = NODES.concat(EXTRA);
 
-const INLINE = { water: 1, build: 1, molbox: 1, protein: 1, lesson: 1, image: 1 };
+const INLINE = { water: 1, build: 1, molbox: 1, protein: 1, lesson: 1, model: 1, image: 1 };
+/* the kinds whose thumb is a still, which nodegraph.html calls SHOT */
+const SHOT = { lesson: 1, model: 1 };
 const lessonFor = n =>
   (ON_NODE.get(n.id) || []).map(x => x.item).find(i => i.kind === 'lesson') || null;
 const viewFor = n =>
@@ -240,7 +242,7 @@ function thumbHTML(n) {
            esc(img.fit || 'cover') + '" src="images/' +
            esc(img.slug) + '.' + esc(img.ext) + '"></div>';
   const view = viewFor(n);
-  if (view && view.kind === 'lesson' && view.shot)
+  if (view && SHOT[view.kind] && view.shot)
     return '<div class="thumb mounted"><img class="still poster" alt="" src="../' +
            esc(view.shot) + '"></div>';
   if (view)
@@ -253,7 +255,7 @@ const stateOf = n =>
   n.type === 'specimen' ? 'live'
   : n.type === 'content' ? (n.poster ? 'image' : 'none')
   : imageFor(n) ? 'image'
-  : (viewFor(n) || {}).kind === 'lesson' ? 'shot'
+  : SHOT[(viewFor(n) || {}).kind] ? 'shot'
   : viewFor(n) ? 'live' : 'none';
 
 /* ---- draw --------------------------------------------------------------- */

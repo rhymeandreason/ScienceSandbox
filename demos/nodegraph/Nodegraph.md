@@ -256,7 +256,9 @@ Run these in the console. Every one has caught a real bug.
 
 ## Content: inline or its own card
 
-`graphcontent.js` splits two ways in `nodegraph.html`. **INLINE** rides the node — a molbox, a water sim, a builder, a ribbon, and a LESSON — and lands in the card's thumb. **CARD** spawns its own node, which today is only a film, somebody else's object hanging off the concept it illustrates.
+`graphcontent.js` splits two ways in `nodegraph.html`. **INLINE** rides the node — a molbox, a water sim, a builder, a ribbon, a LESSON and a MODEL — and lands in the card's thumb. **CARD** spawns its own node, which today is only a film, somebody else's object hanging off the concept it illustrates.
+
+`SHOT` is the sub-split inside INLINE: the kinds whose thumb is a picture rather than a live box, which is `lesson` and `model`. Those are the two that carry an opener under the thumb, and the two that spend no stage. Everything else in INLINE mounts something running.
 
 A lesson is inline because it arrives as a **screenshot** (`shot:`, required), not a live box, so it cannot compete with a running sim for the thumb — which is what put lessons on their own cards in the first place, back when glycolysis carried both. Where a concept holds both, **the lesson wins the thumb**: the tie-break is explicit in the sort, because rank alone leaves the card's face depending on source order. Under it goes `.opener.primary`, the map's one filled pill, in the concept's own region tint. It is the only way into the lesson now, so it does not fade with the card's other controls.
 
@@ -271,6 +273,20 @@ One lesson can be **several doors**: `l:krebs`/`l:pyrox` are both krebs-lab, and
 **Every lesson card is lit at load**, not fogged — they are the featured work, so a reader who never explores still sees every one. The opening camera does NOT frame them: they span three units and 10,000px, and fitting them needs k≈0.14, well under `centre()`'s 0.3 floor and unreadable. `start()` therefore collects the doors it lights into a list and passes THAT to `centre()`, so the opening view is unchanged and the lessons are simply already out of the fog for whoever pans.
 
 A lesson thumb spends **no stage**: it is an `<img>` written straight in, and the pool of four stays for boxes that are actually running something. No `loading="lazy"` — inside a transformed `#world` the intersection never resolves and the image stays at zero width. The card being lit is the laziness.
+
+### A model is an embed, and that is the whole of what it is
+
+`kind: 'model'` is a Sketchfab viewer in an iframe, opened over the map in a third modal. **The only thing on this map the page does not draw**, and it exists because a whole organelle is modelled rather than derived: no deposited coordinates exist for a mitochondrion the way they do for a protein, so nothing in `proteins/` or `lib/` can render one. `x:mitochondrion` on the `mitochondrion` card is the first.
+
+**It cannot go in the thumb**, which is the reason it is a modal and not a live box. A cross-origin iframe cannot be snapshotted, so the pool's eviction trick — swap a still in for the box it reclaimed — has nothing to swap, and a fifth card would go blank the moment the reader looked away. It is also a second WebGL context in a document we do not control: no camera, no theme, no pause.
+
+**The `shot` is ours and the embed is not.** `images.js`'s rule is that nothing hotlinks, and an embed cannot not — so the still on the card is saved locally from the model's own thumbnail, which is what leaves a dead embed showing a card that still says what it was offering. The credit prints on the card too, under the thumb, because the picture is already somebody else's work before anyone opens the modal that names them.
+
+**The cover lifts on load progress, not on `viewerready`.** Half a million faces take tens of seconds on a first visit and the embed paints BLACK for all of it; `viewerready` fires long before any of it is on screen, so lifting there is exactly the failure the cover exists to prevent. `modelLoadProgress` and `textureLoadProgress` both reaching 1 is the honest signal, and the percentage they carry is what the cover prints. A 45s safety timer lifts it anyway — a cover that never goes away is worse than an unfinished model, which the reader can at least rotate.
+
+**Sketchfab's viewer API loads on FIRST OPEN**, the deal `loadYT()` makes: a third party's script, fetched by nobody who has not opened one, and a bare iframe is the fallback when it cannot load. Closing REMOVES the iframe — `about:blank` would leave the context alive.
+
+**`ui_infos=0` is asked for and ignored**: hiding the viewer's own title bar is a paid feature of the model's owner's account, not ours. So the modal header and Sketchfab's bar both name the model. The header stays, because it is what is there when the embed is not.
 
 ## Highlight: the saved queries
 

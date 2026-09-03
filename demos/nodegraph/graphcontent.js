@@ -17,6 +17,7 @@
  *  rides the node.
  *
  *  `id` is namespaced by kind:  w: water sim   m: molbox
+ *  x: external — an embed we neither draw nor host
  *  A water row's `frame` block is TUNING, not curriculum — it is what
  *  water/watersim.js's step() takes.
  * ===================================================================== */
@@ -188,6 +189,26 @@
       creditUrl: 'https://www.wehi.edu.au/topic/biology-101/',
       poster: 'media/atp-wehi.jpg',
       captions: 'media/atp-wehi.captions.json' },
+
+    /* ---- model: somebody else's 3D, in an iframe -------------------------
+       The one thing on this map the page does not draw. A cell-scale
+       organelle is modelled, not derived: there are no deposited coordinates
+       for a whole mitochondrion the way there are for a protein, so nothing
+       in proteins/ or lib/ can render one, and an artist's cross-section is
+       the honest picture of a cristae-folded inner membrane.
+
+       `src` is a Sketchfab uid and the page builds the embed from it, so a
+       card nobody opened makes no third-party request. `shot` is a LOCAL
+       still, saved from the model's own thumbnail: a hotlinked one would
+       break the card the day the model moves, which is images.js's rule.
+       THE EMBED ITSELF IS A HOTLINK and cannot not be — that is the cost of
+       showing work we do not host, and why the thumb has to be ours: a dead
+       embed then leaves a card that still shows what it was offering. */
+    { id: 'x:mitochondrion', kind: 'model', name: 'Mitochondria Cross Section Anatomy',
+      src: 'acc7d71759a1441e8409ebb31e3c3c0d',
+      shot: 'media/mitochondrion-sketchfab.jpg',
+      credit: 'Nima',
+      creditUrl: 'https://sketchfab.com/3d-models/mitochondria-cross-section-anatomy-acc7d71759a1441e8409ebb31e3c3c0d' },
   ];
 
   const PLACEMENTS = [
@@ -219,6 +240,12 @@
     ['v:krebs',      { krebs: 1 }],
     ['v:etc',        { etc: 1, 'proton-gradient': 2 }],
     ['v:atp',        { chemiosmosis: 1, atp: 2 }],
+
+    /* the organelle itself, on the organelle's own card. ONE placement: the
+       cristae belong to `mitochondrion`, and hanging the same embed on `etc`
+       or `krebs` would say the model is about the chemistry happening inside
+       it, which it does not show. */
+    ['x:mitochondrion', { mitochondrion: 1 }],
 
     ['l:glycolysis',   { glycolysis: 1 }],
     ['l:krebs',        { krebs: 1 }],

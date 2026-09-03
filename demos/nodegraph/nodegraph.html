@@ -978,6 +978,54 @@
   #lessonframe { flex: 1 1 auto; width: 100%; height: 100%; min-height: 0;
                  border: 0; display: block; }
 
+  /* ---- a 3D model, over the map ---------------------------------------
+     Somebody else's viewer in an iframe, so this modal owns none of what is
+     inside it: no camera, no snapshot, no theme, no pause. Dark like the
+     film's card, because the model arrives lit and paper around it fights
+     the lighting. Its credit sits in the header for the same reason the
+     film's does — the work is not ours and the header has to say so. */
+  .modal.model .mcard { background: #0e0f11; width: min(1400px, 100%);
+                        height: auto; max-height: min(820px, 100%); }
+  .modal.model .mhead { border-bottom-color: rgba(255,255,255,.12); }
+  .modal.model .mhead > span:first-child { color: #f2f0ea; }
+  .modal.model .mclose { color: rgba(242,240,234,.6); }
+  .modal.model .mclose:hover { color: #fff; }
+  .modal.model .credit {
+    font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: rgba(242,240,234,.55);
+  }
+  .modal.model .credit a { color: rgba(242,240,234,.75);
+                           text-decoration-color: rgba(242,240,234,.3); }
+  .modal.model .credit a:hover { color: #f4f2ec; text-decoration-color: currentColor; }
+  /* The aspect box the iframe is measured by: Safari sizes a flex iframe
+     from its intrinsic 300x150 and the viewer would collapse to a strip. */
+  .modal.model .mbody { position: relative;
+                        flex: 1 1 auto; min-height: 0; aspect-ratio: 16 / 9; }
+  #modelframe { width: 100%; height: 100%; border: 0; display: block; }
+  /* THE SAME PICTURE THE CARD SHOWED, held over the frame until the viewer
+     says it has something to draw. Half a megabyte of geometry takes tens of
+     seconds on a first visit, and the embed paints BLACK for all of it — a
+     reader who clicked a picture of a mitochondrion and got a black rectangle
+     has been told the thing is broken. */
+  .modal.model .mcover {
+    position: absolute; inset: 0; background: #0e0f11 center/cover no-repeat;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 2.2rem;
+    transition: opacity .45s ease-out; pointer-events: none;
+  }
+  .modal.model .mcover b {
+    font-weight: 400;
+    font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase;
+    color: rgba(242,240,234,.75);
+    background: rgba(14,15,17,.6); padding: 0.35rem 0.7rem; border-radius: 3px;
+    animation: mpulse 1.6s ease-in-out infinite;
+  }
+  @keyframes mpulse { 0%, 100% { opacity: .45 } 50% { opacity: 1 } }
+  .modal.model .mbody.ready .mcover { opacity: 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .modal.model .mcover b { animation: none; }
+  }
+
   /* ---- the video, over the map (ported from tests/question-composer.html) */
   /* A VIDEO is 16:9 and a lesson is a sheet, so the card sizes to the content
      rather than the two sharing one box with the wrong shape for one of them.
@@ -1330,6 +1378,22 @@
   </div>
 </div>
 
+<!-- A 3D model somebody else hosts. A THIRD modal, and the iframe is built
+     on show and removed on hide: the embed is a second WebGL context in a
+     document we do not control, so it exists only while it is being looked
+     at. Nothing is fetched from sketchfab.com until this opens. -->
+<div id="modelmodal" class="modal model" hidden>
+  <div class="mback"></div>
+  <div class="mcard" role="dialog" aria-modal="true" aria-labelledby="modeltitle">
+    <div class="mhead">
+      <span id="modeltitle">the model</span>
+      <span id="modelcredit" class="credit"></span>
+      <button class="mclose" aria-label="Close">&times;</button>
+    </div>
+    <div class="mbody" id="modelbody"></div>
+  </div>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
@@ -1483,7 +1547,11 @@ const BY_CONTENT = new Map(CONTENT.map(c => [c.id, c]));
    what a reader wants from a concept that HAS a lesson is the lesson.
    CARD is the other kind: a film is somebody else's object and keeps its
    own card, the way a specimen does. */
-const INLINE = { water: 1, build: 1, molbox: 1, protein: 1, lesson: 1 };
+const INLINE = { water: 1, build: 1, molbox: 1, protein: 1, lesson: 1, model: 1 };
+/* the kinds whose thumb is a PICTURE rather than a live box, and whose card
+   therefore carries an opener under it. Both arrive as a still, so neither
+   competes with the pool of four for a WebGL context. */
+const SHOT = { lesson: 1, model: 1 };
 const CARD = { video: 1 };
 const ON_NODE = new Map();
 for (const [cid, ranks] of PLACED) {
@@ -1501,14 +1569,21 @@ for (const [cid, ranks] of PLACED) {
    card's face depends on source order. */
 for (const list of ON_NODE.values())
   list.sort((a, b) => a.rank - b.rank ||
-                      (b.item.kind === 'lesson') - (a.item.kind === 'lesson'));
+                      (SHOT[b.item.kind] || 0) - (SHOT[a.item.kind] || 0));
 
 for (const c of CONTENT)
-  if (c.kind === 'lesson' && !c.shot) console.warn('lesson has no shot:', c.id);
+  if (SHOT[c.kind] && !c.shot) console.warn(c.kind + ' has no shot:', c.id);
 
 /* a card mounts its best-ranked INLINE item and no more; a specimen carries
    its own render, because a card that IS content does not look it up */
-/* the lesson a concept holds, if any — the opener under its thumb */
+/* the lesson or model a concept holds, if any — the opener under its thumb */
+const openerFor = n => {
+  const placed = (ON_NODE.get(n.id) || []).find(x => SHOT[x.item.kind]);
+  return placed ? placed.item : null;
+};
+/* THE LESSON specifically, which is a narrower question than "does this card
+   open something". Our own work is lit at load and is searchable by the stem
+   of its href; a model is borrowed, has no href, and stays in the fog. */
 const lessonFor = n => {
   const placed = (ON_NODE.get(n.id) || []).find(x => x.item.kind === 'lesson');
   return placed ? placed.item : null;
@@ -1952,14 +2027,16 @@ function paintNode(n) {
        than one claim — water-lab is — no concept card is the right host, and
        the door is. The question keeps its own shape and gains a picture and
        the pill under it, the same two things a concept card gains. */
-    const qLesson = lessonFor(n);
+    const qLesson = openerFor(n);
     if (qLesson) el.classList.add('haslesson');
     el.innerHTML = '<span>' + esc(n.text) + '</span>' +
                    (qLesson
                      ? '<div class="thumb"><span class="ph"></span></div>' +
                        '<div class="opens"><button type="button" ' +
                        'class="opener primary" data-open="' + esc(qLesson.id) +
-                       '">view lesson</button></div>' : '') +
+                       '">' + (qLesson.kind === 'model' ? 'open 3D model'
+                                                        : 'view lesson') +
+                       '</button></div>' : '') +
                    '<div class="chips"></div>';
   } else if (n.type === 'theme') {
     el.className = 'node theme unlit';
@@ -2034,7 +2111,7 @@ function paintNode(n) {
     n.tint = tint;
     /* no scale tag: the gutter is the ruler, and a card at a rung sits level
        with that rung's label already */
-    const lesson = lessonFor(n);
+    const opener = openerFor(n);
     const tags =
       (n.type === 'evidence' ? '<span class="tag eviD">evidence</span>' : '') +
       (n.subject === 'chemistry' ? '<span class="tag chem">chemistry</span>' : '');
@@ -2051,10 +2128,21 @@ function paintNode(n) {
                       only way into it and does not fade with the card's
                       other controls. Under the thumb, because it is what
                       the picture above it is a picture OF. */
-                   (lesson
+                   /* BORROWED PICTURES CARRY THEIR CREDIT, the way the
+                      film cards do. A lesson's shot is ours and prints
+                      nothing; a model's is its author's and prints here,
+                      because the thumb is already showing their work before
+                      anyone opens the modal that names them. */
+                   (opener && opener.credit
+                     ? '<div class="credit"><a href="' + esc(opener.creditUrl) +
+                       '" target="_blank" rel="noopener">' + esc(opener.credit) +
+                       '</a></div>' : '') +
+                   (opener
                      ? '<div class="opens"><button type="button" ' +
-                       'class="opener primary" data-open="' + esc(lesson.id) +
-                       '">view lesson</button></div>' : '') +
+                       'class="opener primary" data-open="' + esc(opener.id) +
+                       '">' + (opener.kind === 'model' ? 'open 3D model'
+                                                       : 'view lesson') +
+                       '</button></div>' : '') +
                    (tags ? '<div class="tags">' + tags + '</div>' : '') +
                    '<div class="chips"></div>';
   }
@@ -2138,10 +2226,13 @@ function goLive(n) {
   const view = viewFor(n);
   const thumb = view && n.el && n.el.querySelector('.thumb');
   if (!thumb) return;
-  /* A LESSON'S THUMB IS A PICTURE. It costs no context and never needs
-     reclaiming, so it is written straight in and the pool of four stays for
-     the boxes that are actually running something. */
-  if (view.kind === 'lesson') {
+  /* A LESSON'S THUMB IS A PICTURE, and so is a model's. It costs no context
+     and never needs reclaiming, so it is written straight in and the pool of
+     four stays for the boxes that are actually running something. A model's
+     picture is doing a second job: the embed cannot be snapshotted across
+     origins, so a live one would leave the card blank the moment the reader
+     looked away. */
+  if (SHOT[view.kind]) {
     if (!thumb.classList.contains('mounted')) {
       const img = document.createElement('img');
       /* no loading="lazy": inside a transformed #world the intersection
@@ -2829,6 +2920,120 @@ const lessonModal = Modal.create({
   onHide: () => { lessonFrame.src = 'about:blank'; },
 });
 
+/* ---- a 3D model, over the map ----------------------------------------
+   The parameters are built here rather than authored in graphcontent.js, for
+   the reason YT_VARS is: the table holds the model's uid, which is the fact,
+   and everything below is this page's decision about how a card shows one.
+
+     autostart 1    — the reader clicked the opener.
+     autospin       — the same claim molbox's `spin` makes: the thing is 3D,
+                      and a still frame of it is indistinguishable from the
+                      picture the reader just clicked away from.
+     ui_infos 0     — the header already says what this is and whose it is.
+     ui_hint 0      — the drag-me hand, over an anatomy model, reads as a
+                      label on the organelle.
+     dnt 1          — do not track, the reason the films are nocookie.
+   ui_watermark is asked for and ignored on a free account; it costs nothing
+   to ask and the day the model's author upgrades it starts working. */
+const SKFB_VARS = {
+  autostart: 1, autospin: 0.2, preload: 1, dnt: 1,
+  ui_theme: 'dark', ui_infos: 0, ui_stop: 0, ui_hint: 0,
+  ui_ar: 0, ui_vr: 0, ui_help: 0, ui_settings: 0,
+  ui_watermark: 0, ui_watermark_link: 0,
+};
+const skfbSrc = uid =>
+  'https://sketchfab.com/models/' + encodeURIComponent(uid) + '/embed?' +
+  new URLSearchParams(SKFB_VARS);
+
+/* Sketchfab's viewer API, loaded ON FIRST OPEN and never before — the same
+   deal loadYT() makes, and for the same two reasons: it is a third-party
+   script, and it is the only way to know when the model is actually on
+   screen. Resolves to null rather than throwing when it cannot load, and the
+   caller falls back to a bare iframe whose cover lifts on the frame's own
+   load event — early, but a picture beats a black rectangle. */
+let skfbReady = null;
+function loadSkfb() {
+  if (skfbReady) return skfbReady;
+  skfbReady = new Promise(resolve => {
+    if (window.Sketchfab) return resolve(window.Sketchfab);
+    const t = setTimeout(() => resolve(null), 6000);
+    const el = document.createElement('script');
+    el.src = 'https://static.sketchfab.com/api/sketchfab-viewer-1.12.1.js';
+    el.onload = () => { clearTimeout(t); resolve(window.Sketchfab || null); };
+    el.onerror = () => { clearTimeout(t); resolve(null); };
+    document.head.appendChild(el);
+  });
+  return skfbReady;
+}
+
+const modelBody = document.getElementById('modelbody');
+let modelToken = 0;                 // closed and reopened before a load lands
+const modelModal = Modal.create({
+  el: 'modelmodal',
+  onShow: c => {
+    document.getElementById('modeltitle').textContent = c.name;
+    /* A LINK, and the model's page is where the licence and the author live.
+       Same split as the film: plain text on the card, the link in here. */
+    const label = esc(c.credit) + (c.year ? ' · ' + esc(String(c.year)) : '');
+    document.getElementById('modelcredit').innerHTML = c.creditUrl
+      ? '<a href="' + esc(c.creditUrl) + '" target="_blank" rel="noopener noreferrer">'
+        + label + '</a>'
+      : label;
+
+    const mine = ++modelToken;
+    modelBody.classList.remove('ready');
+    /* Built now, never before: no request reaches sketchfab.com until a
+       reader opens one. The cover carries the card's own still, so the modal
+       opens on the picture the reader just clicked. */
+    modelBody.innerHTML =
+      '<iframe id="modelframe" allowfullscreen ' +
+      'allow="autoplay; fullscreen; xr-spatial-tracking" title="' + esc(c.name) +
+      '"></iframe><div class="mcover"><b>loading the model</b></div>';
+    modelBody.querySelector('.mcover').style.backgroundImage =
+      'url("../' + c.shot + '")';
+    const f = document.getElementById('modelframe');
+    const say = document.querySelector('#modelbody .mcover b');
+    const lift = () => { if (mine === modelToken) modelBody.classList.add('ready'); };
+
+    loadSkfb().then(SF => {
+      if (mine !== modelToken) return;      // closed while the script loaded
+      if (!SF) { f.onload = lift; f.src = skfbSrc(c.src); return; }
+      /* init() writes the src itself, so the options go here rather than
+         through skfbSrc — same parameters, one authority.
+
+         NOT `viewerready`: that fires when the viewer exists, which is tens
+         of seconds before half a million faces and their textures have
+         arrived, and lifting on it puts the cover away over a black frame —
+         exactly the failure the cover is here to prevent. The two progress
+         events are what say the picture is real. A safety timer lifts it
+         anyway, because a cover that never goes away is worse than an
+         unfinished model: the reader can rotate what has loaded. */
+      const at = { model: 0, texture: 0 };
+      const tick = () => {
+        if (mine !== modelToken) return;
+        const pc = Math.round((at.model + at.texture) * 50);
+        if (say) say.textContent = 'loading the model · ' + pc + '%';
+        if (at.model >= 1 && at.texture >= 1) lift();
+      };
+      new SF(f).init(c.src, Object.assign({}, SKFB_VARS, {
+        success: api => {
+          api.start();
+          api.addEventListener('viewerready', () => setTimeout(lift, 45000));
+          api.addEventListener('modelLoadProgress',
+                               e => { at.model = e.progress; tick(); });
+          api.addEventListener('textureLoadProgress',
+                               e => { at.texture = e.progress; tick(); });
+        },
+        error: lift,
+      }));
+    });
+  },
+  /* REMOVING the iframe is what stops it. A hidden one keeps its WebGL
+     context and keeps talking to sketchfab.com, so closing the card ends
+     both — about:blank would leave the context alive. */
+  onHide: () => { modelToken++; modelBody.innerHTML = ''; },
+});
+
 /* ---- the video, over the map -----------------------------------------
    youtube-nocookie, and the parameters are built here rather than authored in
    graphcontent.js: the table holds the video's ID, which is the fact, and every
@@ -3248,7 +3453,8 @@ document.addEventListener('click', e => {
   const open = e.target.closest('.opener[data-open]');
   if (open) {
     const c = BY_CONTENT.get(open.dataset.open);
-    if (c) (c.kind === 'video' ? videoModal : lessonModal).show(c);
+    if (c) (c.kind === 'video' ? videoModal
+           : c.kind === 'model' ? modelModal : lessonModal).show(c);
     return;
   }
   const b = e.target.closest('.chip');
@@ -4544,7 +4750,7 @@ document.addEventListener('pointerdown', e => {
    let the same words win in two tiers. */
 const SEARCHABLE = () => nodes.filter(n =>
   !n.satellite && n.type !== 'ask' &&
-  (n.type === 'question' ? !!lessonFor(n) : !!n.name));
+  (n.type === 'question' ? !!openerFor(n) : !!n.name));
 
 /* A CARD'S LESSON IS PART OF WHAT IT OFFERS. `membrane` is the case that
    forced this: the membrane lesson hangs off `selective-perm`, whose name and
