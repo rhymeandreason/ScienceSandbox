@@ -459,7 +459,7 @@ fi
 # the orphan — a bake in one of these folders that no variant claims, which is
 # what the three nucleic folders each were before the index existed, with
 # check-proteins.js walking past them because it only reads registered dirs.
-if git diff --cached --name-only | grep -qE '^demos/proteins/(nucleic-acids\.js|(dna|trna|zif268)/)'; then
+if git diff --cached --name-only | grep -qE '^demos/proteins/(nucleic-acids\.js|tools/registry-io\.js|(dna|trna|zif268|nucleosome)/)'; then
   if ! node proteins/check-nucleic-acids.js > /tmp/cna.$$ 2>&1; then
     tail -20 /tmp/cna.$$; rm -f /tmp/cna.$$
     echo ""
