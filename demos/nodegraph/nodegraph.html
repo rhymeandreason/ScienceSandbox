@@ -865,78 +865,6 @@
   .node.card.evidence.unlit .name .flask { font-size: 0.65em; }
   .node.theme.unlit .name { font-size: 1em; }
   .node.theme.unlit .claim { display: none; }
-
-  /* ---- landmarks -------------------------------------------------------
-     A LANDMARK IS A CITY NAME ON THE MAP: the dozen topics a reader already
-     knows the name of before any biology. Fogged like every other mark — the
-     claim is still withheld — but drawn at map scale, with its region's rule
-     down the left and its picture kept, so the paper says what this map is
-     about before anything has been clicked. Which nodes these are is
-     `landmark` in graphdata.js, and it is authored, not derived.
-
-     Nothing groups them. Units are not tidy regions on this map, and drawing
-     them as territory would claim a shape the bake does not produce.
-
-     Sized in em like every mark, so the frame follows the counter-scale
-     instead of being left behind by the name inside it. */
-  .node.card.landmark.unlit {
-    font-size: calc(1rem * var(--lmk, 1));
-    width: 10em;
-    border-left: 3px solid var(--dot, var(--accent));
-    background: var(--card);
-  }
-  .node.card.landmark.unlit .name { font-size: 0.72em; }
-  .node.card.landmark.unlit .name::before { width: 0.6em; height: 0.6em; }
-  /* the one exception to "a mark has no thumb", and only for the stills —
-     see the mounting pass, which never lights a live box through the fog */
-  .node.card.landmark.unlit .thumb { display: block; }
-  .node.card.landmark.unlit .thumb .ph { display: none; }
-
-  /* A LANDMARK IS A LANDMARK WHETHER OR NOT IT HAS BEEN OPENED. Lit cards do
-     not counter-scale, so at k=0.14 an opened landmark was a four-pixel
-     speck while the fogged ones beside it read fine — the reader's own
-     progress made the map worse. At the far band it is drawn as the mark,
-     claim withheld like any other, and it goes back to being a card the
-     moment the reader comes in. */
-  body.lod-far .node.card.landmark {
-    font-size: calc(1rem * var(--lmk, 1));
-    width: 10em;
-    border-left: 3px solid var(--dot, var(--accent));
-    background: var(--card);
-  }
-  body.lod-far .node.card.landmark .name { font-size: 0.72em; }
-  body.lod-far .node.card.landmark .name::before { width: 0.6em; height: 0.6em; }
-  body.lod-far .node.card.landmark .claim,
-  body.lod-far .node.card.landmark .tags,
-  body.lod-far .node.card.landmark .credit,
-  body.lod-far .node.card.landmark .chips,
-  body.lod-far .node.card.landmark > .opens { display: none; }
-  body.lod-far .node.card.landmark .thumb { display: block; }
-
-  /* ---- the zoom bands --------------------------------------------------
-     What `setLod` writes on the body. Fogged nodes below the band's tier
-     fade out and stop taking the pointer; a node the reader has opened is
-     never culled, and neither is a satellite, a pill or anything a focus or
-     a highlight is currently presenting — those modes write their own
-     opacity and two dimmers on one node reads as a bug.
-
-     Opacity, not display: the seats are baked and the marks keep them, so
-     the map is the same paper at every zoom. NO TRANSITION on the node: the
-     bands switch instantly, because a fade here left cards stuck at zero
-     mid-transition and because a band boundary crossed during a pinch would
-     be fading while the reader is still moving. */
-  body:not(.focusing):not(.highlighting):not(.building).lod-far
-    .node.unlit:not(.landmark),
-  body:not(.focusing):not(.highlighting):not(.building).lod-mid
-    .node.unlit:not(.landmark):not(.anchor) {
-    opacity: 0; pointer-events: none;
-  }
-  /* edges run to nodes that are not being drawn, so they go with them; at
-     mid they are back but quiet, because the ones still visible are mostly
-     landmark-to-landmark and those are the long ones */
-  body.lod-far:not(.focusing):not(.building) #edges { opacity: 0; }
-  body.lod-mid:not(.focusing):not(.building) #edges { opacity: 0.35; }
-  #edges { transition: opacity .22s ease; }
   .node.question.unlit { width: max-content; max-width: 22rem; }
   /* a mark hovers the way a question does: card ground, line border, ink */
   .node.card.unlit:hover,
@@ -2176,7 +2104,6 @@ function paintNode(n) {
                    '<div class="chips"></div>';
   } else {
     el.className = 'node card unlit ' + n.type +
-                   (n.landmark ? ' landmark' : '') +
                    (n.big ? ' big' : '') +
                    (n.subject === 'chemistry' ? ' chem' : '');
     const tint = n.subject === 'chemistry' ? CHEM_TINT : (UNITS[n.unit] || {}).tint;
@@ -2772,43 +2699,13 @@ let view = { x: 0, y: 0, k: 0.6 };
 function showHint() { hint.textContent = 'k ' + view.k.toFixed(2); }
 
 const MARKK_MAX = 2.4;
-/* A LANDMARK COMPENSATES FURTHER. The general cap is what stops seventeen
-   labels stacking; at the far band a landmark has the paper almost to
-   itself, so it can go on holding its size well past where a mark gives up
-   and be the thing the reader reads first. */
-const LMK_MAX = 4.2;
-let markk = 1, lmk = 1;
-
-/* ---- zoom is level of detail --------------------------------------------
-   ZOOMING OUT HAS TO SHOW LESS, or it only makes two hundred labels smaller.
-   Three bands: far is the landmarks alone, mid adds the anchoring questions
-   — the other thing a reader recognizes — and near is the whole map. Bands,
-   not a continuous fade, so a card does not shimmer while the reader pinches.
-
-   ONLY FOGGED NODES ARE CULLED. A node the reader has opened is their own
-   trail, and a trail that vanishes when you pull back to get your bearings
-   is the opposite of a map. The culling is opacity, never display: the
-   layout is baked and the marks keep their seats at every zoom, so pulling
-   back and coming in again lands on the same paper. */
-const K_MIN = 0.14;
-const LOD_FAR = 0.5, LOD_MID = 0.82;
-let lod = '';
-function setLod(k) {
-  const band = k < LOD_FAR ? 'far' : k < LOD_MID ? 'mid' : 'near';
-  if (band === lod) return;
-  document.body.classList.remove('lod-far', 'lod-mid', 'lod-near');
-  document.body.classList.add('lod-' + band);
-  lod = band;
-}
+let markk = 1;
 
 const applyView = () => {
   showHint();
   /* the marks' counter-scale, capped — see .node.card.unlit */
   markk = view.k < 1 ? Math.min(1 / view.k, MARKK_MAX) : 1;
-  lmk = view.k < 1 ? Math.min(1 / view.k, LMK_MAX) : 1;
   world.style.setProperty('--markk', markk.toFixed(3));
-  world.style.setProperty('--lmk', lmk.toFixed(3));
-  setLod(view.k);
   const zoomed = view.k > 1;
   world.style.zoom = zoomed ? view.k : 1;
   const t = zoomed ? view.k : 1;
@@ -2890,9 +2787,7 @@ canvas.addEventListener('pointercancel', endDrag);
 /* zoom about a point on the screen, so whatever is under the fingers stays
    under them */
 function zoomAt(k, cx, cy) {
-  /* K_MIN is the load framing's floor too, or the reader can never get back
-     to the shot the map opened on */
-  k = Math.min(2.5, Math.max(K_MIN, k));
+  k = Math.min(2.5, Math.max(0.18, k));
   view.x = cx - (cx - view.x) * (k / view.k);
   view.y = cy - (cy - view.y) * (k / view.k);
   view.k = k;
@@ -2990,9 +2885,7 @@ const canOpen = n => mode === 'build'
 
 function measure() {
   for (const n of active()) {
-    /* a landmark is measured as a landmark whether or not it has been
-       opened — at the far band it is drawn as one either way */
-    const grow = n.landmark ? LMK_MAX / lmk : n.on ? 1 : MARKK_MAX / markk;
+    const grow = n.on ? 1 : MARKK_MAX / markk;
     sizeOf(n, grow);
     n.el.classList.toggle('canexpand', canOpen(n));
   }
@@ -5622,18 +5515,10 @@ function centre(set) {
   const list = set || nodes.filter(n => n.on);
   if (!list.length) return;
   const xs = list.map(n => n.x), ys = list.map(n => n.y);
-  /* a landmark counter-scales to ~670 world px wide at the far band, so the
-     old 300 cut the outermost ones in half at load */
-  const pad = 440;
+  const pad = 300;
   const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad;
   const y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
-  /* THE FLOOR IS LOWER THAN THE FAR BAND ON PURPOSE. The whole map does not
-     fit on a screen at any zoom a concept card is legible at, which is the
-     reason the bands exist — so a camera asked to frame the whole thing is
-     allowed to land in the far band, where the landmarks are what is drawn
-     and they compensate up to LMK_MAX to stay readable. The old 0.3 floor
-     was a guess at "still legible" that nothing has needed since. */
-  const k = Math.min(0.9, Math.max(K_MIN,
+  const k = Math.min(0.9, Math.max(0.3,
     Math.min(innerWidth / (x1 - x0), innerHeight / (y1 - y0))));
   view = {
     k,
@@ -5645,16 +5530,6 @@ function centre(set) {
 
 for (const n of nodes) paintNode(n);
 for (const l of links) paintLink(l);
-
-/* A LANDMARK CARRIES ITS PICTURE THROUGH THE FOG. Everywhere else a thumb
-   waits for the card to be lit, which is what keeps first load cheap — so
-   only the stills qualify here. A landmark whose view is a live box keeps
-   its thumb hidden rather than spending one of the pool's four contexts on
-   a card nobody has opened. */
-for (const n of nodes) {
-  const v = n.landmark && viewFor(n);
-  if (v && SHOT[v.kind]) goLive(n);
-}
 
 /* ---- Build ---------------------------------------------------------------
    THE MAP IS BAKED; BUILD IS THE OTHER READING. Same nodes, same edges, same
@@ -6272,14 +6147,7 @@ function start() {
   wake(1);
   for (let i = 0; i < 240; i++) step();   /* pre-settle, so load is calm */
   draw();
-  /* FRAMED ON THE LANDMARKS, not on the two doors. The doors are 2000px
-     apart, so framing them filled the screen with the empty paper between
-     them and put everything else off the edge. The landmark set spans the
-     whole map, which is the shot the reader wants first: the topics they
-     already know the names of, the anchoring questions among them, and the
-     lessons lit where they stand — the far band, where a landmark is the
-     only kind of card being drawn. */
-  centre(nodes.filter(n => n.landmark));
+  centre(doors);
 }
 /* RESET IS THE HIGHLIGHT'S OFF SWITCH, not the page's. It puts the menu back
    to "all" and drops the overlay; the camera, the zoom and every lit card stay
