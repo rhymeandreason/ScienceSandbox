@@ -913,6 +913,93 @@
         baked: "rubisco-8RUC-site.json" } },
   ];
 
+  /* Antibody's three, chosen off proteins/antibody/antibody-test.html.
+     ONE MORE VIEW IS DRAWN AND IS NOT HERE: the mouse and human Fc regions
+     superposed, which is a measurement over two entries already in this list
+     rather than a structure anyone deposited. It has no id to link to, so it
+     lives in the baker as PAIRED and its bake is named in `keeps`.
+
+     1REI WENT AT REVIEW, and the reason is a measurement. It is a Bence-Jones
+     dimer at 2.0 A, the sharpest file looked at, and it was on the bench as
+     the immunoglobulin fold with nothing else attached. Fitted against 3HFM's
+     real pair, its chain A is a light variable domain (55% identical, 0.57 A)
+     and its chain B is a light variable domain standing in for a HEAVY one:
+     33% identical, 3.45 A. 3HFM already carries a genuine pair with the
+     antigen in it, so the one thing 1REI added is the one thing it does
+     wrong. */
+  const ANTIBODY_VARIANTS = [
+    { id: '1IGT', default: true,
+      /* THE DEFAULT IS THE PICTURE, and it is the mouse entry over the human
+         one on a measurement rather than on completeness. Both model
+         essentially everything; what separates them is that 1IGT's two arms
+         sit 80 and 72 A from the Fc centre and 1HZH's sit 87 and 59, so one
+         of b12's arms is tucked 28 A closer than the other. The first thing a
+         reader should meet is an antibody shaped like the one they have been
+         told about. */
+      purpose: 'the whole Y, every residue of every chain modelled',
+      species: 'mouse',
+      source: { kind: 'rcsb', id: '1IGT' },
+      chains: 'A,B,C,D',
+      subject: 'A,B,C,D',
+      glycan: 'E,F',
+      /* Asserted by the baker against what SSBOND says, per role. If a chain
+         this calls heavy stops counting four domains, the fold count the page
+         prints is wrong and nothing about the render would say so. */
+      expect: { heavy: 4, light: 2 },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 4,
+        residues: 1316,
+        declared: 1316,
+        ec: null,
+        baked: "ab-1IGT.json" } },
+
+    { id: '1HZH',
+      purpose: 'a human antibody, b12, and an asymmetric one',
+      species: 'human',
+      source: { kind: 'rcsb', id: '1HZH' },
+      chains: 'H,K,L,M',
+      subject: 'H,K,L,M',
+      glycan: 'A,B',
+      expect: { heavy: 4, light: 2 },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 4,
+        residues: 1331,
+        declared: 1344,
+        ec: null,
+        baked: "ab-1HZH.json" } },
+
+    /* A Fab is a WHOLE light chain and the first half of a heavy one, so the
+       heavy expects 2 domains rather than 4 — the arm is cut off the antibody
+       at the hinge. `other` is the lysozyme, and it expects ZERO Ig domains,
+       which is the assertion that the 55-80 residue span filter is doing its
+       job: hen lysozyme carries four intrachain disulfides of its own, and
+       without the filter it would be reported as a four-domain
+       immunoglobulin.
+
+       ITS EC IS THE ANTIGEN'S. 3HFM's COMPND says EC 3.2.1.17, which is
+       lysozyme's, and read.ec here is null because the baker reads the EC per
+       MOL_ID and keeps only the subject's. Left alone it would put a
+       hydrolase's number under a protein whose `does` is `recognition`, which
+       registry-io fails — correctly, and for the wrong reason. */
+    { id: '3HFM',
+      purpose: 'one arm holding its antigen \u2014 the recognition event itself',
+      species: 'mouse',
+      source: { kind: 'rcsb', id: '3HFM' },
+      chains: 'L,H,Y',
+      subject: 'L,H',
+      partner: 'Y',
+      expect: { heavy: 2, light: 2, other: 0 },
+      read: {
+        method: "x-ray diffraction",
+        chainsInFile: 3,
+        residues: 558,
+        declared: 558,
+        ec: null,
+        baked: "ab-3HFM.json" } },
+  ];
+
   const PROTEINS = [
     {
       key: 'atp-synthase', name: 'ATP synthase', dir: 'proteins/atp-synthase',
@@ -1693,6 +1780,56 @@
                     + 'yet \u2014 the first to bake when one does' },
       variants: LYSOZYME_VARIANTS,
     },
+    {
+      key: 'antibody', name: 'Antibody', dir: 'proteins/antibody',
+      blurb: 'Two heavy chains and two light chains, disulfide-bonded into a '
+           + 'Y. The two tips are different in every antibody you make and the '
+           + 'stem is the same in all of them, which is how one molecule can '
+           + 'recognise almost anything and still be handled one way. The '
+           + 'whole 1300-residue object is one fold repeated twelve times.',
+      /* NO EC ANYWHERE, and that is the point of the word: an antibody binds
+         and does not catalyse. The only EC in any of these files is hen
+         lysozyme's, on the chain 3HFM is holding. */
+      does: 'recognition',
+      pipeline: 'trace',
+      /* NOT SUPERPOSED, AND THERE IS NOTHING TO SUPERPOSE ACROSS THE THREE: an
+         intact mouse IgG, an intact human one, and one arm of a third antibody
+         gripping a protein. They are different molecules at different scales,
+         so a fit between them would be aligning a whole Y onto a fragment of a
+         different Y and calling the residual meaningful.
+
+         The one superposition on this bench is the Fc comparison, and it is
+         deliberately not a variant: it fits 1HZH's stem onto 1IGT's, over both
+         heavy chains at once, and reports 65% identity with CH2 and CH3
+         measured separately. That is a fit BETWEEN two variants rather than a
+         frame shared by them, which is why it is a drawn view and not an
+         entry. */
+      fitWhy: 'three different molecules at three scales \u2014 an intact IgG, '
+            + 'another intact IgG, and one arm of a third holding an antigen. '
+            + 'The Fc superposition is a view over two of them, not a frame '
+            + 'they share',
+      /* NOBODY HAS AIMED THIS ONE YET, so every bake wears the basis its own
+         shape solved and the panel says `computed`. A Y is a shape with axes
+         worth solving \u2014 unlike a globular bean \u2014 so the solved frame
+         is stable between re-bakes and stands until someone turns it on the
+         bench and pastes a basis in here. */
+      /* THE Fc COMPARISON'S BAKE, which is drawn by the bench and is not a
+         variant: it is a measurement over 1IGT and 1HZH, both already above,
+         and it has no deposition id for `source` to name or for a link to
+         point at. `keeps` is what says the file is deliberate rather than a
+         stale bake from a renamed view. */
+      keeps: ['ab-FC.json'],
+      /* The claims here are the fold and what grips what. A ribbon carries the
+         first \u2014 a surface would bury the twelve beta sandwiches that ARE
+         the subject \u2014 and the second is already measured and printed: 17
+         epitope residues, 9 light-chain and 11 heavy-chain contacts. The day a
+         lesson wants the antigen shown as a shape fitting a shape rather than
+         as a contact count, this becomes a real surface candidate. */
+      surface: { bake: false,
+                 why: 'a fold claim, which a skin would bury, and a contact '
+                    + 'claim that is answered by measurement instead' },
+      variants: ANTIBODY_VARIANTS,
+    },
   ];
 
   const byKey = key => PROTEINS.find(p => p.key === key) || null;
@@ -1872,8 +2009,15 @@
      would be dangerous loose. Ferritin catalyses a step on the way in and
      still is not an enzyme in this collection's sense: what it is for is the
      iron sitting inside it afterwards. */
+  /* `recognition` is the answer for a protein whose job is to BIND ONE THING
+     and be found holding it. An antibody catalyses nothing, carries nothing
+     and holds nothing up; what it does is grip a shape it was selected for
+     and present the fact of that grip to the rest of the immune system. It is
+     the mirror of `hormone` — insulin's job is to BE recognised, an
+     antibody's is to DO the recognising — and the word the wishlist reserved
+     for it before it was pulled. */
   const DOES = ['enzyme', 'oxygen carrier', 'unknown', 'structural', 'hormone',
-                'storage', 'reporter'];
+                'storage', 'reporter', 'recognition'];
 
   /* HOW A VARIANT DIFFERS FROM THE HEALTHY PROTEIN, where it differs at all.
      Optional: most variants are the same protein under different conditions —

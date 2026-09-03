@@ -5,11 +5,18 @@
  *
  *  Run:  node proteins/antibody/tools/prep.js   (offline, no dependencies)
  *
- *  UNDER REVIEW. Nothing is in proteins/proteins.js yet, so the view
- *  table is CANDIDATES below rather than the registry's `variants`, and
- *  this script writes no `read` block back. Both change at step 5 of
- *  docs/AddingAProtein.md, once a human has said which of these earn a
- *  place.
+ *  THE VIEW TABLE IS proteins/proteins.js, with every other protein's:
+ *  which entries, which chains, which chains are the subject, and what
+ *  each variant is FOR. This file turns that into files under data/ and
+ *  writes the counted half back.
+ *
+ *  THE Fc COMPARISON DID NOT MOVE THERE, and the registry's own rule is
+ *  why: every variant in that file is a structure a reader can open, and
+ *  its RCSB links are built from `source.id`. The superposition is not a
+ *  deposition — it is a measurement over two entries that are both
+ *  already in the list — so giving it a source would mint an id nobody
+ *  can look up. It stays here as PAIRED, and `keeps` in the registry is
+ *  what tells the checker its bake is deliberate rather than stale.
  *
  *  WHAT AN ANTIBODY IS, for the bench to argue with: two heavy chains
  *  and two light chains, disulfide-bonded into a Y. Every arm ends in a
@@ -116,37 +123,62 @@ const BREAK = 5.0;
    121, 85, 16 and 18. */
 const IG_SPAN = [55, 80];
 
-/* UNDER REVIEW: this is the registry's `variants` in waiting. `subject` names
-   the chains the frame is solved on, which is not always everything drawn —
-   3HFM's longest axis belongs to the Fab, and solving over the antigen too
-   would lay the arm across the screen and stand the lysozyme up. `expect` is
-   the domain count per role, asserted against what SSBOND says. */
-const CANDIDATES = [
-  { id: '1IGT', chains: 'A,B,C,D', subject: 'A,B,C,D', glycan: 'E,F', default: true,
-    expect: { heavy: 4, light: 2 },
-    purpose: 'the whole Y, every residue modelled' },
-  { id: '1HZH', chains: 'H,K,L,M', subject: 'H,K,L,M', glycan: 'A,B',
-    expect: { heavy: 4, light: 2 },
-    purpose: 'a human antibody, and an asymmetric one' },
-  /* A Fab is a WHOLE light chain and the first half of a heavy one, so the
-     heavy expects 2 rather than 4 here — the arm is cut off the antibody at
-     the hinge. `other` is the lysozyme, and it expects zero Ig domains, which
-     is the assertion that the span filter is doing its job. */
-  { id: '3HFM', chains: 'L,H,Y', subject: 'L,H', partner: 'Y',
-    expect: { heavy: 2, light: 2, other: 0 },
-    purpose: 'a Fab holding its antigen' },
-  /* NOT A DEPOSITION. The mouse Fc and the human Fc in one frame, fitted, so
-     the question "is a mouse antibody the same protein as ours" is answered by
-     two ribbons lying on top of each other rather than by a sentence. `pair`
-     is what makes a candidate a comparison: two entries, the second fitted
-     onto the first, and the per-domain identity measured. */
-  { id: 'FC', pair: [{ id: '1IGT', chains: 'B,D' }, { id: '1HZH', chains: 'H,K' }],
+const REG = require('../../proteins.js');
+const IO = require('../../tools/registry-io.js');
+const ME = REG.byKey('antibody');
+
+/* `subject` names the chains the frame is solved on, which is not always
+   everything drawn — 3HFM's longest axis belongs to the Fab, and solving over
+   the antigen too would lay the arm across the screen and stand the lysozyme
+   up. `expect` is the domain count per role, asserted against what SSBOND
+   says. Both are the registry's, per variant. */
+const VIEWS = ME.variants;
+
+/* NOT A VARIANT, AND NOT A DEPOSITION: the two Fc regions in one frame. See
+   the header for why this is here and not in the registry. */
+const PAIRED = [
+  /* The mouse Fc and the human Fc, fitted, so "is a mouse antibody the same
+     protein as ours" is answered by two ribbons lying on each other rather
+     than by a sentence. `pair` is what makes a view a comparison: two entries,
+     the second fitted onto the first, and the per-domain identity measured. */
+  { id: 'FC', baked: 'ab-FC.json',
+    pair: [{ id: '1IGT', chains: 'B,D' }, { id: '1HZH', chains: 'H,K' }],
     purpose: 'mouse against human, the stem only' },
 ];
 
 const xyz = Bake.xyz, r2 = Bake.r2;
 const elOf = l => (l.slice(76, 78).trim() || l.slice(12, 14).trim()).toUpperCase();
 const near = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+/* ---- the EC number, and whose it is ---------------------------------
+ *
+ *  `Bake.ecNumbers` reads every EC record in a file, which is right for an
+ *  entry that is one protein and WRONG for a complex. 3HFM's COMPND carries
+ *  EC 3.2.1.17 — that is hen lysozyme's, the chain the antibody is holding,
+ *  and an antibody catalyses nothing. Taken at face value it would put a
+ *  hydrolase's EC into the antibody's registry entry, where `does` is
+ *  validated against it and a non-enzyme carrying an EC is a failure.
+ *
+ *  So the EC is read per MOL_ID and kept only where that molecule's chains
+ *  are the subject. It is the same rule as the roles above, off the same
+ *  record: what a COMPND block says applies to the chains it names.
+ */
+function ecFor(text, subject) {
+  let ec = null, ids = [], out = [];
+  const flush = () => {
+    if (ec && ids.some(c => subject.has(c))) out.push(ec);
+    ec = null; ids = [];
+  };
+  for (const l of text.split('\n')) {
+    if (!l.startsWith('COMPND')) continue;
+    const t = l.slice(10).trim().replace(/;$/, '');
+    if (/^MOL_ID:/.test(t)) flush();
+    else if (/^EC:/.test(t)) ec = t.slice(3).trim().split(',')[0].trim();
+    else if (/^CHAIN:/.test(t)) ids = t.slice(6).split(',').map(s => s.trim());
+  }
+  flush();
+  return out[0] || null;
+}
 
 /* ---- disulfides, and the fold they count ---------------------------- */
 
@@ -581,7 +613,17 @@ function bakePair(v) {
   out.meta = {
     entry: parts.map(p => p.id).join(' + '), entries: parts.map(p => p.id),
     chainsDrawn: out.order.length,
-    method: parts.map(p => Bake.method(p.text)).join(' / '),
+    /* ONE METHOD OR NONE. `method` is a controlled vocabulary — the registry
+       keeps measured and predicted apart on it — so a joined string would be a
+       value no reader could match. Both entries here are x-ray; if they ever
+       were not, that difference is the first thing this view would have to say
+       out loud rather than paper over. */
+    method: (ms => {
+      const one = [...new Set(ms)];
+      if (one.length !== 1)
+        throw new Error('paired view mixes methods: ' + ms.join(', '));
+      return one[0];
+    })(parts.map(p => Bake.method(p.text))),
     resolution: null,
     resolutions: parts.map(p => ({ entry: p.id, res: Bake.resolution(p.text) })),
     title: parts.map(p => Bake.line1(p.text, 'TITLE')).join(' | '),
@@ -615,15 +657,16 @@ function bakePair(v) {
 /* ---- one view -------------------------------------------------------- */
 
 function bake(v) {
-  const text = fs.readFileSync(path.join(SRC, v.id + '.pdb'), 'utf8');
+  const id = v.source ? v.source.id : v.id;
+  const text = fs.readFileSync(path.join(SRC, id + '.pdb'), 'utf8');
   const only = new Set(v.chains.split(','));
 
   const traced = Bake.caTrace(text, only);
-  if (!traced.size) throw new Error(v.id + ': no CA atoms on those chains');
+  if (!traced.size) throw new Error(id + ': no CA atoms on those chains');
   const R = Bake.ssRanges(text);
   const T = Bake.assemble(traced, R);          // ss read against the FILE's numbering
 
-  const out = { source: v.id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
+  const out = { source: id + '.pdb', ssFrom: Bake.ssFrom(R), centre: T.centre,
                 order: T.order, chains: T.chains, radius: T.radius };
 
   const SS = bonds(text, only);
@@ -677,11 +720,11 @@ function bake(v) {
     const got = Object.values(roles).filter(r => r.role === role);
     if (!got.length) throw new Error(`${v.id}: no ${role} chain found`);
     for (const r of got) if (r.domains !== want)
-      throw new Error(`${v.id}: ${role} chain has ${r.domains} Ig domains, expected ${want}`);
+      throw new Error(`${id}: ${role} chain has ${r.domains} Ig domains, expected ${want}`);
   }
 
   out.meta = {
-    entry: v.id, chainsDrawn: out.order.length,
+    entry: id, chainsDrawn: out.order.length,
     method: Bake.method(text), resolution: Bake.resolution(text),
     title: Bake.line1(text, 'TITLE'), models: Bake.models(text),
     chainsInFile: Bake.chainCount(text),
@@ -709,16 +752,33 @@ function bake(v) {
       rings: gly.atoms.filter(a => a.group === 'sugar' && a.name === 'C1').length,
       anchors: gly.anchors.map(a => `${a.chain} Asn${a.num}`),
       link: gly.anchors.map(a => a.d) } : null,
-    ec: Bake.ecNumbers(text)[0] || null,
+    /* THE SUBJECT'S, not the file's — see ecFor. */
+    ec: ecFor(text, sub),
+  };
+  /* THE REGISTRY'S HALF, five fields: what the collection is indexed and
+     compared on. Everything else the panel wants is in the bake beside the
+     coordinates it describes. */
+  out.read = {
+    method: Bake.method(text),
+    chainsInFile: Bake.chainCount(text),
+    residues: out.meta.counts.reduce((k, c) => k + c.modelled, 0),
+    /* SEQRES is per chain and every chain here is drawn, so the two numbers
+       are the same kind. */
+    declared: out.meta.counts.every(c => c.declared !== null)
+      ? out.meta.counts.reduce((k, c) => k + c.declared, 0) : null,
+    ec: out.meta.ec,
+    baked: `ab-${id}.json`,
   };
   return out;
 }
 
 function main() {
   fs.mkdirSync(DATA, { recursive: true });
-  for (const v of CANDIDATES) {
+  const blocks = {};
+  for (const v of [...VIEWS, ...PAIRED]) {
     const out = v.pair ? bakePair(v) : bake(v);
-    const file = `ab-${v.id}.json`;
+    const file = v.pair ? v.baked : out.read.baked;
+    if (out.read) { blocks[v.id] = out.read; delete out.read; }
     fs.writeFileSync(path.join(DATA, file), JSON.stringify(out));
     const m = out.meta;
     if (v.pair) {
@@ -743,7 +803,11 @@ function main() {
         `, ${m.interface.shared.length} shared, ` : '') +
       `${out.extents.join(' × ')} A, view ${out.frame}, ${kb} KB`);
   }
+  /* The counted half goes back into proteins.js, where a card reads it. The
+     said half of that file is untouched by this write. */
+  const touched = IO.write('antibody', blocks);
+  console.log(`registry  proteins.js  ${touched.length} variants updated`);
 }
 
 if (require.main === module) main();
-module.exports = { bake, CANDIDATES };
+module.exports = { bake, bakePair, VIEWS, PAIRED };

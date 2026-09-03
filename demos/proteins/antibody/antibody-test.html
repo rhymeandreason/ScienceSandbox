@@ -118,9 +118,9 @@
     <p class="note" id="d-note">&mdash;</p>
 
     <button class="mode" id="pick" style="margin-top:12px">copy this view</button>
-    <p class="note" id="pick-note">Turn the molecule, then copy. This protein is
-      not in <code>proteins.js</code> yet, so paste it into the review notes
-      rather than into a registry entry.</p>
+    <p class="note" id="pick-note">Turn the molecule, then copy. Paste into
+      <code>view.basis</code> in <code>proteins.js</code> with
+      <code>by:&nbsp;'human'</code>, then re-run the baker.</p>
 
     <p class="src">
       <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
@@ -139,19 +139,34 @@
 <script src="../../kit/ribbon.js"></script>
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/proteinbox.js"></script>
+<script src="../proteins.js"></script>
 <script>
 'use strict';
 
-/* UNDER REVIEW, so nothing here reads proteins/proteins.js — this protein is
-   not in it. The four candidates are tools/prep.js's CANDIDATES table and the
-   ids below match it; both move into the registry at step 5 of
-   docs/AddingAProtein.md, once a human has said which of these earn a place.
-   Until then there is no chosen basis to read, and each bake's own solved
-   basis stands. */
+/* WHICH STRUCTURES, AND WHAT THEY ARE, ARE proteins/proteins.js's — the same
+   file the baker read to write these bakes. Nothing about them is typed here,
+   so a variant cannot be described one way in the panel and baked another. */
+const ME = ProteinLib.byKey('antibody');
+
+/* Panel order, which is the page's business: the whole molecule first, then
+   the comparison over the two of them, then the arm on its own.
+
+   FC IS NOT A VARIANT and is the one id here the registry cannot answer for.
+   It is the two Fc regions superposed — a measurement over 1IGT and 1HZH
+   rather than a deposition — so it has no entry, no source and no RCSB link,
+   and the registry's `keeps` is what says its bake is deliberate. */
+const FC = 'ab-FC.json';
 const VIEWS = ['1IGT', '1HZH', 'FC', '3HFM'];
+const said = id => ProteinLib.variantOf(ME, id);
+const bakedOf = id => id === 'FC' ? FC : said(id).read.baked;
 
 const box = Proteinbox.create({
   mount: document.getElementById('stage'),
+  /* THE CHOSEN ROTATION, read from the registry rather than the bake: a basis
+     a human picked is taste, so re-aiming this protein is an edit to
+     proteins.js and a reload. Null while nobody has picked one, and then each
+     bake's own solved basis stands. */
+  view: ProteinLib.viewOf(ME),
   orbit: true,
   /* Trackball, not turntable: a turntable clamps its pitch about a hundred
      pixels into an upward drag, which runs out exactly where someone is trying
@@ -290,7 +305,7 @@ const $ = id => document.getElementById(id);
 window.bench = { views, box, get view() { return view; } };
 
 VIEWS.forEach(id => {
-  fetch(`data/ab-${id}.json`).then(r => r.json()).then(t => {
+  fetch(`data/${bakedOf(id)}`).then(r => r.json()).then(t => {
     views[id] = t;
     if (view === id) show(id);
   });
@@ -444,7 +459,7 @@ function show(id) {
   $('d-rcsb').href = `https://www.rcsb.org/structure/${es[0]}`;
   $('d-rcsb-label').textContent = `RCSB ${es.join(' · ')}`;
   $('d-raw').href = `https://files.rcsb.org/download/${es[0]}.pdb`;
-  $('d-baked').href = `data/ab-${id}.json`;
+  $('d-baked').href = `data/${bakedOf(id)}`;
 
   box.setData(t, { colors: colorsOf(t) });
   /* The Fc sugar, where the baker put one there. Ball-and-stick proportions
@@ -478,7 +493,13 @@ VIEWS.forEach(id => {
   });
 });
 
-show('1IGT');
+/* THE OPENING VIEW IS THE REGISTRY'S DEFAULT, not a typed id: which structure
+   a protein opens on is a decision, and it belongs in the file that holds the
+   other decisions about it. The pressed button is set from the same answer, so
+   the highlight and the stage cannot disagree. */
+const OPEN = ProteinLib.defaultOf(ME).id;
+VIEWS.forEach(v => $('v-' + v).setAttribute('aria-pressed', String(v === OPEN)));
+show(OPEN);
 </script>
 </body>
 </html>
