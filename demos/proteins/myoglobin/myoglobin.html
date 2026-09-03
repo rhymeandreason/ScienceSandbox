@@ -75,6 +75,20 @@
 
   *{box-sizing:border-box}
 
+  /* ---- site nav ------------------------------------------------------
+     The same bar the collection wears, and the homepage's wordmark letter for
+     letter. What changes per page is the crumb beside it. */
+  .nav{display:flex;flex-wrap:wrap;align-items:baseline;gap:.75rem;
+    padding:clamp(2rem,4vw,2rem) 0 0}
+  .nav .mark{font-family:var(--sans);font-size:1.35rem;font-weight:500;
+    letter-spacing:-.035em;text-transform:lowercase;color:var(--ink);
+    text-decoration:none;line-height:1}
+  .nav .mark em{font-style:normal;color:var(--accent)}
+  .nav .mark .dot{color:var(--spark)}
+  .nav .here{font-size:.74rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--muted);font-weight:600;text-decoration:none}
+  .nav .here:hover{color:var(--accent)}
+
   body{font-family:var(--ui);background:var(--paper);color:var(--ink);
     margin:0;line-height:1.6;-webkit-font-smoothing:antialiased}
 
@@ -84,7 +98,7 @@
 
   /* ---- masthead ------------------------------------------------------ */
 
-  header{padding:clamp(2.5rem,6vw,4.5rem) 0 1.5rem}
+  header{padding:clamp(1.5rem,4vw,2.5rem) 0 1.5rem}
   .back{font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;
     color:var(--muted);text-decoration:none}
   .back:hover{color:var(--accent)}
@@ -156,7 +170,16 @@
 <body>
 <div class="wrap">
 
+<nav class="nav">
+  <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="here">biology</span>
+</nav>
+
 <header>
+  <!-- THE NAV SAYS WHERE THIS PAGE SITS; this says where to go from it. They
+       point at the same place and are not the same thing: a crumb is read as
+       chrome, and a reader at the end of one protein wants a way to the next
+       one that looks like a link. -->
   <a class="back" href="/proteins">&larr; all proteins</a>
   <h1>Myoglobin</h1>
   <p class="deck">One chain wrapped around one iron atom. It holds oxygen in
