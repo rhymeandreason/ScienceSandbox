@@ -146,8 +146,8 @@ Defaults do the right thing: ions walk slower and are blocked by the bilayer, wa
 | --- | --- |
 | `t` | sim seconds |
 | `counts[kind].inside / .outside` | every kind on stage, by side |
-| `net` | `'entering'`, `'leaving'` or `'balanced'`: the verdict to print for water through the bilayer, thresholded for the crowd's own noise |
-| `crossings.up / .down`, `netRecent` | the counts behind it: lifetime, and a recent net that decays to 0 at equilibrium (positive means leaving the cell) |
+| `net` | `'entering'`, `'leaving'` or `'balanced'`: the verdict to print for water. It is read off the free-water headcount per side, which is what osmosis is, so it is right from the first frame |
+| `crossings.up / .down`, `netRecent` | what actually happened: lifetime crossings each way, and a recent net that decays to 0 at equilibrium (positive means leaving the cell). Noisy for the first half minute at this crowd size, so print it as a count, not a direction |
 | `mV`, `equilibrium.K`, `equilibrium.CL` | membrane potential and each ion's equilibrium potential |
 | `crossed.K`, `crossed.CL` | net charge through each channel |
 | `atpSpent`, `pumpRunning`, `pumpPhase`, `pumpT` | the pump's ledger and where it is in its cycle |

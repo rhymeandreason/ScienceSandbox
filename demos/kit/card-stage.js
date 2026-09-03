@@ -212,7 +212,11 @@
     function layout() {
       const W = canvas.clientWidth, H = canvas.clientHeight;
       if (!W || !H) return;
-      const off = opts.viewOffset ? opts.viewOffset(W, H) : null;
+      /* The mount element may carry the offset itself: a lesson shell sets it
+         on its stage, so a page that forgets to pass it still gets a scene
+         centred beside the panel. */
+      const fn = opts.viewOffset || mount.viewOffset;
+      const off = fn ? fn(W, H) : null;
       if (off && (off.x || off.y)) stage.camera.setViewOffset(W, H, off.x || 0, off.y || 0, W, H);
       else if (stage.camera.view) stage.camera.clearViewOffset();
       stage.camera.updateProjectionMatrix();

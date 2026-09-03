@@ -71,6 +71,8 @@
       hint: $('.lshell-hint'),
     };
     els.brand.textContent = opts.brand || '';
+    /* On the stage element too, so CardStage finds it without being told. */
+    els.stage.viewOffset = () => shellApi.viewOffset();
     els.hint.textContent = opts.hint || '';
     els.hint.hidden = !opts.hint;
 
@@ -132,7 +134,7 @@
     window.addEventListener('keydown', onKey);
     els.stage.addEventListener('pointerdown', () => els.hint.classList.add('is-faded'));
 
-    return {
+    const shellApi = {
       el, stage: els.stage, panel: els.panel, ui, ctx, steps,
       goTo, get current() { return current; },
       panelRect: () => els.panel.getBoundingClientRect(),
@@ -146,6 +148,7 @@
       theme(name, on) { document.body.classList.toggle(name, !!on); },
       destroy() { window.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('lshell-page'); },
     };
+    return shellApi;
   }
 
   global.LessonShell = { create };

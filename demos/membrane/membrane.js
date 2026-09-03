@@ -829,11 +829,17 @@
         const c = counts[t.kind] || (counts[t.kind] = { inside:0, outside:0 });
         if (t.y >= 0) c.outside++; else c.inside++;
       }
-      /* THE VERDICT A PAGE PRINTS. netRecent is a decaying count and its
-         noise scales with the crowd, so the threshold does too: a 50/50
-         stage wandered to +3.6 in twenty seconds and read "leaving". */
-      const nW = counts.water ? counts.water.inside + counts.water.outside : 0;
-      const net = Math.abs(netRecent) < Math.max(1, 0.03 * nW) ? 'balanced' : netRecent > 0 ? 'leaving' : 'entering';
+      /* THE VERDICT A PAGE PRINTS, off the HEADCOUNT, not the traffic. Osmosis
+         is the headcount: more free water on a side means more of it wanders
+         off that side, and that is the claim the page makes. The observed
+         crossings say the same thing eventually, but at eighty molecules
+         they are noise for the first half minute — a 50/50 stage read
+         "leaving" and a 26/46 one read "balanced". `crossings` and
+         `netRecent` stay for a page that wants to show what happened. */
+      const w = counts.water || { inside: 0, outside: 0 };
+      const nW = w.inside + w.outside;
+      const diff = w.inside - w.outside;
+      const net = Math.abs(diff) <= Math.max(2, 0.08 * nW) ? 'balanced' : diff > 0 ? 'leaving' : 'entering';
       return { t:elapsed, counts, mV, chargeOut, crossed:Object.assign({}, crossed),
         crossings:Object.assign({}, crossings), netRecent, net, netPush:netPush(),
         atpSpent, pumpRunning:running, pumpPhase:phase, pumpT,
