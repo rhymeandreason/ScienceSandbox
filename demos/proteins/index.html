@@ -143,41 +143,17 @@
      rather than in a field a reader has to go looking for. */
   .fact.predicted{background:var(--spark);border-color:var(--spark);color:#faf8f4}
 
-  .vars{list-style:none;margin:0 0 1.4rem;padding:0;font-size:0.8rem;
-    line-height:1.5}
-  /* A grid, not a flex row: the id keeps its column, the purpose takes what
-     is left, and the bake roles get their own line under it rather than
-     squeezing the sentence into three words a line. */
-  .vars li{display:grid;grid-template-columns:5.5em 1fr;gap:0 0.6rem;
-    padding:4px 0;border-bottom:1px solid var(--line)}
-  .vars li:last-child{border-bottom:0}
-  .vars .id{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
-    color:var(--muted);font-size:0.75rem}
-  /* The extra bakes sit under the purpose, quiet: they are what a page CAN
-     ask for, not what this one is showing. */
-  .vars .cover{grid-column:2;font-size:0.7rem;font-weight:400;color:var(--ink-3,#7a7268)}
-  .vars .cover b{font-weight:600}
-  .vars .bakes{grid-column:2;font-size:0.66rem;letter-spacing:0.1em;
-    text-transform:uppercase;color:var(--muted);font-weight:600;opacity:.7;
-    margin-top:1px}
-  .vars li.def .id{color:var(--spark)}
-  .vars li.def{font-weight:600}
-
-  /* The links sit at the bottom of every card whatever the list above them
-     is worth, so a row of cards ends on a line rather than a ragged edge. */
+  /* THE LINKS ARE THE CARD. Every card leads to its bench and the whole card
+     is the click, so a pill saying so was the same destination twice. What
+     stays is the lesson, where one exists: it is the only thing on a card that
+     goes somewhere the card itself does not. */
   .links{margin-top:auto;display:flex;flex-wrap:wrap;gap:0.5rem}
   .open{display:inline-flex;align-items:center;gap:6px;padding:0.6rem 1.2rem;
-    border:1px solid var(--line);border-radius:999px;background:transparent;
-    color:var(--ink);font-size:0.8rem;font-weight:600;letter-spacing:0.06em;
-    text-transform:uppercase;text-decoration:none;
-    transition:background .18s,border-color .18s,color .18s}
-  .open:hover{border-color:var(--accent);color:var(--accent)}
-  /* The lesson is the louder of the two where it exists: a finished page is
-     what a reader most likely wants, and the bench behind it is for whoever is
-     deciding what the collection should hold. */
-  .open.lesson{background:var(--accent);border-color:var(--accent);color:#faf8f4}
-  .open.lesson:hover{background:var(--spark);border-color:var(--spark);
-    color:#faf8f4}
+    border:1px solid var(--accent);border-radius:999px;
+    background:var(--accent);color:#faf8f4;font-size:0.8rem;font-weight:600;
+    letter-spacing:0.06em;text-transform:uppercase;text-decoration:none;
+    transition:background .18s,border-color .18s}
+  .open:hover{background:var(--spark);border-color:var(--spark)}
 
   /* One line, under the rule: what a reader is looking at a shelf OF. */
   .lede{font-size:1rem;color:var(--muted);max-width:60ch;line-height:1.6;
@@ -313,11 +289,7 @@ function card(p) {
       <p class="does"></p>
       <p class="blurb"></p>
       <div class="facts"></div>
-      <ul class="vars"></ul>
-      <div class="links">
-        <a class="open" href="${benchOf(p)}">open the bench &rarr;</a>
-        ${lessonOf(p) ? `<a class="open lesson" href="${lessonOf(p)}">the lesson &rarr;</a>` : ''}
-      </div>
+      ${lessonOf(p) ? `<div class="links"><a class="open" href="${lessonOf(p)}">the lesson &rarr;</a></div>` : ''}
     </div>`;
 
   /* THE WHOLE CARD IS THE LINK to its bench. The stage is included, so the
@@ -364,51 +336,14 @@ function card(p) {
     fx.appendChild(s);
   }
 
-  const list = el.querySelector('.vars');
-  /* The default first: it is the one drawn above and the one whose coverage
-     is printed, so it should not be third in its own list. The rest keep the
-     registry's order. */
-  const ordered = [v, ...p.variants.filter(w => w !== v)];
-  for (const w of ordered) {
-    const li = document.createElement('li');
-    if (w === v) li.className = 'def';
-    const id = document.createElement('span');
-    id.className = 'id'; id.textContent = w.source ? w.source.id : w.id;
-    const what = document.createElement('span');
-    what.textContent = w.purpose;
-    li.append(id, what);
-    /* HOW MUCH OF THE PROTEIN THIS FILE ACTUALLY HOLDS, under the variant it
-       belongs to rather than as a chip, because it is a fact about one
-       structure and not about the protein. "Amino acids", not "residues": the
-       benches teach the structural word, a browse page should not need it. */
-    if (w === v) {
-      const cov = document.createElement('span');
-      cov.className = 'cover';
-      const rr = w.read;
-      /* WHAT A STRUCTURE HOLDS, in the units it is made of. A protein says how
-         much of itself was modelled; a complex has to say both polymers or the
-         DNA is invisible in the one place a reader is deciding what to open. */
-      cov.innerHTML = isNA(p)
-        ? `<b>${rr.nucleotides}</b> nucleotides · <b>${rr.pairs}</b> base pairs`
-          + (rr.residues ? ` · <b>${rr.residues}</b> amino acids` : '')
-        : rr.declared
-          ? `<b>${rr.residues}</b> of ${rr.declared} amino acids · ${Math.round(rr.residues / rr.declared * 100)}%`
-          : `<b>${rr.residues}</b> amino acids`;
-      li.appendChild(cov);
-    }
-    /* WHAT ELSE IS BAKED FOR THIS VARIANT, where a protein's files are made in
-       more than one shape. A surface is 1.5 MB and a fold is 830 KB — the two
-       most expensive things in the repo — and a collection page that showed
-       only the ribbon would leave a reader with no way to know either exists.
-       Roles, not filenames: which file is which is the registry's business. */
-    const roles = Object.keys(w.bake || {}).filter(k => k !== 'trace');
-    if (roles.length) {
-      const b = document.createElement('span');
-      b.className = 'bakes'; b.textContent = roles.join(' · ');
-      li.appendChild(b);
-    }
-    list.appendChild(li);
-  }
+  /* WHAT A CARD DOES NOT SAY. The structure ids, what each variant is for and
+     how much of the protein its file holds all live on the bench, which is one
+     click away and is where a reader deciding between two files actually is.
+     On a shelf they were four lines of monospace between the reader and the
+     next protein. The tally in the masthead still counts them, so the page
+     does not stop knowing they exist.
+     The registry is unchanged: nothing here was the only reader of it. */
+
   return el;
 }
 
