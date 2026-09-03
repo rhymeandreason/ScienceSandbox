@@ -207,12 +207,11 @@ const $ = id => document.getElementById(id);
    protein whose bench is somewhere else. `lesson` is the optional second link,
    for the one protein here that has already become one. Paths are relative to
    `demos/`, one level up from this page. */
-/* A bench under `proteins/` has a short URL of its own — `vercel.json` rewrites
-   /proteins/<key> onto it — and the two proteins whose data lives elsewhere
-   (amylase, haemoglobin) keep the file path, which is what their folder has. */
-const benchOf = p => (!p.page && p.dir.startsWith('proteins/'))
-  ? `/proteins/${p.key}`
-  : '../' + (p.page || `${p.dir}/${p.key}-test.html`);
+/* EVERY PROTEIN IN THE REGISTRY HAS `/proteins/<key>`, whatever folder its
+   files sit in — `vercel.json` rewrites the short URL onto the bench and 301s
+   the file path onto the short one. Adding a protein means adding both routes
+   and the bench's own `<base>` tag; docs/deploy.md is the procedure. */
+const benchOf = p => `/proteins/${p.key}`;
 const lessonOf = p => p.lesson ? '../' + p.lesson : null;
 
 /* Every protein's data sits under its own `dir`, which is not always beside

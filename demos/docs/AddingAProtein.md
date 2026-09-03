@@ -18,7 +18,9 @@ node proteins/tools/triage.js 1IG8 3B8A
 
 It fetches each entry (cached to `tools/.cache/`, which the root `.gitignore` covers) and prints the answer to every screening question below, off the records: chains and what kind each is, models against `REMARK 350`'s assembly count, HELIX/SHEET, MODRES, ligands, SEQRES against what is modelled, chain breaks, EC. Then a line per condition it hit, or `default path`. The parsing is `bake-lib.js`'s, so it cannot disagree with the baker you are about to write.
 
-**Then look at it.** `proteins/tools/triage.html` (local only, `.vercelignore`d) draws the entries side by side in 3Dmol, with a *biological assembly* checkbox that is the whole ferritin trap in one click: the asymmetric unit is a four-helix bundle, the assembly is the ball. An outside viewer is allowed here and nowhere else, because nothing it draws is committed and no lesson loads it. The script answers everything except whether the shape says anything, which is the one question that needs eyes.
+## 3. The human looks at it
+
+`proteins/tools/triage.html` (local only, `.vercelignore`d) draws the entries side by side in 3Dmol, with a *biological assembly* checkbox that is the whole ferritin trap in one click: the asymmetric unit is a four-helix bundle, the assembly is the ball. An outside viewer is allowed here and nowhere else, because nothing it draws is committed and no lesson loads it. The script answers everything except whether the shape says anything, which is the one question that needs eyes.
 
 **The URL is the whole state, so hand the human a link rather than instructions.**
 
@@ -30,7 +32,7 @@ http://localhost:8817/demos/proteins/tools/triage.html?ids=5P21,4Q21&why=Ras+on+
 
 The human reviews before the next step.
 
-## 3. Build the bench
+## 4. Build the bench
 
 One test page, every relevant structure as a ribbon, buttons to switch. Not a lesson. It exists so the human can review. Make a folder for the protein in the proteins folder to hold the data and the test page.  `proteins/<name>/<name>-test.html`
 
@@ -135,11 +137,11 @@ The numbers on these pages are safe: every one is read from the bake at render t
 
 * **An under-claim is a finding, not a gap to paper over.** `basePairs` refuses Hoogsteen, reverse-Hoogsteen and trans-Watson-Crick, so 1EHZ's L is drawn with its two arms joined by nothing. That is an honest report of what was solved from the file and a dishonest picture of the molecule, and the page has to say so out loud. The fix is never to loosen a test until the picture looks right.
 
-## 4. Human reviews the bench
+## 5. Human reviews the bench
 
 **Hand the bench over and stop.**
 
-## 5. Add selections to the registry
+## 6. Add selections to the registry
 
 **WHICH REGISTRY IS DECIDED BY THE BAKE, NOT THE BIOLOGY.** A bake carrying nucleic chains is indexed in `proteins/nucleic-acids.js` and checked by `proteins/check-nucleic-acids.js`; everything else goes in `proteins/proteins.js` under `check-proteins.js`. Zif268 is a protein and lives in the nucleic index, because 1ZAA's bake is the mixed shape and the protein checker cannot read one. `nucleic-acids.js`'s own header is the argument for two files; read it before adding to either.
 
@@ -155,7 +157,7 @@ Then `node proteins/<name>/tools/prep.js` again to write the `read` block back, 
 * **`does` is validated against `read.ec`.** An `enzyme` with no EC anywhere fails, so does a non-enzyme carrying one, and so do variants that disagree — two numbers under one key means a variant is filed under the wrong protein. The EC comes off each entry's own `COMPND` record, so a production page that loads bakes and never a PDB can still say which reaction. **The vocabulary is short, not closed** — it is four words today and most of the wishlist wants a fifth. Adding one is the human's decision and a one-line edit to `DOES`; inventing one in a variant is what the validator is there to stop.
 * **A trap gets a comment, not a list.** No register of rejected entries: the bench records what was kept, and the reasons are cheap to re-derive. The exception is where the OBVIOUS choice is wrong — 7RSA is the most-cited RNase A structure and carries no SSBOND records at all, so a bench built on it prints "no disulfides" for the protein whose disulfides are the whole story. One line, beside the entry it explains.
 
-## 6. Say whether a surface is worth baking
+## 7. Say whether a surface is worth baking
 
 Recommend SES only against a criterion, never a feeling:
 
@@ -165,6 +167,4 @@ Recommend SES only against a criterion, never a feeling:
 
 It is expensive and it is a bake, not a render: `rendering-modules.md` owns the how, including the rule that a surface's frame is read from the trace file rather than re-derived.
 
-## 7. Downloads and files
-
-**gitignore the pdb files because they are multiple MBs**
+## 

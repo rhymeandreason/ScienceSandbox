@@ -473,11 +473,9 @@
         '<span>EC ' + esc(ec) + '</span></div>'
       : p.does && p.does !== 'unknown' ? '<div class="tag">' + esc(p.does) + '</div>' : '';
 
-    /* straight to that protein's own page, where `vercel.json` gives it a short
-       URL; the two whose data lives outside proteins/ keep the file path */
-    const href = (!p.page && p.dir.indexOf('proteins/') === 0)
-      ? '/proteins/' + p.key
-      : 'demos/' + (p.page || p.dir + '/' + p.key + '-test.html');
+    /* straight to that protein's own page: every key in the registry has
+       `/proteins/<key>`, whatever folder its files sit in */
+    const href = '/proteins/' + p.key;
 
     const li = document.createElement('li');
     li.innerHTML = '<a class="spec" href="' + esc(href) + '">' +

@@ -19,6 +19,7 @@
 
     { "source": "/demos/proteins/index.html",  "destination": "/proteins", "permanent": true },
     { "source": "/demos/proteins/reaction-map.html", "destination": "/proteins/reactions", "permanent": true },
+    { "source": "/demos/amylase/amylase-test.html", "destination": "/proteins/amylase", "permanent": true },
     { "source": "/demos/proteins/atp-synthase/atp-synthase-test.html", "destination": "/proteins/atp-synthase", "permanent": true },
     { "source": "/demos/proteins/chymotrypsin/chymotrypsin-test.html", "destination": "/proteins/chymotrypsin", "permanent": true },
     { "source": "/demos/proteins/collagen/collagen-test.html", "destination": "/proteins/collagen", "permanent": true },
@@ -28,6 +29,7 @@
     { "source": "/demos/proteins/hemoglobin/hemoglobin-test.html", "destination": "/proteins/hemoglobin", "permanent": true },
     { "source": "/demos/proteins/hexokinase/hexokinase-test.html", "destination": "/proteins/hexokinase", "permanent": true },
     { "source": "/demos/proteins/insulin/insulin-test.html", "destination": "/proteins/insulin", "permanent": true },
+    { "source": "/demos/proteins/lysozyme/lysozyme-test.html", "destination": "/proteins/lysozyme", "permanent": true },
     { "source": "/demos/proteins/myoglobin/myoglobin-test.html", "destination": "/proteins/myoglobin", "permanent": true },
     { "source": "/demos/proteins/napump/napump-test.html", "destination": "/proteins/napump", "permanent": true },
     { "source": "/demos/proteins/prion/prion-test.html", "destination": "/proteins/prion", "permanent": true },
@@ -51,6 +53,7 @@
 
     { "source": "/proteins",   "destination": "/demos/proteins/index.html" },
     { "source": "/proteins/reactions", "destination": "/demos/proteins/reaction-map.html" },
+    { "source": "/proteins/amylase", "destination": "/demos/amylase/amylase-test.html" },
     { "source": "/proteins/atp-synthase", "destination": "/demos/proteins/atp-synthase/atp-synthase-test.html" },
     { "source": "/proteins/chymotrypsin", "destination": "/demos/proteins/chymotrypsin/chymotrypsin-test.html" },
     { "source": "/proteins/collagen", "destination": "/demos/proteins/collagen/collagen-test.html" },
@@ -60,6 +63,7 @@
     { "source": "/proteins/hemoglobin", "destination": "/demos/proteins/hemoglobin/hemoglobin-test.html" },
     { "source": "/proteins/hexokinase", "destination": "/demos/proteins/hexokinase/hexokinase-test.html" },
     { "source": "/proteins/insulin", "destination": "/demos/proteins/insulin/insulin-test.html" },
+    { "source": "/proteins/lysozyme", "destination": "/demos/proteins/lysozyme/lysozyme-test.html" },
     { "source": "/proteins/myoglobin", "destination": "/demos/proteins/myoglobin/myoglobin-test.html" },
     { "source": "/proteins/napump", "destination": "/demos/proteins/napump/napump-test.html" },
     { "source": "/proteins/prion", "destination": "/demos/proteins/prion/prion-test.html" },
