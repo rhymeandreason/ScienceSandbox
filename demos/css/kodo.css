@@ -1282,13 +1282,15 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 /* The dotted grid printed on the sandbox paper. --surface-rule is transparent
    above, so the gradient already draws nothing; the image is dropped as well
    so the browser stops compositing a full-stage layer for it every frame. */
-#stage, .stage, body { background-image: none }
+:root #stage,
+:root .stage,
+:root body { background-image: none }
 
 /* The 2px drawn line is the sketchbook's signature. One hairline replaces it
    wherever a component states it in px, which a token cannot intercept. */
-.btn { border-width: 1px }
+:root .btn { border-width: 1px }
 
-.btn:hover:not([disabled]) {
+:root .btn:hover:not([disabled]) {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--text-inverse);
@@ -1297,25 +1299,34 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 /* Micro-labels are the masthead's device: uppercase, letterspaced, quiet.
    Every heading on a converted page routes through one of these two, which is
    what keeps four lessons saying "this is a label" the same way. */
-.cap-lg, .cap-sm,
-.label, .caps, h2.section {
+:root .cap-lg,
+:root .cap-sm,
+:root .label,
+:root .caps,
+:root h2.section {
   font-family: var(--font-display);
   font-weight: var(--cap-weight);
   text-transform: uppercase;
   letter-spacing: var(--cap-track);
   color: var(--text-muted);
 }
-.cap-lg { font-size: var(--cap-lg) }
-.cap-sm, .label, .caps, h2.section { font-size: var(--cap-sm) }
+:root .cap-lg { font-size: var(--cap-lg) }
+:root .cap-sm,
+:root .label,
+:root .caps,
+:root h2.section { font-size: var(--cap-sm) }
 
 /* annotate.css sets 600 and 700 on labels and card headings, weights chosen
    against Nunito. One step down each, on the system face they now set in. */
-.annot-label { font-weight: 500 }
-.annot-card h4, .annot-card b { font-weight: 600 }
+:root .annot-label { font-weight: 500 }
+:root .annot-card h4,
+:root .annot-card b { font-weight: 600 }
 
 /* The display face, where a page wants the site's voice rather than prose:
    the masthead's micro-caps and any large numeral a lesson reads out. */
-.caps, .label, h2.section { font-family: var(--font-display) }
+:root .caps,
+:root .label,
+:root h2.section { font-family: var(--font-display) }
 
 /* -----------------------------------------------------------------------------
    10.2 PATHWAY CHROME
@@ -1328,15 +1339,15 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    this system it is a card lying flat on the page. The tilt has to be undone
    in three places, because the note ARRIVES rotated: the rule, the keyframe it
    animates to, and the fold drawn on ::after. */
-.sticky {
+:root .sticky {
   background: var(--surface-card);
   border: 1px solid var(--border-hair);
   border-radius: var(--radius-md);
   transform: none;
   box-shadow: var(--shadow-panel);
 }
-.sticky::after { display: none }
-#ledger.pin { animation-name: ledger-rise }
+:root .sticky::after { display: none }
+:root #ledger.pin { animation-name: ledger-rise }
 @keyframes ledger-rise {
   from { opacity: 0; transform: translateY(-10px) }
   to   { opacity: 1; transform: none }
@@ -1344,18 +1355,18 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 
 /* Off yellow, --muted and --hair resolve honestly again, so the heading and
    the rules stop needing the low-alpha ink pathways.css mixes for them. */
-.sticky .lhead {
+:root .sticky .lhead {
   font-family: var(--font-display);
   font-size: var(--cap-sm);
   font-weight: var(--cap-weight);
   letter-spacing: var(--cap-track);
   color: var(--text-muted);
 }
-.sticky .row { font-family: var(--font-ui); color: var(--text-body) }
-.sticky .row .v { font-family: var(--font-display); font-weight: 600 }
-.sticky .row.net,
-.sticky .row.prod,
-.sticky .row.carb { border-top: 1px solid var(--border-hair) }
+:root .sticky .row { font-family: var(--font-ui); color: var(--text-body) }
+:root .sticky .row .v { font-family: var(--font-display); font-weight: 600 }
+:root .sticky .row.net,
+:root .sticky .row.prod,
+:root .sticky .row.carb { border-top: 1px solid var(--border-hair) }
 
 /* The step's heading, and the rail it sits under. A 20px letterspaced marker
    was the page saying its own step number loudly; the micro-cap says it once. */
@@ -1364,7 +1375,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    marker overflowed pathways.css's 15px box downward and sat clear of the
    subject; a 12px cap in the same box does not, so the line box keeps the
    marker's height and the element's stays 15. */
-#stephead {
+:root #stephead {
   font-family: var(--font-display);
   font-size: var(--cap-sm);
   font-weight: var(--cap-weight);
@@ -1372,13 +1383,13 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   line-height: 24px;
   color: var(--text-muted);
 }
-#stephead em { font-family: inherit; color: inherit }
+:root #stephead em { font-family: inherit; color: inherit }
 
 /* The rail's numbers and the tooltip's marker: hairline, even corners. */
-.rnum,
-#stepsbody .rdot { border-width: 1px }
-.infobtn { border-width: 1px }
-.modal .mkick { font-family: var(--font-display); font-size: var(--cap-sm);
+:root .rnum,
+:root #stepsbody .rdot { border-width: 1px }
+:root .infobtn { border-width: 1px }
+:root .modal .mkick { font-family: var(--font-display); font-size: var(--cap-sm);
   letter-spacing: var(--cap-track) }
 
 /* The stage's right column: an aside, then a labelled datum. pathways.css
@@ -1387,7 +1398,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    the separating here, so the sizes only have to step once each:
    the note is the tutor's voice (italic), the name is a fact (roman, blue),
    and the label shrinks to the micro-cap it always was. */
-#enznote {
+:root #enznote {
   font-family: var(--font-editorial);
   font-style: italic;
   font-size: 21px;
@@ -1400,7 +1411,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   color: var(--text-dim);
   opacity: 1;
 }
-#enzname .ek {
+:root #enzname .ek {
   font-family: var(--font-display);
   font-size: var(--cap-sm);
   font-weight: var(--cap-weight);
@@ -1408,7 +1419,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   color: var(--text-muted);
   margin-bottom: 5px;
 }
-#enzname .en {
+:root #enzname .en {
   font-family: var(--font-editorial);
   font-size: 18px;
   line-height: 1.25;
@@ -1418,8 +1429,8 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 
 /* The lesson's name. pathways.css sets a 24px marker, hemoglobin had 16px at
    .02em and membrane an 11px cap — three treatments for one thing. */
-#pagetitle,
-#brand h1 {
+:root #pagetitle,
+:root #brand h1 {
   font-family: var(--font-display);
   font-size: var(--cap-lg);
   font-weight: var(--cap-weight);
@@ -1431,7 +1442,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 /* water-tutor.css is shared with water-lab-v2, which has not opted in, so its
    scrim is retoned here. It has to be the paper it fades into or the gradient
    shows as a band lying across the molecules. */
-#titleblock {
+:root #titleblock {
   background: linear-gradient(to bottom,
     rgba(250, 248, 244, .97) 0%, rgba(250, 248, 244, .88) 52%,
     rgba(250, 248, 244, 0) 100%);
@@ -1441,19 +1452,20 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    page, so it sets the same: serif at 17px, regular weight, emphasis carried
    by the <b> inside it rather than by the whole line. Literata has no 500,
    which water-tutor.css asked for and the browser was synthesising. */
-#stepclaim {
+:root #stepclaim {
   font-family: var(--font-editorial);
   font-size: 17px;
   font-weight: 400;
   line-height: 1.45;
   color: var(--text-body);
 }
-#stepclaim b, #stepclaim strong { font-weight: 600; color: var(--text-strong) }
+:root #stepclaim b,
+:root #stepclaim strong { font-weight: 600; color: var(--text-strong) }
 
 /* The temperature readout's description. 19px at 1.05 was sized for Caveat,
    where a tight leading is the point; as a serif it is a paragraph with its
    lines touching. It describes the number above it, so it sets smaller. */
-#treadout .tdesc {
+:root #treadout .tdesc {
   font-family: var(--font-editorial);
   font-size: 14px;
   line-height: 1.4;
@@ -1468,7 +1480,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 
 /* The coupling box was the second sheet of paper — ruled, tilted, with a
    lifted corner. Flat card, like the ledger. */
-#couplebox {
+:root #couplebox {
   background: var(--surface-card);
   background-image: none;
   border: 1px solid var(--border-hair);
@@ -1476,19 +1488,20 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   transform: none;
   box-shadow: var(--shadow-panel);
 }
-#couplebox::after { display: none }
+:root #couplebox::after { display: none }
 
 /* The verdict headings. Serif caps at 14/1px was a third heading device; they
    are labels, so they take the micro-cap and keep only their colour. */
-.note .nhead,
-.eff .eh,
-.massaction .ma-net span {
+:root .note .nhead,
+:root .eff .eh,
+:root .massaction .ma-net span {
   font-family: var(--font-display);
   font-size: var(--cap-sm);
   font-weight: var(--cap-weight);
   letter-spacing: var(--cap-track);
 }
-.modal h2, .massaction .ma-title {
+:root .modal h2,
+:root .massaction .ma-title {
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 600;
@@ -1497,37 +1510,39 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 }
 
 /* Prose in a card is prose. */
-.note .nbody,
-.modal .mtext,
-.modal .msub,
-.massaction .ma-sub {
+:root .note .nbody,
+:root .modal .mtext,
+:root .modal .msub,
+:root .massaction .ma-sub {
   font-family: var(--font-editorial);
   font-size: 13.5px;
   line-height: 1.6;
   color: var(--text-body);
 }
-.note .nbody b, .modal .mtext b,
-.modal .msub b, .massaction .ma-sub b { color: var(--text-strong) }
+:root .note .nbody b,
+:root .modal .mtext b,
+:root .modal .msub b,
+:root .massaction .ma-sub b { color: var(--text-strong) }
 
 /* The door to the mass-action demo. #4f5bd5 into #7b3fe4 on hover was two
    colours the system does not have; it is the page's one link, so it takes
    the accent and a hairline underline. */
-.note .minfo {
+:root .note .minfo {
   font-family: var(--font-ui);
   color: var(--accent);
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
 }
-.note .minfo:hover { color: var(--spark) }
+:root .note .minfo:hover { color: var(--spark) }
 
 /* Panels inside a card: the tinted box and the modal's own shell. */
-.eff {
+:root .eff {
   background: transparent;
   border: 1px solid var(--border-hair);
   border-radius: var(--radius-md);
 }
-.eff .e { font-family: var(--font-editorial); color: var(--text-dim) }
-.modal .mcard {
+:root .eff .e { font-family: var(--font-editorial); color: var(--text-dim) }
+:root .modal .mcard {
   background: var(--surface-page);
   border: 1px solid var(--border-hair);
   border-radius: var(--radius-md);
@@ -1536,6 +1551,6 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 
 /* The rail's paper. The dotted grid is the sketchbook's; the bar is the same
    flat page as the stage. */
-#railbar { background-image: none }
-.rnum { font-family: var(--font-display); font-weight: var(--cap-weight) }
-.rnum.rend { font-family: var(--font-display); letter-spacing: var(--cap-track) }
+:root #railbar { background-image: none }
+:root .rnum { font-family: var(--font-display); font-weight: var(--cap-weight) }
+:root .rnum.rend { font-family: var(--font-display); letter-spacing: var(--cap-track) }
