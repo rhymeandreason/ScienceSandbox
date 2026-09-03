@@ -54,10 +54,15 @@
  *  is all helix and no sheet — a claim these files make and this script
  *  repeats rather than deriving.
  *
- *  SOURCES. Both depositions are already committed under hemoglobin/data/
- *  for the lesson, so they are read from there and not downloaded twice.
- *  The bakes go in proteins/hemoglobin/data/, which is where this
- *  registry's checker looks.
+ *  SOURCES. 2HHB and 2HBS are already committed under hemoglobin/data/ for
+ *  the lesson, so they are read from there and not downloaded twice. 1FDH is
+ *  this folder's own, in data/src/:
+ *
+ *    curl -o proteins/hemoglobin/data/src/1FDH.pdb \
+ *      https://files.rcsb.org/download/1FDH.pdb
+ *
+ *  The bakes go in proteins/hemoglobin/data/, which is where this registry's
+ *  checker looks.
  *
  *  CONNECTIVITY IS DEPOSITED, NEVER INFERRED, for anything off a HETATM:
  *  both files CONECT their hemes, and a distance cutoff wide enough for
@@ -76,6 +81,7 @@ const { kabsch, mul } = Bake;
 
 const HERE = path.join(__dirname, '..');
 const DATA = path.join(HERE, 'data');
+const SRC = path.join(HERE, 'data', 'src');
 const ROOT = path.join(HERE, '..', '..');
 
 const REG = require('../../proteins.js');
@@ -90,7 +96,17 @@ const REF = ME.fit.on;
    and 63. Which chains are alpha and which are beta IS per variant — 2HBS
    has twice as many — and comes off the entry, which takes it from the
    file's own COMPND record. */
-const SITE = { alpha: { prox: 87, dist: 58 }, beta: { prox: 92, dist: 63 } };
+/* THE BETA-FAMILY CHAINS SHARE A NUMBERING. Gamma is 146 residues aligned to
+   beta's, so its proximal histidine is at 92 and its distal at 63 exactly as
+   beta's are — read out of the file below rather than assumed, because a
+   `prox` that lands on the wrong residue draws a side chain and calls it the
+   thing holding the iron. */
+const SITE = {
+  alpha: { prox: 87, dist: 58 },
+  beta:  { prox: 92, dist: 63 },
+  gamma: { prox: 92, dist: 63 },
+};
+const BETA_FAMILY = new Set(['beta', 'gamma']);
 
 /* THE SICKLE POSITION AND THE POCKET IT WOULD LAND IN. Beta6 is glutamate
    in 2HHB and valine in 2HBS — one residue, one disease, and the reason
@@ -101,7 +117,50 @@ const SITE = { alpha: { prox: 87, dist: 58 }, beta: { prox: 92, dist: 63 } };
 const MUT = 6;
 const ACCEPTOR = [85, 88];
 
+/* THE TWO POSITIONS WHERE GAMMA IS NOT BETA, and both are read out rather
+   than named in prose, because each is a claim this bench makes out loud.
+
+     143  the 2,3-BPG site. Beta puts a histidine here and gamma a serine, so
+          the fetal molecule grips BPG weakly — and BPG is what lowers
+          haemoglobin's affinity for oxygen. Weaker grip, tighter oxygen,
+          which is how a fetus pulls oxygen across the placenta out of its
+          mother's blood. The whole of why fetal haemoglobin exists.
+
+      87  the lateral contact. Beta has threonine, gamma glutamine, and the
+          bulkier polar residue is what stops a gamma chain joining a sickle
+          fibre. It is ALSO the alpha chain's proximal histidine, which is why
+          this is read per subunit and never per number.
+
+   Position 6 is NOT one of them: gamma has glutamate there, the same as beta.
+   That is worth drawing, because "fetal haemoglobin does not sickle" invites
+   the guess that it lacks the sickle position, and it does not. */
+const BPG = 143;
+const LATERAL = 87;
+
 const r2 = Bake.r2, xyz = Bake.xyz;
+
+/* The residue names sitting in one pocket group, deduplicated. Every copy of a
+   chain agrees in all three files here, so one name comes back — and if a file
+   ever disagreed with itself the row would show both rather than pick. */
+const resAt = (site, group) =>
+  [...new Set(site.atoms.filter(a => a.group === group).map(a => a.res))];
+
+/* Declared residues that are not amino acids, per chain, off SEQRES. An
+   N-terminal acetyl is a chemical cap on the first residue rather than a
+   residue of its own, but the record counts it, so completeness computed
+   against a raw SEQRES total reports an intact chain as one short. */
+const AMINO = new Set(('ALA ARG ASN ASP CYS GLN GLU GLY HIS ILE LEU LYS MET PHE '
+  + 'PRO SER THR TRP TYR VAL MSE SEC PYL').split(' '));
+function capsOf(text) {
+  const out = {};
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('SEQRES')) continue;
+    const id = line[11];
+    for (const name of line.slice(19).trim().split(/\s+/))
+      if (name && !AMINO.has(name)) out[id] = (out[id] || 0) + 1;
+  }
+  return out;
+}
 const elOf = l => (l.slice(76, 78).trim() || l.slice(12, 14).trim()).toUpperCase();
 const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 const split = s => (s || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -140,12 +199,20 @@ function pocket(text, kindOf) {
       keep(line, 'heme');
     } else if (line.startsWith('ATOM')) {
       const num = parseInt(line.slice(22, 26), 10);
-      const s = SITE[kind];
+      const st = SITE[kind];
+      const betaLike = BETA_FAMILY.has(kind);
       let group = null;
-      if (num === s.prox) group = 'proximal';
-      else if (num === s.dist) group = 'distal';
-      else if (kind === 'beta' && num === MUT) group = 'mutation';
-      else if (kind === 'beta' && ACCEPTOR.includes(num)) group = 'acceptor';
+      /* PROXIMAL AND DISTAL FIRST, so a number that means one thing in alpha
+         and another in the beta family cannot be claimed by the second rule.
+         87 is the alpha chain's proximal histidine AND the beta family's
+         lateral-contact residue; tested in this order it is only ever the one
+         its own subunit says. */
+      if (num === st.prox) group = 'proximal';
+      else if (num === st.dist) group = 'distal';
+      else if (betaLike && num === MUT) group = 'mutation';
+      else if (betaLike && num === BPG) group = 'bpg';
+      else if (betaLike && num === LATERAL) group = 'lateral';
+      else if (betaLike && ACCEPTOR.includes(num)) group = 'acceptor';
       if (!group) continue;
       /* Side chain only, with CB kept as the stub that says which way the
          residue is attached. Backbone drawn here would be four atoms of
@@ -196,34 +263,61 @@ function pocket(text, kindOf) {
 
 /* ---- one view --------------------------------------------------------- */
 
-/* Matched alpha-carbons between two structures, by chain id and residue
-   number. Both files are human haemoglobin under one numbering, so a number
-   means the same residue in each — which is what makes this a match rather
-   than a guess, and what the myoglobin bench could NOT do across a whale and
-   a beta chain. Anything modelled in only one file drops out, and the count
-   is printed so a fit made on too few is visible rather than silent. */
-function matchCA(a, b) {
+/* Matched alpha-carbons between two structures, PAIRED BY SUBUNIT ROLE and
+   then by residue number.
+
+   NOT BY CHAIN LETTER, and this is the trap the whole function exists for.
+   2HHB calls its alpha chains A and C; 1FDH calls them A and B. Match by
+   letter and B is an alpha in one file and a beta in the other, so the fit
+   lays a 141-residue chain over a 146-residue one and the tetramer comes out
+   scrambled — while the rmsd still looks like a number. So the k-th chain of
+   a role is paired with the k-th chain of that role, which is also the reason
+   the registry names the roles instead of leaving them to be inferred.
+
+   The beta family is matched to itself across genes: gamma is beta's
+   numbering and 72% its sequence, so a residue number means the same position
+   in each, and where the residues differ the fit is what MAKES that visible.
+   Anything modelled in only one file drops out, and the count is printed so a
+   fit made on too few is visible rather than silent. */
+const ROLE_ORDER = ['alpha', 'beta', 'gamma'];
+function rolesOf(v) {
+  const out = new Map();
+  for (const [kind, ids] of Object.entries(v.subunits))
+    out.set(BETA_FAMILY.has(kind) ? 'beta-family' : kind, split(ids));
+  return out;
+}
+
+function matchCA(a, av, b, bv) {
+  const ar = rolesOf(av), br = rolesOf(bv);
   const P = [], Q = [];
-  for (const [id, res] of a) {
-    const ref = b.get(id);
-    if (!ref) continue;
-    const byNum = new Map(ref.map(r => [r.num, r]));
-    for (const r of res) {
-      const q = byNum.get(r.num);
-      if (q) { P.push([r.x, r.y, r.z]); Q.push([q.x, q.y, q.z]); }
+  for (const role of [...new Set([...ar.keys(), ...br.keys()])]) {
+    const ai = ar.get(role) || [], bi = br.get(role) || [];
+    const n = Math.min(ai.length, bi.length);
+    for (let k = 0; k < n; k++) {
+      const res = a.get(ai[k]), ref = b.get(bi[k]);
+      if (!res || !ref) continue;
+      const byNum = new Map(ref.map(r => [r.num, r]));
+      for (const r of res) {
+        const q = byNum.get(r.num);
+        if (q) { P.push([r.x, r.y, r.z]); Q.push([q.x, q.y, q.z]); }
+      }
     }
   }
   return { P, Q };
 }
 
 function bake(v, ref) {
-  const text = fs.readFileSync(path.join(ROOT, v.source.path), 'utf8');
+  const text = fs.readFileSync(v.source.kind === 'repo'
+    ? path.join(ROOT, v.source.path)
+    : path.join(SRC, v.source.id + '.pdb'), 'utf8');
   const chains = split(v.chains);
   const kindOf = {};
-  for (const c of split(v.alpha)) kindOf[c] = 'alpha';
-  for (const c of split(v.beta)) kindOf[c] = 'beta';
+  for (const [kind, ids] of Object.entries(v.subunits)) {
+    if (!SITE[kind]) throw new Error(`${v.id}: no site table for subunit ${kind}`);
+    for (const c of split(ids)) kindOf[c] = kind;
+  }
   for (const c of chains)
-    if (!kindOf[c]) throw new Error(`${v.id}: chain ${c} is neither alpha nor beta`);
+    if (!kindOf[c]) throw new Error(`${v.id}: chain ${c} is in no subunit`);
 
   const R = Bake.ssRanges(text);
   const traced = Bake.caTrace(text, new Set(chains));
@@ -239,7 +333,7 @@ function bake(v, ref) {
      rotation would sit outside the ribbon it belongs in. */
   let fit = null;
   if (ref) {
-    const { P, Q } = matchCA(traced, ref.ca);
+    const { P, Q } = matchCA(traced, v, ref.ca, ref.variant);
     if (P.length >= 3) {
       const k = kabsch(P, Q);
       fit = { rmsd: k.rmsd, n: P.length };
@@ -290,7 +384,15 @@ function bake(v, ref) {
   const hemes = new Set(site.atoms.filter(a => a.group === 'heme')
                                   .map(a => a.chain + ':' + a.num));
   const modelled = chains.reduce((s, id) => s + out.chains[id].nums.length, 0);
-  const declared = chains.reduce((s, id) => s + (decl[id] || 0), 0);
+
+  /* THE ACETYL CAP, AND WHY SEQRES OVERCOUNTS BY IT. 1FDH's gamma chains are
+     acetylated at the N-terminus and the file puts that ACE in SEQRES, so the
+     record declares 147 for a 146-residue chain. Left alone the bench would
+     report 574 of 576 and call an intact structure a fragment — amylase's
+     pyroglutamate, one entry over. Counted off the file's own SEQRES rather
+     than assumed: whatever is declared and is not an amino acid is a cap. */
+  const caps = capsOf(text);
+  const declared = chains.reduce((s, id) => s + (decl[id] || 0) - (caps[id] || 0), 0);
 
   out.meta = {
     entry: v.source.id, view: v.id,
@@ -299,12 +401,17 @@ function bake(v, ref) {
     /* Tetramers, counted rather than typed: 2HBS's eight chains are two of
        them, and "two tetramers" is the fact the contact below depends on. */
     tetramers: chains.length / 4,
-    alpha: split(v.alpha), beta: split(v.beta),
+    /* The subunit names as the registry gives them, so the panel can say
+       "2 alpha + 2 gamma" without a table of its own to go stale. */
+    subunits: Object.fromEntries(Object.entries(v.subunits)
+      .map(([k, ids]) => [k, split(ids)])),
+    caps: Object.values(caps).reduce((a, b) => a + b, 0) || null,
     helices: chains.reduce((s, id) => s + out.chains[id].helices, 0),
     strands: chains.reduce((s, id) => s + out.chains[id].strands, 0),
     counts: chains.map(id => ({ chain: id, kind: kindOf[id],
                                 modelled: out.chains[id].nums.length,
-                                declared: decl[id] === undefined ? null : decl[id] })),
+                                declared: decl[id] === undefined ? null
+                                  : decl[id] - (caps[id] || 0) })),
     /* Counted off the kept atoms, so a heme dropped by the altloc rule
        cannot leave the panel claiming one that is not drawn. */
     hemes: hemes.size,
@@ -314,6 +421,17 @@ function bake(v, ref) {
        pair in a string nothing checks. */
     beta6: [...new Set(site.atoms.filter(a => a.group === 'mutation')
                                  .map(a => a.res))],
+    /* THE THREE POSITIONS THIS BENCH IS ABOUT, each as {num, residues}, each
+       read off the file. A row that printed HIS or SER from a lookup table
+       would be the one claim here nothing could contradict. */
+    positions: [
+      { num: MUT, of: 'the sickle position',
+        res: resAt(site, 'mutation') },
+      { num: LATERAL, of: 'the lateral contact',
+        res: resAt(site, 'lateral') },
+      { num: BPG, of: 'the 2,3-BPG site',
+        res: resAt(site, 'bpg') },
+    ],
     /* WHAT THE COMPARISON COST, and the number the panel leads on. A fit
        this tight IS the claim — two crystals of a protein one residue
        apart, and the backbones land on each other. */
@@ -346,7 +464,7 @@ function main() {
   const refOut = bake(refView, null);
   const refCA = Bake.caTrace(fs.readFileSync(path.join(ROOT, refView.source.path), 'utf8'),
                              new Set(split(refView.chains)));
-  const ref = { ca: refCA, centre: refOut.centreRaw };
+  const ref = { ca: refCA, centre: refOut.centreRaw, variant: refView };
 
   for (const v of VIEWS) {
     const out = v.id === REF ? refOut : bake(v, ref);

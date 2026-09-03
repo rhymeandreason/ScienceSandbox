@@ -1352,7 +1352,8 @@
       blurb: 'The oxygen carrier in red blood cells: four chains, each holding '
            + 'one iron. Binding one oxygen changes the shape of the whole '
            + 'tetramer, so the next three bind more easily and all four are '
-           + 'released together in tissue.',
+           + 'released together in tissue. Three of them here: the adult '
+           + 'molecule, the sickle mutation, and the one a fetus makes.',
       does: 'oxygen carrier',
       /* THIS IS THE GALLERY'S HALF OF HAEMOGLOBIN, AND NOT THE LESSON'S.
          `proteins/hemoglobin/tools/prep.js` bakes what every other protein
@@ -1404,7 +1405,13 @@
         { id: '2HHB', default: true,
           purpose: 'the tetramer, deoxy — four chains, four irons',
           species: 'human', state: 'healthy',
-          chains: 'A,B,C,D', alpha: 'A,C', beta: 'B,D',
+          /* WHICH CHAIN IS WHICH SUBUNIT, BY NAME, because the letters are the
+             crystallographer's and the names are the biology's: 2HHB numbers its
+             alphas A and C, 1FDH numbers them A and B, and a baker matching one
+             onto the other by letter would fit an alpha onto a beta. The names
+             are also what the panel prints, which is why gamma can be a gamma
+             here rather than a beta that happens to be spelled differently. */
+          chains: 'A,B,C,D', subunits: { alpha: 'A,C', beta: 'B,D' },
           source: { kind: 'repo', id: '2HHB', path: 'hemoglobin/data/2HHB.pdb' },
           read: {
             method: "x-ray diffraction",
@@ -1426,7 +1433,7 @@
              difference in the protein. The contact belongs to
              sickle/fibre-test.html, which draws it as surfaces because that
              is what a contact is a claim about. */
-          chains: 'A,B,C,D', alpha: 'A,C', beta: 'B,D',
+          chains: 'A,B,C,D', subunits: { alpha: 'A,C', beta: 'B,D' },
           source: { kind: 'repo', id: '2HBS', path: 'hemoglobin/data/2HBS.pdb' },
           read: {
             method: "x-ray diffraction",
@@ -1435,6 +1442,25 @@
             declared: 574,
             ec: null,
             baked: "hb-2HBS.json" } },
+        { id: '1FDH',
+          purpose: 'the haemoglobin a fetus makes, and why it wins the oxygen',
+          species: 'human', state: 'healthy',
+          /* ALPHA AND GAMMA, NOT ALPHA AND BETA. Fetal haemoglobin swaps the
+             two beta chains for gamma, a different gene rather than a mutated
+             one — which is why this is a VARIANT of haemoglobin and not an
+             entry of its own: same `does`, same job, same tetramer, and the
+             whole content is the comparison with the adult molecule. Note the
+             chain letters: alpha is A and B here, where 2HHB calls them A and
+             C. Nothing may match these two files by letter. */
+          chains: 'A,B,G,H', subunits: { alpha: 'A,B', gamma: 'G,H' },
+          source: { kind: 'rcsb', id: '1FDH' },
+          read: {
+            method: "x-ray diffraction",
+            chainsInFile: 4,
+            residues: 574,
+            declared: 574,
+            ec: null,
+            baked: "hb-1FDH.json" } },
       ],
     },
     {

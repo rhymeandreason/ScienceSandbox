@@ -29,11 +29,15 @@
                         alpha and beta are tellable apart by eye at all.
        the mutation     beta6 is glutamate in 2HHB and valine in 2HBS.
                         One residue out of 574. Is it findable?
-       the answer       the two backbones superpose at 0.585 A. Sickle-cell
-                        disease is not a misshapen protein: the fold is
-                        fine, and what changed is one patch of surface
-                        chemistry. The right outcome of the toggle is
-                        "they look the same".
+       the switch       1FDH is the molecule a fetus makes: alpha2gamma2
+                        instead of alpha2beta2, a different gene rather
+                        than a mutated one. Two positions carry the whole
+                        story, and both are read off the files.
+       the answer       all three backbones superpose to under 0.6 A. The
+                        fold is not what changes. Sickle-cell disease and
+                        the fetal switch are both a handful of side chains
+                        on a structure that stays put, and the right
+                        outcome of the toggle is "they look the same".
 
      WHAT THIS BENCH CANNOT TELL YOU. What the valine DOES. It docks into
      the Phe85/Leu88 pocket of the NEXT molecule, and one tetramer cannot
@@ -61,6 +65,9 @@
   /* The fit row is a number compared across a click, and proportional digits
      move the decimal point between the two readings of it. */
   .contact{font-variant-numeric:tabular-nums}
+  /* What the reference has at a position that moved. Quiet, because the row is
+     already marked; this only says what it moved FROM. */
+  .was{opacity:.55;font-size:0.82em;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -68,14 +75,17 @@
   <div id="stage"></div>
   <div class="panel">
     <h1>Haemoglobin</h1>
-    <p class="deck">Four chains, four irons, one job. And the single residue
-      that turns it into a disease.</p>
+    <p class="deck">Four chains, four irons, one job. Three versions of it: the
+      adult molecule, the one residue that turns it into a disease, and the one
+      a fetus makes to take oxygen from its mother.</p>
 
-    <h2>the two</h2>
+    <h2>the three</h2>
     <button class="mode" id="v-2HHB" aria-pressed="true">
-      <span class="who">deoxy &middot; 2HHB</span><span class="chip">healthy</span></button>
+      <span class="who">adult, deoxy &middot; 2HHB</span><span class="chip">adult</span></button>
     <button class="mode disease" id="v-2HBS" aria-pressed="false">
-      <span class="who">deoxy haemoglobin S &middot; 2HBS</span><span class="chip disease">sickle</span></button>
+      <span class="who">haemoglobin S &middot; 2HBS</span><span class="chip disease">sickle</span></button>
+    <button class="mode" id="v-1FDH" aria-pressed="false">
+      <span class="who">fetal &middot; 1FDH</span><span class="chip">fetal</span></button>
 
     <h2>what you are looking at</h2>
     <p class="claim" id="d-claim">&mdash;</p>
@@ -88,11 +98,16 @@
       <tr class="hi"><td>completeness</td><td id="d-pct">&mdash;</td></tr>
       <tr><td>helix / strand</td><td id="d-frac">&mdash;</td></tr>
       <tr><td>heme</td><td id="d-heme">&mdash;</td></tr>
-      <tr class="hi"><td>residue &beta;6</td><td id="d-beta6">&mdash;</td></tr>
-      <tr><td>fit onto 2HHB</td><td class="contact" id="d-fit">&mdash;</td></tr>
       <tr><td>extents &Aring;</td><td id="d-ext">&mdash;</td></tr>
       <tr><td>view</td><td id="d-view">&mdash;</td></tr>
+      <tr class="hi"><td>fit onto 2HHB</td><td class="contact" id="d-fit">&mdash;</td></tr>
     </table>
+
+    <h2>the three positions</h2>
+    <p class="note">Read out of each deposition by the baker &mdash; nothing on
+      this page types a residue name. Highlighted where this structure differs
+      from the adult one.</p>
+    <table id="d-positions"></table>
 
     <p class="frag" id="d-frag">&mdash;</p>
     <p class="prov" id="d-prov">&mdash;</p>
@@ -149,7 +164,10 @@ const box = Proteinbox.create({
   sub: 10,
 });
 
-const VIEWS = ['2HHB', '2HBS'];
+const VIEWS = ['2HHB', '2HBS', '1FDH'];
+/* The fit reference, from the registry — the file the other two are compared
+   against, both in the frame and in the positions table. */
+const REF = ME.fit.on;
 const said = id => ProteinLib.variantOf(ME, id);
 
 /* THE PAGE'S OWN COPY. What a structure IS lives in the registry; what this
@@ -162,6 +180,18 @@ const SAYS = {
     prov:  'Fermi and Perutz, X-ray at 1.74 A. The T state — no oxygen bound, '
          + 'which is the shape the molecule holds in tissue after it has let go. '
          + 'Every iron here is empty and waiting.' },
+  '1FDH': {
+    claim: 'The haemoglobin a fetus makes: the two beta chains replaced by '
+         + 'gamma, a different gene rather than a mutated one.',
+    prov:  'X-ray at 2.5 A. Gamma is 72% beta\u2019s sequence on beta\u2019s numbering, and '
+         + 'the backbone lands on the adult molecule at 0.42 A. Position 143 is '
+         + 'where it matters: beta puts a histidine there and gamma a serine, so '
+         + 'the fetal molecule grips 2,3-BPG weakly \u2014 and BPG is what makes '
+         + 'haemoglobin let go of oxygen. Weaker grip, tighter oxygen, which is '
+         + 'how a fetus pulls oxygen across the placenta out of its mother\u2019s '
+         + 'blood. Position 87 is the other one: gamma\u2019s glutamine will not join '
+         + 'a sickle fibre, which is why babies with sickle-cell disease are well '
+         + 'until the gamma chains switch off.' },
   '2HBS': {
     claim: 'The same protein with one residue changed, superposed on the healthy '
          + 'one so the change is what moves.',
@@ -210,12 +240,14 @@ function stats(t, v) {
      the file holds more than the bake draws, the row says so rather than
      leaving a reader to assume the deposition is what is on screen. */
   const inFile = m.chainsInFile;
-  const quat = `one tetramer: ${m.alpha.length} alpha + ${m.beta.length} beta` +
+  const parts = Object.entries(m.subunits).map(([k, c]) => `${c.length} ${k}`);
+  const quat = `one tetramer: ${parts.join(' + ')}` +
     (inFile > ids.length ? ` · ${inFile} chains in the file, ${inFile / 4} tetramers` : '');
 
   return {
     quat,
-    span: `alpha ${m.alpha.join(' ')} · beta ${m.beta.join(' ')}`,
+    span: Object.entries(m.subunits)
+      .map(([k, c]) => `${k} ${c.join(' ')}`).join(' · '),
     res: `${modelled} residues in ${ids.length} chains`,
     /* Floored, not rounded: a percentage may never say whole about something
        that is not. */
@@ -223,7 +255,11 @@ function stats(t, v) {
       : `${modelled} of ${declared} · ${Math.floor(100 * modelled / declared)}%`,
     frag,
     frac: `${Math.round(100 * H / n)}% / ${Math.round(100 * E / n)}%`,
-    heme: `${m.hemes} hemes · ${m.irons} irons · held by His 87/58 in alpha, 92/63 in beta`,
+    /* The histidine numbers are the SITE table's, and the beta family shares
+       one — so this says which subunit rather than naming beta and quietly
+       meaning gamma too. */
+    heme: `${m.hemes} hemes · ${m.irons} irons · held by His 87/58 in alpha, ` +
+          `92/63 in ${Object.keys(m.subunits).filter(k => k !== 'alpha').join('/')}`,
     ext: t.extents.map(x => x.toFixed(0)).join(' × '),
   };
 }
@@ -232,6 +268,29 @@ function stats(t, v) {
    caveat about it: two crystals of a protein one residue apart, and the
    backbones land on each other. The reference view has nothing to fit onto
    and says so, instead of printing a zero that would read as a measurement. */
+/* THE THREE POSITIONS, drawn from the bake's own list rather than a table
+   here — the baker decided which positions this bench is about and read what
+   sits at each, so a row and the structure under it cannot come apart.
+
+   The subunit is NAMED per file: it is beta6 in the adult and sickle files and
+   gamma6 in the fetal one, and calling the fetal chain beta would be the whole
+   point of the variant thrown away in a label. The changed rows are marked
+   against whatever is currently the reference, so a reader sees WHICH of the
+   three moved rather than three lists to compare by eye. */
+function positions(m, ref) {
+  const el = $('d-positions');
+  const sub = Object.keys(m.subunits).find(k => k !== 'alpha');
+  const greek = { alpha: 'α', beta: 'β', gamma: 'γ' }[sub] || sub;
+  el.innerHTML = m.positions.map(p => {
+    const was = ref && ref.positions.find(q => q.num === p.num);
+    const moved = was && was.res.join() !== p.res.join();
+    return `<tr${moved ? ' class="hi"' : ''}><td>${greek}${p.num} — ${p.of}</td>` +
+           `<td>${p.res.join(' + ') || '—'}` +
+           (moved ? ` <span class="was">was ${was.res.join(' + ')}</span>` : '') +
+           `</td></tr>`;
+  }).join('');
+}
+
 function fitRow(m) {
   if (m.fitRmsd === null) return 'the reference — everything else fits onto this';
   return `${m.fitRmsd.toFixed(3)} Å rmsd over ${m.fitAtoms} Cα · the fold is the same`;
@@ -256,11 +315,7 @@ function show(id) {
   $('d-frag').textContent = s.frag;
   $('d-frac').textContent = s.frac;
   $('d-heme').textContent = s.heme;
-  /* Read off the deposition by the baker, never typed: this row IS the
-     difference between the two files, and a hard-coded "GLU / VAL" would be
-     the one string on the page that a wrong bake could not contradict. */
-  $('d-beta6').textContent = m.beta6.join(' + ') +
-    ` · ${m.beta.length} beta chain${m.beta.length > 1 ? 's' : ''}`;
+  positions(m, id === REF ? null : (views[REF] && views[REF].meta));
   $('d-fit').textContent = fitRow(m);
   $('d-ext').textContent = s.ext;
   /* Named by WHERE THE FRAME CAME FROM: `computed` is the baker solving one
