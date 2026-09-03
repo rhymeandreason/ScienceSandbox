@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>cutaway-test — a cell cut open, as one box</title>
+<!-- TEST BENCH. Not a lesson, not linked from the index. cell/cutaway.js
+     through Cutaway.mount, full window, no copy: the model is the whole
+     subject. Hover an organelle, click it, double-click to come home. -->
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #f5f2ef; }
+  #stage { position: absolute; inset: 0; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../cell/cutaway.js"></script>
+<script>
+const C = Cutaway.mount(document.getElementById('stage'));
+</script>
+</body>
+</html>
