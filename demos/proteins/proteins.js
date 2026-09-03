@@ -1392,9 +1392,18 @@
       fitWhy: 'one fold in two crystals; the shared frame is what makes a '
             + 'single substituted residue legible as the difference rather '
             + 'than lost under a rotation',
-      view: { by: 'deposited', shared: false,
+      /* ONE BASIS COVERS ALL THREE, BECAUSE THEY SHARE A FRAME. A tetramer is
+         round enough that a solved basis would flip between re-bakes, so this
+         is a human's, turned on the bench and pasted. It is read at draw time
+         rather than baked — re-aiming haemoglobin is an edit here and a
+         reload, and `viewFor` writes no view into a bake that has one. */
+      view: { by: 'human', shared: true,
               why: 'a tetramer is round enough that a solved basis would flip '
-                 + 'between rebakes, and no human has picked one yet' },
+                 + 'between rebakes, and the three views are fitted into one '
+                 + 'frame, so one chosen rotation aims all of them',
+              basis: [[0.8493, 0.0616, 0.5243],
+                      [-0.5176, 0.2922, 0.8042],
+                      [-0.1036, -0.9544, 0.2801]] },
       /* The lesson's two surfaces still exist and still earn their cost; they
          are just not this registry's, and nothing on a card or a bench asks
          for one. `SurfaceCost.md` is the argument. */
