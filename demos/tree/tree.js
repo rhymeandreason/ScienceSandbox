@@ -6,7 +6,7 @@
  *  needs: a person for scale, Van Helmont's potted willow, five particle
  *  flows (CO₂ in, O₂ out, water and minerals up the trunk, ambient air) and
  *  two hundred cubes that fly out of the tree and stack into piles by
- *  origin. Ported from the ES-module prototype in this folder onto r128 and
+ *  origin. Ported from the ES-module prototype, now in attic/tree-prototype/, onto r128 and
  *  kit/card-stage.js; lib/geo.js carries the geometry r128 lacks.
  *
  *      Tree.create(THREE, root, camera, opts)   the actors: root is yours
