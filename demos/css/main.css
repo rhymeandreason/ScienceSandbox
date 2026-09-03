@@ -68,7 +68,7 @@ html.bare .chrome-title { display: none !important }
      text on the paper comes from here. */
   --cream-50:  #fffdf7;
   --cream-100: #fbf7ee;
-  --cream-200: #f8f5ef;
+  --cream-200: #f1ece3;
   --cream-300: #efe6d6;
   --cream-400: #e2d8c6;
   --cream-500: #d8cfbf;
@@ -90,7 +90,7 @@ html.bare .chrome-title { display: none !important }
    2. SEMANTIC
    -------------------------------------------------------------------------- */
 :root {
-  --surface-page:    var(--cream-300);   /* the stage's paper */
+  --surface-page:    var(--cream-200);   /* the stage's paper */
   --surface-rule:    var(--cream-400);   /* the dots printed on it */
   --surface-raised:  var(--cream-200);   /* a card or panel lying on the paper */
   --surface-card:    var(--cream-50);    /* a sticky note, brighter than the page */

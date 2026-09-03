@@ -236,6 +236,22 @@ function resolution(text) {
   return m ? +m[1] : null;
 }
 
+/* THE YEAR THE ENTRY WAS DEPOSITED, off the HEADER's date, or null. Two
+   digits is all a legacy file gives — `05-APR-73` — and the PDB opened in
+   1971, so anything under 71 is this century.
+
+   IT IS NOT THE YEAR THE STRUCTURE WAS SOLVED, and the gap can be decades:
+   Kendrew's myoglobin was solved in 1958 and 1MBN carries 1973, because that
+   is when there was a database to put it in. A page that wants the year of
+   the work has to say so in prose; this is the year of the FILE. */
+function deposited(text) {
+  const line = text.split('\n').find(l => l.startsWith('HEADER'));
+  const m = line && line.match(/(\d{2})-([A-Z]{3})-(\d{2})/);
+  if (!m) return null;
+  const yy = +m[3];
+  return yy >= 71 ? 1900 + yy : 2000 + yy;
+}
+
 /* Every chain id that has coordinates, whatever the trace kept. */
 const chainCount = text =>
   new Set(text.split('\n').filter(l => l.startsWith('ATOM')).map(l => l[21])).size;
@@ -817,6 +833,7 @@ function kabsch(P, Q) {
 const mean = vs => [0, 1, 2].map(k => vs.reduce((s, v) => s + v[k], 0) / vs.length);
 
 module.exports = {
+  deposited,
   r2, xyz, modelOne, caTrace, ssRanges, ssFrom, declared, disulfides, ligands,
   line1, method, models, resolution, chainCount, chainsDeclared, provenance,
   modResidues,

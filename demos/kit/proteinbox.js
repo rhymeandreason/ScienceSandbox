@@ -116,8 +116,24 @@
  *  Returns kit/card-stage.js's box, so a pool's acquire / snapshot / destroy
  *  work on it unchanged, plus `drop()` (back to ribbon, release the surface),
  *  `setData(t)` (draw a different structure in the same box, keeping the
- *  camera), `setPocket(p)` and `rep` for a caller that wants to know what is
+ *  camera), `setPocket(p)`, `focus(f)`, `setGhost(o)` and `rep` for a caller that wants to know what is
  *  showing.
+ *
+ *  `focus({at:[x,y,z], radius, view, ghost}, ms)` leans the camera in on a few
+ *  angstroms of the structure — a binding site — keeping the angle the reader
+ *  turned to, and `focus(null, ms)` gives the whole protein back. A pocket is
+ *  10 A across inside a 40 A protein, so a lesson about binding that never
+ *  leans in is asking a reader to see a 0.3 A move from across the room.
+ *  `view` is a basis for the close-up alone, since the angle that shows a
+ *  protein is rarely the angle that shows one site in it; `ghost` fades the
+ *  ribbon with the move; `ms` tweens all four together, which is what says
+ *  the close-up is the same molecule.
+ *
+ *  `setGhost(opacity)` does the fade on its own, for a page that wants it
+ *  without a move. It fades the ribbon and leaves setPocket's atoms solid,
+ *  which is what makes a focused view readable: the container stays visible
+ *  as a container. It survives setData, because a page that walked the meshes
+ *  itself would lose the fade on the next switch and not be able to tell.
  *
  *  `setPocket({atoms, bonds})` draws the few atoms that belong INSIDE the
  *  ribbon — a heme, what is bound to its iron, the side chain a bench is about
@@ -320,7 +336,7 @@
        in the repo; the cloud does, it is a thousand points, and this module is
        the only caller that has one. So `Stage.frame`'s own solve stays the
        floor and the exact requirement is passed as `min`. */
-    let stillPts = [];
+    let stillPts = [], stillRaw = [];
     /* Bumped by every setData. The chain loop below yields to rAF between
        chains, so a switch that lands mid-build leaves the OLD loop running:
        it keeps adding meshes to a group the new call already cleared, and
@@ -329,6 +345,25 @@
        started with and stops when it is no longer the current one. */
     let generation = 0;
     let stillMid = null, stillR = 0, foldR = 0;
+
+    /* WHERE THE CAMERA IS POINTED, when it is not pointed at the whole
+       structure. `box.focus({at, radius})` frames a few angstroms of one — a
+       binding site — and null returns to the ribbon's own framing. It is kept
+       across setData ON PURPOSE: a page showing four states of one site
+       switches the file and means to stay where it was looking, and re-aiming
+       after every switch is how the camera jumps. */
+    let focused = null;
+
+    /* THE BASIS CURRENTLY ON THE CHAIN GROUP, which is not always the one the
+       trace or the registry declared: a focused view can ask for its own — the
+       site is not necessarily best seen from the angle the whole protein is.
+       Null means the structure's own. */
+    let viewNow = null;
+    let viewDeclared = null;
+
+    /* The one tween. Rotation, distance, centre and the ghost move together or
+       the switch reads as three separate things happening to one picture. */
+    let tween = null;
 
     /* AN ORTHO CAMERA DOES NOT ZOOM BY MOVING: its size is its frustum, so a
        cam.r written straight onto the camera does nothing and the protein is
@@ -354,6 +389,11 @@
        Returns 0 before there is anything to measure, which is what `min` was
        before this and leaves Stage.frame's own answer standing. */
     const needed = () => {
+      /* A FOCUSED CAMERA IS DELIBERATELY TOO CLOSE. This solves the distance
+         at which everything drawn is inside the frustum, which is the right
+         answer for a whole protein and the exact opposite of what a pocket
+         view asks for. */
+      if (focused) return 0;
       if (rep !== 'ribbon' || !stillPts.length || !stillMid) return 0;
       if (box.camera.isOrthographicCamera) return 0;   // no widening with depth
       const tan = Math.tan(box.camera.fov * Math.PI / 360);
@@ -380,10 +420,13 @@
          end and frames at ~2500: clamped to 220 it opens showing a tenth of
          itself, off both edges, with nothing on screen saying so. The clamp
          that matters is the zoom one below, and it is set from the answer. */
+      /* THE STILL HALF-WIDTHS ARE THE WHOLE STRUCTURE'S, so a focused camera
+         has to ignore them: framing 11 A of a protein against the 40 A box it
+         sits in solves for the box and leans in by nothing. */
+      const hx = focused ? radius : (rep === 'ribbon' && stillHX ? stillHX : radius);
+      const hy = focused ? radius : (rep === 'ribbon' && stillHY ? stillHY : radius);
       Stage.frame(box.camera, box.cam,
-                         [{ x: 0, y: 0,
-                            rxz: rep === 'ribbon' && stillHX ? stillHX : radius,
-                            hy:  rep === 'ribbon' && stillHY ? stillHY : radius }],
+                         [{ x: 0, y: 0, rxz: hx, hy: hy }],
                          { pad: opts.pad || 1.12, min: needed(), max: Infinity });
       if (box.camera.isOrthographicCamera) box.cam.r = box.camera.top;
       /* THE ZOOM CLAMP FOLLOWS THE FRAMING, because scene.js's default is a
@@ -416,7 +459,7 @@
       stage: Object.assign({ ortho: true, orbit: opts.orbit === true },
                            opts.stage || {}),
       autoplay: false,                 // a still ribbon has nothing to run
-      step: dt => { if (player && rep === 'fold') player.tick(dt); },
+      step: dt => { tickTween(dt); if (player && rep === 'fold') player.tick(dt); },
       /* PASSED STRAIGHT THROUGH, the same hook molbox draws its leader in.
          Anything drawn OVER the scene in CSS pixels — an annotate.js layer —
          has to reproject after the camera the frame was rendered with, and
@@ -467,13 +510,49 @@
        recolour can build exactly what a rebuild would have. */
     function materialsFor(c) {
       const base = c && c.byChain ? Object.assign({}, c, { byChain: undefined }) : c;
-      return {
+      const p = {
         mats: matsOf(palOf(base)),
         byChain: c && c.byChain
           ? Object.fromEntries(Object.entries(c.byChain)
               .map(([id, v]) => [id, matsOf(palOf(v))])) : null,
       };
+      /* A GHOST IS A PROPERTY OF THE BOX, NOT OF THE MESHES ON SCREEN, which
+         is the whole reason it is applied here. setData clears the chain group
+         and rebuilds a chain per frame, so anything a page did by walking the
+         meshes is undone by the next switch — and undone invisibly, because
+         the page's call succeeded against an empty group. */
+      applyGhost(p);
+      return p;
     }
+
+    /* ---- setGhost(opacity) ----
+
+       Fade the RIBBON, so what is drawn inside it can be seen. A pocket view
+       puts the camera inside the protein, where an opaque ribbon is a wall
+       across the picture; at 0.15 or so the helices still say what the site is
+       buried in without hiding it. setPocket's atoms are never touched — they
+       are the subject.
+
+       Takes an opacity, or 0 / nothing for solid. Survives setData. */
+    let ghost = 0;
+    function applyGhost(p) {
+      const on = ghost > 0;
+      const all = (p.mats || []).concat(
+        Object.values(p.byChain || {}).reduce((a, b) => a.concat(b), []));
+      for (const m of all) {
+        m.transparent = on;
+        m.opacity = on ? ghost : 1;
+        /* Off while ghosted, so the far wall of the pocket shows through the
+           near one. A transparent mesh that still writes depth hides whatever
+           is behind it and reads as a hole in the protein. */
+        m.depthWrite = !on;
+      }
+    }
+    box.setGhost = function setGhost(v) {
+      ghost = v || 0;
+      applyGhost(paint);
+      box.draw();
+    };
 
     /* ---- setColors(colors) ----
 
@@ -543,8 +622,13 @@
          rotation is an OFFSET and must be ZERO AT REST, or the declared view
          is one nobody ever sees while the file still claims it. */
       const view = o.view || opts.view || t.view;
+      viewDeclared = view || null;
       chainGroup.quaternion.identity();
-      if (view) {
+      /* A FOCUS OUTLIVES A SWITCH, and so does the angle it asked for: a page
+         showing four states of one site sets the framing once and means to
+         stay there while the file underneath changes. */
+      viewNow = focused && focused.view ? focused.view : (view || null);
+      if (viewNow) {
         /* A VIEW BASIS IS RELATIVE TO A CANONICAL CAMERA, and saying "shortest
            axis into the screen" means nothing unless the screen is down that
            axis. The box's default camera stands off at an angle, which is
@@ -562,9 +646,9 @@
           seeded = true;
         }
         chainGroup.setRotationFromMatrix(new THREE.Matrix4().set(
-          view[0][0], view[0][1], view[0][2], 0,
-          view[1][0], view[1][1], view[1][2], 0,
-          view[2][0], view[2][1], view[2][2], 0,
+          viewNow[0][0], viewNow[0][1], viewNow[0][2], 0,
+          viewNow[1][0], viewNow[1][1], viewNow[1][2], 0,
+          viewNow[2][0], viewNow[2][1], viewNow[2][2], 0,
           0, 0, 0, 1));
       }
 
@@ -601,7 +685,7 @@
                so `drawn` carries the rotated points. Measuring the raw ones
                centres the box on where the molecule USED to be, which reads
                as a framing bug rather than as a missing rotation. */
-            drawn.push(...pts.map(v => v.clone().applyQuaternion(chainGroup.quaternion)));
+            drawn.push(...pts.map(v => v.clone()));
             const mesh = new THREE.Mesh(
               RibbonLib.build(THREE, pts, seg.ss,
                               { sub: opts.sub == null ? 6 : opts.sub }),
@@ -620,18 +704,7 @@
              one of four would sit off to the side. Re-centre on what is
              actually drawn, and re-solve after each — every chain changes
              both the centre and the radius. */
-          if (drawn.length) {
-            stillMid = drawn.reduce((acc, p) => acc.add(p), new THREE.Vector3())
-                            .multiplyScalar(1 / drawn.length);
-            stillR = stillHX = stillHY = 0;
-            for (const p of drawn) {
-              stillR = Math.max(stillR, p.distanceTo(stillMid));
-              stillHX = Math.max(stillHX, Math.abs(p.x - stillMid.x));
-              stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
-            }
-            stillPts = drawn;
-            if (rep === 'ribbon') reframeStill();
-          }
+          if (drawn.length) solveStill(drawn);
           box.draw();
         }
         /* rAF NEVER FIRES IN A HIDDEN TAB, and a chain-per-frame build then
@@ -645,16 +718,7 @@
           /* The nucleic step re-solves the framing the same way a chain does;
              it is outside the `if (ch)` above because there is no single chain
              to hang it off. */
-          stillMid = drawn.reduce((acc, p) => acc.add(p), new THREE.Vector3())
-                          .multiplyScalar(1 / drawn.length);
-          stillR = stillHX = stillHY = 0;
-          for (const p of drawn) {
-            stillR = Math.max(stillR, p.distanceTo(stillMid));
-            stillHX = Math.max(stillHX, Math.abs(p.x - stillMid.x));
-            stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
-          }
-          stillPts = drawn;
-          if (rep === 'ribbon') reframeStill();
+          solveStill(drawn);
           box.draw();
         }
         if (queue.length) {
@@ -697,11 +761,13 @@
 
       const q = chainGroup.quaternion;
       const keep = geo => {
-        /* Same rule the ribbon follows: `drawn` carries the ROTATED points, so
-           the centre and radius are solved in the frame the reader sees. */
+        /* Same rule the ribbon follows: `drawn` carries the structure's OWN
+           points, and solveStill turns them into the frame the reader sees.
+           Keeping them raw is what lets a view change re-solve the framing
+           without rebuilding the ribbon. */
         const a = geo.attributes.position.array;
         for (let i = 0; i < a.length; i += 3)
-          drawn.push(new THREE.Vector3(a[i], a[i + 1], a[i + 2]).applyQuaternion(q));
+          drawn.push(new THREE.Vector3(a[i], a[i + 1], a[i + 2]));
       };
 
       parts.strands.forEach((sd, i) => {
@@ -757,11 +823,155 @@
         .catch(e => console.warn('Proteinbox: ' + opts.trace + ' — ' + e.message));
     }
 
+    /* THE FRAMING, SOLVED IN THE FRAME THE READER SEES. The points arrive in
+       the structure's own coordinates and are turned by whatever basis is on
+       the chain group, so this is what a view change re-runs — measuring the
+       raw ones centres the box on where the molecule USED to be, which reads
+       as a framing bug rather than as a missing rotation. */
+    function solveStill(raw) {
+      if (raw) stillRaw = raw;
+      if (!stillRaw.length) return;
+      const q = chainGroup.quaternion;
+      stillPts = stillRaw.map(v => v.clone().applyQuaternion(q));
+      stillMid = stillPts.reduce((acc, p) => acc.add(p), new THREE.Vector3())
+                         .multiplyScalar(1 / stillPts.length);
+      stillR = stillHX = stillHY = 0;
+      for (const p of stillPts) {
+        stillR = Math.max(stillR, p.distanceTo(stillMid));
+        stillHX = Math.max(stillHX, Math.abs(p.x - stillMid.x));
+        stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
+      }
+      if (rep === 'ribbon') reframeStill();
+    }
+
+    /* A BASIS ONTO THE CHAIN GROUP, and the framing re-solved after it. Null
+       is the structure's own declared view, which is what focus(null) goes
+       back to. */
+    function applyView(basis) {
+      viewNow = basis || null;
+      chainGroup.quaternion.identity();
+      if (viewNow) chainGroup.setRotationFromMatrix(new THREE.Matrix4().set(
+        viewNow[0][0], viewNow[0][1], viewNow[0][2], 0,
+        viewNow[1][0], viewNow[1][1], viewNow[1][2], 0,
+        viewNow[2][0], viewNow[2][1], viewNow[2][2], 0,
+        0, 0, 0, 1));
+      solveStill();
+    }
+
     function reframeStill() {
       if (!stillMid) return;
+      /* THE FOCUS SURVIVES A REBUILD, which is the whole reason it is checked
+         here rather than only in focus(): a chain goes in one frame at a time
+         and re-solves the framing after each, so a focus applied once would be
+         thrown away by the next chain to land. */
+      if (focused) { aimAtFocus(); return; }
       box.root.position.copy(stillMid).negate();
       radius = stillR;
       fit();
+    }
+
+    function aimAtFocus() {
+      /* The point arrives in the structure's own coordinates — a baker's, the
+         same ones setPocket takes — and the reader sees the ROTATED frame, so
+         it is turned by the chain group's quaternion the way the ribbon points
+         are. Without that the camera lands where the site used to be, which
+         reads as a framing bug rather than as a missing rotation. */
+      const p = new THREE.Vector3(focused.at[0], focused.at[1], focused.at[2])
+        .applyQuaternion(chainGroup.quaternion);
+      box.root.position.copy(p).negate();
+      radius = focused.radius;
+      fit();
+    }
+
+    /* ---- focus(f, ms) ----
+
+       `box.focus({ at:[x,y,z], radius, view, ghost }, ms)` puts the camera a
+       few angstroms from one part of a structure; `box.focus(null, ms)` gives
+       the whole thing back. `view` is an optional basis for the close-up,
+       because the angle that shows a protein is rarely the angle that shows
+       one site inside it, and `ghost` fades the ribbon along with the move.
+
+       THE READER'S OWN TURN IS KEPT: the camera's theta and phi are never
+       touched here. What moves is the centre, the distance, the structure's
+       own basis and the ribbon's opacity.
+
+       ms TWEENS ALL FOUR AT ONCE, and that is the point of doing it in the box
+       rather than in a page. A camera that jumps has no way of saying that the
+       close-up is the SAME molecule; one that leans in says it without a word
+       of copy. Four separate animations would say it four times, slightly out
+       of step. Omit ms and it snaps, which is right for a first draw.
+
+       Nothing about which part is worth looking at is the box's business, the
+       same refusal it makes about what is in the pocket: the page passes
+       coordinates it already has. */
+    const snap = () => ({
+      pos: box.root.position.clone(),
+      r: box.cam.r,
+      q: chainGroup.quaternion.clone(),
+      g: ghost,
+    });
+
+    function setState(st) {
+      box.root.position.copy(st.pos);
+      box.cam.r = st.r;
+      chainGroup.quaternion.copy(st.q);
+      if (st.g !== ghost) { ghost = st.g; applyGhost(paint); }
+      box.applyCam();
+    }
+
+    box.focus = function focus(f, ms) {
+      const from = snap();
+
+      focused = f || null;
+      applyView(focused && focused.view ? focused.view : viewDeclared);
+      if (focused) aimAtFocus(); else reframeStill();
+      if (focused && focused.ghost != null) ghost = focused.ghost;
+      else if (!focused) ghost = 0;
+      applyGhost(paint);
+
+      const to = snap();
+      /* rAF NEVER FIRES IN A HIDDEN TAB, and a tween there would rewind to
+         where it started and never leave: the box would hold the PREVIOUS
+         framing while everything else says it moved. Anything that renders a
+         page without showing it — an automated check, a thumbnail capture, a
+         tab left open behind another — lands there, so it takes the
+         destination and skips the journey. Same trap the chain build answers
+         with a setTimeout. */
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      if (!ms || hidden || from.r === to.r && from.pos.equals(to.pos)
+                 && from.q.equals(to.q) && from.g === to.g) { box.draw(); return; }
+
+      /* Solved forward, then rewound: the destination has to be computed by
+         the same fit() every other framing goes through, or a tween lands
+         somewhere a resize would immediately correct. */
+      setState(from);
+      tween = { t: 0, ms, from, to };
+      box.start();
+    };
+
+    /* SMOOTHSTEP, and the rotation SLERPS. Lerping a basis matrix takes the
+       molecule through shapes it does not have; the quaternion path is the one
+       turn a hand would make. The framing solved for the DESTINATION stands
+       throughout, so a resize mid-tween lands on the target rather than on the
+       frame being passed through — the alternative is re-solving every frame
+       for a picture nobody is looking at yet. */
+    function tickTween(dt) {
+      if (!tween) return;
+      tween.t += dt * 1000;
+      const k = Math.min(1, tween.t / tween.ms);
+      const e = k * k * (3 - 2 * k);
+      const { from, to } = tween;
+      box.root.position.lerpVectors(from.pos, to.pos, e);
+      box.cam.r = from.r + (to.r - from.r) * e;
+      chainGroup.quaternion.copy(from.q).slerp(to.q, e);
+      const g = from.g + (to.g - from.g) * e;
+      if (g !== ghost) { ghost = g; applyGhost(paint); }
+      box.applyCam();
+      if (k >= 1) {
+        tween = null;
+        solveStill();                    // the frame the reader now sees
+        if (rep !== 'fold') box.stop();
+      }
     }
 
     /* ---- the surface ---- */
