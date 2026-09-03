@@ -87,6 +87,7 @@
   .prototype .badge { background: #fdece3; color: var(--spark); }
   .reference .badge, .test .badge { background: #ececec; color: var(--muted); }
   .tool .badge { background: #e6ecf5; color: #34578f; }
+  .ugc .badge { background: #f3e8f7; color: #6b3f8a; }
 
   .filters {
     display: grid;
@@ -522,6 +523,24 @@
       <a class="card prototype" href="fermentation-lab.html">
         <div class="path">fermentation-lab.html <span class="badge">prototype</span></div>
         <div class="desc">Where pyruvate goes with no O₂ — two branches, and why the point is NAD⁺</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="ugc" data-chip="Generated" data-group="Infra">
+    <h2>Generated apps</h2>
+    <div class="grid">
+      <a class="card ugc" href="tests/gen-rbc-test.html">
+        <div class="path">tests/gen-rbc-test.html <span class="badge">UGC</span></div>
+        <div class="desc">Written by gemini-3.7-flash from docs/Components.md and one request: a red blood cell in three solutions, sidebar shell, Membrane</div>
+      </a>
+      <a class="card ugc" href="tests/gen-swell-test.html">
+        <div class="path">tests/gen-swell-test.html <span class="badge">UGC</span></div>
+        <div class="desc">Same model and reference, a three-step request: why a cell in distilled water swells, on the step-through shell</div>
+      </a>
+      <a class="card ugc" href="tests/gen-salmon-q-test.html">
+        <div class="path">tests/gen-salmon-q-test.html <span class="badge">UGC</span></div>
+        <div class="desc">Same model and reference, from a bare question: "How do salmon go from ocean to freshwater?"</div>
       </a>
     </div>
   </section>

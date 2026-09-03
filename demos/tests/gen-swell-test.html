@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Osmosis: Why Cells Swell</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+  .chart-container {
+    margin-top: 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+    padding: 8px;
+  }
+  .chart-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    color: var(--text-muted, #8a9ba8);
+    display: flex;
+    justify-content: space-between;
+  }
+  .chart-svg {
+    width: 100%;
+    height: 90px;
+    display: block;
+    overflow: visible;
+  }
+  .chart-legend {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    margin-top: 6px;
+  }
+  .legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .dot-outside { background: #38bdf8; }
+  .dot-inside { background: #f59e0b; }
+  .choice.is-selected {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../membrane/parts.js"></script>
+<script src="../membrane/pump.js"></script>
+<script src="../membrane/membrane.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+
+<script>
+const HYPO_OUTSIDE = { water: 78 };
+const HYPO_INSIDE  = { water: 44, K: 16, NA: 4, A: 14 };
+
+const HYPER_OUTSIDE = { water: 26, NA: 26, CL: 26 };
+const HYPER_INSIDE  = { water: 44, K: 16, NA: 4, A: 14 };
+
+let history = [];
+let lastSampleTime = 0;
+
+function resetHistory() {
+  history = [];
+  lastSampleTime = 0;
+}
+
+function updateChart(svg, insideVal, outsideVal) {
+  if (!svg) return;
+  const pathIn = svg.querySelector('.path-inside');
+  const pathOut = svg.querySelector('.path-outside');
+  if (!pathIn || !pathOut || history.length < 2) return;
+
+  const maxVal = 90;
+  const W = 300;
+  const H = 90;
+  const dx = W / (history.length - 1);
+
+  let dIn = '';
+  let dOut = '';
+
+  for (let i = 0; i < history.length; i++) {
+    const x = (i * dx).toFixed(1);
+    const yIn = (H - (history[i].inside / maxVal) * H).toFixed(1);
+    const yOut = (H - (history[i].outside / maxVal) * H).toFixed(1);
+    dIn += (i === 0 ? 'M ' : ' L ') + x + ' ' + yIn;
+    dOut += (i === 0 ? 'M ' : ' L ') + x + ' ' + yOut;
+  }
+
+  pathIn.setAttribute('d', dIn);
+  pathOut.setAttribute('d', dOut);
+}
+
+const shell = LessonShell.create({
+  brand: 'Cell Transport & Osmosis',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: {
+    userGuess: null,
+    currentStep: 0,
+    solutionMode: 'hypo',
+  },
+  steps: [
+    {
+      eyebrow: 'Step 1 of 3: Predict',
+      title: 'A cell dropped into pure water',
+      body: `
+        <p><strong>Predict what happens to a red blood cell placed into pure, distilled water.</strong></p>
+        <p>Inside the cell, the cytoplasm is crowded with salts, proteins, and sugars. Outside, there are only water molecules.</p>
+      `,
+      nextLabel: 'Observe the Membrane',
+      onEnter(ctx) {
+        ctx.ui.setNext('Observe the Membrane', !!ctx.userGuess);
+        ctx.ui.controls(`
+          <div class="choices">
+            <button class="choice ${ctx.userGuess === 'swells' ? 'is-selected' : ''}" data-ans="swells">
+              It swells and may burst (lyse)
+            </button>
+            <button class="choice ${ctx.userGuess === 'shrinks' ? 'is-selected' : ''}" data-ans="shrinks">
+              It shrinks and shrivels (crenate)
+            </button>
+            <button class="choice ${ctx.userGuess === 'nothing' ? 'is-selected' : ''}" data-ans="nothing">
+              It stays the exact same volume
+            </button>
+          </div>
+          <div id="guess-feedback" class="callout ${ctx.userGuess ? '' : 'is-hidden'}" style="margin-top:12px;">
+            ${ctx.userGuess ? getFeedback(ctx.userGuess) : ''}
+          </div>
+        `);
+
+        ctx.ui.qa('.choice').forEach(btn => {
+          btn.onclick = () => {
+            ctx.userGuess = btn.dataset.ans;
+            ctx.ui.qa('.choice').forEach(b => b.classList.remove('is-selected'));
+            btn.classList.add('is-selected');
+            const fb = ctx.ui.q('#guess-feedback');
+            fb.innerHTML = getFeedback(ctx.userGuess);
+            ctx.ui.show(fb);
+            ctx.ui.setNext('Observe the Membrane', true);
+          };
+        });
+
+        m.set({
+          contents: { inside: HYPO_INSIDE, outside: HYPO_OUTSIDE }
+        });
+      },
+      onExit() {}
+    },
+    {
+      eyebrow: 'Step 2 of 3: Observe',
+      title: 'Water moves down its concentration gradient',
+      body: `
+        <p><strong>Osmosis is the net diffusion of water across a membrane toward higher solute concentration.</strong></p>
+        <p>Water molecules cross the lipid bilayer freely in both directions. Because pure water outside has a higher free-water concentration than the crowded cytoplasm inside, more water molecules collide with and cross into the cell than leave it.</p>
+      `,
+      nextLabel: 'Review & Test Reversal',
+      onEnter(ctx) {
+        resetHistory();
+        m.set({
+          contents: { inside: HYPO_INSIDE, outside: HYPO_OUTSIDE }
+        });
+        m.reset();
+
+        ctx.ui.controls(`
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">Water Outside</div>
+              <div class="stat-value" id="val-outside">0</div>
+              <div class="stat-sub">Pure water</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Water Inside</div>
+              <div class="stat-value" id="val-inside">0</div>
+              <div class="stat-sub">Cytoplasm</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Net Inflow</div>
+              <div class="stat-value" id="val-net">0</div>
+              <div class="stat-sub">Molecules gained</div>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <div class="chart-title">
+              <span>Free Water Molecules</span>
+              <span>Live Count</span>
+            </div>
+            <svg class="chart-svg" viewBox="0 0 300 90" preserveAspectRatio="none">
+              <line x1="0" y1="45" x2="300" y2="45" stroke="rgba(255,255,255,0.1)" stroke-dasharray="2,2" />
+              <path class="path-outside" fill="none" stroke="#38bdf8" stroke-width="2" />
+              <path class="path-inside" fill="none" stroke="#f59e0b" stroke-width="2" />
+            </svg>
+            <div class="chart-legend">
+              <span><span class="legend-dot dot-outside"></span>Outside (Distilled)</span>
+              <span><span class="legend-dot dot-inside"></span>Inside (Cell)</span>
+            </div>
+          </div>
+        `);
+      },
+      onExit() {}
+    },
+    {
+      eyebrow: 'Step 3 of 3: Compare',
+      title: 'Tonicity controls cell volume',
+      body(ctx) {
+        let recap = '';
+        if (ctx.userGuess === 'swells') {
+          recap = 'Your initial prediction was correct: the cell swells as water enters.';
+        } else if (ctx.userGuess === 'shrinks') {
+          recap = 'You initially guessed the cell would shrink, but pure water forces an inward rush instead.';
+        } else {
+          recap = 'You initially guessed the cell would stay unchanged, but concentration differences drive a continuous net influx.';
+        }
+
+        return `
+          <p><strong>${recap}</strong></p>
+          <p>A solution with lower solute concentration than the cell is <em>hypotonic</em>, causing water influx and swelling. In a <em>hypertonic</em> environment, solutes outside outnumber those inside, pulling water out.</p>
+        `;
+      },
+      nextLabel: 'Finish',
+      onEnter(ctx) {
+        ctx.solutionMode = 'hypo';
+        resetHistory();
+        m.set({
+          contents: { inside: HYPO_INSIDE, outside: HYPO_OUTSIDE }
+        });
+        m.reset();
+
+        ctx.ui.controls(`
+          <div class="grp">
+            <div class="hd">External Environment</div>
+            <div class="seg" style="display:flex;gap:8px;margin-bottom:12px;">
+              <button class="btn secondary ${ctx.solutionMode === 'hypo' ? 'active' : ''}" id="btn-hypo" style="flex:1;">
+                Pure Water (Hypotonic)
+              </button>
+              <button class="btn secondary ${ctx.solutionMode === 'hyper' ? 'active' : ''}" id="btn-hyper" style="flex:1;">
+                Concentrated Salt (Hypertonic)
+              </button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">Water Outside</div>
+              <div class="stat-value" id="val-outside">0</div>
+              <div class="stat-sub" id="sub-outside">100% pure water</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Water Inside</div>
+              <div class="stat-value" id="val-inside">0</div>
+              <div class="stat-sub">Cell interior</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Net Recent Flow</div>
+              <div class="stat-value" id="val-net">0</div>
+              <div class="stat-sub" id="sub-net">Entering cell</div>
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <div class="chart-title">
+              <span>Water Distribution</span>
+              <span id="chart-state-label">Hypotonic: Influx</span>
+            </div>
+            <svg class="chart-svg" viewBox="0 0 300 90" preserveAspectRatio="none">
+              <line x1="0" y1="45" x2="300" y2="45" stroke="rgba(255,255,255,0.1)" stroke-dasharray="2,2" />
+              <path class="path-outside" fill="none" stroke="#38bdf8" stroke-width="2" />
+              <path class="path-inside" fill="none" stroke="#f59e0b" stroke-width="2" />
+            </svg>
+            <div class="chart-legend">
+              <span><span class="legend-dot dot-outside"></span>Outside</span>
+              <span><span class="legend-dot dot-inside"></span>Inside</span>
+            </div>
+          </div>
+        `);
+
+        const setEnv = (mode) => {
+          ctx.solutionMode = mode;
+          resetHistory();
+          ctx.ui.q('#btn-hypo').classList.toggle('active', mode === 'hypo');
+          ctx.ui.q('#btn-hyper').classList.toggle('active', mode === 'hyper');
+
+          if (mode === 'hypo') {
+            m.set({ contents: { inside: HYPO_INSIDE, outside: HYPO_OUTSIDE } });
+            ctx.ui.q('#sub-outside').textContent = '100% pure water';
+            ctx.ui.q('#chart-state-label').textContent = 'Hypotonic: Influx';
+          } else {
+            m.set({ contents: { inside: HYPER_INSIDE, outside: HYPER_OUTSIDE } });
+            ctx.ui.q('#sub-outside').textContent = 'High salt solute';
+            ctx.ui.q('#chart-state-label').textContent = 'Hypertonic: Efflux';
+          }
+          m.reset();
+        };
+
+        ctx.ui.q('#btn-hypo').onclick = () => setEnv('hypo');
+        ctx.ui.q('#btn-hyper').onclick = () => setEnv('hyper');
+      },
+      onExit() {}
+    }
+  ]
+});
+
+function getFeedback(ans) {
+  if (ans === 'swells') {
+    return '<strong>Correct!</strong> Pure water flows into the solute-packed cell, expanding its volume until it bursts.';
+  } else if (ans === 'shrinks') {
+    return '<strong>Not quite.</strong> Cells shrink in high salt solutions, but in pure water, net flow goes into the cell.';
+  } else {
+    return '<strong>Not quite.</strong> Water continuously crosses the membrane, and concentration differences create a strong net inflow.';
+  }
+}
+
+const m = Membrane.mount(shell.stage, {
+  proteins: { K: null, CL: null, pump: null },
+  potential: 'off',
+  shells: false,
+  cut: true
+});
+
+m.set({
+  contents: { inside: HYPO_INSIDE, outside: HYPO_OUTSIDE }
+});
+
+m.on('frame', (s) => {
+  if (!s || !s.counts || !s.counts.water) return;
+
+  const wIn = s.counts.water.inside || 0;
+  const wOut = s.counts.water.outside || 0;
+  const netCross = s.crossings ? (s.crossings.down - s.crossings.up) : (wIn - 44);
+
+  const now = performance.now();
+  if (now - lastSampleTime > 250) {
+    lastSampleTime = now;
+    history.push({ inside: wIn, outside: wOut });
+    if (history.length > 40) history.shift();
+  }
+
+  const elOut = document.getElementById('val-outside');
+  const elIn = document.getElementById('val-inside');
+  const elNet = document.getElementById('val-net');
+  const subNet = document.getElementById('sub-net');
+
+  if (elOut) elOut.textContent = wOut;
+  if (elIn) elIn.textContent = wIn;
+  if (elNet) {
+    elNet.textContent = Math.abs(netCross);
+    if (subNet) {
+      subNet.textContent = netCross >= 0 ? 'Net entering cell' : 'Net leaving cell';
+    }
+  }
+
+  const svg = document.querySelector('.chart-svg');
+  if (svg) {
+    updateChart(svg, wIn, wOut);
+  }
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Osmosis in Red Blood Cells</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<style>
+  .btn-row { display: flex; gap: 6px; margin: 8px 0; }
+  .btn-row button {
+    flex: 1; padding: 6px 4px; font-size: 12px; font-weight: 600;
+    border: 1px solid var(--border, #ccc); border-radius: 4px;
+    background: var(--bg-btn, #f5f5f5); cursor: pointer;
+  }
+  .btn-row button.active {
+    background: var(--accent, #2b6cb0); color: #fff; border-color: var(--accent, #2b6cb0);
+  }
+  .chart-box {
+    margin: 8px 0; background: rgba(0,0,0,0.03); border: 1px solid var(--border, #ddd);
+    border-radius: 4px; padding: 6px; position: relative;
+  }
+  .chart-box svg { width: 100%; height: 90px; display: block; }
+  .chart-legend {
+    display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px; color: #555;
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div id="app-sidebar">
+  <div id="stage"></div>
+  <div id="side">
+    <h1 style="font-size:17px">Osmosis and Tonicity</h1>
+    <p class="note" id="claim"><strong>Water diffuses through the lipid bilayer down its own concentration gradient.</strong></p>
+
+    <div class="grp">
+      <div class="hd">Extracellular Solution</div>
+      <div class="btn-row">
+        <button id="btn-iso" class="active">Isotonic</button>
+        <button id="btn-hypo">Hypotonic</button>
+        <button id="btn-hyper">Hypertonic</button>
+      </div>
+      <p class="note" id="sol-desc" style="margin-top:6px;"></p>
+    </div>
+
+    <div class="grp">
+      <div class="hd">Water Concentration Over Time</div>
+      <div class="chart-box">
+        <svg id="chart" viewBox="0 0 300 110" preserveAspectRatio="none">
+          <line x1="30" y1="10" x2="295" y2="10" stroke="#ddd" stroke-dasharray="2,2" />
+          <line x1="30" y1="55" x2="295" y2="55" stroke="#ddd" stroke-dasharray="2,2" />
+          <line x1="30" y1="100" x2="295" y2="100" stroke="#ccc" />
+          <text x="5" y="14" font-size="9" fill="#888">80</text>
+          <text x="5" y="59" font-size="9" fill="#888">40</text>
+          <text x="12" y="103" font-size="9" fill="#888">0</text>
+          <path id="path-inside" fill="none" stroke="#2b6cb0" stroke-width="2" d="" />
+          <path id="path-outside" fill="none" stroke="#38a169" stroke-width="2" stroke-dasharray="4,2" d="" />
+        </svg>
+        <div class="chart-legend">
+          <span class="legend-item"><span class="legend-dot" style="background:#2b6cb0;"></span> Inside (Cytoplasm)</span>
+          <span class="legend-item"><span class="legend-dot" style="background:#38a169;"></span> Outside (Solution)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grp">
+      <div class="hd">Readouts</div>
+      <table class="rd" id="rd">
+        <tr><td>Inside water</td><td id="rd-win">-</td></tr>
+        <tr><td>Outside water</td><td id="rd-wout">-</td></tr>
+        <tr><td>Inside ions (Na⁺ + Cl⁻)</td><td id="rd-ionin">-</td></tr>
+        <tr><td>Outside ions (Na⁺ + Cl⁻)</td><td id="rd-ionout">-</td></tr>
+        <tr><td>Net water movement</td><td id="rd-flow">-</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../membrane/parts.js"></script>
+<script src="../membrane/pump.js"></script>
+<script src="../membrane/membrane.js"></script>
+
+<script>
+const stageEl = document.getElementById('stage');
+const m = Membrane.mount(stageEl, {
+  proteins: { K: null, CL: null, pump: null },
+  potential: 'off'
+});
+
+const scenarios = {
+  iso: {
+    name: 'Isotonic (0.9% Saline)',
+    claim: '<strong>In an isotonic solution, water concentrations are equal across the membrane.</strong>',
+    desc: 'The extracellular fluid has the same solute concentration as the cytoplasm. Water crosses the bilayer at equal rates in both directions, preserving cell volume.',
+    contents: {
+      inside:  { water: 50, NA: 14, CL: 14 },
+      outside: { water: 50, NA: 14, CL: 14 }
+    }
+  },
+  hypo: {
+    name: 'Hypotonic (Distilled Water)',
+    claim: '<strong>In a hypotonic solution, water moves into the cell down its concentration gradient.</strong>',
+    desc: 'The extracellular fluid has a lower solute concentration (more free water molecules) than the cytoplasm. Net osmosis drives water inside, causing the cell to swell.',
+    contents: {
+      inside:  { water: 50, NA: 14, CL: 14 },
+      outside: { water: 78, NA: 0, CL: 0 }
+    }
+  },
+  hyper: {
+    name: 'Hypertonic (Concentrated Salt)',
+    claim: '<strong>In a hypertonic solution, water leaves the cell toward higher solute concentration.</strong>',
+    desc: 'The extracellular fluid has a higher solute concentration (fewer free water molecules) than the cytoplasm. Net osmosis draws water out, causing the cell to shrivel.',
+    contents: {
+      inside:  { water: 50, NA: 14, CL: 14 },
+      outside: { water: 24, NA: 27, CL: 27 }
+    }
+  }
+};
+
+let currentMode = 'iso';
+const history = [];
+const MAX_SAMPLES = 40;
+let lastSampleSec = -1;
+
+function setScenario(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.btn-row button').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + mode).classList.add('active');
+
+  const sc = scenarios[mode];
+  document.getElementById('claim').innerHTML = sc.claim;
+  document.getElementById('sol-desc').textContent = sc.desc;
+
+  history.length = 0;
+  lastSampleSec = -1;
+  m.set({ contents: sc.contents });
+  m.reset();
+}
+
+document.getElementById('btn-iso').addEventListener('click', () => setScenario('iso'));
+document.getElementById('btn-hypo').addEventListener('click', () => setScenario('hypo'));
+document.getElementById('btn-hyper').addEventListener('click', () => setScenario('hyper'));
+
+setScenario('iso');
+
+const rdWin = document.getElementById('rd-win');
+const rdWout = document.getElementById('rd-wout');
+const rdIonin = document.getElementById('rd-ionin');
+const rdIonout = document.getElementById('rd-ionout');
+const rdFlow = document.getElementById('rd-flow');
+const pathInside = document.getElementById('path-inside');
+const pathOutside = document.getElementById('path-outside');
+
+function updateChart() {
+  if (history.length < 2) {
+    pathInside.setAttribute('d', '');
+    pathOutside.setAttribute('d', '');
+    return;
+  }
+  const xMin = 30;
+  const xMax = 295;
+  const yBottom = 100;
+  const yTop = 10;
+  const maxYVal = 80;
+
+  let dIn = '';
+  let dOut = '';
+
+  for (let i = 0; i < history.length; i++) {
+    const x = xMin + (i / (MAX_SAMPLES - 1)) * (xMax - xMin);
+    const yIn = yBottom - (history[i].inside / maxYVal) * (yBottom - yTop);
+    const yOut = yBottom - (history[i].outside / maxYVal) * (yBottom - yTop);
+
+    dIn += (i === 0 ? 'M ' : ' L ') + x.toFixed(1) + ' ' + yIn.toFixed(1);
+    dOut += (i === 0 ? 'M ' : ' L ') + x.toFixed(1) + ' ' + yOut.toFixed(1);
+  }
+
+  pathInside.setAttribute('d', dIn);
+  pathOutside.setAttribute('d', dOut);
+}
+
+m.on('frame', s => {
+  if (!s || !s.counts) return;
+
+  const wIn = s.counts.water ? (s.counts.water.inside || 0) : 0;
+  const wOut = s.counts.water ? (s.counts.water.outside || 0) : 0;
+  const naIn = s.counts.NA ? (s.counts.NA.inside || 0) : 0;
+  const clIn = s.counts.CL ? (s.counts.CL.inside || 0) : 0;
+  const naOut = s.counts.NA ? (s.counts.NA.outside || 0) : 0;
+  const clOut = s.counts.CL ? (s.counts.CL.outside || 0) : 0;
+
+  rdWin.textContent = wIn;
+  rdWout.textContent = wOut;
+  rdIonin.textContent = (naIn + clIn);
+  rdIonout.textContent = (naOut + clOut);
+
+  if (s.netRecent > 0.4) {
+    rdFlow.textContent = 'Leaving cell (outward)';
+  } else if (s.netRecent < -0.4) {
+    rdFlow.textContent = 'Entering cell (inward)';
+  } else {
+    rdFlow.textContent = 'Equilibrium (dynamic)';
+  }
+
+  const sec = Math.floor(s.t);
+  if (sec !== lastSampleSec) {
+    lastSampleSec = sec;
+    history.push({ inside: wIn, outside: wOut });
+    if (history.length > MAX_SAMPLES) history.shift();
+    updateChart();
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Salmon Osmoregulation: Ocean to River</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+.flux-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.flux-badge.leaving { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.flux-badge.entering { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.flux-badge.balanced { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.env-desc {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dim, #888);
+  margin-top: 6px;
+}
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../membrane/parts.js"></script>
+<script src="../membrane/pump.js"></script>
+<script src="../membrane/membrane.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+
+<script>
+const internalFluids = { water: 48, K: 16, NA: 6, A: 8 };
+
+const environments = {
+  ocean: {
+    title: 'Ocean Water',
+    contents: { water: 26, NA: 26, CL: 26 },
+    pumpOn: true,
+    desc: 'High external salinity draws cell water out and drives ions in.'
+  },
+  estuary: {
+    title: 'Estuary (Brackish)',
+    contents: { water: 48, NA: 15, CL: 15 },
+    pumpOn: true,
+    desc: 'Intermediate salinity matching internal osmotic pressure.'
+  },
+  river: {
+    title: 'Freshwater Stream',
+    contents: { water: 74, NA: 2, CL: 2 },
+    pumpOn: false,
+    desc: 'Dilute water drives an osmotic influx into salmon cells.'
+  }
+};
+
+let activeEnv = 'ocean';
+
+const shell = LessonShell.create({
+  brand: 'Salmon Osmoregulation',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { state: {} },
+  steps: [
+    {
+      eyebrow: 'Phase 1: In the Ocean',
+      title: 'Combating Water Loss in Hypertonic Seawater',
+      body: `
+        <p><strong>Seawater is hypertonic to salmon tissues, pulling water continuously out of the body by osmosis.</strong> Dissolved ions displace free water molecules outside (+y), leaving a higher concentration of free water inside the cell (-y).</p>
+        <p><strong>To survive dehydration, salmon drink seawater and actively pump excess salt out across their gills.</strong> Specialized chloride cells use ATP-driven pumps to export ions against steep gradients.</p>
+      `,
+      nextLabel: 'Enter the River',
+      onEnter(ctx) {
+        setEnvironment('ocean');
+        ctx.ui.controls(`
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">External Salt</div>
+              <div class="stat-value">35 ppt</div>
+              <div class="stat-sub">High Solute</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Net Water Flow</div>
+              <div class="stat-value" id="net-flux">Monitoring...</div>
+              <div class="stat-sub">Through Bilayer</div>
+            </div>
+          </div>
+        `);
+      }
+    },
+    {
+      eyebrow: 'Phase 2: Upstream Migration',
+      title: 'Managing Water Influx in Hypotonic Freshwater',
+      body: `
+        <p><strong>Freshwater reverses osmotic flow, causing water to rush into salmon cells across the bilayer.</strong> The river has almost no dissolved salts, making the internal cytoplasm hypertonic relative to the river.</p>
+        <p><strong>Salmon stop drinking water, produce copious dilute urine, and switch gill ion pumps to retain salts.</strong> During smoltification and upstream runs, gill transporters remodel to prevent cell lysis and conserve precious electrolytes.</p>
+      `,
+      nextLabel: 'Interactive Comparison',
+      onEnter(ctx) {
+        setEnvironment('river');
+        ctx.ui.controls(`
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">External Salt</div>
+              <div class="stat-value">0.5 ppt</div>
+              <div class="stat-sub">Very Low Solute</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Net Water Flow</div>
+              <div class="stat-value" id="net-flux">Monitoring...</div>
+              <div class="stat-sub">Through Bilayer</div>
+            </div>
+          </div>
+        `);
+      }
+    },
+    {
+      eyebrow: 'Phase 3: Environmental Comparison',
+      title: 'Osmotic Balance Across the Life Cycle',
+      body: `
+        <p><strong>Salmon are euryhaline teleosts capable of remodeling their gill epithelium to reverse net ion transport.</strong> Select an environment to see how external osmolarity controls water flux across the cell membrane.</p>
+      `,
+      nextLabel: 'Restart',
+      onEnter(ctx) {
+        ctx.ui.controls(`
+          <div class="grp">
+            <div class="hd">Select Salinity Environment</div>
+            <div class="choices">
+              <button class="choice selected" data-env="ocean">Ocean (Hypertonic)</button>
+              <button class="choice" data-env="estuary">Estuary (Isotonic)</button>
+              <button class="choice" data-env="river">River (Hypotonic)</button>
+            </div>
+            <div class="env-desc" id="env-text">${environments.ocean.desc}</div>
+          </div>
+          <div class="stats" style="margin-top:12px;">
+            <div class="stat">
+              <div class="stat-label">Water Status</div>
+              <div class="stat-value" id="net-flux">Monitoring...</div>
+              <div class="stat-sub">Bilayer Net</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Active Transport</div>
+              <div class="stat-value" id="pump-status">Active</div>
+              <div class="stat-sub">Na+/K+ ATPase</div>
+            </div>
+          </div>
+        `);
+
+        ctx.ui.qa('.choice').forEach(btn => {
+          btn.onclick = () => {
+            ctx.ui.qa('.choice').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            const env = btn.dataset.env;
+            setEnvironment(env);
+            const desc = ctx.ui.q('#env-text');
+            if (desc) desc.textContent = environments[env].desc;
+          };
+        });
+      }
+    }
+  ]
+});
+
+const m = Membrane.mount(shell.stage, {
+  proteins: { K: { x: -36 }, CL: null, pump: { x: 36 } },
+  potential: 'nernst',
+  pumpAuto: true,
+  pumpOn: true,
+  cut: true,
+  shells: false,
+  viewOffset: shell.viewOffset
+});
+
+function setEnvironment(envKey) {
+  activeEnv = envKey;
+  const cfg = environments[envKey];
+  m.set({
+    pumpOn: cfg.pumpOn,
+    contents: {
+      inside: internalFluids,
+      outside: cfg.contents
+    }
+  });
+  m.reset();
+}
+
+m.on('frame', s => {
+  const badgeEl = document.getElementById('net-flux');
+  if (badgeEl && s.net) {
+    let label = s.net;
+    let cls = s.net;
+    if (s.net === 'leaving') label = 'Leaving Cell';
+    else if (s.net === 'entering') label = 'Entering Cell';
+    else label = 'Equilibrium';
+    badgeEl.innerHTML = `<span class="flux-badge ${cls}">${label}</span>`;
+  }
+
+  const pumpEl = document.getElementById('pump-status');
+  if (pumpEl) {
+    pumpEl.textContent = environments[activeEnv].pumpOn ? 'Pumping Out' : 'Resting';
+  }
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>
