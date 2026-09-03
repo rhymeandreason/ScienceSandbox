@@ -101,8 +101,11 @@
 
   /* ---- the grid ------------------------------------------------------- */
 
+  /* 290px, not 330: three columns is the layout this page is composed for,
+     and a 330 track dropped to two at ~1150px — a laptop, not a tablet. The
+     card is legible narrower than the widest it wants to be. */
   .grid{display:grid;gap:var(--gap);
-    grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+    grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:4px;
     overflow:hidden;display:flex;flex-direction:column;
