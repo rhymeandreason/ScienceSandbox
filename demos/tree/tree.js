@@ -520,12 +520,38 @@
       return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); };
     }
 
+    /* Named parts. */
+    const _a = new THREE.Vector3();
+    const anchors = {
+      trunk:  () => tree.group.visible ? tree.trunkPointWorld(0.45, Math.PI / 2, _a) : null,
+      canopy: () => tree.group.visible ? tree.canopyCenterWorld(_a) : null,
+      leaves: () => tree.group.visible ? tree.canopyCenterWorld(_a).add(new THREE.Vector3(tree.canopyRadiusWorld() * 0.6, tree.canopyRadiusWorld() * 0.4, 0)) : null,
+      roots:  () => tree.group.visible ? _a.set(1.8, 0.1, 1.2) : null,
+      soil:   () => soil.visible ? _a.set(-2.0, 0.05, 1.5) : null,
+      sun:    () => sunDisc.visible ? sunDisc.getWorldPosition(_a) : null,
+      person: () => person.visible ? person.getWorldPosition(_a).add(new THREE.Vector3(0, 0.9, 0)) : null,
+      pot:    () => pot.visible ? _a.set(1.0, 0.7, 0) : null,
+      willow: () => pot.visible ? sapling.canopyCenterWorld(_a) : null,
+      air:    () => tree.group.visible ? tree.canopyCenterWorld(_a).add(new THREE.Vector3(-tree.canopyRadiusWorld() * 1.6, 1.5, 0)) : _a.set(-3, 3, 0),
+    };
+    const library = {
+      trunk:  { text: 'wood', offset: [40, -20], card: 'Cellulose and lignin: sugar, polymerised. About half of its dry mass is carbon, and that carbon arrived as CO₂.' },
+      canopy: { text: 'canopy', offset: [40, -30], card: 'Where the building happens. Leaves take in CO₂ and the water sent up from the roots, and put the atoms together into sugar.' },
+      leaves: { text: 'leaves', offset: [40, -26], card: 'Each one a solar panel and a gas exchanger. In light they take CO₂ in and let O₂ out; in the dark they only respire.' },
+      roots:  { text: 'roots', offset: [40, 26], card: 'Water and a pinch of minerals come in here. Almost none of the tree\'s mass does: the soil is an anchor and a tap, not a quarry.' },
+      soil:   { text: 'soil', offset: [-40, 26], card: 'Most people\'s guess. Van Helmont weighed it: after five years the pot had lost about two ounces.' },
+      sun:    { text: 'sunlight', offset: [40, -26], card: 'The energy that powers the construction. It weighs nothing, so it supplies none of the material.' },
+      person: { text: '1.8 m', offset: [40, -20], card: 'For scale. One scene unit is about 1.9 m, so the oak is around 25 m tall.' },
+      pot:    { text: 'Van Helmont\'s pot', offset: [40, 20], card: '200 pounds of oven-dried soil, covered so no dust could settle. For five years it got only rainwater.' },
+      willow: { text: 'the willow', offset: [40, -26], card: 'Five pounds when planted, 169 pounds five years later. The soil lost two ounces. Whatever it was made of did not come from the pot.' },
+      air:    { text: 'the air', offset: [-40, -26], card: 'About 0.04% carbon dioxide: 0.8 grams in every cubic metre. Invisible, and the tree\'s building material.' },
+    };
     applyDaylight(P.daylight);
     tree.setGrowth(P.growth); sapling.setGrowth(P.saplingGrowth);
     showPotScene(P.potScene); setFlows(P.flows);
     if (P.piles) piles.explode(P.piles);
 
-    return { step, state, set, on, tweens, tree, sapling, flows, piles,
+    return { step, state, set, on, tweens, tree, sapling, flows, piles, anchors, library,
       setDaylight, setTreeOpacity, showPotScene, flowsOff, params: () => P, easeOut, easeInOut };
   }
 
@@ -541,7 +567,7 @@
       return { r, phi: Math.acos(clamp(v.y / r, -1, 1)), theta: Math.atan2(v.x, v.z) };
     };
     const first = orbitOf(params.pos || [21, 9.5, 28], params.target || [0, 6.5, 0]);
-    let sim = null, last = null;
+    let sim = null, last = null, nb = null;
     const labels = document.createElement('div');
     labels.className = 'lshell-labels';
     let box = null;                        // layout() runs inside create, before this is assigned
@@ -550,7 +576,7 @@
       cam: first,
       stage: Object.assign({ phiMin: 0.15, phiMax: Math.PI / 2 - 0.02, rMin: 2.5, rMax: 80 }, params.stage || {}),
       step: dt => { if (sim) { flyStep(dt); last = sim.step(dt); } },
-      afterFrame: () => { if (sim) sim.piles.place(project); },
+      afterFrame: () => { if (sim) sim.piles.place(project); if (nb) nb.step(); },
       viewOffset: params.viewOffset,
       onResize: layout,
     });
@@ -603,8 +629,11 @@
     sim = create(THREE, box.root, box.camera, Object.assign({ labels }, params));
     layout();
     box.pump();
+    nb = global.Notebook ? global.Notebook.create({ box, anchors: sim.anchors, library: sim.library }) : null;
     return {
       sim, box, flyTo, layout,
+      note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
+      anchors: () => nb ? nb.list() : [],
       set(next) { sim.set(next); return this; },
       state: () => last || sim.state(),
       on: sim.on,

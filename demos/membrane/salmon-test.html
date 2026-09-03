@@ -6,6 +6,7 @@
 <title>salmon-test — one gill cell, two waters</title>
 <link rel="stylesheet" href="../css/main.css">
 <link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../css/annotate.css">
 <style>
   /* The first app written in the shape a generated page takes: one mounted
      component, controls that are set(), readouts that are state(). The
@@ -45,6 +46,12 @@
       </div>
       <label><input id="pumpOn" type="checkbox" checked> the pump is paid for</label>
       <label><input id="shells" type="checkbox"> draw hydration shells</label>
+      <label>speed <input id="speed" type="range" min="1" max="4" step="1" value="1"></label>
+    </div>
+
+    <div class="grp">
+      <div class="hd">point at</div>
+      <div id="notes"></div>
     </div>
 
     <div class="grp">
@@ -76,7 +83,9 @@
 <script src="../lib/mol-small.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="../lib/atomkit.js"></script>
+<script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
+<script src="../kit/notebook.js"></script>
 <script src="../membrane/parts.js"></script>
 <script src="../membrane/pump.js"></script>
 <script src="../membrane/membrane.js"></script>
@@ -129,6 +138,14 @@ for (const b of document.querySelectorAll('[data-env]')) b.onclick = () => {
 };
 $('pumpOn').onchange = e => m.set({ pumpOn: e.target.checked });
 $('shells').onchange = e => m.set({ shells: e.target.checked });
+$('speed').oninput = e => m.set({ timeScale: +e.target.value });
+/* Every anchor the component names, as a toggle: the library's own note. */
+for (const a of m.anchors()) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = a.text || a.name; b.setAttribute('aria-pressed', 'false');
+  b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); on ? m.note(a.name) : m.sim && m.clearNotes(); };
+  $('notes').appendChild(b);
+}
 
 /* ---- the chart: free water per side, over the last two minutes ---- */
 const series = [];

@@ -15,6 +15,7 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 <title>short name</title>
 <link rel="stylesheet" href="../css/main.css">
 <link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../css/annotate.css">   <!-- callouts on the scene -->
 <style> /* page-specific rules only */ </style>
 </head>
 <body>
@@ -37,7 +38,9 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 <script src="../lib/scene.js"></script>
 <script src="../lib/atomkit.js"></script>          <!-- Membrane only -->
 <!-- Leaf needs only three.min.js, palette.js, tokens-from-palette.js, molecules.js, scene.js and card-stage.js -->
+<script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
+<script src="../kit/notebook.js"></script>
 <!-- then the component(s), then the page script -->
 </body>
 </html>
@@ -61,6 +64,20 @@ c.sim; c.box;                    // the layers under it, for a page that outgrow
 ```
 
 Every `mount` also takes `viewOffset`, a function of the canvas size returning the pixel shift that centres the scene in the room a panel leaves. On the step-through shell pass `viewOffset: shell.viewOffset`; on the sidebar page leave it out.
+
+### Notes: pointing at the scene
+
+Every component has named parts, and a callout can be pinned to any of them. **A question about a thing on stage is answered with a note on that thing**, in the library's words, plus at most one sentence of copy. Not a paragraph.
+
+```js
+c.note('pump');                                   // the library's callout, on the pump: a short label, a two-sentence card on click
+c.note('pump', { text:'Na⁺/K⁺ pump', card:'…' }); // your own words, same anchor
+c.note('outside', { text:'seawater' });           // a bare label
+c.notes(['channel.K', 'pump']);                   // exactly these, clearing the rest; c.notes(false) clears
+c.anchors();                                      // the names this component has, with their library text
+```
+
+Notes follow their part as it moves and as the camera turns. Show two or three at once, never ten. A step that changes subject should `notes(false)` first. Each component's section lists its anchor names.
 
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 
@@ -99,6 +116,8 @@ What it models, and the numbers `state()` returns every frame:
 
 Events: `frame` (state) · `dissociate` (na, cl, at) when water wedges a salt pair apart · `saltchange` when the phase-change points move. The freezing point in the readout is `-dTf`, the boiling point `100 + dTb`.
 
+Anchors for `note()`: `water` (one molecule), `O` and `H` (its atoms, with the partial charges), and with salt on stage `Na` and `Cl`.
+
 Good for: temperature, phase change, why ice floats, salt dissolving, colligative properties. Not for: anything the water is in (no container, no membrane, no surface).
 
 ## Membrane — a bilayer, its proteins, and what crosses
@@ -116,6 +135,7 @@ const m = Membrane.mount(el, {
   E: { K:-90, CL:-75 },  // mV, used by 'fixed'
   pumpAuto: true,        // the pump re-arms itself; false waits for m.spend()
   pumpOn: true,
+  timeScale: 1,          // sim seconds per real second; 2 or 3 to speed it up
   shells: false,         // hydration shells drawn, and shed at a channel's filter
   cut: true,             // proteins cut open so the lumen shows
 });
@@ -153,6 +173,8 @@ Defaults do the right thing: ions walk slower and are blocked by the bilayer, wa
 | `atpSpent`, `pumpRunning`, `pumpPhase`, `pumpT` | the pump's ledger and where it is in its cycle |
 
 Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `conduct` (traveller, dir) through a channel · `turn` (n) a pump turn starting · `turned` (n) one finishing.
+
+Anchors for `note()`: `channel.K`, `channel.CL`, `pump` (each only when that protein is in the layout), `heads` and `tails` (the bilayer's two halves), `outside`, `inside`, and one molecule of each kind on stage: `water`, `NA`, `K`, `CL`, `A`. "What are the two proteins?" is `m.notes(['channel.K', 'pump'])`.
 
 Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, active transport and its cost, a cell in a changed environment. Not for: a specific real protein's shape, receptors, vesicles, anything at whole-cell scale.
 
@@ -205,6 +227,8 @@ Layer names, bottom to top: `lowerEpi` (with stomata), `spongy` (air spaces, cel
 
 `state()`: `explode`, `seed`, `isolate`, `hovered`, and `layers` as a list of `{name, y, height}`. Events: `frame` (state) · `hover` (name or null) · `select` (name or null).
 
+Anchors for `note()`: `upperEpi`, `cuticle`, `palisade`, `spongy`, `bundle`, `lowerEpi`, `stoma`. Each carries the library's two-sentence card on what that tissue does.
+
 Good for: leaf anatomy, where gas exchange and photosynthesis happen, what a vein is, structure and function of each tissue. Not for: a single cell's interior, or any process; nothing moves in it.
 
 ## Tree — a tree, the air around it, and where its mass came from
@@ -229,6 +253,8 @@ T.flyTo([5.2, 3.6, 7], [0, 2.3, 0], 1.6);    // a camera flight; a drag cancels 
 ```
 
 The organism scale, and choreography rather than physics: CO₂ drifts into the canopy, O₂ leaves it, water and minerals climb the trunk, and the piles show the lesson's shares of dry mass (about 93% from CO₂, 6% from water's hydrogen, 1% minerals). `Tree.PILES` holds those numbers for a legend. `state()` returns the params at their current values. Events: `frame` (state, dt) · `night` (bool), which a page uses to switch the shell's theme.
+
+Anchors for `note()`: `trunk`, `canopy`, `leaves`, `roots`, `soil`, `sun`, `person`, `air`, and with `potScene` on, `pot` and `willow`.
 
 Good for: where a plant's mass comes from, photosynthesis as traffic, Van Helmont's experiment, scale of carbon stored in a tree. Not for: a leaf's interior (that is Leaf), or any molecule.
 
@@ -272,3 +298,5 @@ Draw one as an inline SVG from a series the page collects in its `frame` handler
 ## Copy
 
 A tutor for a college Bio 101 student. Concise, no repetition, one claim per paragraph, in bold, that the picture is showing right now. Prefer a question the student can answer by touching a control. No em dashes.
+
+**Show, do not tell.** When a student asks what something is, put a note on it. When they ask what happens if, add a control that does it, or a step that shows it. Add a paragraph only when neither is possible. A panel body stays under two short paragraphs, and an edit that would push it past that replaces text rather than adding it. When something asked for is beyond the components, say so in one sentence in the page rather than faking it.

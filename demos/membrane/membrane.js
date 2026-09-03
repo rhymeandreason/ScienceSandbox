@@ -69,6 +69,7 @@
     pumpAuto: false,
     pumpOn: true,
     turnSeconds: 11,
+    timeScale: 1,             // sim seconds per real second; 'speed it up' is one set()
     shells: false,
     lipidMotion: true,
     /* THE BUDGET. Ion spacing is quadratic in the crowd, and a page that
@@ -865,11 +866,51 @@
       return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); };
     }
 
+    /* ---- the parts a page can point at, by name (kit/notebook.js) ----
+       Live functions: a pore moves with the layout, an ion with itself. The
+       words are the lesson's own callouts, so a generated page answers in
+       the library's voice. */
+    const _a = new THREE.Vector3();
+    const firstOf = kind => { const t = travellers.find(t => t.kind === kind && !t.aboard); return t ? t.obj.getWorldPosition(_a) : null; };
+    const anchors = {
+      'channel.K':  () => { const x = poreX('K');  return x == null ? null : _a.set(x, T.height * 0.95, 0); },
+      'channel.CL': () => { const x = poreX('CL'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
+      pump:    () => P.proteins.pump ? _a.set(pumpX, T.height * 0.98, 0) : null,
+      heads:   () => _a.set(-96, HALF, 0),
+      tails:   () => _a.set(-96, 0, 0),
+      outside: () => _a.set(-SPREAD() * 0.06, farY() * 0.34, 0),
+      inside:  () => _a.set(-SPREAD() * 0.06, -farY() * 0.34, 0),
+      water: () => firstOf('water'), NA: () => firstOf('NA'), K: () => firstOf('K'), CL: () => firstOf('CL'), A: () => firstOf('A'),
+    };
+    const library = {
+      'channel.K':  { text: 'K⁺ channel', offset: [-40, -30],
+        card: 'A water-lined pore straight through, so a K⁺ crosses without ever touching the oil. It is open, it is free, and nothing about it is switched on.' },
+      'channel.CL': { text: 'Cl⁻ channel', offset: [40, -30],
+        card: 'Chloride is high outside, so it runs inward, the opposite way to the K⁺ beside it. Direction is set by the gradient, never by the protein.' },
+      pump: { text: 'a carrier, not a pore', offset: [42, -30],
+        card: 'It binds its cargo and changes shape, so it is never open to both sides at once. One ATP buys one turn: 3 Na⁺ out and 2 K⁺ in, both uphill.' },
+      heads: { text: 'hydrophilic heads', offset: [-34, -30],
+        card: 'The head carries charge and sits happily in water, so it turns outward on both faces. That is why a bilayer assembles itself and then holds together.' },
+      tails: { text: 'hydrophobic tails', offset: [-34, 26],
+        card: 'The tails are hydrocarbon and will not mix with water, so they hide in the middle. Everything crossing this membrane has to get through that oil.' },
+      outside: { text: 'outside the cell', offset: [-38, -26],
+        card: 'Every solute particle sits where a water would have been, so fewer of the molecules here are water. More solute, less free water.' },
+      inside:  { text: 'inside the cell', offset: [-38, 26],
+        card: 'The cytosol: mostly water, potassium, and the big anions that never leave. What is dissolved here is what the pump spends ATP to keep.' },
+      water: { text: 'water', card: 'Small and uncharged enough to slip through the oil, slowly, in both directions. The net flow is a headcount, not a pull.' },
+      NA: { text: 'Na⁺, with its water', offset: [34, -26],
+        card: 'Smaller than K⁺, and it still cannot use the K⁺ filter: it holds its water too tightly to trade the shell for the pore.' },
+      K:  { text: 'K⁺', card: 'High inside, so it leaks out through its channel, and the pump carries it back. That standing cost is what a cell at rest is.' },
+      CL: { text: 'Cl⁻', card: 'High outside, so it runs inward through its own channel, undressing only partly to fit.' },
+      A:  { text: 'anion that cannot leave', offset: [34, 26],
+        card: 'Protein side chains, phosphates and nucleic acids. They are why the inside is negative, and why it holds so much K⁺ without being positive.' },
+    };
+
     layout(P.proteins);
     setShells(P.shells);
     if (P.contents) setContents(P.contents);
 
-    return { step, state, reset, set, on, spend,
+    return { step, state, reset, set, on, spend, anchors, library,
       add, scatter, remove, clear, travellers,
       params: () => P, pores: () => PORES.slice(),
       get height() { return T.height; },
@@ -883,12 +924,13 @@
      physics: `m.sim` and `m.box` are the layers under it. */
   function mount(el, params = {}) {
     if (!global.CardStage) throw new Error('membrane.js: load kit/card-stage.js first');
-    let sim = null;
+    let sim = null, nb = null;
     const box = global.CardStage.create({
       mount: el,
       cam: params.cam || { theta:0, phi:Math.PI / 2 - 0.10, r:300 },
       stage: Object.assign({ orbit:false, rMin:50, rMax:600 }, params.stage || {}),
-      step: dt => { if (sim) last = sim.step(dt); },
+      step: dt => { if (sim) last = sim.step(dt * (sim.params().timeScale || 1)); },
+      afterFrame: () => { if (nb) nb.step(); },
       viewOffset: params.viewOffset,
       onResize: () => { if (sim) sim.set({ extent: extentOf() }); },
     });
@@ -901,8 +943,11 @@
     let last = null;
     sim = create(THREE, box.root, box.camera, Object.assign({ extent: extentOf() }, params));
     if (params.cut != null) sim.set({ cut: params.cut }); else sim.set({ cut: true });
+    nb = global.Notebook ? global.Notebook.create({ box, anchors: sim.anchors, library: sim.library }) : null;
     return {
       sim, box,
+      note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
+      anchors: () => nb ? nb.list() : [],
       set(next) { sim.set(next); return this; },
       state: () => last || sim.state(),
       on: sim.on, spend: sim.spend,

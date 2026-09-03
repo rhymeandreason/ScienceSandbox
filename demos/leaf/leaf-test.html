@@ -6,6 +6,7 @@
 <title>leaf-test — a leaf in cross-section, as one box</title>
 <link rel="stylesheet" href="../css/main.css">
 <link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../css/annotate.css">
 <style>
   #side { overflow-y:auto; }
   .grp { margin-bottom:16px; }
@@ -56,7 +57,9 @@
 <script src="../lib/molecules.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="../lib/geo.js"></script>
+<script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
+<script src="../kit/notebook.js"></script>
 <script src="../leaf/leaf.js"></script>
 <script>
 const $ = id => document.getElementById(id);
@@ -72,6 +75,8 @@ for (const n of [...Leaf.ORDER].reverse()) {
 $('explode').oninput = e => L.set({ explode: +e.target.value });
 $('rot').onchange = e => L.set({ autoRotate: e.target.checked });
 $('regen').onclick = () => L.set({ seed: (Math.random() * 1e9) >>> 0 });
+/* Isolating a layer also names it, the way a student would ask. */
+L.on('select', n => n ? L.notes([n]) : L.notes(false));
 $('palisade').oninput = e => L.set({ layers: { palisade: +e.target.value } });
 $('spongy').oninput = e => L.set({ layers: { spongy: +e.target.value } });
 

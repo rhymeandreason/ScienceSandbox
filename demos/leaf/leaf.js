@@ -354,8 +354,29 @@
       return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); };
     }
 
+    /* Named parts: the front face of each layer, mid-block, following explode. */
+    const _a = new THREE.Vector3();
+    const layerPoint = n => {
+      const g = layers[n]; if (!g) return null;
+      const y0 = Y[n === 'bundle' ? 'spongy' : n] || 0;
+      const h = n === 'bundle' ? bundle.r * 2 : P.layers[n];
+      return g.localToWorld(_a.set(n === 'bundle' ? bundle.x : -W * 0.25, y0 + h / 2, D / 2));
+    };
+    const anchors = {};
+    for (const n of ORDER) anchors[n] = () => layerPoint(n);
+    anchors.cuticle = () => layers.upperEpi ? layers.upperEpi.localToWorld(_a.set(-W * 0.25, Y.cuticle + P.layers.cuticle, D / 2)) : null;
+    anchors.stoma = () => { const g = layers.lowerEpi; const st = g && g.children.find(o => o.children.length === 2); return st ? st.getWorldPosition(_a) : null; };
+    const library = {
+      upperEpi: { text: 'upper epidermis', offset: [-40, -28], card: 'One clear layer of cells with no chloroplasts, so light passes straight through to the tissue that uses it.' },
+      cuticle:  { text: 'cuticle', offset: [-40, -28], card: 'A waxy coat the epidermis secretes. It is what keeps a leaf from drying out, and why water beads on it.' },
+      palisade: { text: 'palisade mesophyll', offset: [-46, -28], card: 'Columns packed with chloroplasts, stood on end under the light. Most of the leaf\'s photosynthesis happens here.' },
+      spongy:   { text: 'spongy mesophyll', offset: [-46, 26], card: 'Loose cells with air spaces between them, so CO₂ from the stomata can reach every chloroplast and O₂ can leave.' },
+      bundle:   { text: 'vein', offset: [40, -28], card: 'Xylem above brings water up from the roots; phloem below carries sugar away. The sheath around it is a set of cells.' },
+      lowerEpi: { text: 'lower epidermis', offset: [-40, 26], card: 'The underside, where the stomata are, out of direct sun so less water is lost through them.' },
+      stoma:    { text: 'stoma', offset: [40, 26], card: 'Two guard cells and the pore between them. They swell to open it for CO₂ and close it to keep water in.' },
+    };
     build();
-    return { step, state, set, on, point, pick, select, height, block, layers, params: () => P, ORDER };
+    return { step, state, set, on, point, pick, select, height, block, layers, anchors, library, params: () => P, ORDER };
   }
 
   /* ---- one box ----
@@ -365,12 +386,13 @@
   function mount(el, params = {}) {
     if (!global.CardStage) throw new Error('leaf.js: load kit/card-stage.js first');
     if (!global.Geo) throw new Error('leaf.js: load lib/geo.js first');
-    let leaf = null, last = null;
+    let leaf = null, last = null, nb = null;
     const box = global.CardStage.create({
       mount: el,
       cam: params.cam || { theta: 0.65, phi: 1.15, r: 24 },
       stage: Object.assign({ phiMax: 1.72, rMin: 8, rMax: 60 }, params.stage || {}),
       step: dt => { if (leaf) last = leaf.step(dt); },
+      afterFrame: () => { if (nb) nb.step(); },
       viewOffset: params.viewOffset,
     });
     const r = box.renderer;
@@ -406,9 +428,12 @@
     cv.addEventListener('click', onClick);
     leaf.on('hover', n => { cv.style.cursor = n ? 'pointer' : ''; });
     box.pump();
+    nb = global.Notebook ? global.Notebook.create({ box, anchors: leaf.anchors, library: leaf.library }) : null;
 
     return {
       sim: leaf, box,
+      note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
+      anchors: () => nb ? nb.list() : [],
       set(next) { leaf.set(next); if (next.explode != null || next.layers) frame(); return this; },
       state: () => last || leaf.state(),
       on: leaf.on,

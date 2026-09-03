@@ -50,12 +50,13 @@
     const P = Object.assign({}, DEFAULTS, params);
     const listeners = { frame:[], dissociate:[], saltchange:[] };
     const emit = (ev, ...a) => listeners[ev].forEach(fn => fn(...a));
-    let last = null, sim = null;
+    let last = null, sim = null, nb = null;
 
     const box = global.CardStage.create({
       mount: el,
       cam: params.cam || { theta:0.5, phi:1.15, r:26 },
       viewOffset: params.viewOffset,
+      afterFrame: () => { if (nb) nb.step(); },
       step: () => {
         if (!sim) return;               // CardStage may tick before create returns
         const solvent = P.solvent === undefined ? sim.salt.length > 0 : !!P.solvent;
@@ -89,8 +90,28 @@
     reconcile();
     box.pump();                       // a first frame with the water in it
 
+    /* Named parts: one molecule of each kind, riding it. */
+    const _a = new THREE.Vector3();
+    const ionOf = ch => { const m = sim.salt.find(s => s.userData.role === ch); return m ? m.getWorldPosition(_a) : null; };
+    const anchors = {
+      water: () => sim.mols[0] ? sim.mols[0].getWorldPosition(_a) : null,
+      O: () => sim.mols[0] ? sim.mols[0].getWorldPosition(_a) : null,
+      H: () => sim.mols[0] && sim.mols[0].children[1] ? sim.mols[0].children[1].getWorldPosition(_a) : null,
+      Na: () => ionOf('Na'), Cl: () => ionOf('Cl'),
+    };
+    const library = {
+      water: { text: 'H₂O', offset: [34, -26], card: 'Bent, and polar: the oxygen pulls the shared electrons, so it carries a partial negative charge and each hydrogen a partial positive one.' },
+      O: { text: 'O, δ−', offset: [-34, -26], card: 'Two lone pairs here accept hydrogen bonds from neighbours\' hydrogens. A water can take two that way.' },
+      H: { text: 'H, δ+', offset: [34, 20], card: 'Each hydrogen can donate one hydrogen bond to a neighbour\'s oxygen. Two donated, two accepted: four at most.' },
+      Na: { text: 'Na⁺', offset: [34, -26], card: 'Six waters point their oxygens at it, held tight. That shell is what water does to pull a crystal apart.' },
+      Cl: { text: 'Cl⁻', offset: [34, 26], card: 'Its waters point a hydrogen at it instead, and sit a little further out. Same idea, other sign.' },
+    };
+    nb = global.Notebook ? global.Notebook.create({ box, anchors, library }) : null;
+
     return {
       sim, box,
+      note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
+      anchors: () => nb ? nb.list() : [],
       set(next) { Object.assign(P, next); reconcile(); return this; },
       params: () => Object.assign({}, P),
       state: () => last,
