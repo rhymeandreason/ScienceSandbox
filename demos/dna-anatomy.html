@@ -25,10 +25,16 @@
   /* EDITORIAL SPLIT. The model holds the left half and never scrolls; the
      writing runs down the right. Scrolling is the control — the section the
      reader is on is the part the model is showing — so there are no buttons to
-     keep in sync with the prose. */
-  #app{grid-template-columns:minmax(0,1fr) minmax(390px,38vw)}
-  #stage{grid-column:1;background:var(--surface-stage);
-    border-right:1px solid var(--border-hair)}
+     keep in sync with the prose.
+
+     THE WINDOW IS WHAT SCROLLS, not a pane inside it. ScrollSmoother only
+     smooths the page's own scroll (it transforms one content element under a
+     wrapper), so the stage is FIXED beside the column and lives outside that
+     wrapper — a fixed element inside transformed content is positioned against
+     the transform and rides up the page. */
+  :root{--stage-w:62vw}
+  #stage{position:fixed;top:0;left:0;width:var(--stage-w);height:100vh;z-index:1;
+    background:var(--surface-stage);border-right:1px solid var(--border-hair)}
   /* WHAT THE MOLECULE IS, under it, on every part. It names the specimen rather
      than the part, so it belongs to the stage and not to any one section. */
   #specimen{position:absolute;left:26px;bottom:22px;z-index:6;max-width:38ch;
@@ -40,9 +46,10 @@
 
   /* THE COLUMN. Its own scroller, not the window's: the stage beside it is
      fixed at 100vh and a page-level scroll would drag it off the top. */
-  /* The snap is in JS (below), not `scroll-snap-type`: proximity never fires at
+  /* The column is ordinary page flow, offset by the stage's width. Snapping is
+     ScrollTrigger's (below), not `scroll-snap-type`: proximity never fires at
      these distances and mandatory jumps on load. */
-  #read{grid-column:2;overflow-y:auto;overscroll-behavior:contain;
+  #read{position:relative;z-index:2;margin-left:var(--stage-w);
     background:var(--surface-page);
     padding:0 clamp(28px,4vw,56px)}
   #read .col{max-width:46ch;margin:0 auto}
@@ -96,31 +103,41 @@
   #read .tail{height:52vh}
 
   @media (max-width:900px){
-    #app{grid-template-columns:1fr;grid-template-rows:52vh 1fr}
-    #stage{grid-column:1;border-right:0;border-bottom:1px solid var(--border-hair)}
-    #read{grid-column:1}
-    #read .lede{padding-top:8vh}
+    /* Stacked: the stage still does not scroll, it just takes the top of the
+       window and the column starts under it. */
+    #stage{width:100%;height:52vh;border-right:0;
+      border-bottom:1px solid var(--border-hair)}
+    #read{margin-left:0;padding-top:52vh}
+    #read section:first-of-type{padding-top:8vh}
     #read section{padding:12vh 0}
   }
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="stage">
-    <canvas id="gl"></canvas>
-    <p id="specimen"></p>
-  </div>
-  <nav class="sitenav floating">
-    <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
-    <span class="crumb">Structure of DNA</span>
-  </nav>
+<!-- Both of these sit OUTSIDE #smooth-wrapper: ScrollSmoother transforms the
+     content element, and anything fixed inside it is fixed to that transform. -->
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <p id="specimen"></p>
+</div>
+<nav class="sitenav floating">
+  <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="crumb">Structure of DNA</span>
+</nav>
+
+<div id="smooth-wrapper"><div id="smooth-content">
   <div id="read"><div class="col">
     <div id="sections"></div>
     <div class="tail"></div>
   </div></div>
-</div>
+</div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<!-- The scroll itself: GSAP's, because momentum and snapping ARE a convention
+     and hand-rolling them lands somewhere nobody else's page is. Pinned. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollSmoother.min.js"></script>
 <script src="lib/palette.js"></script>
 <script src="lib/tokens-from-palette.js"></script>
 <script src="lib/molecules.js"></script>
@@ -671,7 +688,6 @@ function show(part){
 document.getElementById('specimen').innerHTML =
   `${bdna.n} base pairs of B-DNA — the Drew-Dickerson dodecamer, 1BNA.`;
 
-const read = document.getElementById('read');
 const host = document.getElementById('sections');
 const secs = PARTS.map((part, i) => {
   const el = document.createElement('section');
@@ -690,56 +706,7 @@ const secs = PARTS.map((part, i) => {
   return el;
 });
 
-/* NEAREST TO THE READING LINE, not "first one intersecting". A section is taller
- * than the viewport at the top of the scroll and shorter at the bottom, so an
- * intersection test hands over at a different place each time; a single line
- * hands over at the same place every time. It is the middle, which is where the
- * scroll snapping puts a section, so the two agree. */
-const LINE = 0.5;
-function onScroll(){
-  const y = read.getBoundingClientRect().top + read.clientHeight * LINE;
-  let best = null, bestD = Infinity;
-  secs.forEach((el, i) => {
-    const r = el.getBoundingClientRect();
-    const d = Math.abs((r.top + r.bottom) / 2 - y);
-    if(d < bestD){ bestD = d; best = i; }
-  });
-  if(best != null) show(PARTS[best]);
-}
-/* SETTLING ONTO A SECTION, IN JS. `scroll-snap-type:proximity` never fires at
- * these distances — a section is most of a window tall, so the reader is rarely
- * inside the browser's own threshold — and `mandatory` snaps on load and fights
- * a long scroll. This waits for the wheel to stop, then eases the nearest
- * section's middle onto the reading line if it is more than a few pixels off.
- *
- * SETTLE_MS is how long "stopped" is: below about 100 it fires mid-flick and
- * takes the scroll out of the reader's hands. */
-const SETTLE_MS = 140;
-const SNAP_SLOP = 6;                    // px: already settled, leave it alone
-let settleTimer = null, snapping = false;
-function settle(){
-  if(snapping || !secs.length) return;
-  const mid = read.clientHeight * LINE;
-  let best = null, bestD = Infinity;
-  for(const el of secs){
-    const want = el.offsetTop + el.offsetHeight / 2 - mid;
-    const d = Math.abs(want - read.scrollTop);
-    if(d < bestD){ bestD = d; best = want; }
-  }
-  if(best == null || bestD <= SNAP_SLOP) return;
-  snapping = true;
-  read.scrollTo({ top:best, behavior:'smooth' });
-  // The smooth scroll emits its own scroll events; unlatch once they stop
-  // rather than racing them with a fixed duration.
-  setTimeout(() => { snapping = false; }, 600);
-}
 
-read.addEventListener('scroll', () => {
-  onScroll();
-  clearTimeout(settleTimer);
-  if(!snapping) settleTimer = setTimeout(settle, SETTLE_MS);
-}, { passive:true });
-addEventListener('resize', onScroll);
 
 /* TURNING IT IS THE POINT. A helix seen from one angle is a tangle of sticks;
  * the grooves only read as two different gaps once it moves. Yaw about the
@@ -813,8 +780,57 @@ canvas.addEventListener('pointermove', e => {
 addEventListener('pointerup', () => { turn = null; });
 
 show(PARTS[0]);
-onScroll();
 L.resize(); L.fit(); L.start();
+
+/* =============================================================================
+ *  THE SCROLL: GSAP's ScrollSmoother + ScrollTrigger
+ * =============================================================================
+ *  Momentum and snapping are a convention, and the hand-rolled version of them
+ *  (a debounced scrollTo) settles in a way no other site does. ScrollSmoother
+ *  gives the column the inertia everyone's thumb already expects; ScrollTrigger
+ *  says which section is on the reading line and does the snapping off one
+ *  trigger over the whole document.
+ *
+ *  THE READING LINE IS THE MIDDLE OF THE WINDOW, and the snap puts a section's
+ *  middle there, so the model changes exactly as the column settles.
+ * ========================================================================== */
+gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+
+ScrollSmoother.create({
+  wrapper:'#smooth-wrapper', content:'#smooth-content',
+  smooth:1.1,           // seconds the content takes to catch the real scroll
+  smoothTouch:0.1,      // a thumb expects its own momentum; only take the edge off
+  effects:false,
+});
+
+// Which part each section is, as it crosses the middle. onToggle rather than a
+// scroll handler of our own: it fires once per crossing, in both directions.
+secs.forEach((el, i) => ScrollTrigger.create({
+  trigger:el, start:'top center', end:'bottom center',
+  onToggle:self => { if(self.isActive) show(PARTS[i]); },
+}));
+
+/* WHERE THE SNAP POINTS ARE, RECOMPUTED rather than captured: a resize changes
+ * every section's height, and a baked list of progress values then settles the
+ * column between two sections. */
+function snapPoints(){
+  const max = ScrollTrigger.maxScroll(window) || 1;
+  return secs.map(el => gsap.utils.clamp(0, 1,
+    (el.offsetTop + el.offsetHeight / 2 - innerHeight / 2) / max));
+}
+ScrollTrigger.create({
+  trigger:'#smooth-content', start:'top top', end:'bottom bottom',
+  snap:{
+    snapTo:p => gsap.utils.snap(snapPoints(), p),
+    duration:{ min:0.25, max:0.6 },
+    delay:0.06,                     // after the momentum has run out, not during
+    ease:'power2.inOut',
+  },
+});
+
+// LAST, and after the first show(): the triggers fire on creation, and one
+// firing into a page whose HOME angle is not declared yet is a dead page.
+
 </script>
 </body>
 </html>
