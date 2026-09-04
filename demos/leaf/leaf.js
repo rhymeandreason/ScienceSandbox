@@ -72,9 +72,9 @@
      in the file. The epidermis is a LIVING layer, not a wall: pale green, not
      the bone colour a cell wall would be. */
   const C = {
-    epiWall:      0xa6cc6b,
-    epiCell:      0x86b845,
-    cuticle:      0xc4e396,
+    epiWall:      0x93c04f,
+    epiCell:      0x74a838,
+    cuticle:      0xb6dc80,
     palisade:     0xbe9d1c,
     palisadeBand: 0x5f7d1e,
     spongy:       0x6f9c22,
@@ -84,7 +84,10 @@
     sheathInner:  0x38567d,
     xylem:        0xf09410,
     phloem:       0xdcb42c,
-    guard:        0x7fb02a,
+    /* Darker than the epidermis it sits in: the two are both green, and at the
+       density stomata actually have, a guard cell the same value as its
+       neighbours disappears into the grid from any distance. */
+    guard:        0x4f8c1a,
   };
 
   /* Named for the legend. Two materials that are one thing to a student (the
@@ -130,6 +133,9 @@
         guard: mat(C.guard, { roughness: 0.45, clearcoat: 0.15 }),
       };
     }
+    /* Flags only. The mount enables no shadow map (see its lighting note), so
+       these do nothing today; they are set at build so a page that does turn
+       one on gets every mesh right without walking the tree. */
     const shadow = m => { m.castShadow = true; m.receiveShadow = true; return m; };
 
     const block = new THREE.Group();
@@ -567,52 +573,42 @@
       afterFrame: () => { if (nb) nb.step(); },
       viewOffset: params.viewOffset,
     });
-    const r = box.renderer;
-    r.shadowMap.enabled = true;
-    /* PCF, not PCFSoft: `shadow.radius` is ignored by the soft variant, and a
-       blur radius is the only handle on how hard an edge lands. The shadows
-       here are for form, not for drama. */
-    r.shadowMap.type = THREE.PCFShadowMap;
-    /* NO TONE MAPPING. ACES rolls the highlights off and pulls the saturation
-       with them, which on thirteen already-light greens is most of the washed
-       out look. These colours are authored, not captured, so there is no
-       dynamic range to compress. */
-    r.toneMapping = THREE.NoToneMapping;
+    /* ---- lighting, the way water-lab does it ----
+       NO SHADOW MAPS. water-lab casts none at all, and that is most of why it
+       reads soft: a cast shadow between cells packed this tightly is a black
+       wedge, and softening one costs a fill light that flattens everything
+       else to pay for it. Form here comes from the normals and from the
+       colours, which is enough for a diagram.
 
-    /* Stage's studio lights are built for a molecule on a white card: a 0.55
-       white ambient and a blue fill, which together flatten the leaf and grey
-       its greens. Turn them down to a floor and light this scene properly.
-       Found by rendering, not by reading: the ambient is what made the
-       epidermis look like stone. */
+       LIGHTS RIDE THE CAMERA, which is Stage's own decision and the reason
+       orbiting a water molecule reads as turning the model under a fixed
+       studio lamp rather than sweeping a lamp across it. World-fixed lights
+       put the leaf's underside in the dark exactly when the student turns it
+       over to look at the stomata. So Stage's key and fill are kept, only
+       warmed and rebalanced for a green subject, and the leaf adds its own
+       key to the CAMERA rather than to the scene.
+
+       Stage's ambient stays high. It is what keeps anything from going to
+       black, and dimming it is what made the first pass of these colours look
+       like stone. */
+    box.renderer.toneMapping = THREE.NoToneMapping;
     box.scene.traverse(o => {
-      if (o.isAmbientLight) o.intensity = 0.14;
-      else if (o.isDirectionalLight) o.intensity *= 0.35;
+      if (o.isAmbientLight) o.intensity = 0.3;
+      else if (o.isDirectionalLight) {
+        /* Stage's fill is blue, for a molecule on white paper. On a leaf it
+           reads as cold grey in every shadowed face. */
+        o.color.set(o.intensity > 0.6 ? 0xfff6e6 : 0xdfeaf2);
+        o.intensity *= 0.75;
+      }
     });
-    box.scene.add(new THREE.HemisphereLight(0xeaf5d8, 0x6d7d45, 0.5));
-    const key = new THREE.DirectionalLight(0xfff4e0, 0.5);
-    key.position.set(12, 18, 10);
-    key.castShadow = true;
-    key.shadow.radius = 4;
-    key.shadow.mapSize.set(2048, 2048);
-    key.shadow.camera.left = -14; key.shadow.camera.right = 14;
-    key.shadow.camera.top = 14; key.shadow.camera.bottom = -14;
-    key.shadow.bias = -0.0004;
-    box.scene.add(key);
-    /* A rim from behind and below, which is what stops the underside going
-       flat once the leaf is turned over to the stomata. */
-    const rim = new THREE.DirectionalLight(0xdff0ff, 0.24);
-    rim.position.set(-10, -8, -12);
-    box.scene.add(rim);
-    /* Fill opposite the key, casting nothing. This is what keeps a shadow from
-       being a hole: the only way to lighten one is to put light back into it,
-       since a directional light's shadow has no darkness of its own to turn
-       down. Between cells packed this tightly, an unfilled key reads as soot. */
-    const fill = new THREE.DirectionalLight(0xfaf7ee, 0.34);
-    fill.position.set(-9, 6, -6);
-    box.scene.add(fill);
-    /* NO GROUND PLANE. The leaf is a specimen, not an object on a table, and a
-       cast shadow under it read as a slab. The layers still shade each other,
-       which is the shadow that carries the structure. */
+    /* Sky above, leaf-litter below: the one world-fixed light, because up and
+       down are real for a leaf and a hemisphere casts nothing. */
+    box.scene.add(new THREE.HemisphereLight(0xf2fae6, 0x6f7d47, 0.42));
+    /* On the camera, like Stage's own. Low and to the left of the view, so the
+       side of a cell facing away from the key is still modelled. */
+    const under = new THREE.DirectionalLight(0xffffff, 0.3);
+    under.position.set(-5, -4, 6);
+    box.camera.add(under, under.target);
 
     leaf = create(THREE, box.root, box.camera, params);
     const frame = () => { box.cam.target.set(0, leaf.height() / 2, 0); box.applyCam(); };
