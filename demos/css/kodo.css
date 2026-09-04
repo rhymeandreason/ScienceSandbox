@@ -846,7 +846,13 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   border-color: var(--text-muted);
 }
 
-.pill--ghost[aria-current],
+/* `:not([aria-current="false"])` and not a bare `[aria-current]`. An honest
+   implementation writes the attribute on EVERY tab and sets it false on the
+   ones that are not current, which a presence check reads as "all selected" —
+   dna-anatomy did exactly that and drew eight chosen tabs. The other pages
+   here add and remove the attribute instead, so both spellings have to work,
+   along with the values ARIA actually defines (true, step, page). */
+.pill--ghost[aria-current]:not([aria-current="false"]),
 .pill--ghost.is-on {
   color: var(--text-strong);
   font-weight: var(--weight-semibold);

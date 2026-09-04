@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNA — the parts</title>
+
+<!-- ===================================================================
+     THE GLOSSARY. One finished molecule, 1BNA as deposited, and a rail of
+     parts that names them on it. It answers "what IS this" before any
+     lesson asks the student to build one, which is the question dna-lab
+     never stopped to answer.
+
+     NOTHING HERE IS A LIST OF ATOM INDICES. Every part is a QUERY over the
+     record's own atom names — the sugar is what the record calls C1′…O4′,
+     the phosphate is P and its oxygens, a base is what is left. So a
+     re-bake cannot leave a highlight pointing at the wrong spheres, and
+     the numbers in the captions are measured off the same coordinates the
+     spheres are drawn from.
+     =================================================================== -->
+
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="css/kodo.css">
+<link rel="stylesheet" href="css/sandbox.css">
+<style>
+  /* No side panel: the stage is the whole page. */
+  #app{grid-template-columns:1fr}
+  #stage{grid-column:1}
+
+  /* THE PARTS RAIL. Each row is kodo.css's `.pill--ghost`, which is what a row
+     of tabs is everywhere else on the site, so this page's spine and water-lab's
+     are the same object. Only what is true of a VERTICAL rail is set here: the
+     width, the left-aligned text, and the second line under the name. */
+  #parts{position:absolute;left:20px;top:50%;transform:translateY(-50%);z-index:7;
+    display:flex;flex-direction:column;gap:6px}
+  #parts .pill{width:196px;display:block;text-align:left;padding:9px 15px;
+    line-height:1.25}
+  /* The gloss is the part in three words. Serif and muted, so the name above it
+     stays the thing being chosen and this stays the thing explaining it. */
+  #parts .pill span{display:block;margin-top:2px;
+    font-family:var(--font-editorial);font-size:11.5px;font-weight:400;
+    letter-spacing:0;color:var(--text-muted)}
+  #parts .pill[aria-current="true"] span{color:var(--text-dim)}
+
+  /* What the part is, in a sentence. THE SAME OBJECT AS A STEP'S CLAIM: serif,
+     the paper behind it rather than a box on it, emphasis carried by the <b>
+     inside rather than by the whole line. `#stepclaim` sets exactly this on
+     membrane-lab and water-lab, and a glossary's caption is the same job. */
+  #note{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+    z-index:7;max-width:min(620px,72vw);text-align:center;
+    font-family:var(--font-editorial);font-size:17px;font-weight:400;
+    line-height:1.45;color:var(--text-body);
+    background:var(--surface-page);padding:9px 18px;border-radius:var(--radius-md)}
+  #note b{font-weight:600;color:var(--text-strong)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <nav id="parts"></nav>
+    <div id="note"></div>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>DNA, part by part</h1></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="lib/palette.js"></script>
+<script src="lib/tokens-from-palette.js"></script>
+<script src="lib/molecules.js"></script>
+<script src="lib/scene.js"></script>
+<script src="lib/annotate.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/stagekit.js"></script>
+<script src="dna/data/bdna.js"></script>
+<script>
+"use strict";
+
+const S = MolLib.SCALE;
+const bdna = window.BDNA;
+const stage = document.getElementById('stage');
+const note = document.getElementById('note');
+
+// Side-on to the axis, and NO ORBIT: the drag spins the duplex about its own
+// axis (below), which is the one turn that shows a helix what it is. A free
+// orbit would let a student leave it end-on, where every part overlaps every
+// other and the glossary names a tangle.
+const L = Lesson.create(document.getElementById('gl'), {
+  cam:{ theta:0, phi:1.5708, r:34 }, rMax:400, orbit:false,
+  // Taller than the duplex: the caption takes the bottom of the stage, and a
+  // helix running under it reads as cropped.
+  boxes:()=>[VIEW.box],
+  afterFrame:()=>{ recentre(); NOTES.step(); },
+});
+
+/* =============================================================================
+ *  THE MOLECULE
+ * =============================================================================
+ *  1BNA as deposited: twelve base pairs, each built from its own atoms and set
+ *  at its own recorded placement, with the phosphodiester bonds drawn between
+ *  them. Nothing is idealised and nothing moves — the winding is a lesson of
+ *  its own (tests/ladder-helix-test.html), and this page is the finished thing.
+ * ========================================================================== */
+// TWO GROUPS, because they answer to different things. G carries the solved
+// stand-up rotation, which is the record's business; SPIN carries the student's
+// drag. One group would mean the drag overwriting the solve.
+// FRAME translates, SPIN turns, G carries the solved stand-up. Three groups
+// because they answer to three different things — the page's framing, the
+// student's drag, and the record — and collapsing any two of them means one
+// overwriting another.
+const FRAME = new THREE.Group();
+L.root.add(FRAME);
+const SPIN = new THREE.Group();
+FRAME.add(SPIN);
+const G = new THREE.Group();
+SPIN.add(G);
+
+/* NAMES, NOT INDICES. `pair.index` maps the record's own atom name to its slot
+ * ("A:C1′" → 7); inverted, it says what every sphere IS, and every part below
+ * is a question asked of that. */
+const rungs = bdna.pairs.map(p => {
+  const names = [];
+  for(const k in p.index) names[p.index[k]] = k;
+  const spec = { name:p.seq, units:'scene', view:null,
+    atoms: p.atoms.map(a => ({ el:a.el, pos:a.p.map(v => v * S) })),
+    bonds: p.bonds };
+  const mol = Stage.buildMolecule(spec, { center:false });
+  mol.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+    ...p.basis.map(v => new THREE.Vector3(...v))));
+  mol.position.set(...p.origin).multiplyScalar(S);
+  G.add(mol);
+  // buildMolecule adds every bond first, then every atom, in spec order — the
+  // same order dna-lab's dimming relies on, and the only thing that connects a
+  // mesh back to the atom it draws.
+  const nb = (spec.bonds || []).length;
+  const bondMesh = mol.children.slice(0, nb);
+  const atomMesh = mol.children.slice(nb);
+  return { p, mol, names, spec, bondMesh, atomMesh };
+});
+
+/* The rails. A phosphodiester bond runs between two pairs, so it belongs to
+ * neither and is drawn here. Drawn once: nothing on this page moves. */
+const linkGeo = new THREE.CylinderGeometry(0.16, 0.16, 1, 7);
+const UP = new THREE.Vector3(0, 1, 0);
+const atomAt = (r, ai) => new THREE.Vector3(...r.p.atoms[ai].p).multiplyScalar(S)
+  .applyQuaternion(r.mol.quaternion).add(r.mol.position);
+const linkMesh = bdna.links.map(lk => {
+  const a = atomAt(rungs[lk.from.pair], lk.from.ai);
+  const b = atomAt(rungs[lk.to.pair],   lk.to.ai);
+  const d = b.clone().sub(a);
+  const m = new THREE.Mesh(linkGeo, new THREE.MeshStandardMaterial(
+    { color:0xbfae8e, roughness:.55 }));
+  m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(UP, d.clone().normalize());
+  m.scale.set(1, d.length(), 1);
+  m.userData.link = lk;
+  G.add(m);
+  return m;
+});
+
+/* STAND IT UP, SOLVED. The crystallographers' cell points the axis wherever it
+ * points, so a typed rotation is right for one bake and silently wrong for the
+ * next. The axis is the line the pair origins climb; the rotation that carries
+ * it to world +Y is read off that line. Then centre on those origins, so the
+ * duplex hangs in the frame rather than growing out of one corner. */
+{
+  const axis = new THREE.Vector3(...bdna.pairs[bdna.n - 1].origin)
+    .sub(new THREE.Vector3(...bdna.pairs[0].origin)).normalize();
+  G.quaternion.setFromUnitVectors(axis, UP);
+  const mid = new THREE.Vector3();
+  for(const p of bdna.pairs) mid.add(new THREE.Vector3(...p.origin));
+  mid.multiplyScalar(S / bdna.n).applyQuaternion(G.quaternion);
+  G.position.sub(mid);
+}
+
+// Where an atom is NOW, on screen's terms: the model turns under the drag, and
+// every callout anchor goes through here rather than caching a point.
+const worldAt = (r, ai) => G.localToWorld(atomAt(r, ai));
+
+/* =============================================================================
+ *  WHAT THE PARTS ARE
+ * =============================================================================
+ *  Asked of the record's names, never listed. The sugar is the ring and what
+ *  hangs off it, the phosphate is P and its oxygens, and a base is whatever is
+ *  left — which is exactly the split the chemistry makes, so a spec that gains
+ *  an atom is classified without anyone editing this page.
+ * ========================================================================== */
+const chainOf = n => n[0];
+const nameOf  = n => n.slice(2);
+const isSugar = a => /^(C1'|C2'|C3'|C4'|C5'|O2'|O3'|O4'|O5')$/.test(a);
+const isPhos  = a => /^(P|OP1|OP2|OP3)$/.test(a);
+const isBase  = a => !isSugar(a) && !isPhos(a);
+// The residue a sphere belongs to: a pair holds two, one per strand.
+const strandOf = (r, i) => chainOf(r.names[i]) === 'A' ? 0 : 1;
+
+// One residue, named the way the rest of the lesson names one: pair 5, strand 0
+// is the adenine dna-lab's step 2 builds.
+const SHOWN = { pair:5, strand:0 };
+const inResidue = (r, i, res) => r.p.i === res.pair && strandOf(r, i) === res.strand;
+
+/* =============================================================================
+ *  THE HIGHLIGHT
+ * =============================================================================
+ *  The same treatment as molecule-viewer: the part keeps its element colours
+ *  and everything else greys IN PLACE. Not opacity — a transparent atom still
+ *  sorts against the ones behind it, and on a molecule twelve pairs deep that
+ *  reads as a rendering fault rather than as "this is not the part".
+ *
+ *  A BOND IS IN THE PART ONLY IF BOTH ENDS ARE. One end in lights a stick
+ *  reaching out of the group, which makes the part look bigger than it is.
+ * ========================================================================== */
+const GREY = new THREE.Color(0x9a9186);
+const DIM = 0.88;              // how far towards grey; 1.0 loses the shape
+for(const r of rungs){
+  for(const m of r.atomMesh.concat(r.bondMesh)) m.userData.base = m.material.color.getHex();
+}
+for(const m of linkMesh) m.userData.base = m.material.color.getHex();
+
+/* AND WHEN THE STAGE PULLS IN, THE REST GOES GHOSTLY AS WELL. Greying in place
+ * is enough on the whole molecule, where the part is a region of it. On one
+ * nucleotide it is not: half a duplex stands between the camera and the thing
+ * being named, and a grey sphere in front of the part hides it just as well as
+ * a coloured one. So a zoomed part also drops the rest to a ghost that does not
+ * write depth — which is the same trick dna-lab's dimmed bases use, for the
+ * same reason. */
+function paint(part, ghost){
+  const wants = part.atoms || (() => true);
+  // `rails` is true for all of them or a question asked of one — a strand owns
+  // half the backbone bonds, and lighting the other half would draw a strand
+  // twice the width of the one being named.
+  const railIn = typeof part.rails === 'function' ? part.rails : () => !!part.rails;
+  const anyDim = !!part.atoms || !part.rails;
+  for(const r of rungs){
+    const on = r.spec.atoms.map((_, i) => wants(r, i));
+    r.atomMesh.forEach((m, i) => tint(m, on[i]));
+    r.bondMesh.forEach((m, k) => {
+      const b = r.spec.bonds[k];
+      tint(m, on[b[0]] && on[b[1]]);
+    });
+  }
+  for(const m of linkMesh) tint(m, railIn(m.userData.link));
+
+  function tint(m, on){
+    m.material.color.setHex(m.userData.base);
+    const dim = anyDim && !on;
+    if(dim) m.material.color.lerp(GREY, DIM);
+    m.material.transparent = dim && ghost;
+    m.material.opacity = (dim && ghost) ? 0.18 : 1;
+    m.material.depthWrite = !(dim && ghost);
+  }
+}
+
+/* =============================================================================
+ *  THE TWO GROOVES, MEASURED
+ * =============================================================================
+ *  The grooves are the one part with no atoms in it: they are the gaps LEFT
+ *  between the rails, which is why they exist at all. So they are found rather
+ *  than drawn — for every offset between the strands, how far apart the two
+ *  backbones run. The offset that brings them closest is the minor groove; the
+ *  next way round is the major, and their widths are what those distances say.
+ *
+ *  Phosphorus to phosphorus, which is what the atoms give. A textbook quotes
+ *  the groove ~5.8 Å narrower, having subtracted two phosphate radii; saying
+ *  which measurement this is costs a clause and keeps the number honest.
+ * ========================================================================== */
+const phosOf = (pairIndex, strand) => {
+  const r = rungs[pairIndex];
+  if(!r) return null;
+  const i = r.p.index[(strand === 0 ? 'A' : 'B') + ':P'];
+  return i == null ? null : { r, ai:i };
+};
+function grooves(){
+  const runs = [];
+  for(let k = -6; k <= 6; k++){
+    let sum = 0, n = 0, mid = null;
+    for(let i = 0; i < bdna.n; i++){
+      const a = phosOf(i, 0), b = phosOf(i + k, 1);
+      if(!a || !b) continue;
+      sum += atomAt(a.r, a.ai).distanceTo(atomAt(b.r, b.ai)) / S; n++;
+      if(!mid || Math.abs(i - bdna.n / 2) < Math.abs(mid.i - bdna.n / 2)) mid = { i, a, b };
+    }
+    if(n >= 4) runs.push({ k, d:sum / n, mid });
+  }
+  // The two ways round the duplex are the two signs of the offset: each side's
+  // closest approach is one groove, and the narrower of the two is the minor.
+  const best = sign => runs.filter(x => Math.sign(x.k) === sign)
+    .sort((p, q) => p.d - q.d)[0];
+  const two = [best(-1), best(1)].filter(Boolean).sort((p, q) => p.d - q.d);
+  return { minor:two[0], major:two[1] };
+}
+const GROOVE = grooves();
+// Halfway across the gap, on the two phosphates that measure it — so the label
+// sits in the groove and not on the backbone beside it.
+const grooveAt = g => () => worldAt(g.mid.a.r, g.mid.a.ai)
+  .add(worldAt(g.mid.b.r, g.mid.b.ai)).multiplyScalar(0.5);
+
+/* HOW MANY HYDROGEN BONDS, COUNTED. A·T holds with two and G·C with three, and
+ * that is the whole of the pairing rule — so it is counted off the record's own
+ * atoms rather than looked up from the letters.
+ *
+ * MUTUAL NEAREST, NOT EVERYTHING UNDER A CUTOFF. Every nitrogen and oxygen on
+ * one base has a neighbour on the other within a few ångströms, so a plain
+ * distance test counts the pair's own crowding: it made G·C five bonds and A·T
+ * three, both of which are wrong and neither of which looks it. Requiring each
+ * atom to be the other's CLOSEST partner leaves exactly the Watson-Crick
+ * contacts — 3 for every G·C in this molecule and 2 for every A·T, at 2.6 to
+ * 3.3 Å. The cutoff is only there to stop a lone atom pairing with something
+ * across the groove. */
+function hbonds(r){
+  const side = s => r.spec.atoms.map((_, i) => i)
+    .filter(i => strandOf(r, i) === s && isBase(nameOf(r.names[i]))
+                 && /^[NO]/.test(nameOf(r.names[i])));
+  const A = side(0), B = side(1);
+  if(!A.length || !B.length) return 0;
+  const d = (i, j) => atomAt(r, i).distanceTo(atomAt(r, j)) / S;
+  const nearest = (i, list) => list.reduce((best, j) => d(i, j) < d(i, best) ? j : best, list[0]);
+  let n = 0;
+  for(const i of A){
+    const j = nearest(i, B);
+    if(d(i, j) < 3.4 && nearest(j, A) === i) n++;
+  }
+  return n;
+}
+
+/* =============================================================================
+ *  THE CALLOUTS
+ * =============================================================================
+ *  annotate.js, with every anchor a FUNCTION: the duplex turns under the drag,
+ *  so a point captured when the part was chosen comes adrift on the first
+ *  frame. The label says what the part is; the card says why it matters.
+ * ========================================================================== */
+const NOTES = Annot.create(THREE, stage, L.camera, { mode:'on' });
+
+// The atom a label hangs on, by name, in the residue this page shows off.
+function at(pairIndex, strand, name){
+  const r = rungs[pairIndex];
+  const i = r.p.index[(strand === 0 ? 'A' : 'B') + ':' + name];
+  return i == null ? null : () => worldAt(r, i);
+}
+// The middle of a set of atoms, for a label that names a GROUP rather than an
+// atom — a sugar has no one sphere that is the sugar.
+function midOf(pairIndex, strand, want){
+  const r = rungs[pairIndex];
+  const idx = r.spec.atoms.map((_, i) => i).filter(i =>
+    strandOf(r, i) === strand && want(nameOf(r.names[i])));
+  return () => {
+    const c = new THREE.Vector3();
+    for(const i of idx) c.add(worldAt(r, i));
+    return c.multiplyScalar(1 / (idx.length || 1));
+  };
+}
+
+/* =============================================================================
+ *  THE PARTS RAIL
+ * =============================================================================
+ *  Each part is: which spheres are IT, what the callouts say, and the sentence
+ *  underneath. Every number in a sentence is read at render time from the
+ *  molecule on stage.
+ * ========================================================================== */
+const seqOf = i => bdna.pairs[i].seq.replace(/D/g, '').replace('-', '·');
+
+const PARTS = [
+  { key:'whole', title:'The double helix', sub:'two strands, wound',
+    rails:true,
+    note:()=>`${bdna.n} base pairs of B-DNA — the Drew-Dickerson dodecamer, `
+      + `1BNA. Every rung turns ${bdna.twistDeg.toFixed(1)}° from the one below `
+      + `it and sits ${bdna.rise.toFixed(1)} Å above it, so a full turn takes `
+      + `${(360 / bdna.twistDeg).toFixed(1)} rungs. <b>Drag to turn it.</b>`,
+    notes:()=>[
+      { text:'One strand', card:'A chain of nucleotides, joined sugar to phosphate. It runs the whole length of the molecule.',
+        at:midOf(2, 0, isPhos), offset:[-150, -20] },
+      { text:'The other strand', card:'Its partner, running the opposite way. The two are held together only by hydrogen bonds.',
+        at:midOf(9, 1, isPhos), offset:[130, -20] },
+    ] },
+
+  { key:'strand', title:'One strand', sub:'a chain, on its own',
+    atoms:(r, i)=>strandOf(r, i) === 0,
+    rails:lk=>lk.strand === 0,
+    note:()=>`One of the two chains, ${bdna.n} nucleotides long, and a single `
+      + 'molecule: every atom in it is joined to the next by covalent bonds. '
+      + '<b>This is what has to exist before pairing can happen.</b> The other '
+      + 'strand is a second molecule, held against this one only by hydrogen '
+      + 'bonds — which is why heat separates the two and neither falls apart.',
+    notes:()=>[
+      { text:'One molecule, end to end', card:'Break a hydrogen bond and you separate two strands. Break a phosphodiester bond and you have cut a strand in half.',
+        at:midOf(4, 0, isPhos), offset:[-160, -20] },
+    ] },
+
+  { key:'nucleotide', title:'One nucleotide', sub:'base + sugar + phosphate',
+    atoms:(r, i)=>inResidue(r, i, SHOWN),
+    note:()=>'The repeating unit, and the whole of it: a <b>base</b>, a '
+      + '<b>deoxyribose sugar</b>, and a <b>phosphate</b>. Chain millions of '
+      + 'these together and the sugar and phosphate become the backbone, with '
+      + 'the bases pointing inward.',
+    notes:()=>[
+      { text:'Base', card:'Adenine here. The part that differs between the four nucleotides, and the only part that carries information.',
+        at:midOf(SHOWN.pair, SHOWN.strand, isBase), offset:[130, -30] },
+      { text:'Sugar (deoxyribose)', card:'A five-carbon ring. Its 3′ and 5′ carbons are where the next nucleotides attach.',
+        at:midOf(SHOWN.pair, SHOWN.strand, isSugar), offset:[-140, 10] },
+      { text:'Phosphate', card:'Negatively charged at cell pH, which is why DNA is an acid and why it sticks to positively charged proteins.',
+        at:midOf(SHOWN.pair, SHOWN.strand, isPhos), offset:[-130, -40] },
+    ] },
+
+  { key:'pair', title:'A base pair', sub:'held by hydrogen bonds',
+    atoms:(r, i)=>r.p.i === SHOWN.pair && isBase(nameOf(r.names[i])),
+    note:()=>{
+      const r = rungs[SHOWN.pair];
+      return `${seqOf(SHOWN.pair)}, held by <b>${hbonds(r)} hydrogen bonds</b> `
+        + '— weak on their own, and there are millions of them. A·T holds with '
+        + 'two and G·C with three, which is the pairing rule: nothing else fits '
+        + 'the shape and the charges at once.';
+    },
+    notes:()=>[
+      { text:'Hydrogen bonds', card:'Not covalent. They break with heat or a helicase, which is how the two strands can be pulled apart and read.',
+        at:midOf(SHOWN.pair, 0, isBase), offset:[140, -20] },
+    ] },
+
+  { key:'backbone', title:'The backbone', sub:'sugar–phosphate, covalent',
+    atoms:(r, i)=>{ const a = nameOf(r.names[i]); return isSugar(a) || isPhos(a); },
+    rails:true,
+    note:()=>'Sugar, phosphate, sugar, phosphate, all the way down — and '
+      + 'identical whatever the sequence is. These bonds are <b>covalent</b>, '
+      + 'unlike the ones holding the two strands together, which is why a '
+      + 'strand survives being separated from its partner.',
+    notes:()=>[
+      { text:'Phosphodiester bond', card:'One phosphate bridging the 3′ carbon of one sugar and the 5′ carbon of the next. Made by dehydration, one water per bond.',
+        at:at(6, 0, 'P'), offset:[140, -10] },
+    ] },
+
+  { key:'bases', title:'The bases inside', sub:'stacked, and paired',
+    atoms:(r, i)=>isBase(nameOf(r.names[i])),
+    note:()=>'Every base points into the middle and stacks flat against the '
+      + 'ones above and below it. That stacking, not the hydrogen bonding, is '
+      + 'most of what holds the helix together — and it is why the sequence is '
+      + 'protected on the inside while the backbone takes the outside.',
+    notes:()=>[
+      { text:'Stacked flat', card:'Rungs 3.4 Å apart, face to face. The ring faces are greasy, so water pushes them together.',
+        at:midOf(6, 0, isBase), offset:[140, -20] },
+    ] },
+
+  { key:'grooves', title:'The two grooves', sub:'where a protein reads',
+    atoms:(r, i)=>{ const a = nameOf(r.names[i]); return isSugar(a) || isPhos(a); },
+    rails:true,
+    note:()=>`Wind a ladder and the gap between the rails comes out in two `
+      + `sizes. Measured phosphorus to phosphorus across each one, this molecule `
+      + `has them at <b>${GROOVE.minor.d.toFixed(1)} Å</b> and `
+      + `<b>${GROOVE.major.d.toFixed(1)} Å</b>. A protein that reads a sequence `
+      + `without opening the helix reaches into the wide one, where the edges of `
+      + `the bases are exposed.`,
+    notes:()=>[
+      { text:'Minor groove', card:'The narrow gap. The base edges facing into it look much the same whichever pair it is, so there is less to read.',
+        at:grooveAt(GROOVE.minor), offset:[-140, 0] },
+      { text:'Major groove', card:'The wide gap. Each of the four pairs shows a different pattern of donors and acceptors here, which is what a protein recognises.',
+        at:grooveAt(GROOVE.major), offset:[140, 0] },
+    ] },
+
+  { key:'ends', title:'5′ and 3′ ends', sub:'the strands run opposite ways',
+    atoms:(r, i)=>{
+      const a = nameOf(r.names[i]);
+      const first = r.p.i === 0, last = r.p.i === bdna.n - 1;
+      if(!first && !last) return false;
+      return isPhos(a) || /^(O3'|O5'|C3'|C5')$/.test(a);
+    },
+    note:()=>'A strand has a phosphate at one end and a free –OH at the other, '
+      + 'so it has a direction: <b>5′ to 3′</b>. The two strands run in '
+      + 'opposite directions — <b>antiparallel</b> — which is why each one can '
+      + 'act as the template for the other, and why the enzymes that copy DNA '
+      + 'only work one way along it.',
+    notes:()=>[
+      { text:"5′ end", card:'The phosphate end. New nucleotides are never added here.',
+        at:at(0, 0, "O5'") || at(0, 0, 'P'), offset:[-120, -20] },
+      { text:"3′ end", card:'The free hydroxyl. Every new nucleotide is added onto this one, which is why DNA is only ever built 5′ to 3′.',
+        at:at(bdna.n - 1, 0, "O3'"), offset:[130, 20] },
+    ] },
+];
+
+/* =============================================================================
+ *  FRAMING A PART
+ * =============================================================================
+ *  One nucleotide inside a 12-mer is forty spheres out of six hundred: greying
+ *  the rest names it and does not SHOW it. So the stage moves to the part —
+ *  centred on it and pulled in to its size — and comes back out for the parts
+ *  that are the whole molecule.
+ *
+ *  THE CENTRE IS RE-READ EVERY FRAME, not captured when the part is chosen. The
+ *  student can spin the duplex, and a part centred once would swing off the
+ *  stage on the first drag. FRAME only translates, so the centre it is
+ *  cancelling is measured inside SPIN and is unaffected by its own correction.
+ * ========================================================================== */
+// Whole-molecule framing, and the smallest a part may be zoomed to: closer than
+// this and a single nucleotide fills the stage with no molecule around it to
+// say where it sits.
+const WHOLE = { rxz:16, hy:52 };
+const MIN_R = 11;
+const VIEW = { box:{ x:0, y:0, ...WHOLE }, u:1 };
+
+/* THE VIEW ANGLE NEVER CHANGES WITH THE PART, only the framing. Tipping the
+ * model to lay a base pair flat to the camera shows the pair better and costs
+ * more than it buys: the student loses track of where they are in a molecule
+ * they were just looking at, and every part after it has to re-establish which
+ * way is up. One angle, chosen once; the drag is theirs. */
+
+// Which spheres the current part is, as live points inside SPIN.
+function partPoints(part){
+  const out = [];
+  if(!part.atoms) return out;
+  for(const r of rungs) r.spec.atoms.forEach((_, i) => {
+    if(part.atoms(r, i)) out.push(() => SPIN.worldToLocal(worldAt(r, i)));
+  });
+  return out;
+}
+let focusPts = [];
+function recentre(){
+  const want = new THREE.Vector3();
+  if(focusPts.length){
+    for(const f of focusPts) want.add(f());
+    want.multiplyScalar(1 / focusPts.length);
+  }
+  // Ease between "the part" and "the whole molecule" rather than snapping: the
+  // page is answering a question about one object, and a cut makes it look like
+  // a different one.
+  FRAME.position.set(0, 0, 0).addScaledVector(want, -VIEW.u);
+}
+
+function frameFor(part){
+  focusPts = partPoints(part);
+  if(!focusPts.length){ return { box:{ x:0, y:0, ...WHOLE }, u:0 }; }
+  const c = new THREE.Vector3();
+  for(const f of focusPts) c.add(f());
+  c.multiplyScalar(1 / focusPts.length);
+  let r = 0;
+  for(const f of focusPts) r = Math.max(r, f().distanceTo(c));
+  r = Math.max(MIN_R, r * 1.35);
+  // A part wider than the duplex is the duplex: frame the whole thing rather
+  // than pulling in on something that is already everything.
+  if(r >= WHOLE.rxz * 1.6) return { box:{ x:0, y:0, ...WHOLE }, u:0 };
+  return { box:{ x:0, y:0, rxz:r, hy:r }, u:1 };
+}
+
+let current = null;
+function show(part){
+  current = part;
+  const to = frameFor(part);
+  paint(part, to.u === 1);
+  const from = { box:{ ...VIEW.box }, u:VIEW.u };
+  L.motion.cancel('frame');
+  L.motion.seq([{ dur:0.55, ease:'inOutCubic', onUpdate:u=>{
+    VIEW.u = from.u + (to.u - from.u) * u;
+    VIEW.box = { x:0, y:0,
+      rxz: from.box.rxz + (to.box.rxz - from.box.rxz) * u,
+      hy:  from.box.hy  + (to.box.hy  - from.box.hy)  * u };
+    L.fit();
+  } }], { tag:'frame' });
+  NOTES.clear();
+  for(const n of part.notes()) if(n.at) NOTES.add(n);
+  note.innerHTML = part.note();
+  for(const b of document.querySelectorAll('#parts button'))
+    b.setAttribute('aria-current', String(b.dataset.key === part.key));
+}
+
+const rail = document.getElementById('parts');
+for(const part of PARTS){
+  const b = document.createElement('button');
+  /* kodo.css's tab shape, and `aria-current` is what marks the chosen one:
+   * the design system reads it AND a screen reader announces it, so there is
+   * no second source of truth for which part is showing. */
+  b.className = 'pill pill--ghost';
+  b.dataset.key = part.key;
+  b.innerHTML = `${part.title}<span>${part.sub}</span>`;
+  b.onclick = () => show(part);
+  rail.appendChild(b);
+}
+
+/* TURNING IT IS THE POINT. A helix seen from one angle is a tangle of sticks;
+ * the grooves only read as two different gaps once it moves. Yaw about the
+ * screen's up axis, which is the duplex's own axis after standing it up, so the
+ * drag spins it the way a model on a desk spins. */
+const canvas = document.getElementById('gl');
+let turn = null;
+canvas.addEventListener('pointerdown', e => {
+  turn = { x:e.clientX };
+  try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+});
+canvas.addEventListener('pointermove', e => {
+  if(!turn) return;
+  SPIN.rotation.y += (e.clientX - turn.x) * 0.008;
+  turn = { x:e.clientX };
+});
+addEventListener('pointerup', () => { turn = null; });
+
+show(PARTS[0]);
+L.resize(); L.fit(); L.start();
+</script>
+</body>
+</html>
