@@ -484,6 +484,13 @@
     for (const n of ORDER) anchors[n] = () => layerPoint(n);
     anchors.cuticle = () => layers.upperEpi ? layers.upperEpi.localToWorld(_a.set(-W * 0.25, Y.cuticle + P.layers.cuticle, D / 2)) : null;
     anchors.stoma = () => { const g = layers.lowerEpi; const st = g && g.children.find(o => o.children.length === 2); return st ? st.getWorldPosition(_a) : null; };
+    /* Which way a part faces, in world space, so a callout on it fades as it
+       turns away. The block rotates, so this is recomputed rather than baked.
+       Only the two undersides have one: every other anchor is on the cut face,
+       which is what the default camera is looking at. */
+    const _f = new THREE.Vector3(), _q = new THREE.Quaternion();
+    const faceDown = () => _f.set(0, -1, 0).applyQuaternion(block.getWorldQuaternion(_q));
+    const facings = { stoma: faceDown, lowerEpi: faceDown };
     const library = {
       upperEpi: { text: 'upper epidermis', offset: [-40, -28], card: 'One clear layer of cells with no chloroplasts, so light passes straight through to the tissue that uses it.' },
       cuticle:  { text: 'cuticle', offset: [-40, -28], card: 'A waxy coat the epidermis secretes. It is what keeps a leaf from drying out, and why water beads on it.' },
@@ -494,7 +501,7 @@
       stoma:    { text: 'stoma', offset: [40, 26], card: 'Two guard cells and the pore between them. They swell to open it for CO₂ and close it to keep water in.' },
     };
     build();
-    return { step, state, set, on, point, pick, select, height, block, layers, anchors, library, params: () => P, ORDER,
+    return { step, state, set, on, point, pick, select, height, block, layers, anchors, facings, library, params: () => P, ORDER,
       layersOf, show, palette };
   }
 
@@ -549,7 +556,7 @@
     cv.addEventListener('click', onClick);
     leaf.on('hover', n => { cv.style.cursor = n ? 'pointer' : ''; });
     box.pump();
-    nb = global.Notebook ? global.Notebook.create({ box, anchors: leaf.anchors, library: leaf.library }) : null;
+    nb = global.Notebook ? global.Notebook.create({ box, anchors: leaf.anchors, facings: leaf.facings, library: leaf.library }) : null;
 
     return {
       sim: leaf, box,

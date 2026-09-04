@@ -100,6 +100,13 @@
    transform: translate(var(--adx, -18px), var(--ady, 0px)) translate(-100%, -50%)
 }
 
+/* Turned away from the camera. The note is faded to nothing by the facing
+    test in annotate.js; this only stops the invisible dot taking a click that
+    belongs to the model behind it. */
+.annot.is-away, .annot.is-away .annot-dot {
+   pointer-events: none
+}
+
 /* Closed is the click mode's resting state: the dot stays, the label
     goes. Kept in the layout (not display:none) so opening it costs no
     reflow and the fade has something to fade. */

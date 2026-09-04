@@ -21,6 +21,12 @@
  *  sliding subunit, a heme riding its chain in — because the anchor is
  *  "wherever atom N is now" rather than a position captured at build time.
  *
+ *  An anchor may also declare which way its part FACES, and a note on a part
+ *  turned away from the camera fades out: a callout on the underside of a leaf,
+ *  read from above, points at a surface the student is looking at the back of.
+ *  `facing` is a direction in the MODEL's own space and is transformed each
+ *  frame, for the same reason the point is — the model turns.
+ *
  *  NEVER capture the point at build time. Baking an anchor — a coordinate,
  *  or a spot on the mesh — is what a viewer has to do when it is handed an
  *  opaque asset, and it is wrong here: every model on this site is built
@@ -158,6 +164,12 @@ window.Annot = (function () {
 
     const notes = [];
     const _v = new THREE.Vector3();
+    const _p0 = new THREE.Vector3(), _vd = new THREE.Vector3();
+    /* Half the fade, in cosine. Edge-on is the MIDDLE of it, so a note is
+       already half gone by the time its part passes 90 degrees rather than
+       popping off there. About 15 degrees either side. */
+    const FACE_BAND = 0.26;
+    const clamp01 = t => (t < 0 ? 0 : t > 1 ? 1 : t);
 
     /* ---- the card ----
        A label names the thing; a card answers "why". ONE card per layer,
@@ -314,6 +326,10 @@ window.Annot = (function () {
         el, dot, label,
         at: spec.at,
         atPx: spec.atPx,
+        /* Which way the part faces: a function returning a WORLD vector, the
+           same rule as `at` and for the same reason — the model turns, so a
+           baked normal comes adrift the moment it does. */
+        facing: spec.facing || null,
         offset: off,
         flipped: false,               // pushed off the keep-out this frame
         _lw: null,                    // label width, measured once (see keepOut)
@@ -475,6 +491,7 @@ window.Annot = (function () {
         /* Camera distance BEFORE projecting, because project() overwrites
            the vector — and it is the honest depth. See the sort below. */
         depth = p.distanceTo(camera.position);
+        _p0.copy(p);                    // project() overwrites p; the facing test needs the world point
         p.project(camera);
 
         /* z outside [-1,1] is behind the camera or past the far plane:
@@ -500,13 +517,27 @@ window.Annot = (function () {
           }
         }
 
-        let o = 1, lift = 0;
+        /* FACING. Edge-on is the middle of the fade, not its start, so a note
+           does not pop off the instant its part passes 90 degrees: it is
+           already half gone by then. Below the floor the note also stops
+           taking the mouse, or a ghost label eats a click on the model. */
+        let face = 1;
+        const fw = n.facing && n.facing();
+        if (fw) {
+          _vd.copy(_p0).sub(camera.position).normalize();    // camera towards the part
+          const towards = -fw.dot(_vd);                      // 1 face on, -1 dead away
+          face = clamp01((towards + FACE_BAND) / (2 * FACE_BAND));
+          n.el.classList.toggle('is-away', face < 0.06);
+        }
+
+        let o = face, lift = 0;
         if (mode === 'reveal') {
           if (revealT0 < 0) { o = 0; }
           else {
             const t = (now - revealT0 - n.delay) / RISE;
-            o = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
-            lift = (1 - o) * LIFT;
+            const r = t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+            lift = (1 - r) * LIFT;
+            o = r * face;
           }
         }
 
@@ -622,6 +653,9 @@ window.Annot = (function () {
  *      c.note('pump', { text:'…', card:'…' });  // the page's own words, same anchor
  *      c.notes(['channel.K', 'pump']);          // exactly these; false clears
  *      c.anchors();                             // names, with the library text
+ *  `facings` is the optional twin of `anchors`: name → function returning the
+ *  world direction that part faces, for the parts where being on the far side
+ *  of the model should fade the callout out. Most parts have none.
  *  It lives in this file, not beside card-stage.js, so that loading
  *  annotate.js is all a page has to remember: a generated page that
  *  reached for callouts loaded this and forgot a second script, and every
@@ -630,7 +664,7 @@ window.Annot = (function () {
  *  pump in this layout, no Na⁺ yet) parks the note off screen.
  * ===================================================================== */
 window.Notebook = (function () {
-  function create({ box, anchors = {}, library = {} }) {
+  function create({ box, anchors = {}, library = {}, facings = {} }) {
     let layer = null;
     const open = new Map();                  // name → annotate note
     const _p = new THREE.Vector3();
@@ -656,7 +690,8 @@ window.Notebook = (function () {
       const lib = library[name] || {};
       const spec = Object.assign({ text: name, offset: [34, -26] }, lib, over);
       if (open.has(name)) open.get(name).remove();
-      const n = ensure().add({ text: spec.text, card: spec.card, offset: spec.offset, tone: spec.tone, at: () => at() });
+      const n = ensure().add({ text: spec.text, card: spec.card, offset: spec.offset, tone: spec.tone,
+        at: () => at(), facing: facings[name] || null });
       open.set(name, n);
       if (!box.running) box.draw();
       return n;
