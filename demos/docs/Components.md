@@ -89,6 +89,8 @@ c.anchors();                                      // the names this component ha
 
 Notes follow their part as it moves and as the camera turns. Show two or three at once, never ten. A step that changes subject should `notes(false)` first. Each component's section lists its anchor names.
 
+**Some parts also come with a view.** A callout on something facing away from the camera is a label the student cannot check against the thing, so a component may declare a camera pose per part and `c.lookAt('stoma')` flies to it. The show panel does this on its own when a chip turns a note on; a step that places a note itself should call it too. Only the parts that need one have one — a part already in frame does not move the camera — and `c.views()` says which.
+
 ### Layers: showing and hiding
 
 Every component declares what can be switched off without stopping the sim: a hidden water still crosses and still counts.
@@ -301,7 +303,7 @@ Glides: `aperture`, `explode`, and the fade `isolate` puts on everything else. S
 
 `state()`: `explode`, `seed`, `isolate`, `aperture`, `hovered`, and `layers` as a list of `{name, y, height}`. Events: `frame` (state) · `hover` (name or null) · `select` (name or null).
 
-Anchors for `note()`: `upperEpi`, `cuticle`, `palisade`, `spongy`, `bundle`, `lowerEpi`, `stoma`. Each carries the library's two-sentence card on what that tissue does.
+Anchors for `note()`: `upperEpi`, `cuticle`, `palisade`, `spongy`, `bundle`, `lowerEpi`, `stoma`. Each carries the library's two-sentence card on what that tissue does. `stoma` and `lowerEpi` carry a view as well: pointing at either turns the leaf over, because the stomata are underneath.
 
 Layers for `show()`: the five tissues by the same names, plus `chloroplasts` and `cuticle`.
 

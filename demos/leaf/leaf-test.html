@@ -61,6 +61,9 @@ const shell = LessonShell.create({
 const L = Leaf.mount(shell.stage, { viewOffset: shell.viewOffset });
 let allNotes = false;
 L.on('select', n => { if (!allNotes) L.notes(n ? [n] : false); });
+/* The bench's console is part of the bench: `leaf.set({...})`, `leaf.lookAt('stoma')`,
+   `leaf.state()`. Also the only way to drive a frame when rAF is paused. */
+window.leaf = L;
 
 function bench(ctx) {
   const ui = ctx.ui;

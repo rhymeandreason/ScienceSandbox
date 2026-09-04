@@ -47,6 +47,17 @@
   };
   const ORDER = ['lowerEpi', 'bundle', 'spongy', 'palisade', 'upperEpi'];
 
+  /* A pose per part that cannot be seen from the default camera. The stomata
+     are on the UNDERSIDE, so pointing at one from above puts a label on a
+     surface the student is looking at the back of; the answer to "where is
+     it?" has to include turning the leaf over. Only the parts that need one
+     are listed: a part already in frame should not move the camera, and a
+     component that flies on every chip is seasick. */
+  const VIEWS = {
+    stoma:    { theta: 0.65, phi: 2.45, r: 28 },
+    lowerEpi: { theta: 0.65, phi: 2.30, r: 28 },
+  };
+
   const capsule = (T, ...a) => global.Geo.capsule(T, ...a);
   const roundedBox = (T, ...a) => global.Geo.roundedBox(T, ...a);
 
@@ -542,6 +553,10 @@
 
     return {
       sim: leaf, box,
+      /* The camera half of an anchor: the panel calls this when a chip turns a
+         note on, so "point at the stoma" turns the leaf over to it. */
+      views: () => VIEWS,
+      lookAt(name, dur) { if (VIEWS[name]) box.flyTo(VIEWS[name], dur); return this; },
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
       layers: leaf.layersOf, show: (n, on) => { leaf.show(n, on); if (!box.running) box.draw(); return this; }, palette: leaf.palette,
@@ -558,7 +573,7 @@
     };
   }
 
-  global.Leaf = { create, mount, DEFAULTS, ORDER };
+  global.Leaf = { create, mount, DEFAULTS, ORDER, VIEWS };
   /* Scale (kit/scale.js, docs/Scale.md). Bulk cells in tissue layers, at a
      diagram's proportions rather than a measured section: unit is null and no
      page prints a thickness off it. Layer heights in DEFAULTS are scene units. */

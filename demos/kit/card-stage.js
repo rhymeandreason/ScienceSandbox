@@ -168,6 +168,7 @@
       raf = requestAnimationFrame(tick);
       const dt = last ? Math.min((now - last) / 1000, 0.1) : 0.016;
       last = now;
+      camTw.update(dt);
       if (opts.step) opts.step(dt);
       draw();
     }
@@ -178,7 +179,9 @@
      * shot. Not part of the loop, and it does not start or stop one. */
     function pump(dt) {
       if (dead) return;
-      if (opts.step) opts.step(Math.min(dt === undefined ? 0.016 : dt, 0.1));
+      const d = Math.min(dt === undefined ? 0.016 : dt, 0.1);
+      camTw.update(d);
+      if (opts.step) opts.step(d);
       draw();
     }
 
@@ -254,11 +257,35 @@
     draw();
     if (opts.autoplay !== false) start();
 
+    /* ---- flying the camera ----
+       A turntable move, so it interpolates theta/phi/r and not the camera's
+       position: a straight line through the middle of the model passes THROUGH
+       it, and the student watches the inside of a leaf go by. theta takes the
+       short way round, or a 10-degree correction spins 350 the other way.
+
+       Trackball mode makes theta/phi meaningless (scene.js), so a box turned
+       that way is left where it is rather than snapped to a pose that no
+       longer means anything. */
+    const camTw = tweens();
+    function flyTo(next, dur = 1.1) {
+      if (stage.cam.turn === 'trackball') return;
+      const c = stage.cam, f = { theta: c.theta, phi: c.phi, r: c.r };
+      const to = Object.assign({}, f, next);
+      let d = to.theta - f.theta;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      to.theta = f.theta + d;
+      for (const k of ['theta', 'phi', 'r']) {
+        camTw.to(f[k], to[k], dur, v => { c[k] = v; stage.applyCam(); if (!raf) draw(); },
+          { key: 'fly-' + k, ease: 'inOutCubic' });
+      }
+    }
+
     return {
       canvas, stage,
       scene: stage.scene, camera: stage.camera, renderer: stage.renderer,
       root: stage.root, cam: stage.cam, applyCam: stage.applyCam,
-      start, stop, draw, pump, snapshot, layout,
+      flyTo, start, stop, draw, pump, snapshot, layout,
       get running() { return !!raf; },
       get dead() { return dead; },
       destroy() {
@@ -399,7 +426,14 @@
     };
     if (want.includes('notes') && c.anchors) {
       const open = new Set();
-      const toggle = (it, on) => { if (on) { open.add(it.name); c.note(it.name); } else { open.delete(it.name); c.notes([...open]); } };
+      /* Turning a note on also flies to it, when the component declares a view
+         for that part: a callout on something facing away from the camera is a
+         label the student cannot check against the thing. Components list only
+         the parts that need it, so most chips still move nothing. */
+      const toggle = (it, on) => {
+        if (on) { open.add(it.name); c.note(it.name); if (c.lookAt) c.lookAt(it.name); }
+        else { open.delete(it.name); c.notes([...open]); }
+      };
       group(opts.notesLabel || 'point at', pick(c.anchors(), opts.notes), () => false, toggle);
     }
     if (want.includes('layers') && c.layers) {
