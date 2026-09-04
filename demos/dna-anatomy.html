@@ -27,11 +27,9 @@
      reader is on is the part the model is showing — so there are no buttons to
      keep in sync with the prose.
 
-     THE WINDOW IS WHAT SCROLLS, not a pane inside it. ScrollSmoother only
-     smooths the page's own scroll (it transforms one content element under a
-     wrapper), so the stage is FIXED beside the column and lives outside that
-     wrapper — a fixed element inside transformed content is positioned against
-     the transform and rides up the page. */
+     THE WINDOW IS WHAT SCROLLS, not a pane inside it: that is the scroll every
+     smooth-scroll library wraps, and the one the keyboard, the scrollbar and a
+     screen reader already drive. So the stage is FIXED beside the column. */
   :root{--stage-w:62vw}
   #stage{position:fixed;top:0;left:0;width:var(--stage-w);height:100vh;z-index:1;
     background:var(--surface-stage);border-right:1px solid var(--border-hair)}
@@ -47,7 +45,7 @@
   /* THE COLUMN. Its own scroller, not the window's: the stage beside it is
      fixed at 100vh and a page-level scroll would drag it off the top. */
   /* The column is ordinary page flow, offset by the stage's width. Snapping is
-     ScrollTrigger's (below), not `scroll-snap-type`: proximity never fires at
+     the settle in JS (below), not `scroll-snap-type`: proximity never fires at
      these distances and mandatory jumps on load. */
   #read{position:relative;z-index:2;margin-left:var(--stage-w);
     background:var(--surface-page);
@@ -114,8 +112,6 @@
 </style>
 </head>
 <body>
-<!-- Both of these sit OUTSIDE #smooth-wrapper: ScrollSmoother transforms the
-     content element, and anything fixed inside it is fixed to that transform. -->
 <div id="stage">
   <canvas id="gl"></canvas>
   <p id="specimen"></p>
@@ -125,19 +121,17 @@
   <span class="crumb">Structure of DNA</span>
 </nav>
 
-<div id="smooth-wrapper"><div id="smooth-content">
-  <div id="read"><div class="col">
-    <div id="sections"></div>
-    <div class="tail"></div>
-  </div></div>
+<div id="read"><div class="col">
+  <div id="sections"></div>
+  <div class="tail"></div>
 </div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<!-- The scroll itself: GSAP's, because momentum and snapping ARE a convention
-     and hand-rolling them lands somewhere nobody else's page is. Pinned. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollTrigger.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollSmoother.min.js"></script>
+<!-- The momentum, and ONLY the momentum: Lenis, 5 kB gzipped, one file, MIT.
+     What GSAP was here for was ScrollSmoother; the other two files were the
+     price of it. Which section is showing is IntersectionObserver's job and the
+     browser already has one, and the settle is six lines below. Pinned. -->
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
 <script src="lib/palette.js"></script>
 <script src="lib/tokens-from-palette.js"></script>
 <script src="lib/molecules.js"></script>
@@ -783,53 +777,58 @@ show(PARTS[0]);
 L.resize(); L.fit(); L.start();
 
 /* =============================================================================
- *  THE SCROLL: GSAP's ScrollSmoother + ScrollTrigger
+ *  THE SCROLL
  * =============================================================================
- *  Momentum and snapping are a convention, and the hand-rolled version of them
- *  (a debounced scrollTo) settles in a way no other site does. ScrollSmoother
- *  gives the column the inertia everyone's thumb already expects; ScrollTrigger
- *  says which section is on the reading line and does the snapping off one
- *  trigger over the whole document.
+ *  Three jobs, and only the first of them needs a library:
  *
- *  THE READING LINE IS THE MIDDLE OF THE WINDOW, and the snap puts a section's
- *  middle there, so the model changes exactly as the column settles.
+ *  MOMENTUM is Lenis. It wraps the browser's own scroll rather than replacing
+ *  it, so the scrollbar, the keyboard, anchor links and `position:fixed` all
+ *  keep working — which is what the hand-rolled version of this always breaks.
+ *
+ *  WHICH PART IS SHOWING is IntersectionObserver, with the viewport squeezed to
+ *  a line across its middle: exactly one section can be crossing that line, so
+ *  there is no "nearest" to compute and nothing to keep in sync.
+ *
+ *  THE SETTLE is below. A section is most of a window tall, so the browser's
+ *  own `scroll-snap-type:proximity` never fires and `mandatory` snaps on load.
  * ========================================================================== */
-gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
+const lenis = new Lenis({ autoRaf:true, duration:1.1 });
 
-ScrollSmoother.create({
-  wrapper:'#smooth-wrapper', content:'#smooth-content',
-  smooth:1.1,           // seconds the content takes to catch the real scroll
-  smoothTouch:0.1,      // a thumb expects its own momentum; only take the edge off
-  effects:false,
+const READLINE = { root:null, rootMargin:'-50% 0px -50% 0px', threshold:0 };
+const seen = new IntersectionObserver(entries => {
+  for(const e of entries) if(e.isIntersecting) show(PARTS[secs.indexOf(e.target)]);
+}, READLINE);
+for(const el of secs) seen.observe(el);
+
+/* WHERE A SECTION WANTS TO SIT: its middle on that same line. Measured when the
+ * settle runs, not captured — a resize changes every height, and a baked list
+ * then parks the column between two sections. */
+const settleTo = el => el.offsetTop + el.offsetHeight / 2 - innerHeight / 2;
+
+// SETTLE_MS is how long "stopped" is. Under about 100 it fires inside the
+// momentum and takes the scroll out of the reader's hands.
+const SETTLE_MS = 150, SNAP_SLOP = 8;
+let settleTimer = null, settling = false;
+lenis.on('scroll', () => {
+  if(settling) return;
+  clearTimeout(settleTimer);
+  settleTimer = setTimeout(() => {
+    let best = null, bestD = Infinity;
+    for(const el of secs){
+      const d = Math.abs(settleTo(el) - lenis.scroll);
+      if(d < bestD){ bestD = d; best = el; }
+    }
+    if(!best || bestD <= SNAP_SLOP) return;
+    settling = true;
+    lenis.scrollTo(settleTo(best), {
+      duration:0.6, easing:t => 1 - Math.pow(1 - t, 3),
+      onComplete:() => { settling = false; },
+    });
+  }, SETTLE_MS);
 });
 
-// Which part each section is, as it crosses the middle. onToggle rather than a
-// scroll handler of our own: it fires once per crossing, in both directions.
-secs.forEach((el, i) => ScrollTrigger.create({
-  trigger:el, start:'top center', end:'bottom center',
-  onToggle:self => { if(self.isActive) show(PARTS[i]); },
-}));
-
-/* WHERE THE SNAP POINTS ARE, RECOMPUTED rather than captured: a resize changes
- * every section's height, and a baked list of progress values then settles the
- * column between two sections. */
-function snapPoints(){
-  const max = ScrollTrigger.maxScroll(window) || 1;
-  return secs.map(el => gsap.utils.clamp(0, 1,
-    (el.offsetTop + el.offsetHeight / 2 - innerHeight / 2) / max));
-}
-ScrollTrigger.create({
-  trigger:'#smooth-content', start:'top top', end:'bottom bottom',
-  snap:{
-    snapTo:p => gsap.utils.snap(snapPoints(), p),
-    duration:{ min:0.25, max:0.6 },
-    delay:0.06,                     // after the momentum has run out, not during
-    ease:'power2.inOut',
-  },
-});
-
-// LAST, and after the first show(): the triggers fire on creation, and one
-// firing into a page whose HOME angle is not declared yet is a dead page.
+// LAST, and after the first show(): the observer fires on its first check, and
+// one firing into a page whose HOME angle is not declared yet is a dead page.
 
 </script>
 </body>
