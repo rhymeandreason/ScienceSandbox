@@ -166,19 +166,29 @@ const flat = s => ({ ...s, view:null });
 // before the nav below is built.
 let step = 1;
 
+const BOX2 = { x:0, y:-3, rxz:30, hy:27 };
+const BOX3 = { x:0, y:-9, rxz:26, hy:24 };
+const lerpBox = (a, b, u) => ({ x:a.x + (b.x - a.x) * u, y:a.y + (b.y - a.y) * u,
+                                rxz:a.rxz + (b.rxz - a.rxz) * u,
+                                hy:a.hy + (b.hy - a.hy) * u });
+let enter3u = 1;
+
 const L = Lesson.create(document.getElementById('gl'), {
   cam:{ theta:0, phi:1.5708, r:34 }, rMax:400,
   // NO ORBIT — the drag moves a molecule, and the pointer is projected onto
   // the z=0 plane the bases live in, which only means anything face-on.
   orbit:false,
   boxes:()=>step === 4 ? [{ x:0, y:0, rxz:16, hy:44 }]
-         : step === 2 ? [{ x:0, y:-3, rxz:30, hy:27 }]
+         : step === 2 ? [BOX2]
          // Step 3 reframes once the bond is made: before it, the stage has to
          // hold the loose nucleotide waiting below as well as the one it joins.
          // Step 3 reframes once the rungs are joined: before that the stage
          // also has to hold the lower rung waiting below.
+         // Coming in from step 2 it starts on STEP 2'S OWN FRAME, so the rung
+         // the student just built does not jump as the step changes; the frame
+         // opens to make room for the lower rung as that rung arrives.
          : step === 3 ? (rung3s[1].joined ? [{ x:0, y:0,   rxz:38, hy:22 }]
-                                        : [{ x:0, y:-9,  rxz:26, hy:24 }])
+                                        : [lerpBox(BOX2, BOX3, enter3u)])
                        : [{ x:0, y:0, rxz:26, hy:17 }],
   afterFrame:()=>{                                    // projection reads a matrix refreshed on render
     if(step === 1){ placeTags(); placeRulers(); }
@@ -1455,6 +1465,22 @@ const AWAY = 21;
   rung3s[1].tag.textContent = 'T·A';
 }
 
+/* TWO PIVOTS, one per gesture. The student's drag turns the finished duplex, so
+ * it turns about the duplex's middle. The entry turn is the rung from step 2
+ * rolling onto its side, so it has to turn about THAT rung — about the duplex
+ * centre the rung swings, and the step opens with the molecule jumping down the
+ * screen. At the end of the turn the spin is identity, so swapping back shows
+ * nothing. */
+const PIVOT_DUPLEX = pivot3.clone();
+const PIVOT_RUNG1 = (() => {
+  const c = new THREE.Vector3(); let n = 0;
+  for(const res of rung3s[0].res) for(const a of res.spec.atoms){
+    c.add(new THREE.Vector3(...a.pos).applyQuaternion(res.mol.quaternion)
+      .add(res.mol.position).add(rung3s[0].mol.position)); n++;
+  }
+  return c.multiplyScalar(1 / n);
+})();
+
 /* ---- the two bonds --------------------------------------------------------- */
 /* WHICH ATOM MEETS WHICH, asked of the geometry rather than declared. With both
  * rung3s at their crystal placements, exactly two O3′···P pairs are within
@@ -1732,12 +1758,16 @@ function placeTags3(){
  * TILT3 off edge-on, so a quarter turn less that tilt is the face.
  */
 const ENTER_X = Math.PI / 2 - TILT3;
+// Where the centring left the group. The entry borrows it and gives it back.
+const g3y0 = G3.position.y;
 function enter3(){
   const rung = rung3s[1];
   L.motion.cancel('link3');
   rung.mol.position.copy(staged3);
   rung.mol.visible = false;
   setTwist3(0);
+  enter3u = 0;
+  pivot3.copy(PIVOT_RUNG1);
   euler3.set(ENTER_X, 0, 0);
   applySpin3();
   // Further down the SCREEN, which is what SPIN3's world walk converts: the
@@ -1746,12 +1776,28 @@ function enter3(){
   SPIN3.updateMatrixWorld(true);
   const far = SPIN3.worldToLocal(SPIN3.localToWorld(staged3.clone())
     .add(new THREE.Vector3(0, -AWAY, 0)));
+  /* AND THE RUNG STARTS WHERE STEP 2 LEFT IT. The two steps centre on different
+   * things — step 2 on its assembly, step 3 on the finished duplex — so the
+   * same rung sits about 70 px lower here, and the step opened with a lurch.
+   * The group is offset to cancel that, and the offset is eased out as the
+   * lower rung arrives, which is when the frame is opening anyway. */
+  const dy = (() => {
+    G3.position.y = g3y0;
+    G3.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    for(const res of rung3s[0].res) box.expandByObject(res.mol);
+    return spinToWorld(assemblyCentre()).y - box.getCenter(new THREE.Vector3()).y;
+  })();
+  G3.position.y = g3y0 + dy;
   L.motion.seq([
     { dur:0.8, ease:'inOutCubic',
       onUpdate:u=>{ euler3.x = ENTER_X * (1 - u); applySpin3(); } },
-    { call:()=>{ rung.mol.visible = true; rung.tag.style.display = ''; } },
+    { call:()=>{ pivot3.copy(PIVOT_DUPLEX); applySpin3();
+                 rung.mol.visible = true; rung.tag.style.display = ''; } },
     { dur:0.55, ease:'outCubic',
-      onUpdate:u=>{ rung.mol.position.lerpVectors(far, staged3, u); } },
+      onUpdate:u=>{ rung.mol.position.lerpVectors(far, staged3, u);
+                    G3.position.y = g3y0 + dy * (1 - u);
+                    enter3u = u; L.fit(); } },
   ], { tag:'enter3' });
 }
 
@@ -1972,7 +2018,7 @@ function showStep(n){
   for(const rung of rung3s)
     rung.tag.style.display = (n === 3 && !rung3s[1].joined) ? '' : 'none';
   if(n === 3 && !rung3s[1].joined){ rung3s[1].tag.style.display = 'none'; enter3(); }
-  else L.motion.cancel('enter3');
+  else { L.motion.cancel('enter3'); enter3u = 1; G3.position.y = g3y0; }
   for(const e of ends3) e.el.style.display = (n === 3) ? '' : 'none';
   if(n === 3) say3();
   if(n === 2){ pairBonds(); say(nucleo.adenine); }
