@@ -56,7 +56,12 @@
       background-size:26px 26px; background-position:13px 13px}
   }
   #side::before{display:none}
-  #card{min-height:0}
+  /* The sidebar's one column of content. It was sandbox.css's, and this is all
+     a pathway page ever used of it, so it comes here with the rest of the rail
+     rather than keeping that sheet linked for it. sandbox.css also said
+     `flex:1`, which this file has always overridden with `flex:none` further
+     down — the sidebar scrolls, not the card — so it is not restated here. */
+  #card{display:flex;flex-direction:column;min-height:0}
 
   /* ---------- species labels: DOM over the canvas, one per lane ----------
      Placed every frame from the projected anchor (drawPlates) so they track

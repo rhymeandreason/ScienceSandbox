@@ -21,11 +21,13 @@
 
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="css/kodo.css">
-<link rel="stylesheet" href="css/sandbox.css">
 <style>
   /* No side panel: the stage is the whole page. */
   #app{grid-template-columns:1fr}
   #stage{grid-column:1}
+  /* The glyph beside the wordmark. kodo.css owns #brand and #brand h1; this is
+     the one line of it that was sandbox.css's. */
+  #brand .drop{font-size:26px;color:var(--text-strong)}
 
   /* THE PARTS RAIL. Each row is kodo.css's `.pill--ghost`, which is what a row
      of tabs is everywhere else on the site, so this page's spine and water-lab's

@@ -12,7 +12,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="css/kodo.css">          <!-- design system: tokens, type, buttons -->
-<link rel="stylesheet" href="css/sandbox.css">
 <style>
   /* ---------- goal cards, top-center: one per lesson, tabs styled as a dealt
      hand of cards (no outline, overlapping) so the strip reads as objects you
@@ -228,7 +227,13 @@
   #dims.armed{opacity:1;pointer-events:auto}
 
   /* the PNG button and the dock both want the bottom strip — move it up */
-  #savepng{bottom:22px;right:26px;left:auto}
+  /* The shape is kodo.css's `.btn`, on the markup; this is the corner. It sits
+     bottom-RIGHT here because the dock owns the bottom-left. */
+  #savepng{position:absolute;bottom:22px;right:26px;left:auto;z-index:5}
+  /* sandbox.css had a `#clearmol` rule stripping this button's fill. It never
+     applied: `#dock button.act` below is (1,1,1) against its (1,0,0), so the
+     dock has always won. Not carried over, because carrying it over would have
+     been carrying a rule that does nothing. */
 </style>
 </head>
 <body>
@@ -291,7 +296,7 @@
     <div id="notes" aria-live="polite"></div>
     <div id="sticky" aria-live="polite"></div>
     <div id="say" aria-live="polite"></div>
-    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+    <button class="btn" id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
     <div id="dock">
       <div id="dims" role="group" aria-label="View angle">

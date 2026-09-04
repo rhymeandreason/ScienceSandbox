@@ -12,7 +12,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="css/kodo.css">          <!-- design system: tokens, type, buttons -->
-<link rel="stylesheet" href="css/sandbox.css">
 <style>
   /* THIS PAGE'S COLOURS, and deliberately not the design system's: one lesson
      uses them, so they live where the lesson does. --hb is the exception and is
@@ -64,11 +63,20 @@
     justify-content:center}
   #infobtn:hover,#infobtn.on{color:var(--ink)}
 
+  /* THE CORNER IT SITS IN, which is all this page has to say about it: the
+     shape is kodo.css's `.btn`, on the markup. sandbox.css used to place it
+     and is no longer linked. */
+  #savepng{position:absolute;left:26px;bottom:22px;z-index:5}
   /* de-emphasized on this page: not part of the lesson, so it shouldn't
      compete with the transport controls or tally for attention. */
   #savepng{font-weight:400;color:var(--muted);background:transparent;
     border:1px solid var(--hair)}
   #savepng:hover{background:var(--muted);color:var(--paper);border-color:var(--muted)}
+  /* THE ONE PANEL WHOSE TEXT IS WORTH SELECTING. kodo.css makes the stage a
+     drag surface and turns selection off across it, which is right for a
+     molecule and wrong for a paragraph about one. sandbox.css carried this;
+     it is the page's now. */
+  #infopanel{user-select:text;-webkit-user-select:text}
   #infopanel{position:absolute;right:20px;top:64px;z-index:8;width:min(360px,84vw);
     max-height:calc(100% - 96px);overflow-y:auto;
     background:rgba(255,255,255,.94);border:1px solid var(--hair);
@@ -261,7 +269,7 @@
           it is <b>held rigid</b> — real ones flex a little at the ends.</p>
       </section>
     </div>
-    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+    <button class="btn" id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
     <div id="loading">loading…</div>
   </div>
 </div>
