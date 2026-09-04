@@ -27,7 +27,13 @@
      reader is on is the part the model is showing — so there are no buttons to
      keep in sync with the prose. */
   #app{grid-template-columns:minmax(0,1fr) minmax(390px,38vw)}
-  #stage{grid-column:1;border-right:1px solid var(--border-hair)}
+  #stage{grid-column:1;background:var(--surface-stage);
+    border-right:1px solid var(--border-hair)}
+  /* WHAT THE MOLECULE IS, under it, on every part. It names the specimen rather
+     than the part, so it belongs to the stage and not to any one section. */
+  #specimen{position:absolute;left:26px;bottom:22px;z-index:6;max-width:38ch;
+    font-family:var(--font-editorial);font-size:13px;line-height:1.45;
+    color:var(--text-muted)}
   #brand .drop{font-size:26px;color:var(--text-strong)}
 
   /* THE COLUMN. Its own scroller, not the window's: the stage beside it is
@@ -37,15 +43,14 @@
     padding:0 clamp(28px,4vw,56px)}
   #read .col{max-width:46ch;margin:0 auto}
 
-  /* The masthead of the reading column: what the page is, once, before the
-     first part. */
-  #read .lede{padding:16vh 0 0}
-  #read .lede h2{margin:0;font-family:var(--font-display);
-    font-weight:var(--weight-regular);font-size:clamp(30px,3.4vw,42px);
-    line-height:1.1;letter-spacing:-.2px;color:var(--text-strong)}
-  #read .lede p{margin:14px 0 0;font-family:var(--font-editorial);
-    font-size:18px;line-height:1.55;color:var(--text-muted)}
-  #read .lede .hint{margin-top:26px;font-family:var(--font-ui);font-size:12px;
+  /* THE FIRST SECTION IS THE MASTHEAD. The double helix is both the page's
+     title and its first part, and printing it twice made the reader scroll
+     past the same words to reach them. */
+  #read section:first-of-type{padding-top:15vh}
+  #read section:first-of-type h3{font-size:clamp(32px,3.6vw,44px)}
+  #read .deck{margin:14px 0 0;font-family:var(--font-editorial);font-size:18px;
+    line-height:1.55;color:var(--text-muted)}
+  #read .hint{margin:22px 0 0;font-family:var(--font-ui);font-size:12px;
     letter-spacing:.09em;text-transform:uppercase;color:var(--text-dim)}
 
   /* A PART IS A SECTION. Tall enough that only one of them is ever near the
@@ -99,14 +104,10 @@
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
+    <p id="specimen"></p>
     <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Structure of DNA</h1></div>
   </div>
   <div id="read"><div class="col">
-    <div class="lede">
-      <h2>What DNA is made of</h2>
-      <p>One real molecule, as it was solved: twelve base pairs of B-DNA. Scroll and it takes itself apart, one part at a time.</p>
-      <p class="hint">Drag the model to turn it</p>
-    </div>
     <div id="sections"></div>
     <div class="tail"></div>
   </div></div>
@@ -389,20 +390,35 @@ const grooveFacing = g => () =>
  * contacts — 3 for every G·C in this molecule and 2 for every A·T, at 2.6 to
  * 3.3 Å. The cutoff is only there to stop a lone atom pairing with something
  * across the groove. */
-function hbonds(r){
+function hbondPairs(r){
   const side = s => r.spec.atoms.map((_, i) => i)
     .filter(i => strandOf(r, i) === s && isBase(nameOf(r.names[i]))
                  && /^[NO]/.test(nameOf(r.names[i])));
   const A = side(0), B = side(1);
-  if(!A.length || !B.length) return 0;
+  if(!A.length || !B.length) return [];
   const d = (i, j) => atomAt(r, i).distanceTo(atomAt(r, j)) / S;
   const nearest = (i, list) => list.reduce((best, j) => d(i, j) < d(i, best) ? j : best, list[0]);
-  let n = 0;
+  const out = [];
   for(const i of A){
     const j = nearest(i, B);
-    if(d(i, j) < 3.4 && nearest(j, A) === i) n++;
+    if(d(i, j) < 3.4 && nearest(j, A) === i) out.push([i, j]);
   }
-  return n;
+  return out;
+}
+const hbonds = r => hbondPairs(r).length;
+
+/* WHERE THE HYDROGEN BONDS ARE: the middle of the contacts themselves, which is
+ * the gap between the two bases. The centre of either base is a point inside a
+ * ring, and a label pointing there names the base rather than the bond. */
+function hbondMid(pairIndex){
+  const r = rungs[pairIndex];
+  const contacts = hbondPairs(r);
+  return () => {
+    const c = new THREE.Vector3();
+    if(!contacts.length) return c;
+    for(const [i, j] of contacts) c.add(worldAt(r, i)).add(worldAt(r, j));
+    return c.multiplyScalar(1 / (contacts.length * 2));
+  };
 }
 
 /* =============================================================================
@@ -443,20 +459,20 @@ function midOf(pairIndex, strand, want){
 const seqOf = i => bdna.pairs[i].seq.replace(/D/g, '').replace('-', '·');
 
 const PARTS = [
-  { key:'whole', title:'The double helix', sub:'two strands, wound',
+  { key:'whole', title:'DNA: the double helix', sub:'two strands, wound',
     rails:true,
-    note:()=>`${bdna.n} base pairs of B-DNA — the Drew-Dickerson dodecamer, `
-      + `1BNA. Every rung turns ${bdna.twistDeg.toFixed(1)}° from the one below `
+    deck:'One real molecule, as it was solved. Scroll and it takes itself apart, '
+      + 'one part at a time.',
+    hint:'Drag the model to turn it',
+    note:()=>`Every rung turns ${bdna.twistDeg.toFixed(1)}° from the one below `
       + `it and sits ${bdna.rise.toFixed(1)} Å above it, so a full turn takes `
       + `${(360 / bdna.twistDeg).toFixed(1)} rungs. The two strands run in `
       + `opposite directions — <b>antiparallel</b> — which is what lets each one `
       + `be a template for the other.`,
-    notes:()=>[
-      { text:'One strand', card:'A chain of nucleotides, joined sugar to phosphate. It runs the whole length of the molecule.',
-        at:midOf(2, 0, isPhos), offset:[-66, -18] },
-      { text:'The other strand', card:'Its partner, running the opposite way. The two are held together only by hydrogen bonds.',
-        at:midOf(9, 1, isPhos), offset:[62, -18] },
-    ] },
+    // NO CALLOUTS. The first part is the whole molecule, and naming the two
+    // strands on it labels the thing the reader has not been shown a part of
+    // yet; the next section is that.
+    notes:()=>[] },
 
   { key:'strand', title:'One strand', sub:'a chain, on its own',
     atoms:(r, i)=>strandOf(r, i) === 0,
@@ -484,11 +500,11 @@ const PARTS = [
       + 'the bases pointing inward.',
     notes:()=>[
       { text:'Base', card:'Adenine here. The part that differs between the four nucleotides, and the only part that carries information.',
-        at:midOf(SHOWN.pair, SHOWN.strand, isBase), offset:[58, -26] },
+        at:midOf(SHOWN.pair, SHOWN.strand, isBase), offset:[118, -116] },
       { text:'Sugar (deoxyribose)', card:'A five-carbon ring. Its 3′ and 5′ carbons are where the next nucleotides attach.',
-        at:midOf(SHOWN.pair, SHOWN.strand, isSugar), offset:[-64, 12] },
+        at:midOf(SHOWN.pair, SHOWN.strand, isSugar), offset:[-148, 30] },
       { text:'Phosphate', card:'Negatively charged at cell pH, which is why DNA is an acid and why it sticks to positively charged proteins.',
-        at:midOf(SHOWN.pair, SHOWN.strand, isPhos), offset:[-60, -32] },
+        at:midOf(SHOWN.pair, SHOWN.strand, isPhos), offset:[-128, 122] },
     ] },
 
   { key:'pair', title:'A base pair', sub:'held by hydrogen bonds',
@@ -502,7 +518,7 @@ const PARTS = [
     },
     notes:()=>[
       { text:'Hydrogen bonds', card:'Not covalent. They break with heat or a helicase, which is how the two strands can be pulled apart and read.',
-        at:midOf(SHOWN.pair, 0, isBase), offset:[60, -18] },
+        at:hbondMid(SHOWN.pair), offset:[140, -104] },
     ] },
 
   { key:'backbone', title:'The backbone', sub:'sugar–phosphate, covalent',
@@ -563,7 +579,7 @@ const PARTS = [
 // this and a single nucleotide fills the stage with no molecule around it to
 // say where it sits.
 const WHOLE = { rxz:16, hy:52 };
-const MIN_R = 11;
+const MIN_R = 9;
 const VIEW = { box:{ x:0, y:0, ...WHOLE }, u:1 };
 
 /* THE VIEW ANGLE NEVER CHANGES WITH THE PART, only the framing. Tipping the
@@ -572,12 +588,17 @@ const VIEW = { box:{ x:0, y:0, ...WHOLE }, u:1 };
  * they were just looking at, and every part after it has to re-establish which
  * way is up. One angle, chosen once; the drag is theirs. */
 
-// Which spheres the current part is, as live points inside SPIN.
+/* Which spheres the current part is, as live points in the frame FRAME's own
+ * position is expressed in. Reading them there and taking FRAME's translation
+ * back off (recentre) is what keeps the measurement free of the correction it
+ * is about to make — and it needs no rotation of its own, which reading them in
+ * SPIN's local frame did, wrongly, and left every zoomed part off to one side. */
 function partPoints(part){
   const out = [];
   if(!part.atoms) return out;
   for(const r of rungs) r.spec.atoms.forEach((_, i) => {
-    if(part.atoms(r, i)) out.push(() => SPIN.worldToLocal(worldAt(r, i)));
+    if(part.atoms(r, i)) out.push(() =>
+      L.root.worldToLocal(worldAt(r, i)).sub(FRAME.position));
   });
   return out;
 }
@@ -602,7 +623,7 @@ function frameFor(part){
   c.multiplyScalar(1 / focusPts.length);
   let r = 0;
   for(const f of focusPts) r = Math.max(r, f().distanceTo(c));
-  r = Math.max(MIN_R, r * 1.35);
+  r = Math.max(MIN_R, r * 1.45);
   // A part wider than the duplex is the duplex: frame the whole thing rather
   // than pulling in on something that is already everything.
   if(r >= WHOLE.rxz * 1.6) return { box:{ x:0, y:0, ...WHOLE }, u:0 };
@@ -639,6 +660,9 @@ function show(part){
  *  Every number and every callout is still the part's own, read at render time,
  *  so the prose here says what the spheres say.
  * ========================================================================== */
+document.getElementById('specimen').innerHTML =
+  `${bdna.n} base pairs of B-DNA — the Drew-Dickerson dodecamer, 1BNA.`;
+
 const read = document.getElementById('read');
 const host = document.getElementById('sections');
 const secs = PARTS.map((part, i) => {
@@ -650,7 +674,9 @@ const secs = PARTS.map((part, i) => {
     `<p class="num">${String(i + 1).padStart(2, '0')} / ${String(PARTS.length).padStart(2, '0')}</p>`
     + `<h3>${part.title}</h3>`
     + `<p class="gloss">${part.sub}</p>`
+    + (part.deck ? `<p class="deck">${part.deck}</p>` : '')
     + `<p class="claim">${part.note()}</p>`
+    + (part.hint ? `<p class="hint">${part.hint}</p>` : '')
     + (terms ? `<dl>${terms}</dl>` : '');
   host.appendChild(el);
   return el;
