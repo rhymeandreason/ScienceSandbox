@@ -404,10 +404,21 @@
       }
     }
     let hovered = null;
+    /* Hover lifts a layer by a fraction of ITS OWN colour, not by a fixed
+       emissive. A flat one is a fixed amount of light added to whatever is
+       there: on the dark chloroplasts it is a nudge and on the pale epidermis
+       it is a blowout, and with no tone mapping to roll it off the pale cells
+       simply clip to white. A fraction keeps the hue too, so a hovered green
+       cell glows green rather than going grey. */
+    const HOVER = 0.07;
     function applyHighlight() {
       for (const n in layers) {
         const M = layers[n].userData.M;
-        for (const k in M) M[k].emissive.setHex(n === hovered ? 0x223311 : 0x000000);
+        for (const k in M) {
+          const mm = M[k];
+          if (n === hovered) mm.emissive.copy(mm.userData.base || mm.color).multiplyScalar(HOVER);
+          else mm.emissive.setHex(0x000000);
+        }
       }
     }
 

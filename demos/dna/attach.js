@@ -26,17 +26,23 @@
  *    3. Fit our sugar onto them.
  *
  *  Then the same three steps again with the sugar as the anchor and the
- *  phosphate as the thing being placed. Both fits are least-squares over every
- *  shared atom (Horn's quaternion method — closed form, no search), so the page
- *  and a checker get the same answer to the last digit, and χ comes out at
- *  whatever the crystal says rather than whatever looked right.
+ *  phosphate as the thing being placed. Every fit is Horn's quaternion method —
+ *  closed form, no starting guess, no local minimum — so the page and a checker
+ *  get the same answer to the last digit, and χ comes out at whatever the
+ *  crystal says rather than whatever looked right.
  *
- *  WHAT THIS DOES NOT CLAIM. Our deoxyribose is Skel-built and its ring pucker
- *  is its own; 1BNA's is C2′-endo. The fit therefore lands with a residual of a
- *  few tenths of an ångström, which is REPORTED (`rms`) rather than hidden. The
- *  claim being made is about where the sugar sits and which way it faces, and
- *  that survives a pucker difference. A page that needed the pucker itself
- *  would have to draw the deposited sugar, not this one.
+ *  WHAT IS FITTED ON IS THREE OR FOUR ATOMS, NOT THE WHOLE GROUP, and the
+ *  reason is in SUGAR_ANCHOR below. Our deoxyribose is Skel-built: its ring
+ *  C–O bonds are 1.54 Å where the crystal's are 1.43, and least-squares over
+ *  the whole ring spreads that error into the bond being made. Anchoring on the
+ *  atoms that define the bond leaves it where the record has it and lets our
+ *  spec's own conformation absorb the difference — `rms` reports what that
+ *  cost, about 0.1 Å.
+ *
+ *  WHAT THIS DOES NOT CLAIM is the pucker. 1BNA's sugar is C2′-endo and ours is
+ *  whatever ringFuranose built. The claim is where the sugar sits and which way
+ *  it faces; a page that needed the pucker itself would have to draw the
+ *  deposited sugar, not this one.
  *
  *  Loaded after molecules.js and dna/data/bdna.js. No THREE: ångströms in,
  *  ångströms out, Node-loadable so check-dna.js runs it.
@@ -204,6 +210,12 @@
     const f = fit(pairs.map(p=>p.mine), pairs.map(p=>toBase.apply(p.theirs)));
 
     return { ok:true, R:f.R, quat:f.quat, apply:f.apply, rms:f.rms,
+             // `quat` + `pos` ARE the pose, in the anchor's own frame: a mesh
+             // holding the spec's own coordinates and given these two
+             // reproduces `apply` exactly. So the page never re-derives a
+             // transform from transformed points, which is where a fit like
+             // this usually loses its handedness.
+             pos:f.apply([0,0,0]),
              // The bond this pose makes, so a caller can draw or check it.
              bond:{ from:glycosidicN(baseKey), to:'C1' },
              length:dist(at(baseSpec, glycosidicN(baseKey)), f.apply(at(sugarSpec,'C1'))) };
@@ -223,18 +235,24 @@
     if(anchor.length < 3) return { ok:false, why:'fewer than three shared sugar atoms' };
     const toSugar = fit(anchor.map(p=>p.theirs), anchor.map(p=>p.mine));
 
-    // The phosphate has three equivalent hydroxyls and the record has two free
-    // oxygens plus the bridge, so only P and its two OP oxygens correspond.
-    // O1 is the one mol-nucleic.js names as reacting, so it takes the bridge —
-    // which is the sugar's O5′, the atom the ester keeps.
-    const map = [ ['P','P'], ['O2','OP1'], ['O3','OP2'] ];
+    // The phosphate's three hydroxyls are equivalent, so the correspondence is a
+    // choice — and NOT a free one. O1 is the hydroxyl mol-nucleic.js names as
+    // reacting, so it takes the bridge, which in the record is the sugar's own
+    // O5′. The other two then have to go on OP2 and OP1 IN THAT ORDER: a
+    // phosphate is tetrahedral, and swapping them reflects it. That reflection
+    // fits with an rms of 0.47 Å instead of 0.11 and puts the P–O5′ bond at
+    // 1.50 Å instead of 1.57 — visible only as a slightly wrong number, which
+    // is why the correspondence is written down rather than found by trying.
+    const map = [ ['P','P'], ['O1','O5′'], ['O2','OP2'], ['O3','OP1'] ];
     const pairs = map
-      .map(([mine, theirs]) => ({ mine:at(phosSpec,mine), theirs:dep[theirs] }))
+      .map(([mine, theirs]) => ({ mine:at(phosSpec,mine),
+                                  theirs: theirs === 'O5′' ? prime('O5') : dep[theirs] }))
       .filter(p => p.mine && p.theirs);
     if(pairs.length < 3) return { ok:false, why:'fewer than three shared phosphate atoms' };
     const f = fit(pairs.map(p=>p.mine), pairs.map(p=>toSugar.apply(p.theirs)));
 
     return { ok:true, R:f.R, quat:f.quat, apply:f.apply, rms:f.rms,
+             pos:f.apply([0,0,0]),
              bond:{ from:'O5', to:'P' },
              length:dist(at(sugarSpec,'O5'), f.apply(at(phosSpec,'P'))) };
   }
