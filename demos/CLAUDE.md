@@ -61,6 +61,7 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 | `tests/question-composer.html` | The door map, entered by typing: the reader's words become the root card, and the map opens through the authored question they matched plus the concepts the wording reached on its own. Every protein in `proteins/proteins.js` is a node on it; `PLACEMENTS` only says where one sits. Content (lessons, videos, sims, molecules) is `CONTENT` + `PLACEMENTS`, separate from the concepts that show it. `ConceptMap.md` | prototype |
 | `capillary/pbf-test.html` | Capillary action as a position-based fluid: water climbing a 3.5 nm slot between real cellulose walls, with a measured contact angle, evaporation, and Young-Laplace holding as the pore narrows. `WaterSim.md` is its rulebook | prototype |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
+| `tree/tree-lab.html` | Where a tree's mass comes from: Van Helmont's willow, photosynthesis as traffic, the tree taken apart by origin. The first lesson on `kit/lesson-shell.js`, the step-through shell every generated app takes, with `tree/tree.js` as the scene | prototype |
 
 **A featured lesson is served at a short URL** by a `vercel.json` rewrite, which does not move the file. So every page in the table above marked *featured lesson* carries `<base href="/demos/">` and its relative paths keep resolving. Which URL maps to which file is `vercel.json`'s `rewrites` block, and copying that list into prose is how it goes stale. Promoting a page to featured means adding the tag and both routes: `docs/deploy.md`.
 
@@ -79,6 +80,14 @@ Deliberately **no monolithic `engine.js`**. What each shared module does and doe
 A lesson's main stage is a 3D scene built for that lesson. We use molecule, protein, or cellular scale depending on what the lesson is. Water and solvation sims are a different scale than comparison or pathway lessons like glycolysis.
 
 A molecule-scale lesson prioritizes interaction and animation **on the molecule**. See `Modules.md`.
+
+## Components, and the apps students generate from them
+
+Beside the hand-built lessons there is a **component library**: scenes a page mounts by name and drives by parameters, on one contract (`X.mount(el, params)` → `set` · `state` · `on` · `note` · `show` · `destroy`), each on `kit/card-stage.js`. Five are on it: `water/watersim-mount.js`, `membrane/membrane.js`, `leaf/leaf.js`, `tree/tree.js`, `Proteinbox.mount`. **`docs/Components.md` is the reference a model is handed to write a student's app, and it is the only thing the model sees**, so a component is not done until that section exists and `tools/gen-app.js` produces a working page from it (`Generator.md`). Generated pages live under `tests/gen-*.html`, listed in `admin.html` as **UGC**; they are the eval set, rerun after any change to a component or the reference. A rule the model keeps breaking is fixed in the library, never by rewording the prompt.
+
+**A featured lesson and its component are two copies of one physics for now.** `membrane-lab.html` still runs its own inline membrane; `water-lab.html` its own driving of WaterSim. Until each migrates, a physics fix has two homes, and `Modules.md` says which.
+
+**Build-time briefs for a component in progress live at the repo root `docs/`**, not here: `Cell-Component.md`, `Membrane-Chemiosmosis.md`. They are read until the feature ships and then retired; the lasting rules go into `demos/docs/`.
 
 ## Scientific accuracy
 
