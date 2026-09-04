@@ -62,7 +62,7 @@
     <canvas id="gl"></canvas>
     <nav id="parts"></nav>
     <div id="note"></div>
-    <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>DNA, part by part</h1></div>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Structure of DNA</h1></div>
   </div>
 </div>
 
@@ -291,10 +291,46 @@ function grooves(){
   return { minor:two[0], major:two[1] };
 }
 const GROOVE = grooves();
-// Halfway across the gap, on the two phosphates that measure it — so the label
-// sits in the groove and not on the backbone beside it.
-const grooveAt = g => () => worldAt(g.mid.a.r, g.mid.a.ai)
-  .add(worldAt(g.mid.b.r, g.mid.b.ai)).multiplyScalar(0.5);
+/* WHERE A GROOVE IS, AND IT IS NOT HALFWAY BETWEEN THE PHOSPHATES. That
+ * midpoint is a chord through the middle of the duplex: it lands on the stacked
+ * bases in the core, which is the one place the groove is not, and the label
+ * then points at the thing it is contrasted with. A groove is a dent in the
+ * OUTSIDE. So the midpoint is carried out along its own radius to the radius
+ * the backbone runs at, which puts the dot in the mouth of the gap.
+ *
+ * The radius is measured off the phosphorus atoms rather than typed, and the
+ * axis is SPIN's own Y, because standing the duplex up put it there. */
+const _sq = new THREE.Quaternion();
+const P_RADIUS = (() => {
+  L.root.updateMatrixWorld(true);       // measured off the matrices, so refresh them
+  let sum = 0, n = 0;
+  for(let i = 0; i < bdna.n; i++) for(const st of [0, 1]){
+    const p = phosOf(i, st);
+    if(!p) continue;
+    const v = SPIN.worldToLocal(worldAt(p.r, p.ai));
+    sum += Math.hypot(v.x, v.z); n++;
+  }
+  return n ? sum / n : 10;
+})();
+// The midpoint's own radial direction, in SPIN's frame: the way OUT of the
+// duplex at that height.
+function grooveRadial(g){
+  const a = SPIN.worldToLocal(worldAt(g.mid.a.r, g.mid.a.ai));
+  const b = SPIN.worldToLocal(worldAt(g.mid.b.r, g.mid.b.ai));
+  const m = a.add(b).multiplyScalar(0.5);
+  const rad = new THREE.Vector3(m.x, 0, m.z);
+  if(rad.lengthSq() < 1e-9) rad.set(1, 0, 0);
+  return { m, rad:rad.normalize() };
+}
+const grooveAt = g => () => {
+  const { m, rad } = grooveRadial(g);
+  return SPIN.localToWorld(new THREE.Vector3(
+    rad.x * P_RADIUS, m.y, rad.z * P_RADIUS));
+};
+// And it fades when the groove turns to the back of the molecule, where a
+// callout would be naming a gap the student cannot see.
+const grooveFacing = g => () =>
+  grooveRadial(g).rad.applyQuaternion(SPIN.getWorldQuaternion(_sq)).normalize();
 
 /* HOW MANY HYDROGEN BONDS, COUNTED. A·T holds with two and G·C with three, and
  * that is the whole of the pairing rule — so it is counted off the record's own
@@ -367,12 +403,14 @@ const PARTS = [
     note:()=>`${bdna.n} base pairs of B-DNA — the Drew-Dickerson dodecamer, `
       + `1BNA. Every rung turns ${bdna.twistDeg.toFixed(1)}° from the one below `
       + `it and sits ${bdna.rise.toFixed(1)} Å above it, so a full turn takes `
-      + `${(360 / bdna.twistDeg).toFixed(1)} rungs. <b>Drag to turn it.</b>`,
+      + `${(360 / bdna.twistDeg).toFixed(1)} rungs. The two strands run in `
+      + `opposite directions — <b>antiparallel</b> — which is what lets each one `
+      + `be a template for the other. <b>Drag to turn it.</b>`,
     notes:()=>[
       { text:'One strand', card:'A chain of nucleotides, joined sugar to phosphate. It runs the whole length of the molecule.',
-        at:midOf(2, 0, isPhos), offset:[-150, -20] },
+        at:midOf(2, 0, isPhos), offset:[-66, -18] },
       { text:'The other strand', card:'Its partner, running the opposite way. The two are held together only by hydrogen bonds.',
-        at:midOf(9, 1, isPhos), offset:[130, -20] },
+        at:midOf(9, 1, isPhos), offset:[62, -18] },
     ] },
 
   { key:'strand', title:'One strand', sub:'a chain, on its own',
@@ -380,12 +418,17 @@ const PARTS = [
     rails:lk=>lk.strand === 0,
     note:()=>`One of the two chains, ${bdna.n} nucleotides long, and a single `
       + 'molecule: every atom in it is joined to the next by covalent bonds. '
-      + '<b>This is what has to exist before pairing can happen.</b> The other '
-      + 'strand is a second molecule, held against this one only by hydrogen '
-      + 'bonds — which is why heat separates the two and neither falls apart.',
+      + '<b>This is what has to exist before pairing can happen.</b> It has a '
+      + 'phosphate at one end and a free –OH at the other, so it also has a '
+      + 'direction: <b>5′ to 3′</b>, and everything that copies DNA works along '
+      + 'it that way.',
     notes:()=>[
+      { text:"5′ end", card:'The phosphate end of the chain. Nothing is ever added here.',
+        at:at(0, 0, "O5'") || at(0, 0, 'P'), offset:[-58, -18] },
+      { text:"3′ end", card:'The free hydroxyl. Every new nucleotide is added onto this one, which is why a strand is only ever built 5′ to 3′.',
+        at:at(bdna.n - 1, 0, "O3'"), offset:[58, 18] },
       { text:'One molecule, end to end', card:'Break a hydrogen bond and you separate two strands. Break a phosphodiester bond and you have cut a strand in half.',
-        at:midOf(4, 0, isPhos), offset:[-160, -20] },
+        at:midOf(5, 0, isPhos), offset:[-68, -16] },
     ] },
 
   { key:'nucleotide', title:'One nucleotide', sub:'base + sugar + phosphate',
@@ -396,11 +439,11 @@ const PARTS = [
       + 'the bases pointing inward.',
     notes:()=>[
       { text:'Base', card:'Adenine here. The part that differs between the four nucleotides, and the only part that carries information.',
-        at:midOf(SHOWN.pair, SHOWN.strand, isBase), offset:[130, -30] },
+        at:midOf(SHOWN.pair, SHOWN.strand, isBase), offset:[58, -26] },
       { text:'Sugar (deoxyribose)', card:'A five-carbon ring. Its 3′ and 5′ carbons are where the next nucleotides attach.',
-        at:midOf(SHOWN.pair, SHOWN.strand, isSugar), offset:[-140, 10] },
+        at:midOf(SHOWN.pair, SHOWN.strand, isSugar), offset:[-64, 12] },
       { text:'Phosphate', card:'Negatively charged at cell pH, which is why DNA is an acid and why it sticks to positively charged proteins.',
-        at:midOf(SHOWN.pair, SHOWN.strand, isPhos), offset:[-130, -40] },
+        at:midOf(SHOWN.pair, SHOWN.strand, isPhos), offset:[-60, -32] },
     ] },
 
   { key:'pair', title:'A base pair', sub:'held by hydrogen bonds',
@@ -414,7 +457,7 @@ const PARTS = [
     },
     notes:()=>[
       { text:'Hydrogen bonds', card:'Not covalent. They break with heat or a helicase, which is how the two strands can be pulled apart and read.',
-        at:midOf(SHOWN.pair, 0, isBase), offset:[140, -20] },
+        at:midOf(SHOWN.pair, 0, isBase), offset:[60, -18] },
     ] },
 
   { key:'backbone', title:'The backbone', sub:'sugar–phosphate, covalent',
@@ -426,7 +469,7 @@ const PARTS = [
       + 'strand survives being separated from its partner.',
     notes:()=>[
       { text:'Phosphodiester bond', card:'One phosphate bridging the 3′ carbon of one sugar and the 5′ carbon of the next. Made by dehydration, one water per bond.',
-        at:at(6, 0, 'P'), offset:[140, -10] },
+        at:at(6, 0, 'P'), offset:[60, -14] },
     ] },
 
   { key:'bases', title:'The bases inside', sub:'stacked, and paired',
@@ -437,7 +480,7 @@ const PARTS = [
       + 'protected on the inside while the backbone takes the outside.',
     notes:()=>[
       { text:'Stacked flat', card:'Rungs 3.4 Å apart, face to face. The ring faces are greasy, so water pushes them together.',
-        at:midOf(6, 0, isBase), offset:[140, -20] },
+        at:midOf(6, 0, isBase), offset:[60, -18] },
     ] },
 
   { key:'grooves', title:'The two grooves', sub:'where a protein reads',
@@ -451,29 +494,11 @@ const PARTS = [
       + `the bases are exposed.`,
     notes:()=>[
       { text:'Minor groove', card:'The narrow gap. The base edges facing into it look much the same whichever pair it is, so there is less to read.',
-        at:grooveAt(GROOVE.minor), offset:[-140, 0] },
+        at:grooveAt(GROOVE.minor), facing:grooveFacing(GROOVE.minor), offset:[-62, 14] },
       { text:'Major groove', card:'The wide gap. Each of the four pairs shows a different pattern of donors and acceptors here, which is what a protein recognises.',
-        at:grooveAt(GROOVE.major), offset:[140, 0] },
+        at:grooveAt(GROOVE.major), facing:grooveFacing(GROOVE.major), offset:[64, -14] },
     ] },
 
-  { key:'ends', title:'5′ and 3′ ends', sub:'the strands run opposite ways',
-    atoms:(r, i)=>{
-      const a = nameOf(r.names[i]);
-      const first = r.p.i === 0, last = r.p.i === bdna.n - 1;
-      if(!first && !last) return false;
-      return isPhos(a) || /^(O3'|O5'|C3'|C5')$/.test(a);
-    },
-    note:()=>'A strand has a phosphate at one end and a free –OH at the other, '
-      + 'so it has a direction: <b>5′ to 3′</b>. The two strands run in '
-      + 'opposite directions — <b>antiparallel</b> — which is why each one can '
-      + 'act as the template for the other, and why the enzymes that copy DNA '
-      + 'only work one way along it.',
-    notes:()=>[
-      { text:"5′ end", card:'The phosphate end. New nucleotides are never added here.',
-        at:at(0, 0, "O5'") || at(0, 0, 'P'), offset:[-120, -20] },
-      { text:"3′ end", card:'The free hydroxyl. Every new nucleotide is added onto this one, which is why DNA is only ever built 5′ to 3′.',
-        at:at(bdna.n - 1, 0, "O3'"), offset:[130, 20] },
-    ] },
 ];
 
 /* =============================================================================
@@ -578,15 +603,25 @@ for(const part of PARTS){
  * screen's up axis, which is the duplex's own axis after standing it up, so the
  * drag spins it the way a model on a desk spins. */
 const canvas = document.getElementById('gl');
+
+/* WHERE IT STARTS. Chosen at the stage rather than solved: which face of a
+ * duplex reads best is a question about the picture, not about the record. */
+const HOME = { yaw:1.145, pitch:0 };
+SPIN.rotation.set(HOME.pitch, HOME.yaw, 0);
+
 let turn = null;
 canvas.addEventListener('pointerdown', e => {
-  turn = { x:e.clientX };
+  turn = { x:e.clientX, y:e.clientY };
   try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
 });
 canvas.addEventListener('pointermove', e => {
   if(!turn) return;
   SPIN.rotation.y += (e.clientX - turn.x) * 0.008;
-  turn = { x:e.clientX };
+  // Tipping is CLAMPED. Past about a third of a turn the duplex is end-on,
+  // where every part overlaps every other and the glossary names a tangle.
+  SPIN.rotation.x = Math.max(-0.6, Math.min(0.6,
+    SPIN.rotation.x + (e.clientY - turn.y) * 0.008));
+  turn = { x:e.clientX, y:e.clientY };
 });
 addEventListener('pointerup', () => { turn = null; });
 
