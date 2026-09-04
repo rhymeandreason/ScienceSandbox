@@ -153,7 +153,10 @@ const L = Lesson.create(document.getElementById('gl'), {
   // NO ORBIT — the drag moves a molecule, and the pointer is projected onto
   // the z=0 plane the bases live in, which only means anything face-on.
   orbit:false,
-  boxes:()=>step === 2 ? [BOX2]
+  // Taller than the duplex, because the caption takes the bottom of the stage
+  // and a helix running under it reads as cropped.
+  boxes:()=>step === 4 ? [{ x:0, y:0, rxz:16, hy:52 }]
+         : step === 2 ? [BOX2]
          // Step 3 reframes once the bond is made: before it, the stage has to
          // hold the loose nucleotide waiting below as well as the one it joins.
          // Step 3 reframes once the rungs are joined: before that the stage
@@ -345,6 +348,7 @@ function unpair(b){
 canvas.addEventListener('pointerdown', e => {
   if(step === 2){ down2(e); try{ canvas.setPointerCapture(e.pointerId); }catch(_){} return; }
   if(step === 3){ down3(e); try{ canvas.setPointerCapture(e.pointerId); }catch(_){} return; }
+  if(step === 4){ down4(e); try{ canvas.setPointerCapture(e.pointerId); }catch(_){} return; }
   if(step !== 1) return;
   const w = toWorld(e);
   const near = bases.map(b => ({ b, d:w.distanceTo(centreOf(b)) }))
@@ -358,6 +362,7 @@ canvas.addEventListener('pointerdown', e => {
   try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
 });
 canvas.addEventListener('pointermove', e => {
+  if(step === 4) return move4(e);
   if(step === 2) return move2(e);
   if(step === 3) return move3(e);
   if(!held) return;
@@ -379,7 +384,7 @@ canvas.addEventListener('dblclick', e => {
 });
 canvas.addEventListener('pointerup', e => {
   held = null; dragging = []; held2 = null; drag2 = [];
-  turning = null; held3 = null; turn3 = null;
+  turning = null; held3 = null; turn3 = null; turn4 = null;
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
   refresh();
 });
@@ -1909,6 +1914,101 @@ function enterRung(rung){
 setStartPose('adenine','thymine');
 setStartPose('guanine','cytosine');
 /* =============================================================================
+ *  STEP 4 — the finished helix
+ * =============================================================================
+ *  1BNA as deposited (dna/data/bdna.js, baked by dna/bake-ladder.js): twelve
+ *  base pairs, each built from its own atoms and set at its own recorded
+ *  placement, with the phosphodiester bonds drawn between them. Nothing is
+ *  interpolated and nothing winds — the step the student has been building
+ *  toward, standing still so it can be turned and looked at.
+ *
+ *  The grooves are not drawn. They are what is left between the rails once the
+ *  rungs are turned, and they are the reason this step is here.
+ *
+ *  The winding animation that used to be this step is whole in
+ *  tests/ladder-helix-test.html.
+ * ========================================================================== */
+const G4 = new THREE.Group();
+G4.visible = false;
+L.root.add(G4);
+const bdna = window.BDNA;
+
+const rungs4 = bdna.pairs.map(p => {
+  const spec = { name:p.seq, units:'scene', view:null,
+    atoms: p.atoms.map(a => ({ el:a.el, pos:a.p.map(v => v * S) })),
+    bonds: p.bonds };
+  const mol = Stage.buildMolecule(spec, { center:false });
+  // The record's own placement for this pair: where it sits, and which way it
+  // faces. Composing them is what makes twelve rigid pairs into a helix.
+  mol.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+    ...p.basis.map(v => new THREE.Vector3(...v))));
+  mol.position.set(...p.origin).multiplyScalar(S);
+  G4.add(mol);
+  return { p, mol };
+});
+
+/* THE RAILS. A phosphodiester bond runs between two pairs, so it belongs to
+ * neither and has to be drawn here. Drawn once: nothing in this step moves. */
+const linkGeo4 = new THREE.CylinderGeometry(0.16, 0.16, 1, 7);
+const UP4 = new THREE.Vector3(0, 1, 0);
+const atomAt4 = (r, ai) => new THREE.Vector3(...r.p.atoms[ai].p).multiplyScalar(S)
+  .applyQuaternion(r.mol.quaternion).add(r.mol.position);
+for(const lk of bdna.links){
+  const a = atomAt4(rungs4[lk.from.pair], lk.from.ai);
+  const b = atomAt4(rungs4[lk.to.pair],   lk.to.ai);
+  const d = b.clone().sub(a);
+  const m = new THREE.Mesh(linkGeo4, new THREE.MeshStandardMaterial(
+    { color:0xbfae8e, roughness:.55 }));
+  m.position.copy(a).addScaledVector(d, 0.5);
+  m.quaternion.setFromUnitVectors(UP4, d.clone().normalize());
+  m.scale.set(1, d.length(), 1);
+  G4.add(m);
+}
+
+/* STAND IT UP, SOLVED. The crystallographers' cell points the axis wherever it
+ * points; a typed rotation is right for one bake and silently wrong for the
+ * next. The axis is the line the pair origins climb, and the rotation that
+ * carries it to world +Y — where the camera is side-on to it — is read off
+ * that line. Then centre on the origins, so the duplex hangs in the frame
+ * rather than growing out of one corner. */
+{
+  const axis = new THREE.Vector3(...bdna.pairs[bdna.n - 1].origin)
+    .sub(new THREE.Vector3(...bdna.pairs[0].origin)).normalize();
+  G4.quaternion.setFromUnitVectors(axis, UP4);
+  const mid = new THREE.Vector3();
+  for(const p of bdna.pairs) mid.add(new THREE.Vector3(...p.origin));
+  mid.multiplyScalar(S / bdna.n).applyQuaternion(G4.quaternion);
+  G4.position.sub(mid);
+}
+
+/* TURNING IT IS THE POINT. A helix seen from one angle is a tangle of sticks;
+ * the grooves only read as two different gaps once it moves. Yaw about the
+ * screen's up axis, which is the helix's own axis after standing it up, so the
+ * drag spins it the way a model on a desk spins. */
+let turn4 = null;
+const yaw4 = { v:0 };
+function down4(e){ turn4 = { x:e.clientX }; }
+function move4(e){
+  if(!turn4) return;
+  yaw4.v += (e.clientX - turn4.x) * 0.008;
+  turn4 = { x:e.clientX };
+  G4.rotation.y = yaw4.v;
+}
+
+/* Both numbers read from the record, not typed: the turn per rung is what the
+ * baker measured, and the pairs per turn falls out of it. */
+function say4(){
+  const perTurn = (360 / bdna.twistDeg).toFixed(1);
+  note.innerHTML = `The molecule you were building: ${bdna.n} base pairs of `
+    + `1BNA, ${bdna.twistDeg.toFixed(1)}° of turn and ${bdna.rise.toFixed(1)} Å `
+    + `of rise per rung — ${perTurn} rungs to a full turn. The rails wind around `
+    + 'the outside and the pairs stack flat inside them. <b>The two gaps between '
+    + 'the rails are not the same size</b>: that is the major and the minor '
+    + 'groove, and it is how a protein reads a sequence without opening it. '
+    + '<b>Drag to turn it.</b>';
+}
+
+/* =============================================================================
  *  THE STEPS
  * =============================================================================
  *  One stage, one camera, two scenes so far. Each step owns a THREE.Group and
@@ -1926,10 +2026,7 @@ const STEPS = [
   { n:1, title:'A pair holds', sub:'hydrogen bonds', ready:true },
   { n:2, title:'The nucleotide', sub:'sugar + phosphate', ready:true },
   { n:3, title:'The backbone', sub:'joined by dehydration', ready:true },
-  // The winding animation this used to hold is whole in
-  // tests/ladder-helix-test.html. What the lesson does with it is open: a
-  // student who has just built a backbone is not yet asking about grooves.
-  { n:4, title:'Ladder to helix', sub:'where grooves come from', ready:false },
+  { n:4, title:'The helix', sub:'where grooves come from', ready:true },
 ];
 
 function showStep(n){
@@ -1937,13 +2034,14 @@ function showStep(n){
   G1.visible = (n === 1);
   G2.visible = (n === 2);
   G3.visible = (n === 3);
+  G4.visible = (n === 4);
   // DOM that belongs to step 1 has to be hidden by hand — it is not in the
   // scene graph, so nothing else is going to hide it.
   for(const b of bases) b.tag.style.display = (n === 1) ? '' : 'none';
   for(const r of rulers) r.label.style.display = 'none';
   for(const p of Object.values(nucleo).concat(loose))
     p.tag.style.display = (n === 2) ? '' : 'none';
-  note.classList.toggle('on', n === 2 || n === 3);
+  note.classList.toggle('on', n === 2 || n === 3 || n === 4);
   if(n !== 2 && spinning) stopSpin();
   for(const rung of rung3s) rung.tag.style.display = 'none';
   // The entry only replays from the top. Coming back to a half-built ladder
@@ -1958,6 +2056,7 @@ function showStep(n){
   }
   for(const e of ends3) e.el.style.display = (n === 3) ? '' : 'none';
   if(n === 3) say3();
+  if(n === 4) say4();
   if(n === 2){ pairBonds(); say(nucleo.adenine); }
   L.fit();
   for(const b of [...document.querySelectorAll('#steps button')])
