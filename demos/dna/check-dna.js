@@ -24,6 +24,12 @@
 const path = require('path');
 const MolLib = require(path.join(__dirname, '..', 'lib', 'lib-node.js'));
 const { Pairing } = require(path.join(__dirname, 'pairing.js'));
+// The baked record assigns to `window`; attach.js reads it off the global, so
+// the shim has to exist before either is loaded.
+global.window = global.window || {};
+require(path.join(__dirname, 'data', 'bdna.js'));
+global.BDNA = global.window.BDNA;
+const { Attach } = require(path.join(__dirname, 'attach.js'));
 
 const S = MolLib.SCALE, M = MolLib.MOLECULES;
 // pairing.js answers in the units it is given, and registered specs have had
@@ -206,6 +212,85 @@ head('the helix is the ladder, twisted');
   ok(D.pairs.every(p => p.basis[2][1] > 0.5),
      'every base pair normal points along the helix axis, not against it: '
      + D.pairs.map(p => p.basis[2][1].toFixed(2)).join(' '));
+}
+
+/* ---- step 2: where the sugar and the phosphate land -------------------
+ * dna/attach.js reads both poses out of 1BNA. Nothing about a wrong one is
+ * visible: a nucleotide with its sugar turned 40° about the glycosidic bond
+ * renders as a perfectly good molecule, and a MIRRORED fit renders as a
+ * perfectly good molecule that no cell contains.
+ *
+ * So three things are asserted, and the third is the one no picture would
+ * show: the bond lengths, the residual the fit had to accept, and the sign of
+ * the volume spanned at C1′. That sign IS the anomeric configuration — β, the
+ * one DNA has — and it is what flips if the fit ever comes back left-handed.
+ */
+{
+  head('step 2: the nucleotide');
+  const SUG = un(M.deoxyribose), PHO = un(M.phosphate);
+  const cross = (a,b) => [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
+  const dot = (a,b) => a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  const sub = (a,b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+  const at = (spec, n) => spec.atoms[spec.names.indexOf(n)].pos;
+
+  for(const key of ['adenine','thymine','guanine','cytosine']){
+    const base = un(M[key]);
+    const g = Attach.sugar(key, base, SUG);
+    ok(g.ok, `${key}: the sugar's pose solves`);
+    if(!g.ok) continue;
+
+    // 1BNA's own N–C1′ is 1.48 Å. A fit that spreads our sugar's inflated ring
+    // bonds into this one lands at 1.25, which draws as a slightly tight bond.
+    ok(g.length > 1.40 && g.length < 1.55,
+       `${key}: glycosidic bond is ${g.length.toFixed(2)} Å, not 1.40–1.55`);
+    ok(g.rms < 0.2, `${key}: sugar fit is tight (rms ${g.rms.toFixed(3)} Å)`);
+
+    // HANDEDNESS, MEASURED AT C4′ AND NOT AT C1′. The volume spanned at C1′
+    // would be the obvious thing to check and it is vacuous: the fit is
+    // anchored on C1′, O4′ and C2′, so those three land on the deposited atoms
+    // whatever the sugar is — three points have no handedness, and a mirrored
+    // spec passes. C4′'s neighbours are C3′ and C5′, neither of which the fit
+    // was allowed to see, so this sign is a real comparison.
+    const dep = Attach.residue(key);
+    const chir = (c, a, b, d) => Math.sign(dot(sub(a,c), cross(sub(b,c), sub(d,c))));
+    const want = chir(dep["C4'"], dep["C3'"], dep["O4'"], dep["C5'"]);
+    const got  = chir(g.apply(at(SUG,'C4')), g.apply(at(SUG,'C3')),
+                      g.apply(at(SUG,'O4')), g.apply(at(SUG,'C5')));
+    ok(want === got,
+       `${key}: the posed sugar has the deposited handedness at C4′ — the fit `
+       + `is a rotation, not a reflection (crystal ${want}, posed ${got})`);
+
+    const e = Attach.phosphate(key, SUG, PHO);
+    ok(e.ok, `${key}: the phosphate's pose solves`);
+    if(!e.ok) continue;
+    // O5′–P is 1.60 Å in the record. The correspondence that reflects the
+    // tetrahedron fits at 1.50, which is the only trace it leaves.
+    ok(e.length > 1.50 && e.length < 1.68,
+       `${key}: phosphoester bond is ${e.length.toFixed(2)} Å, not 1.50–1.68`);
+    ok(e.rms < 0.2, `${key}: phosphate fit is tight (rms ${e.rms.toFixed(3)} Å)`);
+  }
+
+  /* THE ROLES THE PAGE READS. dna-lab never lists the departing atoms; it asks
+   * each spec's `condense:` block. If a spec renumbers and a role goes stale,
+   * the page bonds the wrong atom and still draws a molecule. */
+  const role = (spec, key) => (spec.condense && spec.condense.roles || [])
+    .find(r => r.key === key);
+  for(const key of ['adenine','thymine','guanine','cytosine']){
+    const r = role(M[key], 'glyco');
+    ok(r && M[key].names[r.keep] === Attach.glycosidicN(key),
+       `${key}: the glyco role keeps ${Attach.glycosidicN(key)}`);
+    ok(r && r.leaves.length === 1 && M[key].atoms[r.leaves[0]].el === 'H',
+       `${key}: the glyco role sheds one hydrogen`);
+  }
+  const c1 = role(M.deoxyribose, 'c1'), c5 = role(M.deoxyribose, 'c5');
+  ok(c1 && M.deoxyribose.names[c1.keep] === 'C1',
+     'deoxyribose: the c1 role keeps the anomeric carbon');
+  ok(c5 && M.deoxyribose.names[c5.keep] === 'O5',
+     'deoxyribose: the c5 role keeps the OXYGEN — the ester bridge is the '
+     + 'sugar\'s, and keeping C5 would build the bond one atom short');
+  const est = role(M.phosphate, 'ester');
+  ok(est && M.phosphate.names[est.keep] === 'P',
+     'phosphate: the ester role keeps P');
 }
 
 console.log(`\n${checks - fails}/${checks} checks passed`);

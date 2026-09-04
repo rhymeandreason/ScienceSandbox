@@ -164,9 +164,9 @@ const L = Lesson.create(document.getElementById('gl'), {
   boxes:()=>step === 4 ? [{ x:0, y:0, rxz:16, hy:44 }]
          : step === 2 ? [{ x:0, y:-3, rxz:30, hy:27 }]
                        : [{ x:0, y:0, rxz:26, hy:17 }],
-  afterFrame:dt=>{                                    // projection reads a matrix refreshed on render
+  afterFrame:()=>{                                    // projection reads a matrix refreshed on render
     if(step === 1){ placeTags(); placeRulers(); }
-    if(step === 2){ placeTags2(); stepWaters(dt); }
+    if(step === 2){ placeTags2(); stepWaters(); }
   },
 });
 
@@ -651,8 +651,8 @@ const SUGAR = M.deoxyribose, PHOS = M.phosphate;
 // the point of the step: the backbone is being hung off a pair, not built
 // beside one, and the sugars go on the OUTER edges because that is where the
 // glycosidic nitrogens point.
-const COL = { adenine:GAP/2, thymine:-GAP/2 };
-const Y_BASE = 8.5, Y_SUGAR = -4, Y_PHOS = -14;
+const Y_BASE = 7, Y_SUGAR = -5, Y_PHOS = -15;
+const COL = {};                       // filled from where the bases actually land
 
 /* ---- assembling one spec out of two -------------------------------------- */
 // The atoms that leave, by role, out of the spec's own `condense:` block.
@@ -696,6 +696,9 @@ function assemble(host, guest, pose, dropHost, dropGuest, hostAtom, guestAtom, s
 }
 
 /* ---- the pieces on stage -------------------------------------------------- */
+const centreOfPiece = p =>
+  p.centre.clone().applyQuaternion(p.mol.quaternion).add(p.mol.position);
+
 // A piece is one draggable mesh. A base grows into a nucleotide in place —
 // `spec` is replaced at each join and the mesh rebuilt — while a sugar or a
 // phosphate exists only until it is absorbed.
@@ -734,11 +737,21 @@ function disposeTree(g){
  * way here as it did there. */
 const nucleo = {};
 {
+  // The purine takes the levelled orientation pairPoseAt solves; the pyrimidine
+  // then goes exactly where pairing.js says it must sit to be bonded — the same
+  // call step 1's latch makes. GAP is step 1's RESTING separation, which is
+  // deliberately not the pairing distance, so laying the two out by it would
+  // draw an unpaired pair.
   const t = pairPoseAt('adenine', 'thymine',
-                       new THREE.Vector3(COL.adenine, Y_BASE, 0), GAP);
+                       new THREE.Vector3(4, Y_BASE, 0), GAP);
   nucleo.adenine = piece(M.adenine, 'base', t.a.pos, t.a.quat);
-  nucleo.thymine = piece(M.thymine, 'base', t.p.pos, t.p.quat);
-  nucleo.adenine.key = 'adenine'; nucleo.thymine.key = 'thymine';
+  nucleo.adenine.key = 'adenine';
+  const w = latchWorldFrom({ key:'adenine', spec:M.adenine },
+                           { key:'thymine', spec:M.thymine },
+                           t.a.quat, t.a.pos);
+  nucleo.thymine = piece(M.thymine, 'base', w.pos, w.quat);
+  nucleo.thymine.key = 'thymine';
+  for(const k in nucleo) COL[k] = centreOfPiece(nucleo[k]).x;
 }
 
 // The loose pieces: one sugar and one phosphate per column. They start face-on
@@ -889,20 +902,26 @@ function water(host, kind){
   const p = new THREE.Vector3(...host.spec.atoms[
     host.spec.names.indexOf(kind === 'sugar' ? 'C1′' : 'Pᴾ')].pos)
     .applyQuaternion(host.mol.quaternion).add(host.mol.position);
-  waters.push({ el, p, t:0 });
+  waters.push({ el, p, born:performance.now() });
   if(L.fx) L.fx.spawnRing(p, MolLib.PALETTE.bonds.hbond, null, 0.6);
 }
 const waters = [];
-function stepWaters(dt){
+const WATER_LIFE = 1.6;
+/* Aged by the CLOCK, not by summed frame times. A backgrounded tab stops
+ * firing requestAnimationFrame, so a label whose age is a running total of dt
+ * simply stops ageing — come back to the tab and the water is still hanging
+ * there. Wall time keeps running, so it is gone when you look. */
+function stepWaters(){
   const r = canvas.getBoundingClientRect();
+  const now = performance.now();
   for(let i = waters.length - 1; i >= 0; i--){
     const w = waters[i];
-    w.t += dt;
-    const v = w.p.clone().add(new THREE.Vector3(0, w.t * 3.4, 0)).project(L.camera);
+    const t = (now - w.born) / 1000;
+    const v = w.p.clone().add(new THREE.Vector3(0, t * 3.4, 0)).project(L.camera);
     w.el.style.left = ((v.x*0.5+0.5) * r.width) + 'px';
     w.el.style.top  = ((-v.y*0.5+0.5) * r.height) + 'px';
-    w.el.style.opacity = String(Math.max(0, 1 - w.t / 1.6));
-    if(w.t > 1.6){ w.el.remove(); waters.splice(i, 1); }
+    w.el.style.opacity = String(Math.max(0, 1 - t / WATER_LIFE));
+    if(t > WATER_LIFE){ w.el.remove(); waters.splice(i, 1); }
   }
 }
 
@@ -958,9 +977,6 @@ function move2(e){
   held2.fq = held2.mol.quaternion.clone();
   tryJoin();
 }
-const centreOfPiece = p =>
-  p.centre.clone().applyQuaternion(p.mol.quaternion).add(p.mol.position);
-
 function placeTags2(){
   const r = canvas.getBoundingClientRect();
   for(const p of Object.values(nucleo).concat(loose)){

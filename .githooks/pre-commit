@@ -342,7 +342,11 @@ fi
 # kit/hbond.js count the bonds in the pose it solves, so a change in either can
 # flip a verdict this checker is the only thing watching — and the page shows a
 # wrong pairing as confidently as a right one.
-if git diff --cached --name-only | grep -qE '^demos/(dna/.*|dna-lab\.html|lib/mol-nucleic\.js|lobes/.*|kit/hbond\.js)'; then
+#
+# mol-sugars.js is here for step 2: attach.js fits deoxyribose onto a base by
+# name, so renaming or renumbering that spec moves the glycosidic bond to
+# another atom and the nucleotide still renders.
+if git diff --cached --name-only | grep -qE '^demos/(dna/.*|dna-lab\.html|lib/mol-nucleic\.js|lib/mol-sugars\.js|lobes/.*|kit/hbond\.js)'; then
   if ! node dna/check-dna.js > /tmp/cdna.$$ 2>&1; then
     tail -25 /tmp/cdna.$$; rm -f /tmp/cdna.$$
     echo ""
