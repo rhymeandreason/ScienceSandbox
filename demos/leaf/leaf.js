@@ -18,6 +18,8 @@
  *      seed        integer; changing it rebuilds
  *      isolate     a layer name to keep opaque while the rest fade, or null
  *      autoRotate  the block turns slowly
+ *      aperture    0..1, the stomata shut to open. Turgid guard cells bow
+ *                  apart; drained, they meet and the pore closes.
  *      layers      heights in scene units: {cuticle, upperEpi, palisade,
  *                  spongy, lowerEpi}; changing one rebuilds
  *      width, depth   the block, x and z
@@ -25,7 +27,7 @@
  *  Layer names, bottom to top: lowerEpi · spongy · bundle · palisade ·
  *  upperEpi. The bundle explodes with the spongy layer it runs through.
  *
- *  state(): {explode, seed, isolate, hovered, layers:[{name, y, height}]}
+ *  state(): {explode, seed, isolate, aperture, hovered, layers:[{name, y, height}]}
  *  Events: 'hover' (name | null) · 'select' (name | null) · 'frame' (state)
  *
  *  Three r128 has no CapsuleGeometry and no RoundedBoxGeometry in the global
@@ -35,7 +37,7 @@
   'use strict';
 
   const DEFAULTS = {
-    explode: 0, seed: 1337, isolate: null, autoRotate: false,
+    explode: 0, seed: 1337, isolate: null, autoRotate: false, aperture: 1,
     layers: { cuticle: 0.12, upperEpi: 0.7, palisade: 2.4, spongy: 2.6, lowerEpi: 0.7 },
     width: 14, depth: 7,
   };
@@ -80,6 +82,10 @@
     const block = new THREE.Group();
     root.add(block);
     const layers = {};
+    /* The guard-cell pairs, kept so aperture is a move rather than a rebuild:
+       a leaf that regenerates its cells every time a stoma breathes reads as
+       a glitch, and rebuilding a few hundred capsules per frame would stutter. */
+    const stomata = [];
     let Y = {}, W = P.width, D = P.depth, bundle = null;
 
     function layer(name, baseY) {
@@ -128,10 +134,10 @@
           st.rotation.y = rrange(0, Math.PI);
           for (const side of [-1, 1]) {
             const gm = shadow(new THREE.Mesh(guardGeo, M.guard));
-            gm.rotation.z = Math.PI / 2; gm.rotation.x = side * 0.15;
-            gm.position.z = side * 0.17; gm.scale.set(1, 1, 1.15);
+            gm.rotation.z = Math.PI / 2; gm.userData.side = side;
             st.add(gm);
           }
+          stomata.push(st);
           g.add(st);
         }
       }
@@ -266,6 +272,7 @@
 
     function build() {
       for (const k in layers) { block.remove(layers[k]); dispose(layers[k]); delete layers[k]; }
+      stomata.length = 0;                     // rebuilt with the lower epidermis
       seed = P.seed >>> 0;
       W = P.width; D = P.depth;
       const H = P.layers;
@@ -280,7 +287,7 @@
       buildSpongy(layer('spongy', Y.spongy), Y.spongy, H.spongy);
       buildBundle(layer('bundle', Y.spongy));
       buildEpidermis(layer('lowerEpi', Y.lowerEpi), Y.lowerEpi, H.lowerEpi, false);
-      applyExplode(); applyIsolate(); applyHighlight();
+      applyExplode(); applyIsolate(); applyHighlight(); applyAperture();
       if (typeof applyVis === 'function') applyVis();
     }
 
@@ -333,6 +340,20 @@
       return next;
     }
 
+    /* Guard cells are turgid when open: they swell and BOW apart, which is why
+       a pore appears between two cells that were touching. Modelled as the gap
+       plus a matching tilt, so the pair reads as bent rather than slid. */
+    const GAP = { shut: 0.115, open: 0.235 };
+    function applyAperture() {
+      const a = Math.max(0, Math.min(1, P.aperture));
+      const z = GAP.shut + (GAP.open - GAP.shut) * a;
+      for (const st of stomata) for (const gm of st.children) {
+        gm.position.z = gm.userData.side * z;
+        gm.rotation.x = gm.userData.side * (0.06 + 0.16 * a);
+        gm.scale.set(1, 1, 1.15 - 0.12 * a);          // drained cells are fatter across
+      }
+    }
+
     function step(dt) {
       if (P.autoRotate) block.rotation.y += dt * 0.25;
       pick();
@@ -341,7 +362,7 @@
       return s;
     }
     function state() {
-      return { explode: P.explode, seed: P.seed, isolate: P.isolate, hovered, layersShown: layersOf(),
+      return { explode: P.explode, seed: P.seed, isolate: P.isolate, aperture: P.aperture, hovered, layersShown: layersOf(),
         layers: ORDER.map(n => ({ name: n, y: (Y[n === 'bundle' ? 'spongy' : n] || 0) + (layers[n] ? layers[n].position.y : 0),
                                   height: n === 'bundle' ? bundle.r * 2 : P.layers[n] })) };
     }
@@ -352,6 +373,7 @@
       for (const k of Object.keys(next)) if (k !== 'layers') P[k] = next[k];
       if (rebuild) build();
       else { if (next.explode != null) applyExplode(); if ('isolate' in next) applyIsolate(); }
+      if (rebuild || next.aperture != null) applyAperture();
     }
     function on(ev, fn) {
       (listeners[ev] || (listeners[ev] = [])).push(fn);

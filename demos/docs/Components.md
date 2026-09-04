@@ -274,19 +274,22 @@ const L = Leaf.mount(el, {
   seed: 1337,          // any integer; a new seed is a new leaf
   isolate: null,       // a layer name kept opaque while the rest fade
   autoRotate: false,
+  aperture: 1,         // 0..1, the stomata shut to open
   layers: { cuticle:0.12, upperEpi:0.7, palisade:2.4, spongy:2.6, lowerEpi:0.7 },  // heights; changing one rebuilds
 });
 ```
 
 Layer names, bottom to top: `lowerEpi` (with stomata), `spongy` (air spaces, cells with chloroplasts), `bundle` (the vein: xylem above, phloem below), `palisade` (columns packed with chloroplasts, where most photosynthesis happens), `upperEpi` with the waxy cuticle on top. Hovering a layer lights it and clicking isolates it; the page can do the same with `set({isolate})`. Nothing here is measured: the proportions are a textbook diagram's, and the page should say so if it makes a claim about size.
 
-`state()`: `explode`, `seed`, `isolate`, `hovered`, and `layers` as a list of `{name, y, height}`. Events: `frame` (state) · `hover` (name or null) · `select` (name or null).
+`aperture` opens and closes every stoma at once: turgid guard cells bow apart and a pore appears between them, drained they meet and it shuts. It is the one thing in this component that moves, so a step about water loss or gas exchange animates it (`set({aperture})` on a tween, or on a slider the student drags) and turns the leaf over to watch, which the camera allows. The underside is where the stomata are.
+
+`state()`: `explode`, `seed`, `isolate`, `aperture`, `hovered`, and `layers` as a list of `{name, y, height}`. Events: `frame` (state) · `hover` (name or null) · `select` (name or null).
 
 Anchors for `note()`: `upperEpi`, `cuticle`, `palisade`, `spongy`, `bundle`, `lowerEpi`, `stoma`. Each carries the library's two-sentence card on what that tissue does.
 
 Layers for `show()`: the five tissues by the same names, plus `chloroplasts` and `cuticle`.
 
-Good for: leaf anatomy, where gas exchange and photosynthesis happen, what a vein is, structure and function of each tissue. Not for: a single cell's interior, or any process; nothing moves in it.
+Good for: leaf anatomy, where gas exchange and photosynthesis happen, what a vein is, structure and function of each tissue, and the trade a stoma makes between CO₂ in and water out. Not for: a single cell's interior, or any process besides the stomata; nothing else in it moves.
 
 ## Tree — a tree, the air around it, and where its mass came from
 

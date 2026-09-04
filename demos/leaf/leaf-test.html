@@ -68,6 +68,8 @@ function bench(ctx) {
       <div class="bench-hd">the block</div>
       <div class="slider"><div class="slider-head"><span class="label">explode</span><span class="value" data-v="explode"></span></div>
         <input type="range" id="explode" min="0" max="1" step="0.01" value="${D.explode}"></div>
+      <div class="slider"><div class="slider-head"><span class="label">stomata</span><span class="value" data-v="aperture"></span></div>
+        <input type="range" id="aperture" min="0" max="1" step="0.01" value="${D.aperture}"></div>
       <div class="row">
         <label class="switch"><input type="checkbox" id="rot"><span class="track"></span>turn slowly</label>
         <button class="btn ghost" type="button" id="regen">new seed</button>
@@ -111,6 +113,7 @@ function bench(ctx) {
     out.textContent =
       `const DEFAULTS = {\n` +
       `  explode: ${(+ui.q('#explode').value).toFixed(2)}, seed: ${s.seed}, isolate: null, autoRotate: ${ui.q('#rot').checked},\n` +
+      `  aperture: ${(+ui.q('#aperture').value).toFixed(2)},\n` +
       `  layers: { ${THICK.map(n => `${n}: ${(+ui.q(`#t-${n}`).value).toFixed(2)}`).join(', ')} },\n` +
       `  width: ${D.width}, depth: ${D.depth},\n};\n\n` +
       `ctx.ui.showPanel(c, { notes: ${JSON.stringify(CHIPS.notes)}, layers: ${JSON.stringify(CHIPS.layers)} });`;
@@ -118,6 +121,11 @@ function bench(ctx) {
   ui.q('#copy').onclick = () => navigator.clipboard.writeText(out.textContent);
 
   ui.range(ui.q('#explode'), v => { L.set({ explode: v }); ui.q('[data-v=explode]').textContent = v.toFixed(2); });
+  ui.range(ui.q('#aperture'), v => {
+    L.set({ aperture: v });
+    ui.q('[data-v=aperture]').textContent = v === 0 ? 'shut' : v === 1 ? 'open' : v.toFixed(2);
+    snippet();
+  });
   ui.q('#rot').onchange = e => L.set({ autoRotate: e.target.checked });
   ui.q('#regen').onclick = () => L.set({ seed: (Math.random() * 1e9) >>> 0 });
 
