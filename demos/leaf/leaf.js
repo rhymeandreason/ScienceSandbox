@@ -569,7 +569,10 @@
     });
     const r = box.renderer;
     r.shadowMap.enabled = true;
-    r.shadowMap.type = THREE.PCFSoftShadowMap;
+    /* PCF, not PCFSoft: `shadow.radius` is ignored by the soft variant, and a
+       blur radius is the only handle on how hard an edge lands. The shadows
+       here are for form, not for drama. */
+    r.shadowMap.type = THREE.PCFShadowMap;
     /* NO TONE MAPPING. ACES rolls the highlights off and pulls the saturation
        with them, which on thirteen already-light greens is most of the washed
        out look. These colours are authored, not captured, so there is no
@@ -585,10 +588,11 @@
       if (o.isAmbientLight) o.intensity = 0.14;
       else if (o.isDirectionalLight) o.intensity *= 0.35;
     });
-    box.scene.add(new THREE.HemisphereLight(0xeaf5d8, 0x53612f, 0.34));
-    const key = new THREE.DirectionalLight(0xfff4e0, 0.72);
+    box.scene.add(new THREE.HemisphereLight(0xeaf5d8, 0x6d7d45, 0.5));
+    const key = new THREE.DirectionalLight(0xfff4e0, 0.5);
     key.position.set(12, 18, 10);
     key.castShadow = true;
+    key.shadow.radius = 4;
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.camera.left = -14; key.shadow.camera.right = 14;
     key.shadow.camera.top = 14; key.shadow.camera.bottom = -14;
@@ -596,9 +600,16 @@
     box.scene.add(key);
     /* A rim from behind and below, which is what stops the underside going
        flat once the leaf is turned over to the stomata. */
-    const rim = new THREE.DirectionalLight(0xdff0ff, 0.22);
+    const rim = new THREE.DirectionalLight(0xdff0ff, 0.24);
     rim.position.set(-10, -8, -12);
     box.scene.add(rim);
+    /* Fill opposite the key, casting nothing. This is what keeps a shadow from
+       being a hole: the only way to lighten one is to put light back into it,
+       since a directional light's shadow has no darkness of its own to turn
+       down. Between cells packed this tightly, an unfilled key reads as soot. */
+    const fill = new THREE.DirectionalLight(0xfaf7ee, 0.34);
+    fill.position.set(-9, 6, -6);
+    box.scene.add(fill);
     /* NO GROUND PLANE. The leaf is a specimen, not an object on a table, and a
        cast shadow under it read as a slab. The layers still shade each other,
        which is the shadow that carries the structure. */
