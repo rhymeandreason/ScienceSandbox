@@ -51,10 +51,24 @@ Events: `frame` always. Add named events for things a page wants to react to (`c
 
 ## 3. Scale and science
 
-* **One scale family per scene**. Two things are "in the same scene" if they are rendered with the same camera. A page can host *multiple* scenes (via kit/card-stage.js, one canvas per card or using an inset module) with no conflict, because the UI provides enough separation. tests/cards-cluster.html is the cited example: an ångström phospholipid in one card, display-scale water in another, on the same page — fine, because they never share a camera.
-* **Say what is measured and what is drawn.** A render of a plant cell is a textbook diagram, prop tier: proportions plausible, nothing deposited. Declare that in the header and in the reference section, so the model does not let a page claim a size. Where a number is real (a bilayer's thickness from OPM, a tree's allometry), keep it beside its citation.
+* **Declare a `SCALE` block, and declare it first.** `kit/scale.js` holds the ladder, `docs/Scale.md` is the rulebook, `tools/check-scale.js` fails the commit. It goes beside the `global.X = {...}` export:
+
+```js
+X.SCALE = {
+  rung: 'cell',                  // required, from the nine-rung ladder
+  form: 'single',                // 'single' | 'bulk'
+  unit: null,                    // metres per scene unit, or null: not measurable
+  sceneUnits: [],                // advertised fields that are scene units on purpose
+  exag: { ribosome: 30 },        // drawn / true, per part name
+  down: { membrane: 'Membrane' },// part name -> the component a zoom hands off to
+};
+```
+
+* **One scale family per scene, and rung is now what says so.** Components at the same rung may share a scene; components at different rungs may not. Two things are "in the same scene" if they are rendered with the same camera, so a page can host *multiple* scenes (via kit/card-stage.js, one canvas per card or an inset module) with no conflict. tests/cards-cluster.html is the cited example: an ångström phospholipid in one card, display-scale water in another, on the same page, fine, because they never share a camera. Crossing a rung inside one camera is the failure; that is a handoff, never a camera move.
+* **`form` is how many, and bulk plus single at one rung is the normal scene.** A solute inside bulk water, a chloroplast inside bulk mesophyll. Reach for that before reaching for a second box.
+* **Say what is measured and what is drawn, in `unit`.** A render of a plant cell is a textbook diagram, prop tier: proportions plausible, nothing deposited, so `unit: null`. That is a claim rather than a gap, and the checker enforces it: nothing may print a length off a component with no unit. Where a number is real (a bilayer's thickness from OPM, a tree's allometry) keep it beside its citation, and if the whole render is measurable give `unit` its metres per scene unit. **How big the real thing IS survives the render not being to scale**, so a real size still belongs on the library card as prose: "a red blood cell is about 8 µm across" is a fact about cells, not a measurement of the picture.
 * **Invariants live in the component, not in the prompt.** A student remixing parameters must not be able to make the science false: clamp ranges, refuse impossible counts, keep the same particle budget per side if that is what the claim rests on. Membrane's contents reconcile and its budgets refuse; the reference only describes the rule.
-* Pedagogical exaggeration is allowed and must be one declared number (`EXAG` in Membrane, `ION.exaggeration` in parts), applied uniformly so relative sizes stay true.
+* Pedagogical exaggeration is allowed and goes in `exag` as drawn/true per part, applied uniformly so relative sizes stay true. A page then prints the factor rather than typing it. Membrane's long-standing `EXAG` is `exag:{crossing:5}`.
 
 ## 4. Budget
 
@@ -68,11 +82,11 @@ Measure the fixed cost too, with nothing on stage. Membrane's was 3 ms a frame f
 
 ## 5. Files, in this order
 
-1. `<name>/<name>.js`, header first. The header is the contract: what it is, what one unit is, every param with its range and default, what `state()` holds, the events, what is exaggerated, what it refuses to own. Comments are present tense and explain the non-obvious (CLAUDE.md).
+1. `<name>/<name>.js`, header first. The header is the contract: what it is, what one unit is, every param with its range and default, what `state()` holds, the events, what is exaggerated, what it refuses to own, and the `SCALE` block beside the export. Comments are present tense and explain the non-obvious (CLAUDE.md).
 2. `<name>/<name>-test.html`, the bench: every control a `set`, every readout from `state`, on the sidebar shell (`css/main.css` + `css/sandbox.css`, `#app-sidebar > #stage + #side`). Copy `leaf/leaf-test.html`. Drive it with `pump` from the console; a backgrounded tab never runs the loop.
 3. A checker if the component makes a checkable claim, `<name>/check-<name>.js`, Node-loadable and dependency-free, and its gate line in `.githooks/pre-commit` once the component is past test status.
-4. `docs/Components.md`: a section in the shape of the others. Load order, the `mount` call with every param commented, what it models in two sentences, the `state()` table, events, then **Good for / Not for**. The model reads nothing else, so if the section does not say it, the model does not know it. Keep it tight; the whole file is the cached prompt and every section costs every request.
-5. `docs/Modules.md`: one bullet under the water/membrane/leaf/tree ones. `admin.html`: one card for the bench. `node tools/check-docs.js` passes.
+4. `docs/Components.md`: a section in the shape of the others. Load order, a **`**Scale**: <rung>, <form>`** line, the `mount` call with every param commented, what it models in two sentences, the `state()` table, events, then **Good for / Not for**. Add the component to `COMPONENTS` in `tools/check-scale.js` and to the ladder table, or the checker fails on a section it does not know. The model reads nothing else, so if the section does not say it, the model does not know it. Keep it tight; the whole file is the cached prompt and every section costs every request.
+5. `docs/Modules.md`: one bullet under the water/membrane/leaf/tree ones. `admin.html`: one card for the bench. `node tools/check-docs.js` and `node tools/check-scale.js` pass.
 6. Run `node tools/gen-app.js "<a request a teacher would type that needs your component>" tests/gen-<name>-test.html`, open the page, drive it, and fix the component or the reference until it works first try. Add the page to `admin.html` under Generated apps with the `UGC` badge. That page is the eval; keep it.
 
 ## 6. What the last four taught
