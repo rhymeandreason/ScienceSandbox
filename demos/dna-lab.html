@@ -168,6 +168,7 @@ let step = 1;
 
 const BOX2 = { x:0, y:-3, rxz:30, hy:27 };
 const BOX3 = { x:0, y:-9, rxz:26, hy:24 };
+const allJoined3 = () => loose3.every(r => r.joined);
 const lerpBox = (a, b, u) => ({ x:a.x + (b.x - a.x) * u, y:a.y + (b.y - a.y) * u,
                                 rxz:a.rxz + (b.rxz - a.rxz) * u,
                                 hy:a.hy + (b.hy - a.hy) * u });
@@ -187,8 +188,11 @@ const L = Lesson.create(document.getElementById('gl'), {
          // Coming in from step 2 it starts on STEP 2'S OWN FRAME, so the rung
          // the student just built does not jump as the step changes; the frame
          // opens to make room for the lower rung as that rung arrives.
-         : step === 3 ? (rung3s[1].joined ? [{ x:0, y:0,   rxz:38, hy:22 }]
-                                        : [lerpBox(BOX2, BOX3, enter3u)])
+         // Three framings: coming in from step 2, waiting on the rung above,
+         // and the finished three-rung ladder.
+         : step === 3 ? (allJoined3() ? [{ x:0, y:0, rxz:38, hy:27 }]
+                       : rung3s[1].joined ? [{ x:0, y:9, rxz:26, hy:24 }]
+                                          : [lerpBox(BOX2, BOX3, enter3u)])
                        : [{ x:0, y:0, rxz:26, hy:17 }],
   afterFrame:()=>{                                    // projection reads a matrix refreshed on render
     if(step === 1){ placeTags(); placeRulers(); }
@@ -1248,32 +1252,86 @@ function applySpin3(){
 /* Two consecutive pairs of the dodecamer. 5 and 6 are A·T over T·A — the step
  * whose two letters are the ones step 2 just built, so the student is joining
  * the rung they made to another one and not to a pair of new letters. */
+/* Rung 0 is the one step 2 built. The other two are its NEIGHBOURS IN THE
+ * RECORD, one below and one above, so the student joins the same rung twice and
+ * ends with a three-rung ladder: pair 4 is A·T like pair 5, pair 6 is T·A. */
 const RUNGS = [
-  { pair:5, of:[['adenine', 0], ['thymine', 1]] },
-  { pair:6, of:[['thymine', 0], ['adenine', 1]] },
+  { pair:5, of:[['adenine', 0], ['thymine', 1]], dir: 0 },
+  { pair:6, of:[['thymine', 0], ['adenine', 1]], dir:-1 },
+  { pair:4, of:[['adenine', 0], ['thymine', 1]], dir:+1 },
 ];
 
 /* Our labels out, the record's in. attach.js speaks PDB names because that is
  * what it reads; the merged spec's labels are this page's own invention, so the
  * translation lives here. Hydrogens are dropped: the record has none, and an
  * atom with no counterpart cannot be fitted onto anything. */
+function pdbName(spec, i){
+  if(spec.atoms[i].el === 'H') return null;
+  const n = spec.names[i];
+  if(n.endsWith('ᴾ')) return n.slice(0, -1) === 'P' ? 'P' : null;    // only the P
+  if(n.endsWith('′')) return n.slice(0, -1) + "'";
+  return n;
+}
 function pdbAtoms(spec){
   const out = {};
   for(let i = 0; i < spec.names.length; i++){
-    if(spec.atoms[i].el === 'H') continue;
-    let n = spec.names[i];
-    if(n.endsWith('ᴾ')) n = (n.slice(0, -1) === 'P') ? 'P' : null;   // only the P
-    else if(n.endsWith('′')) n = n.slice(0, -1) + "'";
+    const n = pdbName(spec, i);
     if(n) out[n] = spec.atoms[i].pos.map(v => v / S);
   }
   return out;
 }
 
+/* ---- then WEAR THE RECORD'S OWN COORDINATES -------------------------------
+ * residueFit is a rigid fit, and a rigid fit of our idealised nucleotide onto
+ * a crystal one leaves about 0.7 Å of residual, all of it in the backbone —
+ * our sugar pucker is Skel's, not 1BNA's. Two rungs hid that: the two bonds
+ * came out 1.47 and 1.61 Å and read as bonds. A third rung does not: one join
+ * landed at 2.73 Å, which is not a bond at any scale.
+ *
+ * So after the fit, every atom the record HAS is moved to where the record has
+ * it, and the phosphodiester bonds come out the crystal's, 1.6 Å, all four.
+ * What the record does not have — hydrogens, the two spare phosphate oxygens —
+ * rides on its nearest neighbour that does, so bond lengths to those are
+ * untouched and nothing is invented. The nucleotide this step draws is then
+ * 1BNA's, not ours placed near it.
+ */
+function wearRecord(res, pair){
+  const dep = Attach.residueAt(window.BDNA, pair, res.strand);
+  if(!dep) return;
+  const spec = res.spec;
+  const qi = res.mol.quaternion.clone().invert();
+  const pos = spec.atoms.map(a => new THREE.Vector3(...a.pos));
+  const moved = new Array(spec.atoms.length).fill(null);
+  for(let i = 0; i < spec.atoms.length; i++){
+    const n = pdbName(spec, i);
+    if(!n || !dep[n]) continue;
+    moved[i] = new THREE.Vector3(...dep[n]).multiplyScalar(S)
+      .sub(res.mol.position).applyQuaternion(qi);
+  }
+  // Outward over the bond graph: an atom with no counterpart takes the
+  // displacement of the nearest one that has.
+  const nbr = spec.atoms.map(() => []);
+  for(const [a, b] of spec.bonds || []){ nbr[a].push(b); nbr[b].push(a); }
+  let front = moved.map((m, i) => m ? i : -1).filter(i => i >= 0);
+  while(front.length){
+    const next = [];
+    for(const i of front) for(const j of nbr[i]){
+      if(moved[j]) continue;
+      moved[j] = pos[j].clone().add(moved[i]).sub(pos[i]);
+      next.push(j);
+    }
+    front = next;
+  }
+  res.spec = { ...spec, atoms: spec.atoms.map((a, i) =>
+    moved[i] ? { ...a, pos:moved[i].toArray() } : a) };
+}
+
 const nucleotideSpec = key => addPart(addPart(M[key], key, 'sugar'), key, 'phosphate');
 
-/* ---- the four nucleotides -------------------------------------------------- */
+/* ---- the six nucleotides --------------------------------------------------- */
 const rung3s = RUNGS.map((r, ri) => {
-  const rung = { i:ri, pair:r.pair, res:[], mol:new THREE.Group(), joined:false };
+  const rung = { i:ri, pair:r.pair, dir:r.dir, res:[],
+                 mol:new THREE.Group(), joined:false };
   for(const [key, strand] of r.of){
     const spec = nucleotideSpec(key);
     const f = Attach.residueFit(pdbAtoms(spec), r.pair, strand);
@@ -1283,6 +1341,8 @@ const rung3s = RUNGS.map((r, ri) => {
       res.mol.quaternion.set(...f.quat);
       res.mol.position.set(...f.pos).multiplyScalar(S);
       res.rms = f.rms;
+      wearRecord(res, r.pair);
+      build3(res, res.spec, rung.mol);
     }
     rung.res.push(res);
   }
@@ -1335,7 +1395,7 @@ const atIn = (res, i, rungPos) => new THREE.Vector3(...res.spec.atoms[i].pos)
 // WHERE THE RECORD PUTS IT, with the lower rung home. "Which atoms bond" is a
 // question about the finished duplex, not about where a rung is being held.
 const atHome = (res, i) =>
-  atIn(res, i, rungOf(res).i === 1 ? home3 : rungOf(res).mol.position);
+  atIn(res, i, rungOf(res).home || rungOf(res).mol.position);
 const atNow  = (res, i) => atIn(res, i, rungOf(res).mol.position);
 
 /* ---- which way is up, solved from the two rungs ----------------------------
@@ -1388,81 +1448,87 @@ function solveView(){
     .setFromAxisAngle(new THREE.Vector3(1, 0, 0), TILT3));
 }
 
-/* ---- the lower rung waits UNWOUND ------------------------------------------
- * A ladder is the honest picture of what this step builds: two rungs and the
- * rails, no twist yet, because the twist is step 4's subject. So the loose rung
- * is staged with the record's own pair-step rotation taken OUT, and it stays
- * flat for the whole drag.
+/* ---- the loose rungs wait UNWOUND ------------------------------------------
+ * A ladder is the honest picture of what this step builds: rungs and rails, no
+ * twist yet, because the twist is step 4's subject. So a loose rung is staged
+ * with the record's own pair-step rotation taken OUT, and it stays flat for the
+ * whole drag.
  *
  * IT CANNOT STAY FLAT AND CLOSE. Unwound, the O3′ and the P that are supposed
  * to bond sit far too far apart — the 34° per rung is what brings them within
  * reach, so a flat ladder has no backbone. The snap therefore restores the
- * record's rotation as the rung lands: the student builds it flat, and the
- * turn is what the bonds cost. Everything downstream (the bond search, the
- * sticks, the tags) reads residue poses, so the untwist is baked into those
- * rather than onto the rung group, which those readers ignore.
+ * record's rotation as the rung lands: the student builds it flat, and the turn
+ * is what the bonds cost. Everything downstream (the bond search, the sticks,
+ * the tags) reads residue poses, so the untwist is baked into those rather than
+ * onto the rung group, which those readers ignore.
  */
-const UNTWIST = (() => {
-  const B = window.BDNA;
-  const q = p => new THREE.Quaternion().setFromRotationMatrix(
-    new THREE.Matrix4().makeBasis(...B.pairs[p].basis.map(v => new THREE.Vector3(...v))));
-  return q(RUNGS[1].pair).multiply(q(RUNGS[0].pair).invert()).invert();
-})();
-const FIT3 = rung3s[1].res.map(res =>
-  ({ res, q:res.mol.quaternion.clone(), p:res.mol.position.clone() }));
-// The rung turns about ITSELF, so the centre is its own atoms in the rung's
-// frame — turning about the group origin would fling it across the stage.
-const CENTRE3 = (() => {
-  const c = new THREE.Vector3(); let n = 0;
-  for(const f of FIT3) for(const a of f.res.spec.atoms){
-    c.add(new THREE.Vector3(...a.pos).applyQuaternion(f.q).add(f.p)); n++;
-  }
-  return c.multiplyScalar(1 / n);
-})();
+const qPair = pair => new THREE.Quaternion().setFromRotationMatrix(
+  new THREE.Matrix4().makeBasis(
+    ...window.BDNA.pairs[pair].basis.map(v => new THREE.Vector3(...v))));
+
 const _tw = new THREE.Quaternion(), IDENT3 = new THREE.Quaternion();
 // u = 0 flat, u = 1 the record.
-function setTwist3(u){
-  _tw.copy(UNTWIST).slerp(IDENT3, u);
-  for(const f of FIT3){
+function setTwist3(rung, u){
+  _tw.copy(rung.untwist).slerp(IDENT3, u);
+  for(const f of rung.fit){
     f.res.mol.quaternion.copy(_tw).multiply(f.q);
-    f.res.mol.position.copy(f.p).sub(CENTRE3).applyQuaternion(_tw).add(CENTRE3);
+    f.res.mol.position.copy(f.p).sub(rung.centre).applyQuaternion(_tw).add(rung.centre);
   }
+  rung.twist = u;
 }
-setTwist3(0);
 
-/* Where the lower rung waits: straight down the screen from where it belongs,
- * far enough to read as a separate object. Its HOME is the record's placement,
- * so this is an offset from the answer rather than a pose of its own. */
-const home3 = rung3s[1].mol.position.clone();
-// Where the loose rung waits. Kept so entering the step again puts it back:
-// the drag moves it, and a student who steps away mid-drag should find the
-// step as it starts, not as they left it.
-const staged3 = new THREE.Vector3();
+const loose3 = rung3s.filter(r => r.dir !== 0);
+for(const rung of loose3){
+  // HOME IS WHERE THE RECORD PUT IT, which is the pose residueFit already gave
+  // every residue — so the rung group itself is at the origin and the whole of
+  // the staging is an offset from the answer.
+  rung.home = rung.mol.position.clone();
+  rung.staged = new THREE.Vector3();
+  rung.fit = rung.res.map(res =>
+    ({ res, q:res.mol.quaternion.clone(), p:res.mol.position.clone() }));
+  // A rung turns about ITSELF, so the centre is its own atoms in the rung's
+  // frame — turning about the group origin would fling it across the stage.
+  rung.centre = (() => {
+    const c = new THREE.Vector3(); let n = 0;
+    for(const f of rung.fit) for(const a of f.res.spec.atoms){
+      c.add(new THREE.Vector3(...a.pos).applyQuaternion(f.q).add(f.p)); n++;
+    }
+    return c.multiplyScalar(1 / n);
+  })();
+  rung.untwist = qPair(rung.pair).multiply(qPair(rung3s[0].pair).invert()).invert();
+  setTwist3(rung, 0);
+}
+
+/* Where a loose rung waits: straight up or down the SCREEN from where it
+ * belongs, far enough to read as a separate object. Kept, so entering the step
+ * again puts it back — the drag moves it, and a student who steps away mid-drag
+ * should find the step as it starts. */
 const AWAY = 21;
 {
   solveView();
   G3.updateMatrixWorld(true);
-  const down = G3.worldToLocal(G3.localToWorld(home3.clone())
-    .add(new THREE.Vector3(0, -AWAY, 0)));
-  rung3s[1].mol.position.copy(down);
+  for(const rung of loose3){
+    rung.staged.copy(G3.worldToLocal(G3.localToWorld(rung.home.clone())
+      .add(new THREE.Vector3(0, AWAY * rung.dir, 0))));
+  }
 
-  /* Centre the group on the FINISHED duplex, not on the staging arrangement:
-   * the lower rung is only waiting below for a moment, and framing that would
-   * leave the thing the step is about off-centre for good. Box3 works in world
-   * space, so the pivot has to be converted back before the group is moved —
-   * afterwards the matrix it would convert through is the one being changed. */
-  const was = rung3s[1].mol.position.clone();
-  rung3s[1].mol.position.copy(home3);
+  /* Centre the group on the FINISHED ladder, not on the staging arrangement:
+   * a loose rung is only waiting off to one side for a moment, and framing that
+   * would leave the thing the step is about off-centre for good. Box3 works in
+   * world space, so the pivot has to be converted back before the group is
+   * moved — afterwards the matrix it would convert through is the one being
+   * changed. */
+  for(const rung of loose3) rung.mol.position.copy(rung.home);
   G3.updateMatrixWorld(true);
   const box = new THREE.Box3();
   for(const r of rung3s) box.expandByObject(r.mol);
   const centre = box.getCenter(new THREE.Vector3());
   pivot3.copy(G3.worldToLocal(centre.clone()));
   G3.position.sub(centre);
-  rung3s[1].mol.position.copy(was);
-  staged3.copy(was);
+  for(const rung of loose3) rung.mol.position.copy(rung.staged);
   rung3s[0].tag.textContent = 'A·T';
   rung3s[1].tag.textContent = 'T·A';
+  rung3s[2].tag.textContent = 'A·T';
 }
 
 /* TWO PIVOTS, one per gesture. The student's drag turns the finished duplex, so
@@ -1486,9 +1552,9 @@ const PIVOT_RUNG1 = (() => {
  * rung3s at their crystal placements, exactly two O3′···P pairs are within
  * bonding distance, and they run opposite ways. Declaring them from the letters
  * would work and would hide the thing being taught. */
-function backbonePairs(){
+function backbonePairs(rA, rB){
   const out = [];
-  for(const a of rung3s[0].res) for(const b of rung3s[1].res){
+  for(const a of rA.res) for(const b of rB.res){
     for(const [donor, taker] of [[a, b], [b, a]]){
       const o = named3(donor, 'O3′'), p = named3(taker, 'Pᴾ');
       if(o < 0 || p < 0) continue;
@@ -1501,12 +1567,15 @@ function backbonePairs(){
 const spin3World = v => SPIN3.localToWorld(v.clone());
 
 let bonds3 = null;
-function linkRungs(){
-  if(rung3s[1].joined) return;
-  rung3s[1].joined = true;
-  bonds3 = backbonePairs();
+// The rung that landed bonds to the one step 2 built — the ladder grows from
+// the middle out, which is the order the student joins them in.
+function linkRungs(rung){
+  if(rung.joined) return;
+  rung.joined = true;
+  const made = backbonePairs(rung3s[0], rung);
+  bonds3 = (bonds3 || []).concat(made);
 
-  for(const b of bonds3){
+  for(const b of made){
     const oh = esterOH(b.taker, atNow(b.donor, b.o));
     const waterAt = [atNow(b.donor, named3(b.donor, 'HO3′')),
                      atNow(b.taker, oh.o), atNow(b.taker, oh.h)]
@@ -1519,10 +1588,12 @@ function linkRungs(){
     water3(waterAt);
   }
   linkSticks();
-  rung3s[0].tag.style.display = rung3s[1].tag.style.display = 'none';
+  for(const r of rung3s) r.tag.style.display = r.joined ? 'none' : r.tag.style.display;
+  rung3s[0].tag.style.display = 'none';
   endTags();
   say3();
   L.fit();
+  if(rung === rung3s[1]) enterRung(rung3s[2]);
 }
 
 // Which of the phosphate's two spare hydroxyls reacts: the one nearest the
@@ -1621,12 +1692,19 @@ function stepWaters3(){
  * rails have them at OPPOSITE ends. Labelling the four ends is the whole claim
  * of the step, so the labels go on the atoms rather than near them. */
 const ends3 = [];
+/* A FREE END IS ONE THE BACKBONE DID NOT USE. A residue that gave up its O3′ has
+ * no free 3′, and one whose phosphate was taken has no free 5′ — so the ends
+ * fall out of the bond list, and they move outward on their own as the ladder
+ * grows. Asking each rung would have to know which rung is now the last. */
 function endTags(){
-  for(const b of bonds3){
-    // Up the rail from the bond: the taker's own 3′ is that rail's free end,
-    // and the donor's phosphate is the other.
-    for(const [res, name, text] of [[b.taker, 'O3′', '3′'], [b.donor, 'Pᴾ', '5′']]){
-      const i = named3(res, name);
+  for(const e of ends3) e.el.remove();
+  ends3.length = 0;
+  const donors = new Set(bonds3.map(b => b.donor));
+  const takers = new Set(bonds3.map(b => b.taker));
+  for(const res of new Set([...donors, ...takers])){
+    for(const [free, name, text] of [[!donors.has(res), 'O3′', '3′'],
+                                     [!takers.has(res), 'Pᴾ', '5′']]){
+      const i = free ? named3(res, name) : -1;
       if(i < 0) continue;
       const el = document.createElement('div');
       el.className = 'tag end';
@@ -1653,9 +1731,19 @@ function say3(){
       + 'form, one down each side, and the rung has to turn for them to reach.';
     return;
   }
-  const d = bonds3.map(b => b.d.toFixed(2)).join(' Å and ');
-  note.innerHTML = `Two phosphodiester bonds, ${d} Å — the same condensation as `
-    + 'the other two, twice. Each side is now sugar–phosphate–sugar, with the '
+  if(!allJoined3()){
+    const d = bonds3.map(b => b.d.toFixed(2)).join(' Å and ');
+    note.innerHTML = `Two phosphodiester bonds, ${d} Å, one down each side. `
+      + 'A third rung is waiting above. Drag it down: the same bond again, and '
+      + 'the rails carry on past the join.';
+    return;
+  }
+  // Read from the bonds, and collapsed when they agree: four identical numbers
+  // in a row read as a typed claim rather than as four measurements.
+  const ds = [...new Set(bonds3.map(b => b.d.toFixed(2)))];
+  const d = ds.length === 1 ? `all ${ds[0]} Å` : ds.join(' Å · ') + ' Å';
+  note.innerHTML = `Four phosphodiester bonds, ${d} — the same condensation `
+    + 'every time. Each side is now sugar–phosphate–sugar–phosphate–sugar, with the '
     + 'bases hanging inward. <b>And the two sides point opposite ways</b>: one '
     + "rail's 3′ end is level with the other's 5′. That is what antiparallel "
     + 'means, and it is why the strands can be read as templates for each other. '
@@ -1670,11 +1758,15 @@ let held3 = null, off3 = null, turn3 = null;
  * moving the thing the step is about. After the join there is nothing left to
  * place, so the same drag turns the duplex and the two bonds can be looked at
  * from off the side-on view they are drawn in. */
+// The rung on offer: the one that is on stage and not yet joined. Nothing is
+// on offer between the joins, and then the drag turns the ladder instead.
+const openRung = () => loose3.find(r => !r.joined && r.mol.visible);
 function down3(e){
-  if(rung3s[1].joined){ turn3 = { x:e.clientX, y:e.clientY }; return; }
+  const open = openRung();
+  if(!open){ turn3 = { x:e.clientX, y:e.clientY }; return; }
   const w = toWorld(e);
-  if(flatDist(w, rungCentre(rung3s[1])) > 12) return;
-  held3 = rung3s[1];
+  if(flatDist(w, rungCentre(open)) > 12) return;
+  held3 = open;
   off3 = held3.mol.position.clone().sub(toSpin3(w));
 }
 function move3(e){
@@ -1714,17 +1806,17 @@ function rungCentre(rung){
 const LATCH3 = 9;
 function tryLinkRungs(){
   if(!held3) return;
-  if(flatDist(spin3World(held3.mol.position), spin3World(home3)) > LATCH3) return;
-  const from = held3.mol.position.clone();
   const rung = held3;
+  if(flatDist(spin3World(rung.mol.position), spin3World(rung.home)) > LATCH3) return;
+  const from = rung.mol.position.clone();
   held3 = null;
   L.motion.seq([
     // The slide and the wind-up are ONE motion: the rung arrives already turned,
     // so the bonds form on the crystal's geometry and nothing snaps afterwards.
     { dur:0.42, ease:'outBack',
-      onUpdate:u=>{ rung.mol.position.lerpVectors(from, home3, u);
-                    setTwist3(Math.min(1, u)); placeSticks(); } },
-    { call:()=>{ setTwist3(1); linkRungs(); } },
+      onUpdate:u=>{ rung.mol.position.lerpVectors(from, rung.home, u);
+                    setTwist3(rung, Math.min(1, u)); placeSticks(); } },
+    { call:()=>{ setTwist3(rung, 1); linkRungs(rung); } },
   ], { tag:'link3' });
 }
 
@@ -1763,9 +1855,13 @@ const g3y0 = G3.position.y;
 function enter3(){
   const rung = rung3s[1];
   L.motion.cancel('link3');
-  rung.mol.position.copy(staged3);
-  rung.mol.visible = false;
-  setTwist3(0);
+  L.motion.cancel('rung');
+  for(const r of loose3){
+    r.mol.position.copy(r.staged);
+    r.mol.visible = false;
+    r.tag.style.display = 'none';
+    setTwist3(r, 0);
+  }
   enter3u = 0;
   pivot3.copy(PIVOT_RUNG1);
   euler3.set(ENTER_X, 0, 0);
@@ -1774,8 +1870,7 @@ function enter3(){
   // rung has to come from off the bottom of the frame, not off some axis of
   // the crystal's.
   SPIN3.updateMatrixWorld(true);
-  const far = SPIN3.worldToLocal(SPIN3.localToWorld(staged3.clone())
-    .add(new THREE.Vector3(0, -AWAY, 0)));
+  const far = offStage(rung);
   /* AND THE RUNG STARTS WHERE STEP 2 LEFT IT. The two steps centre on different
    * things — step 2 on its assembly, step 3 on the finished duplex — so the
    * same rung sits about 70 px lower here, and the step opened with a lurch.
@@ -1795,10 +1890,35 @@ function enter3(){
     { call:()=>{ pivot3.copy(PIVOT_DUPLEX); applySpin3();
                  rung.mol.visible = true; rung.tag.style.display = ''; } },
     { dur:0.55, ease:'outCubic',
-      onUpdate:u=>{ rung.mol.position.lerpVectors(far, staged3, u);
+      onUpdate:u=>{ rung.mol.position.lerpVectors(far, rung.staged, u);
                     G3.position.y = g3y0 + dy * (1 - u);
                     enter3u = u; L.fit(); } },
   ], { tag:'enter3' });
+}
+
+/* Further along the SCREEN from where the rung waits, which is what SPIN3's
+ * world walk converts: a rung comes from off the edge of the frame, not off
+ * some axis of the crystal's. */
+function offStage(rung){
+  SPIN3.updateMatrixWorld(true);
+  return SPIN3.worldToLocal(SPIN3.localToWorld(rung.staged.clone())
+    .add(new THREE.Vector3(0, AWAY * rung.dir, 0)));
+}
+
+/* THE THIRD RUNG, after the first join. Same gesture, the other way up: a
+ * backbone is not two nucleotides, and joining the second one is where the
+ * student sees the rails carry on rather than the join being a one-off. */
+function enterRung(rung){
+  rung.mol.position.copy(offStage(rung));
+  rung.mol.visible = true;
+  setTwist3(rung, 0);
+  const far = rung.mol.position.clone();
+  L.motion.seq([
+    { dur:0.35 },
+    { call:()=>{ rung.tag.style.display = ''; } },
+    { dur:0.65, ease:'outCubic',
+      onUpdate:u=>{ rung.mol.position.lerpVectors(far, rung.staged, u); L.fit(); } },
+  ], { tag:'rung' });
 }
 
 /* =============================================================================
@@ -2015,10 +2135,17 @@ function showStep(n){
     p.tag.style.display = (n === 2) ? '' : 'none';
   note.classList.toggle('on', n === 2 || n === 3);
   if(n !== 2 && spinning) stopSpin();
-  for(const rung of rung3s)
-    rung.tag.style.display = (n === 3 && !rung3s[1].joined) ? '' : 'none';
-  if(n === 3 && !rung3s[1].joined){ rung3s[1].tag.style.display = 'none'; enter3(); }
-  else { L.motion.cancel('enter3'); enter3u = 1; G3.position.y = g3y0; }
+  for(const rung of rung3s) rung.tag.style.display = 'none';
+  // The entry only replays from the top. Coming back to a half-built ladder
+  // restores what is on stage instead: replaying would unjoin the first rung.
+  if(n === 3 && !rung3s[1].joined) enter3();
+  else {
+    L.motion.cancel('enter3'); enter3u = 1; G3.position.y = g3y0;
+    if(n === 3) for(const r of loose3){
+      r.mol.visible = true;
+      r.tag.style.display = r.joined ? 'none' : '';
+    }
+  }
   for(const e of ends3) e.el.style.display = (n === 3) ? '' : 'none';
   if(n === 3) say3();
   if(n === 2){ pairBonds(); say(nucleo.adenine); }
