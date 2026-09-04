@@ -303,6 +303,12 @@ async function edit({ html, request, errors, provider, bench }) {
   const t0 = Date.now();
   let usage = null, served = null;
 
+  /* The page is the prompt here, and a remixed one was written for someone
+   * else, so text in it reaches this turn as if the student had typed it.
+   * There is no fencing it the way the errors are fenced: editing it is the
+   * job. What bounds the damage is that the model can only rewrite this one
+   * app and the result runs on an opaque origin, so give the sandbox flags in
+   * apps-client.js a second look before loosening them. */
   const context = `Here is the page as it stands:\n\n${html}${errorsBlock(errors)}`;
   const askFor = `The student now asks: ${req}\n\nChange the page to answer them, keeping everything they did not ask to change. Leave the requests comment at the top alone; the server maintains it.`;
 
