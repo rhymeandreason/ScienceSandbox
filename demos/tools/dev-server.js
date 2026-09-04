@@ -130,14 +130,20 @@ const REWRITES = loadRewrites();
 /* ---- the reload client, injected into HTML responses only ---------------- */
 // EventSource rather than a WebSocket: it is one line of client code, it
 // reconnects on its own when this server restarts, and it needs no dependency.
+//
+// A HIDDEN TAB CLOSES ITS STREAM, and that is not a nicety. A browser allows
+// six simultaneous connections per host over HTTP/1.1, and an open EventSource
+// holds one for as long as the tab lives. Six background tabs on localhost
+// therefore starve the origin: the next page load hangs forever with no error
+// and no log line, and restarting the server only helps until those tabs
+// reconnect. So the stream lives only while the tab is visible, and on
+// reopening it asks what it missed with `since`.
 const CLIENT = `
 <script>
 (() => {
-  // The page names itself on connect, so the server can decide whether a given
-  // change is any of this page's business.
-  const es = new EventSource('/__dev/reload?page=' + encodeURIComponent(location.pathname));
-  es.onmessage = e => {
-    if (e.data === 'css') {
+  let es = null, since = Date.now();
+  const handle = data => {
+    if (data === 'css') {
       // Re-point every stylesheet at a fresh URL. The page keeps its state —
       // camera, selection, toggles — which is the whole reason to special-case
       // CSS instead of reloading.
@@ -155,6 +161,17 @@ const CLIENT = `
       location.reload();
     }
   };
+  const open = () => {
+    if (es) return;
+    // The page names itself on connect, so the server can decide whether a given
+    // change is any of this page's business.
+    es = new EventSource('/__dev/reload?page=' + encodeURIComponent(location.pathname)
+                         + '&since=' + since);
+    es.onmessage = e => { since = Date.now(); handle(e.data); };
+  };
+  const close = () => { if (es) { es.close(); es = null; since = Date.now(); } };
+  document.addEventListener('visibilitychange', () => document.hidden ? close() : open());
+  if (!document.hidden) open();
 })();
 </script>
 `;
@@ -180,7 +197,15 @@ function record(pagePath, urlPath) {
 const clients = new Set();          // { res, page }
 let timer = null, changed = new Set();
 
+// What changed lately, so a tab whose stream was closed while it was hidden can
+// ask for the changes it slept through instead of coming back silently stale.
+const recent = [];                  // { t, file }, oldest first
+const RECENT_MS = 15 * 60 * 1000;
+function kindOf(files) { return files.every(f => f.endsWith('.css')) ? 'css' : 'reload'; }
+
 function notify(file) {
+  recent.push({ t: Date.now(), file: urlOf(file) });
+  while (recent.length && recent[0].t < Date.now() - RECENT_MS) recent.shift();
   changed.add(urlOf(file));
   clearTimeout(timer);
   // Debounced: editors write a file in several syscalls, and a save that touched
@@ -195,7 +220,7 @@ function notify(file) {
       // than let it go quietly stale.
       const hits = set ? [...batch].filter(f => set.has(f)) : [...batch];
       if (!hits.length) continue;
-      const kind = hits.every(f => f.endsWith('.css')) ? 'css' : 'reload';
+      const kind = kindOf(hits);
       c.res.write(`data: ${kind}\n\n`);
       console.log(`  → ${kind}: ${c.page}`);
       woke++;
@@ -524,6 +549,19 @@ const server = http.createServer((req, res) => {
     const client = { res, page };
     clients.add(client);
     req.on('close', () => clients.delete(client));
+
+    // The tab was hidden and let its stream go. Anything it depends on that
+    // changed in the meantime is delivered now, as one event.
+    const since = Number(q.searchParams.get('since')) || 0;
+    if (since) {
+      const missed = recent.filter(r => r.t > since).map(r => r.file);
+      const set = deps.get(page);
+      const hits = set ? missed.filter(f => set.has(f)) : missed;
+      if (hits.length) {
+        res.write(`data: ${kindOf(hits)}\n\n`);
+        console.log(`  → ${kindOf(hits)}: ${page} (missed while hidden)`);
+      }
+    }
     return;
   }
 
