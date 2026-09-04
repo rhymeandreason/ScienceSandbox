@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ladder to helix — bench</title>
+
+<!-- ===================================================================
+     LIFTED OUT OF dna-lab.html, WHERE IT WAS STEP 4. The winding itself is
+     right and the lesson around it was not: a student who has just built a
+     backbone is not asking about grooves. Kept whole here so the animation
+     survives the lesson being rewritten — every number, comment and
+     invariant below came across unchanged.
+
+     Not a lesson: no nav, no prose, one slider. `demos/CLAUDE.md` calls this
+     status *test*, and `admin.html` is where it is listed.
+     =================================================================== -->
+
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<style>
+  /* No side panel: the stage is the whole page. */
+  #app{grid-template-columns:1fr}
+  #stage{grid-column:1}
+
+  /* The twist control. */
+  #twistbar{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:7;
+    display:flex;align-items:center;gap:12px;
+    background:rgba(255,255,255,.82);border:2px solid var(--ink);border-radius:10px;
+    padding:9px 17px;font-family:var(--font-sans);font-size:12.5px;color:var(--muted)}
+  #twistbar input{width:min(340px,34vw);accent-color:var(--ink)}
+  #twistbar label{flex:none}
+
+  /* THE READOUT IS NOT IN THE BAR. Its text changes length on every frame of a
+     drag — '34° per rung' against '19° per rung, winding up the strand ·
+     backbone stretched 11.2×' — and inside a flex row that re-lays the row out
+     under the cursor, so the slider shifts while it is being dragged. Out here
+     it is centred over the bar and can say anything it likes. */
+  #twistread{position:absolute;left:50%;bottom:78px;transform:translateX(-50%);
+    z-index:7;white-space:nowrap;
+    font-family:var(--font-slab);font-size:12.5px;color:var(--ink);
+    background:var(--paper);padding:3px 12px;border-radius:7px}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="twistbar">
+      <label>Ladder</label>
+      <input id="twist" type="range" min="0" max="1000" value="1000">
+      <label>Helix</label>
+    </div>
+    <div id="twistread"></div>
+    <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Ladder to helix</h1></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../kit/motion.js"></script>
+<script src="../kit/stagekit.js"></script>
+<script src="../dna/data/bdna.js"></script>
+<script>
+"use strict";
+
+const S = MolLib.SCALE;
+
+// Side-on to the axis the duplex grows along, and no orbit: the slider is the
+// only control, so a stray drag cannot leave the bench at an angle the lesson
+// never showed.
+const L = Lesson.create(document.getElementById('gl'), {
+  cam:{ theta:0, phi:1.5708, r:34 }, rMax:400, orbit:false,
+  boxes:()=>[{ x:0, y:0, rxz:16, hy:44 }],
+});
+
+/* =============================================================================
+ *  THE LADDER AND THE HELIX, one molecule
+ * =============================================================================
+ *  Everything here is 1BNA (dna/data/bdna.js, baked by dna/bake-ladder.js).
+ *  Each base pair is built ONCE from its atoms in its own frame, then placed
+ *  twice: the deposited helix, and the same pairs with the twist set to zero.
+ *  The slider interpolates the PLACEMENTS — slerp the rotation, lerp the
+ *  origin — so every pair stays rigid at every value. Nothing deforms; the
+ *  arrangement is the only thing that changes, which is the claim.
+ *
+ *  The grooves are therefore not drawn. They appear because a twisted ladder
+ *  has gaps of two different sizes between its rails, and disappear when the
+ *  twist comes out. That is the entire argument of the step.
+ * ========================================================================== */
+const G4 = new THREE.Group();
+/* STAND THE HELIX UP. The stack grows along the base-pair NORMAL — the mean
+ * step's translation is (shift, slide, rise) in the pair's own frame, and the
+ * rise component is along that normal, which is local +Z. Left alone the
+ * duplex grows straight at the camera and the page shows a view down the axis
+ * from one end: a rosette, not a helix. One rotation puts the growth
+ * direction along world +Y, where the camera is side-on to it. */
+G4.rotation.x = -Math.PI / 2;
+L.root.add(G4);
+
+const bdna = window.BDNA;
+
+/* THE HELIX IS BUILT BY TWISTING THE LADDER, not by interpolating toward a
+ * deposited structure. Every pair keeps its own REAL atoms from 1BNA; what is
+ * idealised is the STEP between them — one mean rigid transform, measured off
+ * all eleven real steps, applied over and over.
+ *
+ * Two things follow, and both were fought for:
+ *
+ *  · Every step is identical, so the wind cannot seam, reverse, or run ahead
+ *    of itself partway up the strand. Those failures are not fixed here; they
+ *    are unrepresentable.
+ *  · The step carries all six parameters — shift, slide, rise, tilt, roll,
+ *    twist — because rise and twist alone leave the finished helix 3.4 Å from
+ *    the real one, which is nothing to a 40 Å molecule and fatal to a 1.6 Å
+ *    bond. With all six the backbone survives the idealisation at 1.09× its
+ *    natural length.
+ *
+ * The LADDER is the same stack with the turn taken out and the sideways drift
+ * dropped: straight up, every rung square. */
+const HELIX_Q = new THREE.Quaternion(...bdna.step.q);
+const HELIX_T = new THREE.Vector3(...bdna.step.t).multiplyScalar(S);
+const LADDER_Q = new THREE.Quaternion();
+const LADDER_T = new THREE.Vector3(0, 0, bdna.step.t[2] * S);
+
+const rungs = bdna.pairs.map(p => {
+  const spec = { name:p.seq, units:'scene', view:null,
+    atoms: p.atoms.map(a => ({ el:a.el, pos:a.p.map(v => v * S) })),
+    bonds: p.bonds };
+  const mol = Stage.buildMolecule(spec, { center:false });
+  G4.add(mol);
+  return { p, mol };
+});
+
+/* The phosphodiester bonds run BETWEEN base pairs, so they belong to no pair
+ * and have to be redrawn as the pairs move. Without them the ladder is twelve
+ * floating rungs and the grooves have no rails to be gaps between. */
+/* THE BACKBONE TEARS, AND THE PAGE SAYS SO.
+ *
+ * Every base pair here is rigid, so untwisting can only be done by moving the
+ * pairs — and when it is, the O3′→P bonds between them stretch from 1.6 Å to
+ * nearly 9. That is not an artefact to hide behind a fade-out. It is the
+ * answer to a question the textbook picture never raises: DNA is drawn as a
+ * "twisted ladder", and a real ladder is IMPOSSIBLE. The backbone has a fixed
+ * length per residue and cannot span a straight stack of pairs 3.5 Å apart.
+ * Winding is how it reconciles the two — the helix is not decoration on a
+ * ladder, it is the only way the thing can be built.
+ *
+ * The numbers say it plainly. Winding from the flat ladder to the finished
+ * helix, the worst backbone bond goes 3.9× → 3.9× → 3.5× → 2.2× → 1.6×, and
+ * the mean 3.3× → 1.1×: the further it winds, the closer the backbone gets to
+ * its natural length. The helix is not a shape imposed on the ladder, it is
+ * the ladder relieving itself.
+ *
+ * So a stretched bond is drawn stretched — thinning and fading as it goes,
+ * which reads as strain without inventing a colour that means something else
+ * in SCIENCE.md §5. */
+const linkGeo = new THREE.CylinderGeometry(0.16, 0.16, 1, 7);
+const linkMesh = bdna.links.map(() => {
+  const m = new THREE.Mesh(linkGeo, new THREE.MeshStandardMaterial(
+    { color:0xbfae8e, roughness:.55, transparent:true, opacity:1 }));
+  G4.add(m); return m; });
+
+const _p1 = new THREE.Vector3(), _p2 = new THREE.Vector3(), _dv = new THREE.Vector3();
+const UP4 = new THREE.Vector3(0,1,0);
+
+const atomWorld = (r, ai, out) =>
+  out.set(...r.p.atoms[ai].p).multiplyScalar(S).applyQuaternion(r.mol.quaternion)
+     .add(r.mol.position);
+
+/* WIND IT FROM ONE END, like a rope, not all at once like a wrung towel.
+ *
+ * Twisting every rung simultaneously is the easy interpolation and the wrong
+ * picture: it says the helix is a thing the whole molecule does at a stroke,
+ * and it gives the eye nothing to follow. Winding from one end shows the turn
+ * ACCUMULATING — each rung sits a little further round than the one below it,
+ * which is what a helix IS.
+ *
+ * Each pair therefore runs its own copy of the slider, offset by its position
+ * along the duplex. `SPAN` is how much of the slider one pair takes; the rest
+ * is the stagger. At 0.55 the bottom pair is fully wound around the time the
+ * top one starts to move, so there is always a visible front. */
+const SPAN = 0.55;
+const progress = (t, i) => {
+  const start = (i / (rungs.length - 1)) * (1 - SPAN);
+  return Math.max(0, Math.min(1, (t - start) / SPAN));
+};
+
+const _sq = new THREE.Quaternion(), _st = new THREE.Vector3();
+const _fq = new THREE.Quaternion(), _fp = new THREE.Vector3();
+
+/* Compose the steps up the stack. Step j runs its own copy of the slider, so
+ * the turn accumulates from the bottom and there is always a winding front —
+ * and because each step is applied to the frame below it, the strand cannot
+ * come apart at a seam however the individual steps are eased. */
+function place(t){
+  _fq.identity(); _fp.set(0, 0, 0);
+  const half = (rungs.length - 1) / 2;
+  for(let i = 0; i < rungs.length; i++){
+    if(i > 0){
+      const u = progress(t, i);
+      THREE.Quaternion.slerp(LADDER_Q, HELIX_Q, _sq, u);
+      _st.lerpVectors(LADDER_T, HELIX_T, u);
+      _fp.add(_st.applyQuaternion(_fq));
+      _fq.multiply(_sq);
+    }
+    rungs[i].mol.quaternion.copy(_fq);
+    rungs[i].mol.position.copy(_fp);
+  }
+  // Centre the stack so it does not climb off the stage as it winds. In G4's
+  // own space the stack runs along +Z; the group's rotation stands that up.
+  const mid = rungs[Math.floor(half)].mol.position.z;
+  for(const r of rungs) r.mol.position.z -= mid;
+
+  let worst = 0;
+  bdna.links.forEach((lk, i) => {
+    atomWorld(rungs[lk.from.pair], lk.from.ai, _p1);
+    atomWorld(rungs[lk.to.pair],   lk.to.ai,   _p2);
+    const d = _dv.subVectors(_p2, _p1), len = d.length();
+    const m = linkMesh[i];
+    m.position.copy(_p1).addScaledVector(d, 0.5);
+    m.quaternion.setFromUnitVectors(UP4, d.clone().normalize());
+    const strain = (len / S) / lk.d;
+    worst = Math.max(worst, strain);
+    const thin = Math.min(1, 1 / strain);
+    m.scale.set(thin, len, thin);
+    m.material.opacity = 0.25 + 0.75 * thin;
+  });
+  return worst;
+}
+
+/* The readout is measured, not derived from the slider: the turn per rung, and
+ * — once the backbone is being pulled — what that costs it. */
+function setTwist(t){
+  const worst = place(t);
+  // Read the state out of the rungs, not out of the slider: how many are
+  // actually wound, and what the winding is costing the backbone.
+  // The leading end's turn, not a count of finished rungs: nothing is FULLY
+  // wound until the slider is past the stagger, so a count sits at zero for
+  // half the travel while the screen is visibly winding.
+  const lead = progress(t, 1) * bdna.step.turnDeg;
+  const el = document.getElementById('twistread');
+  const state = t >= 1 ? `${bdna.twistDeg.toFixed(0)}° per rung`
+              : t <= 0 ? 'no twist'
+              : `${lead.toFixed(0)}° per rung, winding up the strand`;
+  el.innerHTML = state + (worst > 1.25
+    ? ` &middot; <b>backbone stretched ${worst.toFixed(1)}×</b>` : '');
+}
+
+
+const twistEl = document.getElementById('twist');
+twistEl.oninput = () => setTwist(+twistEl.value / 1000);
+setTwist(+twistEl.value / 1000);
+L.resize(); L.fit(); L.start();
+</script>
+</body>
+</html>
