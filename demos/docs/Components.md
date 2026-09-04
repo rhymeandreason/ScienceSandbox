@@ -17,7 +17,6 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 <title>short name</title>
 <link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="../css/lesson-shell.css">
-<link rel="stylesheet" href="../css/annotate.css">   <!-- callouts on the scene -->
 <style> /* page-specific rules only, and as few as possible */ </style>
 </head>
 <body>

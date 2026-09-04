@@ -28,6 +28,15 @@
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&display=swap');
+
+/* THE CALLOUT, PULLED IN RATHER THAN COPIED. Almost every lesson annotates its
+   model, and components are growing their own notes for a generated page to
+   switch on, so a <link> a page has to remember is a <link> a page will forget
+   — and an unstyled callout on a generated page has no fallback to land on.
+   Importing keeps ONE copy of the rules and one file that owns them, which is
+   what the six pages still on main.css link directly. It resolves against this
+   file's own URL, so every path a page reaches kodo.css by works. */
+@import url('annotate.css');
 /* -----------------------------------------------------------------------------
    0. BASE
    Declared here rather than inherited from sandbox.css, which is on its way out.
