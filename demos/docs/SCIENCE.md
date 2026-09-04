@@ -175,15 +175,19 @@ student reads fastest, that these are three different kinds of chemistry.
 
 `fx.condense(bondAt, waterAt, opt)` is the only implementation. It fires in two
 places because the reaction happens in two: a full `spawnRing` **at the new
-bond's midpoint**, in `PALETTE.bonds.condense` (slate violet `#6a5acd` — the
-same token that colours the bond stick drawn afterwards, so the flare and its
-product cannot drift), plus a small white core and **oxygen-red** burst where
-the water goes. It does not draw the water; that is a molecule, and the page
+bond's midpoint** in flare violet `#8a2be2`, plus a small white core and
+**oxygen-red** burst where the water goes. It does not draw the water; that is a molecule, and the page
 owns it.
 
 The midpoint matters. A flare at a molecule's transform origin lands in the
 middle of a ring system and says "something happened somewhere" — the failure
 `dna-lab` step 1 had already fixed for hydrogen bonds.
+
+Its rings are also the one effect in `fx.js` that is **painted rather than
+added**. Every other flare is a bright colour, and additive blending is right
+for those; violet is darker than the paper, and adding it to cream gives a pale
+pink smudge however saturated it is. The white core stays additive, because
+painting a white disc over a molecule punches a hole in it.
 
 `opt.color` exists only for a page saying *this particular one is not a
 condensation*. `opt.size` is the ångström scaling every `fx` primitive takes.
@@ -197,9 +201,12 @@ condensation*. `opt.size` is the ångström scaling every `fx` primitive takes.
   colour so cation and anion read as distinct.
 - **Water-blue** (`#9fd4ff`) — the **hydration shell closing in**; a water
   colour, not the solute's, because the solute is unchanged.
-- **Slate violet** (`#6a5acd`, `PALETTE.bonds.condense`) — **dehydration
-  synthesis**: the bond a condensation just made, and the flare that announced
-  it. One colour for one reaction, whichever groups it joined.
+- **Violet** (`#6a5acd` the bond, `#8a2be2` the flare) — **dehydration
+  synthesis**, whichever groups it joined. Two numbers for one idea because the
+  effects blend additively on cream: adding a violet that carries green
+  (`#6a5acd`, g=`0x5a`) lands as a pale pink smudge, so the flare uses the same
+  hue with the green taken out. `PALETTE.bonds.condense` is the stick; the flare
+  constant lives in `fx.js` beside `PROTON_GOLD`, like every other ring colour.
 - **White core flash** (`#ffffff`) — shared by all `spawnRing` events, the
   white-hot instant before the coloured rings.
 

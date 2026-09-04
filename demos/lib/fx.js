@@ -78,11 +78,25 @@
       };
     }
 
+    /* ---- how an effect blends ----------------------------------------------
+     * ADDITIVE by default, which is right for a flare that should read as
+     * light: it brightens whatever it is over and never darkens it.
+     *
+     * That is also its limit, and the limit is the PAPER. These pages are
+     * cream, and adding any colour to a light ground walks it toward white — so
+     * a mid-toned hue flares as a pale smudge no matter how saturated it is.
+     * The only way to put a dark colour ON cream is to paint it, so a caller
+     * may ask for normal blending. Nothing but condense() does today; every
+     * other effect is a genuinely bright one and additive suits it.
+     */
+    const _blend = o => (o && o.blend === 'normal')
+      ? THREE.NormalBlending : THREE.AdditiveBlending;
+
     // bright soft core flash at a point — the white-hot instant of the event.
     const _coreGeo=new THREE.CircleGeometry(1,40);
-    function spawnCore(pos,color,follow,size=1){
+    function spawnCore(pos,color,follow,size=1,opt){
       const m=new THREE.Mesh(_coreGeo,new THREE.MeshBasicMaterial(
-        {color,transparent:true,opacity:1,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
+        {color,transparent:true,opacity:1,side:THREE.DoubleSide,depthWrite:false,blending:_blend(opt)}));
       const at=tracker(pos,follow);
       m.position.copy(at()); m.renderOrder=12; root.add(m);
       fx.push({t:0,dur:0.34,update(k){
@@ -95,11 +109,11 @@
 
     // a spray of little glowing sparks flying outward — the "energy released" debris.
     const _sparkGeo=new THREE.SphereGeometry(0.12,8,6);
-    function spawnBurst(pos,color,n=14,follow,size=1){
+    function spawnBurst(pos,color,n=14,follow,size=1,opt){
       const at=tracker(pos,follow);
       for(let i=0;i<n;i++){
         const m=new THREE.Mesh(_sparkGeo,new THREE.MeshBasicMaterial(
-          {color,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false}));
+          {color,transparent:true,opacity:1,blending:_blend(opt),depthWrite:false}));
         m.position.copy(at()); m.renderOrder=11; root.add(m);
         // random direction on a sphere, varied speed
         const dir=new THREE.Vector3(Math.random()-.5,Math.random()-.5,Math.random()-.5)
@@ -117,9 +131,9 @@
     // ring + core flash + spark burst so the moment really lands. Billboarded to
     // the camera each frame so it always reads as a flat disc facing the viewer.
     const _ringGeo=new THREE.RingGeometry(0.60,0.86,56);
-    function _ring(pos,color,delay,scale,dur,follow,size=1){
+    function _ring(pos,color,delay,scale,dur,follow,size=1,opt){
       const m=new THREE.Mesh(_ringGeo,new THREE.MeshBasicMaterial(
-        {color,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
+        {color,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false,blending:_blend(opt)}));
       const at=tracker(pos,follow);
       m.position.copy(at()); m.renderOrder=10; root.add(m);
       fx.push({t:0,dur:dur+delay,update(k){
@@ -141,11 +155,11 @@
      * 65 A molecule and reads as a spark. Scale it at the CALL, per page —
      * a shared default that drifts to suit the biggest subject would shrink
      * the effect on every page that was right already. */
-    function spawnRing(pos,color,follow,size=1){
-      spawnCore(pos,0xffffff,follow,size);
-      _ring(pos,color,0,   5.4,0.75,follow,size);   // fast leading ring
-      _ring(pos,color,0.12,4.0,0.85,follow,size);   // trailing echo
-      spawnBurst(pos,color,16,follow,size);
+    function spawnRing(pos,color,follow,size=1,opt){
+      spawnCore(pos,0xffffff,follow,size,opt);
+      _ring(pos,color,0,   5.4,0.75,follow,size,opt);   // fast leading ring
+      _ring(pos,color,0.12,4.0,0.85,follow,size,opt);   // trailing echo
+      spawnBurst(pos,color,16,follow,size,opt);
     }
 
     /* ---- DEHYDRATION SYNTHESIS -------------------------------------------
@@ -162,25 +176,43 @@
      * left is an oxygen and two hydrogens. Nothing here draws the water — the
      * page does that, and it is a molecule, not an effect.
      *
-     * The colour is READ FROM THE PALETTE, not typed: the same token colours
-     * the bond stick a page draws afterwards, so the flare and the bond it
-     * produced cannot drift apart. `opt.color` overrides it, which is for a
-     * page saying "this particular one is not a condensation" and nothing else.
+     * WHY THE FLARE IS NOT THE BOND'S OWN VIOLET. Every effect here blends
+     * ADDITIVELY, and these pages are cream. Adding a colour to a light ground
+     * moves it toward white, and what survives is the channel the ground has
+     * least of — so a violet with green in it (the stick's #6a5acd, g=0x5a)
+     * lands as a pale pink smudge. The flare therefore uses a violet with
+     * almost no green, which adds red and blue to cream and reads as violet at
+     * the moment it matters. Same hue family, same reaction, one of them tuned
+     * for paint and the other for light. It is the pairing every other entry in
+     * SCIENCE.md §5's colour language already has: a ring colour beside the
+     * object colour, never the same number twice.
+     *
+     * `opt.color` overrides it, which is for a page saying "this particular one
+     * is not a condensation" and nothing else.
      *
      * SCIENCE.md §5 is the rule; this is its only implementation.
      */
+    const CONDENSE_FLARE = 0x8a2be2;   // the stick's violet, with the green out
     function condense(bondAt, waterAt, opt={}){
       const P = global.MolLib && global.MolLib.PALETTE;
-      const c = opt.color || (P && P.bonds.condense) || 0x6a5acd;
+      const c = opt.color || CONDENSE_FLARE;
       const size = opt.size == null ? 1 : opt.size;
-      spawnRing(bondAt, c, opt.follow || null, size);
+      /* spawnRing's own composition, with the rings PAINTED instead of added —
+       * see _blend. The white core stays additive: white is the one colour
+       * additive blending renders correctly on cream, and painting a white disc
+       * over the molecule punches a hole in it. */
+      const paint = { blend:'normal' }, follow = opt.follow || null;
+      spawnCore(bondAt, 0xffffff, follow, size);
+      _ring(bondAt, c, 0,    5.4, 0.75, follow, size, paint);
+      _ring(bondAt, c, 0.12, 4.0, 0.85, follow, size, paint);
+      spawnBurst(bondAt, c, 16, follow, size, paint);
       if(waterAt){
         // Smaller, and no ring of its own: the water leaving is the same event,
         // not a second one. Oxygen's own colour, which is also what the page's
         // H₂O is drawn in.
         spawnCore(waterAt, 0xffffff, opt.waterFollow || null, size * 0.5);
         spawnBurst(waterAt, (P && P.atoms.O) || 0xd94b3a, 10,
-                   opt.waterFollow || null, size * 0.5);
+                   opt.waterFollow || null, size * 0.5, { blend:'normal' });
       }
     }
 
