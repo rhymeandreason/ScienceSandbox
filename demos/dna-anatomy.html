@@ -6,8 +6,8 @@
 <title>DNA — the parts</title>
 
 <!-- ===================================================================
-     THE GLOSSARY. One finished molecule, 1BNA as deposited, and a rail of
-     parts that names them on it. It answers "what IS this" before any
+     THE GLOSSARY. One finished molecule, 1BNA as deposited, held on the left
+     while the writing that names its parts scrolls past on the right. It answers "what IS this" before any
      lesson asks the student to build one, which is the question dna-lab
      never stopped to answer.
 
@@ -22,48 +22,94 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="css/kodo.css">
 <style>
-  /* No side panel: the stage is the whole page. */
-  #app{grid-template-columns:1fr}
-  #stage{grid-column:1}
-  /* The glyph beside the wordmark. kodo.css owns #brand and #brand h1; this is
-     the one line of it that was sandbox.css's. */
+  /* EDITORIAL SPLIT. The model holds the left half and never scrolls; the
+     writing runs down the right. Scrolling is the control — the section the
+     reader is on is the part the model is showing — so there are no buttons to
+     keep in sync with the prose. */
+  #app{grid-template-columns:minmax(0,1fr) minmax(390px,38vw)}
+  #stage{grid-column:1;border-right:1px solid var(--border-hair)}
   #brand .drop{font-size:26px;color:var(--text-strong)}
 
-  /* THE PARTS RAIL. Each row is kodo.css's `.pill--ghost`, which is what a row
-     of tabs is everywhere else on the site, so this page's spine and water-lab's
-     are the same object. Only what is true of a VERTICAL rail is set here: the
-     width, the left-aligned text, and the second line under the name. */
-  #parts{position:absolute;left:20px;top:50%;transform:translateY(-50%);z-index:7;
-    display:flex;flex-direction:column;gap:6px}
-  #parts .pill{width:196px;display:block;text-align:left;padding:9px 15px;
-    line-height:1.25}
-  /* The gloss is the part in three words. Serif and muted, so the name above it
-     stays the thing being chosen and this stays the thing explaining it. */
-  #parts .pill span{display:block;margin-top:2px;
-    font-family:var(--font-editorial);font-size:11.5px;font-weight:400;
-    letter-spacing:0;color:var(--text-muted)}
-  #parts .pill[aria-current="true"] span{color:var(--text-dim)}
+  /* THE COLUMN. Its own scroller, not the window's: the stage beside it is
+     fixed at 100vh and a page-level scroll would drag it off the top. */
+  #read{grid-column:2;overflow-y:auto;overscroll-behavior:contain;
+    background:var(--surface-page);
+    padding:0 clamp(28px,4vw,56px)}
+  #read .col{max-width:46ch;margin:0 auto}
 
-  /* What the part is, in a sentence. THE SAME OBJECT AS A STEP'S CLAIM: serif,
-     the paper behind it rather than a box on it, emphasis carried by the <b>
-     inside rather than by the whole line. `#stepclaim` sets exactly this on
-     membrane-lab and water-lab, and a glossary's caption is the same job. */
-  #note{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
-    z-index:7;max-width:min(620px,72vw);text-align:center;
-    font-family:var(--font-editorial);font-size:17px;font-weight:400;
-    line-height:1.45;color:var(--text-body);
-    background:var(--surface-page);padding:9px 18px;border-radius:var(--radius-md)}
-  #note b{font-weight:600;color:var(--text-strong)}
+  /* The masthead of the reading column: what the page is, once, before the
+     first part. */
+  #read .lede{padding:16vh 0 0}
+  #read .lede h2{margin:0;font-family:var(--font-display);
+    font-weight:var(--weight-regular);font-size:clamp(30px,3.4vw,42px);
+    line-height:1.1;letter-spacing:-.2px;color:var(--text-strong)}
+  #read .lede p{margin:14px 0 0;font-family:var(--font-editorial);
+    font-size:18px;line-height:1.55;color:var(--text-muted)}
+  #read .lede .hint{margin-top:26px;font-family:var(--font-ui);font-size:12px;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--text-dim)}
+
+  /* A PART IS A SECTION. Tall enough that only one of them is ever near the
+     reading line, which is what makes "the section you are on" unambiguous. */
+  #read section{padding:22vh 0;border-top:1px solid var(--border-hair)}
+  #read section:first-of-type{border-top:0}
+  /* Off the reading line the whole section recedes. The model is showing one
+     part, and two equally black paragraphs argue about which one it is. */
+  #read section{opacity:.34;transition:opacity .45s ease}
+  #read section[aria-current="true"]{opacity:1}
+
+  #read .num{font-family:var(--font-ui);font-size:11px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--text-dim)}
+  /* THE GLOSSARY TERM. The name the rail's buttons carried, and the three-word
+     gloss under it — the same pair, now the section's own head. */
+  #read h3{margin:8px 0 0;font-family:var(--font-display);
+    font-weight:var(--weight-regular);font-size:clamp(24px,2.6vw,32px);
+    line-height:1.15;letter-spacing:-.2px;color:var(--text-strong)}
+  #read .gloss{margin:4px 0 0;font-family:var(--font-editorial);font-size:14px;
+    font-style:italic;color:var(--text-muted)}
+  /* The claim. Serif on the paper, emphasis carried by the <b> inside it —
+     the same object as a step's claim on membrane-lab and water-lab. */
+  #read .claim{margin:18px 0 0;font-family:var(--font-editorial);font-size:17px;
+    line-height:1.55;color:var(--text-body)}
+  #read .claim b{font-weight:600;color:var(--text-strong)}
+
+  /* What the callouts on the model say, in reading order. The model labels the
+     spheres; this is the same terms where a reader can take them in without
+     hunting the stage for them. */
+  #read dl{margin:20px 0 0;padding-left:14px;
+    border-left:1px solid var(--border-hair)}
+  #read dt{font-family:var(--font-ui);font-size:12.5px;font-weight:600;
+    letter-spacing:.01em;color:var(--text-strong);margin-top:12px}
+  #read dt:first-child{margin-top:0}
+  #read dd{margin:2px 0 0;font-family:var(--font-editorial);font-size:14px;
+    line-height:1.5;color:var(--text-muted)}
+
+  /* Room to scroll the last part onto the reading line. */
+  #read .tail{height:52vh}
+
+  @media (max-width:900px){
+    #app{grid-template-columns:1fr;grid-template-rows:52vh 1fr}
+    #stage{grid-column:1;border-right:0;border-bottom:1px solid var(--border-hair)}
+    #read{grid-column:1}
+    #read .lede{padding-top:8vh}
+    #read section{padding:12vh 0}
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
-    <nav id="parts"></nav>
-    <div id="note"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Structure of DNA</h1></div>
   </div>
+  <div id="read"><div class="col">
+    <div class="lede">
+      <h2>What DNA is made of</h2>
+      <p>One real molecule, as it was solved: twelve base pairs of B-DNA. Scroll and it takes itself apart, one part at a time.</p>
+      <p class="hint">Drag the model to turn it</p>
+    </div>
+    <div id="sections"></div>
+    <div class="tail"></div>
+  </div></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -81,7 +127,6 @@
 const S = MolLib.SCALE;
 const bdna = window.BDNA;
 const stage = document.getElementById('stage');
-const note = document.getElementById('note');
 
 // Side-on to the axis, and NO ORBIT: the drag spins the duplex about its own
 // axis (below), which is the one turn that shows a helix what it is. A free
@@ -389,10 +434,10 @@ function midOf(pairIndex, strand, want){
 }
 
 /* =============================================================================
- *  THE PARTS RAIL
+ *  THE PARTS
  * =============================================================================
  *  Each part is: which spheres are IT, what the callouts say, and the sentence
- *  underneath. Every number in a sentence is read at render time from the
+ *  the column carries beside it. Every number in a sentence is read at render time from the
  *  molecule on stage.
  * ========================================================================== */
 const seqOf = i => bdna.pairs[i].seq.replace(/D/g, '').replace('-', '·');
@@ -405,7 +450,7 @@ const PARTS = [
       + `it and sits ${bdna.rise.toFixed(1)} Å above it, so a full turn takes `
       + `${(360 / bdna.twistDeg).toFixed(1)} rungs. The two strands run in `
       + `opposite directions — <b>antiparallel</b> — which is what lets each one `
-      + `be a template for the other. <b>Drag to turn it.</b>`,
+      + `be a template for the other.`,
     notes:()=>[
       { text:'One strand', card:'A chain of nucleotides, joined sugar to phosphate. It runs the whole length of the molecule.',
         at:midOf(2, 0, isPhos), offset:[-66, -18] },
@@ -566,6 +611,7 @@ function frameFor(part){
 
 let current = null;
 function show(part){
+  if(current === part) return;
   current = part;
   const to = frameFor(part);
   paint(part, to.u === 1);
@@ -580,23 +626,53 @@ function show(part){
   } }], { tag:'frame' });
   NOTES.clear();
   for(const n of part.notes()) if(n.at) NOTES.add(n);
-  note.innerHTML = part.note();
-  for(const b of document.querySelectorAll('#parts button'))
-    b.setAttribute('aria-current', String(b.dataset.key === part.key));
+  for(const el of secs) el.setAttribute('aria-current', String(el.dataset.key === part.key));
 }
 
-const rail = document.getElementById('parts');
-for(const part of PARTS){
-  const b = document.createElement('button');
-  /* kodo.css's tab shape, and `aria-current` is what marks the chosen one:
-   * the design system reads it AND a screen reader announces it, so there is
-   * no second source of truth for which part is showing. */
-  b.className = 'pill pill--ghost';
-  b.dataset.key = part.key;
-  b.innerHTML = `${part.title}<span>${part.sub}</span>`;
-  b.onclick = () => show(part);
-  rail.appendChild(b);
+/* =============================================================================
+ *  THE COLUMN, AND SCROLLING AS THE CONTROL
+ * =============================================================================
+ *  One section per part, in the order the parts are in — so the reading order
+ *  and the model's order cannot come apart. The section under the reading line
+ *  is the part the model shows; there is no second control to keep in sync.
+ *
+ *  Every number and every callout is still the part's own, read at render time,
+ *  so the prose here says what the spheres say.
+ * ========================================================================== */
+const read = document.getElementById('read');
+const host = document.getElementById('sections');
+const secs = PARTS.map((part, i) => {
+  const el = document.createElement('section');
+  el.dataset.key = part.key;
+  const terms = part.notes().filter(n => n.at)
+    .map(n => `<dt>${n.text}</dt><dd>${n.card}</dd>`).join('');
+  el.innerHTML =
+    `<p class="num">${String(i + 1).padStart(2, '0')} / ${String(PARTS.length).padStart(2, '0')}</p>`
+    + `<h3>${part.title}</h3>`
+    + `<p class="gloss">${part.sub}</p>`
+    + `<p class="claim">${part.note()}</p>`
+    + (terms ? `<dl>${terms}</dl>` : '');
+  host.appendChild(el);
+  return el;
+});
+
+/* NEAREST TO THE READING LINE, not "first one intersecting". A section is taller
+ * than the viewport at the top of the scroll and shorter at the bottom, so an
+ * intersection test hands over at a different place each time; a single line at
+ * 40% hands over at the same place every time. */
+const LINE = 0.4;
+function onScroll(){
+  const y = read.getBoundingClientRect().top + read.clientHeight * LINE;
+  let best = null, bestD = Infinity;
+  secs.forEach((el, i) => {
+    const r = el.getBoundingClientRect();
+    const d = Math.abs((r.top + r.bottom) / 2 - y);
+    if(d < bestD){ bestD = d; best = i; }
+  });
+  if(best != null) show(PARTS[best]);
 }
+read.addEventListener('scroll', onScroll, { passive:true });
+addEventListener('resize', onScroll);
 
 /* TURNING IT IS THE POINT. A helix seen from one angle is a tangle of sticks;
  * the grooves only read as two different gaps once it moves. Yaw about the
@@ -626,6 +702,7 @@ canvas.addEventListener('pointermove', e => {
 addEventListener('pointerup', () => { turn = null; });
 
 show(PARTS[0]);
+onScroll();
 L.resize(); L.fit(); L.start();
 </script>
 </body>
