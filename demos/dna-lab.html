@@ -1053,10 +1053,13 @@ function offerSpin(){
   // beat STARTS, so the start value became the end value on the first frame
   // and every beat after the first held still.
   const y0 = spinEuler.y;
-  const arc = (from, to) => ({ dur:2.4, ease:'inOutCubic',
+  // Brisk. It is a hint, not a display: slow enough to read as deliberate,
+  // quick enough that the student is not waiting for it before touching
+  // anything.
+  const arc = (from, to) => ({ dur:1.05, ease:'inOutCubic',
     onUpdate:u=>{ spinEuler.y = from + (to - from) * u; applySpin(); } });
   sway = true;
-  L.motion.seq([{ dur:0.5 }, arc(y0, y0 + 0.55), arc(y0 + 0.55, y0 - 0.55),
+  L.motion.seq([{ dur:0.25 }, arc(y0, y0 + 0.55), arc(y0 + 0.55, y0 - 0.55),
                  Object.assign(arc(y0 - 0.55, y0),
                                { onDone:()=>{ sway = null; } })], { tag:'sway' });
 }
