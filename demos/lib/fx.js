@@ -11,6 +11,7 @@
  *                                                  // molecules live in; camera:
  *                                                  // the scene camera (for billboards)
  *    fx.spawnRing(pos, color);  fx.popGlow(g, color);  …
+ *    fx.condense(bondAt, waterAt);   // dehydration synthesis, every page
  *    // spawnRing/spawnCore/spawnBurst take an optional trailing `follow`
  *    // Object3D. Pass it when the thing the effect fired ON can still move
  *    // (a molecule that is being dragged, an ion still settling) — see
@@ -145,6 +146,42 @@
       _ring(pos,color,0,   5.4,0.75,follow,size);   // fast leading ring
       _ring(pos,color,0.12,4.0,0.85,follow,size);   // trailing echo
       spawnBurst(pos,color,16,follow,size);
+    }
+
+    /* ---- DEHYDRATION SYNTHESIS -------------------------------------------
+     * ONE EFFECT FOR ONE REACTION, and the reason is that it IS one reaction.
+     * A peptide bond, a glycosidic bond and a phosphoester are the same event
+     * on different groups: two –OH/–H halves give up a water and a bond closes
+     * where they were. Pages that each invented their own flare for it were
+     * teaching, in the only language a student reads instantly, that these are
+     * three different kinds of chemistry.
+     *
+     * TWO POINTS, because a condensation happens in two places at once: the
+     * bond that formed, and the water that left. The bond gets the ring, in the
+     * condensation colour; the water gets a small oxygen-red burst, since what
+     * left is an oxygen and two hydrogens. Nothing here draws the water — the
+     * page does that, and it is a molecule, not an effect.
+     *
+     * The colour is READ FROM THE PALETTE, not typed: the same token colours
+     * the bond stick a page draws afterwards, so the flare and the bond it
+     * produced cannot drift apart. `opt.color` overrides it, which is for a
+     * page saying "this particular one is not a condensation" and nothing else.
+     *
+     * SCIENCE.md §5 is the rule; this is its only implementation.
+     */
+    function condense(bondAt, waterAt, opt={}){
+      const P = global.MolLib && global.MolLib.PALETTE;
+      const c = opt.color || (P && P.bonds.condense) || 0x6a5acd;
+      const size = opt.size == null ? 1 : opt.size;
+      spawnRing(bondAt, c, opt.follow || null, size);
+      if(waterAt){
+        // Smaller, and no ring of its own: the water leaving is the same event,
+        // not a second one. Oxygen's own colour, which is also what the page's
+        // H₂O is drawn in.
+        spawnCore(waterAt, 0xffffff, opt.waterFollow || null, size * 0.5);
+        spawnBurst(waterAt, (P && P.atoms.O) || 0xd94b3a, 10,
+                   opt.waterFollow || null, size * 0.5);
+      }
     }
 
     // pop a freshly-formed molecule: strong scale overshoot + emissive flash on
@@ -290,7 +327,7 @@
       },cleanup(){ parts.forEach(p=>{ p.m.emissiveIntensity=p.e0; p.m.emissive.setHex(p.c0); }); }});
     }
 
-    return { step, spawnRing, spawnCore, spawnBurst, popGlow, protonHop, colorOf, settleShimmer, _fx:fx };
+    return { step, spawnRing, spawnCore, spawnBurst, condense, popGlow, protonHop, colorOf, settleShimmer, _fx:fx };
   }
 
   global.FX = { create };

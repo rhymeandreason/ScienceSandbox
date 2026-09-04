@@ -164,6 +164,30 @@ would say the opposite. Every effect fires at a position the module **asks for**
   reading as an electron; the whole claim is that these are the *same two
   electrons* throughout.
 
+### Dehydration synthesis has ONE effect, everywhere
+
+<!-- ENUM: every page that condenses calls this; nothing else may. -->
+A peptide bond, a glycosidic bond and a phosphoester are **the same reaction on
+different groups**: two halves give up an –OH and an –H, a water leaves, and a
+bond closes where they were. So they get one effect and one colour, and a page
+that invents its own flare for a condensation is teaching, in the language a
+student reads fastest, that these are three different kinds of chemistry.
+
+`fx.condense(bondAt, waterAt, opt)` is the only implementation. It fires in two
+places because the reaction happens in two: a full `spawnRing` **at the new
+bond's midpoint**, in `PALETTE.bonds.condense` (slate violet `#6a5acd` — the
+same token that colours the bond stick drawn afterwards, so the flare and its
+product cannot drift), plus a small white core and **oxygen-red** burst where
+the water goes. It does not draw the water; that is a molecule, and the page
+owns it.
+
+The midpoint matters. A flare at a molecule's transform origin lands in the
+middle of a ring system and says "something happened somewhere" — the failure
+`dna-lab` step 1 had already fixed for hydrogen bonds.
+
+`opt.color` exists only for a page saying *this particular one is not a
+condensation*. `opt.size` is the ångström scaling every `fx` primitive takes.
+
 ### Colour language
 
 - **Cool blue** (`#7cc4ff` / `#bfe4ff`) — a **water-driven** step.
@@ -173,6 +197,9 @@ would say the opposite. Every effect fires at a position the module **asks for**
   colour so cation and anion read as distinct.
 - **Water-blue** (`#9fd4ff`) — the **hydration shell closing in**; a water
   colour, not the solute's, because the solute is unchanged.
+- **Slate violet** (`#6a5acd`, `PALETTE.bonds.condense`) — **dehydration
+  synthesis**: the bond a condensation just made, and the flare that announced
+  it. One colour for one reaction, whichever groups it joined.
 - **White core flash** (`#ffffff`) — shared by all `spawnRing` events, the
   white-hot instant before the coloured rings.
 
@@ -184,8 +211,11 @@ would say the opposite. Every effect fires at a position the module **asks for**
   `molecule-lab.html`.
 - Solute settle — `updateSolutes()` when descent ends and the hydration toast
   fires (gated to `class === 'polar'`), `molecule-lab.html`.
-- Peptide bond — `condense()` (`tests/aminoacid-lab.html`): `spawnRing` in the peptide
-  colour at the join + `popGlow` on both residues as water is released.
+- Dehydration synthesis — `fx.condense()`, called by `tests/aminoacid-lab.html`
+  (the peptide bond) and by `dna-lab.html` step 2 (the glycosidic bond and the
+  phosphoester). `aminoacid-lab` adds `popGlow` on both residues; `dna-lab`
+  deliberately does not, because its nucleotide is hydrogen-bonded to a partner
+  four ångströms away and a 1.7× punch swells one straight through the other.
 
 New pages: add `<script src="fx.js">`, `FX.create(THREE, root, camera)` once,
 `FXi.step()` in the loop, then call the primitives at your own event sites.

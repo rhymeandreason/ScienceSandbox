@@ -127,7 +127,7 @@ html.bare .chrome-title { display: none !important }
    it points at cannot drift, which is exactly what they had done: the old CSS
    said #e6362f and the renderer drew #d6362e. Available as --atom-O, --atom-H,
    --atom-Na ... and --bond-hbond, --bond-covalent, --bond-iondipole,
-   --bond-peptide, --bond-lonepair.
+   --bond-condense, --bond-lonepair.
 
    Below are the domain colours that belong to a lesson rather than to an
    element, hoisted out of the three per-page :root blocks.

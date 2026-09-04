@@ -922,7 +922,7 @@ function join(host, guest){
   const at = host.mol.position.clone(), q = host.mol.quaternion.clone();
   host.stage++;
   rebuild(host, spec, at, q);
-  bondFx(host, kind);
+  bondFx(host, kind, waterAt);
   SPIN.remove(guest.mol); disposeTree(guest.mol);
   guest.tag.remove();
   loose.splice(loose.indexOf(guest), 1);
@@ -944,11 +944,11 @@ function remapRoles(host, sugar, merged){
 }
 
 /* ---- the bond that forms ---------------------------------------------------
- * ON THE BOND, and in the colour of the atom that is now holding it — the
- * language covalent-drag.js already speaks, where a formed bond flares in its
- * core atom's own colour and a released water flares oxygen-red. So the
- * glycosidic bond comes up nitrogen-blue and the ester oxygen-red, and neither
- * is a decision this page made.
+ * BOTH JOINS ARE THE SAME REACTION, so both get the same effect: fx.js's
+ * condense(), which is what a dehydration synthesis looks like everywhere in
+ * this repo (SCIENCE.md §5). The glycosidic bond and the phosphoester differ in
+ * which groups they are made of and in nothing else, and flaring them
+ * differently would be saying they were different chemistry.
  *
  * The ring goes at the BOND MIDPOINT rather than at the molecule, for step 1's
  * reason: a flare at a molecule's transform origin lands in the middle of a
@@ -959,13 +959,12 @@ function remapRoles(host, sugar, merged){
  * hydrogen-bonded to another one four ångströms away: the nucleoside swells
  * straight through its own partner, and the pair looks broken at the exact
  * moment the page is claiming something was built. */
-function bondFx(host, kind){
+function bondFx(host, kind, waterAt){
   if(!L.fx) return;
   const [a, b] = kind === 'sugar'
     ? [Attach.glycosidicN(host.key), 'C1′'] : ['O5′', 'Pᴾ'];
   const mid = atomIn(host, a).add(atomIn(host, b)).multiplyScalar(0.5);
-  const el = host.spec.atoms[host.spec.names.indexOf(a)].el;
-  L.fx.spawnRing(spinToWorld(mid), MolLib.PALETTE.atoms[el], null, 1.1);
+  L.fx.condense(spinToWorld(mid), spinToWorld(waterAt), { size:1.1 });
 }
 const atomIn = (host, name) =>
   new THREE.Vector3(...host.spec.atoms[host.spec.names.indexOf(name)].pos)
@@ -995,7 +994,6 @@ function water(at){
   el.textContent = M.water.formula;
   document.getElementById('stage').appendChild(el);
   waters.push({ mol, mats, el, at:at.clone(), born:performance.now() });
-  if(L.fx) L.fx.spawnRing(spinToWorld(at), MolLib.PALETTE.atoms.O, mol, 0.55);
 }
 const waters = [];
 const WATER_LIFE = 2.2;

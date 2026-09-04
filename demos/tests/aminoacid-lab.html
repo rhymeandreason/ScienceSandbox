@@ -115,7 +115,7 @@ const FXi=FX.create(THREE,root,camera);   // shared reaction effects
 // palette handles + thin aliases onto the shared builder, so call sites below
 // read the same as before. buildMolecule already tracks per-atom/bond meshes,
 // which is what the condensation reaction needs to pull out the leaving group.
-const state=MolLib.PALETTE.atoms, pepColor=MolLib.PALETTE.bonds.peptide;
+const state=MolLib.PALETTE.atoms, pepColor=MolLib.PALETTE.bonds.condense;
 const V=(x,y,z)=>new THREE.Vector3(x,y,z);
 const buildMol=Stage.buildMolecule, removeAtoms=Stage.removeAtoms, stick=Stage.bond;
 const atomWorld=(g,i)=>g.userData.atomWorld(i);
@@ -189,9 +189,10 @@ function condense(prev,next){
   // the released water, assembled from the very atoms that left, drifting off
   const mid=oPos.clone().add(hcPos).add(hnPos).multiplyScalar(1/3);
   spawnWater(mid);
-  // effects: the bond forms — flash at the join, glow both residues
+  // One call, because this is the same reaction dna-lab's two joins are:
+  // fx.js owns what a dehydration synthesis looks like (SCIENCE.md §5).
   const bondMid=atomWorld(prev,pp.cC).add(atomWorld(next,np.nN)).multiplyScalar(0.5);
-  FXi.spawnRing(bondMid,pepColor);
+  FXi.condense(bondMid, mid);
   FXi.popGlow(prev,0xcfc6ff); FXi.popGlow(next,0xcfc6ff);
   if(rxShown++<2) flashMsg(`<b>Dehydration synthesis</b> — the –OH and an –H leave as <b>H₂O</b>; a <b>peptide bond</b> links the residues.`);
 }

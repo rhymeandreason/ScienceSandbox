@@ -74,9 +74,16 @@
       covalent:  0xb3a892,   // covalent stick — muted stone on cream
       hbond:     0x0042aa,   // hydrogen bond  — deep blue
       iondipole: 0xd9791e,   // ion–dipole bond — deep amber
-      peptide:   0x6a5acd,   // peptide (amide C–N) bond — slate violet, so the
-                             // newly-formed backbone link reads distinct from the
-                             // ordinary covalent sticks within each residue
+      condense:  0x6a5acd,   // A BOND MADE BY DEHYDRATION SYNTHESIS — slate
+                             // violet, so a newly-formed link reads distinct
+                             // from the ordinary covalent sticks around it.
+                             // One colour for one reaction: the peptide bond,
+                             // the glycosidic bond and the phosphoester are the
+                             // same event on different groups, and a page that
+                             // gave each its own colour would be saying they
+                             // are different chemistry. Was `peptide`, which
+                             // named the protein case as though it were the
+                             // whole rule. fx.js's condense() flares in it.
       lonepair:  0x2fb0ff,   // a LONE PAIR (lobes/lobes.js) — the place an
                              // H-bond can land, so it is deliberately in
                              // `hbond`'s family and deliberately not the same
