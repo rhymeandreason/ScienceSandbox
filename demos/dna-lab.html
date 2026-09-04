@@ -81,6 +81,14 @@
     font-family:var(--font-slab);font-size:13px;letter-spacing:.3px;
     color:var(--ink);background:var(--paper);padding:1px 7px;border-radius:5px}
 
+  /* Names the water a condensation releases. Pinned above the molecule and
+     fading with it, so the name and the thing it names go together. */
+  .leaving{position:absolute;z-index:6;pointer-events:none;
+    transform:translate(-50%,-100%);
+    font-family:var(--font-slab);font-size:13px;color:var(--ink);
+    background:rgba(255,255,255,.72);border-radius:7px;padding:1px 7px;
+    white-space:nowrap}
+
   /* Step 2's running commentary. Same slot as the twist readout — one step is
      ever on stage, so they cannot collide — but it wraps, because it says a
      sentence rather than a number. */
@@ -927,7 +935,13 @@ function water(at){
   const mats = [];
   mol.traverse(o => { if(o.material){ o.material.transparent = true; mats.push(o.material); } });
   G2.add(mol);
-  waters.push({ mol, mats, at:at.clone(), born:performance.now() });
+  // Named, because three spheres drifting off is a thing happening and 'H₂O'
+  // is what happened. The label reads the spec's own formula.
+  const el = document.createElement('div');
+  el.className = 'leaving';
+  el.textContent = M.water.formula;
+  document.getElementById('stage').appendChild(el);
+  waters.push({ mol, mats, el, at:at.clone(), born:performance.now() });
   if(L.fx) L.fx.spawnRing(at, MolLib.PALETTE.bonds.hbond, null, 0.6);
 }
 const waters = [];
@@ -937,6 +951,7 @@ const WATER_LIFE = 2.2;
  * simply stops ageing — come back to the tab and it is still hanging there.
  * Wall time keeps running, so it is gone when you look. */
 function stepWaters(){
+  const r = canvas.getBoundingClientRect();
   const now = performance.now();
   for(let i = waters.length - 1; i >= 0; i--){
     const w = waters[i];
@@ -948,8 +963,16 @@ function stepWaters(){
     // Hence the distance, and hence holding full opacity for the first third.
     w.mol.position.copy(w.at).add(new THREE.Vector3(u * 6, u * 13, u * 7));
     w.mol.rotation.z = u * 1.6;
-    for(const m of w.mats) m.opacity = Math.max(0, Math.min(1, (1 - u) * 1.5));
-    if(t > WATER_LIFE){ G2.remove(w.mol); disposeTree(w.mol); waters.splice(i, 1); }
+    const fade = Math.max(0, Math.min(1, (1 - u) * 1.5));
+    for(const m of w.mats) m.opacity = fade;
+    // Above the molecule by its own height, so the label clears the oxygen at
+    // any zoom rather than by a pixel count that only works at one.
+    const v = w.mol.position.clone().add(new THREE.Vector3(0, 1.6, 0)).project(L.camera);
+    w.el.style.left = ((v.x*0.5+0.5) * r.width) + 'px';
+    w.el.style.top  = ((-v.y*0.5+0.5) * r.height) + 'px';
+    w.el.style.opacity = String(fade);
+    if(t > WATER_LIFE){ G2.remove(w.mol); disposeTree(w.mol); w.el.remove();
+                        waters.splice(i, 1); }
   }
 }
 
