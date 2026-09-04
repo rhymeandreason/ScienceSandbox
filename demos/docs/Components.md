@@ -293,6 +293,7 @@ const L = Leaf.mount(el, {
   isolate: null,       // a layer name kept opaque while the rest fade
   autoRotate: false,
   aperture: 1,         // 0..1, the stomata shut to open
+  flows: { co2:0, o2:0, vapour:0, sap:0 },   // each 0..1; gases are gated by aperture
   layers: { cuticle:0.12, upperEpi:0.7, palisade:2.4, spongy:2.6, lowerEpi:0.7 },  // heights; changing one rebuilds
 });
 ```
@@ -301,15 +302,17 @@ Layer names, bottom to top: `lowerEpi` (with stomata), `spongy` (air spaces, cel
 
 `aperture` opens and closes every stoma at once: turgid guard cells bow apart and a pore appears between them, drained they meet and it shuts. It is the thing in this component that a lesson moves, so a step about water loss or gas exchange sets it and turns the leaf over to watch, which the camera allows. The underside is where the stomata are.
 
+`flows` is the traffic, and it is what the leaf is FOR: `co2` in, `o2` out, `vapour` out, `sap` along the vein. They are drawn as real molecules with their atoms — linear O=C=O, bent water — so the exchange reads as chemistry rather than as two colours of dot, and the same shapes a student met in a molecule lesson turn up here. **The three that pass a pore are multiplied by `aperture`**, so shutting the stomata stops the gas exchange and leaves the sap running; that trade is the lesson, and a step about drought or water loss is one `set({aperture})` with the flows on. Their molecules are drawn about 53,000× oversize (`Leaf.SCALE.exag`), which a page reads from there rather than typing; nothing else in the component is exaggerated.
+
 Glides: `aperture`, `explode`, and the fade `isolate` puts on everything else. Snaps: `seed`, `layers`, `width`, `depth`, all of which rebuild.
 
 `state()`: `explode`, `seed`, `isolate`, `aperture`, `hovered`, and `layers` as a list of `{name, y, height}`. Events: `frame` (state) · `hover` (name or null) · `select` (name or null).
 
 Anchors for `note()`: `upperEpi`, `cuticle`, `palisade`, `spongy`, `bundle`, `lowerEpi`, `stoma`. Each carries the library's two-sentence card on what that tissue does. `stoma` and `lowerEpi` carry a view as well: pointing at either turns the leaf over, because the stomata are underneath, and their callouts fade out if the student turns it back.
 
-Layers for `show()`: the five tissues by the same names, plus `chloroplasts` and `cuticle`.
+Layers for `show()`: the five tissues by the same names, plus `chloroplasts`, `cuticle`, and the four flows (`co2`, `o2`, `vapour`, `sap`), which a chip turns fully on or off — a step wanting a half-open stream sets `flows` instead.
 
-Good for: leaf anatomy, where gas exchange and photosynthesis happen, what a vein is, structure and function of each tissue, and the trade a stoma makes between CO₂ in and water out. Not for: a single cell's interior, or any process besides the stomata; nothing else in it moves.
+Good for: leaf anatomy, gas exchange, transpiration, what a vein carries, structure and function of each tissue, and the trade a stoma makes between CO₂ in and water out. Not for: a single cell's interior, light or a day/night cycle, or comparing one kind of leaf with another — the stomata are always on the underside at one density.
 
 ## Tree — a tree, the air around it, and where its mass came from
 

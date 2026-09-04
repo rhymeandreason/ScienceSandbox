@@ -24,6 +24,10 @@
  *      autoRotate  the block turns slowly
  *      aperture    0..1, the stomata shut to open. Turgid guard cells bow
  *                  apart; drained, they meet and the pore closes.
+ *      flows       {co2, o2, vapour, sap} each 0..1, drawn as real molecules.
+ *                  The three that pass a pore are MULTIPLIED BY `aperture`,
+ *                  so shutting the stomata stops the gas exchange and leaves
+ *                  the sap running. That trade is the lesson.
  *      layers      heights in scene units: {cuticle, upperEpi, palisade,
  *                  spongy, lowerEpi}; changing one rebuilds
  *      width, depth   the block, x and z
@@ -31,7 +35,7 @@
  *  Layer names, bottom to top: lowerEpi · spongy · bundle · palisade ·
  *  upperEpi. The bundle explodes with the spongy layer it runs through.
  *
- *  state(): {explode, seed, isolate, aperture, hovered, layers:[{name, y, height}]}
+ *  state(): {explode, seed, isolate, aperture, flows, hovered, layers:[{name, y, height}]}
  *  Events: 'hover' (name | null) · 'select' (name | null) · 'frame' (state)
  *
  *  Three r128 has no CapsuleGeometry and no RoundedBoxGeometry in the global
@@ -42,6 +46,7 @@
 
   const DEFAULTS = {
     explode: 0, seed: 1337, isolate: null, autoRotate: false, aperture: 1,
+    flows: { co2: 0, o2: 0, vapour: 0, sap: 0 },
     layers: { cuticle: 0.12, upperEpi: 0.7, palisade: 2.4, spongy: 2.6, lowerEpi: 0.7 },
     width: 14, depth: 7,
   };
@@ -95,9 +100,123 @@
     ['xylem', 'xylem'], ['phloem', 'phloem'], ['guard cell', 'guard'],
   ];
 
+
+  /* ---- the traffic ----
+     A leaf's job is traffic, so the flows are the point of the model and the
+     tissues are the setting. Four of them: CO2 in, O2 out, water vapour out
+     (all three through the stomata), and sap along the vein.
+
+     THEY ARE DRAWN AS MOLECULES, WITH THEIR ATOMS. A coloured dot needs a key;
+     linear O=C=O and a bent water do not, and a student who has met them in a
+     molecule lesson meets the same shapes here. It also makes the exchange
+     legible as chemistry rather than as two colours of traffic.
+
+     THE SIZE IS A LIE, AND A DECLARED ONE (docs/Scale.md). An epidermal cell
+     is drawn 0.85 units and is really about 30 um, so a unit is roughly 35 um
+     here; a CO2 molecule is about 0.33 nm across and is drawn 0.5 units, or
+     about 18 um. That is some 53,000x, which is in SCALE.exag so a page reads
+     it rather than guessing. The size was chosen by looking: below this a
+     molecule is a speck at the default framing and the shape — the whole
+     reason for drawing atoms at all — is lost. These are pictograms with the
+     right shape, not molecules to scale, and `unit` stays null so nothing can
+     print a size off any of it.
+
+     Atom colours come from palette.js, never typed (CLAUDE.md), so a CO2 here
+     and a CO2 in a molecule lesson are the same red and the same grey. */
+  const MOL_SCALE = 0.12;           // molecule units -> leaf units; see above
+  const MOL_EXAG = 53000;
+
+  /* Real geometry, in the same stylised units every molecule spec uses: bond
+     lengths in angstroms, display radii from the palette. */
+  const SPECIES = {
+    co2: [['C', 0, 0, 0], ['O', 1.16, 0, 0], ['O', -1.16, 0, 0]],
+    o2:  [['O', 0.60, 0, 0], ['O', -0.60, 0, 0]],
+    /* Bent, 104.5 degrees, which is the whole reason water behaves as it does
+       and the one thing a student should be able to see at a glance. */
+    h2o: (() => { const a = (104.5 / 2) * Math.PI / 180, d = 0.96;
+      return [['O', 0, 0, 0],
+              ['H', Math.sin(a) * d, Math.cos(a) * d, 0],
+              ['H', -Math.sin(a) * d, Math.cos(a) * d, 0]]; })(),
+  };
+
+  /* One merged geometry per species, with a colour per vertex so all three
+     species share one material and one draw call each. Geo.merge carries
+     position/normal/uv only, so the colours are written here from the same
+     part list it was given. */
+  function moleculeGeometry(THREE, atoms) {
+    const P = global.MolPalette;
+    const parts = atoms.map(([el, x, y, z]) => {
+      const g = new THREE.SphereGeometry((P.radii[el] || 0.8) * MOL_SCALE, 8, 6);
+      g.translate(x * MOL_SCALE, y * MOL_SCALE, z * MOL_SCALE);
+      return g;
+    });
+    const counts = parts.map(g => g.attributes.position.count);
+    const geo = global.Geo.merge(THREE, parts);
+    const col = new Float32Array(geo.attributes.position.count * 3);
+    const c = new THREE.Color();
+    let o = 0;
+    atoms.forEach(([el], i) => {
+      c.setHex(P.atoms[el]);
+      for (let v = 0; v < counts[i]; v++) { col[o++] = c.r; col[o++] = c.g; col[o++] = c.b; }
+    });
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    return geo;
+  }
+
+  /* A stream of molecules along per-particle curves. Tree has the same idea
+     with anonymous dots (tree/tree.js's ParticleFlow); this one carries a
+     shape and a gate. Kept here rather than shared until a third caller wants
+     it — two implementations is a duplicate, one abstraction over two callers
+     is a guess.
+
+     `gate` is what makes the stomata mean something: a flow through a pore is
+     multiplied by the aperture, so closing the stomata stops the gas exchange
+     and leaves the sap running. That is the trade the lesson is about. */
+  class MoleculeFlow {
+    constructor(THREE, { geo, count = 26, speed = [0.10, 0.22], makePath, gate = null }) {
+      this.count = count; this.speed = speed; this.makePath = makePath; this.gate = gate;
+      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.42, metalness: 0 });
+      this.mesh = new THREE.InstancedMesh(geo, mat, count);
+      this.mesh.frustumCulled = false; this.mesh.visible = false;
+      this.particles = Array.from({ length: count }, () => ({
+        t: Math.random(), speed: speed[0] + Math.random() * (speed[1] - speed[0]),
+        rank: Math.random(), curve: null,
+        spin: [Math.random() * 6.28, Math.random() * 6.28, (Math.random() - 0.5) * 1.6] }));
+      this.intensity = 0; this.level = 0;
+      this._d = new THREE.Object3D(); this._v = new THREE.Vector3();
+    }
+    setIntensity(v) { this.intensity = v < 0 ? 0 : v > 1 ? 1 : v; }
+    update(dt) {
+      const want = this.intensity * (this.gate ? this.gate() : 1);
+      if (this.level < 0.002 && want < 0.002) { this.mesh.visible = false; return; }
+      this.level += (want - this.level) * Math.min(1, dt * 2.5);
+      if (want === 0 && this.level < 0.002) this.level = 0;
+      this.mesh.visible = true;
+      const d = this._d, v = this._v;
+      for (let i = 0; i < this.count; i++) {
+        const p = this.particles[i];
+        if (!p.curve) p.curve = this.makePath();
+        p.t += dt * p.speed;
+        if (p.t >= 1) { p.t -= 1; p.curve = this.makePath(); }
+        /* Ranked, so turning a flow down thins the stream instead of shrinking
+           every molecule in it: a half-open stoma passes fewer molecules, not
+           smaller ones. */
+        const vis = this.level * 1.12 - p.rank > 0 ? 1 : 0;
+        p.curve.getPoint(p.t, v);
+        d.position.copy(v);
+        d.rotation.set(p.spin[0] + p.t * p.spin[2] * 6, p.spin[1] + p.t * p.spin[2] * 4, 0);
+        d.scale.setScalar(vis ? 1 : 1e-4);
+        d.updateMatrix();
+        this.mesh.setMatrixAt(i, d.matrix);
+      }
+      this.mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
   function create(THREE, root, camera, opts = {}) {
     const P = Object.assign({}, DEFAULTS, opts);
     P.layers = Object.assign({}, DEFAULTS.layers, opts.layers || {});
+    P.flows = Object.assign({}, DEFAULTS.flows, opts.flows || {});
     const listeners = {};
     const emit = (ev, ...a) => (listeners[ev] || []).forEach(fn => fn(...a));
 
@@ -449,6 +568,57 @@
       return next || null;
     }
 
+    /* ---- the flows ----
+       Paths are built per particle and rebuilt each lap, so they follow the
+       block as it explodes rather than being baked at build time — the same
+       rule the anchors follow, for the same reason.
+
+       Every gas path runs through a STOMA, chosen from the ones on stage, so
+       the traffic and the pore the student just opened are the same place. */
+    const _fp = new THREE.Vector3();
+    const stomaWorld = () => {
+      if (!stomata.length) return _fp.set(0, 0, 0).clone();
+      return stomata[(Math.random() * stomata.length) | 0].getWorldPosition(new THREE.Vector3());
+    };
+    /* A point loose in the spongy layer's air spaces, which is where the
+       exchange actually happens: gas reaches a cell through the gaps, not
+       through the tissue. */
+    const spongyWorld = () => {
+      const g = layers.spongy;
+      const y = (Y.spongy || 0) + P.layers.spongy * (0.25 + Math.random() * 0.6);
+      const v = new THREE.Vector3(rrange(-W / 2 + 1, W / 2 - 1), y, rrange(-D / 2 + 1, D / 2 - 1));
+      return g ? g.localToWorld(v) : block.localToWorld(v);
+    };
+    const outsideBelow = p => new THREE.Vector3(p.x + rrange(-1.6, 1.6), p.y - rrange(2.2, 5), p.z + rrange(-1.6, 1.6));
+    const curve = pts => new THREE.CatmullRomCurve3(pts);
+
+    const PATHS = {
+      co2:    () => { const s0 = stomaWorld(); return curve([outsideBelow(s0), s0.clone(), spongyWorld()]); },
+      o2:     () => { const s0 = stomaWorld(); return curve([spongyWorld(), s0.clone(), outsideBelow(s0)]); },
+      vapour: () => { const s0 = stomaWorld(); return curve([spongyWorld(), s0.clone(), outsideBelow(s0)]); },
+      /* Along the vein rather than through a pore, which is why it keeps
+         running when the stomata shut. */
+      sap:    () => { const g = layers.bundle, y = bundle.y, r = bundle.r * 0.45;
+        const a = Math.random() * Math.PI * 2;
+        const at = x => { const v = new THREE.Vector3(x, y + Math.cos(a) * r, Math.sin(a) * r);
+          return g ? g.localToWorld(v) : block.localToWorld(v); };
+        return curve([at(-W / 2 - 1), at(0), at(W / 2 + 1)]); },
+    };
+    const FLOW_LABEL = { co2: 'CO₂ in', o2: 'O₂ out', vapour: 'water vapour out', sap: 'sap in the vein' };
+    const flows = {};
+    /* The three that pass a pore are gated by the aperture; sap is not. */
+    const gate = () => Math.max(0, Math.min(1, P.aperture));
+    for (const [k, sp] of [['co2', 'co2'], ['o2', 'o2'], ['vapour', 'h2o'], ['sap', 'h2o']]) {
+      flows[k] = new MoleculeFlow(THREE, {
+        geo: moleculeGeometry(THREE, SPECIES[sp]),
+        count: k === 'sap' ? 34 : 26,
+        makePath: PATHS[k],
+        gate: k === 'sap' ? null : gate,
+      });
+      root.add(flows[k].mesh);
+    }
+    const setFlows = f => { for (const k in f) if (flows[k]) { P.flows[k] = f[k]; flows[k].setIntensity(f[k]); } };
+
     /* ---- the guard cells ----
        A pair joined at both ends, bowing apart in the middle: the pore is the
        lens between their concave faces, not a gap between two sliding rods.
@@ -481,6 +651,7 @@
 
     function step(dt) {
       tw.update(dt);
+      for (const k in flows) flows[k].update(dt);
       if (P.autoRotate) block.rotation.y += dt * 0.25;
       pick();
       const s = state();
@@ -489,6 +660,8 @@
     }
     function state() {
       return { explode: P.explode, seed: P.seed, isolate: P.isolate, aperture: P.aperture, hovered, layersShown: layersOf(),
+        /* Off the flows, not the params: a step may drive one directly. */
+        flows: Object.fromEntries(Object.keys(flows).map(k => [k, flows[k].intensity])),
         layers: ORDER.map(n => ({ name: n, y: (Y[n === 'bundle' ? 'spongy' : n] || 0) + (layers[n] ? layers[n].position.y : 0),
                                   height: n === 'bundle' ? bundle.r * 2 : P.layers[n] })) };
     }
@@ -501,7 +674,8 @@
       const from = { explode: P.explode, aperture: P.aperture };
 
       if (next.layers) P.layers = Object.assign({}, P.layers, next.layers);
-      for (const k of Object.keys(next)) if (k !== 'layers') P[k] = next[k];
+      if (next.flows) setFlows(next.flows);
+      for (const k of Object.keys(next)) if (k !== 'layers' && k !== 'flows') P[k] = next[k];
       if (rebuild) build();
 
       if (next.explode != null) tw.to(from.explode, P.explode, dur('explode'),
@@ -520,14 +694,21 @@
     /* ---- what can be shown or hidden ---- */
     const vis = { chloroplasts: true, cuticle: true };
     for (const n of ORDER) vis[n] = true;
+    /* The flows are layers too, so the show panel offers them as chips and a
+       step can name one without knowing they are particles. A flow's chip is
+       on/off; a step that wants a half-open stream sets `flows` directly. */
+    const FLOW_KEYS = ['co2', 'o2', 'vapour', 'sap'];
     const applyVis = () => {
       for (const n of ORDER) if (layers[n]) layers[n].visible = vis[n];
       block.traverse(o => { if (o.userData.layer) o.visible = vis[o.userData.layer]; });
     };
     const LABEL = { lowerEpi: 'lower epidermis', spongy: 'spongy mesophyll', bundle: 'vein', palisade: 'palisade', upperEpi: 'upper epidermis', chloroplasts: 'chloroplasts', cuticle: 'cuticle' };
-    const layersOf = () => Object.keys(vis).map(k => ({ name: k, label: LABEL[k], on: vis[k] }));
+    Object.assign(LABEL, FLOW_LABEL);
+    const layersOf = () => Object.keys(vis).map(k => ({ name: k, label: LABEL[k], on: vis[k] }))
+      .concat(FLOW_KEYS.map(k => ({ name: k, label: LABEL[k], on: flows[k].intensity > 0 })));
     function show(name, on = true) {
-      if (!(name in vis)) { console.warn('leaf.js: no layer named ' + name + '; have ' + Object.keys(vis).join(', ')); return; }
+      if (FLOW_KEYS.includes(name)) { setFlows({ [name]: on ? 1 : 0 }); return; }
+      if (!(name in vis)) { console.warn('leaf.js: no layer named ' + name + '; have ' + Object.keys(vis).concat(FLOW_KEYS).join(', ')); return; }
       vis[name] = !!on; applyVis();
     }
     /* Read off C, never typed again: a swatch that disagrees with the sphere it
@@ -564,7 +745,8 @@
       stoma:    { text: 'stoma', offset: [40, 26], card: 'Two guard cells and the pore between them. They swell to open it for CO₂ and close it to keep water in.' },
     };
     build();
-    return { step, state, set, on, point, pick, select, height, block, layers, anchors, facings, library, params: () => P, ORDER,
+    setFlows(P.flows);
+    return { step, state, set, on, point, pick, select, flows, setFlows, height, block, layers, anchors, facings, library, params: () => P, ORDER,
       layersOf, show, palette };
   }
 
@@ -687,6 +869,10 @@
   global.Leaf.SCALE = {
     rung: 'tissue', form: 'bulk', unit: null,
     sceneUnits: ['width', 'depth'],       // DEFAULTS' own units, not metres
-    exag: {}, down: {},
+    /* The molecules in the flows. Real shapes at a size a tissue block can
+       show: see MOL_EXAG and the arithmetic beside it. Everything else here
+       is drawn at the diagram's own proportions and exaggerates nothing. */
+    exag: { co2: MOL_EXAG, o2: MOL_EXAG, vapour: MOL_EXAG },
+    down: {},
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

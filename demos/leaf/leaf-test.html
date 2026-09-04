@@ -82,6 +82,12 @@ function bench(ctx) {
     </div>
 
     <div class="bench-group">
+      <div class="bench-hd">traffic</div>
+      <div class="chips" id="flows"></div>
+      <p class="foot">CO₂ in, O₂ out and water vapour out all pass a stoma, so they are multiplied by the aperture above. Sap runs along the vein and does not care.</p>
+    </div>
+
+    <div class="bench-group">
       <div class="bench-hd">layer thickness</div>
       ${THICK.map(n => `
       <div class="slider"><div class="slider-head"><span class="label">${NAMES[n]}</span><span class="value" data-v="${n}"></span></div>
@@ -140,6 +146,16 @@ function bench(ctx) {
     ui.q(`[data-v=${n}]`).textContent = v.toFixed(2);
     snippet();
   });
+
+  /* Read off the component, so a flow added to leaf.js appears here on its own. */
+  const fl = ui.q('#flows');
+  for (const k of ['co2', 'o2', 'vapour', 'sap']) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.dataset.flow = k;
+    b.textContent = L.layers().find(l => l.name === k).label;
+    b.onclick = () => { const on = !b.classList.contains('is-on'); L.show(k, on); b.classList.toggle('is-on', on); };
+    fl.appendChild(b);
+  }
 
   /* Isolate reads the same names the component publishes, so a layer added to
      leaf.js appears here without touching this file. */
