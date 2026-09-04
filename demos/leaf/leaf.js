@@ -414,7 +414,9 @@
     const box = global.CardStage.create({
       mount: el,
       cam: params.cam || { theta: 0.65, phi: 1.15, r: 24 },
-      stage: Object.assign({ phiMax: 1.72, rMin: 8, rMax: 60 }, params.stage || {}),
+      /* The pitch runs almost to the lower pole: the stomata are on the
+         underside, and a leaf you cannot turn over hides a named part. */
+      stage: Object.assign({ phiMax: 2.75, rMin: 8, rMax: 60 }, params.stage || {}),
       step: dt => { if (leaf) last = leaf.step(dt); },
       afterFrame: () => { if (nb) nb.step(); },
       viewOffset: params.viewOffset,
