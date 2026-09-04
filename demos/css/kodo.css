@@ -839,7 +839,13 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   line-height: 14px;
 }
 
+/* A GHOST HAS NO FILL, HOVERED OR NOT. `.pill:hover` warms to the spark where
+   the page has not named a colour, and a ghost has not named one — so without
+   this line a step tab went solid orange under the pointer. It is stated here
+   rather than by narrowing the base rule because the ghost is the exception:
+   every other pill is a body that changes colour, and this one is an outline. */
 .pill--ghost:hover:not([disabled]) {
+  background: transparent;
   filter: none;
   --pill-lift: 0px;
   color: var(--text-strong);
