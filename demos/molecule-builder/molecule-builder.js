@@ -312,8 +312,12 @@
        * pressed state is `aria-pressed` — which the design system reads AND a
        * screen reader announces, so there is no second source of truth. `mb-dims`
        * carries only what is this module's business: where the control sits and
-       * whether it has been earned yet. */
-      dims.className = 'segmented mb-dims';
+       * whether it has been earned yet.
+       *
+       * `--sm` because this one lies ON THE STAGE. The document-size segmented
+       * is the height of a .cta, which over a molecule is a control covering
+       * the thing it switches. */
+      dims.className = 'segmented segmented--sm mb-dims';
       dims.setAttribute('role','group');
       dims.setAttribute('aria-label','View');
       dims.innerHTML =

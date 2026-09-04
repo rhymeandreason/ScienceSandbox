@@ -609,7 +609,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
      .pill       capsule. The default for anything ON THE STAGE.
      .btn        drawn rectangle, ink border, inverts on hover. Docks and trays.
      .iconbtn    circular, one glyph. Play, info, close.
-     .segmented  segmented control, joined by shared borders.
+     .segmented  the cta capsule cut into pieces. One control, N answers.
      .textbtn    underlined text. Undo, dismiss, anything reversible and minor.
 
    .cta AND .pill ARE NOT THE SAME BUTTON. A .pill is an instrument standing on
@@ -991,40 +991,81 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 }
 
 /* ---------- .segmented ----------
+   One control with N answers, drawn as the .cta capsule cut into pieces: same
+   pill, same display face, same uppercase signage, and the chosen segment
+   carries the accent fill a primary .cta carries. A reader should be able to
+   see that pressing one of these and pressing the button beside it are the same
+   kind of act.
+
    Not .seg: hemoglobin-lab already builds its progress bar out of elements it
    names 'seg', and a bare class here would have drawn a border round every
-   segment of it. */
+   segment of it.
+
+   TWO SIZES, MATCHED TO .cta's TWO. The default stands 49px like a .cta, for a
+   control set in a document beside one. `.segmented--sm` stands 34px like a
+   .cta--sm, which is what an on-stage switch wants: a 2D/3D toggle at document
+   size covers the molecule it is a toggle for. */
 .segmented {
+  --seg-pad-y: 16px;
+  --seg-pad-x: 1.6rem;
+  --seg-size: .95rem;
+  --seg-fill: var(--accent);
   display: inline-flex;
-  border: 2px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  /* The chosen segment's fill has to stop at the capsule's curve, and it is the
+     container that owns that curve. */
   overflow: hidden;
+}
+
+.segmented--sm {
+  --seg-pad-y: 9.6px;
+  --seg-pad-x: 1rem;
+  --seg-size: .8rem;
 }
 
 .segmented > * {
   border: 0;
-  padding: 8px 14px;
-  background: #fff;
+  padding: var(--seg-pad-y) var(--seg-pad-x);
+  background: transparent;
   color: var(--text-muted);
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  /* 14 + 16 padding = 30, plus the container's own 4px border = 34. */
-  line-height: 14px;
+  font-family: var(--font-display);
+  font-size: var(--seg-size);
+  font-weight: var(--weight-medium);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  /* line-height is 1 and stated in em, so both sizes come out to the height of
+     the .cta they sit beside without either one restating a pixel. */
+  line-height: 1;
+  white-space: nowrap;
+  transition: background var(--dur-base), color var(--dur-base);
 }
 
-.segmented > * + * { border-left: 2px solid var(--border-strong) }
+.segmented > * + * { border-left: 1px solid var(--border-hair) }
+
+.segmented > *:hover:not([disabled]):not([aria-pressed="true"]):not(.is-on) {
+  color: var(--accent);
+}
 
 .segmented > *[aria-pressed="true"],
 .segmented > *.is-on {
-  background: var(--text-strong);
+  background: var(--seg-fill);
   color: var(--text-inverse);
 }
+/* THE DIVIDER DIES INTO THE FILL. A hairline running down the side of a filled
+   segment reads as a crack in it, so the chosen segment eats the rule on both
+   of its edges. */
+.segmented > *[aria-pressed="true"] + *,
+.segmented > *.is-on + * { border-left-color: transparent }
+.segmented > *[aria-pressed="true"],
+.segmented > *.is-on { border-left-color: transparent }
 
 /* The ring goes inside, because an outline on one joined segment otherwise
    draws over its neighbours. */
 .segmented > *:focus-visible {
   outline: 0;
-  box-shadow: inset 0 0 0 2px var(--clay-900);
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 /* ---------- .textbtn ---------- */

@@ -267,12 +267,26 @@ own computed padding, size and height, so a stale stylesheet cannot hide here.</
 </div>
 
 
-<div class="row"><span class="lbl">.segmented</span>
-  <div class="segmented">
+<div class="row"><span class="lbl">.segmented &mdash; the cta capsule cut into pieces</span>
+  <div class="segmented" role="group" aria-label="View">
     <button aria-pressed="true">2D</button>
     <button aria-pressed="false">3D</button>
     <button aria-pressed="false">Flat</button>
   </div>
+  <a class="cta" href="#">Beside a cta</a>
+</div>
+
+<div class="row"><span class="lbl">.segmented--sm &mdash; an on-stage switch, matched to .cta--sm</span>
+  <div class="segmented segmented--sm" role="group" aria-label="View">
+    <button aria-pressed="true">2D</button>
+    <button aria-pressed="false">3D</button>
+  </div>
+  <div class="segmented segmented--sm" role="group" aria-label="Representation">
+    <button aria-pressed="false">Ribbon</button>
+    <button aria-pressed="true">Surface</button>
+    <button aria-pressed="false">Tube</button>
+  </div>
+  <a class="cta cta--sm" href="#">Beside a cta--sm</a>
 </div>
 
 <div class="row"><span class="lbl">.textbtn</span>
