@@ -61,6 +61,40 @@
   const capsule = (T, ...a) => global.Geo.capsule(T, ...a);
   const roundedBox = (T, ...a) => global.Geo.roundedBox(T, ...a);
 
+  /* ---- the leaf's colours ----
+     ONE table, read by both the materials and palette(), so the legend cannot
+     name a colour the model does not have.
+
+     They are saturated on purpose. Three's lights are not physical units and
+     the studio fill this scene inherits is bright, so a colour picked to look
+     right as a hex swatch renders a stop paler and a stop greyer than it reads
+     here; the epidermis in particular went grey. Judge these on screen, never
+     in the file. The epidermis is a LIVING layer, not a wall: pale green, not
+     the bone colour a cell wall would be. */
+  const C = {
+    epiWall:      0xa6cc6b,
+    epiCell:      0x86b845,
+    cuticle:      0xc4e396,
+    palisade:     0xbe9d1c,
+    palisadeBand: 0x5f7d1e,
+    spongy:       0x6f9c22,
+    spongyDark:   0x4c7315,
+    chloro:       0x2c5a0e,
+    sheath:       0x5d84b5,
+    sheathInner:  0x38567d,
+    xylem:        0xf09410,
+    phloem:       0xdcb42c,
+    guard:        0x7fb02a,
+  };
+
+  /* Named for the legend. Two materials that are one thing to a student (the
+     epidermis wall and its cell) get one entry. */
+  const LEGEND = [
+    ['epidermis', 'epiCell'], ['cuticle', 'cuticle'], ['palisade cell', 'palisade'],
+    ['spongy cell', 'spongy'], ['chloroplast', 'chloro'], ['bundle sheath', 'sheath'],
+    ['xylem', 'xylem'], ['phloem', 'phloem'], ['guard cell', 'guard'],
+  ];
+
   function create(THREE, root, camera, opts = {}) {
     const P = Object.assign({}, DEFAULTS, opts);
     P.layers = Object.assign({}, DEFAULTS.layers, opts.layers || {});
@@ -72,24 +106,28 @@
     const rrange = (a, b) => a + (b - a) * rand();
 
     /* One material set PER LAYER, so isolating the upper epidermis cannot dim
-       the lower one through a shared material. */
+       the lower one through a shared material.
+
+       Clearcoat is nearly off. It lays a white specular sheen over everything
+       it touches, and on thirteen materials at once that sheen IS the washed
+       out look; the wet-cell highlight is worth about a tenth of what it was. */
     function mats() {
       const mat = (color, o = {}) => new THREE.MeshPhysicalMaterial(Object.assign(
-        { color, roughness: 0.55, metalness: 0, clearcoat: 0.25, clearcoatRoughness: 0.5 }, o));
+        { color, roughness: 0.62, metalness: 0, clearcoat: 0.06, clearcoatRoughness: 0.6 }, o));
       return {
-        epiWall: mat(0xe6e9b3, { roughness: 0.45 }),
-        epiCell: mat(0xc9d878, { roughness: 0.4, clearcoat: 0.5 }),
-        cuticle: mat(0xd6dfa2, { transparent: true, opacity: 0.55, roughness: 0.15, clearcoat: 1 }),
-        palisade: mat(0xd6b93a, { roughness: 0.5 }),
-        palisadeBand: mat(0x6f8a2c, { roughness: 0.6 }),
-        spongy: mat(0x7fa23a, { roughness: 0.65 }),
-        spongyDark: mat(0x5d7f2a, { roughness: 0.7 }),
-        chloro: mat(0x3f6b1e, { roughness: 0.6 }),
-        sheath: mat(0x6f8cad, { roughness: 0.4, clearcoat: 0.6 }),
-        sheathInner: mat(0x4a6482, { roughness: 0.5 }),
-        xylem: mat(0xf0a020, { roughness: 0.35, clearcoat: 0.7 }),
-        phloem: mat(0xe8c75a, { roughness: 0.45 }),
-        guard: mat(0x8fb040, { roughness: 0.4, clearcoat: 0.6 }),
+        epiWall: mat(C.epiWall, { roughness: 0.55 }),
+        epiCell: mat(C.epiCell, { roughness: 0.5, clearcoat: 0.12 }),
+        cuticle: mat(C.cuticle, { transparent: true, opacity: 0.34, roughness: 0.08, clearcoat: 0.55, clearcoatRoughness: 0.1 }),
+        palisade: mat(C.palisade, { roughness: 0.55 }),
+        palisadeBand: mat(C.palisadeBand, { roughness: 0.65 }),
+        spongy: mat(C.spongy, { roughness: 0.7 }),
+        spongyDark: mat(C.spongyDark, { roughness: 0.72 }),
+        chloro: mat(C.chloro, { roughness: 0.62 }),
+        sheath: mat(C.sheath, { roughness: 0.45, clearcoat: 0.15 }),
+        sheathInner: mat(C.sheathInner, { roughness: 0.55 }),
+        xylem: mat(C.xylem, { roughness: 0.4, clearcoat: 0.15 }),
+        phloem: mat(C.phloem, { roughness: 0.5 }),
+        guard: mat(C.guard, { roughness: 0.45, clearcoat: 0.15 }),
       };
     }
     const shadow = m => { m.castShadow = true; m.receiveShadow = true; return m; };
@@ -337,21 +375,28 @@
         g.position.y = P.explode * (n === 'bundle' ? 2 : i) * 1.6;
       });
     }
-    /* `dim` is how far the fade has run, so isolating is a dissolve rather than
-       a slam. depthWrite goes off as soon as a layer starts fading: a
-       half-transparent layer still writing depth punches holes in what it is
-       supposed to be revealing. */
+    /* Isolating DESATURATES the rest; it does not fade them. A transparent
+       layer stops being a solid thing the isolated one sits inside — the block
+       reads as floating parts, and the cells behind show through the cells in
+       front. Colour is the channel carrying "this is the one you asked for",
+       so colour is what is taken away: the tissue stays, in grey, and the
+       isolated layer is the only thing left that is a colour.
+
+       `dim` is how far that has run, so it is a drain rather than a slam. */
+    const _c = new THREE.Color();
     function applyIsolate() {
       for (const n in layers) {
         const out = !!P.isolate && n !== P.isolate ? dim : 0;
         const M = layers[n].userData.M;
         for (const k in M) {
           const mm = M[k];
-          if (mm.userData.baseOpacity == null) { mm.userData.baseOpacity = mm.opacity; mm.userData.baseTransparent = mm.transparent; }
-          const base = mm.userData.baseOpacity;
-          mm.transparent = out > 0 ? true : mm.userData.baseTransparent;
-          mm.opacity = base + (0.12 - base) * out;
-          mm.depthWrite = out < 0.02;
+          if (!mm.userData.base) mm.userData.base = mm.color.clone();
+          const b = mm.userData.base;
+          /* Toward the colour's own luminance, so a dark chloroplast greys
+             dark and a pale epidermis greys pale: the layer keeps its form. */
+          const l = 0.299 * b.r + 0.587 * b.g + 0.114 * b.b;
+          _c.setRGB(l, l, l).multiplyScalar(0.94);
+          mm.color.copy(b).lerp(_c, out * 0.88);
         }
       }
     }
@@ -466,11 +511,10 @@
       if (!(name in vis)) { console.warn('leaf.js: no layer named ' + name + '; have ' + Object.keys(vis).join(', ')); return; }
       vis[name] = !!on; applyVis();
     }
-    const palette = () => [
-      { name: 'epidermis', color: '#c9d878' }, { name: 'cuticle', color: '#d6dfa2' }, { name: 'palisade cell', color: '#d6b93a' },
-      { name: 'spongy cell', color: '#7fa23a' }, { name: 'chloroplast', color: '#3f6b1e' }, { name: 'bundle sheath', color: '#6f8cad' },
-      { name: 'xylem', color: '#f0a020' }, { name: 'phloem', color: '#e8c75a' }, { name: 'guard cell', color: '#8fb040' },
-    ];
+    /* Read off C, never typed again: a swatch that disagrees with the sphere it
+       names is a caption the model quietly falsifies. */
+    const palette = () => LEGEND.map(([name, key]) =>
+      ({ name, color: '#' + C[key].toString(16).padStart(6, '0') }));
 
     /* Named parts: the front face of each layer, mid-block, following explode. */
     const _a = new THREE.Vector3();
@@ -526,10 +570,23 @@
     const r = box.renderer;
     r.shadowMap.enabled = true;
     r.shadowMap.type = THREE.PCFSoftShadowMap;
-    r.toneMapping = THREE.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
-    box.scene.add(new THREE.HemisphereLight(0xdfe9d0, 0x6b7a4a, 0.45));
-    const key = new THREE.DirectionalLight(0xfff4e0, 0.9);
+    /* NO TONE MAPPING. ACES rolls the highlights off and pulls the saturation
+       with them, which on thirteen already-light greens is most of the washed
+       out look. These colours are authored, not captured, so there is no
+       dynamic range to compress. */
+    r.toneMapping = THREE.NoToneMapping;
+
+    /* Stage's studio lights are built for a molecule on a white card: a 0.55
+       white ambient and a blue fill, which together flatten the leaf and grey
+       its greens. Turn them down to a floor and light this scene properly.
+       Found by rendering, not by reading: the ambient is what made the
+       epidermis look like stone. */
+    box.scene.traverse(o => {
+      if (o.isAmbientLight) o.intensity = 0.14;
+      else if (o.isDirectionalLight) o.intensity *= 0.35;
+    });
+    box.scene.add(new THREE.HemisphereLight(0xeaf5d8, 0x53612f, 0.34));
+    const key = new THREE.DirectionalLight(0xfff4e0, 0.72);
     key.position.set(12, 18, 10);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
@@ -537,9 +594,14 @@
     key.shadow.camera.top = 14; key.shadow.camera.bottom = -14;
     key.shadow.bias = -0.0004;
     box.scene.add(key);
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.18 }));
-    ground.rotation.x = -Math.PI / 2; ground.position.y = -0.6; ground.receiveShadow = true;
-    box.root.add(ground);
+    /* A rim from behind and below, which is what stops the underside going
+       flat once the leaf is turned over to the stomata. */
+    const rim = new THREE.DirectionalLight(0xdff0ff, 0.22);
+    rim.position.set(-10, -8, -12);
+    box.scene.add(rim);
+    /* NO GROUND PLANE. The leaf is a specimen, not an object on a table, and a
+       cast shadow under it read as a slab. The layers still shade each other,
+       which is the shadow that carries the structure. */
 
     leaf = create(THREE, box.root, box.camera, params);
     const frame = () => { box.cam.target.set(0, leaf.height() / 2, 0); box.applyCam(); };
