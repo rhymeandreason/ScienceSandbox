@@ -114,6 +114,22 @@
     line-height:1.1}
   .measure .l{font-size:.75rem;color:var(--muted);display:block;margin-top:.2rem}
 
+  /* WHERE THIS SECTION'S HISTORY COMES FROM. Links only, and no image is
+     copied in: the 1958 paper is Springer Nature's, the crystal and
+     X-ray photographs in the Protein Science essay are reproduced there by
+     permission of the MRC LMB, and the Science Museum's photographs of the
+     models are CC BY-NC-SA. Each one is free to READ at the link. */
+  .sources{margin:1.6rem 0 0;padding:1.1rem 0 0;
+    border-top:1px solid var(--border-hair);font-size:.82rem;color:var(--muted)}
+  .sources h3{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--spark);margin:0 0 .6rem;font-weight:600;font-family:inherit}
+  .sources ul{list-style:none;margin:0;padding:0}
+  .sources li{margin:0 0 .45rem;line-height:1.45}
+  .sources a{color:var(--ink);text-decoration:none;
+    border-bottom:1px solid var(--border-hair)}
+  .sources a:hover{border-bottom-color:currentColor}
+  .sources .note{display:block;color:var(--muted)}
+
   @media (max-width:900px){
     .lesson{grid-template-columns:1fr;gap:1rem}
     .viewer{top:0;padding:.6rem 0;background:var(--paper);z-index:2}
@@ -214,6 +230,14 @@ Kendrew shared the 1962 Nobel Prize with Max Perutz, who was doing the same work
         diving mammals are packed with it. Whale
         muscle is nearly black with myoglobin, which is part of how they can dive for so long. The fold, the ring, the iron and the
         two histidines are the same in humans.</p>
+
+      <div class="sources">
+        <h3>Sources</h3>
+        <ul>
+          <li><a href="https://www.nature.com/articles/181662a0" target="_blank" rel="noopener">Kendrew <em>et&nbsp;al.</em>, &ldquo;A three-dimensional model of the myoglobin molecule obtained by X-ray analysis&rdquo;, <i>Nature</i> <b>181</b>, 662 (1958)</a><span class="note">The paper itself. Paywalled; the abstract is free at <a href="https://pubmed.ncbi.nlm.nih.gov/13517261/" target="_blank" rel="noopener">PubMed</a>.</span></li>
+          <li><a href="https://www.nobelprize.org/uploads/2025/08/kendrew-lecture-2.pdf" target="_blank" rel="noopener">Kendrew&rsquo;s Nobel lecture, &ldquo;Myoglobin and the structure of proteins&rdquo; (1962)</a><span class="note">Free PDF, and he shows the models and the density maps himself.</span></li>
+          <li><a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC5980623/" target="_blank" rel="noopener">de Chadarevian, &ldquo;John Kendrew and myoglobin: protein structure determination in the 1950s&rdquo;, <i>Protein Science</i> <b>27</b>, 1136 (2018)</a><span class="note">Free to read. Photographs of the 100 crystals, the X-ray plates, and the models.</span></li>
+      </div>
 
     </section>
 
