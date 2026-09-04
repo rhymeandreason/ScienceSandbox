@@ -16,7 +16,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | The chemistry a molecule has to obey | `SCIENCE.md` §§2-3, plus the target `mol-*.js` |
 | Changing geometry, or what a motion implies happened | `SCIENCE.md` §§2-5 |
 | Polish on a reviewed animation (timing, easing, camera) | nothing extra |
-| **Any page a student lands on: its header, its wordmark, its chrome** | `Design.md` — the shell every public page shares, the one way the logo is written, and the tokens a page may not restate. Read it BEFORE the recipe below, whichever kind of page it is |
+| **Any page at all: which shell it takes, its header, its wordmark, its chrome** | `Design.md` — **there are two shells** (`body.kodo` for a document, `body.lshell-page` for a full-window lesson or a component bench) and its first section is how to pick. Also the one way the logo is written and the tokens a page may not restate. Read it BEFORE the recipe below, whichever kind of page it is |
 | A new page that hand-draws molecules | `AddingAPage.md`, then the sibling page the human names |
 | A new page that mounts a component (cell, membrane, leaf, tree, …) | `AddingAComponent.md`, then `Generator.md` |
 | A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |

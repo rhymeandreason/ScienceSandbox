@@ -1,9 +1,41 @@
-<!-- KIND: rulebook. Load whole before building or restyling any page a student lands on. Not needed for a bench, which is chrome nobody grades. `Modules.md` says which stylesheets to link; this says what to put inside the page once they are linked. -->
+<!-- KIND: rulebook. Load whole before building or restyling ANY page: a lesson, a generated app, a collection, a component bench. Its first section is which of the two shells the page takes, and getting that wrong is not a styling mistake. `Modules.md` says which stylesheets to link; this says what to put inside the page once they are linked. -->
 
 # The page shell
 
-Every public page is the same blocks in the same order, so moving between them
-feels like turning a page rather than opening another site. Copy this.
+**THERE ARE TWO SHELLS, AND THE PAGE PICKS ONE.** Read this section before
+anything below it, because everything below it describes only the first.
+
+| | `body.kodo` — the document shell | `body.lshell-page` — the lesson shell |
+| --- | --- | --- |
+| what it is | a page you read and scroll | a full-window scene with a glass panel over it |
+| sheets | `css/kodo.css` | `css/kodo.css` **then** `css/lesson-shell.css` |
+| chrome | `.sitenav` + `.pagehead` + `main` + `.sitefoot` | `.lshell-topbar` (brand, progress dots), `.lshell-panel`, Back/Next |
+| who owns the DOM | the page | `kit/lesson-shell.js`. Nothing goes in the `<body>` |
+| built by | hand | `LessonShell.create({brand, hint, steps})` |
+| used by | the homepage, `proteins/`, a protein's page, the node graph | every generated app, `tree/tree-lab.html`, and **every component bench** |
+
+**A component bench takes the lesson shell**, not the document shell and not a
+bench chrome of its own. `leaf/leaf-test.html` is the one to copy, and the reason
+is in its header: the component is judged in the chrome a student will see it
+in. `docs/AddingAComponent.md` is the recipe; `docs/Components.md` carries the
+boilerplate a generated page starts from.
+
+**Do not put a `.sitenav` or a `.pagehead` on a lesson-shell page.** The brand in
+`.lshell-topbar` is that shell's wordmark slot, and a second masthead over a
+full-window scene covers the thing the page exists to show.
+
+`lesson-shell.css` declares its own tokens on `body.lshell-page` — `--ink`,
+`--line`, `--panel`, `--display`, `--accent` and the rest. They shadow the site
+sheet's for the duration of that page and are the shell's business; a page on it
+reads those names, not `--text-strong` and `--border-hair`.
+
+---
+
+## The document shell
+
+Every public page on `body.kodo` is the same blocks in the same order, so moving
+between them feels like turning a page rather than opening another site. Copy
+this.
 
 ```html
 <link rel="stylesheet" href="css/kodo.css">   <!-- the only sheet a plain page needs -->
