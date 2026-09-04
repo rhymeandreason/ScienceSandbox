@@ -1341,15 +1341,19 @@ const AWAY = 21;
     .add(new THREE.Vector3(0, -AWAY, 0)));
   rung3s[1].mol.position.copy(down);
 
-  // Centre the group on the finished duplex, not on the staging arrangement.
-  G3.updateMatrixWorld(true);
-  const box = new THREE.Box3();
+  /* Centre the group on the FINISHED duplex, not on the staging arrangement:
+   * the lower rung is only waiting below for a moment, and framing that would
+   * leave the thing the step is about off-centre for good. Box3 works in world
+   * space, so the pivot has to be converted back before the group is moved —
+   * afterwards the matrix it would convert through is the one being changed. */
   const was = rung3s[1].mol.position.clone();
   rung3s[1].mol.position.copy(home3);
   G3.updateMatrixWorld(true);
+  const box = new THREE.Box3();
   for(const r of rung3s) box.expandByObject(r.mol);
-  pivot3.copy(box.getCenter(new THREE.Vector3()));
-  G3.position.sub(G3.localToWorld(pivot3.clone()));
+  const centre = box.getCenter(new THREE.Vector3());
+  pivot3.copy(G3.worldToLocal(centre.clone()));
+  G3.position.sub(centre);
   rung3s[1].mol.position.copy(was);
   rung3s[0].tag.textContent = 'A·T';
   rung3s[1].tag.textContent = 'T·A';
@@ -1540,7 +1544,7 @@ let held3 = null, off3 = null, turn3 = null;
 function down3(e){
   const w = toWorld(e);
   if(!rung3s[1].joined){
-    const c = spin3World(rungCentre(rung3s[1]));
+    const c = rungCentre(rung3s[1]);
     if(flatDist(w, c) < 12){
       held3 = rung3s[1];
       off3 = held3.mol.position.clone().sub(toSpin3(w));
@@ -1563,11 +1567,17 @@ function move3(e){
   placeSticks();
   tryLinkRungs();
 }
-const toSpin3 = w => SPIN3.worldToLocal(G3.worldToLocal(w.clone()).clone());
+// worldToLocal already walks the whole parent chain, so this converts once.
+// Composing it with G3's own inverse applied the rotation twice and sent the
+// rung further away the harder it was pulled.
+const toSpin3 = w => SPIN3.worldToLocal(w.clone());
+/* IN WORLD SPACE. Box3.expandByObject works off world matrices, so the box is
+ * already placed — adding the rung's own position again double-counted it, and
+ * the lower rung's hit test and tag both pointed at the upper one. */
 function rungCentre(rung){
   const box = new THREE.Box3();
   for(const res of rung.res) box.expandByObject(res.mol);
-  return box.getCenter(new THREE.Vector3()).add(rung.mol.position);
+  return box.getCenter(new THREE.Vector3());
 }
 
 const LATCH3 = 5;
@@ -1611,7 +1621,7 @@ function placeTags3(){
         .add(rung.mol.position));
       if(!lo || v.y < lo.y) lo = v;
     }
-    const c = spin3World(rungCentre(rung)).project(L.camera);
+    const c = rungCentre(rung).project(L.camera);
     const b = lo.project(L.camera);
     rung.tag.style.left = ((c.x*0.5+0.5) * r.width) + 'px';
     rung.tag.style.top  = ((-b.y*0.5+0.5) * r.height + 8) + 'px';
