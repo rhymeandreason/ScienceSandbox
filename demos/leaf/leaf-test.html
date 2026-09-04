@@ -58,7 +58,8 @@ const shell = LessonShell.create({
 });
 
 const L = Leaf.mount(shell.stage, { viewOffset: shell.viewOffset });
-L.on('select', n => n ? L.notes([n]) : L.notes(false));
+let allNotes = false;
+L.on('select', n => { if (!allNotes) L.notes(n ? [n] : false); });
 
 function bench(ctx) {
   const ui = ctx.ui;
@@ -94,7 +95,8 @@ function bench(ctx) {
     <div class="bench-group">
       <div class="bench-hd">the chips a step would offer</div>
       <div id="bench-chips"></div>
-      <p class="foot">The panel draws only what a step names: no default set, no more… chip. A part not on stage never appears.</p>
+      <button class="btn ghost" type="button" id="all-notes" aria-pressed="false">Show every annotation</button>
+      <p class="foot">The panel draws only what a step names: no default set, no more… chip. A part not on stage never appears. The button is the bench's own, for seeing what the component can label at all.</p>
     </div>
 
     <div class="bench-group">
@@ -136,6 +138,17 @@ function bench(ctx) {
   }
 
   CardStage.showPanel(ui.q('#bench-chips'), L, CHIPS);
+
+  /* Every anchor at once, which no lesson should do: the bench is where you
+     find out what a component can label before choosing the two a step keeps. */
+  const all = ui.q('#all-notes');
+  all.onclick = () => {
+    const on = all.getAttribute('aria-pressed') !== 'true';
+    allNotes = on;
+    all.setAttribute('aria-pressed', String(on));
+    all.textContent = on ? 'Hide annotations' : 'Show every annotation';
+    L.notes(on ? L.anchors().map(a => a.name) : false);
+  };
 
   L.on('frame', s => {
     for (const b of ui.qa('[data-layer]')) b.classList.toggle('is-on', b.dataset.layer === s.isolate);
