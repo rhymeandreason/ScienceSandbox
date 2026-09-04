@@ -1908,16 +1908,27 @@ function offStage(rung){
 /* THE THIRD RUNG, after the first join. Same gesture, the other way up: a
  * backbone is not two nucleotides, and joining the second one is where the
  * student sees the rails carry on rather than the join being a one-off. */
+/* WHERE THE VIEW GOES WHEN THE THIRD RUNG ARRIVES. Chosen at the stage, in the
+ * browser, the way every default rotation on this page is: the rails stop
+ * overlapping and the two backbones read as two. Solving it from the phosphates
+ * put the model at a mathematically equal view that read worse. The pitch is at
+ * the drag's own clamp, so the student can turn away from this and back. */
+const RUNG3_VIEW = { y:-1.053, x:-0.700 };
 function enterRung(rung){
   rung.mol.position.copy(offStage(rung));
   rung.mol.visible = true;
   setTwist3(rung, 0);
   const far = rung.mol.position.clone();
+  // The turn runs UNDER the arrival, so the student sees one thing happen.
+  const y0 = euler3.y, x0 = euler3.x;
   L.motion.seq([
     { dur:0.35 },
     { call:()=>{ rung.tag.style.display = ''; } },
-    { dur:0.65, ease:'outCubic',
-      onUpdate:u=>{ rung.mol.position.lerpVectors(far, rung.staged, u); L.fit(); } },
+    { dur:0.8, ease:'inOutCubic',
+      onUpdate:u=>{ rung.mol.position.lerpVectors(far, rung.staged, Math.min(1, u * 1.25));
+                    euler3.y = y0 + (RUNG3_VIEW.y - y0) * u;
+                    euler3.x = x0 + (RUNG3_VIEW.x - x0) * u;
+                    applySpin3(); L.fit(); } },
   ], { tag:'rung' });
 }
 
