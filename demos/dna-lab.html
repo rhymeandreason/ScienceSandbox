@@ -91,12 +91,6 @@
   #note2.on{display:block}
   #note2 b{font-weight:600}
 
-  /* The water a condensation releases, rising off the bond that made it. */
-  .leaving{position:absolute;z-index:6;pointer-events:none;
-    transform:translate(-50%,-50%);
-    font-family:var(--font-slab);font-size:14px;color:#2f6fd0;
-    text-shadow:0 0 6px rgba(255,255,255,.9)}
-
 </style>
 </head>
 <body>
@@ -122,6 +116,12 @@
 <script src="lib/skel.js"></script>
 <script src="lib/mol-nucleic.js"></script>
 <script src="lib/mol-sugars.js"></script>
+<!-- mol-small.js is loaded for ONE molecule, water, and the five it brings
+     with it are never drawn. The alternative is worse: the only other water in
+     the library is mol-solvation.js's, which is family A — a tuned parameter of
+     a physics engine rather than a picture of a molecule — and this page draws
+     everything else at real ångströms. -->
+<script src="lib/mol-small.js"></script>
 <script src="lib/scene.js"></script>
 <script src="lib/fx.js"></script>
 <script src="kit/motion.js"></script>
@@ -698,6 +698,8 @@ function assemble(host, guest, pose, dropHost, dropGuest, hostAtom, guestAtom, s
 /* ---- the pieces on stage -------------------------------------------------- */
 const centreOfPiece = p =>
   p.centre.clone().applyQuaternion(p.mol.quaternion).add(p.mol.position);
+const worldAtom = (p, i) => new THREE.Vector3(...p.spec.atoms[i].pos)
+  .applyQuaternion(p.mol.quaternion).add(p.mol.position);
 
 // A piece is one draggable mesh. A base grows into a nucleotide in place —
 // `spec` is replaced at each join and the mesh rebuilt — while a sugar or a
@@ -855,6 +857,16 @@ function tryJoin(){
 function join(host, guest){
   const pose = attachPose(host.key, guest.kind);
   const kind = guest.kind;
+  // The three atoms that are about to stop existing, in world space. The O and
+  // one H come from whichever half gives up its –OH; the other H from the one
+  // that gives up a hydrogen. Their middle is where the water appears.
+  const gone = [
+    ...leaving(host.spec, kind === 'sugar' ? 'glyco' : 'c5')
+      .map(i => worldAtom(host, i)),
+    ...leaving(kind === 'sugar' ? SUGAR : PHOS, kind === 'sugar' ? 'c1' : 'ester')
+      .map(i => worldAtom(guest, i)) ];
+  const waterAt = gone.reduce((v, p) => v.add(p), new THREE.Vector3())
+                      .multiplyScalar(1 / gone.length);
   let spec;
   if(kind === 'sugar'){
     spec = assemble(host.spec, SUGAR, pose,
@@ -883,7 +895,7 @@ function join(host, guest){
   loose.splice(loose.indexOf(guest), 1);
 
   pairBonds();
-  water(host, kind);
+  water(waterAt);
   say(host);
 }
 
@@ -899,38 +911,45 @@ function remapRoles(host, sugar, merged){
 }
 
 /* ---- the water that leaves ------------------------------------------------
- * Not a molecule: a label that rises off the new bond and fades. Building an
- * H₂O here would mean loading a second domain file for three seconds of
- * animation, and the claim being made is "a water left", not "look at this
- * water". */
-function water(host, kind){
-  const el = document.createElement('div');
-  el.className = 'leaving';
-  el.textContent = 'H₂O';
-  document.getElementById('stage').appendChild(el);
-  const p = new THREE.Vector3(...host.spec.atoms[
-    host.spec.names.indexOf(kind === 'sugar' ? 'C1′' : 'Pᴾ')].pos)
-    .applyQuaternion(host.mol.quaternion).add(host.mol.position);
-  waters.push({ el, p, born:performance.now() });
-  if(L.fx) L.fx.spawnRing(p, MolLib.PALETTE.bonds.hbond, null, 0.6);
+ * A REAL WATER, from mol-small.js, drawn by the same builder as everything
+ * else on stage. It appears where the three departing atoms actually were —
+ * the base's or sugar's hydrogen and the –OH the other half gave up — so the
+ * student can see that the water is made OF the two molecules rather than
+ * arriving from somewhere. Then it drifts off and fades.
+ *
+ * `at` is that spawn point, computed before the join because by the time the
+ * merged spec exists those atoms are gone from it. */
+function water(at){
+  const mol = Stage.buildMolecule(flat(M.water), { center:true });
+  mol.position.copy(at);
+  // Every material scene.js hands out is freshly constructed, so fading these
+  // fades this water and nothing else on stage.
+  const mats = [];
+  mol.traverse(o => { if(o.material){ o.material.transparent = true; mats.push(o.material); } });
+  G2.add(mol);
+  waters.push({ mol, mats, at:at.clone(), born:performance.now() });
+  if(L.fx) L.fx.spawnRing(at, MolLib.PALETTE.bonds.hbond, null, 0.6);
 }
 const waters = [];
-const WATER_LIFE = 1.6;
+const WATER_LIFE = 2.2;
 /* Aged by the CLOCK, not by summed frame times. A backgrounded tab stops
- * firing requestAnimationFrame, so a label whose age is a running total of dt
- * simply stops ageing — come back to the tab and the water is still hanging
- * there. Wall time keeps running, so it is gone when you look. */
+ * firing requestAnimationFrame, so a water whose age is a running total of dt
+ * simply stops ageing — come back to the tab and it is still hanging there.
+ * Wall time keeps running, so it is gone when you look. */
 function stepWaters(){
-  const r = canvas.getBoundingClientRect();
   const now = performance.now();
   for(let i = waters.length - 1; i >= 0; i--){
     const w = waters[i];
-    const t = (now - w.born) / 1000;
-    const v = w.p.clone().add(new THREE.Vector3(0, t * 3.4, 0)).project(L.camera);
-    w.el.style.left = ((v.x*0.5+0.5) * r.width) + 'px';
-    w.el.style.top  = ((-v.y*0.5+0.5) * r.height) + 'px';
-    w.el.style.opacity = String(Math.max(0, 1 - t / WATER_LIFE));
-    if(t > WATER_LIFE){ w.el.remove(); waters.splice(i, 1); }
+    const t = (now - w.born) / 1000, u = t / WATER_LIFE;
+    // Out of the plane as well as up: the pieces it came off are flat on z = 0,
+    // and a water that only rises slides along the molecule it just left.
+    // It has to CLEAR the molecule it came off before it fades, or the whole
+    // event happens inside the atoms that made it and reads as a flicker.
+    // Hence the distance, and hence holding full opacity for the first third.
+    w.mol.position.copy(w.at).add(new THREE.Vector3(u * 6, u * 13, u * 7));
+    w.mol.rotation.z = u * 1.6;
+    for(const m of w.mats) m.opacity = Math.max(0, Math.min(1, (1 - u) * 1.5));
+    if(t > WATER_LIFE){ G2.remove(w.mol); disposeTree(w.mol); waters.splice(i, 1); }
   }
 }
 
