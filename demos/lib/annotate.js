@@ -260,10 +260,15 @@ window.Annot = (function () {
        glass. The panel's rect comes from `opts.keepOut` or, failing that,
        from the stage element itself — kit/lesson-shell.js hangs `keepOut` on
        its stage the same way it hangs `viewOffset`, so a component gets this
-       without being handed anything. A note over the region flips its label
-       to the free side; the DOT DOES NOT MOVE, because the dot is the anchor
-       and only the typesetting changes. Solved per frame from the projected
-       x alone, and applyOffset runs only on the frame a note changes sides. */
+       without being handed anything. A note whose LABEL would land over the
+       region flips it to the free side; the DOT DOES NOT MOVE, because the
+       dot is the anchor and only the typesetting changes.
+
+       It is the label's box that has to clear, not the dot: a dot well right
+       of the panel still hangs its label leftward across it, which is what
+       shipped looking fixed. So the width is measured — cached per note, and
+       re-read only when the text or the side changes, because offsetWidth in
+       the frame loop is a forced reflow per label per frame. */
     const keepOutFn = opts.keepOut || stageEl.keepOut || null;
     function keepOut() {
       if (!keepOutFn) return null;
@@ -311,12 +316,13 @@ window.Annot = (function () {
         atPx: spec.atPx,
         offset: off,
         flipped: false,               // pushed off the keep-out this frame
+        _lw: null,                    // label width, measured once (see keepOut)
         card: null, cardTitle: '',
         _sx: 0, _sy: 0,
         openCard() { return openCard(note); },
         open: spec.open !== false,     // 'click' mode starts them closed below
         delay: 0,
-        set(text) { label.textContent = text; dot.setAttribute('aria-label', text); return note; },
+        set(text) { label.textContent = text; dot.setAttribute('aria-label', text); note._lw = null; return note; },
         // Move the label to the other side of its dot (dx<0 is left). The dot
         // does not move: it is the anchor, and only the typesetting changes.
         setOffset(o) { note.offset = o; applyOffset(el, o); return note; },
@@ -480,14 +486,17 @@ window.Annot = (function () {
         y = (1 - p.y) / 2 * h;
         }
 
-        /* Flip to the free side while the dot is over the keep-out, and back
-           to the note's own offset once it clears. */
+        /* Flip while the label would cross the keep-out, and back once its
+           own side clears it with room to spare. The gap is hysteresis:
+           without it a label that just fits flips on alternate frames. */
         if (ko) {
-          const want = x < ko.right;
+          if (n._lw == null) n._lw = n.label.offsetWidth;
+          const dx = (n.offset[0] || 0) + (n.offset[0] < 0 ? -SIDE_GAP : SIDE_GAP);
+          const natural = x + dx - (dx < 0 ? n._lw : 0);       // where it wants to sit
+          const want = natural < ko.right + (n.flipped ? 8 : 0);
           if (want !== n.flipped) {
             n.flipped = want;
-            const dx = Math.abs(n.offset[0] || 0);
-            applyOffset(n.el, want ? [dx || 1, n.offset[1] || 0] : n.offset);
+            applyOffset(n.el, want ? [Math.abs(n.offset[0] || 0) || 1, n.offset[1] || 0] : n.offset);
           }
         }
 
