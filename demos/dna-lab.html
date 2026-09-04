@@ -173,7 +173,10 @@ const L = Lesson.create(document.getElementById('gl'), {
   orbit:false,
   boxes:()=>step === 4 ? [{ x:0, y:0, rxz:16, hy:44 }]
          : step === 2 ? [{ x:0, y:-3, rxz:30, hy:27 }]
-         : step === 3 ? [{ x:0, y:0, rxz:22, hy:24 }]
+         // Step 3 reframes once the bond is made: before it, the stage has to
+         // hold the loose nucleotide waiting below as well as the one it joins.
+         : step === 3 ? (strand.joined ? [{ x:0, y:0,   rxz:23, hy:17 }]
+                                       : [{ x:0, y:-13, rxz:23, hy:28 }])
                        : [{ x:0, y:0, rxz:26, hy:17 }],
   afterFrame:()=>{                                    // projection reads a matrix refreshed on render
     if(step === 1){ placeTags(); placeRulers(); }
@@ -1195,9 +1198,15 @@ function placeTags2(){
  * ========================================================================== */
 const G3 = new THREE.Group();
 G3.visible = false;
-// Local +z is the helix axis, so this puts the strand's growth direction up the
-// screen — G4's rotation, for G4's reason.
-G3.rotation.x = -Math.PI / 2;
+/* Local +z is the helix axis. Standing it straight up (G4's -90°) is the
+ * obvious choice and it draws the two residues on top of each other: they are
+ * 36° apart about that axis, so edge-on the bases cross and the backbone is
+ * behind both. Tilted, the stack separates and the two phosphates stay on the
+ * outside where they can be pointed at.
+ *
+ * PROVISIONAL. The human picks a page's angle in the browser (CLAUDE.md), and
+ * this is the best of the handful that were compared, not a chosen one. */
+G3.rotation.set(-1.25, 0.5, 0);
 L.root.add(G3);
 
 // The two residues, in the order the record has them on one strand: 1BNA's
@@ -1256,11 +1265,30 @@ const strand = { rows:[], joined:false };
   // built in world space and converted, so "down and to the right" stays down
   // and to the right whatever this group's rotation is.
   const home = t ? t.pos.clone() : new THREE.Vector3(0, 0, 12);
+  // Straight below where it belongs, in SCREEN terms: the offset is built in
+  // world space and converted back, so "below" stays below whatever rotation
+  // this group is given.
   const start = G3.worldToLocal(
-    G3.localToWorld(home.clone()).add(new THREE.Vector3(13, -13, 0)));
+    G3.localToWorld(home.clone()).add(new THREE.Vector3(3, -26, 0)));
   build3(b, spec1, start, t ? t.quat.clone() : new THREE.Quaternion());
   strand.rows = [a, b];
   a.tag.textContent = 'Nucleotide'; b.tag.textContent = 'Nucleotide';
+
+  /* CENTRE THE GROUP ON WHAT IS IN IT. Everything here is placed by the pose
+   * attach.js solved, which is expressed about nucleotide A's own origin —
+   * wherever the record's atom 0 happened to be. Left alone the strand sits a
+   * third of the way off the stage, and the camera box would have to be
+   * enlarged to cover empty paper on the other side. */
+  // Centred on the FINISHED strand, not on the two pieces where they start:
+  // the loose one is only there for a moment, and framing the transient
+  // arrangement leaves the thing the step is about sitting off-centre for good.
+  const b0 = b.mol.position.clone(), q0 = b.mol.quaternion.clone();
+  if(t){ b.mol.position.copy(t.pos); b.mol.quaternion.copy(t.quat); }
+  G3.updateMatrixWorld(true);
+  const box = new THREE.Box3();
+  for(const row of strand.rows) box.expandByObject(row.mol);
+  G3.position.sub(box.getCenter(new THREE.Vector3()));
+  b.mol.position.copy(b0); b.mol.quaternion.copy(q0);
 }
 
 function tagEl(){
@@ -1335,6 +1363,7 @@ function joinStrand(){
   build3(a, spec, at, q);
   strand.joined = true;
   a.tag.textContent = 'Dinucleotide';
+  L.fit();
 
   if(L.fx) L.fx.condense(g3World(bondAt), g3World(waterAt), { size:1.1 });
   water3(waterAt);
@@ -1425,7 +1454,10 @@ function down3(e){
   const b = strand.rows[1];
   const w = toWorld(e);
   const c = g3World(b.centre.clone().applyQuaternion(b.mol.quaternion).add(b.mol.position));
-  if(w.distanceTo(c) > 9) return;
+  // IN THE PLANE, for step 2's reason: the pointer only ever reaches z = 0 and
+  // this group is tilted, so a piece sitting several units deep is unreachable
+  // by a 3D distance test — it cannot be picked up at all.
+  if(flatDist(w, c) > 9) return;
   held3 = b;
   drag3 = b.mol.position.clone().sub(G3.worldToLocal(w.clone()));
 }

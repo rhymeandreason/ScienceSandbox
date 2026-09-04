@@ -1,85 +1,214 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Design system — ScienceSandbox</title>
+<title>Design system — Kodolab</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="css/kodo.css">
 <style>
-  /* This bench's own furniture only. Nothing here is the system; everything
-     being judged below comes from kodo.css. */
-  body{margin:0;background:var(--surface-page);
-    background-image:radial-gradient(var(--surface-rule) 1.4px,transparent 1.4px);
-    background-size:26px 26px;background-position:13px 13px;
-    color:var(--text-body);font-family:var(--font-ui)}
-  main{max-width:1100px;margin:0 auto;padding:var(--space-6) var(--space-5) var(--space-7)}
-  h1{font-family:var(--font-shout);font-size:var(--text-4xl);color:var(--text-strong);
-    margin:0 0 var(--space-2);font-weight:400}
-  .lede{font-family:var(--font-editorial);font-size:var(--text-lg);
-    line-height:var(--leading-snug);color:var(--text-dim);max-width:52em;margin:0 0 var(--space-6)}
-  h2{font-family:var(--font-editorial);font-size:var(--text-2xl);color:var(--text-strong);
-    margin:var(--space-7) 0 var(--space-1);font-weight:var(--weight-bold)}
-  h2 + p{margin:0 0 var(--space-4);font-size:var(--text-sm);color:var(--text-muted);max-width:56em;line-height:var(--leading-body)}
-  h3{font-size:var(--text-2xs);text-transform:uppercase;letter-spacing:var(--tracking-caps);
-    color:var(--text-muted);margin:var(--space-5) 0 var(--space-3);font-weight:var(--weight-bold)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--space-2)}
-  .sw{border-radius:var(--radius-md);overflow:hidden;background:var(--surface-raised);
-    box-shadow:var(--shadow-panel)}
-  .sw i{display:block;height:56px}
-  .sw b{display:block;padding:7px 10px 2px;font-size:var(--text-sm);
-    font-weight:var(--weight-semibold);color:var(--text-strong)}
-  .sw code{display:block;padding:0 10px 9px;font-family:var(--font-mono);
-    font-size:var(--text-2xs);color:var(--text-muted)}
-  .row{display:flex;flex-wrap:wrap;gap:var(--space-3);align-items:center;
-    padding:var(--space-4);background:var(--surface-raised);border-radius:var(--radius-lg);
-    box-shadow:var(--shadow-panel);margin-bottom:var(--space-3)}
-  .row > .spec{flex:0 0 100%;order:99;margin-top:2px;font-family:var(--font-mono);
-    font-size:var(--text-2xs);color:var(--text-muted);line-height:1.7}
-  .row > .spec b{font-weight:var(--weight-bold);color:var(--text-dim)}
-  .row > .lbl{flex:0 0 100%;font-size:var(--text-2xs);text-transform:uppercase;
-    letter-spacing:var(--tracking-caps);color:var(--text-muted);font-weight:var(--weight-bold)}
-  .typerow{display:flex;align-items:baseline;gap:var(--space-4);padding:var(--space-2) 0;
-    border-bottom:1px solid var(--border-hair)}
-  .typerow code{flex:0 0 120px;font-family:var(--font-mono);font-size:var(--text-2xs);color:var(--text-muted)}
-  .typerow span{color:var(--text-strong)}
-  .fam{padding:var(--space-3) 0;border-bottom:1px solid var(--border-hair)}
-  .fam code{display:block;font-family:var(--font-mono);font-size:var(--text-2xs);
-    color:var(--text-muted);margin-bottom:4px}
-  .fam p{margin:0;font-size:var(--text-2xl);color:var(--text-strong)}
+  /* THIS PAGE WEARS THE SHELL IT DOCUMENTS. The nav, the wordmark, the masthead
+     and every section head below are `kodo.css` §6.5's, not this bench's, so a
+     shell that breaks breaks here first. What is left in this block is the
+     furniture a reference page needs and a lesson does not: a swatch, a spec
+     line, a type row. Nothing here is the system. */
+
+  .lede code, main code { font-family: var(--font-mono); font-size: .9em }
+
+  section { scroll-margin-top: var(--space-5) }
+  section > p { margin: 0 0 var(--space-4); font-size: var(--text-sm);
+    color: var(--text-muted); max-width: 56em; line-height: var(--leading-body) }
+  h3 { font-size: var(--text-2xs); text-transform: uppercase;
+    letter-spacing: var(--tracking-caps); color: var(--text-muted);
+    margin: var(--space-5) 0 var(--space-3); font-weight: var(--weight-bold) }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--space-2) }
+  .sw { border-radius: var(--radius-md); overflow: hidden;
+    background: var(--surface-card); border: 1px solid var(--border-hair) }
+  .sw i { display: block; height: 56px }
+  .sw b { display: block; padding: 7px 10px 2px; font-size: var(--text-sm);
+    font-weight: var(--weight-semibold); color: var(--text-strong) }
+  .sw code { display: block; padding: 0 10px 9px; font-family: var(--font-mono);
+    font-size: var(--text-2xs); color: var(--text-muted) }
+
+  .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center;
+    padding: var(--space-4); background: var(--surface-card);
+    border: 1px solid var(--border-hair); border-radius: var(--radius-lg);
+    margin-bottom: var(--space-3) }
+  .row > .spec { flex: 0 0 100%; order: 99; margin-top: 2px;
+    font-family: var(--font-mono); font-size: var(--text-2xs);
+    color: var(--text-muted); line-height: 1.7 }
+  .row > .spec b { font-weight: var(--weight-bold); color: var(--text-dim) }
+  .row > .lbl { flex: 0 0 100%; font-size: var(--text-2xs); text-transform: uppercase;
+    letter-spacing: var(--tracking-caps); color: var(--text-muted);
+    font-weight: var(--weight-bold) }
+
+  .typerow { display: flex; align-items: baseline; gap: var(--space-4);
+    padding: var(--space-2) 0; border-bottom: 1px solid var(--border-hair) }
+  .typerow code { flex: 0 0 120px; font-family: var(--font-mono);
+    font-size: var(--text-2xs); color: var(--text-muted) }
+  .typerow span { color: var(--text-strong) }
+  .fam { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-hair) }
+  .fam code { display: block; font-family: var(--font-mono); font-size: var(--text-2xs);
+    color: var(--text-muted); margin-bottom: 4px }
+  .fam p { margin: 0; font-size: var(--text-2xl); color: var(--text-strong) }
+
+  /* A SPECIMEN OF THE SHELL, INSIDE THE SHELL. The frame is what stops a second
+     wordmark on the page reading as a second site: it says "this is a picture of
+     a header", the way `.inset`'s border says a close-up is a window. */
+  .specimen { background: var(--surface-card); border: 1px solid var(--border-hair);
+    border-radius: var(--radius-md); padding: 0 var(--space-5) var(--space-5);
+    margin-bottom: var(--space-3) }
+  .specimen .sitenav { padding-top: var(--space-4) }
+  .specimen .pagehead { margin-bottom: 0 }
+
+  pre { margin: 0; padding: var(--space-4); overflow-x: auto;
+    background: var(--surface-card); border: 1px solid var(--border-hair);
+    border-radius: var(--radius-md); font-family: var(--font-mono);
+    font-size: var(--text-xs); line-height: 1.65; color: var(--text-dim) }
+  pre b { color: var(--text-strong); font-weight: var(--weight-semibold) }
 </style>
 
+<body class="kodo">
+<div class="page">
+
+<nav class="sitenav">
+  <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="crumb">design system</span>
+</nav>
+
+<header class="pagehead">
+  <h1>design system</h1>
+  <p class="deck">Every token, shape and control this site is built from, drawn
+    on its own paper.</p>
+  <p class="meta" id="tally">&mdash;</p>
+</header>
+
 <main>
-<h1>Design system</h1>
-<p class="lede">Everything below is drawn by <code>kodo.css</code> on the stage's own paper. If a swatch or a
-button looks wrong here, it looks wrong in the lesson. Judge at ~1440&times;900.</p>
 
-<h2>Surfaces and text</h2>
-<p>The semantic tier. Pages should name these, not the ramp underneath.</p>
+<p class="lede">Everything below is drawn by <code>css/kodo.css</code>, and every
+value printed beside it is read off the element at render. If a swatch or a
+button looks wrong here it looks wrong in the lesson, and this page cannot claim
+a number the stylesheet does not hold. Judge at ~1440&times;900.</p>
+
+<section>
+<div class="sechead"><h2>The page shell</h2><span class="rule"></span>
+  <span class="count">kodo.css &sect;6.5</span></div>
+<p>The blocks every public page is made of, in order. This page is wearing them:
+the bar and the masthead above are the same elements, not a copy.
+<code>docs/Design.md</code> is the rulebook.</p>
+
+<pre>&lt;body class="<b>kodo</b>"&gt;
+&lt;div class="<b>page</b>"&gt;
+  &lt;nav class="<b>sitenav</b>"&gt;
+    &lt;a class="<b>mark</b>" href="/"&gt;kodo&lt;em&gt;lab&lt;/em&gt;&lt;span class="dot"&gt;.&lt;/span&gt;&lt;/a&gt;
+    &lt;span class="<b>crumb</b>"&gt;proteins&lt;/span&gt;
+  &lt;/nav&gt;
+  &lt;header class="<b>pagehead</b>"&gt;
+    &lt;h1&gt;proteins&lt;/h1&gt;
+    &lt;p class="<b>deck</b>"&gt;One line of prose about this page.&lt;/p&gt;
+  &lt;/header&gt;
+  &lt;<b>main</b>&gt; ... &lt;/main&gt;
+  &lt;footer class="<b>sitefoot</b>"&gt;...&lt;/footer&gt;
+&lt;/div&gt;</pre>
+
+<h3>The wordmark, at its two sizes</h3>
+<p>One element, one size. <code>.mark.hero</code> is the homepage and nothing
+else. The <code>&lt;em&gt;</code> and the <code>.dot</code> span are what colour
+<em>lab</em> and the full stop; a page that types the letters plain renders a
+monochrome logo that looks deliberate.</p>
+<div class="specimen">
+  <nav class="sitenav">
+    <span class="mark">kodo<em>lab</em><span class="dot">.</span></span>
+    <span class="crumb" id="marksize">&mdash;</span>
+  </nav>
+  <header class="pagehead open">
+    <span class="mark hero">kodo<em>lab</em><span class="dot">.</span></span>
+    <p class="meta" id="herosize">&mdash;</p>
+  </header>
+</div>
+
+<h3>Masthead variants</h3>
+<div class="specimen">
+  <header class="pagehead">
+    <h1 class="proper">Myoglobin</h1>
+    <p class="meta">.proper &middot; keeps its capital</p>
+    <p class="deck">A deck is the sentence under the name. Serif, because it is
+      prose and the bar above it is not.</p>
+  </header>
+</div>
+<div class="specimen">
+  <header class="pagehead open">
+    <h1>open</h1>
+    <p class="deck">No rule under the name, for a reading page whose deck runs
+      straight into the first section.</p>
+  </header>
+</div>
+
+<h3>Layout tokens</h3>
+<p>A page sets <code>--page-max</code> and almost nothing else. The gutter is a
+token rather than a padding, so a full-bleed child undoes it with one negative
+margin instead of guessing the clamp.</p>
+<div id="layout"></div>
+</section>
+
+<section>
+<div class="sechead"><h2>Surfaces and text</h2><span class="rule"></span>
+  <span class="count">semantic</span></div>
+<p>Pages name these, not the ramp underneath. <code>--surface-stage</code> is the
+ground a molecule is drawn on: a step warmer than the paper, because the canvas
+is <code>alpha:true</code> and this is what shows through it.</p>
 <div class="grid" id="sem"></div>
+</section>
 
-<h2>Atoms</h2>
+<section>
+<div class="sechead"><h2>Atoms</h2><span class="rule"></span>
+  <span class="count" id="atomcount">&mdash;</span></div>
 <p>Generated from <code>palette.js</code> at load by <code>tokens-from-palette.js</code>, so a caption and the sphere
 it names cannot drift. Oxygen used to be <code>#e6362f</code> in CSS and <code>#d6362e</code> in the renderer.</p>
 <div class="grid" id="atoms"></div>
+</section>
 
-<h2>Bonds</h2>
+<section>
+<div class="sechead"><h2>Bonds</h2><span class="rule"></span>
+  <span class="count" id="bondcount">&mdash;</span></div>
 <p>A bond's colour is a lesson, not an element.</p>
 <div class="grid" id="bonds"></div>
+</section>
 
-<h2>Lesson domains</h2>
+<section>
+<div class="sechead"><h2>Lesson domains</h2><span class="rule"></span>
+  <span class="count">domain</span></div>
 <p>Hoisted out of the three per-page <code>:root</code> blocks in builder, hemoglobin and glycolysis.</p>
 <div class="grid" id="dom"></div>
+</section>
 
-<h2>Type</h2>
-<p>Four families, named by the job. Ten steps covering the twenty-six sizes the featured pages use today.</p>
+<section>
+<div class="sechead"><h2>Type</h2><span class="rule"></span>
+  <span class="count">two sans, one serif</span></div>
+<p><strong>Split by job.</strong> <code>--font-display</code> is the geometric
+one: a wordmark, a masthead, a micro-cap, a numeral a page reads out.
+<code>--font-ui</code> is system-ui and is what everything is actually
+<em>read</em> in, because a display face sets a paragraph badly and its 600 at
+13px is a black bar. <code>--font-shout</code> and <code>--font-aside</code> are
+the sketchbook's two hands and now resolve into this pair, which is what carried
+the marker headings and the margin scrawl across without touching a page.</p>
 <h3>Families</h3>
 <div id="fams"></div>
+<h3>Micro-caps &mdash; the only heading device outside prose</h3>
+<p>Same face, tracking, weight and colour. The size is the entire hierarchy, so
+a page cannot invent a third treatment by picking its own tracking.</p>
+<div id="caps"></div>
 <h3>Scale</h3>
 <div id="scale"></div>
+</section>
 
-<h2>Buttons</h2>
-<p>Tab through them: every shape takes the same focus ring.</p>
+<section>
+<div class="sechead"><h2>Buttons</h2><span class="rule"></span>
+  <span class="count">six shapes</span></div>
+<p>Tab through them: every shape takes the same focus ring. Each row prints its
+own computed padding, size and height, so a stale stylesheet cannot hide here.</p>
 
 <div class="row"><span class="lbl">.pill — the default on the stage</span>
   <button class="pill">Add water</button>
@@ -141,7 +270,16 @@ it names cannot drift. Oxygen used to be <code>#e6362f</code> in CSS and <code>#
   <button class="textbtn">Undo</button>
   <button class="textbtn">Dismiss</button>
 </div>
+</section>
+
 </main>
+
+<footer class="sitefoot">
+  <span>Every value on this page is read from the element at render.</span>
+  <span><code>css/kodo.css</code> &middot; <code>docs/Design.md</code></span>
+</footer>
+
+</div>
 
 <script src="lib/palette.js"></script>
 <script src="lib/tokens-from-palette.js"></script>
@@ -153,21 +291,53 @@ const put = (id, names) => document.getElementById(id).innerHTML = names.map(n =
   `<div class="sw"><i style="background:var(${n})"></i><b>${n.replace(/^--/,'')}</b><code>${css.getPropertyValue(n).trim()}</code></div>`
 ).join('');
 
-put('sem', ['--surface-page','--surface-rule','--surface-raised','--surface-card',
-            '--border-hair','--border-strong','--text-strong','--text-body','--text-dim',
-            '--text-muted','--accent-hot','--accent-cold','--sketch']);
-put('atoms', Object.keys(MolPalette.atoms).map(e => '--atom-' + e));
-put('bonds', Object.keys(MolPalette.bonds).map(b => '--bond-' + b));
+put('sem', ['--surface-page','--surface-card','--surface-stage','--surface-raised',
+            '--surface-rule','--border-hair','--border-strong',
+            '--text-strong','--text-body','--text-dim','--text-muted','--text-inverse',
+            '--accent','--spark','--accent-hot','--accent-cold','--sketch']);
+const atoms = Object.keys(MolPalette.atoms), bonds = Object.keys(MolPalette.bonds);
+put('atoms', atoms.map(e => '--atom-' + e));
+put('bonds', bonds.map(b => '--bond-' + b));
+// Counted, not typed: a new element in palette.js changes this line by itself.
+document.getElementById('atomcount').textContent = atoms.length + ' elements';
+document.getElementById('bondcount').textContent = bonds.length + ' kinds';
+document.getElementById('tally').textContent =
+  document.querySelectorAll('.sw').length + ' tokens \u00b7 ' +
+  document.querySelectorAll('.row').length + ' control rows';
 put('dom', ['--bond-ionic','--bond-covalent-ink','--protein-hbond','--protein-core',
             '--protein-coil','--protein-quat','--energy-phosphate','--energy-nad',
             '--energy-atp','--energy-carbon','--membrane-channel']);
 
 document.getElementById('fams').innerHTML = [
-  ['--font-ui','Labels, buttons, controls'],
-  ['--font-editorial','Headings, readouts, the claim'],
-  ['--font-shout','A title, a sticky note'],
-  ['--font-aside','Annotation, in the margin'],
-].map(([n,use]) => `<div class="fam"><code>${n} — ${use}</code><p style="font-family:var(${n})">Water is the universal solvent</p></div>`).join('');
+  ['--font-display','The site\u2019s voice: a wordmark, a masthead, a micro-cap, a numeral'],
+  ['--font-ui','What the page is READ in: labels, buttons, controls, running text'],
+  ['--font-editorial','Prose in a card, a deck, the claim a step is making'],
+  ['--font-shout','the sketchbook\u2019s marker, now resolving to the display face'],
+  ['--font-aside','the sketchbook\u2019s hand, now resolving to the serif'],
+  ['--font-mono','a token name, a measured value, anything you copy'],
+].map(([n,use]) => `<div class="fam"><code>${n} \u2014 ${use}</code>` +
+  `<p style="font-family:var(${n})">Water is the universal solvent</p>` +
+  `<code>${css.getPropertyValue(n).trim().split(',')[0]}</code></div>`).join('');
+
+// THE SHELL, MEASURED OFF ITSELF. The two marks on this page print the size they
+// are actually drawn at, so the one-size rule is checked rather than asserted.
+const sizeOf = sel => Math.round(parseFloat(getComputedStyle(document.querySelector(sel)).fontSize) * 100) / 100 + 'px';
+document.getElementById('marksize').textContent = '.mark \u00b7 ' + sizeOf('.specimen .mark');
+document.getElementById('herosize').textContent = '.mark.hero \u00b7 ' + sizeOf('.specimen .mark.hero');
+
+document.getElementById('layout').innerHTML =
+  ['--page-max','--page-gutter','--page-top','--head-gap','--page-gap','--mark-size']
+  .map(n => `<div class="typerow"><code>${n}</code>` +
+            `<code>${css.getPropertyValue(n).trim()}</code>` +
+            `<span style="font-size:var(--text-sm)">${
+              n === '--page-gutter' ? getComputedStyle(document.querySelector('.page')).paddingLeft + ' here'
+            : n === '--page-max' ? getComputedStyle(document.querySelector('.page')).maxWidth + ' here'
+            : 'resolved at this width'}</span></div>`).join('');
+
+document.getElementById('caps').innerHTML = ['cap-lg','cap-sm'].map(c =>
+  `<div class="typerow"><code>--${c}</code><code>${css.getPropertyValue('--' + c).trim()}</code>` +
+  `<span class="${c}">${c === 'cap-lg' ? 'names a whole thing' : 'labels a part of the chrome'}</span></div>`
+).join('');
 
 // Each button row prints its own computed padding, size and height. A bench that
 // states its specs from the stylesheet cannot show you a stale one: if these do
