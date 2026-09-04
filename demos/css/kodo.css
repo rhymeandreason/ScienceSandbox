@@ -730,24 +730,38 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   border: 0;
   border-radius: var(--radius-pill);
   padding: 16px 32px;
-  font-size: var(--text-md);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--tracking-wide);
+  /* THE SAME SIGNAGE A .cta SETS. Same face, size, weight and tracking, so the
+     one control on the stage and the one in the document are read as the same
+     kind of act. What still separates them is the body: a pill has a side and
+     a shadow because it stands on the model's paper. */
+  font-family: var(--font-display);
+  font-size: .95rem;
+  font-weight: var(--weight-medium);
+  letter-spacing: .08em;
+  text-transform: uppercase;
   line-height: 1;
-  /* Solid is the default because an unqualified .pill on the stage is nearly
-     always the thing the step is asking the student to press. A page sets
-     --pill-fill to its own substance's colour and changes nothing else.
-     The default charcoal is delivered as a var() fallback rather than a
-     declaration, so the edge below can substitute a lighter starting colour
-     for it: darkening ink by ink leaves no visible side. */
+  white-space: nowrap;
+  /* TWO COLOURS, AND ONE FALLBACK DOING THE DECIDING. --pill-fill is left
+     undeclared so that `var(--pill-fill, X)` can tell a page that named a
+     colour from one that did not:
+
+       nobody set it  ->  accent at rest, spark on hover, like a .cta
+       a page set it  ->  that colour at rest AND on hover
+
+     which is what keeps a substance's pill honest. water-lab's Add Water is
+     H-bond blue and massaction's says "press the blue one and blue dots
+     arrive"; a button that turned orange under the pointer would be making a
+     claim about a different substance. */
+  --pill-now:  var(--pill-fill, var(--accent));
+  --pill-over: var(--pill-fill, var(--spark));
   /* The key it sits on: the fill's own colour taken down toward ink, so the
      edge reads as the same substance in shadow. Translucent ink is the
      fallback where color-mix is missing. */
   --pill-rest: 4px;
   --pill-lift: var(--pill-rest);
   --pill-edge: rgba(43, 39, 35, .32);
-  background: var(--pill-fill, var(--text-strong));
-  color: #fff;
+  background: var(--pill-now);
+  color: var(--text-inverse);
   /* Top highlight, solid edge, ambient shadow: the three things that make it
      a body with a side rather than a rectangle with a drop shadow. */
   box-shadow:
@@ -762,12 +776,17 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 }
 
 @supports (color: color-mix(in srgb, red, blue)) {
-  .pill { --pill-edge: color-mix(in srgb, var(--pill-fill, var(--clay-600)) 68%, #241f1b) }
+  .pill { --pill-edge: color-mix(in srgb, var(--pill-now) 68%, #241f1b) }
+  /* The side has to follow the top. An accent body over an accent-dark edge
+     that stayed put while the body warmed would read as two buttons. */
+  .pill:hover:not([disabled]) { --pill-edge: color-mix(in srgb, var(--pill-over) 68%, #241f1b) }
 }
 
-/* Hover thickens the edge, which stands the whole key up off the paper. */
+/* Hover thickens the edge, which stands the whole key up off the paper, and
+   warms to the spark where the page has not named a colour of its own. */
 .pill:hover:not([disabled]) {
-  filter: brightness(1.07);
+  background: var(--pill-over);
+  filter: brightness(1.04);
   --pill-lift: 7px;
 }
 
@@ -790,7 +809,13 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 }
 
 /* Ghost: the same capsule with the fill taken away. This is what a row of step
-   tabs is, so a lesson's spine and its buttons stay one family. */
+   tabs is, so a lesson's spine and its buttons stay one family.
+
+   IT DOES NOT TAKE THE SIGNAGE. The solid pill sets uppercase because it carries
+   one or two words and is the thing being pressed; a step tab carries a phrase
+   ("the universal solvent", "why ice floats"), and a letterspaced capital
+   sentence is a line a reader has to decode rather than scan. Signage is for a
+   label, not for a title. */
 .pill--ghost {
   background: transparent;
   color: var(--text-muted);
@@ -798,8 +823,11 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   --pill-rest: 0px;
   box-shadow: none;
   padding: 8px 16px;
+  font-family: var(--font-ui);
   font-size: var(--text-sm);
   font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: none;
   /* 14 + 16 padding + 2 border = 32, the same height as .btn. The line-height
      rather than the padding is the lever, so the tabs keep their own shape. */
   line-height: 14px;
@@ -819,9 +847,9 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   border-color: var(--text-strong);
 }
 
-/* 14 + 16 padding = 30. .pill's line-height:1 would make it 29 off a 13px
-   label, so the small pill states its own. */
-.pill--sm { padding: 10px 20px; font-size: var(--text-sm); line-height: 14px; --pill-rest: 3px }
+/* Matched to .cta--sm's type, the way the full-size pill is matched to .cta's.
+   The line-height is stated because .pill's 1 would leave an odd box. */
+.pill--sm { padding: 10px 20px; font-size: .8rem; line-height: 14px; --pill-rest: 3px }
 
 /* The nudge: a ring breathing out of a pill while the scene is still too empty
    to show what the step is about. The button itself does not move, so it stays
@@ -831,7 +859,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 /* The ring is offset by half the lift: the button's visual mass is the body
    plus the edge below it, so a ring centred on the body alone sits high. */
 @keyframes pill-nudge {
-  0%   { box-shadow: 0 var(--pill-lift) 0 var(--pill-edge), 0 calc(var(--pill-lift) / 2) 0 0   var(--pill-fill, var(--text-strong)) }
+  0%   { box-shadow: 0 var(--pill-lift) 0 var(--pill-edge), 0 calc(var(--pill-lift) / 2) 0 0   var(--pill-now) }
   70%  { box-shadow: 0 var(--pill-lift) 0 var(--pill-edge), 0 calc(var(--pill-lift) / 2) 0 14px transparent }
   100% { box-shadow: 0 var(--pill-lift) 0 var(--pill-edge), 0 calc(var(--pill-lift) / 2) 0 0   transparent }
 }
@@ -839,7 +867,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 @media (prefers-reduced-motion: reduce) {
   .pill.is-nudging {
     animation: none;
-    outline: 2px solid var(--pill-fill, var(--text-strong));
+    outline: 2px solid var(--pill-now);
     outline-offset: 3px;
   }
 }
@@ -1388,6 +1416,17 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 :root #restart,
 :root #allsteps,
 :root .annot-dot { border-width: 1px }
+
+/* THE LESSON'S ONE INVITATION IS THE SITE'S PRIMARY. pathways.css paints #actbtn
+   the H-bond blue so that Begin and water-lab's Add Water match, which was true
+   when blue was the only colour the system had for "press this". It is now a
+   substance's colour doing a primary's job, and the two claims are different.
+
+   `initial` rather than the accent: --pill-fill is undeclared on purpose so
+   that `var(--pill-fill, X)` can tell a page that named a colour from one that
+   did not, and setting it here to the accent would win the rest state and lose
+   the spark on hover. This puts the button back to having named nothing. */
+:root #actbtn { --pill-fill: initial }
 
 /* Micro-labels are the masthead's device: uppercase, letterspaced, quiet.
    Every heading on a converted page routes through one of these two, which is

@@ -91,6 +91,14 @@ shadow, and on a document it reads as a sticker. Which shape a control takes is
 decided by what it is lying on, not by how important it is. Every shape is drawn
 live in `design-system.html`.
 
+`.cta`, `.pill` and `.segmented` share one voice: the display face, uppercase,
+letterspaced, accent at rest and spark on hover. **A `.pill` gives up the spark
+the moment a page names its colour** (`--pill-fill`), because a pill on the
+stage is often a substance rather than an action, and water-lab's blue Add Water
+turning orange under the pointer would be a claim about a different substance.
+The step tabs (`.pill--ghost`) take none of the signage: they carry phrases, and
+a letterspaced capital sentence is decoded rather than scanned.
+
 ## 3. What a page does not get to set
 
 Paper, gutter, measure, masthead rhythm and the two accents belong to
