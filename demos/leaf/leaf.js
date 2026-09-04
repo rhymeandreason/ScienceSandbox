@@ -601,13 +601,22 @@
       co2:    () => { const s0 = stomaWorld(); return curve([outsideBelow(s0), s0.clone(), spongyWorld()]); },
       o2:     () => { const s0 = stomaWorld(); return curve([spongyWorld(), s0.clone(), outsideBelow(s0)]); },
       vapour: () => { const s0 = stomaWorld(); return curve([spongyWorld(), s0.clone(), outsideBelow(s0)]); },
-      /* Along the vein rather than through a pore, which is why it keeps
-         running when the stomata shut. */
+      /* THE TRANSPIRATION STREAM, which is one journey and not two. Water
+         arrives along the vein, LEAVES IT into the air spaces, and evaporates
+         there; the vapour flow picks up from the same place and carries it out
+         of a stoma. So a sap particle runs down the xylem and then turns off
+         into the spongy layer rather than out of the block: it is inside a
+         leaf, and the cut faces are where the sample ends, not where the water
+         goes. It travels one way, from the petiole end.
+
+         It is the one flow with no pore to pass, which is why it keeps running
+         when the stomata shut — and why the water then has nowhere to go. */
       sap:    () => { const g = layers.bundle, y = bundle.y, r = bundle.r * 0.45;
         const a = Math.random() * Math.PI * 2;
         const at = x => { const v = new THREE.Vector3(x, y + Math.cos(a) * r, Math.sin(a) * r);
           return g ? g.localToWorld(v) : block.localToWorld(v); };
-        return curve([at(-W / 2 - 1), at(0), at(W / 2 + 1)]); },
+        const leaveAt = rrange(-W * 0.15, W * 0.42);
+        return curve([at(-W / 2 + 0.4), at(leaveAt - 1.5), at(leaveAt), spongyWorld()]); },
     };
     const FLOW_LABEL = { co2: 'CO₂ in', o2: 'O₂ out', vapour: 'water vapour out', sap: 'sap in the vein' };
     const flows = {};
