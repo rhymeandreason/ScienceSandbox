@@ -145,8 +145,13 @@
      part list it was given. */
   function moleculeGeometry(THREE, atoms) {
     const P = global.MolPalette;
+    /* NON-INDEXED FIRST, and count from that. Geo.merge un-indexes what it is
+       handed, which multiplies a sphere's vertex count by three; counting the
+       indexed geometry instead left most of the colour array at zero, and an
+       unwritten vertex colour is BLACK. It rendered as soot over every
+       molecule and looked like a lighting fault. */
     const parts = atoms.map(([el, x, y, z]) => {
-      const g = new THREE.SphereGeometry((P.radii[el] || 0.8) * MOL_SCALE, 8, 6);
+      const g = new THREE.SphereGeometry((P.radii[el] || 0.8) * MOL_SCALE, 8, 6).toNonIndexed();
       g.translate(x * MOL_SCALE, y * MOL_SCALE, z * MOL_SCALE);
       return g;
     });

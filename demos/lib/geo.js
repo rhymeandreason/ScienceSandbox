@@ -12,7 +12,14 @@
  *                                                  clamped to an inner box and pushed out
  *                                                  by r, which is what the addon does
  *    Geo.merge(THREE, geometries)                  one non-indexed geometry from many;
- *                                                  position, normal and uv, no groups
+ *                                                  position, normal and uv, no groups.
+ *                                                  IT UN-INDEXES WHAT IT IS GIVEN, so a
+ *                                                  caller building a matching attribute
+ *                                                  (per-vertex colour, say) must count
+ *                                                  the NON-INDEXED parts: an indexed
+ *                                                  sphere has a third of the vertices
+ *                                                  the merge does, and the shortfall
+ *                                                  reads as black.
  * ========================================================================== */
 (function (global) {
   'use strict';
