@@ -72,22 +72,19 @@
      in the file. The epidermis is a LIVING layer, not a wall: pale green, not
      the bone colour a cell wall would be. */
   const C = {
-    epiWall:      0x93c04f,
-    epiCell:      0x74a838,
-    cuticle:      0xb6dc80,
-    palisade:     0xbe9d1c,
-    palisadeBand: 0x5f7d1e,
-    spongy:       0x6f9c22,
-    spongyDark:   0x4c7315,
-    chloro:       0x2c5a0e,
-    sheath:       0x5d84b5,
-    sheathInner:  0x38567d,
-    xylem:        0xf09410,
-    phloem:       0xdcb42c,
-    /* Darker than the epidermis it sits in: the two are both green, and at the
-       density stomata actually have, a guard cell the same value as its
-       neighbours disappears into the grid from any distance. */
-    guard:        0x4f8c1a,
+    epiWall:      0xc2dda2,     // the wall between epidermal cells, a shade greener
+    epiCell:      0xd6e9bd,     // pale mint: an epidermal cell is nearly clear
+    cuticle:      0x7ab469,     // the waxy sheet, the one saturated green on top
+    palisade:     0x9cc264,     // pale, like the reference: these are not gold
+    palisadeBand: 0x6e9c46,
+    spongy:       0xb9d07e,     // a shade yellower than palisade, and rounder
+    spongyDark:   0x9cb865,
+    chloro:       0x37701f,     // the dots inside a cell, dark enough to count
+    sheath:       0xf0dd77,     // yellow, and the vein reads outward from it:
+    sheathInner:  0xdcc55a,
+    xylem:        0x6fa3ca,     // water blue, the site's own convention
+    phloem:       0xdc6f66,     // sugar red
+    guard:        0x6ea84f,     // green against the paler epidermis it sits in
   };
 
   /* Named for the legend. Two materials that are one thing to a student (the
@@ -593,7 +590,7 @@
        like stone. */
     box.renderer.toneMapping = THREE.NoToneMapping;
     box.scene.traverse(o => {
-      if (o.isAmbientLight) o.intensity = 0.3;
+      if (o.isAmbientLight) o.intensity = 0.18;
       else if (o.isDirectionalLight) {
         /* Stage's fill is blue, for a molecule on white paper. On a leaf it
            reads as cold grey in every shadowed face. */
@@ -603,7 +600,7 @@
     });
     /* Sky above, leaf-litter below: the one world-fixed light, because up and
        down are real for a leaf and a hemisphere casts nothing. */
-    box.scene.add(new THREE.HemisphereLight(0xf2fae6, 0x6f7d47, 0.42));
+    box.scene.add(new THREE.HemisphereLight(0xeef7e2, 0x60724a, 0.38));
     /* On the camera, like Stage's own. Low and to the left of the view, so the
        side of a cell facing away from the key is still modelled. */
     const under = new THREE.DirectionalLight(0xffffff, 0.3);
