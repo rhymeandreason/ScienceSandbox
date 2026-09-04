@@ -4,8 +4,14 @@
   "outputDirectory": ".",
   "framework": null,
   "functions": {
-    "api/ask.js": { "maxDuration": 30 }
+    "api/ask.js": { "maxDuration": 30 },
+    "api/build.js": { "maxDuration": 60 },
+    "api/app.js": { "maxDuration": 15 }
   },
+  "headers": [
+    { "source": "/demos/(.*)",
+      "headers": [ { "key": "Access-Control-Allow-Origin", "value": "*" } ] }
+  ],
   "redirects": [
     { "source": "/(.*).pdb",                   "destination": "/",            "permanent": false },
     { "source": "/viewer-compare",             "destination": "/",            "permanent": false },
@@ -46,6 +52,8 @@
     { "source": "/hemoglobin",                 "destination": "/protein",         "permanent": false }
   ],
   "rewrites": [
+    { "source": "/build",      "destination": "/demos/build/build.html" },
+    { "source": "/app/:id",    "destination": "/demos/build/app.html?id=:id" },
     { "source": "/water",      "destination": "/demos/water-lab.html" },
     { "source": "/molecular-bonds", "destination": "/demos/molecule-builder.html" },
     { "source": "/protein",    "destination": "/demos/hemoglobin-lab.html" },

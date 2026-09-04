@@ -57,6 +57,12 @@ rather than about `/demos/`.
 Amylase and haemoglobin have no `/proteins/<key>` URL: their data lives outside
 `demos/proteins/`, so the collection page links them by file path. The rule the
 gallery applies is the folder, not the registry.
+The builder is two more: `/build` is `demos/build/build.html` and `/app/:id` is
+`demos/build/app.html?id=:id`, over `api/build.js` and `api/app.js`. Both
+functions need `DATABASE_URL`, and `/demos/` is served with
+`Access-Control-Allow-Origin: *` because a stored page runs on an opaque origin
+and a component that fetches a bake is making a cross-origin request.
+
 **The `rewrites` block is the list**; it is not repeated here, because a URL
 renamed there and not here is a doc that lies.
 

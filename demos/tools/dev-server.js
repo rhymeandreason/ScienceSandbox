@@ -626,7 +626,8 @@ function api(url, req, res) {
   if (url === '/api/stills') return stills(req, res, json);
 
   if (url !== '/api/ask' && url !== '/api/log' && url !== '/api/find' &&
-      url !== '/api/extend' && url !== '/api/land')
+      url !== '/api/extend' && url !== '/api/land' &&
+      url !== '/api/app' && url !== '/api/build')
     return json(404, { error: 'no such endpoint' });
 
   // Env and handler are both re-read per request, so pasting a key into
@@ -662,8 +663,14 @@ function api(url, req, res) {
      /api/extend is the node graph reaching past itself: same shape as find,
      and it is here rather than folded into the tutor because it writes no
      turn and answers a map, not a lesson. */
-  if (url === '/api/find' || url === '/api/extend' || url === '/api/land') {
+  /* /api/app and /api/build are the builder: a page is a few hundred lines,
+     so their body cap is the tutor's times five, and /api/app reads its id
+     from the query, which the other three never do. */
+  if (url === '/api/find' || url === '/api/extend' || url === '/api/land' ||
+      url === '/api/app' || url === '/api/build') {
     const file = 'api' + url.slice(4) + '.js';
+    const query = Object.fromEntries(new URL(req.url, 'http://x').searchParams);
+    const cap = url === '/api/app' || url === '/api/build' ? 5e5 : 1e5;
     let handler;
     try { handler = require(path.join(ROOT, file)); }
     catch (e) { console.error(e); return json(500, { error: 'the ' + url + ' endpoint would not load' }); }
@@ -678,11 +685,11 @@ function api(url, req, res) {
       }),
     };
     const run = body => Promise.resolve(
-      handler({ method: req.method, headers: req.headers, body, socket: req.socket }, shim)
+      handler({ method: req.method, headers: req.headers, query, body, socket: req.socket }, shim)
     ).catch(e => console.error('[' + url + '] ' + e.message));
     if (req.method !== 'POST') return run(null);
     let raw = '';
-    req.on('data', d => { raw += d; if (raw.length > 1e5) req.destroy(); });
+    req.on('data', d => { raw += d; if (raw.length > cap) req.destroy(); });
     return req.on('end', () => run(raw));
   }
 
@@ -752,8 +759,12 @@ function send(file, res, req) {
 
   fs.readFile(file, (err, buf) => {
     if (err) { res.writeHead(500).end(String(err)); return; }
+    // A generated app runs in a sandboxed iframe on an opaque origin, so a
+    // component that fetches a bake (Proteinbox) is making a cross-origin
+    // request for a public file. vercel.json sends the same header deployed.
     const headers = { 'Content-Type': type,
                       'Accept-Ranges': ext === '.html' ? 'none' : 'bytes',
+                      'Access-Control-Allow-Origin': '*',
                       'Cache-Control': 'no-store, must-revalidate' };
     if (ext === '.html') {
       let html = buf.toString('utf8');

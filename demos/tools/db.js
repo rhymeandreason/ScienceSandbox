@@ -6,6 +6,11 @@
  *    node demos/tools/db.js recent   the last 20 exchanges, screen beside aim
  *    node demos/tools/db.js aim      where the tutor pointed, by target
  *    node demos/tools/db.js cost     turns, tokens and dollars per day
+ *    node demos/tools/db.js apps     the builder's apps, newest first
+ *    node demos/tools/db.js builds   the builder's tokens and dollars per cohort per day
+ *    node demos/tools/db.js seed <page> [title]
+ *                                    store a page as an app; prints the view and edit links.
+ *                                    The eval pages under tests/ go in this way.
  *
  *  Reads `.env.local` the way the dev server does, so it needs no key of its
  *  own. Next to the dev server because that is where the repo keeps the things
@@ -71,6 +76,42 @@ const CMDS = {
     for (const r of rows) console.log(`${String(r.day).slice(0, 10)}  `
       + `${String(r.turns).padStart(4)} turns  in ${r.in_tok} (cached ${r.cached_tok})  `
       + `out ${r.out_tok}  $${r.usd}`);
+  },
+
+  async apps() {
+    const apps = require(path.join(ROOT, 'api/_apps.js'));
+    const rows = await apps.recent({ limit: 50 });
+    if (!rows.length) return console.log('no apps yet');
+    for (const r of rows) console.log(`${r.id}  v${r.versions} (${r.turns} model turns)  `
+      + `${r.cohort || '-'}  ${r.parent_id ? 'remix of ' + r.parent_id + '  ' : ''}${r.title || '(untitled)'}`);
+  },
+
+  async builds() {
+    const apps = require(path.join(ROOT, 'api/_apps.js'));
+    const rows = await apps.usage();
+    if (!rows.length) return console.log('no builds yet');
+    for (const r of rows) console.log(`${String(r.day).slice(0, 10)}  ${(r.cohort || '-').padEnd(16)}`
+      + `${String(r.turns).padStart(4)} turns  in ${r.input} (cached ${r.cached})  out ${r.output}  $${r.usd}`);
+  },
+
+  /* A page from disk becomes an app, so the render route and the builder can
+   * be exercised on the eval pages without a model call. The first request in
+   * the page's own history comment, or the title argument, names it. */
+  async seed() {
+    const file = process.argv[3], title = process.argv[4];
+    if (!file) throw new Error('seed needs a page: node demos/tools/db.js seed tests/gen-rbc-test.html');
+    const apps = require(path.join(ROOT, 'api/_apps.js'));
+    const builder = require(path.join(ROOT, 'api/_builder.js'));
+    const html = fs.readFileSync(path.resolve(file), 'utf8');
+    const problems = builder.validate(html);
+    if (problems.length) throw new Error('the page would not pass validate():\n  ' + problems.join('\n  '));
+    const past = builder.history(html);
+    const name = title || (/<title>([^<]*)<\/title>/i.exec(html) || [])[1] || path.basename(file, '.html');
+    const made = await apps.create({ cohort: 'seed', title: name.trim(), isLocal: true,
+      version: { kind: 'seed', html, request: past[past.length - 1] || null, summary: `seeded from ${file}` } });
+    console.log(`${made.id}  ${name}`);
+    console.log(`  view  http://localhost:8817/demos/build/app.html?id=${made.id}`);
+    console.log(`  edit  http://localhost:8817/demos/build/build.html?id=${made.id}&e=${made.token}`);
   },
 };
 

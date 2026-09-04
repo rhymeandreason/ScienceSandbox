@@ -40,7 +40,9 @@ const CACHE_MIN = Object.prototype.hasOwnProperty.call(CACHE_MINS, MODEL)
 
 let client = null;
 
-async function ask({ system, context, messages, schema }) {
+/* `max` and `thinking` as in gemini.js: the builder's page is many times the
+ * tutor's answer, and a first draft gets the model's default effort. */
+async function ask({ system, context, messages, schema, max, thinking }) {
   if (!client) {
     const Anthropic = require('@anthropic-ai/sdk');
     client = new Anthropic();               // reads ANTHROPIC_API_KEY
@@ -48,10 +50,12 @@ async function ask({ system, context, messages, schema }) {
 
   const res = await client.messages.create({
     model: MODEL,
-    max_tokens: 2000,
-    // The answer is three sentences. Low effort keeps latency and cost in the
-    // range a question box can afford without changing what the model knows.
-    output_config: { effort: 'low', format: { type: 'json_schema', schema } },
+    max_tokens: max || 2000,
+    // The tutor's answer is three sentences. Low effort keeps latency and cost
+    // in the range a question box can afford without changing what the model
+    // knows; a first draft of a page is the one case that asks for more.
+    output_config: { ...(thinking === 'default' ? {} : { effort: 'low' }),
+                     format: { type: 'json_schema', schema } },
     // Two blocks with the breakpoint between them. The first is byte-stable for
     // the whole lesson, so it is paid once and read back at a tenth on every
     // later question; the second is this turn's step and screen readings, which

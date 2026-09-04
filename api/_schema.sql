@@ -164,3 +164,61 @@ ALTER TABLE finds ADD COLUMN IF NOT EXISTS is_local boolean;
 -- The limiter's only query is "how many since T", globally and per visitor.
 CREATE INDEX IF NOT EXISTS finds_created_idx ON finds (created_at DESC);
 CREATE INDEX IF NOT EXISTS finds_visitor_idx ON finds (visitor_id, created_at DESC);
+
+-- =============================================================================
+--  apps - what the builder made, every version of it
+-- =============================================================================
+--  An app is one HTML page a student or teacher built from the component
+--  library, plus the lineage that says where it came from. The page itself is
+--  stored as the string the browser is handed: no parsed form, nothing to
+--  rebuild, and an export is a SELECT.
+--
+--  OWNERSHIP IS A TOKEN, NOT AN ACCOUNT. `token_hash` is the sha256 of a secret
+--  that rides in the edit link once and then lives in the holder's browser.
+--  Whoever presents it may save; nobody else can. `owner_id` is null on every
+--  row today and exists so that accounts, when they come, are a column to fill
+--  and not a migration.
+--
+--  EVERY TURN IS A ROW, NEVER AN OVERWRITE. A model edit that breaks the page is
+--  the common case, and undo is what makes anyone trust the editor. The latest
+--  version is the highest `n`; a restore writes a new row copying an old one.
+--  `kind` says what wrote it: 'build' and 'edit' spent a model call and are
+--  what the rate limit counts; 'save', 'restore', 'remix' and 'seed' did not.
+--
+--  Same privacy rule as everything else here: no IP, no name. `cohort` is the
+--  access link's label, which for a beta tester is one person, by design.
+CREATE TABLE IF NOT EXISTS apps (
+  id          text PRIMARY KEY,             -- short, random, unguessable
+  cohort      text,
+  visitor_id  uuid,
+  parent_id   text REFERENCES apps(id) ON DELETE SET NULL,   -- the app this was remixed from
+  owner_id    text,                         -- null until accounts exist
+  token_hash  text NOT NULL,
+  title       text,
+  is_local    boolean,                      -- api/_local.js's answer at creation
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS app_versions (
+  id          bigserial PRIMARY KEY,
+  app_id      text NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+  n           int  NOT NULL,                -- 1-based per app
+  kind        text NOT NULL CHECK (kind IN ('build', 'edit', 'save', 'restore', 'remix', 'seed')),
+  html        text NOT NULL,
+  request     text,                         -- what was asked, for build and edit
+  summary     text,                         -- the model's one line about what changed
+  errors      jsonb,                        -- runtime errors the page relayed into this turn
+  provider    text,
+  model       text,
+  usage       jsonb,
+  ms          int,
+  error       text,                         -- a turn that produced no page still gets a row
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (app_id, n)
+);
+
+-- The limiter's query is "how many model turns has this cohort or visitor
+-- spent since T", which is this index over the two kinds that spend.
+CREATE INDEX IF NOT EXISTS app_versions_created_idx ON app_versions (created_at DESC);
+CREATE INDEX IF NOT EXISTS apps_cohort_idx ON apps (cohort, created_at DESC);
+CREATE INDEX IF NOT EXISTS apps_visitor_idx ON apps (visitor_id, created_at DESC);

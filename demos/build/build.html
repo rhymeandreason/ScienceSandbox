@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Builder</title>
+<base href="/demos/build/">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="build.css">
+</head>
+<body>
+
+<header class="bar">
+  <span class="brand">Builder</span>
+  <span class="title" id="title"></span>
+  <span class="tools" id="tools" hidden>
+    <a class="btn" id="viewLink" target="_blank" rel="noopener">View</a>
+    <button class="btn" id="export" type="button">Export</button>
+    <button class="btn" id="settings" type="button">Settings</button>
+    <a class="btn" id="newApp" href="build.html">New app</a>
+  </span>
+</header>
+
+<dialog class="beta settings" id="settingsModal">
+  <h2>Edit link</h2>
+  <p>Anyone holding this link can change the app. Keep it in your email or a bookmark; this browser may forget it.</p>
+  <div class="linkrow"><input id="editLink" type="text" readonly><button class="btn" id="copyEdit" type="button">Copy</button></div>
+  <p class="small" id="copied" hidden>Copied.</p>
+  <h3>Revoke</h3>
+  <p>If the link has reached someone it should not have, revoke it. A new one is made for you and the old one stops working.</p>
+  <div class="row"><button class="btn" id="rotate" type="button">Revoke edit link</button><span class="spacer"></span>
+  <form method="dialog"><button class="btn btn--tint" type="submit">Done</button></form></div>
+</dialog>
+
+<div class="notice" id="notice" hidden></div>
+
+<main class="split">
+  <section class="preview">
+    <iframe id="frame" title="the app" sandbox="allow-scripts"></iframe>
+    <div class="empty" id="empty">
+      <div>
+        <p><b>Describe an app</b>, and it is built from the component library: a membrane, liquid water, a protein, a leaf, a tree. Then ask for changes, one at a time.</p>
+        <p>Try: <i>a red blood cell in three solutions</i>, or <i>how do salmon go from the ocean to a river?</i></p>
+      </div>
+    </div>
+    <div class="busy" id="busy" hidden></div>
+  </section>
+
+  <aside class="rail">
+    <form id="ask">
+      <textarea id="request" placeholder="What should the app show?" maxlength="600"></textarea>
+      <p class="errs" id="errs" hidden></p>
+      <div class="row">
+        <p class="hint" id="hint">Keep the edit link from your email; this browser may forget it.</p>
+        <span class="spacer"></span>
+        <button class="btn btn--tint" id="send" type="submit">Build</button>
+      </div>
+    </form>
+    <div class="mine" id="mine" hidden></div>
+    <div class="scroll">
+      <h3 id="turnsHead" hidden>Turns</h3>
+      <ol class="turns" id="turns"></ol>
+      <h3 id="versionsHead" hidden>Versions</h3>
+      <ol class="versions" id="versions"></ol>
+    </div>
+  </aside>
+</main>
+
+<script src="apps-client.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const frame = $('frame');
+
+  let app = null;        // { id, title, n, html }
+  let token = null;
+  let errors = [];       // relayed since the last turn
+  let busy = false;
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const usd = u => (u && u.cost_usd != null) ? `$${u.cost_usd.toFixed(4)}` : '';
+
+  function notice(text, bad) {
+    const n = $('notice');
+    n.hidden = !text; n.textContent = text || ''; n.classList.toggle('bad', !!bad);
+  }
+
+  function show(html) {
+    $('empty').hidden = true;
+    errors = Apps.mount(frame, html, () => paintErrors());
+    paintErrors();
+  }
+
+  function paintErrors() {
+    const e = $('errs');
+    if (!errors.length) { e.hidden = true; return; }
+    e.hidden = false;
+    e.innerHTML = `The page reported ${errors.length} error${errors.length > 1 ? 's' : ''}; the next request carries them.`
+      + `<code>${esc(errors.slice(-3).join('\n'))}</code>`;
+  }
+
+  function paintApp() {
+    const editing = !!(app && token);
+    $('title').textContent = app ? (app.title || '(untitled)') : '';
+    $('tools').hidden = !app;
+    if (app) $('viewLink').href = Apps.link('view', app.id);
+    $('settings').hidden = !editing;
+    $('send').textContent = app ? (editing ? 'Ask for a change' : 'Remix to edit') : 'Build';
+    $('request').placeholder = app ? (editing ? 'What should change?' : 'Remix this app to ask for changes') : 'What should the app show?';
+    $('request').disabled = !!app && !editing;
+    $('turnsHead').hidden = !$('turns').children.length;
+  }
+
+  function addTurn({ request, summary, meta, bad }) {
+    const li = document.createElement('li');
+    li.innerHTML = `<div class="q">${esc(request)}</div>`
+      + (summary ? `<div class="a">${esc(summary)}</div>` : '')
+      + (meta ? `<div class="meta${bad ? ' bad' : ''}">${esc(meta)}</div>` : '');
+    $('turns').prepend(li);
+    $('turnsHead').hidden = false;
+  }
+
+  async function loadVersions() {
+    if (!app || !token) return;
+    try {
+      const r = await Apps.api(`../../api/app?id=${app.id}&versions=1`, { token });
+      const ol = $('versions'); ol.innerHTML = '';
+      for (const v of r.versions.slice().reverse()) {
+        const li = document.createElement('li');
+        li.className = v.n === app.n ? 'current' : '';
+        const what = v.error ? `failed: ${v.error}` : (v.request || v.summary || v.kind);
+        li.innerHTML = `<span class="n">v${v.n}</span><span class="what" title="${esc(what)}">${esc(v.kind)} · ${esc(what)}</span>`
+          + (v.n !== app.n && !v.error ? `<button class="btn" type="button" data-n="${v.n}">Restore</button>` : '');
+        ol.appendChild(li);
+      }
+      $('versionsHead').hidden = !r.versions.length;
+    } catch (e) { /* history is optional */ }
+  }
+
+  $('versions').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-n]'); if (!b || busy) return;
+    try {
+      const r = await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'restore', id: app.id, n: Number(b.dataset.n) } });
+      app.n = r.n; app.html = r.html; show(r.html);
+      addTurn({ request: `restored v${b.dataset.n}`, meta: `now v${r.n}` });
+      loadVersions();
+    } catch (err) { notice(err.message, true); }
+  });
+
+  function setBusy(text) {
+    busy = !!text;
+    $('busy').hidden = !text; $('busy').textContent = text || '';
+    $('send').disabled = busy; $('request').disabled = busy || (!!app && !token);
+  }
+
+  $('ask').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (busy) return;
+    if (app && !token) return remix();
+    const request = $('request').value.trim();
+    if (!request) return;
+    setBusy(app ? 'Asking for the change…' : 'Building… about twenty seconds');
+    notice('');
+    const carried = errors.slice();
+    try {
+      const body = { request, visitorId: Apps.VISITOR, errors: carried };
+      if (app) { body.id = app.id; body.token = token; }
+      const r = await Apps.api('../../api/build', { method: 'POST', body });
+      if (!app) {
+        app = { id: r.id, title: r.title, n: r.n, html: r.html };
+        token = r.token;
+        Apps.remember(r.id, r.token, r.title);
+        history.replaceState(null, '', `${location.pathname}?id=${r.id}`);
+      } else {
+        app.n = r.n; app.html = r.html;
+      }
+      $('request').value = '';
+      const route = r.mode === 'draft' ? (r.retried ? 'draft, one retry' : 'draft')
+                  : r.mode === 'edits' ? `${r.edits} edit${r.edits === 1 ? '' : 's'}`
+                  : `whole file (${r.fallback})`;
+      const bad = !r.changed || (r.problems && r.problems.length);
+      addTurn({ request, summary: r.summary,
+                meta: `${route} · ${(r.ms / 1000).toFixed(1)} s · ${usd(r.usage)}`
+                      + (r.problems && r.problems.length ? ` · ${r.problems.join('; ')}` : '')
+                      + (!r.changed ? ' · the page did not change' : ''),
+                bad });
+      if (r.changed) show(r.html);
+      paintApp(); loadVersions();
+    } catch (err) {
+      addTurn({ request, meta: err.message, bad: true });
+      notice(err.message, true);
+    } finally { setBusy(''); }
+  });
+
+  async function remix() {
+    setBusy('Remixing…');
+    try {
+      const r = await Apps.api('../../api/app', { method: 'POST', body: { action: 'remix', id: app.id, visitorId: Apps.VISITOR } });
+      Apps.remember(r.id, r.token, app.title);
+      location.href = `${location.pathname}?id=${r.id}`;
+    } catch (err) { if (err.status === 401) Apps.beta(); else notice(err.message, true); setBusy(''); }
+  }
+
+  function paintSettings() { $('editLink').value = Apps.link('edit', app.id, token); $('copied').hidden = true; }
+  $('settings').addEventListener('click', () => { paintSettings(); $('settingsModal').showModal(); });
+  $('copyEdit').addEventListener('click', async () => {
+    const link = $('editLink').value;
+    try { await navigator.clipboard.writeText(link); $('copied').hidden = false; }
+    catch { $('editLink').select(); }
+  });
+  $('editLink').addEventListener('focus', e => e.target.select());
+  $('export').addEventListener('click', () => app && Apps.exportFile(app.html, app.title));
+  $('rotate').addEventListener('click', async () => {
+    if (!confirm('Revoke the current edit link? It stops working the moment a new one is made.')) return;
+    try {
+      const r = await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'rotate', id: app.id } });
+      token = r.token; Apps.remember(app.id, token, app.title);
+      paintSettings();
+      notice('The old edit link is revoked. Copy the new one and keep it.');
+    } catch (err) { notice(err.message, true); }
+  });
+
+  function paintMine() {
+    const list = Apps.mine().filter(m => !app || m.id !== app.id);
+    const box = $('mine');
+    if (!list.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = `<b>Apps this browser can edit</b><ul>${list.slice(0, 12).map(m =>
+      `<li><a href="${location.pathname}?id=${esc(m.id)}">${esc(m.title || m.id)}</a></li>`).join('')}</ul>`;
+  }
+
+  (async () => {
+    try {
+      const cfg = await Apps.api('../../api/build');
+      if (!cfg.ok) notice('The builder is not configured here: it needs a database and a model key.', true);
+    } catch (err) {
+      notice(err.status === 401 ? 'The builder is open to invited testers. Open it from your access link.' : err.message, true);
+      $('send').disabled = true;
+    }
+    if (Apps.ID) {
+      token = Apps.tokenFor(Apps.ID);
+      try {
+        const r = await Apps.api(`../../api/app?id=${Apps.ID}`);
+        app = { id: r.id, title: r.title, n: r.n, html: r.html };
+        if (token) Apps.remember(r.id, token, r.title);
+        show(r.html);
+        if (!token) notice('You are viewing this app. Remix it to make your own copy and ask for changes.');
+        loadVersions();
+      } catch (err) { notice(err.message, true); }
+    }
+    $('newApp').href = location.pathname;
+    paintApp(); paintMine();
+  })();
+})();
+</script>
+</body>
+</html>

@@ -6,6 +6,8 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 
 ## The page
 
+Every app is a step-through lesson on the shell: a full-window scene, a glass panel with eyebrow, title, body and controls, Back and Next, progress dots. One page, one shell, one or more components mounted in `shell.stage`. There is no other layout.
+
 ```html
 <!doctype html>
 <html lang="en">
@@ -13,21 +15,12 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>short name</title>
-<link rel="stylesheet" href="../css/main.css">
-<link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
 <link rel="stylesheet" href="../css/annotate.css">   <!-- callouts on the scene -->
-<style> /* page-specific rules only */ </style>
+<style> /* page-specific rules only, and as few as possible */ </style>
 </head>
 <body>
-<div id="app-sidebar">
-  <div id="stage"></div>          <!-- the component's box: it fills this -->
-  <div id="side">                 <!-- title, claim, controls, readouts -->
-    <h1 style="font-size:17px">title</h1>
-    <p class="note" id="claim"></p>
-    <div class="grp"><div class="hd">controls</div> ... </div>
-    <div class="grp"><div class="hd">readouts</div><table class="rd" id="rd"></table></div>
-  </div>
-</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../lib/palette.js"></script>
@@ -37,17 +30,21 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 <script src="../lib/mol-solvation.js"></script>    <!-- WaterSim only: its water and salts -->
 <script src="../lib/scene.js"></script>
 <script src="../lib/atomkit.js"></script>          <!-- Membrane only -->
-<!-- Leaf needs only three.min.js, palette.js, tokens-from-palette.js, molecules.js, scene.js and card-stage.js -->
+<!-- Leaf and Tree need only three.min.js, palette.js, tokens-from-palette.js, molecules.js, scene.js, lib/geo.js and card-stage.js -->
 <script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
-<!-- then the component(s), then the page script -->
+<!-- then the component(s), in the order their sections give -->
+<script src="../kit/lesson-shell.js"></script>
+<script>
+  // the shell, the mount(s), shell.goTo(0): see "The step-through shell"
+</script>
 </body>
 </html>
 ```
 
-Paths are relative to the file, which lives one folder below `demos/`. Load a component's scripts in the order its section gives. Everything is a global; there are no modules and no build.
+Paths are relative to the file, which lives one folder below `demos/`. Load a component's scripts in the order its section gives. Everything is a global; there are no modules and no build. The shell owns the DOM: no markup goes in the body, the panel is filled per step, and the scene is whatever is mounted in `shell.stage`.
 
-The shell classes in `sandbox.css`: `.grp` is a control group, `.hd` its heading, `p.note` small prose, `table.rd` a two-column readout table. Style anything else in the page's own `<style>`. Never type an atom or bond colour; the palette publishes them as CSS custom properties `--atom-O`, `--atom-H`, `--atom-Na`, `--bond-covalent`, `--bond-hbond`, and a caption naming an atom uses its token.
+Never type an atom or bond colour; the palette publishes them as CSS custom properties `--atom-O`, `--atom-H`, `--atom-Na`, `--bond-covalent`, `--bond-hbond`, and a caption naming an atom uses its token.
 
 ## Contract every component shares
 
@@ -62,7 +59,7 @@ c.destroy();                     // gives the WebGL context back
 c.sim; c.box;                    // the layers under it, for a page that outgrows the params
 ```
 
-Every `mount` also takes `viewOffset`, a function of the canvas size returning the pixel shift that centres the scene in the room a panel leaves. On the step-through shell pass `viewOffset: shell.viewOffset`; on the sidebar page leave it out.
+Every `mount` takes `viewOffset: shell.viewOffset`, the function that centres the scene in the room the panel leaves. Always pass it.
 
 ### Notes: pointing at the scene
 
@@ -93,7 +90,7 @@ c.palette();                // [{name, color}] what the colours mean, for a lege
 The chips for all three, point at, show, and colours, in one call. **Use this instead of writing your own buttons for notes or layers.**
 
 ```js
-CardStage.showPanel(container, c);                   // on the sidebar page: into a .grp
+CardStage.showPanel(container, c);                   // into any element; on the shell use ctx.ui.showPanel
 ctx.ui.showPanel(c, { only: ['notes', 'layers'] });  // on the step-through shell: into the step's controls
 ```
 
@@ -235,6 +232,7 @@ Good for: what a protein looks like, primary to quaternary structure, comparing 
 ## Leaf — a leaf in cross-section, tissue by tissue
 
 ```html
+<script src="../lib/geo.js"></script>          <!-- before card-stage.js -->
 <script src="../leaf/leaf.js"></script>
 ```
 
@@ -289,7 +287,7 @@ Good for: where a plant's mass comes from, photosynthesis as traffic, Van Helmon
 
 ## The step-through shell
 
-For an app with a sequence of steps, use the shell instead of the sidebar page. It is the same look every generated lesson takes: a full-window scene, a glass panel with eyebrow, title, body and controls, Back and Next, progress dots.
+The shell is the page. Every app is a sequence of steps, even one step: the scene fills the window, the panel carries the copy and the controls, and the student moves with Back and Next.
 
 ```html
 <link rel="stylesheet" href="../css/kodo.css">

@@ -4,8 +4,6 @@
 
 **Goal.** A hosted builder where students and teachers make single-page biology apps from a tested library, with cheap, fast LLM generation and edits. Easier than a coding agent, because the model composes components and never writes Three.js.
 
-**The evidence the plan rests on.** Water-lab is the model: with the physics in `water/watersim.js`, the page is under a thousand lines, most of it lesson text. Membrane-lab was the counterexample: the lathe machines were a module but about 2,400 lines of page script sat inline. The product's ceiling is the component library. The LLM is a thin layer over it.
-
 **Three tiers of authoring fall out of that.**
 
 | Tier | What the author does | Who does the work |
@@ -24,15 +22,17 @@ Generated apps will be the median, not the bespoke. The featured lessons stay ha
 
 3. **Invariants live in the components.** A remixer can make ice denser than water. Clamp parameter ranges inside the module and keep the existing checkers as the gate. The generator cannot be trusted with accuracy and does not need to be if the components refuse to lie.
 
-4. **One stack.** Tree and Leaf use ES modules and importmaps on Three 0.165 and 0.170; the featured lessons use r128 as a global. Two Three versions cannot coexist. Script tags and globals are the more robust LLM target and the easier sandbox. Decide, then port Tree and Leaf, which are the cell and organism-scale procedural models the scale ladder needs.
+4. **One stack.** Leaf and Tree are now components in `Components.md` on the r128 global stack, alongside WaterSim, Membrane and Proteinbox. (Done)
 
 5. **Freeze the library.** Student apps live forever. Serve it at a pinned path like `/lib/v1/kodo.js` and `/lib/v1/kodo.css` by Vercel rewrite, and never change v1 behaviour. A behaviour change cuts v2. Serving from our own origin keeps the iframe CSP simple.
 
-6. **A graph component.** Small, SVG, no library, using the existing design tokens. Wired to `state()`.
+6. **A graph component.** In the reference as "A chart". (Done)
 
-## Prove the format by hand
+7. **Rules go in the library, not the prompt.** Generator.md's finding: every rule the model broke was fixed by making it a default or an enforcement in the component, never by saying it twice in the reference. Particle budget, protein spacing, view offset, the notes script. Keep doing that.
 
-Write three apps in the target form before any LLM code: salmon osmosis, one lab experiment, one Tree-scale app. If the format holds, they become the generator's eval set. If it does not, the missing component was found cheaply. Store them in the `apps` table as the first rows, so the render route is testable with zero model calls.
+## The eval set
+
+The format is proven, by generation rather than by hand: `tools/gen-app.js` writes a working page from `Components.md` alone, and the pages that taught something (red blood cell, swelling lesson, salmon) sit in `admin.html` under Generated apps with the request on the card. Generator.md §§3-4 has the numbers and the rule: a page that only runs has not been checked, drive it. Rerun the requests after any change to a component or the reference. Seed the `apps` table with these pages so the render route is testable with zero model calls.
 
 ## Backend, extending `api/`
 
@@ -44,9 +44,9 @@ What exists: serverless functions on Vercel with a provider layer for Anthropic 
 
 3. **A build endpoint** shaped like `extend.js`. In: prompt, current HTML when editing, the component reference (cached). Out: HTML, or a diff for edits. Logs provider, model, usage and latency per turn the way `messages` does. Gated by the same key as the tutor, so a forwarded email cannot spend the budget. The extend rule carries over: the model may only assemble from what exists.
 
-   **The reference is the cached prefix.** `_tutor.js` already sends two strings: `stable` (the system prompt plus the lesson's situation), which the provider caches, and `context` (the moment), which pays full rate. The build endpoint uses the same split. Stable is the system prompt plus `Components.md`, about 2,800 tokens today and growing with each component; that growth is fine, since a cache read is a tenth of an input token and the prefix only changes on deploy. Context is the per-app HTML, the last runtime errors and any selection, since those change every turn.
+   **The reference is the cached prefix.** `_tutor.js` already sends two strings: `stable` (the system prompt plus the lesson's situation), which the provider caches, and `context` (the moment), which pays full rate. The build endpoint uses the same split. Stable is the four-sentence preamble plus `Components.md`, about 6,000 tokens with five components and the shell, a few hundred more per component; that growth is fine, since a cache read is a tenth of an input token and the prefix only changes on deploy. Context is the per-app HTML, the last runtime errors and any selection, since those change every turn. `gen-app.js` sends it all as one system prompt today; the split is the backend's job, and the Gemini provider needs it as much as the Anthropic one.
 
-   **The prefix must clear the model's cache minimum.** `CACHE_MINS` in `_providers/anthropic.js`: Sonnet 5 wants 1,024 tokens, Haiku 4.5 wants 4,096, and under the minimum the prompt silently does not cache. The reference alone is under Haiku's line, so "use the small model for edits" would turn the cache off. Fix that by putting the three hand-built apps into the stable prefix as worked examples. That lifts it past 4,096 on every model and teaches the format at the same time, which is worth doing anyway.
+   **The prefix clears every cache minimum.** `CACHE_MINS` in `_providers/anthropic.js`: Sonnet 5 wants 1,024 tokens, Haiku 4.5 wants 4,096, and under the minimum the prompt silently does not cache. At 6,000 the reference is over both. Do not pad it with example pages: Generator.md measured that a pasted example triples the prefix and the model copies its subject. A designed example lives in the repo and feeds three or four lines into its component's section.
 
 4. **Export.** One button that downloads the HTML with library paths made absolute.
 
@@ -60,9 +60,11 @@ Most turns are follow-ons: "make the graph bigger", "add a slider for salinity",
 
 **An app has a thread.** Reuse the `threads` and `messages` shape: one thread per app, one user message per request, one assistant message per turn carrying the edit and its usage. The transcript holds prompts and one-line edit summaries, never past HTML. The current HTML rides in the uncached context each turn, so the model always sees the file as it is and the transcript stays small.
 
-**The model returns search/replace blocks, not a whole file.** Output tokens are the expensive ones and the slow ones, and a whole-file rewrite of three hundred lines to change one word is where a "fast edit" goes to die. Unified diffs fail on line numbers. A search/replace block applies exactly or fails loudly. On a failed apply, retry once asking for the whole file, then surface the failure. The server applies the edit, stores the result as a new version row, and returns the HTML plus the summary line.
+**The model returns `{find, replace}` pairs, not a whole file.** `gen-app.js --edit` returns the whole file today, and Generator.md §4 measured it: four of five edits touched under forty lines and returned 240, about 2,500 output tokens per turn. Output is the bill. A find/replace list with each find unique cuts that roughly five to one; unified diffs fail on line numbers. On a failed find, retry once asking for the whole file, then surface the failure. Test the format in `gen-app.js` first as a mode flag and a small applier, before it goes anywhere near the backend. The server applies the edit, stores the result as a new version row, and returns the HTML plus the summary line.
 
-**Validate before storing.** Parse the result, check every script tag points at `/lib/v1/`, check every component it mounts is in the reference. A failed check goes back to the model as the next turn's error, not to the student as a broken page.
+**The page carries its request history.** A comment block at the top of the generated file lists the requests that shaped it. The model sees what the student asked before without the transcript, and the eval replays the sequence. Generator.md §5; the generator does not do this yet.
+
+**Validate before storing.** Parse the result, check every script tag points at `/lib/v1/`, check every component it mounts is in the reference. A failed check goes back to the model as the next turn's error, not to the student as a broken page. Retry once on a syntax error, never on a semantic one: a page that runs and is wrong is a finding about the reference or a component, and the script's job is to expose it.
 
 **Runtime errors close the loop.** The iframe posts `window.onerror` and unhandled rejections to the parent. The next turn carries them automatically as "the previous edit produced these errors", whether or not the student mentions them. A student saying "it's blank" and the model seeing `Membrane is not defined` is the difference between one turn and four.
 
@@ -72,7 +74,7 @@ Most turns are follow-ons: "make the graph bigger", "add a slider for salinity",
 
 **Undo is a pointer move.** Every turn is a version row, so undo and "go back to the one that worked" spend no model call. Show the versions as a list with their summary lines.
 
-**Escalate on failure, not by default.** A small model does the edit. After a failed apply or two turns in a row that end in runtime errors, the next turn goes to the larger model. Log which model produced each version so the escalation rate is a query.
+**Escalate on failure, not by default.** A small model does the edit. After a failed apply or two turns in a row that end in runtime errors, the next turn goes to the larger model. Log which model produced each version so the escalation rate is a query. The cheapest edit is the one the library makes trivial: thinking tokens fell from 3,700 to 900 on "speed up the simulation" once Membrane had `timeScale`.
 
 ## Access and ownership
 
@@ -113,10 +115,33 @@ Template-first generation, prompt caching of the component reference, a small mo
 
 ## Order
 
-1. Contract and Membrane extraction. (Done)
-2. Three hand-built apps.
-3. `apps` table and render route, seeded with those three.
-4. Build endpoint.
-5. Library freeze at `/lib/v1/`.
-6. Limits, keys, usage view.
-7. Export, rotate-token, Safari note.
+1. Contract, Membrane, Leaf, Tree, Proteinbox, chart, notes and layers. (Done)
+2. `gen-app.js` as the eval, first drafts and whole-file edits measured. (Done)
+3. `{find, replace}` edit mode and the request-history comment, in `api/_builder.js`, shared by the script and the endpoint. Measured 2026-09-03: an edit at 205 output tokens and 2 s against 2,500 and 10 to 15 s. (Done)
+4. `apps` and `app_versions` tables, `/app/<id>` viewer, `db.js seed` for the generated pages. (Done)
+5. Build endpoint: cached prefix through the provider layer, edit apply with whole-file fallback, one retry on a failed source check, runtime errors relayed from the frame into the next turn. (Done)
+6. Library freeze at `/lib/v1/`.
+7. Limits: built with their own constants in `_apps.js`; the per-key form and the usage view (`db.js builds`) are there, the per-key override is not. Keys: the tutor's, unchanged.
+8. Export, rotate-token, Safari note: built into `build.html`.
+
+Found while building: Chromium blocks every request an opaque-origin frame makes to localhost, so locally the sandbox runs same-origin and only the deployment exercises the real one. Generator.md §6.
+
+Additional status notes: Leaf is on the contract and complete as a render, and not done as a lesson subject. What it has: five tissues from a seed, explode, isolate, hover and click, thickness parameters, anchors with cards, layers, a palette, a bench, and a section in the reference. What it lacks, from the improvements list: gas exchange as motion, stomata that open and close, and a light parameter. Nothing moves in it, so a question like "what happens in the light?" has nothing to show. That is the next Leaf work and it is a day. Status of everything else:
+
+* Membrane. The most complete component: contents in counts or millimolar, five proteins including the new leak channel and aquaporin, notes, layers, time scale, budgets, the net verdict. Not done: the featured lesson still runs its own inline copy of the physics, so a fix has two homes until membrane-lab migrates. Chemiosmosis is briefed, not built.
+
+* WaterSim. Wrapped, on the contract, notes and layers. Unchanged physics. No lesson-shaped work planned.
+
+* Tree. Ported, on the contract with the lesson rebuilt on the shell. Lighting was retuned by hand and the exploded-piles camera runs low in the frame; both want your eye in Safari. The colour question is the same for Leaf.
+
+* Proteinbox. Mounted by name, but ribbon-only through the registry for every protein except amylase. Surfaces for the proteins a student will name are a bake each.
+
+* Cell. Briefed at the root `docs/`, not started. The handoff helper it needs in CardStage is specified, not built.
+
+* The shell and panel. Working and used by the model unprompted. The panel is curated. The salmon example page, done properly, is yours in another session.
+
+* The generator. Six eval pages in admin.html. Edit mode returns whole files; the diff format is specified in Generator.md, not built.
+
+* Featured lessons. Untouched, still on their own code. Migration deferred by human.
+
+* Example lesson for Salmon (doc at Salmon-Example-app.md) is a to do item for the human.

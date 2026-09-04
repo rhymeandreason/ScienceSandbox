@@ -138,7 +138,11 @@ function cacheFor(system) {
   return handle;
 }
 
-async function ask({ system, context, messages, schema }) {
+/* `max` and `thinking` are the two knobs a caller other than the tutor needs:
+ * the builder writes a whole page, which is many times the tutor's 2,000
+ * tokens, and wants the model's default thinking on a first draft. Absent,
+ * both stay what the tutor has always sent. */
+async function ask({ system, context, messages, schema, max, thinking }) {
   if (!client) {
     const { GoogleGenAI } = require('@google/genai');
     client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -162,8 +166,8 @@ async function ask({ system, context, messages, schema }) {
   }
 
   const config = {
-    maxOutputTokens: 2000,
-    thinkingConfig: thinkingFor(MODEL),
+    maxOutputTokens: max || 2000,
+    ...(thinking === 'default' ? {} : { thinkingConfig: thinkingFor(MODEL) }),
     responseMimeType: 'application/json',
     responseJsonSchema: forGemini(schema),
   };

@@ -1,4 +1,4 @@
-<!-- KIND: reference + argument — how a page is generated from the component library today, what it costs, what the runs showed, and what the builder backend should do differently. Load when working on tools/gen-app.js, the reference the model is handed, or the backend that will replace the script. -->
+<!-- KIND: reference + argument — how a page is generated from the component library, what it costs, what the runs showed, and what the builder backend does. Load when working on tools/gen-app.js, api/_builder.js, the reference the model is handed, or the builder pages and endpoints. -->
 
 # The generator
 
@@ -9,14 +9,16 @@ A student's app is one HTML file that mounts components from the library. The mo
 ```bash
 node tools/gen-app.js "a teacher's request" tests/gen-<name>-test.html
 node tools/gen-app.js --edit tests/gen-<name>-test.html "the student's next message" tests/gen-<name>-2.html
+node tools/gen-app.js --edit <page> "..." <out> --whole      # the old whole-file edit, kept as the baseline
 ```
 
-- **System prompt**: a four-sentence preamble, then the whole of `Components.md`. The preamble says the reference is complete, to use nothing it does not describe, and to reply with the file and nothing else.
-- **User message**: `Request from a teacher: …`. In `--edit` mode: the current page, then `The student now asks: …`, and an instruction to change the page and return the whole file.
-- **Model**: `gemini-3.7-flash`, `maxOutputTokens` 16,000, default thinking, no schema, no examples, no tools. The key is `GEMINI_API_KEY` from `.env.local` at the repo root, the same file the tutor reads. `--model` overrides.
-- **Output**: fences stripped if the model added them, the file written, and one JSON line with the model served, time, and input, output and thinking tokens. That line is the cost model; keep it.
-
-There is no repair loop, no retry and no validation. That is deliberate for now: a page that fails is a gap in the reference or a component, and the script's job is to expose it, not paper over it. The backend will want a retry on a syntax error, and nothing else.
+- **One module, two transports.** `api/_builder.js` holds the prompts, the reply shapes, the edit applier and the source checks. The script writes a file; `api/build.js` writes a row. Neither holds a prompt, so the eval and the product cannot drift.
+- **System prompt**: a four-sentence preamble, then the whole of `Components.md`. Byte-stable across drafts and edits, so the provider caches it once; the cost line prints `cached` so you can see it read back.
+- **A draft** is `Request from a teacher: …` and the model replies `{title, summary, html}`. The page is checked (`validate`: scripts only from `../` or the one CDN, every `mount` on a component the reference names) and retried once with the problems quoted if it fails. A page that passes and is wrong is a finding.
+- **An edit** carries the page in the uncached half and the request in the message, and the model replies `{summary, edits: [{find, replace}]}`. Each find must occur exactly once; the list is applied here. A miss falls back to one whole-file call with the misses quoted, and then stops.
+- **The page carries its history**: a `<!-- requests -->` comment after the doctype, oldest first, rebuilt after every turn. The model is told to leave it alone.
+- **Model**: `gemini-3.7-flash` by default, `--provider anthropic` or `--model` to change. Default thinking on a draft, low on an edit. `maxOutputTokens` 16,000 for a page, 6,000 for edits. Keys from `.env.local` at the repo root.
+- **Output**: one JSON line with the model served, time, input, cached and output tokens, dollars, and for an edit the route (`edits`, or `whole` with the reason). That line is the cost model; keep it.
 
 ## 2. What the reference is
 
@@ -54,16 +56,30 @@ Edits, the whole file returned each turn, before and after the components had no
 | speed up the simulation | invented a control and a pump hack, 3,700 thinking tokens | `timeScale: 2.5`, 900 thinking tokens |
 | what's the purple thing? can I see it without the water? | not run | `ctx.ui.showPanel(m)` per step |
 
-Every edit cost about 2,500 output tokens and 8,000 input, of which the reference half is cacheable, at 10 to 15 seconds. The saving from notes and layers was in what the page became, not in the bill.
+Every whole-file edit cost about 2,500 output tokens and 8,000 input, of which the reference half is cacheable, at 10 to 15 seconds. The saving from notes and layers was in what the page became, not in the bill.
 
-## 5. What edits should do better
+The same turn as find/replace pairs, once the format was built (2026-09-03, reference at 6,512 cached tokens):
 
-- **Output is the bill, and the whole-file format spends it on lines that did not change.** Four of five edits touched under forty lines and returned 240. A diff format cuts output roughly five to one. The shape that suits a model: reply with a list of `{find, replace}` pairs against the current page, each `find` unique, applied by the server, with a whole-file fallback when a find fails. Test it with `gen-app.js` first; it is a mode flag and a small applier.
-- **Keep the reference out of the per-turn half.** The backend caches the preamble plus `Components.md` as the prefix and sends the page and the message uncached. The tutor's provider layer already does this split.
-- **The page should carry its own request history.** A comment block at the top of the generated file listing the requests that shaped it lets the model see what the student asked before, and lets an eval replay the sequence. The generator does not do this yet.
-- **Retry once on a syntax error, never on a semantic one.** A page that throws on load is worth one more attempt with the error appended; a page that runs and is wrong is a finding.
-- **Prefer a model that thinks less on edits.** Thinking tokens fell from 3,700 to 900 on the same edit once the component had the parameter; the cheapest edit is the one the library makes trivial.
+| turn | route | input | cached | output | time | cost |
+| --- | --- | --- | --- | --- | --- | --- |
+| "make the first step's text shorter, one paragraph" on gen-salmon-n5 | 1 edit | 2,652 | 6,512 | 205 | 2.1 s | $0.0032 |
+| "put a note on the aquaporin in the hypotonic step" on gen-rbc, through the builder page | 4 edits | | 6,512 | | 2.8 s | $0.0043 |
+| a fresh draft, "a red blood cell in three solutions, with a sidebar" | draft | 17 | 6,512 | 3,478 | 10.1 s | $0.0135 |
 
-## 6. Where it goes
+Output fell about twelve to one and the turn from 10 to 15 seconds to 2 to 3. The draft's 17 uncached input tokens are the request; everything else read back from the cache.
 
-The backend that replaces the script owns four things the script does not: an apps table with parent and author for remix, a route that serves a stored page from a sandboxed origin, the cached prefix, and rate limits that do not no-op without a cohort. The tutor's key gate, provider abstraction, database client and logging are reusable as they are. Everything about what the model is told, and how a page is judged, is this document and `Components.md`, and should not move into the backend's code.
+## 5. What is built, and what an edit still cannot do
+
+Built, in `_builder.js` and measured above: the pair format with its whole-file fallback, the history comment, one retry on a failed source check, low thinking on edits. Built in the builder page: the runtime error relay, so a page that throws in the browser tells the next turn what it threw. The script cannot run a page, so it never sees a runtime error; that loop only closes through the page.
+
+Still true: the cheapest edit is the one the library makes trivial. Thinking tokens fell from 3,700 to 900 on the same edit once the component had the parameter, and no format change matches that.
+
+## 6. The backend
+
+`api/build.js` is the model turn: a first draft makes an app row and returns the edit token once; an edit needs the token and writes a version. `api/app.js` reads a stored page for anyone with the id, and saves, restores, remixes, rotates the token and retitles for the token's holder. `api/_apps.js` is the two tables and the limit, its own constants counted in `app_versions`: 60 model turns an hour per visitor, 200 an hour and 600 a day per cohort, failing open like the tutor's. The same key as the tutor gates it.
+
+The pages are `demos/build/`: `build.html` is the builder, `app.html` the viewer, `apps-client.js` what they share. A stored page runs in an iframe by `srcdoc` with `allow-scripts` only, on an opaque origin; a `<base>` is spliced into its head so `../lib/` resolves, and a relay posts its uncaught errors up. **On loopback the frame runs same-origin**: Chromium blocks every request an opaque origin makes to localhost, so locally the sandbox would load the CDN and nothing of the library. Deployed it is the real sandbox. Because the frame is cross-origin deployed, `vercel.json` and the dev server send `Access-Control-Allow-Origin: *` on `/demos/`, which is what lets Proteinbox fetch a bake from inside it.
+
+Deployed routes: `/build` and `/app/<id>`, rewrites in `vercel.json`; locally the file paths. Seed a page from disk with `node demos/tools/db.js seed tests/gen-rbc-test.html`, which prints the view and edit links; `db.js apps` lists what exists and `db.js builds` sums tokens and dollars per cohort per day, which is what tunes the limits. It needs `DATABASE_URL`: without a database nothing can be stored, and both endpoints say so.
+
+Not built: the library at a pinned `/lib/v1/` path, and a per-key limit. What the model is told, and how a page is judged, is this document and `Components.md`, and none of it lives in the backend's code.

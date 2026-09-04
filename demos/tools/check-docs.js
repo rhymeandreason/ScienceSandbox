@@ -180,7 +180,10 @@ const SEARCH = ['.', '..', 'lib', 'css', 'docs', 'tests', 'attic', 'tools', 'fol
                 'hemoglobin', 'hemoglobin/tools', 'massaction', 'diffusion',
                 'sickle', 'sickle/tools', 'membrane', 'membrane/tools',
                 'kit', 'nodegraph', 'reaction', 'coupling', 'lobes', 'dna', 'ask', 'capillary', 'water',
-                'molecule-builder'];
+                'molecule-builder',
+                // The builder's pages, and the functions behind them, which a doc in
+                // demos/ names bare the way it names a script.
+                'build', '../api'];
 const exists = n => SEARCH.some(d => fs.existsSync(path.join(ROOT, d, norm(n))));
 
 for (const [n, docs] of [...named].sort()) {

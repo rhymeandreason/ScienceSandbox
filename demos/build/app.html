@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>App</title>
+<base href="/demos/build/">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="build.css">
+</head>
+<body>
+<header class="bar">
+  <span class="brand">Kodo</span>
+  <span class="title" id="title"></span>
+  <span class="tools">
+    <a class="btn" id="edit" hidden>Edit</a>
+    <button class="btn btn--tint" id="remix" type="button" hidden>Remix</button>
+  </span>
+</header>
+<div class="notice" id="notice" hidden></div>
+<main class="split">
+  <section class="preview"><iframe id="frame" title="the app" sandbox="allow-scripts"></iframe></section>
+</main>
+<script src="apps-client.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const notice = (t, bad) => { const n = $('notice'); n.hidden = !t; n.textContent = t || ''; n.classList.toggle('bad', !!bad); };
+  let app = null;
+  (async () => {
+    if (!Apps.ID) return notice('No app named. A link looks like /app/<id>.', true);
+    try {
+      const r = await Apps.api(`../../api/app?id=${Apps.ID}`);
+      app = r;
+      document.title = r.title || 'App';
+      $('title').textContent = r.title || '';
+      Apps.mount($('frame'), r.html);
+      const token = Apps.tokenFor(r.id);
+      if (token) { $('edit').hidden = false; $('edit').href = Apps.link('edit', r.id); }
+      $('remix').hidden = false;
+    } catch (err) { notice(err.message, true); }
+  })();
+  $('remix').addEventListener('click', async () => {
+    try {
+      const r = await Apps.api('../../api/app', { method: 'POST', body: { action: 'remix', id: app.id, visitorId: Apps.VISITOR } });
+      Apps.remember(r.id, r.token, app.title);
+      location.href = Apps.link('edit', r.id);
+    } catch (err) { if (err.status === 401) Apps.beta(); else notice(err.message, true); }
+  });
+})();
+</script>
+</body>
+</html>
