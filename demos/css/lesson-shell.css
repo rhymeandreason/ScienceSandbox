@@ -15,6 +15,11 @@ body.lshell-page {
   --ink-3: #9a9da3;
   --line: #e3e0d7;
   --panel: rgba(255, 255, 255, 0.86);
+  /* THE SHELL'S OWN GREEN, AND IT IS NOT THE SITE ACCENT. kodo.css's #1f5f4f is
+     a deep green for type and buttons on flat paper; this one is brighter
+     because everything it marks sits over a lit 3D scene, where the deep green
+     goes to a hole. Kept separate on purpose after the two were unified once
+     and looked at side by side. Do not point it at --green-700. */
   --accent: #2d6a3e;
   --accent-soft: #eaf3ec;
   --air: #3b4252;
