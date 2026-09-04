@@ -2,7 +2,7 @@
 
 # Adding a lesson page
 
-Reference for building a new `*-lab.html` page: shared modules, script load order, and the checklist. Everyday lesson edits don't need this file — see `CLAUDE.md`.
+Reference for building a new `*-lab.html` page that hand-draws its scene from `mol-*.js` specs (`Stage.buildMolecule`, `VIEW`, `FX`). **A page that mounts a component instead — `kit/lesson-shell.js` + `X.mount()`, a cell, membrane, leaf, tree, or anything from the component library — is `AddingAComponent.md`'s job, not this one**; nothing below applies to it. Everyday lesson edits don't need this file — see `CLAUDE.md`.
 
 ## Reading list
 

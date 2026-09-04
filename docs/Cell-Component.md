@@ -6,11 +6,13 @@ The cell is the component most generated requests will land on, because "cell" i
 
 ## 1. Shape
 
-One module, `cell/cell.js`, one contract, six presets. Not six modules: a request will say "compare a plant and an animal cell" and expect two boxes of the same thing, and the organelle set is mostly shared. The three plant presets differ in what fills the cell, which is what a class experiment turns on.
+One module, `cell/cell.js`, one contract, seven presets. Not seven modules: a request will say "compare a plant and an animal cell" and expect two boxes of the same thing, and the organelle set is mostly shared. The three plant presets differ in what fills the cell, which is what a class experiment turns on.
 
 ```js
 const c = Cell.mount(el, {
-  kind: 'animal',        // 'animal' | 'red-blood-cell' | 'leaf' | 'root' | 'potato' | 'bacterium'
+  kind: 'animal',        // 'animal' | 'red-blood-cell' | 'leaf' | 'root' | 'potato' | 'bacterium' | 'epithelial'
+  tissue: 'gill',        // epithelial only: 'gill' | 'gut' | 'kidney'; picks the proteins on each face
+  bath: null,            // epithelial only: { apical:{...}, basolateral:{...} } in mM, the two environments the cell sits between
   cutaway: 0,            // 0..1, the near quarter removed so the inside shows
   tonicity: 'isotonic',  // 'hypotonic' | 'isotonic' | 'hypertonic', or a number: outside osmolarity relative to inside, 1 = isotonic
   volume: 1,             // read-only in effect: driven by tonicity over time; settable to reset
@@ -34,8 +36,17 @@ const c = Cell.mount(el, {
 | `root` | as `leaf` but no chloroplasts; a root hair as an option (`hair: true`) | chloroplasts | about 40 µm, a box; the hair many times longer |
 | `potato` | as `root` plus amyloplasts packed with starch grains, a smaller vacuole, thin wall | chloroplasts | about 60 µm, a rounded box; a tuber storage cell |
 | `bacterium` | wall, membrane, nucleoid, ribosomes, plasmid, flagellum, capsule | every membrane-bound organelle | 2 µm long |
+| `epithelial` | the animal set, many mitochondria, TWO faces: apical and basolateral, a tight junction to each neighbour's stub | a single "outside" | about 15 µm, a column |
 
 The red blood cell is its own preset because it is the odd one out and because it is the cell every animal tonicity question is about. The three plant presets exist because the plant questions come from three places: the leaf for photosynthesis, the root for uptake, and the potato for the osmosis experiment every class runs, where a cylinder of tuber gains or loses mass in a series of salt solutions. The bacterium is there because "prokaryote vs eukaryote" is the second most common cell question in Bio 101. `plant` may be accepted as an alias for `leaf`.
+
+**The epithelial cell is polarised, and that is the whole point of it.** A gill ionocyte, a gut lining cell and a kidney tubule cell sit between two environments and have different proteins on each face; every transport story a Bio 101 course tells (salt, sugar, water, across a tissue) is a story about the two faces being different. A generic cell with one outside cannot tell it, and the salmon lesson drawn as one membrane between "inside" and "outside" quietly implies the blood touches the sea. So:
+
+- `bath.apical` and `bath.basolateral`, in millimolar, the same shape Membrane's `contents` takes: for a seawater gill, apical is the sea and basolateral is blood. The cytosol between them is the cell's own by preset.
+- `tissue` picks the proteins on each face, and `state().faces.apical` / `.basolateral` say which way salt and water move across each. Gill in seawater: the pump and the cotransporter stand-in on the basolateral face, a chloride channel on the apical face, sodium leaking between the cells past the tight junction. Gill in fresh water: uptake, the other way. Gut: sugar in with sodium at the apical face, out at the basolateral. Kidney: water back through aquaporins.
+- Mitochondria drawn many and lit when the pump works, because an ionocyte is packed with them and that is the visible fact that says this cell spends energy.
+- A `salt` flow layer through the cell, one face in and the other out, so the cell reads as a conduit and not a bag. Choreography, declared.
+- Two handoffs, §6: `zoomTo('apical')` and `zoomTo('basolateral')`, each opening Membrane with that face's proteins and that face's bath as the outside.
 
 Sizes are real and go in `state().size` in micrometres, with the scene unit stated in the header as one micrometre. A page prints the size from state, never types it.
 
@@ -43,7 +54,7 @@ Sizes are real and go in `state().size` in micrometres, with the scene unit stat
 
 Every organelle is an anchor with a library card, so a page answers "what is that?" with a note on it. Names, used for anchors, layers and `isolate` alike:
 
-`membrane`, `wall`, `nucleus`, `nucleolus`, `mitochondrion`, `chloroplast`, `amyloplast`, `starch`, `roughER`, `smoothER`, `golgi`, `lysosome`, `vacuole`, `ribosome`, `cytoskeleton`, `centriole`, `hair`, `nucleoid`, `plasmid`, `flagellum`, `capsule`, `cytoplasm`.
+`membrane`, `wall`, `nucleus`, `nucleolus`, `mitochondrion`, `chloroplast`, `amyloplast`, `starch`, `roughER`, `smoothER`, `golgi`, `lysosome`, `vacuole`, `ribosome`, `cytoskeleton`, `centriole`, `hair`, `nucleoid`, `plasmid`, `flagellum`, `capsule`, `cytoplasm`, and for the epithelial cell `apical`, `basolateral`, `junction`.
 
 An anchor for a repeated organelle points at one of them, the nearest to the camera, the way Membrane's `NA` points at one sodium. The library card is two sentences in a tutor's voice: what it is, what it does. Write them as carefully as the header; they are what a generated page says.
 
@@ -87,6 +98,7 @@ c.zoomTo(null);                // fly back out; the cell's state is as it was
 The event carries the params that describe the patch the camera reached, so the next component opens on the same thing the student was looking at:
 
 - `zoomTo('membrane')` → `Membrane` with `units:'mM'` and `contents` from the cell's tonicity (inside is the cell's cytosol by preset, outside the bath), proteins by preset: a red blood cell gets `AQP` and the anion exchanger stand-in, a root cell its pumps, an animal cell `NA`, `K`, `pump`. Outside is up.
+- `zoomTo('apical')` and `zoomTo('basolateral')`, epithelial only → `Membrane` with that face's proteins for the `tissue` and that face's `bath` as the outside, the cytosol as the inside. Same Membrane, two layouts, and the student sees why one cell needs two different membranes.
 - `zoomTo('mitochondrion')` → `Membrane` with `context:'mitochondrion'`, `fuel:'NADH'`.
 - `zoomTo('chloroplast')` → `Membrane` with `context:'thylakoid'`, `fuel:'light'`. Both are in `Membrane-Chemiosmosis.md`.
 - Any other organelle → a flight and `state().zoom` naming it, with no handoff; the reference says so, and a page does not fake one.

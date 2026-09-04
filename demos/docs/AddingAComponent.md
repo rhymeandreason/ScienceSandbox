@@ -20,8 +20,8 @@ c.sim; c.box;                    // the layers under it
 
 Two layers, both exported:
 
-- `X.create(THREE, root, camera, opts)` is the scene. It adds to a `root` it was handed, owns everything it adds, and knows nothing about canvases, loops or the DOM. It returns `{ step(dt), state(), set(next), on(ev, fn), ... }`.
-- `X.mount(el, params)` is one `kit/card-stage.js` box around it: `CardStage.create({ mount: el, cam, stage, step, afterFrame, onResize, viewOffset: params.viewOffset })`. Pass `viewOffset` through; that is what centres the scene beside a lesson shell's panel. Do not write your own render loop, resize observer, or destroy. CardStage's are the ones that give the context back and stop rendering when the box scrolls off screen.
+* `X.create(THREE, root, camera, opts)` is the scene. It adds to a `root` it was handed, owns everything it adds, and knows nothing about canvases, loops or the DOM. It returns `{ step(dt), state(), set(next), on(ev, fn), ... }`.
+* `X.mount(el, params)` is one `kit/card-stage.js` box around it: `CardStage.create({ mount: el, cam, stage, step, afterFrame, onResize, viewOffset: params.viewOffset })`. Pass `viewOffset` through; that is what centres the scene beside a lesson shell's panel. Do not write your own render loop, resize observer, or destroy. CardStage's are the ones that give the context back and stop rendering when the box scrolls off screen.
 
 `set` reconciles: it adds and removes the difference, and never tears the scene down to apply a number. A parameter that requires a rebuild (a seed, a layer height) may rebuild, and the header says which ones do.
 
@@ -35,26 +35,26 @@ Events: `frame` always. Add named events for things a page wants to react to (`c
 
 ## 2. The stack
 
-- **Three r128, global script, no modules, no build.** The prototypes for Leaf and Tree were ES-module Three 0.17x and both were ported down; the library is not moving up (Modules.md). `lib/geo.js` holds the geometry the r128 build lacks: capsule, rounded box, merge. Add to it rather than vendoring an addon.
-- **No CSS2DRenderer.** A label pinned to a 3D point is a DOM element in an overlay, positioned in CardStage's `afterFrame` from `camera.project`. `tree/tree.js`'s piles do it.
-- **Lights.** `Stage.create`'s studio lights ride the camera and cast no shadows. A scene that needs a sun or shadows adds its own in `mount` and dims Stage's (Tree does both). r128 light intensities are not physical units, so a prototype's numbers do not transfer; tune by eye and say so in a comment.
-- **Colours.** Atom and bond colours come from `palette.js`, never typed (CLAUDE.md). A render's own palette (a cytoplasm, a chloroplast) is the component's, declared once at the top of the file.
-- **Materials are per instance of what can be dimmed or highlighted separately.** Leaf's two epidermis layers once shared a material, so isolating one dimmed the other.
+* **Three r128, global script, no modules, no build.** The prototypes for Leaf and Tree were ES-module Three 0.17x and both were ported down; the library is not moving up (Modules.md). `lib/geo.js` holds the geometry the r128 build lacks: capsule, rounded box, merge. Add to it rather than vendoring an addon.
+* **No CSS2DRenderer.** A label pinned to a 3D point is a DOM element in an overlay, positioned in CardStage's `afterFrame` from `camera.project`. `tree/tree.js`'s piles do it.
+* **Lights.** `Stage.create`'s studio lights ride the camera and cast no shadows. A scene that needs a sun or shadows adds its own in `mount` and dims Stage's (Tree does both). r128 light intensities are not physical units, so a prototype's numbers do not transfer; tune by eye and say so in a comment.
+* **Colours.** Atom and bond colours come from `palette.js`, never typed (CLAUDE.md). A render's own palette (a cytoplasm, a chloroplast) is the component's, declared once at the top of the file.
+* **Materials are per instance of what can be dimmed or highlighted separately.** Leaf's two epidermis layers once shared a material, so isolating one dimmed the other.
 
 ## 3. Scale and science
 
-- **One scale family per scene** (MolecularGeometry.md §1.5). Say in the header what one scene unit is. A cell at micrometres cannot share a scene with a molecule spec, and a page will try; the header is where it learns not to.
-- **Say what is measured and what is drawn.** A render of a plant cell is a textbook diagram, prop tier: proportions plausible, nothing deposited. Declare that in the header and in the reference section, so the model does not let a page claim a size. Where a number is real (a bilayer's thickness from OPM, a tree's allometry), keep it beside its citation.
-- **Invariants live in the component, not in the prompt.** A student remixing parameters must not be able to make the science false: clamp ranges, refuse impossible counts, keep the same particle budget per side if that is what the claim rests on. Membrane's contents reconcile and its budgets refuse; the reference only describes the rule.
-- Pedagogical exaggeration is allowed and must be one declared number (`EXAG` in Membrane, `ION.exaggeration` in parts), applied uniformly so relative sizes stay true.
+* **One scale family per scene**. Two things are "in the same scene" if they are rendered with the same camera. A page can host *multiple* scenes (via kit/card-stage.js, one canvas per card or using an inset module) with no conflict, because the UI provides enough separation. tests/cards-cluster.html is the cited example: an ångström phospholipid in one card, display-scale water in another, on the same page — fine, because they never share a camera.
+* **Say what is measured and what is drawn.** A render of a plant cell is a textbook diagram, prop tier: proportions plausible, nothing deposited. Declare that in the header and in the reference section, so the model does not let a page claim a size. Where a number is real (a bilayer's thickness from OPM, a tree's allometry), keep it beside its citation.
+* **Invariants live in the component, not in the prompt.** A student remixing parameters must not be able to make the science false: clamp ranges, refuse impossible counts, keep the same particle budget per side if that is what the claim rests on. Membrane's contents reconcile and its budgets refuse; the reference only describes the rule.
+* Pedagogical exaggeration is allowed and must be one declared number (`EXAG` in Membrane, `ION.exaggeration` in parts), applied uniformly so relative sizes stay true.
 
 ## 4. Budget
 
 A generated page will put more on stage than you expect. Measure the sim step alone, `sim.step(dt)` in a loop, at the crowd the reference recommends and at the budget:
 
-- under 2 ms a step at the recommended crowd, on a laptop
-- a hard cap the component enforces at `add`, with one console warning, not a clamp somewhere later
-- anything quadratic in the crowd bucketed on a grid
+* under 2 ms a step at the recommended crowd, on a laptop
+* a hard cap the component enforces at `add`, with one console warning, not a clamp somewhere later
+* anything quadratic in the crowd bucketed on a grid
 
 Measure the fixed cost too, with nothing on stage. Membrane's was 3 ms a frame from a lathe rebuilt every tick whether or not its gates had moved, and it hid under the crowd cost until an empty stage was timed.
 
@@ -69,7 +69,7 @@ Measure the fixed cost too, with nothing on stage. Membrane's was 3 ms a frame f
 
 ## 6. What the last four taught
 
-- The reference is carrying the structure. A bare question produced a three-step lesson. Put effort into the section, not into a prompt.
-- Anything the reference has to say twice, or say in prose as a rule, should be a parameter or a default instead. The salmon app reached under the params twice; both became defaults.
-- What the model forgets goes into the library, not the doc. It forgot `viewOffset`, so the shell now stamps it on its stage and CardStage reads it there.
-- Two flaws from three runs were in the components, not the model: a frame cost and a noisy readout. Drive the generated page by hand; the model's page will use your component the way a student will, not the way your bench does.
+* The reference is carrying the structure. A bare question produced a three-step lesson. Put effort into the section, not into a prompt.
+* Anything the reference has to say twice, or say in prose as a rule, should be a parameter or a default instead. The salmon app reached under the params twice; both became defaults.
+* What the model forgets goes into the library, not the doc. It forgot `viewOffset`, so the shell now stamps it on its stage and CardStage reads it there.
+* Two flaws from three runs were in the components, not the model: a frame cost and a noisy readout. Drive the generated page by hand; the model's page will use your component the way a student will, not the way your bench does.
