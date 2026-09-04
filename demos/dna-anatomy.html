@@ -138,7 +138,7 @@ const L = Lesson.create(document.getElementById('gl'), {
   // Taller than the duplex: the caption takes the bottom of the stage, and a
   // helix running under it reads as cropped.
   boxes:()=>[VIEW.box],
-  afterFrame:()=>{ recentre(); NOTES.step(); },
+  afterFrame:dt=>{ idle(dt); recentre(); NOTES.step(); },
 });
 
 /* =============================================================================
@@ -645,6 +645,7 @@ function show(part){
       hy:  from.box.hy  + (to.box.hy  - from.box.hy)  * u };
     L.fit();
   } }], { tag:'frame' });
+  home();
   NOTES.clear();
   for(const n of part.notes()) if(n.at) NOTES.add(n);
   for(const el of secs) el.setAttribute('aria-current', String(el.dataset.key === part.key));
@@ -703,19 +704,63 @@ addEventListener('resize', onScroll);
 /* TURNING IT IS THE POINT. A helix seen from one angle is a tangle of sticks;
  * the grooves only read as two different gaps once it moves. Yaw about the
  * screen's up axis, which is the duplex's own axis after standing it up, so the
- * drag spins it the way a model on a desk spins. */
+ * drag spins it the way a model on a desk spins.
+ * ========================================================================== */
 const canvas = document.getElementById('gl');
 
-/* WHERE IT STARTS. Chosen at the stage rather than solved: which face of a
- * duplex reads best is a question about the picture, not about the record. */
+/* WHERE IT STARTS, AND WHERE EVERY PART COMES BACK TO. Chosen at the stage
+ * rather than solved: which face of a duplex reads best is a question about the
+ * picture, not about the record. Every part's callout offsets were placed
+ * against THIS angle, so a part shown at whatever angle the reader left the
+ * model at is a part with its labels over its own spheres. */
 const HOME = { yaw:1.145, pitch:0 };
 SPIN.rotation.set(HOME.pitch, HOME.yaw, 0);
 
-let turn = null;
+let turn = null, homing = false, drifting = true;
+
+/* THE IDLE TURN. On the whole molecule only, and only until the reader takes
+ * hold of it: a helix has to move once before it stops reading as a tangle of
+ * sticks. A part that has been zoomed to holds still instead — its framing and
+ * its labels were both placed against one angle. */
+const DRIFT = 0.06;                    // rad/s — about a hundred seconds a turn
+function idle(dt){
+  if(!drifting || turn || homing || current !== PARTS[0]) return;
+  SPIN.rotation.y += DRIFT * dt;
+}
+
+/* BACK TO THE DEFAULT VIEW WHEN THE PART CHANGES, from wherever the model is —
+ * drifted, or dragged. The yaw takes the SHORT way round: the reader has spun
+ * it three turns by then, and a tween to the raw stored angle unwinds all of
+ * them. */
+function home(){
+  L.motion.cancel('spin');
+  const y0 = SPIN.rotation.y, x0 = SPIN.rotation.x;
+  const TAU = Math.PI * 2;
+  let dy = (HOME.yaw - y0) % TAU;
+  if(dy >  Math.PI) dy -= TAU;
+  if(dy < -Math.PI) dy += TAU;
+  const dx = HOME.pitch - x0;
+  if(Math.abs(dy) < 0.01 && Math.abs(dx) < 0.01){ homing = false; return; }
+  homing = true;
+  L.motion.seq([
+    { dur:0.8, ease:'inOutCubic', onUpdate:u=>{
+      SPIN.rotation.y = y0 + dy * u;
+      SPIN.rotation.x = x0 + dx * u;
+    } },
+    { dur:0, call:()=>{ homing = false; } },
+  ], { tag:'spin' });
+}
+
 canvas.addEventListener('pointerdown', e => {
+  // The model is theirs from here: the drift stops for good, and a tween still
+  // running would fight the drag for the same two angles.
+  drifting = false;
+  L.motion.cancel('spin');
+  homing = false;
   turn = { x:e.clientX, y:e.clientY };
   try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
 });
+
 canvas.addEventListener('pointermove', e => {
   if(!turn) return;
   SPIN.rotation.y += (e.clientX - turn.x) * 0.008;
