@@ -126,7 +126,6 @@
 
     return {
       sim, box, layers, show, palette,
-      featured: () => ({ notes: ['water', 'O', 'H'], layers: ['hbonds'] }),
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
       set(next) { Object.assign(P, next); reconcile(); return this; },

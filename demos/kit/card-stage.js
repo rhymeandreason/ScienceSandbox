@@ -351,11 +351,13 @@
      component's handle, so a generated page gets the whole "show me" UI
      without writing a button. Styled here, not in a stylesheet, so there is
      no second file to forget. `only` limits which of the three appear.
-     CURATED, NOT COMPLETE: a component has a dozen anchors and a page that
-     lists them all is a menu, not a lesson. The panel shows what the page
-     picks (`notes: [...]`, `layers: [...]`), else the component's own
-     `featured` set, else the first four on stage, and a "more" chip opens
-     the rest. Parts not on stage never appear. */
+     THE STEP CHOOSES, OR THERE ARE NO CHIPS: a component has a dozen anchors
+     and a page that lists them all is a menu, not a lesson. A row appears
+     only for what the step names (`notes: [...]`, `layers: [...]`); there is
+     no default set and no "more" escape hatch, so a page that asks for
+     everything gets a clean scene instead. The legend is the exception and
+     renders on its own, because a colour nothing explains is worse than a
+     chip. Parts not on stage never appear. */
   let panelCss = false;
   function showPanel(container, c, opts = {}) {
     if (!panelCss) {
@@ -367,7 +369,6 @@
 .show-panel .show-row { display:flex; flex-wrap:wrap; gap:6px; }
 .show-panel .show-chip { font:inherit; font-size:13px; padding:5px 11px; border-radius:999px; border:1.5px solid rgba(0,0,0,.18); background:#fff; color:inherit; cursor:pointer; opacity:.75; }
 .show-panel .show-chip[aria-pressed=true] { border-color:currentColor; opacity:1; font-weight:600; }
-.show-panel .show-more { border-style:dashed; opacity:.55; }
 .show-panel .show-legend { display:flex; flex-wrap:wrap; gap:6px 14px; }
 .show-panel .show-legend span { display:inline-flex; align-items:center; gap:6px; }
 .show-panel .show-legend i { width:10px; height:10px; border-radius:50%; display:inline-block; }`;
@@ -383,20 +384,8 @@
       for (const it of items) row.appendChild(chip(it, isOn, toggle));
       return row;
     };
-    const feat = (c.featured && c.featured()) || {};
-    const pick = (all, names, key) => {
-      const present = all.filter(it => it.present !== false);
-      const chosen = names || feat[key];
-      const first = chosen ? present.filter(it => chosen.includes(it.name)) : present.slice(0, 4);
-      return { first, rest: present.filter(it => !first.includes(it)) };
-    };
-    const more = (row, rest, isOn, toggle) => {
-      if (!rest.length) return;
-      const b = document.createElement('button');
-      b.type = 'button'; b.className = 'show-chip show-more'; b.textContent = 'more…';
-      b.addEventListener('click', () => { b.remove(); for (const it of rest) row.appendChild(chip(it, isOn, toggle)); });
-      row.appendChild(b);
-    };
+    const pick = (all, names) => (!names || !names.length ? []
+      : all.filter(it => it.present !== false && names.includes(it.name)));
     const chip = (it, isOn, toggle) => {
       const b = document.createElement('button');
       b.type = 'button'; b.className = 'show-chip'; b.textContent = it.label || it.text || it.name;
@@ -406,16 +395,12 @@
     };
     if (want.includes('notes') && c.anchors) {
       const open = new Set();
-      const { first, rest } = pick(c.anchors(), opts.notes, 'notes');
       const toggle = (it, on) => { if (on) { open.add(it.name); c.note(it.name); } else { open.delete(it.name); c.notes([...open]); } };
-      const row = group(opts.notesLabel || 'point at', first, () => false, toggle);
-      if (row) more(row, rest, () => false, toggle);
+      group(opts.notesLabel || 'point at', pick(c.anchors(), opts.notes), () => false, toggle);
     }
     if (want.includes('layers') && c.layers) {
-      const { first, rest } = pick(c.layers(), opts.layers, 'layers');
       const toggle = (it, on) => c.show(it.name, on);
-      const row = group(opts.layersLabel || 'show', first, it => it.on, toggle);
-      if (row) more(row, rest, it => it.on, toggle);
+      group(opts.layersLabel || 'show', pick(c.layers(), opts.layers), it => it.on, toggle);
     }
     if (want.includes('legend') && c.palette) {
       const h = document.createElement('div'); h.className = 'show-hd'; h.textContent = opts.legendLabel || 'colours'; el.appendChild(h);

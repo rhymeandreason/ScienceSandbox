@@ -138,7 +138,7 @@ $('pumpOn').onchange = e => m.set({ pumpOn: e.target.checked });
 $('shells').onchange = e => m.set({ shells: e.target.checked });
 $('speed').oninput = e => m.set({ timeScale: +e.target.value });
 /* The component's own chips: point at, show, colours. Nothing here was written for this page. */
-CardStage.showPanel($('panel'), m);
+CardStage.showPanel($('panel'), m, { notes: ['channel.K', 'pump'], layers: ['shells', 'water'] });
 
 /* ---- the chart: free water per side, over the last two minutes ---- */
 const series = [];

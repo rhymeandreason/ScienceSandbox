@@ -2,57 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>leaf-test — a leaf in cross-section, as one box</title>
-<link rel="stylesheet" href="../css/main.css">
-<link rel="stylesheet" href="../css/sandbox.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>leaf bench — the defaults, edited on the thing itself</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
 <link rel="stylesheet" href="../css/annotate.css">
 <style>
-  #side { overflow-y:auto; }
-  .grp { margin-bottom:16px; }
-  .hd { font-weight:600; margin-bottom:6px; }
-  label { display:block; margin:7px 0; font-size:14px; }
-  input[type=range] { width:100%; }
-  button { margin:0 6px 6px 0; }
-  p.note { font-size:13px; opacity:.8; line-height:1.45; }
-  table.rd { font-size:13px; border-collapse:collapse; width:100%; }
-  table.rd td { padding:2px 0; }
-  table.rd td:last-child { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
-  .layers button[aria-pressed=true] { outline:2px solid currentColor; }
+  /* The bench borrows the shell's chrome and adds only what a bench needs:
+     grouped controls, and the snippet it writes back into leaf.js. */
+  .bench-group { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .bench-group:first-child { padding-top: 0; border-top: 0; }
+  .bench-hd { font-family: var(--display); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .bench-out {
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto;
+    background: var(--ink); color: #eceadf; border-radius: 14px; padding: 14px 16px; margin: 0;
+  }
+  .lshell-panel .show-panel .show-chip { font-family: var(--display); font-weight: 500; }
+  /* A bench is one screen, not a sequence: no Back/Next, no progress dot. */
+  .lshell-nav, .lshell-progress { display: none; }
+  .lshell-scroll { padding-bottom: 32px; }
 </style>
 </head>
 <body>
-<div id="app-sidebar">
-  <div id="stage"></div>
-  <div id="side">
-    <h1 style="font-size:17px">a leaf, cut across</h1>
-    <p class="note"><code>leaf/leaf.js</code> through <code>Leaf.mount</code>.
-      Hover a layer to light it, click to isolate it. Everything here is a
-      <code>set()</code>; every number is a <code>state()</code>.</p>
-
-    <div class="grp">
-      <div class="hd">layers</div>
-      <label>explode <input id="explode" type="range" min="0" max="1" step="0.01" value="0"></label>
-      <div class="layers" id="layers"></div>
-      <label><input id="rot" type="checkbox"> turn slowly</label>
-      <button type="button" id="regen">regenerate</button>
-    </div>
-
-    <div class="grp" id="panel"></div>
-
-    <div class="grp">
-      <div class="hd">thickness</div>
-      <label>palisade <input id="palisade" type="range" min="1" max="4" step="0.1" value="2.4"></label>
-      <label>spongy <input id="spongy" type="range" min="1" max="4" step="0.1" value="2.6"></label>
-    </div>
-
-    <div class="grp">
-      <div class="hd">what the module says</div>
-      <table class="rd" id="rd"></table>
-    </div>
-  </div>
-</div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
@@ -61,36 +32,122 @@
 <script src="../lib/geo.js"></script>
 <script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
 <script src="../leaf/leaf.js"></script>
 <script>
-const $ = id => document.getElementById(id);
-const L = Leaf.mount($('stage'), { explode: 0 });
+/* The bench for leaf/leaf.js: every parameter live on the leaf itself, and a
+   snippet of what those settings are as code. Edit the defaults here, then
+   paste the block at the foot into DEFAULTS. It runs on the lesson shell so
+   the component is judged in the chrome a student sees it in. */
 
-const NAMES = { lowerEpi:'lower epidermis', spongy:'spongy mesophyll', bundle:'vein', palisade:'palisade', upperEpi:'upper epidermis' };
-for (const n of [...Leaf.ORDER].reverse()) {
-  const b = document.createElement('button');
-  b.type = 'button'; b.textContent = NAMES[n]; b.dataset.layer = n; b.setAttribute('aria-pressed', 'false');
-  b.onclick = () => L.set({ isolate: L.state().isolate === n ? null : n });
-  $('layers').appendChild(b);
-}
-$('explode').oninput = e => L.set({ explode: +e.target.value });
-$('rot').onchange = e => L.set({ autoRotate: e.target.checked });
-$('regen').onclick = () => L.set({ seed: (Math.random() * 1e9) >>> 0 });
-CardStage.showPanel($('panel'), L);
-/* Isolating a layer also names it, the way a student would ask. */
-L.on('select', n => n ? L.notes([n]) : L.notes(false));
-$('palisade').oninput = e => L.set({ layers: { palisade: +e.target.value } });
-$('spongy').oninput = e => L.set({ layers: { spongy: +e.target.value } });
+const NAMES = { cuticle:'cuticle', upperEpi:'upper epidermis', palisade:'palisade', spongy:'spongy mesophyll', bundle:'vein', lowerEpi:'lower epidermis' };
+const THICK = ['cuticle', 'upperEpi', 'palisade', 'spongy', 'lowerEpi'];
+const D = Leaf.DEFAULTS;
+/* What a step would offer. Change these two and the snippet changes with them. */
+const CHIPS = { notes: ['palisade', 'spongy', 'stoma'], layers: ['chloroplasts', 'cuticle'] };
 
-const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
-L.on('frame', s => {
-  for (const b of document.querySelectorAll('[data-layer]')) b.setAttribute('aria-pressed', b.dataset.layer === s.isolate);
-  $('rd').innerHTML =
-    row('seed', s.seed) +
-    row('hovered', s.hovered ? NAMES[s.hovered] : '—') +
-    row('isolated', s.isolate ? NAMES[s.isolate] : '—') +
-    s.layers.map(l => row(NAMES[l.name] + ' height', l.height.toFixed(2))).join('');
+const shell = LessonShell.create({
+  brand: 'Leaf · component bench',
+  hint: 'Drag to orbit · Click a layer to isolate it',
+  steps: [{
+    eyebrow: 'leaf/leaf.js',
+    title: 'A leaf, cut across',
+    body: '<p>Five tissue layers, every cell placed from a seed. Everything below is a <strong>set()</strong> and every number a <strong>state()</strong>. Diagram proportions, not a measured section.</p>',
+    onEnter: bench,
+  }],
 });
+
+const L = Leaf.mount(shell.stage, { viewOffset: shell.viewOffset });
+L.on('select', n => n ? L.notes([n]) : L.notes(false));
+
+function bench(ctx) {
+  const ui = ctx.ui;
+  ui.controls(`
+    <div class="bench-group">
+      <div class="bench-hd">the block</div>
+      <div class="slider"><div class="slider-head"><span class="label">explode</span><span class="value" data-v="explode"></span></div>
+        <input type="range" id="explode" min="0" max="1" step="0.01" value="${D.explode}"></div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="rot"><span class="track"></span>turn slowly</label>
+        <button class="btn ghost" type="button" id="regen">new seed</button>
+      </div>
+      <div class="chips" id="isolate"></div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">layer thickness</div>
+      ${THICK.map(n => `
+      <div class="slider"><div class="slider-head"><span class="label">${NAMES[n]}</span><span class="value" data-v="${n}"></span></div>
+        <input type="range" id="t-${n}" min="0.05" max="4" step="0.01" value="${D.layers[n]}"></div>`).join('')}
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">what the module says</div>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">seed</span><span class="stat-value" id="rd-seed">—</span></div>
+        <div class="stat"><span class="stat-label">total height</span><span class="stat-value" id="rd-h">—</span></div>
+        <div class="stat"><span class="stat-label">hovered</span><span class="stat-value" id="rd-hover" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">isolated</span><span class="stat-value" id="rd-iso" style="font-size:15px">—</span></div>
+      </div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">the chips a step would offer</div>
+      <div id="bench-chips"></div>
+      <p class="foot">The panel draws only what a step names: no default set, no more… chip. A part not on stage never appears.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">paste into leaf.js</div>
+      <pre class="bench-out" id="out"></pre>
+      <button class="btn secondary" type="button" id="copy">Copy</button>
+    </div>`);
+
+  const out = ui.q('#out');
+  const snippet = () => {
+    const s = L.state();
+    out.textContent =
+      `const DEFAULTS = {\n` +
+      `  explode: ${(+ui.q('#explode').value).toFixed(2)}, seed: ${s.seed}, isolate: null, autoRotate: ${ui.q('#rot').checked},\n` +
+      `  layers: { ${THICK.map(n => `${n}: ${(+ui.q(`#t-${n}`).value).toFixed(2)}`).join(', ')} },\n` +
+      `  width: ${D.width}, depth: ${D.depth},\n};\n\n` +
+      `ctx.ui.showPanel(c, { notes: ${JSON.stringify(CHIPS.notes)}, layers: ${JSON.stringify(CHIPS.layers)} });`;
+  };
+  ui.q('#copy').onclick = () => navigator.clipboard.writeText(out.textContent);
+
+  ui.range(ui.q('#explode'), v => { L.set({ explode: v }); ui.q('[data-v=explode]').textContent = v.toFixed(2); });
+  ui.q('#rot').onchange = e => L.set({ autoRotate: e.target.checked });
+  ui.q('#regen').onclick = () => L.set({ seed: (Math.random() * 1e9) >>> 0 });
+
+  for (const n of THICK) ui.range(ui.q(`#t-${n}`), v => {
+    L.set({ layers: { [n]: v } });
+    ui.q(`[data-v=${n}]`).textContent = v.toFixed(2);
+    snippet();
+  });
+
+  /* Isolate reads the same names the component publishes, so a layer added to
+     leaf.js appears here without touching this file. */
+  const iso = ui.q('#isolate');
+  for (const n of [...Leaf.ORDER].reverse()) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.dataset.layer = n; b.textContent = NAMES[n] || n;
+    b.onclick = () => L.set({ isolate: L.state().isolate === n ? null : n });
+    iso.appendChild(b);
+  }
+
+  CardStage.showPanel(ui.q('#bench-chips'), L, CHIPS);
+
+  L.on('frame', s => {
+    for (const b of ui.qa('[data-layer]')) b.classList.toggle('is-on', b.dataset.layer === s.isolate);
+    ui.q('#rd-seed').textContent = s.seed;
+    ui.q('#rd-h').textContent = s.layers.reduce((a, l) => a + l.height, 0).toFixed(2);
+    ui.q('#rd-hover').textContent = s.hovered ? (NAMES[s.hovered] || s.hovered) : '—';
+    ui.q('#rd-iso').textContent = s.isolate ? (NAMES[s.isolate] || s.isolate) : '—';
+  });
+  snippet();
+}
+
+shell.goTo(0);
 </script>
 </body>
 </html>

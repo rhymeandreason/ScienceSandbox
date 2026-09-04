@@ -459,7 +459,6 @@
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
       layers: leaf.layersOf, show: (n, on) => { leaf.show(n, on); if (!box.running) box.draw(); return this; }, palette: leaf.palette,
-      featured: () => ({ notes: ['palisade', 'spongy', 'bundle', 'stoma'], layers: ['chloroplasts', 'cuticle', 'upperEpi'] }),
       set(next) { leaf.set(next); if (next.explode != null || next.layers) frame(); return this; },
       state: () => last || leaf.state(),
       on: leaf.on,

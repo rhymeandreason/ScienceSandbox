@@ -87,14 +87,16 @@ c.palette();                // [{name, color}] what the colours mean, for a lege
 
 ### The show panel
 
-The chips for all three, point at, show, and colours, in one call. **Use this instead of writing your own buttons for notes or layers.**
+The chips for point at and show, plus the colour legend, in one call. **Use this instead of writing your own buttons for notes or layers.**
 
 ```js
-CardStage.showPanel(container, c);                   // into any element; on the shell use ctx.ui.showPanel
-ctx.ui.showPanel(c, { only: ['notes', 'layers'] });  // on the step-through shell: into the step's controls
+ctx.ui.showPanel(c, { notes: ['pump'], layers: ['water'] });  // on the step: into the step's controls
+CardStage.showPanel(container, c, { layers: ['water'] });     // into any element
 ```
 
-`only` picks any of `'notes'`, `'layers'`, `'legend'`. The panel is curated: it offers the component's featured few and a "more…" chip for the rest, and never a part that is not on stage. Pass `notes: ['pump', 'outside']` or `layers: ['water']` to choose exactly what a step offers, which is usually right: a step about the pump offers the pump. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
+**Name what the step offers, or you get no chips.** There is no default set: `showPanel(c)` with no `notes` and no `layers` draws the legend and nothing else. A step about the pump offers the pump; two or three chips is a step, seven is a menu. A part not on stage never appears.
+
+`only` picks any of `'notes'`, `'layers'`, `'legend'` when a step wants fewer rows than it named. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
 
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 
