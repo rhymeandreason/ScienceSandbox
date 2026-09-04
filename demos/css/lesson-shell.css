@@ -144,11 +144,11 @@ body.is-night .lshell-progress button.is-current { background: #9fd98a; }
 }
 .lshell-panel input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
-  background: #fff; border: 1px solid var(--accent); box-shadow: 0 2px 6px rgba(0,0,0,0.18); cursor: grab;
+  background: #fff; border: 2px solid var(--accent); box-shadow: 0 2px 6px rgba(0,0,0,0.18); cursor: grab;
 }
 .lshell-panel input[type=range]::-moz-range-thumb {
   width: 20px; height: 20px; border-radius: 50%;
-  background: #fff; border: 1px solid var(--accent); box-shadow: 0 2px 6px rgba(0,0,0,0.18); cursor: grab;
+  background: #fff; border: 2px solid var(--accent); box-shadow: 0 2px 6px rgba(0,0,0,0.18); cursor: grab;
 }
 .lshell-panel .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .lshell-panel .stat { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; display: flex; flex-direction: column; gap: 2px; }

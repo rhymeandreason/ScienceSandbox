@@ -1407,11 +1407,13 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    annotate.css, which load after this file and are shared with the frozen
    benches, so they are corrected here rather than at source.
 
-   The 2px drawn line was the sketchbook's signature and it is the last of it.
-   The only 2px left in the system is `.pagehead`'s bottom rule, which is a
-   different thing: not an element's edge but the one heavy line on a page,
-   marking where its name stops. `.sechead`'s rule is 1px, and the two only
-   read as a hierarchy while they differ. */
+   The 2px drawn line was the sketchbook's signature and this is the last of it
+   on a `body.kodo` page. Two 2px edges survive on purpose and neither is a
+   sketchbook leftover: `.pagehead`'s bottom rule, which is not an element's
+   edge but the one heavy line on a page, marking where its name stops
+   (`.sechead`'s rule is 1px, and the two only read as a hierarchy while they
+   differ); and the slider thumbs in `css/lesson-shell.css`, which belong to
+   the other shell and are its call, not this sheet's. */
 :root #savepng,
 :root #restart,
 :root #allsteps,
