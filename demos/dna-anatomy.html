@@ -34,7 +34,9 @@
   #specimen{position:absolute;left:26px;bottom:22px;z-index:6;max-width:38ch;
     font-family:var(--font-editorial);font-size:13px;line-height:1.45;
     color:var(--text-muted)}
-  #brand .drop{font-size:26px;color:var(--text-strong)}
+  /* The wordmark is the site's, floating over the stage — kodo.css owns every
+     part of it. The page's OWN name is not up there: it belongs to the column
+     that carries the writing, at the head of it. */
 
   /* THE COLUMN. Its own scroller, not the window's: the stage beside it is
      fixed at 100vh and a page-level scroll would drag it off the top. */
@@ -46,7 +48,7 @@
   /* THE FIRST SECTION IS THE MASTHEAD. The double helix is both the page's
      title and its first part, and printing it twice made the reader scroll
      past the same words to reach them. */
-  #read section:first-of-type{padding-top:15vh}
+  #read section:first-of-type{padding-top:14vh}
   #read section:first-of-type h3{font-size:clamp(32px,3.6vw,44px)}
   #read .deck{margin:14px 0 0;font-family:var(--font-editorial);font-size:18px;
     line-height:1.55;color:var(--text-muted)}
@@ -105,8 +107,11 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <p id="specimen"></p>
-    <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Structure of DNA</h1></div>
   </div>
+  <nav class="sitenav floating">
+    <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+    <span class="crumb">Structure of DNA</span>
+  </nav>
   <div id="read"><div class="col">
     <div id="sections"></div>
     <div class="tail"></div>
