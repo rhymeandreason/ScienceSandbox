@@ -924,6 +924,7 @@ function join(host, guest){
   pairBonds();
   water(waterAt);
   say(host);
+  syncNav();
 }
 
 /* One part joined to a growing nucleotide, as SPEC ARITHMETIC — no mesh, no
@@ -1423,6 +1424,10 @@ setTwist3(0);
  * far enough to read as a separate object. Its HOME is the record's placement,
  * so this is an offset from the answer rather than a pose of its own. */
 const home3 = rung3s[1].mol.position.clone();
+// Where the loose rung waits. Kept so entering the step again puts it back:
+// the drag moves it, and a student who steps away mid-drag should find the
+// step as it starts, not as they left it.
+const staged3 = new THREE.Vector3();
 const AWAY = 21;
 {
   solveView();
@@ -1445,6 +1450,7 @@ const AWAY = 21;
   pivot3.copy(G3.worldToLocal(centre.clone()));
   G3.position.sub(centre);
   rung3s[1].mol.position.copy(was);
+  staged3.copy(was);
   rung3s[0].tag.textContent = 'A·T';
   rung3s[1].tag.textContent = 'T·A';
 }
@@ -1715,6 +1721,40 @@ function placeTags3(){
   placeEnds3();
 }
 
+/* ---- coming in from step 2 --------------------------------------------------
+ * Step 2 leaves a rung face-on; this step reads side-on. Cutting between the
+ * two makes them look like different objects, so the view TURNS: the same rung
+ * the student just built rolls onto its side, and only then does the second one
+ * arrive from below. The order is the argument — this is the rung you made, and
+ * here is another one to join it to.
+ *
+ * The start angle is face-on solved rather than typed: the view already carries
+ * TILT3 off edge-on, so a quarter turn less that tilt is the face.
+ */
+const ENTER_X = Math.PI / 2 - TILT3;
+function enter3(){
+  const rung = rung3s[1];
+  L.motion.cancel('link3');
+  rung.mol.position.copy(staged3);
+  rung.mol.visible = false;
+  setTwist3(0);
+  euler3.set(ENTER_X, 0, 0);
+  applySpin3();
+  // Further down the SCREEN, which is what SPIN3's world walk converts: the
+  // rung has to come from off the bottom of the frame, not off some axis of
+  // the crystal's.
+  SPIN3.updateMatrixWorld(true);
+  const far = SPIN3.worldToLocal(SPIN3.localToWorld(staged3.clone())
+    .add(new THREE.Vector3(0, -AWAY, 0)));
+  L.motion.seq([
+    { dur:0.8, ease:'inOutCubic',
+      onUpdate:u=>{ euler3.x = ENTER_X * (1 - u); applySpin3(); } },
+    { call:()=>{ rung.mol.visible = true; rung.tag.style.display = ''; } },
+    { dur:0.55, ease:'outCubic',
+      onUpdate:u=>{ rung.mol.position.lerpVectors(far, staged3, u); } },
+  ], { tag:'enter3' });
+}
+
 /* =============================================================================
  *  STEP 4 — the ladder and the helix, one molecule
  * =============================================================================
@@ -1931,6 +1971,8 @@ function showStep(n){
   if(n !== 2 && spinning) stopSpin();
   for(const rung of rung3s)
     rung.tag.style.display = (n === 3 && !rung3s[1].joined) ? '' : 'none';
+  if(n === 3 && !rung3s[1].joined){ rung3s[1].tag.style.display = 'none'; enter3(); }
+  else L.motion.cancel('enter3');
   for(const e of ends3) e.el.style.display = (n === 3) ? '' : 'none';
   if(n === 3) say3();
   if(n === 2){ pairBonds(); say(nucleo.adenine); }
@@ -1954,6 +1996,14 @@ for(const st of STEPS){
   b.onclick = () => showStep(st.n);
   navEl.appendChild(b);
 }
+
+/* STEP 3 WAITS FOR STEP 2. It opens on the rung the student built turning onto
+ * its side, which says nothing to someone who has not built one. */
+function syncNav(){
+  for(const b of document.querySelectorAll('#steps button'))
+    if(+b.dataset.n === 3) b.disabled = loose.length > 0;
+}
+syncNav();
 
 refresh();
 twistEl.oninput = () => setTwist(+twistEl.value / 1000);
