@@ -40,6 +40,8 @@
 
   /* THE COLUMN. Its own scroller, not the window's: the stage beside it is
      fixed at 100vh and a page-level scroll would drag it off the top. */
+  /* The snap is in JS (below), not `scroll-snap-type`: proximity never fires at
+     these distances and mandatory jumps on load. */
   #read{grid-column:2;overflow-y:auto;overscroll-behavior:contain;
     background:var(--surface-page);
     padding:0 clamp(28px,4vw,56px)}
@@ -690,9 +692,10 @@ const secs = PARTS.map((part, i) => {
 
 /* NEAREST TO THE READING LINE, not "first one intersecting". A section is taller
  * than the viewport at the top of the scroll and shorter at the bottom, so an
- * intersection test hands over at a different place each time; a single line at
- * 40% hands over at the same place every time. */
-const LINE = 0.4;
+ * intersection test hands over at a different place each time; a single line
+ * hands over at the same place every time. It is the middle, which is where the
+ * scroll snapping puts a section, so the two agree. */
+const LINE = 0.5;
 function onScroll(){
   const y = read.getBoundingClientRect().top + read.clientHeight * LINE;
   let best = null, bestD = Infinity;
@@ -703,7 +706,39 @@ function onScroll(){
   });
   if(best != null) show(PARTS[best]);
 }
-read.addEventListener('scroll', onScroll, { passive:true });
+/* SETTLING ONTO A SECTION, IN JS. `scroll-snap-type:proximity` never fires at
+ * these distances — a section is most of a window tall, so the reader is rarely
+ * inside the browser's own threshold — and `mandatory` snaps on load and fights
+ * a long scroll. This waits for the wheel to stop, then eases the nearest
+ * section's middle onto the reading line if it is more than a few pixels off.
+ *
+ * SETTLE_MS is how long "stopped" is: below about 100 it fires mid-flick and
+ * takes the scroll out of the reader's hands. */
+const SETTLE_MS = 140;
+const SNAP_SLOP = 6;                    // px: already settled, leave it alone
+let settleTimer = null, snapping = false;
+function settle(){
+  if(snapping || !secs.length) return;
+  const mid = read.clientHeight * LINE;
+  let best = null, bestD = Infinity;
+  for(const el of secs){
+    const want = el.offsetTop + el.offsetHeight / 2 - mid;
+    const d = Math.abs(want - read.scrollTop);
+    if(d < bestD){ bestD = d; best = want; }
+  }
+  if(best == null || bestD <= SNAP_SLOP) return;
+  snapping = true;
+  read.scrollTo({ top:best, behavior:'smooth' });
+  // The smooth scroll emits its own scroll events; unlatch once they stop
+  // rather than racing them with a fixed duration.
+  setTimeout(() => { snapping = false; }, 600);
+}
+
+read.addEventListener('scroll', () => {
+  onScroll();
+  clearTimeout(settleTimer);
+  if(!snapping) settleTimer = setTimeout(settle, SETTLE_MS);
+}, { passive:true });
 addEventListener('resize', onScroll);
 
 /* TURNING IT IS THE POINT. A helix seen from one angle is a tangle of sticks;
