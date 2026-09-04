@@ -28,6 +28,9 @@ body.lshell-page {
   --soil: #b0702e;
   --sun: #e8b32b;
   --on-bg: var(--ink);
+  /* The corner a callout takes in this room. annotate.css is shared with the
+     site sheet, which flattens to 4px; here everything is rounded. */
+  --annot-radius: 14px;
   --display: "Futura", "Futura PT", "Jost", system-ui, sans-serif;
   --serif: "Literata", Georgia, "Times New Roman", serif;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

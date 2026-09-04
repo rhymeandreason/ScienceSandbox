@@ -13,8 +13,29 @@
    link it after sandbox.css.
 
    Load order on a migrated page:
-       main.css  ->  sandbox.css  ->  annotate.css  ->  <page>.css
+       kodo.css  ->  sandbox.css  ->  annotate.css  ->  <page>.css
+   and on a lesson-shell page:
+       kodo.css  ->  lesson-shell.css  ->  annotate.css  ->  <page>.css
+
+   IT HAS TO SIT RIGHT IN BOTH, and the two hosts do not agree about corners:
+   the site sheet flattens everything to 4px, the lesson shell rounds to 12-14.
+   So the shapes below read `--annot-radius`, which each host sets and this file
+   only defaults. Everything else is a semantic token with a literal fallback,
+   because the pages still on main.css load this file too and main.css has no
+   --accent. A callout is the same object on every page; only its corners and
+   its accent are the room's.
    ========================================================================== */
+
+/* Declared on `body` and not on :root ON PURPOSE. lesson-shell.css sets its own
+   --accent on `body.lshell-page`, and a token resolved at :root would have read
+   the site's green while sitting on the shell's paper. */
+body {
+   --annot-live: var(--accent, #3d6fb0);
+   --annot-radius: var(--radius-md, 4px);
+}
+@supports (color: color-mix(in srgb, red, blue)) {
+   body { --annot-live-dark: color-mix(in srgb, var(--annot-live) 76%, #000) }
+}
 
 .annot-layer {
    position: absolute;
@@ -41,9 +62,9 @@
    height: 10px;
    padding: 0;
    border-radius: 50%;
-   border: 2px solid var(--text-strong);
+   border: 1px solid var(--text-strong);
    background: var(--surface-raised);
-   box-shadow: 0 1px 4px rgba(0, 0, 0, .25);
+   box-shadow: 0 1px 3px rgba(20, 22, 26, .18);
    cursor: default
 }
 
@@ -67,7 +88,7 @@
    top: 0;
    height: 0;
    width: var(--alen, 18px);
-   border-top: 1.5px solid var(--border-hair);
+   border-top: 1px solid var(--border-hair);
    transform-origin: 0 0;
    transform: rotate(var(--aang, 0deg));
    pointer-events: none
@@ -79,17 +100,22 @@
    top: 0;
    transform: translate(var(--adx, 18px), var(--ady, 0px)) translateY(-50%);
    white-space: nowrap;
-   padding: 4px 9px;
+   padding: 5px 11px;
    font-family: var(--font-ui);
    font-size: 13px;
-   font-weight: 600;
+   /* 500, not 600: system-ui's semibold at 13px on a translucent chip is a bar,
+      and every other small label in the system is set at 500. */
+   font-weight: 500;
    line-height: 1.2;
    color: var(--text-strong);
    background: rgba(255, 255, 255, .88);
    backdrop-filter: blur(6px);
-   border: 1.5px solid var(--border-hair);
-   border-radius: var(--radius-lg);
-   box-shadow: 0 3px 10px rgba(0, 0, 0, .12);
+   border: 1px solid var(--border-hair);
+   /* A PILL, in both rooms. It is the one shape the site sheet and the lesson
+      shell already agree on — .fact, .chip, .cta and .segmented are all capsules
+      — so a label needs no --annot-radius to belong. */
+   border-radius: 999px;
+   box-shadow: 0 2px 8px -2px rgba(20, 22, 26, .16);
    opacity: 1;
    transition: opacity .18s ease
 }
@@ -164,9 +190,10 @@
     `is-seen` comes from annotate.js — set the first time a card opens, never
     removed — and it is what stops the pulse asking for something already done.
 
-    --annot-live is a token so a lesson whose palette owns this blue can move it
-    without restating any of the rules below. */
-:root { --annot-live: #3d6fb0; --annot-live-dark: #2d5688 }
+    --annot-live IS THE ROOM'S ACCENT, not a blue of its own. It was #3d6fb0,
+    which belonged to nothing: the deep green on a site page, the shell's
+    brighter green on a lesson-shell one. A lesson can still move it in one
+    line, and the pulse below follows whatever it is set to. */
 
 .annot-has-card .annot-label {
    display: inline-flex;
@@ -186,20 +213,29 @@
 }
 
 .annot-has-card:not(.is-seen) .annot-label::before {
+   --annot-ring: rgba(61, 111, 176, .55);
    animation: annotbead 2.1s ease-out infinite
 }
+@supports (color: color-mix(in srgb, red, blue)) {
+   .annot-has-card:not(.is-seen) .annot-label::before {
+      --annot-ring: color-mix(in srgb, var(--annot-live) 55%, transparent)
+   }
+}
 
+/* The ring is drawn from the bead's own colour, so a room that moves the accent
+   takes the pulse with it. currentColor cannot do this: the bead is a ::before
+   with no text, and its `color` is the label's ink. */
 @keyframes annotbead {
-   0% { box-shadow: 0 0 0 0 rgba(61, 111, 176, .55) }
-   70% { box-shadow: 0 0 0 8px rgba(61, 111, 176, 0) }
-   100% { box-shadow: 0 0 0 0 rgba(61, 111, 176, 0) }
+   0% { box-shadow: 0 0 0 0 var(--annot-ring) }
+   70% { box-shadow: 0 0 0 8px transparent }
+   100% { box-shadow: 0 0 0 0 transparent }
 }
 
 @media (prefers-reduced-motion: reduce) {
    .annot-has-card:not(.is-seen) .annot-label::before { animation: none }
 }
 
-.annot-has-card .annot-label:hover::before { background: var(--annot-live-dark) }
+.annot-has-card .annot-label:hover::before { background: var(--annot-live-dark, #2d5688) }
 
 .annot-has-card .annot-label:hover,
 .annot-has-card .annot-label:focus-visible {
@@ -236,11 +272,12 @@
    top: 0;
    left: 0;
    width: 248px;
-   padding: 11px 13px 12px;
+   padding: 13px 15px 14px;
    background: var(--panel, #fff);
-   border: 1.5px solid var(--border-hair);
-   border-radius: var(--radius-lg);
-   box-shadow: 0 8px 26px rgba(0, 0, 0, .18);
+   border: 1px solid var(--border-hair);
+   /* The one shape that cannot be a pill, so it takes the room's corner. */
+   border-radius: var(--annot-radius);
+   box-shadow: var(--shadow-panel, 0 10px 26px -10px rgba(20, 22, 26, .22));
    opacity: 0;
    visibility: hidden;
    transform-origin: 0 0;
@@ -255,21 +292,26 @@
 }
 
 .annot-card-t {
-   margin: 0 18px 4px 0;
-   font-family: var(--font-ui);
-   font-size: 12px;
-   font-weight: 700;
-   letter-spacing: .04em;
+   margin: 0 18px 6px 0;
+   /* THE MICRO-CAP, which is the system's only heading device outside prose:
+      same face, tracking, weight and colour as every other label on the page.
+      A callout that invented its own would be a third treatment for one job. */
+   font-family: var(--font-display, var(--font-ui));
+   font-size: var(--cap-sm, 10px);
+   font-weight: var(--cap-weight, 600);
+   letter-spacing: var(--cap-track, .22em);
    text-transform: uppercase;
    color: var(--text-muted)
 }
 
 .annot-card-b {
    margin: 0;
-   font-family: var(--font-ui);
+   /* Prose in a card is prose. --font-editorial is Literata on both hosts; the
+      fallback is for a page still on a sheet that has no editorial face. */
+   font-family: var(--font-editorial, var(--font-ui));
    font-size: 13.5px;
-   line-height: 1.45;
-   color: var(--text-strong)
+   line-height: 1.5;
+   color: var(--text-body, var(--text-strong))
 }
 
 .annot-card-b b {

@@ -392,7 +392,7 @@ canvas.addEventListener('dblclick', e => {
 });
 canvas.addEventListener('pointerup', e => {
   held = null; dragging = []; held2 = null; drag2 = [];
-  turning = null; held3 = null; turn3 = null;
+  turning = null; held3 = null;
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
   refresh();
 });
@@ -1207,6 +1207,11 @@ function placeTags2(){
  *  nucleotide onto the residue it is (`Attach.residueFit`) makes the pairing,
  *  the stacking and both bonds the crystal's at once.
  * ========================================================================== */
+// A third of a right angle off edge-on, and 30% for a base that is present but
+// not the subject. Both are the whole of this step's art direction, so they sit
+// together where they can be compared.
+const TILT3 = 0.52, BASE_DIM = 0.3;
+
 const G3 = new THREE.Group();
 G3.visible = false;
 L.root.add(G3);
@@ -1277,6 +1282,32 @@ function build3(res, spec, parent){
   if(old){ res.mol.position.copy(old.position); res.mol.quaternion.copy(old.quaternion);
            parent.remove(old); disposeTree(old); }
   parent.add(res.mol);
+  dimBases(res);
+}
+
+/* THE BACKBONE IS THE SUBJECT, so the bases step back. Every atom keeps its own
+ * colour — this is not a recolour, which would say something about the
+ * chemistry — and only the bases lose opacity, which says "still there, not
+ * what you are looking at". The sugar and the phosphate stay solid, and what
+ * emerges is two rails with rungs between them.
+ *
+ * WHICH ATOMS, from the names assemble() gave them: a base atom is one with no
+ * suffix, because the sugar's carry ′ and the phosphate's ᴾ. So the split is
+ * the one the joins already made rather than a second list to keep in step. */
+function dimBases(res){
+  const isBase = i => !/[′ᴾ]$/.test(res.spec.names[i]);
+  // buildMolecule adds every bond first, then every atom, in spec order.
+  const nb = (res.spec.bonds || []).length;
+  res.mol.children.forEach((m, k) => {
+    const dim = k < nb ? (isBase(res.spec.bonds[k][0]) && isBase(res.spec.bonds[k][1]))
+                       : isBase(k - nb);
+    if(!dim || !m.material) return;
+    m.material.transparent = true;
+    m.material.opacity = BASE_DIM;
+    // Without this the dimmed spheres still occlude the backbone behind them,
+    // which is the one thing the dimming exists to prevent.
+    m.material.depthWrite = false;
+  });
 }
 
 const named3 = (res, n) => res.spec.names.indexOf(n);
@@ -1327,6 +1358,16 @@ function solveView(){
   const n = new THREE.Vector3().crossVectors(w, u);
   const b = new THREE.Matrix4().makeBasis(w, u.clone().negate(), n.negate());
   G3.quaternion.setFromRotationMatrix(b.transpose());
+
+  /* THEN TILT OFF EDGE-ON. Dead edge-on is the honest view and it is not a
+   * legible one: a base pair is perpendicular to the helix axis, so with the
+   * axis upright the pair is a slab three spheres deep and the whole rung reads
+   * as a flat streak — which is exactly what a view down the axis would look
+   * like, so it reads as the wrong picture even though it is the right one.
+   * A third of a right angle opens the pairs enough to recognise while the
+   * stack still reads as stacked. */
+  G3.quaternion.premultiply(new THREE.Quaternion()
+    .setFromAxisAngle(new THREE.Vector3(1, 0, 0), TILT3));
 }
 
 /* Where the lower rung waits: straight down the screen from where it belongs,
@@ -1527,8 +1568,7 @@ function placeEnds3(){
 function say3(){
   if(!rung3s[1].joined){
     note.innerHTML = 'The rung you built, and a second one below it. Drag the '
-      + 'lower rung up: <b>two</b> bonds will form, one down each side. '
-      + '<i>Drag the paper to turn the model.</i>';
+      + 'lower rung up: <b>two</b> bonds will form, one down each side.';
     return;
   }
   const d = bonds3.map(b => b.d.toFixed(2)).join(' Å and ');
@@ -1540,28 +1580,20 @@ function say3(){
 }
 
 /* ---- drag: a molecule moves, the paper turns ------------------------------- */
-let held3 = null, off3 = null, turn3 = null;
+let held3 = null, off3 = null;
+/* NO TURNING HERE. Step 2 offers it because its molecule is flat-on and the
+ * depth is what the projection throws away. This step is already side-on, and
+ * a second gesture on the same pointer made the one that matters — dragging the
+ * rung — hard to find: a press that missed the rung silently became a rotation,
+ * so the model spun instead of the rung moving. One gesture, one meaning. */
 function down3(e){
+  if(rung3s[1].joined) return;
   const w = toWorld(e);
-  if(!rung3s[1].joined){
-    const c = rungCentre(rung3s[1]);
-    if(flatDist(w, c) < 12){
-      held3 = rung3s[1];
-      off3 = held3.mol.position.clone().sub(toSpin3(w));
-      return;
-    }
-  }
-  turn3 = { x:e.clientX, y:e.clientY };
-  stopSway3();
+  if(flatDist(w, rungCentre(rung3s[1])) > 12) return;
+  held3 = rung3s[1];
+  off3 = held3.mol.position.clone().sub(toSpin3(w));
 }
 function move3(e){
-  if(turn3){
-    euler3.y += (e.clientX - turn3.x) * 0.008;
-    euler3.x = Math.max(-0.7, Math.min(0.7, euler3.x + (e.clientY - turn3.y) * 0.008));
-    turn3 = { x:e.clientX, y:e.clientY };
-    applySpin3();
-    return;
-  }
   if(!held3) return;
   held3.mol.position.copy(toSpin3(toWorld(e))).add(off3);
   placeSticks();
@@ -1593,22 +1625,6 @@ function tryLinkRungs(){
     { call:linkRungs },
   ], { tag:'link3' });
 }
-
-/* The same offer step 2 makes, for the same reason: this view has depth the
- * projection is throwing away, and the rails are on the near and far sides. */
-let sway3 = null, offered3 = false;
-function offerSway3(){
-  if(offered3) return;
-  offered3 = true;
-  const y0 = euler3.y;
-  const arc = (a, b) => ({ dur:1.05, ease:'inOutCubic',
-    onUpdate:u=>{ euler3.y = a + (b - a) * u; applySpin3(); } });
-  sway3 = true;
-  L.motion.seq([{ dur:0.25 }, arc(y0, y0 + 0.5), arc(y0 + 0.5, y0 - 0.5),
-                 Object.assign(arc(y0 - 0.5, y0), { onDone:()=>{ sway3 = null; } })],
-               { tag:'sway3' });
-}
-function stopSway3(){ L.motion.cancel('sway3'); sway3 = null; }
 
 function placeTags3(){
   const r = canvas.getBoundingClientRect();
@@ -1846,7 +1862,7 @@ function showStep(n){
   for(const rung of rung3s)
     rung.tag.style.display = (n === 3 && !rung3s[1].joined) ? '' : 'none';
   for(const e of ends3) e.el.style.display = (n === 3) ? '' : 'none';
-  if(n === 3){ say3(); offerSway3(); } else stopSway3();
+  if(n === 3) say3();
   if(n === 2){ pairBonds(); say(nucleo.adenine); }
   twistBar.classList.toggle('on', n === 4);
   document.getElementById('twistread').classList.toggle('on', n === 4);

@@ -1413,8 +1413,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    the other shell and are its call, not this sheet's. */
 :root #savepng,
 :root #restart,
-:root #allsteps,
-:root .annot-dot { border-width: 1px }
+:root #allsteps { border-width: 1px }
 
 /* THE LESSON'S ONE INVITATION IS THE SITE'S PRIMARY. pathways.css paints #actbtn
    the H-bond blue so that Begin and water-lab's Add Water match, which was true
@@ -1446,12 +1445,6 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 :root .label,
 :root .caps,
 :root h2.section { font-size: var(--cap-sm) }
-
-/* annotate.css sets 600 and 700 on labels and card headings, weights chosen
-   against Nunito. One step down each, on the system face they now set in. */
-:root .annot-label { font-weight: 500 }
-:root .annot-card h4,
-:root .annot-card b { font-weight: 600 }
 
 /* The display face, where a page wants the site's voice rather than prose:
    the masthead's micro-caps and any large numeral a lesson reads out. */
