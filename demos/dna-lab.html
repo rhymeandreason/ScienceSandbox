@@ -818,7 +818,16 @@ function joinTarget(host, kind){
            quat:host.mol.quaternion.clone().multiply(q) };
 }
 
+/* THE LATCH TEST IS IN THE PLANE, and this is not a detail. The pointer is
+ * projected onto z = 0 and the drag pins every piece there, but the poses
+ * attach.js reads out of 1BNA are three-dimensional: the phosphate's sits 4.9
+ * units out of the base's plane. Comparing full 3D distance meant a dragged
+ * phosphate could never get closer than 4.9 to its own target — the sugars
+ * latched, the phosphates could not be latched at all, at any radius under
+ * five. So the test asks the only question the gesture can answer, "is it over
+ * the right place", and the tween carries it out of the plane. */
 const LATCH2 = 4.2;
+const flatDist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 function tryJoin(){
   if(!held2) return;
   const host = nucleo[held2.want];
@@ -829,7 +838,7 @@ function tryJoin(){
   const wantStage = held2.kind === 'sugar' ? 0 : 1;
   if(host.stage !== wantStage) return;
   const t = joinTarget(host, held2.kind);
-  if(!t || held2.mol.position.distanceTo(t.pos) > LATCH2) return;
+  if(!t || flatDist(held2.mol.position, t.pos) > LATCH2) return;
 
   const guest = held2;
   held2 = null; drag2 = [];        // the bond is made; the pointer stops driving
