@@ -2,6 +2,8 @@
 
 # Adding a lesson page
 
+**The page's chrome is `Design.md`'s, not this file's**: the shell, the wordmark and the header are the same on every page a student lands on, and nothing below overrides them. Read it first.
+
 Reference for building a new `*-lab.html` page that hand-draws its scene from `mol-*.js` specs (`Stage.buildMolecule`, `VIEW`, `FX`). **A page that mounts a component instead — `kit/lesson-shell.js` + `X.mount()`, a cell, membrane, leaf, tree, or anything from the component library — is `AddingAComponent.md`'s job, not this one**; nothing below applies to it. Everyday lesson edits don't need this file — see `CLAUDE.md`.
 
 ## Reading list

@@ -4,6 +4,7 @@
      when a page's status changes. -->
 <html lang="en">
 <head>
+<base href="/demos/">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — all pages</title>
@@ -88,6 +89,13 @@
   .reference .badge, .test .badge { background: #ececec; color: var(--muted); }
   .tool .badge { background: #e6ecf5; color: #34578f; }
   .ugc .badge { background: #f3e8f7; color: #6b3f8a; }
+
+  a.card.component {
+    border-color: var(--accent);
+    background: #f3f8f6;
+  }
+  a.card.component:hover { border-color: var(--ink); }
+  .component .badge { background: var(--accent); color: #fff; }
 
   .filters {
     display: grid;
@@ -184,6 +192,82 @@
     <span class="label"><label for="q">Find</label></span>
     <input id="q" type="search" placeholder="path or description" autocomplete="off">
   </div>
+
+  <section class="topic" data-topic="components" data-chip="Components" data-group="Components">
+    <h2>Component test benches</h2>
+    <div class="grid">
+      <a class="card component" href="water/water-test.html">
+        <div class="path">water/water-test.html <span class="badge">component</span></div>
+        <div class="desc">water/watersim-mount.js — H-bonds, ice, hydration shells, temperature, invariants printed live</div>
+      </a>
+      <a class="card component" href="membrane/salmon-test.html">
+        <div class="path">membrane/salmon-test.html <span class="badge">component</span></div>
+        <div class="desc">membrane/membrane.js as one mounted box — gill cell in seawater or freshwater, free-water chart off state()</div>
+      </a>
+      <a class="card component" href="leaf/leaf-test.html">
+        <div class="path">leaf/leaf-test.html <span class="badge">component</span></div>
+        <div class="desc">leaf/leaf.js on the lesson shell — every parameter live, DEFAULTS block ready to paste back</div>
+      </a>
+      <a class="card component" href="tree/tree-lab.html">
+        <div class="path">tree/tree-lab.html <span class="badge">component</span></div>
+        <div class="desc">tree/tree.js on kit/lesson-shell.js — the step-through shell every generated app takes</div>
+      </a>
+      <a class="card component" href="kit/proteinbox-mount-test.html">
+        <div class="path">kit/proteinbox-mount-test.html <span class="badge">component</span></div>
+        <div class="desc">Proteinbox.mount — any protein in the registry by name, its representation as set(), the registry's facts as state()</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="topic" data-topic="prototypes" data-chip="Prototypes" data-group="Components">
+    <h2>Prototypes</h2>
+    <div class="grid">
+      <a class="card prototype" href="capillary/pbf-test.html">
+        <div class="path">capillary/pbf-test.html <span class="badge">prototype</span></div>
+        <div class="desc">The same pore solved as a position-based fluid: a measured contact angle, evaporation, and Young-Laplace holding across pore widths</div>
+      </a>
+      <a class="card prototype" href="molecule-lab.html">
+        <div class="path">molecule-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Dissolving sandbox: polar/nonpolar/ionic, CO₂ → bicarbonate</div>
+      </a>
+      <a class="card prototype" href="solvation-lab.html">
+        <div class="path">solvation-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Forces between molecules: salt in water, hydration shells</div>
+      </a>
+      <a class="card prototype" href="contrast-lab.html">
+        <div class="path">contrast-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Spot the difference: six near-identical molecule pairs</div>
+      </a>
+      <a class="card prototype" href="proteins/myoglobin/myoglobin.html">
+        <div class="path">proteins/myoglobin/myoglobin.html <span class="badge">prototype</span></div>
+        <div class="desc">Myoglobin for a student to browse: six sections, one sticky molecule that follows the prose, and no controls at all</div>
+      </a>
+      <a class="card prototype" href="sickle/fibre-test.html">
+        <div class="path">sickle/fibre-test.html <span class="badge">prototype</span></div>
+        <div class="desc">HbS fibre structure test, with SES surface render</div>
+      </a>
+      <a class="card prototype" href="dna-lab.html">
+        <div class="path">dna-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">How a base pair holds — drag a base at adenine, build the helix</div>
+      </a>
+      <a class="card prototype" href="krebs-lab.html">
+        <div class="path">krebs-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Pyruvate oxidation, eight steps around the ring, ×2 turn</div>
+      </a>
+      <a class="card prototype" href="fermentation-lab.html">
+        <div class="path">fermentation-lab.html <span class="badge">prototype</span></div>
+        <div class="desc">Where pyruvate goes with no O₂ — two branches, and why the point is NAD⁺</div>
+      </a>
+      <a class="card prototype" href="tests/question-composer.html">
+        <div class="path">tests/question-composer.html <span class="badge">prototype</span></div>
+        <div class="desc">The door map, entered by typing. The reader's words become the root card, wired through the authored question they matched plus the modules the wording reached on its own</div>
+      </a>
+      <a class="card prototype" href="nodegraph/nodegraph.html">
+        <div class="path">nodegraph/nodegraph.html <span class="badge">prototype</span></div>
+        <div class="desc">The whole of Bio 101 as one map: typed, ranked edges between ~200 cards across seven units. Fog of war, a rank-1 walk on the arrow keys, themes as saved queries, a kinds pill for detail too small to be a node</div>
+      </a>
+    </div>
+  </section>
 
   <section class="topic" data-topic="water" data-chip="Water" data-group="Molecules">
     <h2>Water &amp; solvation</h2>
@@ -600,6 +684,10 @@
   <section class="topic" data-topic="map" data-chip="Map" data-group="Infra">
     <h2>Concept map &amp; question bank</h2>
     <div class="grid">
+      <a class="card prototype" href="nodegraph/nodegraph.html">
+        <div class="path">nodegraph/nodegraph.html <span class="badge">prototype</span></div>
+        <div class="desc">The whole of Bio 101 as one map: typed, ranked edges between ~200 cards across seven units. Fog of war, a rank-1 walk on the arrow keys, themes as saved queries, a kinds pill for detail too small to be a node</div>
+      </a>
       <a class="card test" href="tests/concept-map.html">
         <div class="path">tests/concept-map.html <span class="badge">test</span></div>
         <div class="desc">Node map of the topics and the student questions between them, on a draggable open canvas. Reads the shared bank in questions.js</div>

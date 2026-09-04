@@ -73,6 +73,8 @@
     font-family:var(--font-slab);font-size:13px;letter-spacing:.4px;color:var(--ink);
     background:rgba(255,255,255,.66);border-radius:7px;padding:2px 9px;white-space:nowrap}
   .tag.paired{background:#0042aa;color:#fff}
+  /* An END of a strand, on the atom that makes it one. */
+  .tag.end{font-size:12px;background:#0042aa;color:#fff;transform:translate(-50%,-50%)}
 
   /* The rung measurement. Reads as a drawing annotation, not a label on a
      molecule — hence the slab face and the paper-coloured backing. */
@@ -92,12 +94,12 @@
   /* Step 2's running commentary. Same slot as the twist readout — one step is
      ever on stage, so they cannot collide — but it wraps, because it says a
      sentence rather than a number. */
-  #note2{position:absolute;left:50%;bottom:74px;transform:translateX(-50%);
+  #note{position:absolute;left:50%;bottom:74px;transform:translateX(-50%);
     z-index:7;display:none;max-width:min(560px,72vw);text-align:center;
     font-family:var(--font-sans);font-size:13.5px;line-height:1.4;color:var(--ink);
     background:var(--paper);padding:7px 16px;border-radius:9px}
-  #note2.on{display:block}
-  #note2 b{font-weight:600}
+  #note.on{display:block}
+  #note b{font-weight:600}
 
 </style>
 </head>
@@ -112,7 +114,7 @@
       <label>Helix</label>
     </div>
     <div id="twistread"></div>
-    <div id="note2"></div>
+    <div id="note"></div>
     <div id="brand"><span class="drop"><i class="ph-bold ph-dna"></i></span><h1>Base pairing</h1></div>
   </div>
 </div>
@@ -171,10 +173,12 @@ const L = Lesson.create(document.getElementById('gl'), {
   orbit:false,
   boxes:()=>step === 4 ? [{ x:0, y:0, rxz:16, hy:44 }]
          : step === 2 ? [{ x:0, y:-3, rxz:30, hy:27 }]
+         : step === 3 ? [{ x:0, y:0, rxz:22, hy:24 }]
                        : [{ x:0, y:0, rxz:26, hy:17 }],
   afterFrame:()=>{                                    // projection reads a matrix refreshed on render
     if(step === 1){ placeTags(); placeRulers(); }
     if(step === 2){ placeTags2(); stepWaters(); }
+    if(step === 3){ placeTags3(); stepWaters3(); }
   },
 });
 
@@ -348,6 +352,7 @@ function unpair(b){
 
 canvas.addEventListener('pointerdown', e => {
   if(step === 2){ down2(e); try{ canvas.setPointerCapture(e.pointerId); }catch(_){} return; }
+  if(step === 3){ down3(e); try{ canvas.setPointerCapture(e.pointerId); }catch(_){} return; }
   if(step !== 1) return;
   const w = toWorld(e);
   const near = bases.map(b => ({ b, d:w.distanceTo(centreOf(b)) }))
@@ -362,6 +367,7 @@ canvas.addEventListener('pointerdown', e => {
 });
 canvas.addEventListener('pointermove', e => {
   if(step === 2) return move2(e);
+  if(step === 3) return move3(e);
   if(!held) return;
   const w = toWorld(e);
   for(const d of dragging){ d.b.mol.position.copy(w).add(d.off); d.b.mol.position.z = 0; }
@@ -380,7 +386,7 @@ canvas.addEventListener('dblclick', e => {
   refresh();
 });
 canvas.addEventListener('pointerup', e => {
-  held = null; dragging = []; held2 = null; drag2 = []; turning = null;
+  held = null; dragging = []; held2 = null; drag2 = []; turning = null; held3 = null;
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
   refresh();
 });
@@ -899,25 +905,7 @@ function join(host, guest){
       .map(i => worldAtom(guest, i)) ];
   const waterAt = gone.reduce((v, p) => v.add(p), new THREE.Vector3())
                       .multiplyScalar(1 / gone.length);
-  let spec;
-  if(kind === 'sugar'){
-    spec = assemble(host.spec, SUGAR, pose,
-      leaving(host.spec, 'glyco'), leaving(SUGAR, 'c1'),
-      keptAtom(host.spec, 'glyco'), keptAtom(SUGAR, 'c1'), '′');
-  } else {
-    // In the sugar's frame, then carried into the base's by the sugar's pose —
-    // the same composition joinTarget does, on the atoms rather than the mesh.
-    const s = attachPose(host.key, 'sugar');
-    const inBase = { quat:s.quat.clone().multiply(pose.quat),
-                     pos:pose.pos.clone().applyQuaternion(s.quat).add(s.pos) };
-    spec = assemble(host.spec, PHOS, inBase,
-      leaving(host.spec, 'c5'), leaving(PHOS, 'ester'),
-      keptAtom(host.spec, 'c5'), keptAtom(PHOS, 'ester'), 'ᴾ');
-  }
-  // The nucleotide keeps the sugar's roles so the NEXT join can read them: the
-  // phosphate esterifies an –OH that is now part of the assembled molecule, and
-  // `condense:` is where this page asks which atom that is.
-  spec.condense = kind === 'sugar' ? remapRoles(host.spec, SUGAR, spec) : null;
+  const spec = addPart(host.spec, host.key, kind);
 
   const at = host.mol.position.clone(), q = host.mol.quaternion.clone();
   host.stage++;
@@ -930,6 +918,32 @@ function join(host, guest){
   pairBonds();
   water(waterAt);
   say(host);
+}
+
+/* One part joined to a growing nucleotide, as SPEC ARITHMETIC — no mesh, no
+ * stage. Step 3 builds four finished nucleotides by calling this twice each,
+ * and it has to be the same code the drag runs or the two would drift into
+ * bonding different atoms. */
+function addPart(hostSpec, key, kind){
+  const pose = attachPose(key, kind);
+  if(kind === 'sugar'){
+    const spec = assemble(hostSpec, SUGAR, pose,
+      leaving(hostSpec, 'glyco'), leaving(SUGAR, 'c1'),
+      keptAtom(hostSpec, 'glyco'), keptAtom(SUGAR, 'c1'), '′');
+    // The nucleoside keeps the sugar's roles so the NEXT join can read them:
+    // the phosphate esterifies an –OH that is now part of the assembled
+    // molecule, and `condense:` is where this page asks which atom that is.
+    spec.condense = remapRoles(hostSpec, SUGAR, spec);
+    return spec;
+  }
+  // In the sugar's frame, then carried into the base's by the sugar's pose —
+  // the same composition joinTarget does, on the atoms rather than the mesh.
+  const s = attachPose(key, 'sugar');
+  const inBase = { quat:s.quat.clone().multiply(pose.quat),
+                   pos:pose.pos.clone().applyQuaternion(s.quat).add(s.pos) };
+  return assemble(hostSpec, PHOS, inBase,
+    leaving(hostSpec, 'c5'), leaving(PHOS, 'ester'),
+    keptAtom(hostSpec, 'c5'), keptAtom(PHOS, 'ester'), 'ᴾ');
 }
 
 /* The sugar's `c5` role, renumbered into the assembled spec. Read by NAME:
@@ -1031,11 +1045,11 @@ function stepWaters(){
 /* ---- what the step says --------------------------------------------------- */
 // Read off the assembled molecule, never typed: the bond length is measured
 // between the two atoms that now hold it.
-const note2 = document.getElementById('note2');
+const note = document.getElementById('note');
 function say(host){
   const done = Object.values(nucleo).filter(n => n.stage === 2).length;
   if(host.stage === 0){
-    note2.innerHTML = 'A base is not a nucleotide. Drag a <b>deoxyribose</b> onto '
+    note.innerHTML = 'A base is not a nucleotide. Drag a <b>deoxyribose</b> onto '
       + 'either base, then a <b>phosphate</b> onto the sugar.';
     return;
   }
@@ -1046,7 +1060,7 @@ function say(host){
     ? `Glycosidic bond, ${bond} Å. The base is on its sugar: a <b>nucleoside</b>.`
     : `Phosphoester bond, ${bond} Å. With a phosphate it is a <b>nucleotide</b>.`;
   if(done === 2) offerSpin();
-  note2.innerHTML = done === 2
+  note.innerHTML = done === 2
     ? 'Two nucleotides. Each is one base, one sugar, one phosphate, and each '
       + 'bond cost a water. <b>Drag to turn them</b> — the sugars sit under the '
       + 'bases, not across them. Step 3 joins them into a strand.'
@@ -1158,6 +1172,286 @@ function placeTags2(){
     p.tag.style.left = ((c.x*0.5+0.5) * r.width) + 'px';
     p.tag.style.top  = ((-b.y*0.5+0.5) * r.height + 8) + 'px';
   }
+}
+
+
+/* =============================================================================
+ *  STEP 3 — the backbone: one phosphodiester bond, and a direction
+ * =============================================================================
+ *  Two finished nucleotides, both built by the same addPart() the drag runs in
+ *  step 2, joined by the third condensation: the 3′–OH of one meets the 5′
+ *  phosphate of the next, a water leaves, and what is left is a strand.
+ *
+ *  WHY THE VIEW TURNS. Steps 1 and 2 are face-on to the base plane, which is
+ *  the view a rung reads in. A backbone runs along the OTHER axis — it is the
+ *  thing stacking, not the thing pairing — so this step stands the strand up,
+ *  the way step 4 stands the duplex up, and the bases go edge-on. That is the
+ *  picture the lesson wants: the backbone in front, the bases as the things
+ *  hanging off it.
+ *
+ *  WHAT THIS STEP DOES NOT SAY is that a straight ladder cannot be built. That
+ *  is step 4's argument and it needs twelve rungs to make it; two nucleotides
+ *  are in the pose the crystal has and nothing here is being untwisted.
+ * ========================================================================== */
+const G3 = new THREE.Group();
+G3.visible = false;
+// Local +z is the helix axis, so this puts the strand's growth direction up the
+// screen — G4's rotation, for G4's reason.
+G3.rotation.x = -Math.PI / 2;
+L.root.add(G3);
+
+// The two residues, in the order the record has them on one strand: 1BNA's
+// chain A runs …A→T…, so this is a step the crystal actually contains rather
+// than a pair of letters chosen for the page.
+const STRAND = ['adenine', 'thymine'];
+
+/* A finished nucleotide, as spec arithmetic. Same two calls the student makes
+ * in step 2, in the same order, so the molecule this step starts from is the
+ * one that step ends on. */
+function nucleotideSpec(key){
+  return addPart(addPart(M[key], key, 'sugar'), key, 'phosphate');
+}
+
+/* Our labels out, PDB labels in. attach.js speaks the record's names — it has
+ * to, since that is what it reads — and the merged spec's are this page's own
+ * invention, so the translation lives here rather than in the module. */
+const PDB_OF = { "C1'":'C1′', "C2'":'C2′', "C3'":'C3′', "C4'":'C4′', "C5'":'C5′',
+                 "O3'":'O3′', "O4'":'O4′', "O5'":'O5′', 'P':'Pᴾ' };
+function pdbAtoms(spec, suffix){
+  const out = {};
+  for(const pdb in PDB_OF){
+    const i = spec.names.indexOf(PDB_OF[pdb] + (suffix || ''));
+    if(i >= 0) out[pdb] = spec.atoms[i].pos.map(v => v / S);   // attach.js is in Å
+  }
+  return out;
+}
+
+const link3 = {};                       // the solved pose, cached like step 2's
+function linkPose(){
+  if(!link3.done){
+    link3.done = true;
+    const r = Attach.link(STRAND[0], STRAND[1],
+                          pdbAtoms(nucleotideSpec(STRAND[0])),
+                          pdbAtoms(nucleotideSpec(STRAND[1])));
+    if(r.ok) link3.pose = { quat:new THREE.Quaternion(...r.quat),
+                            pos:new THREE.Vector3(...r.pos).multiplyScalar(S),
+                            rms:r.rms, length:r.length };
+  }
+  return link3.pose;
+}
+
+/* ---- the two pieces ------------------------------------------------------- */
+const strand = { rows:[], joined:false };
+{
+  const spec0 = nucleotideSpec(STRAND[0]);
+  const a = { key:STRAND[0], spec:spec0, kind:'nucleotide' };
+  a.tag = tagEl(); a.mol = null;
+  build3(a, spec0, new THREE.Vector3(0, 0, 0), new THREE.Quaternion());
+
+  const spec1 = nucleotideSpec(STRAND[1]);
+  const b = { key:STRAND[1], spec:spec1, kind:'nucleotide' };
+  b.tag = tagEl(); b.mol = null;
+  const t = linkPose();
+  // Waiting to one side of where it belongs, in SCREEN terms: the offset is
+  // built in world space and converted, so "down and to the right" stays down
+  // and to the right whatever this group's rotation is.
+  const home = t ? t.pos.clone() : new THREE.Vector3(0, 0, 12);
+  const start = G3.worldToLocal(
+    G3.localToWorld(home.clone()).add(new THREE.Vector3(13, -13, 0)));
+  build3(b, spec1, start, t ? t.quat.clone() : new THREE.Quaternion());
+  strand.rows = [a, b];
+  a.tag.textContent = 'Nucleotide'; b.tag.textContent = 'Nucleotide';
+}
+
+function tagEl(){
+  const el = document.createElement('div');
+  el.className = 'tag';
+  document.getElementById('stage').appendChild(el);
+  return el;
+}
+
+function build3(row, spec, at, quat){
+  const old = row.mol;
+  row.spec = spec;
+  row.mol = Stage.buildMolecule(flat(spec), { center:false });
+  row.mol.position.copy(at); row.mol.quaternion.copy(quat);
+  G3.add(row.mol);
+  if(old){ G3.remove(old); disposeTree(old); }
+  const h = spec.atoms.filter(a => a.el !== 'H');
+  row.centre = h.reduce((v,a)=>v.add(new THREE.Vector3(...a.pos)), new THREE.Vector3())
+                .multiplyScalar(1/h.length);
+}
+
+/* ---- the join ------------------------------------------------------------- */
+// Which of the phosphate's two spare hydroxyls is the one that reacts: the one
+// that ends up nearest the oxygen it is being replaced by. Asking the geometry
+// beats naming one, because the phosphate's three –OH are equivalent and which
+// is which is an accident of the record it was converted from.
+function esterOH(row, toward){
+  let best = null;
+  for(const n of ['O2ᴾ', 'O3ᴾ']){
+    const i = row.spec.names.indexOf(n);
+    if(i < 0) continue;
+    const d = atom3(row, i).distanceTo(toward);
+    if(!best || d < best.d) best = { d, o:i, h:row.spec.names.indexOf('H' + n) };
+  }
+  return best;
+}
+const atom3 = (row, i) => new THREE.Vector3(...row.spec.atoms[i].pos)
+  .applyQuaternion(row.mol.quaternion).add(row.mol.position);
+const named3 = (row, n) => row.spec.names.indexOf(n);
+
+function tryLink(){
+  if(!held3 || strand.joined) return;
+  const t = linkPose();
+  if(!t || flatDist(g3World(held3.mol.position), g3World(t.pos)) > LATCH2) return;
+
+  held3 = null; drag3 = null;
+  const b = strand.rows[1], from = b.mol.position.clone(), fq = b.mol.quaternion.clone();
+  L.motion.seq([
+    { dur:0.3, ease:'outBack', onUpdate:u=>{
+        b.mol.position.lerpVectors(from, t.pos, u);
+        THREE.Quaternion.slerp(fq, t.quat, b.mol.quaternion, u);
+      }},
+    { call:joinStrand },
+  ], { tag:'link3' });
+}
+const g3World = v => G3.localToWorld(v.clone());
+
+function joinStrand(){
+  const [a, b] = strand.rows;
+  const o3 = named3(a, 'O3′'), h3 = named3(a, 'HO3′');
+  const oh = esterOH(b, atom3(a, o3));
+  const waterAt = [atom3(a, h3), atom3(b, oh.o), atom3(b, oh.h)]
+    .reduce((v, p) => v.add(p), new THREE.Vector3()).multiplyScalar(1/3);
+  const bondAt = atom3(a, o3).add(atom3(b, named3(b, 'Pᴾ'))).multiplyScalar(0.5);
+
+  // b's atoms are in b's frame; assemble() wants the guest's pose in the host's,
+  // which is exactly the solved link.
+  const spec = assemble(a.spec, b.spec, linkPose(), [h3], [oh.o, oh.h],
+                        o3, named3(b, 'Pᴾ'), '₂');
+  const at = a.mol.position.clone(), q = a.mol.quaternion.clone();
+  G3.remove(b.mol); disposeTree(b.mol); b.tag.remove();
+  build3(a, spec, at, q);
+  strand.joined = true;
+  a.tag.textContent = 'Dinucleotide';
+
+  if(L.fx) L.fx.condense(g3World(bondAt), g3World(waterAt), { size:1.1 });
+  water3(waterAt);
+  endTags();
+  say3();
+}
+
+// The released water, drawn by step 2's own code — it lives under SPIN, so it
+// is given the point in world space and put where this step can see it.
+function water3(local){
+  const mol = Stage.buildMolecule(flat(M.water), { center:true });
+  mol.position.copy(local);
+  const mats = [];
+  mol.traverse(o => { if(o.material){ o.material.transparent = true; mats.push(o.material); } });
+  G3.add(mol);
+  const el = document.createElement('div');
+  el.className = 'leaving';
+  el.textContent = M.water.formula;
+  document.getElementById('stage').appendChild(el);
+  waters3.push({ mol, mats, el, at:local.clone(), born:performance.now() });
+}
+const waters3 = [];
+function stepWaters3(){
+  const r = canvas.getBoundingClientRect();
+  const now = performance.now();
+  for(let i = waters3.length - 1; i >= 0; i--){
+    const w = waters3[i];
+    const t = (now - w.born) / 1000, u = t / WATER_LIFE;
+    w.mol.position.copy(w.at).add(new THREE.Vector3(u * 7, u * 6, u * 6));
+    const fade = Math.max(0, Math.min(1, (1 - u) * 1.5));
+    for(const m of w.mats) m.opacity = fade;
+    const v = g3World(w.mol.position).add(new THREE.Vector3(0, 1.6, 0)).project(L.camera);
+    w.el.style.left = ((v.x*0.5+0.5) * r.width) + 'px';
+    w.el.style.top  = ((-v.y*0.5+0.5) * r.height) + 'px';
+    w.el.style.opacity = String(fade);
+    if(t > WATER_LIFE){ G3.remove(w.mol); disposeTree(w.mol); w.el.remove();
+                        waters3.splice(i, 1); }
+  }
+}
+
+/* ---- the two ends, which is the whole point of the step -------------------
+ * A strand is not symmetric. One end finishes at a phosphate hanging off C5′
+ * and the other at the –OH on C3′, so the chain has a direction, and every
+ * enzyme that reads or copies DNA reads it one way only. The labels are put on
+ * the ATOMS that make each end what it is, not near them. */
+const endTag = () => { const e = tagEl(); e.className = 'tag end'; return e; };
+const ends = [endTag(), endTag()];
+ends.forEach(e => e.style.display = 'none');
+function endTags(){
+  ends[0].textContent = "5′ end"; ends[1].textContent = "3′ end";
+  ends.forEach(e => e.style.display = '');
+}
+function placeEnds(){
+  if(!strand.joined) return;
+  const a = strand.rows[0], r = canvas.getBoundingClientRect();
+  const at = [named3(a, 'Pᴾ'), named3(a, 'O3′₂')];
+  ends.forEach((el, i) => {
+    if(at[i] < 0){ el.style.display = 'none'; return; }
+    const v = g3World(atom3(a, at[i])).project(L.camera);
+    el.style.left = ((v.x*0.5+0.5) * r.width) + 'px';
+    el.style.top  = ((-v.y*0.5+0.5) * r.height) + 'px';
+  });
+}
+
+/* ---- what the step says --------------------------------------------------- */
+function say3(){
+  const a = strand.rows[0];
+  if(!strand.joined){
+    note.innerHTML = 'Two nucleotides, same strand. Drag the loose one onto the '
+      + "other's <b>3′ –OH</b> — the sugar's spare hydroxyl, at the bottom right "
+      + 'of its ring.';
+    return;
+  }
+  const i = named3(a, 'O3′'), j = named3(a, 'Pᴾ₂');
+  const d = (new THREE.Vector3(...a.spec.atoms[i].pos)
+    .distanceTo(new THREE.Vector3(...a.spec.atoms[j].pos)) / S).toFixed(2);
+  note.innerHTML = `Phosphodiester bond, ${d} Å — the third condensation, and `
+    + 'the same reaction as the other two. The backbone is now sugar, phosphate, '
+    + 'sugar, and the bases hang off it. <b>It has a direction</b>: a phosphate '
+    + 'at one end, a free –OH at the other, and every enzyme that reads DNA runs '
+    + '5′ → 3′.';
+}
+
+/* ---- drag ----------------------------------------------------------------- */
+let held3 = null, drag3 = null;
+function down3(e){
+  if(strand.joined) return;
+  const b = strand.rows[1];
+  const w = toWorld(e);
+  const c = g3World(b.centre.clone().applyQuaternion(b.mol.quaternion).add(b.mol.position));
+  if(w.distanceTo(c) > 9) return;
+  held3 = b;
+  drag3 = b.mol.position.clone().sub(G3.worldToLocal(w.clone()));
+}
+function move3(e){
+  if(!held3) return;
+  held3.mol.position.copy(G3.worldToLocal(toWorld(e))).add(drag3);
+  tryLink();
+}
+
+function placeTags3(){
+  const r = canvas.getBoundingClientRect();
+  for(const row of strand.rows){
+    if(!row.mol.parent){ row.tag.style.display = 'none'; continue; }
+    let lo = null;
+    for(const a of row.spec.atoms){
+      const v = g3World(new THREE.Vector3(...a.pos)
+        .applyQuaternion(row.mol.quaternion).add(row.mol.position));
+      if(!lo || v.y < lo.y) lo = v;
+    }
+    const c = g3World(row.centre.clone()
+      .applyQuaternion(row.mol.quaternion).add(row.mol.position)).project(L.camera);
+    const b = lo.project(L.camera);
+    row.tag.style.left = ((c.x*0.5+0.5) * r.width) + 'px';
+    row.tag.style.top  = ((-b.y*0.5+0.5) * r.height + 8) + 'px';
+  }
+  placeEnds();
 }
 
 /* =============================================================================
@@ -1353,7 +1647,7 @@ setStartPose('guanine','cytosine');
 const STEPS = [
   { n:1, title:'A pair holds', sub:'hydrogen bonds', ready:true },
   { n:2, title:'The nucleotide', sub:'sugar + phosphate', ready:true },
-  { n:3, title:'The backbone', sub:'joined by dehydration', ready:false },
+  { n:3, title:'The backbone', sub:'joined by dehydration', ready:true },
   { n:4, title:'Ladder to helix', sub:'where grooves come from', ready:true },
 ];
 
@@ -1364,6 +1658,7 @@ function showStep(n){
   step = n;
   G1.visible = (n === 1);
   G2.visible = (n === 2);
+  G3.visible = (n === 3);
   G4.visible = (n === 4);
   // DOM that belongs to step 1 has to be hidden by hand — it is not in the
   // scene graph, so nothing else is going to hide it.
@@ -1371,8 +1666,11 @@ function showStep(n){
   for(const r of rulers) r.label.style.display = 'none';
   for(const p of Object.values(nucleo).concat(loose))
     p.tag.style.display = (n === 2) ? '' : 'none';
-  note2.classList.toggle('on', n === 2);
+  note.classList.toggle('on', n === 2 || n === 3);
   if(n !== 2 && spinning) stopSpin();
+  for(const row of strand.rows) row.tag.style.display = (n === 3) ? '' : 'none';
+  for(const e of ends) e.style.display = (n === 3 && strand.joined) ? '' : 'none';
+  if(n === 3) say3();
   if(n === 2){ pairBonds(); say(nucleo.adenine); }
   twistBar.classList.toggle('on', n === 4);
   document.getElementById('twistread').classList.toggle('on', n === 4);

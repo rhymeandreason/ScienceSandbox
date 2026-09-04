@@ -60,6 +60,7 @@
     { "source": "/glycolysis", "destination": "/demos/glycolysis-lab.html" },
     { "source": "/membrane",   "destination": "/demos/membrane-lab.html" },
     { "source": "/nodes",      "destination": "/demos/nodegraph/nodegraph.html" },
+    { "source": "/admin",      "destination": "/demos/admin.html" },
 
     { "source": "/proteins",   "destination": "/demos/proteins/index.html" },
     { "source": "/proteins/reactions", "destination": "/demos/proteins/reaction-map.html" },

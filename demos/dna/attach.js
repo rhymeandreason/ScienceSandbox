@@ -259,10 +259,99 @@
              length:dist(at(sugarSpec,'O5'), f.apply(at(phosSpec,'P'))) };
   }
 
+  /* ---- the phosphodiester bond ----------------------------------------------
+   * Step 3's join, and the only one between two whole nucleotides: the 3′–OH of
+   * one meets the 5′ phosphate of the next, a water leaves, and the backbone
+   * gains a residue. Same method as the other two — the record already holds
+   * every consecutive pair on both strands, so the pose is read, not composed
+   * out of a rise and a twist.
+   *
+   * READING IT PER-RESIDUE RATHER THAN AS THE HELICAL STEP is the point. The
+   * step transform (bdna.step) would place the next pair correctly and say
+   * nothing about whether the backbone closes; here the two atoms that have to
+   * meet are what the fit is anchored on, so `length` comes back as the bond it
+   * actually made. A page can then quote it instead of asserting it.
+   *
+   * `atomsA` / `atomsB` are name→position maps in the CALLER's frame, PDB names
+   * with their primes, because a page's assembled nucleotide has labels of its
+   * own making and this module should not have to know them. */
+  const LINK_ANCHOR = ['P', "O5'", "C5'"];   // the bond, and what fixes its angles
+
+  function link(keyA, keyB, atomsA, atomsB){
+    const pair = consecutive(LETTER[keyA], LETTER[keyB]);
+    if(!pair) return { ok:false, why:`no ${keyA}→${keyB} step on either strand` };
+    const [depA, depB] = pair;
+
+    // 1BNA's frame → our nucleotide A's, anchored on the 3′ end and not on the
+    // whole residue. Fitting all nine shared atoms is the tempting version and
+    // it puts the bond at 4.5 Å: our sugar's pucker is its own, so a whole-
+    // residue fit lands O3′ half an ångström out and the phosphate arrives
+    // where the record says rather than where the oxygen is. SUGAR_ANCHOR's
+    // argument, one join further along.
+    const anchorA = ["O3'", "C3'", "C4'"]
+      .map(n => ({ mine:atomsA[n], theirs:depA[n] || depA[prime(n)] }))
+      .filter(x => x.mine && x.theirs);
+    if(anchorA.length < 3) return { ok:false, why:'the 3′ end is not in both' };
+    const toA = fit(anchorA.map(x=>x.theirs), anchorA.map(x=>x.mine));
+
+    const pairs = LINK_ANCHOR
+      .map(n => ({ mine:atomsB[n], theirs:depB[n] || depB[prime(n)] }))
+      .filter(x => x.mine && x.theirs);
+    if(pairs.length < 3) return { ok:false, why:'fewer than three shared atoms on B' };
+    const f = fit(pairs.map(x=>x.mine), pairs.map(x=>toA.apply(x.theirs)));
+
+    return { ok:true, quat:f.quat, pos:f.apply([0,0,0]), apply:f.apply, rms:f.rms,
+             bond:{ from:"O3'", to:'P' },
+             length:dist(atomsA["O3'"], f.apply(atomsB.P)) };
+  }
+
+  const prime = n => n.endsWith("'") ? n.slice(0,-1) + '′' : n + '′';
+
+  /* Two residues that follow each other ALONG A STRAND, in that order. The
+   * record's `links` are the phosphodiester bonds themselves, so this asks the
+   * bonds rather than assuming pair i is followed by pair i+1 — which is true
+   * on one strand and false on the other, and that reversal is the whole of
+   * what antiparallel means. */
+  function consecutive(a, b){
+    const B = record();
+    for(const l of B.links){
+      const from = residueAt(B, l.from.pair, l.strand);
+      const to   = residueAt(B, l.to.pair,   l.strand);
+      if(!from || !to) continue;
+      if(letterOf(B, l.from.pair, l.strand) !== a) continue;
+      if(letterOf(B, l.to.pair,   l.strand) !== b) continue;
+      if(!to.P) continue;                       // a 5′ end has no phosphate
+      return [from, to];
+    }
+    return null;
+  }
+  const letterOf = (B, i, strand) => B.pairs[i].seq.split('-')[strand];
+
+  /* IN THE DEPOSITED FRAME, not the pair's own. Every pair in the record holds
+   * its atoms in a local frame plus an `origin`/`basis` that places it, because
+   * step 4 twists the pairs by moving those placements. Two residues on one
+   * strand belong to DIFFERENT pairs, so comparing their local coordinates
+   * measures nothing: the phosphodiester bond came out at 5.2 Å, which is
+   * roughly the answer for two residues stacked without any twist — a plausible
+   * number, and the reason the mistake was not obvious. */
+  function residueAt(B, i, strand){
+    const pair = B.pairs[i], chain = strand === 0 ? 'A' : 'B', out = {};
+    const b = pair.basis, o = pair.origin;
+    for(const name in pair.index){
+      if(!name.startsWith(chain + ':')) continue;
+      const a = pair.atoms[pair.index[name]].p;
+      out[name.slice(2)] = [
+        o[0] + a[0]*b[0][0] + a[1]*b[1][0] + a[2]*b[2][0],
+        o[1] + a[0]*b[0][1] + a[1]*b[1][1] + a[2]*b[2][1],
+        o[2] + a[0]*b[0][2] + a[1]*b[1][2] + a[2]*b[2][2] ];
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
   const glycosidicN = key => (key==='adenine'||key==='guanine') ? 'N9' : 'N1';
   const dist = (a,b) => a && b ? Math.hypot(b[0]-a[0], b[1]-a[1], b[2]-a[2]) : null;
 
-  const API = { sugar, phosphate, fit, residue, glycosidicN };
+  const API = { sugar, phosphate, link, fit, residue, glycosidicN };
   global.Attach = API;
   if(typeof module !== 'undefined' && module.exports) module.exports = { Attach:API };
 
