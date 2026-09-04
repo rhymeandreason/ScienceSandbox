@@ -61,6 +61,20 @@ c.sim; c.box;                    // the layers under it, for a page that outgrow
 
 Every `mount` takes `viewOffset: shell.viewOffset`, the function that centres the scene in the room the panel leaves. Always pass it.
 
+### Movement: set() glides
+
+**A param a step sets is a move the student watches, so `set()` animates it.** You write the destination and the component takes the time it needs: `L.set({ aperture: 0 })` closes the stomata over about a second, it does not teleport them shut. Do not tween it yourself, and never reach for `setTimeout` — a backgrounded tab fires timers while the picture is frozen, and the student comes back to a scene that moved without them.
+
+**A param the student is DRAGGING has to track the thumb**, so a slider passes `snap`:
+
+```js
+ui.range(ui.q('#aperture'), v => L.set({ aperture: v }, { snap: true }));
+```
+
+Not everything can glide. A param that rebuilds the geometry — a new seed, a layer's thickness — snaps whatever you pass, because a leaf dissolving into a different leaf is not a transition. Each component's section says which of its params move.
+
+To play one on a timeline rather than a control, set the destination when the step opens and let it run; if a step needs several movements in sequence, give each its own step. A component's animation is a property of the component, not a script the page writes.
+
 ### Notes: pointing at the scene
 
 Every component has named parts, and a callout can be pinned to any of them. **A question about a thing on stage is answered with a note on that thing**, in the library's words, plus at most one sentence of copy. Not a paragraph.
@@ -281,7 +295,9 @@ const L = Leaf.mount(el, {
 
 Layer names, bottom to top: `lowerEpi` (with stomata), `spongy` (air spaces, cells with chloroplasts), `bundle` (the vein: xylem above, phloem below), `palisade` (columns packed with chloroplasts, where most photosynthesis happens), `upperEpi` with the waxy cuticle on top. Hovering a layer lights it and clicking isolates it; the page can do the same with `set({isolate})`. Nothing here is measured: the proportions are a textbook diagram's, and the page should say so if it makes a claim about size.
 
-`aperture` opens and closes every stoma at once: turgid guard cells bow apart and a pore appears between them, drained they meet and it shuts. It is the one thing in this component that moves, so a step about water loss or gas exchange animates it (`set({aperture})` on a tween, or on a slider the student drags) and turns the leaf over to watch, which the camera allows. The underside is where the stomata are.
+`aperture` opens and closes every stoma at once: turgid guard cells bow apart and a pore appears between them, drained they meet and it shuts. It is the thing in this component that a lesson moves, so a step about water loss or gas exchange sets it and turns the leaf over to watch, which the camera allows. The underside is where the stomata are.
+
+Glides: `aperture`, `explode`, and the fade `isolate` puts on everything else. Snaps: `seed`, `layers`, `width`, `depth`, all of which rebuild.
 
 `state()`: `explode`, `seed`, `isolate`, `aperture`, `hovered`, and `layers` as a list of `{name, y, height}`. Events: `frame` (state) · `hover` (name or null) · `select` (name or null).
 

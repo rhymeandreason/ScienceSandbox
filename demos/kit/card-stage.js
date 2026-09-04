@@ -14,6 +14,10 @@
  *    const pool = CardStage.pool({ limit: 4 });
  *    pool.acquire('salt', () => CardStage.create({...}));   // evicts the LRU
  *
+ *    const tw = CardStage.tweens();     // a component's params, glided
+ *    tw.to(from, to, 0.8, v => apply(v), { key:'aperture', ease:'smooth' });
+ *    tw.update(dt);                     // from the component's step()
+ *
  * ---------------------------------------------------------------------
  *  WHY THIS EXISTS, GIVEN THAT TWO MODULES ALREADY DID IT
  * ---------------------------------------------------------------------
@@ -411,5 +415,64 @@
     return el;
   }
 
-  global.CardStage = { showPanel, create, pool };
+
+  /* ---- scalar tweens ----
+     A component's own params glide: set({aperture}) is a move, not a jump,
+     because a stoma that teleports shut teaches nothing about closing. Every
+     component already requires this file, so the helper lives here rather than
+     costing a generated page a script tag it can forget.
+
+     THE SPLIT WITH kit/motion.js, which is the other tweener in the repo and
+     stays the one for a PAGE: motion.js sequences beats, seeks, and rides two
+     clocks so a beat that advances lesson state fires in a hidden tab. None of
+     that is a component's problem — a scalar param owes a background tab
+     nothing, so this is the render loop and arithmetic. The easing NAMES are
+     motion.js's, so the same word means the same curve in both.
+
+     Keyed: a second set() of the same param replaces the tween in flight
+     rather than racing it, which is what a student dragging past a step's own
+     animation does. */
+  const EASE = {
+    linear:     t => t,
+    smooth:     t => t * t * (3 - 2 * t),
+    outCubic:   t => 1 - Math.pow(1 - t, 3),
+    inOutCubic: t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2,
+    outBack:    t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
+  };
+
+  function tweens() {
+    let list = [];
+    return {
+      /* dur 0 (or no dur) applies the target now: the snap path, so a caller
+         that is following a drag does not need a second code path. */
+      to(from, to, dur, onUpdate, { ease = 'smooth', key = null, onDone = null } = {}) {
+        if (key) list = list.filter(t => t.key !== key);
+        if (!(dur > 0) || from === to) { onUpdate(to); if (onDone) onDone(); return null; }
+        const tw = { from, to, dur, t: 0, onUpdate, key, onDone, done: false,
+                     ease: typeof ease === 'function' ? ease : (EASE[ease] || EASE.smooth) };
+        list.push(tw);
+        onUpdate(from);
+        return tw;
+      },
+      /* dt CLAMPED, like motion.js: an alt-tab of 40s otherwise arrives as one
+         40-second frame and every tween completes inside it. */
+      update(dt) {
+        if (!list.length) return false;
+        const d = Math.min(dt == null ? 1 / 60 : dt, 0.1);
+        for (const tw of list) {
+          tw.t += d;
+          const k = tw.t / tw.dur;
+          const u = k < 0 ? 0 : k > 1 ? 1 : k;
+          tw.onUpdate(tw.from + (tw.to - tw.from) * tw.ease(u));
+          if (u >= 1) { tw.done = true; if (tw.onDone) tw.onDone(); }
+        }
+        list = list.filter(t => !t.done);
+        return true;
+      },
+      cancel(key) { list = key == null ? [] : list.filter(t => t.key !== key); },
+      get busy() { return list.length > 0; },
+    };
+  }
+
+  global.CardStage = { showPanel, create, pool, tweens, EASE };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

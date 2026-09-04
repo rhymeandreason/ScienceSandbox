@@ -44,6 +44,7 @@ const NAMES = { cuticle:'cuticle', upperEpi:'upper epidermis', palisade:'palisad
 const THICK = ['cuticle', 'upperEpi', 'palisade', 'spongy', 'lowerEpi'];
 const D = Leaf.DEFAULTS;
 /* What a step would offer. Change these two and the snippet changes with them. */
+const SNAP = { snap: true };
 const CHIPS = { notes: ['palisade', 'spongy', 'stoma'], layers: ['chloroplasts', 'cuticle'] };
 
 const shell = LessonShell.create({
@@ -120,9 +121,11 @@ function bench(ctx) {
   };
   ui.q('#copy').onclick = () => navigator.clipboard.writeText(out.textContent);
 
-  ui.range(ui.q('#explode'), v => { L.set({ explode: v }); ui.q('[data-v=explode]').textContent = v.toFixed(2); });
+  /* Every slider snaps: a drag that a 0.9s glide is chasing feels broken. A
+     step that sets the same value from a button is the case that glides. */
+  ui.range(ui.q('#explode'), v => { L.set({ explode: v }, SNAP); ui.q('[data-v=explode]').textContent = v.toFixed(2); });
   ui.range(ui.q('#aperture'), v => {
-    L.set({ aperture: v });
+    L.set({ aperture: v }, SNAP);
     ui.q('[data-v=aperture]').textContent = v === 0 ? 'shut' : v === 1 ? 'open' : v.toFixed(2);
     snippet();
   });
@@ -130,7 +133,7 @@ function bench(ctx) {
   ui.q('#regen').onclick = () => L.set({ seed: (Math.random() * 1e9) >>> 0 });
 
   for (const n of THICK) ui.range(ui.q(`#t-${n}`), v => {
-    L.set({ layers: { [n]: v } });
+    L.set({ layers: { [n]: v } }, SNAP);
     ui.q(`[data-v=${n}]`).textContent = v.toFixed(2);
     snippet();
   });

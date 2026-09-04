@@ -41,27 +41,6 @@
   const easeOut = t => 1 - Math.pow(1 - t, 3);
   const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
-  /* One clock of scalar tweens; a key replaces a running tween of the same key. */
-  class Tweens {
-    constructor() { this.list = []; }
-    to(from, to, dur, onUpdate, { ease = easeInOut, key = null, onDone = null } = {}) {
-      if (key) this.list = this.list.filter(t => t.key !== key);
-      const tw = { from, to, dur, t: 0, onUpdate, ease, key, onDone, done: false };
-      this.list.push(tw);
-      onUpdate(from);
-      return tw;
-    }
-    update(dt) {
-      for (const tw of this.list) {
-        tw.t += dt;
-        const k = clamp(tw.t / tw.dur, 0, 1);
-        tw.onUpdate(lerp(tw.from, tw.to, tw.ease(k)));
-        if (k >= 1) { tw.done = true; if (tw.onDone) tw.onDone(); }
-      }
-      this.list = this.list.filter(t => !t.done);
-    }
-  }
-
   function mulberry32(a) {
     return function () {
       a |= 0; a = (a + 0x6D2B79F5) | 0;
@@ -351,7 +330,8 @@
     P.flows = Object.assign({}, DEFAULTS.flows, opts.flows || {});
     const listeners = {};
     const emit = (ev, ...a) => (listeners[ev] || []).forEach(fn => fn(...a));
-    const tweens = new Tweens();
+    if (!global.CardStage) throw new Error('tree.js: load kit/card-stage.js first');
+    const tweens = global.CardStage.tweens();
     const V3 = () => new THREE.Vector3();
 
     /* Lights: a sun, not a studio. r128's lights are not physical units, so
@@ -475,11 +455,11 @@
     function setDaylight(target) {
       P.daylight = target;
       emit('night', target < 0.5);
-      tweens.to(daylight, target, 1.2, applyDaylight, { key: 'day' });
+      tweens.to(daylight, target, 1.2, applyDaylight, { key: 'day', ease: 'inOutCubic' });
     }
     function setTreeOpacity(target, dur = 0.9) {
       P.treeOpacity = target;
-      tweens.to(treeOpacity, target, dur, v => { treeOpacity = v; tree.setOpacity(v); }, { key: 'ghost' });
+      tweens.to(treeOpacity, target, dur, v => { treeOpacity = v; tree.setOpacity(v); }, { key: 'ghost', ease: 'inOutCubic' });
     }
     function showPotScene(on) {
       P.potScene = on;

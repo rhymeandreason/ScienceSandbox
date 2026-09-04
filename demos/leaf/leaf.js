@@ -13,7 +13,11 @@
  *      Leaf.create(THREE, root, camera, opts)     the model: root is yours
  *      Leaf.mount(el, params)                     one box, one handle
  *
- *  Params, all live through set():
+ *  Params, all live through set(next, {snap}). explode, aperture and the
+ *  isolate fade GLIDE; a caller following a drag passes {snap:true} so the
+ *  value tracks the thumb. Anything that rebuilds geometry snaps regardless.
+ *
+ *  Params:
  *      explode     0..1, the layers lifted apart
  *      seed        integer; changing it rebuilds
  *      isolate     a layer name to keep opaque while the rest fade, or null
@@ -86,6 +90,15 @@
        a leaf that regenerates its cells every time a stoma breathes reads as
        a glitch, and rebuilding a few hundred capsules per frame would stutter. */
     const stomata = [];
+
+    /* The params that glide, and how long each takes. A value a STEP sets is a
+       move the student is meant to watch; a value they are DRAGGING has to
+       track the thumb, so set({...}, {snap:true}) is the slider's path.
+       Anything that rebuilds geometry — seed, layer heights, width, depth —
+       cannot be tweened across and is not in here. */
+    const tw = global.CardStage.tweens();
+    const GLIDE = { aperture: 0.8, explode: 0.9, dim: 0.35 };
+    let dim = 0;                  // 0..1, how far the un-isolated layers have faded
     let Y = {}, W = P.width, D = P.depth, bundle = null;
 
     function layer(name, baseY) {
@@ -313,16 +326,21 @@
         g.position.y = P.explode * (n === 'bundle' ? 2 : i) * 1.6;
       });
     }
+    /* `dim` is how far the fade has run, so isolating is a dissolve rather than
+       a slam. depthWrite goes off as soon as a layer starts fading: a
+       half-transparent layer still writing depth punches holes in what it is
+       supposed to be revealing. */
     function applyIsolate() {
       for (const n in layers) {
-        const dim = !!P.isolate && n !== P.isolate;
+        const out = !!P.isolate && n !== P.isolate ? dim : 0;
         const M = layers[n].userData.M;
         for (const k in M) {
           const mm = M[k];
           if (mm.userData.baseOpacity == null) { mm.userData.baseOpacity = mm.opacity; mm.userData.baseTransparent = mm.transparent; }
-          mm.transparent = dim ? true : mm.userData.baseTransparent;
-          mm.opacity = dim ? 0.12 : mm.userData.baseOpacity;
-          mm.depthWrite = !dim;
+          const base = mm.userData.baseOpacity;
+          mm.transparent = out > 0 ? true : mm.userData.baseTransparent;
+          mm.opacity = base + (0.12 - base) * out;
+          mm.depthWrite = out < 0.02;
         }
       }
     }
@@ -364,9 +382,9 @@
        LENGTH fixed while the angle grows bends one cell rather than growing
        it — R = L / arc. Turgid cells are fatter too, so the tube thickens.
 
-       ONE geometry serves every stoma, rebuilt when the aperture changes and
-       never per frame: a few dozen tori per frame is a stutter for a shape
-       that only moves when the student moves it. */
+       ONE geometry serves every stoma — a couple of hundred vertices built once
+       and shared by every mesh, so a glide costs one small buffer per frame
+       rather than one per cell. */
     const STOMA_LEN = 0.72, STOMA_PITCH = 1.15;
     function guardGeometry() {
       const a = Math.max(0, Math.min(1, P.aperture));
@@ -381,14 +399,13 @@
     function applyAperture() {
       if (!stomata.length) return;
       const geo = guardGeometry();
-      for (const st of stomata) for (const gm of st.children) {
-        const old = gm.geometry;
-        gm.geometry = geo;
-        if (old !== geo) old.dispose();
-      }
+      const old = stomata[0].children[0].geometry;
+      for (const st of stomata) for (const gm of st.children) gm.geometry = geo;
+      if (old !== geo) old.dispose();          // once: every mesh shared it
     }
 
     function step(dt) {
+      tw.update(dt);
       if (P.autoRotate) block.rotation.y += dt * 0.25;
       pick();
       const s = state();
@@ -400,14 +417,25 @@
         layers: ORDER.map(n => ({ name: n, y: (Y[n === 'bundle' ? 'spongy' : n] || 0) + (layers[n] ? layers[n].position.y : 0),
                                   height: n === 'bundle' ? bundle.r * 2 : P.layers[n] })) };
     }
-    function set(next) {
+    function set(next, opts = {}) {
       const rebuild = next.seed != null && next.seed !== P.seed
         || next.layers || next.width != null || next.depth != null;
+      /* A rebuild throws the geometry away, so nothing can glide across one:
+         a leaf dissolving into a different leaf is not a transition. */
+      const dur = k => (opts.snap || rebuild ? 0 : GLIDE[k]);
+      const from = { explode: P.explode, aperture: P.aperture };
+
       if (next.layers) P.layers = Object.assign({}, P.layers, next.layers);
       for (const k of Object.keys(next)) if (k !== 'layers') P[k] = next[k];
       if (rebuild) build();
-      else { if (next.explode != null) applyExplode(); if ('isolate' in next) applyIsolate(); }
-      if (rebuild || next.aperture != null) applyAperture();
+
+      if (next.explode != null) tw.to(from.explode, P.explode, dur('explode'),
+        v => { P.explode = v; applyExplode(); }, { key: 'explode' });
+      if (next.aperture != null) tw.to(from.aperture, P.aperture, dur('aperture'),
+        v => { P.aperture = v; applyAperture(); }, { key: 'aperture' });
+      if ('isolate' in next) tw.to(dim, P.isolate ? 1 : 0, dur('dim'),
+        v => { dim = v; applyIsolate(); }, { key: 'dim' });
+      if (rebuild) applyAperture();
     }
     function on(ev, fn) {
       (listeners[ev] || (listeners[ev] = [])).push(fn);
@@ -517,7 +545,7 @@
       note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
       anchors: () => nb ? nb.list() : [],
       layers: leaf.layersOf, show: (n, on) => { leaf.show(n, on); if (!box.running) box.draw(); return this; }, palette: leaf.palette,
-      set(next) { leaf.set(next); if (next.explode != null || next.layers) frame(); return this; },
+      set(next, opts) { leaf.set(next, opts); if (next.explode != null || next.layers) frame(); return this; },
       state: () => last || leaf.state(),
       on: leaf.on,
       start: box.start, stop: box.stop, pump: box.pump,
