@@ -41,7 +41,6 @@
 .pill[hidden],
 .btn[hidden],
 .iconbtn[hidden],
-.stickybtn[hidden],
 .segmented[hidden],
 .textbtn[hidden] { display: none }
 
@@ -606,22 +605,28 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    rather than invented. Each is a base class plus modifiers, so a page picks a
    shape and then says only what is true of its own button (usually a colour).
 
-     .pill       capsule. The default for anything on the stage.
+     .cta        the page's action. Primary solid, .cta--ghost secondary.
+     .pill       capsule. The default for anything ON THE STAGE.
      .btn        drawn rectangle, ink border, inverts on hover. Docks and trays.
      .iconbtn    circular, one glyph. Play, info, close.
-     .stickybtn  a note torn off and stuck on. The notebook, as a control.
      .segmented  segmented control, joined by shared borders.
      .textbtn    underlined text. Undo, dismiss, anything reversible and minor.
+
+   .cta AND .pill ARE NOT THE SAME BUTTON. A .pill is an instrument standing on
+   the model's paper, so it is a solid body with a side and a shadow. A .cta is
+   a flat capsule set in a document, where a raised key would read as a sticker
+   on the page. Which one a control is depends on what it is lying on, not on
+   how important it is.
 
    Every one of them takes the same focus ring. Half the featured pages ship a
    focus ring today and half do not, and which half you are in is not something
    a student should be able to notice.
    ========================================================================== */
 
+.cta,
 .pill,
 .btn,
 .iconbtn,
-.stickybtn,
 .segmented > *,
 .textbtn {
   font-family: var(--font-ui);
@@ -630,24 +635,91 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   appearance: none;
 }
 
+.cta:focus-visible,
 .pill:focus-visible,
 .btn:focus-visible,
 .iconbtn:focus-visible,
-.stickybtn:focus-visible,
 .segmented > *:focus-visible,
 .textbtn:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-offset);
 }
 
+.cta[disabled],
 .pill[disabled],
 .btn[disabled],
 .iconbtn[disabled],
-.stickybtn[disabled],
 .segmented > *[disabled],
 .textbtn[disabled] {
   opacity: .45;
   cursor: default;
+}
+
+/* ---------- .cta ----------
+   The page's action, and the only control here that is usually an <a>. Two
+   weights and no third: solid where the page wants one answer, ghost where it
+   offers a second. A page recolours with --cta-fill and says nothing else.
+
+   IT LIFTS AND WARMS ON HOVER RATHER THAN DARKENING. The accent is already the
+   darkest thing on the paper; taking it further down reads as disabled, so
+   hover moves to the spark, which is the one other colour the system has and
+   the only place it is used at this size. */
+.cta {
+  --cta-fill: var(--accent);
+  --cta-hover: var(--spark);
+  display: inline-flex;
+  align-items: center;
+  gap: .6em;
+  padding: 1rem 2.2rem;
+  border: 1px solid var(--cta-fill);
+  border-radius: var(--radius-pill);
+  background: var(--cta-fill);
+  color: var(--text-inverse);
+  /* The display face, uppercase and letterspaced: a .cta is a small piece of
+     signage, which is the one job a geometric face is unambiguously for. */
+  font-family: var(--font-display);
+  font-size: .95rem;
+  font-weight: var(--weight-medium);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  line-height: 1;
+  /* A capsule does not wrap. Squeezed in a flex row it would otherwise set its
+     label over three lines inside the pill and grow to 80px, which reads as a
+     broken control rather than as a narrow one. */
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background var(--dur-base), border-color var(--dur-base),
+              color var(--dur-base), transform var(--dur-base),
+              box-shadow var(--dur-base);
+}
+/* A glyph set into the line, not a picture beside it. The negative block margin
+   is what keeps a cta with an icon the same height as one without: at 1.1em the
+   glyph's box is taller than the label's line box, and as a flex item it would
+   otherwise set the button's height and leave the pair 2px out of step wherever
+   they sit side by side. */
+.cta i { font-size: 1.1em; line-height: 1; margin-block: -1px }
+
+.cta:hover:not([disabled]) {
+  background: var(--cta-hover);
+  border-color: var(--cta-hover);
+  color: var(--text-inverse);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px var(--cta-hover);
+}
+
+/* THE SECOND ANSWER. Hollow, in the same outline the solid one fills, so the
+   pair reads as one control with two weights rather than two controls. It fills
+   on hover, which is the same promise .btn makes. */
+.cta--ghost {
+  background: transparent;
+  color: var(--cta-fill);
+}
+
+/* In a row of prose, a footer, a card: the same signage two steps down. */
+.cta--sm {
+  padding: .6rem 1.2rem;
+  font-size: .8rem;
+  gap: .45em;
 }
 
 /* ---------- .pill ---------- */
@@ -916,45 +988,6 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 .iconbtn--solid:hover:not([disabled]) {
   color: #fff;
   transform: scale(1.1);
-}
-
-/* ---------- .stickybtn ---------- */
-.stickybtn {
-  /* inline-flex, not inline-block: the marker face's line box carries a
-     fractional descender, and an inline-block button inherits it as an odd
-     height that no amount of even padding can correct. */
-  display: inline-flex;
-  align-items: center;
-  border: 2px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  padding: 6px 10px 8px;
-  background: var(--surface-card);
-  color: var(--text-strong);
-  font-family: var(--font-shout);
-  font-size: var(--text-md);
-  line-height: 1;
-  /* The one control that does not come out to an even height, and cannot be
-     made to. Permanent Marker's ascent+descent is 1.1617em, so its content box
-     is 20.91px at 18px, and Chrome adds that overflow to a button's box
-     whatever you set: line-height, height, min-height and overflow:hidden were
-     all measured and none of them move the .91. Every other button here is
-     even; this one renders at 39 and is left alone rather than wrapped in an
-     extra element to win a rounding argument. */
-  /* Sat crooked, and it stays crooked through hover and press: a note that
-     straightens itself when you touch it stops reading as a piece of paper. */
-  --tilt: -.8deg;
-  transform: rotate(var(--tilt));
-  transition: background var(--dur-fast), transform var(--dur-fast), box-shadow var(--dur-fast);
-}
-
-.stickybtn:hover:not([disabled]) {
-  background: #fff;
-  transform: rotate(var(--tilt)) translateY(-1px);
-}
-
-.stickybtn:active:not([disabled]) {
-  transform: rotate(var(--tilt)) translateY(2px);
-  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
 }
 
 /* ---------- .segmented ----------

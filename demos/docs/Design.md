@@ -84,6 +84,13 @@ Inside `main`: `.lede` is one line saying what the reader is looking at a
 collection of. `.sechead` is a section head (`h2` + `.rule` + an optional
 `.count` or `.more`).
 
+**The page's action is `.cta`**, and `.cta--ghost` is the second answer where a
+page offers one. It is usually an `<a>`. Do not reach for `.pill` here: a pill
+is an instrument standing on a model's paper, a solid body with a side and a
+shadow, and on a document it reads as a sticker. Which shape a control takes is
+decided by what it is lying on, not by how important it is. Every shape is drawn
+live in `design-system.html`.
+
 ## 3. What a page does not get to set
 
 Paper, gutter, measure, masthead rhythm and the two accents belong to

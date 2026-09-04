@@ -207,10 +207,23 @@ a page cannot invent a third treatment by picking its own tracking.</p>
 <section>
 <div class="sechead"><h2>Buttons</h2><span class="rule"></span>
   <span class="count">six shapes</span></div>
+<p><strong><code>.cta</code> and <code>.pill</code> are not the same button.</strong>
+A pill is an instrument standing on the model's paper, so it is a solid body
+with a side and a shadow. A cta is a flat capsule set in a document, where a
+raised key would read as a sticker. Which one a control is depends on what it
+is lying on, not on how important it is.</p>
 <p>Tab through them: every shape takes the same focus ring. Each row prints its
 own computed padding, size and height, so a stale stylesheet cannot hide here.</p>
 
-<div class="row"><span class="lbl">.pill — the default on the stage</span>
+<div class="row"><span class="lbl">.cta &mdash; the page's action, usually an &lt;a&gt;</span>
+  <a class="cta" href="#"><i class="ph-bold ph-heart" aria-hidden="true"></i>I love this</a>
+  <a class="cta cta--ghost" href="#">Read the lesson</a>
+  <a class="cta cta--sm" href="#">Small</a>
+  <a class="cta cta--ghost cta--sm" href="#">Small ghost</a>
+  <a class="cta" href="#" style="--cta-fill:var(--text-strong);--cta-hover:var(--accent)">Recoloured</a>
+</div>
+
+<div class="row"><span class="lbl">.pill &mdash; the default ON THE STAGE</span>
   <button class="pill">Add water</button>
   <button class="pill" style="--pill-fill:var(--action-blue)">Add water</button>
   <button class="pill" style="--pill-fill:var(--action-amber)">Add salt</button>
@@ -253,10 +266,6 @@ own computed padding, size and height, so a stale stylesheet cannot hide here.</
   <button class="iconbtn iconbtn--solid" aria-label="Play">&#9654;</button>
 </div>
 
-<div class="row"><span class="lbl">.stickybtn — the notebook, as a control</span>
-  <button class="stickybtn">What just happened?</button>
-  <button class="stickybtn" style="--tilt:1.2deg">Try it</button>
-</div>
 
 <div class="row"><span class="lbl">.segmented</span>
   <div class="segmented">
@@ -344,7 +353,7 @@ document.getElementById('caps').innerHTML = ['cap-lg','cap-sm'].map(c =>
 // not match what you just edited, you are looking at a cached page.
 for (const row of document.querySelectorAll('.row')) {
   const seen = new Map();
-  for (const el of row.querySelectorAll('button,label,.segmented > *')) {
+  for (const el of row.querySelectorAll('button,label,a.cta,.segmented > *')) {
     const cs = getComputedStyle(el);
     const key = [...el.classList].join('.') ||
                 (el.closest('.segmented') ? 'segmented > ' + el.tagName.toLowerCase()
