@@ -254,6 +254,25 @@ window.Annot = (function () {
        time. A page that has to move a label — one whose stage has an obstacle on
        one side, say a readout column — calls note.setOffset and pays for the
        trig on that change alone. */
+    /* ---- the keep-out ----
+       A stage is rarely all free: the lesson shell parks a panel down the
+       left, and a label whose dot sits behind it typesets straight under the
+       glass. The panel's rect comes from `opts.keepOut` or, failing that,
+       from the stage element itself — kit/lesson-shell.js hangs `keepOut` on
+       its stage the same way it hangs `viewOffset`, so a component gets this
+       without being handed anything. A note over the region flips its label
+       to the free side; the DOT DOES NOT MOVE, because the dot is the anchor
+       and only the typesetting changes. Solved per frame from the projected
+       x alone, and applyOffset runs only on the frame a note changes sides. */
+    const keepOutFn = opts.keepOut || stageEl.keepOut || null;
+    function keepOut() {
+      if (!keepOutFn) return null;
+      const r = keepOutFn();
+      if (!r) return null;
+      const lr = layer.getBoundingClientRect();
+      return { left: r.left - lr.left, right: r.right - lr.left };
+    }
+
     function applyOffset(el, off) {
       const dx = (off[0] || 0) + (off[0] < 0 ? -SIDE_GAP : SIDE_GAP);
       const dy = off[1] || 0;
@@ -291,6 +310,7 @@ window.Annot = (function () {
         at: spec.at,
         atPx: spec.atPx,
         offset: off,
+        flipped: false,               // pushed off the keep-out this frame
         card: null, cardTitle: '',
         _sx: 0, _sy: 0,
         openCard() { return openCard(note); },
@@ -431,6 +451,7 @@ window.Annot = (function () {
       const w = stageEl.clientWidth, h = stageEl.clientHeight;
       if (!w || !h) return;
       const now = performance.now() / 1000;
+      const ko = keepOut();
       const live = [];
 
       for (const n of notes) {
@@ -457,6 +478,17 @@ window.Annot = (function () {
         n.el.style.display = '';
         x = (p.x + 1) / 2 * w;
         y = (1 - p.y) / 2 * h;
+        }
+
+        /* Flip to the free side while the dot is over the keep-out, and back
+           to the note's own offset once it clears. */
+        if (ko) {
+          const want = x < ko.right;
+          if (want !== n.flipped) {
+            n.flipped = want;
+            const dx = Math.abs(n.offset[0] || 0);
+            applyOffset(n.el, want ? [dx || 1, n.offset[1] || 0] : n.offset);
+          }
         }
 
         let o = 1, lift = 0;

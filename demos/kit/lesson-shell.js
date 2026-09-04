@@ -20,7 +20,9 @@
  *  camera flight a step names in `camera` is the page's to fly, in onStep,
  *  because the shell does not know which component is behind the glass.
  *  `shell.viewOffset` is the function every component's mount takes to
- *  centre its scene in the room the panel leaves.
+ *  centre its scene in the room the panel leaves. The stage also carries
+ *  `keepOut`, the panel's rect, which lib/annotate.js reads on its own so a
+ *  callout behind the glass typesets to the free side.
  *
  *  ctx.ui, for steps:
  *      controls(html)  fill the slot · q(sel) / qa(sel) inside it · show(el) /
@@ -72,8 +74,11 @@
       hint: $('.lshell-hint'),
     };
     els.brand.textContent = opts.brand || '';
-    /* On the stage element too, so CardStage finds it without being told. */
+    /* On the stage element too, so CardStage finds it without being told —
+       and the panel's rect with it, so lib/annotate.js keeps its labels out
+       from under the glass without any component knowing there is a panel. */
     els.stage.viewOffset = () => shellApi.viewOffset();
+    els.stage.keepOut = () => els.panel.getBoundingClientRect();
     els.hint.textContent = opts.hint || '';
     els.hint.hidden = !opts.hint;
 
