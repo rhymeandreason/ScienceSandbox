@@ -1075,4 +1075,14 @@
   }
 
   global.Membrane = { create, mount, DEFAULTS };
+  /* Scale (kit/scale.js, docs/Scale.md). The sheet is angstroms at MolLib.SCALE
+     display units each. Everything CROSSING is then enlarged by DEFAULTS.exag,
+     so only the comparison against the membrane is exaggerated; that is the one
+     entry in exag, and it is the number the header has always declared. */
+  global.Membrane.SCALE = {
+    rung: 'membrane', form: 'bulk',
+    unit: 1e-10 / (global.MolLib && global.MolLib.SCALE || 1.9),
+    exag: { crossing: DEFAULTS.exag },
+    down: {},
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

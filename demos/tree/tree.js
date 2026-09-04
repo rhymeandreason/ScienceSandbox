@@ -664,4 +664,8 @@
   }
 
   global.Tree = { create, mount, DEFAULTS, PILES: { CATS, SHARES, PCT, SUB }, easeOut, easeInOut };
+  /* Scale (kit/scale.js, docs/Scale.md). One organism, with a person beside it
+     for scale, which is how this scene answers size: by comparison, not by a
+     number. unit is null; the mass shares in PILES are the numbers it owns. */
+  global.Tree.SCALE = { rung: 'organism', form: 'single', unit: null, exag: {}, down: {} };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

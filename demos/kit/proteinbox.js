@@ -1305,4 +1305,8 @@
   }
 
   global.Proteinbox = { create, mount, RIB };
+  /* Scale (kit/scale.js, docs/Scale.md). One scene unit is one angstrom: the
+     coordinates are a lab's, which is the whole reason this box is its own
+     scene. Nothing is exaggerated, so a page may print a distance off it. */
+  global.Proteinbox.SCALE = { rung: 'macromolecule', form: 'single', unit: 1e-10, exag: {}, down: {} };
 })(this);

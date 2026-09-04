@@ -699,4 +699,10 @@
   }
 
   global.Cutaway = { create, mount, DEFAULTS, HOME, buildShell, sweepProfile, makeNoise };
+  /* Scale (kit/scale.js, docs/Scale.md). PROP TIER AND NOT A SCALE, as the
+     header says: unit is null, so nothing may print a length off this render.
+     How big a cell really is belongs on the library card as prose. Ribosomes
+     cannot be drawn beside a nucleus at their own size; that factor is the
+     declared exaggeration. */
+  global.Cutaway.SCALE = { rung: 'cell', form: 'single', unit: null, exag: { ribosome: 30 }, down: {} };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -604,4 +604,23 @@ else
   echo "pre-commit: skipping check-ask.js — nothing under api/, demos/ask/ or a page staged"
 fi
 
+# Every component and the reference the generator reads from. A component's
+# SCALE block says what may share a scene with it and what a page may print a
+# number off; Components.md is the only thing the model sees, so the two
+# disagreeing is the failure with no other symptom. Gated on the component
+# files, kit/scale.js and the reference itself. See demos/docs/Scale.md.
+if git diff --cached --name-only | grep -qE '^demos/((water|membrane|leaf|tree|cell)/[^/]+\.js|kit/(scale|proteinbox)\.js|docs/Components\.md|tools/check-scale\.js)$'; then
+  if ! node tools/check-scale.js > /tmp/cs.$$ 2>&1; then
+    tail -25 /tmp/cs.$$; rm -f /tmp/cs.$$
+    echo ""
+    echo "pre-commit FAILED: check-scale.js — a component's scale is undeclared, its"
+    echo "  Components.md section disagrees with the code, a handoff does not go down"
+    echo "  a rung, or a render with no scale advertises a length."
+    exit 1
+  fi
+  rm -f /tmp/cs.$$
+else
+  echo "pre-commit: skipping check-scale.js — no component or Components.md staged"
+fi
+
 echo "pre-commit: molecules and pages check out."

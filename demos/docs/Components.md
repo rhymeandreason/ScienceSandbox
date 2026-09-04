@@ -98,7 +98,31 @@ ctx.ui.showPanel(c, { only: ['notes', 'layers'] });  // on the step-through shel
 
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 
+## Scale: which components may share a scene
+
+Every component declares a **rung** (how big) and a **form** (how many). `kit/scale.js` holds the ladder and `docs/Scale.md` is the argument; `tools/check-scale.js` fails a commit where a section here and the code disagree.
+
+```
+molecules · macromolecule · membrane · organelle · cell · tissue · organ · organism · population
+```
+
+**Same rung may share a scene. Different rungs may not.** Two components at one rung go in one box; crossing a rung is a handoff between two boxes, never a camera move. A cell is about 20 µm and a bilayer about 5 nm, so a page that mounts both in one scene is wrong however good it looks.
+
+**Form is orthogonal, and bulk plus single at the same rung is the normal scene.** A solute molecule in bulk water. A chloroplast in bulk mesophyll. Reach for that pattern rather than a second box.
+
+| Component | rung | form |
+| --- | --- | --- |
+| WaterSim | molecules | bulk |
+| Proteinbox | macromolecule | single |
+| Membrane | membrane | bulk |
+| Leaf | tissue | bulk |
+| Tree | organism | single |
+
+Nothing is at the `organelle`, `organ` or `population` rung yet. **A size a page prints must come from `state()`, and most of these components have no scale to print one from.** Where a real size matters, say it as a fact about the real thing ("a red blood cell is about 8 µm across"), never as a measurement of the picture.
+
 ## WaterSim — liquid water and what follows from hydrogen bonds
+
+**Scale**: molecules, bulk. The liquid and any solute spec are the same rung, which is why a solute goes in this box rather than beside it. The render is not measurable: no page prints a distance off it.
 
 ```html
 <script src="../water/watersim.js"></script>
@@ -138,6 +162,8 @@ Anchors for `note()`: `water` (one molecule), `O` and `H` (its atoms, with the p
 Good for: temperature, phase change, why ice floats, salt dissolving, colligative properties. Not for: anything the water is in (no container, no membrane, no surface).
 
 ## Membrane — a bilayer, its proteins, and what crosses
+
+**Scale**: membrane, bulk. One scene unit is about an angstrom. Everything crossing is drawn 5x oversize against the sheet, so a size read off a travelling ion is that exaggeration, not a measurement.
 
 ```html
 <script src="../membrane/parts.js"></script>
@@ -202,6 +228,8 @@ Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, a
 
 ## Proteinbox — a real protein, from the library
 
+**Scale**: macromolecule, single. One scene unit is one angstrom, from a lab's own coordinates, and nothing is exaggerated. This is the one component a page may print a real distance off.
+
 ```html
 <link rel="stylesheet" href="../kit/proteinbox.css">
 ...
@@ -231,6 +259,8 @@ Good for: what a protein looks like, primary to quaternary structure, comparing 
 
 ## Leaf — a leaf in cross-section, tissue by tissue
 
+**Scale**: tissue, bulk. Layer heights and `width` / `depth` are scene units, not micrometres. Proportions are a diagram's: no page prints a thickness off it.
+
 ```html
 <script src="../lib/geo.js"></script>          <!-- before card-stage.js -->
 <script src="../leaf/leaf.js"></script>
@@ -257,6 +287,8 @@ Layers for `show()`: the five tissues by the same names, plus `chloroplasts` and
 Good for: leaf anatomy, where gas exchange and photosynthesis happen, what a vein is, structure and function of each tissue. Not for: a single cell's interior, or any process; nothing moves in it.
 
 ## Tree — a tree, the air around it, and where its mass came from
+
+**Scale**: organism, single. The person beside it is how this scene answers size, by comparison rather than by a number. The mass shares in `Tree.PILES` are the numbers it owns.
 
 ```html
 <script src="../lib/geo.js"></script>          <!-- before card-stage.js -->

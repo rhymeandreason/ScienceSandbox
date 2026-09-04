@@ -74,13 +74,9 @@ const PDB_PAGES = new Set();
 // edges, no stage. questions-cms.html edits that graph's data file as text.
 // clip-shelf.html files short animation clips; its only stage is an mp4 in the
 // node map's own thumb.
-// tests/osmosis-data-test.html is at cell scale: a wall, a protoplast and the
-// water crossing it. The registry has no spec for any of those, and the page's
-// subject is a class's own measurements rather than a structure — loading
-// molecules.js would buy it nothing and cost it a domain it never draws.
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
                           'tests/droplet-test.html', 'tests/adhesion-test.html',
-                          'tests/concept-map.html', 'tests/osmosis-data-test.html',
+                          'tests/concept-map.html',
                           'questions-cms.html', 'map-cms.html', 'clip-shelf.html']);
 
 // The lessons at the top level, plus the benches in tests/. Both directories,
@@ -94,8 +90,25 @@ const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
 // maintaining code nothing serves.
 const html = d => fs.readdirSync(path.join(ROOT, d))
   .filter(f => f.endsWith('.html')).map(f => (d ? d + '/' : '') + f);
-const PAGES = [...html(''), ...html('tests')]
-  .filter(f => !PDB_PAGES.has(f) && !NO_SCENE.has(f)).sort();
+const ALL_PAGES = [...html(''), ...html('tests')].sort();
+const PAGES = ALL_PAGES.filter(f => !PDB_PAGES.has(f) && !NO_SCENE.has(f));
+
+// An exemption outliving its page is the failure this file keeps finding in
+// other people's enumerations. An osmosis bench sat in NO_SCENE for fifteen
+// commits after it was deleted, excusing nothing, and only check-docs.js
+// noticed — from the other side of the repo, and by accident. A list of pages
+// that do not exist excuses pages that do not exist.
+console.log('== 0. every exemption still names a page');
+{
+  const present = new Set(ALL_PAGES);
+  const stale = [...PDB_PAGES, ...NO_SCENE].filter(f => !present.has(f));
+  for (const f of stale)
+    fail(`exemptions: ${f} is listed in PDB_PAGES or NO_SCENE and does not exist. ` +
+         `Drop it, and the reason written above the list with it.`);
+  if (!stale.length) console.log(`  ok    ${PDB_PAGES.size + NO_SCENE.size} exemptions all name a real page`);
+}
+
+
 
 console.log('== 1. every page loads the molecules it names');
 for (const page of PAGES) {

@@ -474,4 +474,12 @@
   }
 
   global.Leaf = { create, mount, DEFAULTS, ORDER };
+  /* Scale (kit/scale.js, docs/Scale.md). Bulk cells in tissue layers, at a
+     diagram's proportions rather than a measured section: unit is null and no
+     page prints a thickness off it. Layer heights in DEFAULTS are scene units. */
+  global.Leaf.SCALE = {
+    rung: 'tissue', form: 'bulk', unit: null,
+    sceneUnits: ['width', 'depth'],       // DEFAULTS' own units, not metres
+    exag: {}, down: {},
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
