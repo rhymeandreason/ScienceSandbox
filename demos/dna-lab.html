@@ -392,7 +392,7 @@ canvas.addEventListener('dblclick', e => {
 });
 canvas.addEventListener('pointerup', e => {
   held = null; dragging = []; held2 = null; drag2 = [];
-  turning = null; held3 = null;
+  turning = null; held3 = null; turn3 = null;
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
   refresh();
 });
@@ -1197,8 +1197,8 @@ function placeTags2(){
  *  WHY THE VIEW TURNS. A rung is drawn face-on in steps 1 and 2, and rung3s
  *  stack along the axis pointing at the camera — a second rung placed face-on
  *  sits exactly behind the first. So this step turns the duplex on its side,
- *  where two rung3s read as two rung3s and the rails run down the outside. Drag
- *  the empty paper to turn it further; drag a molecule to move it.
+ *  where two rung3s read as two rung3s and the rails run down the outside. The
+ *  drag places the loose rung; once it is joined the same drag turns the duplex.
  *
  *  EVERY POSE COMES FROM THE RECORD, all four at once. The first version of
  *  this step composed them — pair pose here, link pose there — and the second
@@ -1222,8 +1222,15 @@ const SPIN3 = new THREE.Group();
 G3.add(SPIN3);
 const pivot3 = new THREE.Vector3();
 const euler3 = new THREE.Euler(0, 0, 0, 'YXZ');
+/* THE DRAG TURNS THE MODEL ABOUT SCREEN AXES, NOT G3'S. G3 carries the whole
+ * solved view, so its local Y is nowhere near up on screen — setting the euler
+ * straight onto SPIN3 made a sideways drag tumble the duplex diagonally. A
+ * rotation written in G3's parent frame becomes inv(G3q)·R·G3q inside it. */
+const _q3 = new THREE.Quaternion(), _g3 = new THREE.Quaternion();
 function applySpin3(){
-  SPIN3.quaternion.setFromEuler(euler3);
+  _q3.setFromEuler(euler3);
+  _g3.copy(G3.quaternion).invert();
+  SPIN3.quaternion.copy(_g3).multiply(_q3).multiply(G3.quaternion);
   SPIN3.position.copy(pivot3).sub(pivot3.clone().applyQuaternion(SPIN3.quaternion));
 }
 
@@ -1369,6 +1376,48 @@ function solveView(){
   G3.quaternion.premultiply(new THREE.Quaternion()
     .setFromAxisAngle(new THREE.Vector3(1, 0, 0), TILT3));
 }
+
+/* ---- the lower rung waits UNWOUND ------------------------------------------
+ * A ladder is the honest picture of what this step builds: two rungs and the
+ * rails, no twist yet, because the twist is step 4's subject. So the loose rung
+ * is staged with the record's own pair-step rotation taken OUT, and it stays
+ * flat for the whole drag.
+ *
+ * IT CANNOT STAY FLAT AND CLOSE. Unwound, the O3′ and the P that are supposed
+ * to bond sit far too far apart — the 34° per rung is what brings them within
+ * reach, so a flat ladder has no backbone. The snap therefore restores the
+ * record's rotation as the rung lands: the student builds it flat, and the
+ * turn is what the bonds cost. Everything downstream (the bond search, the
+ * sticks, the tags) reads residue poses, so the untwist is baked into those
+ * rather than onto the rung group, which those readers ignore.
+ */
+const UNTWIST = (() => {
+  const B = window.BDNA;
+  const q = p => new THREE.Quaternion().setFromRotationMatrix(
+    new THREE.Matrix4().makeBasis(...B.pairs[p].basis.map(v => new THREE.Vector3(...v))));
+  return q(RUNGS[1].pair).multiply(q(RUNGS[0].pair).invert()).invert();
+})();
+const FIT3 = rung3s[1].res.map(res =>
+  ({ res, q:res.mol.quaternion.clone(), p:res.mol.position.clone() }));
+// The rung turns about ITSELF, so the centre is its own atoms in the rung's
+// frame — turning about the group origin would fling it across the stage.
+const CENTRE3 = (() => {
+  const c = new THREE.Vector3(); let n = 0;
+  for(const f of FIT3) for(const a of f.res.spec.atoms){
+    c.add(new THREE.Vector3(...a.pos).applyQuaternion(f.q).add(f.p)); n++;
+  }
+  return c.multiplyScalar(1 / n);
+})();
+const _tw = new THREE.Quaternion(), IDENT3 = new THREE.Quaternion();
+// u = 0 flat, u = 1 the record.
+function setTwist3(u){
+  _tw.copy(UNTWIST).slerp(IDENT3, u);
+  for(const f of FIT3){
+    f.res.mol.quaternion.copy(_tw).multiply(f.q);
+    f.res.mol.position.copy(f.p).sub(CENTRE3).applyQuaternion(_tw).add(CENTRE3);
+  }
+}
+setTwist3(0);
 
 /* Where the lower rung waits: straight down the screen from where it belongs,
  * far enough to read as a separate object. Its HOME is the record's placement,
@@ -1567,8 +1616,9 @@ function placeEnds3(){
 /* ---- what the step says ---------------------------------------------------- */
 function say3(){
   if(!rung3s[1].joined){
-    note.innerHTML = 'The rung you built, and a second one below it. Drag the '
-      + 'lower rung up: <b>two</b> bonds will form, one down each side.';
+    note.innerHTML = 'The rung you built, and a second one below it, lying flat '
+      + '— an unwound ladder. Drag the lower rung up: <b>two</b> bonds will '
+      + 'form, one down each side, and the rung has to turn for them to reach.';
     return;
   }
   const d = bonds3.map(b => b.d.toFixed(2)).join(' Å and ');
@@ -1576,24 +1626,38 @@ function say3(){
     + 'the other two, twice. Each side is now sugar–phosphate–sugar, with the '
     + 'bases hanging inward. <b>And the two sides point opposite ways</b>: one '
     + "rail's 3′ end is level with the other's 5′. That is what antiparallel "
-    + 'means, and it is why the strands can be read as templates for each other.';
+    + 'means, and it is why the strands can be read as templates for each other. '
+    + '<b>Drag to turn it.</b>';
 }
 
 /* ---- drag: a molecule moves, the paper turns ------------------------------- */
-let held3 = null, off3 = null;
-/* NO TURNING HERE. Step 2 offers it because its molecule is flat-on and the
- * depth is what the projection throws away. This step is already side-on, and
- * a second gesture on the same pointer made the one that matters — dragging the
- * rung — hard to find: a press that missed the rung silently became a rotation,
- * so the model spun instead of the rung moving. One gesture, one meaning. */
+let held3 = null, off3 = null, turn3 = null;
+/* ONE GESTURE, ONE MEANING — and which meaning it carries is decided by whether
+ * the backbone is joined. Before the join the drag places the rung, and nothing
+ * turns: a press that missed the rung would silently spin the model instead of
+ * moving the thing the step is about. After the join there is nothing left to
+ * place, so the same drag turns the duplex and the two bonds can be looked at
+ * from off the side-on view they are drawn in. */
 function down3(e){
-  if(rung3s[1].joined) return;
+  if(rung3s[1].joined){ turn3 = { x:e.clientX, y:e.clientY }; return; }
   const w = toWorld(e);
   if(flatDist(w, rungCentre(rung3s[1])) > 12) return;
   held3 = rung3s[1];
   off3 = held3.mol.position.clone().sub(toSpin3(w));
 }
 function move3(e){
+  if(turn3){
+    // Pixels to radians, and the vertical CLAMPED for step 2's reason: past a
+    // quarter turn the duplex is end-on and the two rungs sit behind each other
+    // again, which is the one view this step exists to get out of.
+    euler3.y += (e.clientX - turn3.x) * 0.008;
+    euler3.x = Math.max(-0.7, Math.min(0.7,
+      euler3.x + (e.clientY - turn3.y) * 0.008));
+    turn3 = { x:e.clientX, y:e.clientY };
+    applySpin3();
+    placeTags3();
+    return;
+  }
   if(!held3) return;
   held3.mol.position.copy(toSpin3(toWorld(e))).add(off3);
   placeSticks();
@@ -1623,9 +1687,12 @@ function tryLinkRungs(){
   const rung = held3;
   held3 = null;
   L.motion.seq([
-    { dur:0.32, ease:'outBack',
-      onUpdate:u=>{ rung.mol.position.lerpVectors(from, home3, u); placeSticks(); } },
-    { call:linkRungs },
+    // The slide and the wind-up are ONE motion: the rung arrives already turned,
+    // so the bonds form on the crystal's geometry and nothing snaps afterwards.
+    { dur:0.42, ease:'outBack',
+      onUpdate:u=>{ rung.mol.position.lerpVectors(from, home3, u);
+                    setTwist3(Math.min(1, u)); placeSticks(); } },
+    { call:()=>{ setTwist3(1); linkRungs(); } },
   ], { tag:'link3' });
 }
 
