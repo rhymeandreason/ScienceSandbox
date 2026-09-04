@@ -216,15 +216,24 @@ window.Annot = (function () {
          that has ever been opened, and it never comes off. A page that draws
          attention to an unread callout needs to know when to stop. */
       note.el.classList.add('is-seen');
-      for (const n of notes) n.el.classList.toggle('is-carded', n === note);
+      for (const n of notes) carded(n, n === note);
       step();                       // place it now, not on the next frame
       return api;
+    }
+
+    /* The card covers its label, so the label goes: it showed through the card's
+       own translucency, border and all. Its BOX stays (the card is placed from
+       it), so this is opacity in the stylesheet — and pointer-events here,
+       because a carded label carries an inline `auto` no rule can outrank. */
+    function carded(n, on) {
+      n.el.classList.toggle('is-carded', on);
+      if (n.card) n.label.style.pointerEvents = on ? 'none' : 'auto';
     }
 
     function closeCard() {
       cardNote = null;
       if (card) card.classList.remove('is-open');
-      for (const n of notes) n.el.classList.remove('is-carded');
+      for (const n of notes) carded(n, false);
       return api;
     }
 

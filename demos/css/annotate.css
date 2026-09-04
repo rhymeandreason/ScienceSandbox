@@ -200,14 +200,23 @@
 }
 
 .annot-has-card .annot-label:hover::before { background: var(--annot-live-dark) }
-.annot-has-card.is-carded .annot-label::before { background: var(--text-strong) }
 
 .annot-has-card .annot-label:hover,
-.annot-has-card .annot-label:focus-visible,
-.annot-has-card.is-carded .annot-label {
+.annot-has-card .annot-label:focus-visible {
    background: #fff;
    border-color: var(--text-strong);
    outline: none
+}
+
+/* The card grows out of the label and covers it, so the label underneath
+    shows through the card's own translucency: its border, and whatever of the
+    text is wider than the card's title. HIDDEN, NOT REMOVED — annotate.js
+    places the card from this element's own box, and display:none would take
+    that box away and drop the card on the origin. The matching pointer-events
+    is set in annotate.js, which puts an inline `auto` on a carded label that
+    no rule here can outrank. */
+.annot-has-card.is-carded .annot-label {
+   opacity: 0
 }
 
 .annot-has-card .annot-dot {
