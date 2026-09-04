@@ -380,7 +380,7 @@ canvas.addEventListener('dblclick', e => {
   refresh();
 });
 canvas.addEventListener('pointerup', e => {
-  held = null; dragging = []; held2 = null; drag2 = [];
+  held = null; dragging = []; held2 = null; drag2 = []; turning = null;
   try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
   refresh();
 });
@@ -652,6 +652,27 @@ const G2 = new THREE.Group();
 G2.visible = false;
 L.root.add(G2);
 
+/* Everything in this step lives under SPIN, so the finished nucleotides can be
+ * turned. SPIN rotates ABOUT THE ASSEMBLY'S CENTRE without any child being
+ * moved: the position that cancels the rotation's own translation is computed
+ * from the pivot each time. Reparenting or shifting every child would have
+ * worked too, and would have invalidated every coordinate the joins were
+ * solved in — this way the pieces stay in the frame attach.js placed them in.
+ *
+ * WHY ROTATION ONLY AT THE END. The drag builds the nucleotide by projecting
+ * the pointer onto z = 0; a turned scene makes that plane meaningless and the
+ * pieces would slide along a plane the student cannot see. So the gesture
+ * changes only once there is nothing left to assemble. */
+const SPIN = new THREE.Group();
+G2.add(SPIN);
+const spinCentre = new THREE.Vector3();
+const spinEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+function applySpin(){
+  SPIN.quaternion.setFromEuler(spinEuler);
+  SPIN.position.copy(spinCentre)
+    .sub(spinCentre.clone().applyQuaternion(SPIN.quaternion));
+}
+
 const SUGAR = M.deoxyribose, PHOS = M.phosphate;
 
 // The pair sits at the TRUE pairing distance, hydrogen-bonded, and the loose
@@ -704,10 +725,13 @@ function assemble(host, guest, pose, dropHost, dropGuest, hostAtom, guestAtom, s
 }
 
 /* ---- the pieces on stage -------------------------------------------------- */
+// In SPIN's frame, which is the frame every join is solved in. Identity until
+// the scene is turned, and `toSpin`/`toWorld` are what convert either way.
 const centreOfPiece = p =>
   p.centre.clone().applyQuaternion(p.mol.quaternion).add(p.mol.position);
 const worldAtom = (p, i) => new THREE.Vector3(...p.spec.atoms[i].pos)
   .applyQuaternion(p.mol.quaternion).add(p.mol.position);
+const spinToWorld = v => SPIN.localToWorld(v.clone());
 
 // A piece is one draggable mesh. A base grows into a nucleotide in place —
 // `spec` is replaced at each join and the mesh rebuilt — while a sugar or a
@@ -726,8 +750,8 @@ function rebuild(p, spec, at, quat){
   p.spec = spec;
   p.mol = Stage.buildMolecule(flat(spec), { center:false });
   p.mol.position.copy(at); p.mol.quaternion.copy(quat);
-  G2.add(p.mol);
-  if(old){ G2.remove(old); disposeTree(old); }
+  SPIN.add(p.mol);
+  if(old){ SPIN.remove(old); disposeTree(old); }
   const h = spec.atoms.filter(a => a.el !== 'H');
   p.centre = h.reduce((v,a)=>v.add(new THREE.Vector3(...a.pos)), new THREE.Vector3())
               .multiplyScalar(1/h.length);
@@ -778,7 +802,7 @@ for(const key of ['adenine','thymine']){
  * once: nothing in this step moves the bases, so there is nothing to re-solve
  * every frame. Found rather than declared, for step 1's reason. */
 const HB2 = HBond.create(THREE, { color:MolLib.PALETTE.bonds.hbond });
-G2.add(HB2.group);
+SPIN.add(HB2.group);
 function pairBonds(){
   const donors = [], acceptors = [];
   for(const p of Object.values(nucleo)){
@@ -898,7 +922,7 @@ function join(host, guest){
   const at = host.mol.position.clone(), q = host.mol.quaternion.clone();
   host.stage++;
   rebuild(host, spec, at, q);
-  G2.remove(guest.mol); disposeTree(guest.mol);
+  SPIN.remove(guest.mol); disposeTree(guest.mol);
   guest.tag.remove();
   loose.splice(loose.indexOf(guest), 1);
 
@@ -934,7 +958,7 @@ function water(at){
   // fades this water and nothing else on stage.
   const mats = [];
   mol.traverse(o => { if(o.material){ o.material.transparent = true; mats.push(o.material); } });
-  G2.add(mol);
+  SPIN.add(mol);
   // Named, because three spheres drifting off is a thing happening and 'H₂O'
   // is what happened. The label reads the spec's own formula.
   const el = document.createElement('div');
@@ -967,11 +991,12 @@ function stepWaters(){
     for(const m of w.mats) m.opacity = fade;
     // Above the molecule by its own height, so the label clears the oxygen at
     // any zoom rather than by a pixel count that only works at one.
-    const v = w.mol.position.clone().add(new THREE.Vector3(0, 1.6, 0)).project(L.camera);
+    const v = spinToWorld(w.mol.position.clone().add(new THREE.Vector3(0, 1.6, 0)))
+      .project(L.camera);
     w.el.style.left = ((v.x*0.5+0.5) * r.width) + 'px';
     w.el.style.top  = ((-v.y*0.5+0.5) * r.height) + 'px';
     w.el.style.opacity = String(fade);
-    if(t > WATER_LIFE){ G2.remove(w.mol); disposeTree(w.mol); w.el.remove();
+    if(t > WATER_LIFE){ SPIN.remove(w.mol); disposeTree(w.mol); w.el.remove();
                         waters.splice(i, 1); }
   }
 }
@@ -993,9 +1018,11 @@ function say(host){
   const what = host.stage === 1
     ? `Glycosidic bond, ${bond} Å. The base is on its sugar: a <b>nucleoside</b>.`
     : `Phosphoester bond, ${bond} Å. With a phosphate it is a <b>nucleotide</b>.`;
+  if(done === 2) offerSpin();
   note2.innerHTML = done === 2
     ? 'Two nucleotides. Each is one base, one sugar, one phosphate, and each '
-      + 'bond cost a water. Step 3 joins them into a strand.'
+      + 'bond cost a water. <b>Drag to turn them</b> — the sugars sit under the '
+      + 'bases, not across them. Step 3 joins them into a strand.'
     : what + ' A water left for each bond made.';
 }
 function measure(host, a, b){
@@ -1005,12 +1032,60 @@ function measure(host, a, b){
     .distanceTo(new THREE.Vector3(...host.spec.atoms[j].pos)) / S).toFixed(2);
 }
 
+/* ---- turning the finished pair --------------------------------------------
+ * The nucleotides are flat-on while they are being built, because that is the
+ * view the drag needs and the view the rung reads in. Flat-on is also what
+ * makes the sugar look like it is drawn over the base rather than sitting
+ * under it — the depth is there, and the projection is throwing it away.
+ *
+ * So when there is nothing left to assemble, the scene starts to turn on its
+ * own. The sway is a demonstration, not decoration: it says the model has a
+ * third dimension and that the pointer can reach it. It stops for good the
+ * moment the student takes hold, which is the whole point of showing it.
+ */
+let spinning = false, sway = null;
+function offerSpin(){
+  if(spinning) return;
+  spinning = true;
+  spinCentre.copy(assemblyCentre());
+  // Each beat carries its OWN endpoints. Advancing a shared `from` in the
+  // beat's `call` looks equivalent and is not: motion.js fires `call` when a
+  // beat STARTS, so the start value became the end value on the first frame
+  // and every beat after the first held still.
+  const y0 = spinEuler.y;
+  const arc = (from, to) => ({ dur:2.4, ease:'inOutCubic',
+    onUpdate:u=>{ spinEuler.y = from + (to - from) * u; applySpin(); } });
+  sway = true;
+  L.motion.seq([{ dur:0.5 }, arc(y0, y0 + 0.55), arc(y0 + 0.55, y0 - 0.55),
+                 Object.assign(arc(y0 - 0.55, y0),
+                               { onDone:()=>{ sway = null; } })], { tag:'sway' });
+}
+function stopSpin(){ L.motion.cancel('sway'); sway = null; }
+
+// The middle of what is on stage, from the atoms rather than from the layout
+// constants — the assembly grew a long way past where the pieces started, and
+// turning about the pair alone would swing the phosphates through the frame.
+function assemblyCentre(){
+  const box = new THREE.Box3();
+  for(const p of Object.values(nucleo))
+    for(const a of p.spec.atoms)
+      box.expandByPoint(new THREE.Vector3(...a.pos)
+        .applyQuaternion(p.mol.quaternion).add(p.mol.position));
+  return box.getCenter(new THREE.Vector3());
+}
+
 /* ---- drag ----------------------------------------------------------------- */
 // Only the loose pieces move. The bases are anchors: a student dragging the
 // base onto the sugar is making the same bond, but the pair would come apart
-// on screen and the rung is what the sugar is being hung off.
-let held2 = null, drag2 = [];
+// on screen and the rung is what the sugar is being hung off. Once every piece
+// is spent the same drag turns the whole thing instead.
+let held2 = null, drag2 = [], turning = null;
 function down2(e){
+  if(spinning){
+    stopSpin();
+    turning = { x:e.clientX, y:e.clientY };
+    return;
+  }
   const w = toWorld(e);
   const near = loose.map(p => ({ p, d:w.distanceTo(centreOfPiece(p)) }))
                     .filter(x => x.d < 7).sort((x,y) => x.d - y.d)[0];
@@ -1021,6 +1096,17 @@ function down2(e){
   drag2 = [{ p:held2, off:held2.mol.position.clone().sub(w) }];
 }
 function move2(e){
+  if(turning){
+    // Pixels to radians, and the vertical is CLAMPED: past about a quarter turn
+    // the pair is edge-on and the page is showing the one view in which a flat
+    // molecule tells you nothing.
+    spinEuler.y += (e.clientX - turning.x) * 0.008;
+    spinEuler.x = Math.max(-0.7, Math.min(0.7,
+      spinEuler.x + (e.clientY - turning.y) * 0.008));
+    turning = { x:e.clientX, y:e.clientY };
+    applySpin();
+    return;
+  }
   if(!held2) return;
   const w = toWorld(e);
   for(const d of drag2){ d.p.mol.position.copy(w).add(d.off); d.p.mol.position.z = 0; }
@@ -1037,8 +1123,8 @@ function placeTags2(){
         .applyQuaternion(p.mol.quaternion).add(p.mol.position);
       if(!lo || v.y < lo.y) lo = v;
     }
-    const c = centreOfPiece(p).project(L.camera);
-    const b = lo.project(L.camera);
+    const c = spinToWorld(centreOfPiece(p)).project(L.camera);
+    const b = spinToWorld(lo).project(L.camera);
     p.tag.style.left = ((c.x*0.5+0.5) * r.width) + 'px';
     p.tag.style.top  = ((-b.y*0.5+0.5) * r.height + 8) + 'px';
   }
@@ -1256,6 +1342,7 @@ function showStep(n){
   for(const p of Object.values(nucleo).concat(loose))
     p.tag.style.display = (n === 2) ? '' : 'none';
   note2.classList.toggle('on', n === 2);
+  if(n !== 2 && spinning) stopSpin();
   if(n === 2){ pairBonds(); say(nucleo.adenine); }
   twistBar.classList.toggle('on', n === 4);
   document.getElementById('twistread').classList.toggle('on', n === 4);
