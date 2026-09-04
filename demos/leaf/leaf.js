@@ -437,11 +437,16 @@
       if (name !== hovered) { hovered = name; applyHighlight(); emit('hover', hovered); }
       return hovered;
     }
-    function select() {
-      const next = hovered && P.isolate !== hovered ? hovered : null;
-      set({ isolate: next });
-      emit('select', next);
-      return next;
+    /* CLICKING THE SELECTED LAYER AGAIN KEEPS IT. A click on the thing you are
+       already looking at reads as "yes, this one", not as undo, and on a block
+       of small cells it is easy to click the same layer twice without meaning
+       anything by it. Clearing is what the BACKGROUND is for — `select(null)`,
+       which the mount sends when a click hits nothing. */
+    function select(next = hovered) {
+      if (next === P.isolate) return next;
+      set({ isolate: next || null });
+      emit('select', next || null);
+      return next || null;
     }
 
     /* ---- the guard cells ----
@@ -627,9 +632,26 @@
     const onMove = e => { const b = cv.getBoundingClientRect();
       leaf.point(((e.clientX - b.left) / b.width) * 2 - 1, -((e.clientY - b.top) / b.height) * 2 + 1); };
     const onLeave = () => leaf.point(-2, -2);
-    const onClick = () => { if (leaf.pick()) leaf.select(); };
+    /* A click on empty space clears the selection. `pick()` answers what is
+       under the pointer, so nothing under it is the whole test and no extra
+       hit-plane is needed.
+
+       A DRAG IS NOT A CLICK, and the browser disagrees: orbiting the block and
+       releasing over the background fires `click` like any other, so an orbit
+       that happened to end on empty space would throw the selection away. The
+       pointer is measured from where it went down, and past a few pixels this
+       was a drag. */
+    let downAt = null;
+    const onDown = e => { downAt = [e.clientX, e.clientY]; };
+    const onClick = e => {
+      const moved = downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+      downAt = null;
+      if (moved > 4) return;
+      leaf.select(leaf.pick() || null);
+    };
     cv.addEventListener('pointermove', onMove);
     cv.addEventListener('pointerleave', onLeave);
+    cv.addEventListener('pointerdown', onDown);
     cv.addEventListener('click', onClick);
     leaf.on('hover', n => { cv.style.cursor = n ? 'pointer' : ''; });
     box.pump();
@@ -651,6 +673,7 @@
       destroy() {
         cv.removeEventListener('pointermove', onMove);
         cv.removeEventListener('pointerleave', onLeave);
+        cv.removeEventListener('pointerdown', onDown);
         cv.removeEventListener('click', onClick);
         box.destroy();
       },

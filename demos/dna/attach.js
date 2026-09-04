@@ -50,8 +50,10 @@
 (function(global){
   'use strict';
 
+  // Read at CALL time, not at load: dna-lab.html loads the baked record after
+  // its modules, and capturing here bound `undefined` for the whole session.
   const req = p => (typeof require==='function' ? require(p) : null);
-  const BDNA = global.BDNA || (req('./data/bdna.js'), global.BDNA);
+  const record = () => global.BDNA || (req('./data/bdna.js'), global.BDNA);
 
   const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]];
   const add=(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]];
@@ -141,7 +143,7 @@
   function residue(key, need){
     const want = LETTER[key];
     if(!want) return null;
-    for(const pair of BDNA.pairs){
+    for(const pair of record().pairs){
       const [a, b] = pair.seq.split('-');
       for(const [chain, letter] of [['A',a],['B',b]]){
         if(letter !== want) continue;
