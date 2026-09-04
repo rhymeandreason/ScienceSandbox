@@ -145,3 +145,35 @@ Additional status notes: Leaf is on the contract and complete as a render, and n
 * Featured lessons. Untouched, still on their own code. Migration deferred by human.
 
 * Example lesson for Salmon (doc at Salmon-Example-app.md) is a to do item for the human.
+
+**URL**
+
+`kodolab.org/build`, and the routes for it are already in `vercel.json`: `/build` for the builder and `/app/<id>` for a shared app. Nothing more to set up beyond deploying.
+
+Why the path and not the subdomain, for now:
+
+* **One origin, one key.** The access key lives in the browser's storage for `kodolab.org`, shared by the tutor and the builder. On `make.kodolab.org` it would be a separate store, so a tester's link would admit them to one and not the other.
+
+* **The API and the library are on this origin.** From a subdomain the builder page would need CORS on `/api/build`and `/api/app`, and the `/lib/v1/` freeze would need to be served to two hosts. All of that is avoidable work today.
+
+* **Apps live at `kodolab.org/app/<id>`** either way, since they load the library from here. Splitting the builder onto a subdomain would put the maker and the made on different hosts.
+
+The subdomain becomes right when the builder is a product of its own: its own landing page, its own sign-in, possibly its own deploy. That is the accounts milestone in the plan, and moving then is a rewrite change plus DNS, nothing in the code assumes the path.
+
+One thing worth doing now: `/build` with no key shows the "open to invited testers" notice and nothing else. If you plan to send that link around, a short line about the beta and the waitlist there, matching the remix modal, is a few minutes.
+
+To Do 8:05pm
+
+1. **Deploy and smoke test.** Push the branch and let Vercel build it. Confirm `DATABASE_URL` and the model key are set in the project's environment, then open `/build?k=…` on the live site. This is the first time the real sandbox runs, since locally the frame is same-origin, so the thing to check is that a stored app loads its library and a Proteinbox app can fetch a bake through the CORS header.
+
+2. **Cell, in a parallel session.** Still the gap every osmosis request hits. Its test of done is unchanged: `gen-app.js` on "why does a red blood cell burst in pure water?" and a page that swells and bursts.
+
+3. **Freeze the library at `/lib/v1/`.** The one piece of the backend plan not built, and it matters more now that the reference just changed shape. Until it exists, a renamed parameter breaks every stored app at once.
+
+4. **Templates.** You have docs/Generator-Templates.md in the tree. Build one by hand on a real page, then its shell in `kit/`, then extend `validate` from "loads the shell" to "loads one of these". Experiment or Compare first, by the argument earlier.
+
+5. **Salmon, after Cell.** The worked example, with each reach into `m.sim` reported as a reference gap.
+
+6. **Leaf motion day.** Gas exchange as motion, stomata opening, a light parameter, so "what happens in the light?" has something to show.
+
+7. **First tester links.** One `TUTOR_KEYS` pair per person, sent once Cell lands. Then `db.js builds` weekly to set the limits from evidence.
