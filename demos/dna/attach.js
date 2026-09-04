@@ -351,7 +351,10 @@
   const glycosidicN = key => (key==='adenine'||key==='guanine') ? 'N9' : 'N1';
   const dist = (a,b) => a && b ? Math.hypot(b[0]-a[0], b[1]-a[1], b[2]-a[2]) : null;
 
-  const API = { sugar, phosphate, link, fit, residue, glycosidicN };
+  // residueAt is exported for check-dna.js, which asserts that it reads a
+  // residue in the DEPOSITED frame — the mistake that made the backbone bond
+  // 5 Å and looked like a stretched bond rather than a wrong frame.
+  const API = { sugar, phosphate, link, fit, residue, residueAt, glycosidicN };
   global.Attach = API;
   if(typeof module !== 'undefined' && module.exports) module.exports = { Attach:API };
 
