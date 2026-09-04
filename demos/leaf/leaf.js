@@ -124,17 +124,33 @@
         cut.userData.layer = 'cuticle';
         g.add(cut);
       } else {
-        /* Stomata: two guard cells, a pore between. Real density is a few
-           hundred per mm²; this is enough to read as a pattern. */
-        const guardGeo = capsule(THREE, 0.14, 0.42, 6, 14);
+        /* Stomata: two guard cells joined at their ends, the pore the lens
+           their bowed inner faces leave. Real density is a few hundred per
+           mm²; this is enough to read as a pattern.
+
+           SCATTERED, NOT OVERLAPPING. Placed by rejection against the ones
+           already down: unchecked, two stomata land on top of each other and
+           read as one four-celled thing that is not any structure a leaf has.
+           A capped try count, so a crowded seed thins out rather than hangs. */
         const count = Math.round(W * D * 0.14);
+        const placed = [];
+        const guardGeo = guardGeometry();      // one shape, shared; see applyAperture
         for (let s = 0; s < count; s++) {
+          let x = 0, z = 0, ok = false;
+          for (let t = 0; t < 30 && !ok; t++) {
+            x = rrange(-W / 2 + 0.7, W / 2 - 0.7);
+            z = rrange(-D / 2 + 0.7, D / 2 - 0.7);
+            ok = placed.every(p => (p[0] - x) ** 2 + (p[1] - z) ** 2 > STOMA_PITCH * STOMA_PITCH);
+          }
+          if (!ok) continue;
+          placed.push([x, z]);
           const st = new THREE.Group();
-          st.position.set(rrange(-W / 2 + 0.6, W / 2 - 0.6), y - 0.02, rrange(-D / 2 + 0.6, D / 2 - 0.6));
+          st.position.set(x, y - 0.02, z);
           st.rotation.y = rrange(0, Math.PI);
           for (const side of [-1, 1]) {
             const gm = shadow(new THREE.Mesh(guardGeo, M.guard));
-            gm.rotation.z = Math.PI / 2; gm.userData.side = side;
+            gm.rotation.y = side < 0 ? Math.PI : 0;      // the mirror, without a negative scale
+            gm.userData.side = side;
             st.add(gm);
           }
           stomata.push(st);
@@ -340,17 +356,35 @@
       return next;
     }
 
-    /* Guard cells are turgid when open: they swell and BOW apart, which is why
-       a pore appears between two cells that were touching. Modelled as the gap
-       plus a matching tilt, so the pair reads as bent rather than slid. */
-    const GAP = { shut: 0.115, open: 0.235 };
-    function applyAperture() {
+    /* ---- the guard cells ----
+       A pair joined at both ends, bowing apart in the middle: the pore is the
+       lens between their concave faces, not a gap between two sliding rods.
+       That is what opening IS, so the aperture is the arc and the ends never
+       move. A torus segment is exactly a curved sausage, and holding the arc
+       LENGTH fixed while the angle grows bends one cell rather than growing
+       it — R = L / arc. Turgid cells are fatter too, so the tube thickens.
+
+       ONE geometry serves every stoma, rebuilt when the aperture changes and
+       never per frame: a few dozen tori per frame is a stutter for a shape
+       that only moves when the student moves it. */
+    const STOMA_LEN = 0.72, STOMA_PITCH = 1.15;
+    function guardGeometry() {
       const a = Math.max(0, Math.min(1, P.aperture));
-      const z = GAP.shut + (GAP.open - GAP.shut) * a;
+      const arc = 0.5 + 1.7 * a;
+      const R = STOMA_LEN / arc;
+      const g = new THREE.TorusGeometry(R, 0.095 + 0.04 * a, 7, 22, arc);
+      g.rotateZ(-arc / 2);                 // symmetric about +X: chord on Y, bulge in +X
+      g.translate(-R * Math.cos(arc / 2), 0, 0);   // the joined ends at the origin
+      g.rotateX(-Math.PI / 2);             // flat in the epidermis
+      return g;
+    }
+    function applyAperture() {
+      if (!stomata.length) return;
+      const geo = guardGeometry();
       for (const st of stomata) for (const gm of st.children) {
-        gm.position.z = gm.userData.side * z;
-        gm.rotation.x = gm.userData.side * (0.06 + 0.16 * a);
-        gm.scale.set(1, 1, 1.15 - 0.12 * a);          // drained cells are fatter across
+        const old = gm.geometry;
+        gm.geometry = geo;
+        if (old !== geo) old.dispose();
       }
     }
 
