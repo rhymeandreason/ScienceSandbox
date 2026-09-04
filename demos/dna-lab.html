@@ -177,8 +177,8 @@ const L = Lesson.create(document.getElementById('gl'), {
          // hold the loose nucleotide waiting below as well as the one it joins.
          // Step 3 reframes once the rungs are joined: before that the stage
          // also has to hold the lower rung waiting below.
-         : step === 3 ? (rung3s[1].joined ? [{ x:0, y:0,   rxz:34, hy:20 }]
-                                        : [{ x:0, y:-10, rxz:23, hy:23 }])
+         : step === 3 ? (rung3s[1].joined ? [{ x:0, y:0,   rxz:38, hy:22 }]
+                                        : [{ x:0, y:-9,  rxz:26, hy:24 }])
                        : [{ x:0, y:0, rxz:26, hy:17 }],
   afterFrame:()=>{                                    // projection reads a matrix refreshed on render
     if(step === 1){ placeTags(); placeRulers(); }
@@ -1210,7 +1210,7 @@ function placeTags2(){
 // A third of a right angle off edge-on, and 30% for a base that is present but
 // not the subject. Both are the whole of this step's art direction, so they sit
 // together where they can be compared.
-const TILT3 = 0.52, BASE_DIM = 0.3;
+const TILT3 = 0.87, BASE_DIM = 0.3;
 
 const G3 = new THREE.Group();
 G3.visible = false;
@@ -1364,8 +1364,8 @@ function solveView(){
    * axis upright the pair is a slab three spheres deep and the whole rung reads
    * as a flat streak — which is exactly what a view down the axis would look
    * like, so it reads as the wrong picture even though it is the right one.
-   * A third of a right angle opens the pairs enough to recognise while the
-   * stack still reads as stacked. */
+   * Half a radian opens the pairs enough to recognise while the stack still
+   * reads as stacked. */
   G3.quaternion.premultiply(new THREE.Quaternion()
     .setFromAxisAngle(new THREE.Vector3(1, 0, 0), TILT3));
 }
@@ -1612,7 +1612,10 @@ function rungCentre(rung){
   return box.getCenter(new THREE.Vector3());
 }
 
-const LATCH3 = 5;
+// Bigger than step 2's, because the thing being placed is bigger: a whole rung
+// half-covering its target still reads as "there", and asking for five units on
+// an object twenty across is asking for precision the gesture does not have.
+const LATCH3 = 9;
 function tryLinkRungs(){
   if(!held3) return;
   if(flatDist(spin3World(held3.mol.position), spin3World(home3)) > LATCH3) return;
