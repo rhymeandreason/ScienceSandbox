@@ -110,8 +110,8 @@ const CMDS = {
     const made = await apps.create({ cohort: 'seed', title: name.trim(), isLocal: true,
       version: { kind: 'seed', html, request: past[past.length - 1] || null, summary: `seeded from ${file}` } });
     console.log(`${made.id}  ${name}`);
-    console.log(`  view  http://localhost:8817/demos/build/app.html?id=${made.id}`);
-    console.log(`  edit  http://localhost:8817/demos/build/build.html?id=${made.id}&e=${made.token}`);
+    console.log(`  view  http://localhost:8817/app/${made.id}`);
+    console.log(`  edit  http://localhost:8817/build?id=${made.id}&e=${made.token}`);
   },
 };
 

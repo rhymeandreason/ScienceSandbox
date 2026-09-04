@@ -110,7 +110,7 @@ node tools/dev-server.js        # http://localhost:8817/ — zero dependencies
 
 Live reload, and `no-store` so you never debug a fix that's already correct on disk. **It serves the repo root, not `demos/`**, because the root is what deploys. `/` is the lesson index; a lesson is `/demos/water-lab.html`. `demos/index.html` only redirects up.
 
-**The dev server does not apply `vercel.json`'s rewrites**, so a featured lesson is its file path locally and its short URL in production (above). A query string survives the redirect between them, which is what keeps the tutor's `?k=` links working whichever form gets shared.
+**The dev server applies `vercel.json`'s rewrites but not its redirects**, so a short URL works locally and so does the file path behind it. A query string survives the redirect between them in production, which is what keeps the tutor's `?k=` links working whichever form gets shared.
 
 Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet in place, so the scene keeps its camera, selection and toggles.
 

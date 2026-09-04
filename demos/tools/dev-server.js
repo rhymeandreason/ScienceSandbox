@@ -96,9 +96,12 @@ loadEnv();
  *
  * The map is READ FROM vercel.json rather than copied into a table here, so the
  * two cannot drift: add a rewrite for the next lesson and this picks it up on
- * restart. Only literal sources are taken — the pattern sources in that file are
- * all `redirects`, which stay a deployment concern (locally you want
- * /demos/water-lab.html to serve the page, not bounce to /water).
+ * restart. Literal sources and `:param` sources (`/app/:id`) are both taken;
+ * the regex forms are all `redirects`, which stay a deployment concern (locally
+ * you want /demos/water-lab.html to serve the page, not bounce to /water).
+ * A rewrite's query (`?id=:id`) is dropped, as the browser never sees it
+ * deployed either: a page under a pattern rewrite reads its parameter from
+ * the path, which is what build/apps-client.js does.
  *
  * Rewriting is invisible to the browser, which is what production does too: the
  * URL bar still says /water, so `location.pathname` — the key the reload client
@@ -106,16 +109,21 @@ loadEnv();
  * on the file that answered it. */
 function loadRewrites() {
   const map = new Map();
+  const patterns = [];
   try {
     const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
     for (const r of cfg.rewrites || []) {
-      if (/[(*?[\\]/.test(r.source)) continue;      // a pattern, not a literal path
-      map.set(r.source, r.destination.split('?')[0]);
+      if (/[(*?[\\]/.test(r.source)) continue;      // a regex, not a path
+      const dest = r.destination.split('?')[0];
+      if (r.source.includes(':')) {
+        const re = new RegExp('^' + r.source.replace(/:[A-Za-z_]+/g, '[^/]+') + '$');
+        patterns.push({ re, dest });
+      } else map.set(r.source, dest);
     }
   } catch (e) {
     console.warn('vercel.json would not parse — serving without pretty URLs:', e.message);
   }
-  return map;
+  return { get: url => map.get(url) || (patterns.find(p => p.re.test(url)) || {}).dest };
 }
 const REWRITES = loadRewrites();
 

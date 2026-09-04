@@ -51,7 +51,9 @@ const Apps = (() => {
   else KEY = get(KEY_KEY);
 
   /* ---- the edit token for this app, if the link carried one ------------- */
-  const ID = params.get('id');
+  /* Deployed, `/app/<id>` is a rewrite and the browser never sees the query
+   * it adds, so the id is read from the path when the query has none. */
+  const ID = params.get('id') || (/^\/app\/([A-Za-z0-9_-]+)\/?$/.exec(url.pathname) || [])[1] || null;
   const fromLink = params.get('e');
   if (fromLink && ID) { remember(ID, fromLink); params.delete('e'); dirty = true; }
   if (dirty) { try { history.replaceState(null, '', url.pathname + (params.toString() ? '?' + params : '') + url.hash); } catch {} }
