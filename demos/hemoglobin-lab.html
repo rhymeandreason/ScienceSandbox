@@ -14,7 +14,11 @@
 <link rel="stylesheet" href="css/kodo.css">          <!-- design system: tokens, type, buttons -->
 <link rel="stylesheet" href="css/sandbox.css">
 <style>
-  :root{ --hb:#0042aa; --core:#c2571b; --coil:#8a8378; --quat:#8a5a12; }
+  /* THE FOUR STRUCTURE COLOURS, READ AND NOT TYPED. --hb is palette.js's own
+     hydrogen bond, so the ribbon and the word for it cannot disagree; the other
+     three are kodo.css's, because a level of structure is not an element. */
+  :root{ --hb:var(--bond-hbond); --core:var(--protein-core);
+         --coil:var(--protein-coil); --quat:var(--protein-quat); }
 
   [hidden]{display:none !important}
 

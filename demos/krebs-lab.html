@@ -69,7 +69,7 @@
      sits a shade prouder. The other two are its two halves. */
   #tnotes .sticky{pointer-events:auto}
   #tnotes .sticky.tot{transform:rotate(.9deg)}
-  #tnotes .sticky.tot .row .v{color:var(--nad)}
+  #tnotes .sticky.tot .row .v{color:var(--energy-nad)}
   /* what the note is counting, beside its name and quieter than it */
   .sticky .lhead .lsub{font-family:var(--font-sans);font-weight:600;font-size:8.5px;
     letter-spacing:.5px;color:rgba(60,50,28,.5);margin-left:5px}
@@ -1432,7 +1432,7 @@ function drawRing(){
   const midOf=k=>(ang(k)+ang((k+1)%N))/2;
   const tag=(k,txt,col)=>{ const [tx,ty]=px(midOf(k),LR+3);
     return `<text class="rgtag" style="fill:${col}" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}">${txt}</text>`; };
-  out+=tag(0,'+2C','var(--carbon)');
+  out+=tag(0,'+2C','var(--atom-C)');
   RING_STEPS.forEach((s,k)=>{ if(s.co2) out+=tag(k,'CO₂','var(--co2)'); });
   ringOff=off;
   ringEl.innerHTML=`<div class="rh">One turn</div>`
@@ -2191,13 +2191,13 @@ const Handoff=(()=>{
       * the picture was nonsense. The carrier count moves into the small line,
       * where it says where the ATP came from. */
      `<div class="hosum">`
-    +`<span class="hoq" style="--c:var(--nad)"><b>${num(nadh*PER_NADH)}</b>
+    +`<span class="hoq" style="--c:var(--energy-nad)"><b>${num(nadh*PER_NADH)}</b>
         <i>${nadh} NADH × ${PER_NADH}</i></span>`
     +`<span class="hoop">+</span>`
     +`<span class="hoq" style="--c:var(--fad)"><b>${num(fadh2*PER_FADH2)}</b>
         <i>${fadh2} FADH₂ × ${PER_FADH2}</i></span>`
     +`<span class="hoop">+</span>`
-    +`<span class="hoq" style="--c:var(--atp)"><b>${atp}</b>
+    +`<span class="hoq" style="--c:var(--energy-atp)"><b>${atp}</b>
         <i>${atp} ATP direct</i></span>`
     +`<span class="hoop">=</span>`
     +`<span class="hott"><b>≈${worth}</b><i>ATP per glucose</i></span></div>`

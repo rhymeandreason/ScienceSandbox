@@ -2224,18 +2224,18 @@ const Mass=(()=>{
  * NAD⁺ come from — the constraint that picks one. Rendered once, stateless. */
 const Fork=(()=>{
   document.getElementById('forkbody').innerHTML=
-     `<div class="door" style="--c:var(--nad)">
+     `<div class="door" style="--c:var(--energy-nad)">
         <div class="dk">With O₂</div><div class="dh">Aerobic</div>
         <div class="db">Pyruvate enters the <b>mitochondrion</b>: oxidised to
         acetyl-CoA, then the citric acid cycle and electron transport chain. Each
         <b>NADH</b> is worth roughly <b>2.5 ATP</b> there, so glycolysis's 2 NADH
         outweigh its 2 net ATP — <b>~30 ATP</b> per glucose, and NAD⁺ back.</div></div>`
-    +`<div class="door" style="--c:var(--atp)">
+    +`<div class="door" style="--c:var(--energy-atp)">
         <div class="dk">No O₂</div><div class="dh">Lactic acid</div>
         <div class="db">Pyruvate itself takes the <b>NADH</b>'s electrons and becomes
         <b>lactate</b>. Muscle under load, and most bacteria. <b>No extra ATP</b> —
         the product that matters is <b>NAD⁺</b>.</div></div>`
-    +`<div class="door" style="--c:var(--phos)">
+    +`<div class="door" style="--c:var(--atom-P)">
         <div class="dk">No O₂</div><div class="dh">Ethanol</div>
         <div class="db">Yeast strips a <b>CO₂</b> from pyruvate, then reduces the
         acetaldehyde to <b>ethanol</b>. Same purpose: regenerate <b>NAD⁺</b> so

@@ -126,7 +126,7 @@
   #eqBadge { position:absolute; left:50%; top:14px; transform:translateX(-50%);
              z-index:4; text-align:center; pointer-events:none;
              padding:8px 18px; border-radius:999px;
-             border:1px solid #2a7a6a; background:#dfeee9;
+             border:1px solid var(--membrane-channel); background:#dfeee9;
              box-shadow:0 2px 10px rgba(0,0,0,.12);
              opacity:0; transition:opacity .6s ease; }
   #eqBadge.is-on { opacity:1; }
@@ -163,7 +163,7 @@
   .gset:hover, .gset:focus-within { opacity:.95; }
   /* display:flex above beats the UA's [hidden] — same trap as .tog. */
   .gset[hidden] { display:none; }
-  .gset input { width:13px; height:13px; margin:0; accent-color:#2a7a6a;
+  .gset input { width:13px; height:13px; margin:0; accent-color:var(--membrane-channel);
                 cursor:pointer; }
 
   #voltCount { position:absolute; right:16px; text-align:right;
@@ -325,7 +325,11 @@
         <!-- Drawn at twice the viewBox: the arrow is the step's conclusion,
              and at 46x150 it read as a tick mark beside two 46px numbers. -->
         <svg width="92" height="300" viewBox="0 0 46 150" aria-hidden="true">
-          <g id="osmoArrowG" fill="none" stroke="#2a7a6a" stroke-width="6"
+          <!-- `style=` and not `stroke=`: a var() in an SVG PRESENTATION
+               ATTRIBUTE is spec-legal and Safari does not honour it, which is
+               a green arrow going black on the one browser this is read in.
+               A style attribute is plain CSS and works everywhere. -->
+          <g id="osmoArrowG" fill="none" style="stroke:var(--membrane-channel)" stroke-width="6"
              stroke-linecap="round" stroke-linejoin="round">
             <path d="M23 132 L23 26"/>
             <path d="M9 42 L23 26 L37 42"/>

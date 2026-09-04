@@ -113,8 +113,8 @@ html.bare .chrome-title { display: none !important }
   --text-inverse:    var(--cream-300);   /* on an ink fill */
 
   /* Button fills. Brighter and more saturated than the readout accents: a
-     primary pill has to carry white type and win the stage. --bond-ionic
-     stays where it is because palette.js draws the bond with that number. */
+     primary pill has to carry white type and win the stage. The ion-dipole
+     amber is a BOND and stays palette.js's --bond-iondipole. */
   --action-blue:     #2f7ee0;
   --action-amber:    #ef8b17;
 
@@ -139,32 +139,33 @@ html.bare .chrome-title { display: none !important }
    --bond-condense, --bond-lonepair.
 
    Below are the domain colours that belong to a lesson rather than to an
-   element, hoisted out of the three per-page :root blocks.
+   element. Each one is a colour NOTHING ELSE ALREADY PUBLISHES: a token here
+   that restates a generated one is the oxygen bug rebuilt with new names, and
+   four of them were exactly that before this block was cut back. If the colour
+   you want is an element's or a bond's, say --atom-P or --bond-hbond and stop.
    -------------------------------------------------------------------------- */
 :root {
-  /* bonding, in molecule-builder. --bond-ionic is the ion-dipole amber and is
-     the same number palette.js draws the bond with. --bond-covalent-ink is a
-     darkened stand-in for it: the stick's stone (#b3a892) is tuned to read on
-     cream at sphere size and goes illegible as 13px type. */
-  --bond-ionic:        #d9791e;
+  /* A DARKENED STAND-IN FOR THE COVALENT STICK, and the reason this one is
+     allowed to exist: the stick's stone (#b3a892) is tuned to read on cream at
+     sphere size and goes illegible as 13px type. The word and the bond are
+     deliberately not the same number. molecule-builder and solvation-lab. */
   --bond-covalent-ink: #7a6f58;
 
-  /* protein structure, in hemoglobin-lab. --protein-hbond is palette.js's
-     hbond, so the ribbon and the word for it agree. */
-  --protein-hbond: #0042aa;
+  /* Protein structure, in hemoglobin-lab. The H-bond is NOT here: a ribbon's
+     hydrogen bond is the same hydrogen bond a water lesson draws, so it is
+     --bond-hbond. These three are levels of structure, which no palette has. */
   --protein-core:  #c2571b;
   --protein-coil:  #8a8378;
   --protein-quat:  #8a5a12;
 
-  /* energy and carriers, in glycolysis-lab and krebs-lab. --energy-phosphate
-     is palette.js's P and --energy-carbon is its C. */
-  --energy-phosphate: #e07b1f;
-  --energy-nad:       #2f7d5c;
-  --energy-atp:       #c8452e;
-  --energy-carbon:    #3a3a3a;
+  /* The two carriers, in glycolysis-lab, krebs-lab and fermentation-lab. The
+     phosphate and the carbon are NOT here: they are --atom-P and --atom-C, and
+     naming them twice is how a re-tuned palette leaves a caption behind. */
+  --energy-nad: #2f7d5c;
+  --energy-atp: #c8452e;
 
-  /* the membrane's channel green, which membrane-lab repeats as a literal in
-     six places and names nowhere */
+  /* The membrane's channel green. membrane-lab repeats it as a literal in
+     three more places and names it nowhere. */
   --membrane-channel: #2a7a6a;
 }
 
