@@ -14,11 +14,12 @@
 <link rel="stylesheet" href="css/kodo.css">          <!-- design system: tokens, type, buttons -->
 <link rel="stylesheet" href="css/sandbox.css">
 <style>
-  /* THE FOUR STRUCTURE COLOURS, READ AND NOT TYPED. --hb is palette.js's own
-     hydrogen bond, so the ribbon and the word for it cannot disagree; the other
-     three are kodo.css's, because a level of structure is not an element. */
-  :root{ --hb:var(--bond-hbond); --core:var(--protein-core);
-         --coil:var(--protein-coil); --quat:var(--protein-quat); }
+  /* THIS PAGE'S COLOURS, and deliberately not the design system's: one lesson
+     uses them, so they live where the lesson does. --hb is the exception and is
+     read, not typed — a ribbon's hydrogen bond is the same hydrogen bond a water
+     lesson draws, and palette.js is what both agree through. The coil had a
+     colour here that nothing ever used; it is gone rather than left waiting. */
+  :root{ --hb:var(--bond-hbond); --core:#c2571b; --quat:#8a5a12; }
 
   [hidden]{display:none !important}
 

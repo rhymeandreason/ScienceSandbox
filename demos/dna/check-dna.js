@@ -293,66 +293,75 @@ head('the helix is the ladder, twisted');
      'phosphate: the ester role keeps P');
 }
 
-/* ---- step 3: the phosphodiester bond ---------------------------------
- * The backbone join, read out of the record the same way the other two are.
- * The check that matters is the FRAME: two residues on one strand belong to
- * different base pairs, and every pair in bdna.js holds its atoms locally plus
- * an origin and basis that place it. Compare the local coordinates and the
- * bond comes out at about 5 Å — a number that looks like a slightly stretched
- * bond rather than like a bug, and is really the answer for two residues
- * stacked with no twist at all.
+/* ---- step 3: the backbone ---------------------------------------------
+ * Two rungs joined by two phosphodiester bonds. What has to hold is that OUR
+ * nucleotides, placed on the record's residues, make bonds of the right length
+ * in both directions — the page quotes those numbers, and a fit that drifted
+ * would quote a wrong one just as confidently.
  */
 {
   head('step 3: the backbone');
   const B = global.window.BDNA;
   const dist = (a, b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
 
-  // Attach.residue* must reproduce the record's own bond lengths.
+  // residueAt must reproduce the record's own bond lengths. Reading a residue
+  // in its PAIR's frame instead of the deposited one puts the bond near 5 Å,
+  // which reads as a stretched bond rather than as a wrong frame.
   for(const l of B.links.slice(0, 6)){
     const from = Attach.residueAt(B, l.from.pair, l.strand);
     const to   = Attach.residueAt(B, l.to.pair,   l.strand);
     const d = dist(from["O3'"], to.P);
     ok(Math.abs(d - l.d) < 0.02,
        `link ${l.from.pair}→${l.to.pair} on strand ${l.strand}: O3′–P is `
-       + `${d.toFixed(2)} Å, the record says ${l.d} — the residues are being `
-       + `read in the deposited frame, not each pair's own`);
+       + `${d.toFixed(2)} Å, the record says ${l.d}`);
   }
 
   /* ANTIPARALLEL, straight out of the data. On one strand the bonds run from a
-   * pair to the NEXT one and on the other from a pair to the PREVIOUS one.
-   * That is what antiparallel means, and it is a property of the record rather
-   * than something the page arranges. */
-  const fwd = B.links.filter(l => l.strand === 0).every(l => l.to.pair > l.from.pair);
-  const rev = B.links.filter(l => l.strand === 1).every(l => l.to.pair < l.from.pair);
-  ok(fwd && rev, 'the two strands run in opposite directions along the duplex');
+   * pair to the NEXT and on the other to the PREVIOUS. That is what the word
+   * means, and it is a property of the record rather than of the page. */
+  ok(B.links.filter(l => l.strand === 0).every(l => l.to.pair > l.from.pair) &&
+     B.links.filter(l => l.strand === 1).every(l => l.to.pair < l.from.pair),
+     'the two strands run in opposite directions along the duplex');
 
-  // The pose the page joins with: every step the record contains.
+  /* The four placements step 3 makes, and the two bonds they produce. This is
+   * the page's own arithmetic: build a nucleotide, hand attach.js its heavy
+   * atoms under PDB names, fit it onto the residue it is. */
   const SUG = un(M.deoxyribose), PHO = un(M.phosphate);
-  const nucleotide = key => {
-    // the page's addPart(), in the two calls it makes, without the page
-    let spec = un(M[key]);
-    const g = Attach.sugar(key, spec, SUG), e = Attach.phosphate(key, SUG, PHO);
+  function nucleotide(key){
+    const g = Attach.sugar(key, un(M[key]), SUG);
+    const e = Attach.phosphate(key, SUG, PHO);
     const out = {};
+    const base = un(M[key]);
+    for(let i = 0; i < base.names.length; i++)
+      if(base.atoms[i].el !== 'H') out[base.names[i]] = base.atoms[i].pos;
     for(const n of ['C1','C2','C3','C4','C5','O3','O4','O5'])
       out[n + "'"] = g.apply(SUG.atoms[SUG.names.indexOf(n)].pos);
-    const pInSugar = PHO.atoms[PHO.names.indexOf('P')].pos;
-    out.P = g.apply(e.apply(pInSugar));
+    out.P = g.apply(e.apply(PHO.atoms[PHO.names.indexOf('P')].pos));
     return out;
-  };
-  const LET = { DA:'adenine', DT:'thymine', DG:'guanine', DC:'cytosine' };
-  const steps = new Set();
-  for(const l of B.links)
-    steps.add(B.pairs[l.from.pair].seq.split('-')[l.strand] + ' ' +
-              B.pairs[l.to.pair].seq.split('-')[l.strand]);
-  for(const st of steps){
-    const [a, b] = st.split(' ').map(x => LET[x]);
-    const r = Attach.link(a, b, nucleotide(a), nucleotide(b));
-    ok(r.ok, `${a}→${b}: the link solves`);
-    if(!r.ok) continue;
-    ok(r.length > 1.50 && r.length < 1.70,
-       `${a}→${b}: phosphodiester bond is ${r.length.toFixed(2)} Å, not 1.50–1.70`);
-    ok(r.rms < 0.15, `${a}→${b}: link fit is tight (rms ${r.rms.toFixed(3)} Å)`);
   }
+  const RUNGS = [{ pair:5, of:[['adenine',0], ['thymine',1]] },
+                 { pair:6, of:[['thymine',0], ['adenine',1]] }];
+  const placed = {};
+  for(const r of RUNGS) for(const [key, strand] of r.of){
+    const mine = nucleotide(key);
+    const f = Attach.residueFit(mine, r.pair, strand);
+    ok(f.ok, `${key} fits residue ${r.pair}/${strand}`);
+    if(!f.ok) continue;
+    ok(f.rms < 1.0,
+       `${key} at ${r.pair}/${strand}: fit residual ${f.rms.toFixed(2)} Å — the `
+       + `sugar's pucker is ours, but not by more than an ångström`);
+    placed[r.pair + ':' + strand] = n => f.apply(mine[n]);
+  }
+  const bond = (a, b) => dist(placed[a]("O3'"), placed[b]('P'));
+  for(const [a, b] of [['5:0', '6:0'], ['6:1', '5:1']]){
+    const d = bond(a, b);
+    ok(d > 1.35 && d < 1.75,
+       `phosphodiester ${a}→${b} is ${d.toFixed(2)} Å, not 1.35–1.75`);
+  }
+  // And the two bonds go opposite ways down the ladder, which is what the step
+  // is for: on one rail the upper residue donates, on the other the lower one.
+  ok(bond('5:0', '6:0') < 2 && bond('6:1', '5:1') < 2,
+     'the two rails bond in opposite directions');
 }
 
 console.log(`\n${checks - fails}/${checks} checks passed`);

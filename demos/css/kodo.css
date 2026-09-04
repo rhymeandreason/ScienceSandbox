@@ -138,34 +138,30 @@ html.bare .chrome-title { display: none !important }
    --atom-Na ... and --bond-hbond, --bond-covalent, --bond-iondipole,
    --bond-condense, --bond-lonepair.
 
-   Below are the domain colours that belong to a lesson rather than to an
-   element. Each one is a colour NOTHING ELSE ALREADY PUBLISHES: a token here
-   that restates a generated one is the oxygen bug rebuilt with new names, and
-   four of them were exactly that before this block was cut back. If the colour
-   you want is an element's or a bond's, say --atom-P or --bond-hbond and stop.
+   Below are the domain colours a LESSON reads, and the bar for being here is
+   both of these:
+
+     1. NOTHING ELSE ALREADY PUBLISHES IT. A token that restates a generated one
+        is the oxygen bug rebuilt with new names. If the colour you want is an
+        element's or a bond's, say --atom-P or --bond-hbond and stop.
+     2. MORE THAN ONE PAGE READS IT. One page's colour lives on that page.
+        hemoglobin-lab's core and quaternary greens were here and went back:
+        a design system that carries a colour with one caller is a place to
+        lose it, not a place to share it.
+
+   Four duplicates and one single-page pair have already left by those two
+   rules. The block is meant to be small.
    -------------------------------------------------------------------------- */
 :root {
-  /* A DARKENED STAND-IN FOR THE COVALENT STICK, and the reason this one is
-     allowed to exist: the stick's stone (#b3a892) is tuned to read on cream at
-     sphere size and goes illegible as 13px type. The word and the bond are
-     deliberately not the same number. molecule-builder and solvation-lab. */
-  --bond-covalent-ink: #7a6f58;
-
-  /* Protein structure, in hemoglobin-lab. The H-bond is NOT here: a ribbon's
-     hydrogen bond is the same hydrogen bond a water lesson draws, so it is
-     --bond-hbond. These three are levels of structure, which no palette has. */
-  --protein-core:  #c2571b;
-  --protein-coil:  #8a8378;
-  --protein-quat:  #8a5a12;
-
-  /* The two carriers, in glycolysis-lab, krebs-lab and fermentation-lab. The
-     phosphate and the carbon are NOT here: they are --atom-P and --atom-C, and
-     naming them twice is how a re-tuned palette leaves a caption behind. */
+  /* The two carriers, read by glycolysis-lab, krebs-lab and fermentation-lab.
+     The phosphate and the carbon are NOT here: they are --atom-P and --atom-C,
+     and naming them twice is how a re-tuned palette leaves a caption behind. */
   --energy-nad: #2f7d5c;
   --energy-atp: #c8452e;
 
-  /* The membrane's channel green. membrane-lab repeats it as a literal in
-     three more places and names it nowhere. */
+  /* The membrane's channel green. ONE PAGE READS IT, which is rule 2 above
+     unmet; it stays only until membrane-lab and the membrane component stop
+     being two copies of one physics, because the component will want it too. */
   --membrane-channel: #2a7a6a;
 }
 

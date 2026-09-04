@@ -259,73 +259,39 @@
              length:dist(at(sugarSpec,'O5'), f.apply(at(phosSpec,'P'))) };
   }
 
-  /* ---- the phosphodiester bond ----------------------------------------------
-   * Step 3's join, and the only one between two whole nucleotides: the 3′–OH of
-   * one meets the 5′ phosphate of the next, a water leaves, and the backbone
-   * gains a residue. Same method as the other two — the record already holds
-   * every consecutive pair on both strands, so the pose is read, not composed
-   * out of a rise and a twist.
+  /* ---- a residue of the deposited duplex ------------------------------------
+   * Where one of OUR nucleotides has to sit to BE a named residue of 1BNA.
+   * Step 3 places four of them — two rungs, two strands — and everything that
+   * follows is then the crystal's arrangement at once: the pairing, the
+   * stacking, and both phosphodiester bonds.
    *
-   * READING IT PER-RESIDUE RATHER THAN AS THE HELICAL STEP is the point. The
-   * step transform (bdna.step) would place the next pair correctly and say
-   * nothing about whether the backbone closes; here the two atoms that have to
-   * meet are what the fit is anchored on, so `length` comes back as the bond it
-   * actually made. A page can then quote it instead of asserting it.
+   * COMPOSING POSES INSTEAD DOES NOT WORK, and this is the whole reason the
+   * function exists. The first version of that step built the second rung from
+   * a pair pose and a link pose, each correct about its own anchor, and the
+   * second backbone bond came out 31 Å long. Two right answers about different
+   * anchors are not a right answer about the duplex.
    *
-   * `atomsA` / `atomsB` are name→position maps in the CALLER's frame, PDB names
-   * with their primes, because a page's assembled nucleotide has labels of its
-   * own making and this module should not have to know them. */
-  const LINK_ANCHOR = ['P', "O5'", "C5'"];   // the bond, and what fixes its angles
-
-  function link(keyA, keyB, atomsA, atomsB){
-    const pair = consecutive(LETTER[keyA], LETTER[keyB]);
-    if(!pair) return { ok:false, why:`no ${keyA}→${keyB} step on either strand` };
-    const [depA, depB] = pair;
-
-    // 1BNA's frame → our nucleotide A's, anchored on the 3′ end and not on the
-    // whole residue. Fitting all nine shared atoms is the tempting version and
-    // it puts the bond at 4.5 Å: our sugar's pucker is its own, so a whole-
-    // residue fit lands O3′ half an ångström out and the phosphate arrives
-    // where the record says rather than where the oxygen is. SUGAR_ANCHOR's
-    // argument, one join further along.
-    const anchorA = ["O3'", "C3'", "C4'"]
-      .map(n => ({ mine:atomsA[n], theirs:depA[n] || depA[prime(n)] }))
-      .filter(x => x.mine && x.theirs);
-    if(anchorA.length < 3) return { ok:false, why:'the 3′ end is not in both' };
-    const toA = fit(anchorA.map(x=>x.theirs), anchorA.map(x=>x.mine));
-
-    const pairs = LINK_ANCHOR
-      .map(n => ({ mine:atomsB[n], theirs:depB[n] || depB[prime(n)] }))
-      .filter(x => x.mine && x.theirs);
-    if(pairs.length < 3) return { ok:false, why:'fewer than three shared atoms on B' };
-    const f = fit(pairs.map(x=>x.mine), pairs.map(x=>toA.apply(x.theirs)));
-
-    return { ok:true, quat:f.quat, pos:f.apply([0,0,0]), apply:f.apply, rms:f.rms,
-             bond:{ from:"O3'", to:'P' },
-             length:dist(atomsA["O3'"], f.apply(atomsB.P)) };
+   * FITTED ON THE WHOLE RESIDUE, unlike sugar() and phosphate() above, and for
+   * the opposite reason. There one bond had to be exact, so the fit was
+   * anchored on it. Here two bonds and a base pair all have to come out at
+   * once, and no three atoms fix all of them — the least-squares compromise
+   * over every shared heavy atom is what lands them. It costs about 0.7 Å of
+   * residual, all of it in the sugar, whose pucker is ours and not the
+   * crystal's, and the two backbone bonds still come out at 1.47 and 1.61 Å.
+   * The page measures them rather than asserting them.
+   *
+   * `atomsMine` is a name→position map in PDB names, because a page's assembled
+   * nucleotide has labels of its own making and this module should not know
+   * them. Hydrogens have no counterpart in the record and are left out. */
+  function residueFit(atomsMine, pairIndex, strand){
+    const dep = residueAt(record(), pairIndex, strand);
+    if(!dep) return { ok:false, why:'no such residue in the record' };
+    const shared = Object.keys(atomsMine).filter(n => dep[n]);
+    if(shared.length < 3) return { ok:false, why:'fewer than three shared atoms' };
+    const f = fit(shared.map(n => atomsMine[n]), shared.map(n => dep[n]));
+    return { ok:true, quat:f.quat, pos:f.apply([0,0,0]), apply:f.apply,
+             rms:f.rms, n:shared.length };
   }
-
-  const prime = n => n.endsWith("'") ? n.slice(0,-1) + '′' : n + '′';
-
-  /* Two residues that follow each other ALONG A STRAND, in that order. The
-   * record's `links` are the phosphodiester bonds themselves, so this asks the
-   * bonds rather than assuming pair i is followed by pair i+1 — which is true
-   * on one strand and false on the other, and that reversal is the whole of
-   * what antiparallel means. */
-  function consecutive(a, b){
-    const B = record();
-    for(const l of B.links){
-      const from = residueAt(B, l.from.pair, l.strand);
-      const to   = residueAt(B, l.to.pair,   l.strand);
-      if(!from || !to) continue;
-      if(letterOf(B, l.from.pair, l.strand) !== a) continue;
-      if(letterOf(B, l.to.pair,   l.strand) !== b) continue;
-      if(!to.P) continue;                       // a 5′ end has no phosphate
-      return [from, to];
-    }
-    return null;
-  }
-  const letterOf = (B, i, strand) => B.pairs[i].seq.split('-')[strand];
 
   /* IN THE DEPOSITED FRAME, not the pair's own. Every pair in the record holds
    * its atoms in a local frame plus an `origin`/`basis` that places it, because
@@ -354,7 +320,8 @@
   // residueAt is exported for check-dna.js, which asserts that it reads a
   // residue in the DEPOSITED frame — the mistake that made the backbone bond
   // 5 Å and looked like a stretched bond rather than a wrong frame.
-  const API = { sugar, phosphate, link, fit, residue, residueAt, glycosidicN };
+  const API = { sugar, phosphate, residueFit, fit, residue, residueAt,
+                glycosidicN };
   global.Attach = API;
   if(typeof module !== 'undefined' && module.exports) module.exports = { Attach:API };
 

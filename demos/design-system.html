@@ -180,12 +180,14 @@ it names cannot drift. Oxygen used to be <code>#e6362f</code> in CSS and <code>#
 <section>
 <div class="sechead"><h2>Lesson domains</h2><span class="rule"></span>
   <span class="count">domain</span></div>
-<p>A colour that belongs to a lesson rather than to an element, and that
-<strong>nothing else already publishes</strong>. Four tokens lived here that
-restated a generated one &mdash; the ion-dipole amber, the protein H-bond,
-phosphorus and carbon &mdash; which is the oxygen bug above rebuilt with new
-names. They are gone; the pages say <code>--bond-iondipole</code>,
-<code>--bond-hbond</code>, <code>--atom-P</code> and <code>--atom-C</code>.</p>
+<p>A colour a lesson reads, on two conditions: <strong>nothing else already
+publishes it</strong>, and <strong>more than one page reads it</strong>. Four
+tokens here restated a generated one (the ion-dipole amber, the protein H-bond,
+phosphorus, carbon) &mdash; the oxygen bug above with new names &mdash; and the
+pages now say <code>--bond-iondipole</code>, <code>--bond-hbond</code>,
+<code>--atom-P</code>, <code>--atom-C</code>. Three more had a single caller and
+went back to it: a system that carries a one-page colour is a place to lose it,
+not a place to share it.</p>
 <div class="grid" id="dom"></div>
 </section>
 
@@ -332,8 +334,7 @@ document.getElementById('bondcount').textContent = bonds.length + ' kinds';
 document.getElementById('tally').textContent =
   document.querySelectorAll('.sw').length + ' tokens \u00b7 ' +
   document.querySelectorAll('.row').length + ' control rows';
-put('dom', ['--bond-covalent-ink','--protein-core','--protein-coil','--protein-quat',
-            '--energy-nad','--energy-atp','--membrane-channel']);
+put('dom', ['--energy-nad','--energy-atp','--membrane-channel']);
 
 document.getElementById('fams').innerHTML = [
   ['--font-display','The site\u2019s voice: a wordmark, a masthead, a micro-cap, a numeral'],
