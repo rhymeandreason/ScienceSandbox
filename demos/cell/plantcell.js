@@ -185,8 +185,14 @@
     },
   };
 
+  /* A lap of the cell in about ninety seconds. Real cyclosis runs a few
+     microns a second round a cell tens of microns across, which is roughly
+     that, and it is the right speed for something a reader should notice
+     only once they stop and watch. */
+  const STREAM = 0.07;
+
   const STATES = { turgid: 0, flaccid: 1, plasmolysis: 2 };
-  const DEFAULTS = { seed: 1234, tissue: 'leaf', t: 0, A: 11, tilt: 0 };
+  const DEFAULTS = { seed: 1234, tissue: 'leaf', t: 0, A: 11, tilt: 0, stream: 1 };
 
   /* Every moving quantity as a function of the state axis. Two segments:
      0→1 the cell goes limp (it loses pressure, the wall stops bulging, the
@@ -201,6 +207,11 @@
       wrinkle: t < 1 ? lerp(0, 0.006, a) : lerp(0.006, 0.045, b),
       vac: t < 1 ? lerp(1, 0.86, a) : lerp(0.86, 0.42, b),
       org: t < 1 ? 1 : lerp(1, 0.6, b),
+      /* Cyclosis STOPS when a cell plasmolyses: the streaming is actin and
+         myosin anchored to the cortex, and it fails as the protoplast pulls
+         off the wall and loses turgor. So this is not decoration that keeps
+         running through the lesson, it is a thing that dies with the cell. */
+      stream: t < 1 ? 1 : lerp(1, 0, b),
     };
   }
 
@@ -485,8 +496,15 @@
         // rim once, and the bowl depth straight off `u` — bowlY would work
         // back from (x,z) to this same fraction through an atan2, a hypot
         // and a second protoR, and this runs 1500 times.
-        const rim = protoR(r.th, 1) - RIMW, rad = rim * r.u;
-        const x = rad * Math.cos(r.th) * C.ex, z = rad * Math.sin(r.th);
+        /* The cytosol streams too, and it is the cytosol that does the
+           streaming — the organelles are passengers. So the seeds carry the
+           same angle the organelles do. Rotating the whole mesh instead
+           would be one transform and free, but the field is elongated by
+           C.ex in the root cell and spinning an ellipse sweeps it out
+           through the wall. */
+        const th = r.th + spin;
+        const rim = protoR(th, 1) - RIMW, rad = rim * r.u;
+        const x = rad * Math.cos(th) * C.ex, z = rad * Math.sin(th);
         /* A ribosome is in the CYTOSOL, so every organelle leaves a hole.
            Keeping only the free space is also what stops the speckle reading
            as spots ON the organelles: against this cell's pale cytoplasm the
@@ -685,11 +703,22 @@
     function layoutStep(L, grow, dt, time) {
       const items = L.userData.items;
       for (const it of items) {
-        // brownian drift of the target, so a settled cell is not a still one
-        const ph = it.seed * 7.1, dr = (it.type === 'vacuole' || it.type === 'nucleus') ? 0 : 0.025 * A;
+        const held = it.type === 'vacuole' || it.type === 'nucleus';
+        /* CYTOPLASMIC STREAMING. The seed target itself orbits the cell, so
+           the spring, the repulsion and the wall all keep working and the
+           whole ensemble circulates rather than each organelle wandering on
+           its own. That is what cyclosis looks like down a microscope, and
+           it is the reason a leaf cell's chloroplasts are never twice in the
+           same place. The vacuole and the nucleus are held: the nucleus is
+           tethered to the cortex and the vacuole is what everything else is
+           streaming around. */
+        if (!held) it.seedA += STREAM * P.stream * stream * dt;
+        // and a slow brownian drift on top, so a stopped cell is not a still one
+        const ph = it.seed * 7.1, dr = held ? 0 : 0.025 * A;
         const base = it.type === 'vacuole' ? P.vac : P.org;
-        it.tx = it.seedX * C.ex * P.shrink + dr * Math.sin(time * 0.23 + ph);
-        it.tz = it.seedZ * P.shrink + dr * Math.cos(time * 0.19 + ph * 1.3);
+        const R0 = it.seedR * P.shrink;
+        it.tx = Math.cos(it.seedA) * R0 * C.ex + dr * Math.sin(time * 0.23 + ph);
+        it.tz = Math.sin(it.seedA) * R0 + dr * Math.cos(time * 0.19 + ph * 1.3);
         it.r = it.foot * base;
       }
       const sub = 3, h = Math.min(dt, 0.05) / sub;
@@ -718,7 +747,10 @@
         it.g.position.set(it.x, y, it.z);
         it.g.scale.setScalar(s);
         if (it.type !== 'nucleus' && it.type !== 'vacuole') {
-          const y = it.rot + (it.vx * Math.cos(it.rot) - it.vz * Math.sin(it.rot)) * 0.4 / A + 0.04 * Math.sin(time * 0.3 + it.seed);
+          // carried round by the flow, so it keeps its bearing to the stream
+          const base = it.rot + (it.seedA - it.seedA0);
+          const y = base + (it.vx * Math.cos(base) - it.vz * Math.sin(base)) * 0.4 / A
+                    + 0.04 * Math.sin(time * 0.3 + it.seed);
           it.g.rotation.set(it.tilt * Math.cos(y * 2.3), y, it.tilt * Math.sin(y * 2.3));
         }
       }
@@ -726,6 +758,8 @@
 
     /* ---- tissue switching ---- */
     let tissue = null, dying = [], born = 0, tint = null;
+    // 0 stops the streaming, 1 is life speed; a page may want it slower to talk over
+    let stream = O.stream === undefined ? 1 : O.stream;
     function applyTint() {
       for (let i = 0; i < tint.m.length; i++)
         if (tint.m[i]) tint.m[i].color.copy(tint.from[i]).lerp(tint.to[i], tint.k);
@@ -742,7 +776,12 @@
       if (instant) applyTint();
       if (layer) { layer.userData.t0 = 0; dying.push(layer); }
       layer = buildLayer(T);
-      for (const it of layer.userData.items) { it.seedX = it.tx; it.seedZ = it.tz; it.foot = it.r; }
+      for (const it of layer.userData.items) {
+        it.seedR = Math.hypot(it.tx, it.tz);
+        it.seedA = Math.atan2(it.tz, it.tx);
+        it.seedA0 = it.seedA;
+        it.foot = it.r;
+      }
       cutFrame.add(layer);
       born = 0;
       if (instant) born = 1e9;
@@ -779,19 +818,17 @@
        The wall and protoplast are rebuilt only when the state axis or the
        tissue actually moved; the organelle solve runs every frame, because
        the drift never settles. */
-    let dirty = true, clock = 0, lastRibo = -1;
+    let dirty = true, clock = 0, lastRibo = -1, spin = 0;
     function step(dt) {
       clock += dt;
       P = stateParams(St.t);
-      if (dirty) {
-        wallPG.update(); protoPG.update(); updatePlasmodesmata(); updateStrands();
-        /* The speckle is 1500 seeds against every organelle, so it is the
-           most expensive thing in a rebuild and the least urgent: a few
-           hundred dots settling a tenth of a second behind a moving wall is
-           invisible, where a wall that lags is not. */
-        if (clock - lastRibo > 0.12) { placeRibosomes(); lastRibo = clock; }
-        dirty = false;
-      }
+      spin += STREAM * P.stream * stream * dt;
+      if (dirty) { wallPG.update(); protoPG.update(); updatePlasmodesmata(); updateStrands(); dirty = false; }
+      /* The speckle is 1500 seeds tested against every organelle, so it is
+         the most expensive thing here and the least urgent: dots settling a
+         tenth of a second behind are invisible, where a wall that lags is
+         not. So it runs on its own clock rather than with the shape. */
+      if (clock - lastRibo > 0.12) { placeRibosomes(); lastRibo = clock; }
       if (tint && tint.k < 1) { tint.k = Math.min(tint.k + dt / 0.9, 1); applyTint(); }
       born = Math.min(born + dt, 1e9);
       const grow = easeInOut(clamp(born / 0.7, 0, 1));
@@ -805,6 +842,7 @@
       }
     }
     function setT(t) { const v = clamp(t, 0, 2); if (v !== St.t) { St.t = v; dirty = true; } }
+    function setStream(v) { stream = clamp(v, 0, 3); }
     function bounds(org) {
       root.updateMatrixWorld(true);
       return new THREE.Box3().setFromObject(org).getBoundingSphere(new THREE.Sphere());
@@ -813,7 +851,8 @@
     setTissue(O.tissue, true);
     setT(O.t);
     return {
-      group: cell, cutFrame, organelles, step, pick, hover, bounds, setTissue, setT,
+      group: cell, cutFrame, organelles, step, pick, hover, bounds, setTissue, setT, setStream,
+      get stream() { return stream; },
       get t() { return St.t; }, get tissue() { return tissue; }, get hovered() { return hovered; },
     };
   }
@@ -952,6 +991,7 @@
        about the model. */
     function set(p = {}) {
       if (p.tissue !== undefined && p.tissue !== sim.tissue) { sim.setTissue(p.tissue, !!p.now); emit('tissue', sim.tissue); }
+      if (p.stream !== undefined) sim.setStream(p.stream);
       if (p.state !== undefined) p.t = STATES[p.state];
       if (p.t !== undefined && p.t !== null) {
         if (p.now) { tw.active = false; sim.setT(p.t); emit('t', sim.t); }
@@ -961,7 +1001,7 @@
     }
     const api = {
       sim, box, set, flyTo, home: goHome, focusOn,
-      state: () => ({ tissue: sim.tissue, t: sim.t, hovered: sim.hovered && sim.hovered.userData.organelle || null }),
+      state: () => ({ tissue: sim.tissue, t: sim.t, stream: sim.stream, hovered: sim.hovered && sim.hovered.userData.organelle || null }),
       on: (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); return api; },
       start: box.start, stop: box.stop, pump: box.pump, destroy: box.destroy,
     };
