@@ -210,7 +210,7 @@
     const O = Object.assign({}, DEFAULTS, opts);
     if (!global.CellOrganelles) throw new Error('cell/plantcell.js: load cell/organelles.js first');
     const K = global.CellOrganelles.kit(THREE, { seed: O.seed });
-    const { rand, rr, col, mat, ORG } = K;
+    const { rand, rr, col, mat, noise, ORG } = K;
     const TIS = global.MolLib.PALETTE.plantTissue;
     const V3 = THREE.Vector3;
     const A = O.A;
@@ -228,7 +228,12 @@
     const CUT = { cb: 0.95 * A, sx: 0.12, sz: -0.32 }, PROTO_DROP = 0.07 * A;
     const topY = (x, z) => CUT.cb + CUT.sx * x + CUT.sz * z;
     const planeN = new V3(-CUT.sx, 1, -CUT.sz).normalize();
-    const SEG = 20, M = 6, KSEG = 16;
+    /* GRID SIZE IS A PER-FRAME COST, not a load-time one: the wall and the
+       protoplast are re-evaluated every frame the state moves, so these
+       numbers are a frame budget as much as a look. At 44 x 10 the rebuild
+       took most of a 60fps frame on its own. Measured: the solver is 0.1ms,
+       the rebuild is everything else. */
+    const SEG = 30, M = 7, KSEG = 14;
     const hexR = (th, a) => { const s = PI / 3, phi = ((th % s) + s) % s - s / 2; return a / Math.cos(phi); };
     const bulgeF = th => { const s = PI / 3, e = (((th % s) + s) % s - s / 2) / (s / 2); return 1 - e * e; };
 
@@ -236,7 +241,35 @@
     const C = { A, ex: 1, wall: 0.07 * A };
     let P = stateParams(O.t), St = { t: O.t };
 
-    const wallR = (th, v, inner) => hexR(th, inner ? C.A : C.A + C.wall) * (1 + P.bulge * bulgeF(th) * (0.35 + 0.65 * Math.sin(PI * v)));
+    /* THE OUTER FACE IS ROUGH, the inner one is not, and that is the right
+       way round: a wall's outside is layers of cellulose laid down against
+       whatever is out there, while its inside is pressed flat against the
+       membrane. So the wall's thickness varies, which is what a wall does.
+       Same fbm displacement the plastid envelopes use, sampled on the ring
+       (cos, sin) rather than on the angle, or it would seam at th = 0. It
+       depends on position only, never on state, so the texture stays put
+       while the cell swells and shrinks instead of swimming over it. */
+    const ROUGH = 0.023;
+    /* MEMOISED, because the wall is rebuilt on every frame the state moves
+       and four octaves of simplex across eight thousand vertices is most of
+       a frame's budget on its own. The grid asks for the same (th, v) pairs
+       every rebuild, so after the first one this is all hits. Safe only
+       because the grain does not depend on state — if it ever does, this
+       cache is the thing that will quietly keep the old texture. */
+    const grainCache = new Map();
+    function wallGrain(th, v) {
+      const key = Math.round(th * 1e5) * 1e6 + Math.round(v * 1e5);
+      let g = grainCache.get(key);
+      if (g === undefined) {
+        g = 1 + ROUGH * noise.fbm(Math.cos(th) * 2.4, v * 2.6 + 3.1, Math.sin(th) * 2.4, 3)
+              + ROUGH * 0.45 * noise.noise3(Math.cos(th) * 7, v * 5, Math.sin(th) * 7);
+        grainCache.set(key, g);
+      }
+      return g;
+    }
+    const wallR = (th, v, inner) => hexR(th, inner ? C.A : C.A + C.wall)
+      * (1 + P.bulge * bulgeF(th) * (0.35 + 0.65 * Math.sin(PI * v)))
+      * (inner ? 1 : wallGrain(th, v));
     function protoR(th, v) {
       const a = C.A - 0.012 * A;
       const hex = hexR(th, a) * (1 + P.bulge * bulgeF(th) * (0.35 + 0.65 * Math.sin(PI * v)));
@@ -449,6 +482,9 @@
       const m = new THREE.Matrix4(), items = layer ? layer.userData.items : [];
       let n = 0;
       for (const r of riboSeeds) {
+        // rim once, and the bowl depth straight off `u` — bowlY would work
+        // back from (x,z) to this same fraction through an atan2, a hypot
+        // and a second protoR, and this runs 1500 times.
         const rim = protoR(r.th, 1) - RIMW, rad = rim * r.u;
         const x = rad * Math.cos(r.th) * C.ex, z = rad * Math.sin(r.th);
         /* A ribosome is in the CYTOSOL, so every organelle leaves a hole.
@@ -464,7 +500,7 @@
           if (d < radiusToward(b, dx / d, dz / d) * 0.95) { blocked = true; break; }
         }
         if (blocked) continue;
-        const y = bowlY(x, z) * (0.08 + 0.92 * r.v);
+        const y = -BOWL * Math.sqrt(1 - r.u * r.u) * (0.08 + 0.92 * r.v);
         m.makeScale(r.s, r.s, r.s);
         m.setPosition(x, y, z);
         riboMesh.setMatrixAt(n++, m);
@@ -743,11 +779,19 @@
        The wall and protoplast are rebuilt only when the state axis or the
        tissue actually moved; the organelle solve runs every frame, because
        the drift never settles. */
-    let dirty = true, clock = 0;
+    let dirty = true, clock = 0, lastRibo = -1;
     function step(dt) {
       clock += dt;
       P = stateParams(St.t);
-      if (dirty) { wallPG.update(); protoPG.update(); updatePlasmodesmata(); updateStrands(); placeRibosomes(); dirty = false; }
+      if (dirty) {
+        wallPG.update(); protoPG.update(); updatePlasmodesmata(); updateStrands();
+        /* The speckle is 1500 seeds against every organelle, so it is the
+           most expensive thing in a rebuild and the least urgent: a few
+           hundred dots settling a tenth of a second behind a moving wall is
+           invisible, where a wall that lags is not. */
+        if (clock - lastRibo > 0.12) { placeRibosomes(); lastRibo = clock; }
+        dirty = false;
+      }
       if (tint && tint.k < 1) { tint.k = Math.min(tint.k + dt / 0.9, 1); applyTint(); }
       born = Math.min(born + dt, 1e9);
       const grow = easeInOut(clamp(born / 0.7, 0, 1));
