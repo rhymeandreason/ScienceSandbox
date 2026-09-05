@@ -209,6 +209,26 @@ body.is-night .lshell-progress button.is-current { background: #9fd98a; }
 .lshell-panel .segmented > *:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ink); }
 .lshell-panel .segmented > *[disabled] { opacity: 0.35; cursor: default; }
 
+/* NO SCRIPT NEEDED WHEN THE CONTROL IS THE ANSWER. A radio per segment and a
+   label for each, and the browser owns which one is chosen — arrow keys, the
+   name group, the form value, all of it, for free:
+
+     <div class="segmented">
+       <input type="radio" name="view" id="v-a" checked><label for="v-a">Atoms</label>
+       <input type="radio" name="view" id="v-b"><label for="v-b">Ribbon</label>
+     </div>
+
+   Use buttons and `.is-on` instead when the control is a VIEW of something
+   that can move underneath it — a value a tween or another control also
+   writes, or one that can sit between the named answers, where the honest
+   drawing is no segment lit at all. A radio cannot say none-of-these. */
+.lshell-panel .segmented > input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+.lshell-panel .segmented > input[type="radio"] + label { border-left: 1.5px solid var(--line); }
+.lshell-panel .segmented > input[type="radio"]:first-child + label { border-left: 0; }
+.lshell-panel .segmented > input[type="radio"]:checked + label { background: var(--accent); color: #fff; border-left-color: transparent; }
+.lshell-panel .segmented > input[type="radio"]:checked + label + input + label { border-left-color: transparent; }
+.lshell-panel .segmented > input[type="radio"]:focus-visible + label { box-shadow: inset 0 0 0 2px var(--ink); }
+
 .lshell-panel .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-family: var(--display); font-weight: 500; font-size: 14px; position: relative; }
 .lshell-panel .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
 .lshell-panel .track { width: 44px; height: 26px; border-radius: 13px; background: #cfd2d8; position: relative; transition: background 0.25s; flex: none; }
