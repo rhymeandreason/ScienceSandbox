@@ -9,7 +9,7 @@
 <!-- ===================================================================
      SCRATCH. Not a lesson, not linked from anywhere but admin.html.
      AddingAProtein.md step 4: this page exists so a human can decide
-     whether these two entries earn a place in the registry.
+     whether these three entries earn a place in the registry.
 
      WHAT IT IS FOR SETTLING:
 
@@ -32,10 +32,31 @@
                         asked for modified residues; if the rung nearest
                         the site is missing, that opt-in was dropped.
 
-     WHAT IT DOES NOT DO. No animation between the states. Two
-     superposed stills is what the deposition supports; a tween would be
-     an interpolation nobody measured, and AddingAProtein.md says to ask
+       one hand, twice  1T7P is here to answer a question about the
+                        PICTURE rather than about Taq: which of these
+                        looks like the hand a textbook draws. It is
+                        A-family like Taq, so it should; RB69 on the
+                        bench next door is B-family with 360 more
+                        residues packed around the same hand, and does
+                        not. Both are fitted onto one duplex so the
+                        comparison is between the enzymes and not
+                        between two crystallographers' origins.
+       a borrowed chain T7's chain B is thioredoxin, an E. coli protein
+                        the phage bolts to its thumb as a processivity
+                        clamp. It is the most conspicuous thing in the
+                        picture, so it is coloured and named rather than
+                        left as one more lobe of helix and strand.
+
+     WHAT IT DOES NOT DO. No animation between the states. Superposed
+     stills are what the depositions support; a tween would be an
+     interpolation nobody measured, and AddingAProtein.md says to ask
      before animating.
+
+     AND IT DOES NOT PRINT A Ca RMSD FOR T7. There is no alignment
+     between Klentaq's numbering and T7's, so that arithmetic would be
+     residue 500 of one protein against residue 500 of another — a big
+     number a reader would read as a big movement. The row says not
+     comparable.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -63,6 +84,18 @@
         font-variant-numeric: tabular-nums; }
   .sw i { width: .8em; height: .8em; border-radius: 2px; display: inline-block; }
 
+  /* THE ONE THING THIS PAGE SAYS WITH COLOUR, which is all a bench's own
+     <style> is for (Design.md). T7 arrives with a second protein chain that
+     is a different protein from a different organism, and drawn in the ss
+     palette it is just more helix and strand — the reader cannot see that the
+     lobe on the thumb is the borrowed clamp, which is the entry's whole
+     point. A muted olive: subordinate to the subject, and clear of the ss
+     palette's blue helix, rust strand and sage coil.
+
+     It is a token so the ribbon and the legend swatch read the SAME value —
+     the rule tokens-from-palette.js exists to enforce for atoms. */
+  :root { --partner: #6f6246; }
+
   #facts td:last-child { text-align: left; font-weight: 400; font-size: 0.78rem;
                          padding-left: var(--space-3); overflow-wrap: anywhere; }
   #tris { color: var(--h-muted); font-variant-numeric: tabular-nums;
@@ -74,10 +107,10 @@
 <div id="app">
   <div id="stage"></div>
   <div class="panel">
-    <h1>Taq polymerase</h1>
-    <p class="deck">The same enzyme on the same primer and template, twice:
-      site empty, then site loaded. Fitted on the DNA, so what moves is the
-      protein.</p>
+    <h1>The polymerase hand</h1>
+    <p class="deck">Taq twice — site empty, then loaded — and T7 beside them
+      for comparison. Every view is fitted on the DNA, so the duplex holds
+      still and the enzyme is what changes.</p>
 
     <h2>state</h2>
     <div id="states"></div>
@@ -129,8 +162,9 @@
    proteins/nucleic-acids.js and this becomes a defaultOf() call, the way
    zif268-test.html already reads. */
 const VIEWS = [
-  { id: '4KTQ', chip: 'open', label: 'binary — site empty' },
-  { id: '3KTQ', chip: 'closed', label: 'ternary — ddCTP + 2 Mg' },
+  { id: '4KTQ', chip: 'open', label: 'Taq — site empty' },
+  { id: '3KTQ', chip: 'closed', label: 'Taq — ddCTP + 2 Mg in the site' },
+  { id: '1T7P', chip: 't7', label: 'T7 + thioredoxin — the same hand' },
 ];
 
 /* THE BOX IS kit/proteinbox.js, WHICH DRAWS BOTH POLYMERS. The scene, the
@@ -146,6 +180,18 @@ const box = Proteinbox.create({
   stage: { ortho: false, turn: 'trackball' },
 });
 
+/* THE PARTNER CHAIN'S COLOUR, read off the token rather than typed twice.
+   `byChain` is the box's own option for the case the ss palette cannot serve:
+   where what a reader has to tell apart is WHICH CHAIN rather than what it is
+   folded into. A chain the map does not name keeps the palette. */
+const PARTNER = parseInt(getComputedStyle(document.documentElement)
+  .getPropertyValue('--partner').trim().slice(1), 16);
+const paintFor = t => t.chainLabels
+  ? { byChain: Object.fromEntries(Object.keys(t.chainLabels)
+      .filter(id => /thioredoxin/i.test(t.chainLabels[id]))
+      .map(id => [id, PARTNER])) }
+  : null;
+
 const traces = new Map();
 let trace = null, current = VIEWS[0].id;
 
@@ -160,7 +206,8 @@ function draw() {
   const sub = +document.getElementById('sub').value;
   /* An empty chain list would ask the box to draw nothing and re-solve its
      framing on no points, so an all-off state keeps the last structure. */
-  if (want.length) box.setData(trace, { chains: want.join(','), sub });
+  if (want.length)
+    box.setData(trace, { chains: want.join(','), sub, colors: paintFor(trace) });
   if (document.getElementById('site').checked && trace.pocket)
     box.setPocket(trace.pocket);
 
@@ -181,9 +228,16 @@ function facts() {
   const rows = [
     ['Entry', trace.entry + ' — ' + trace.what],
     ['Method', (trace.method || '?') + (trace.resolution ? ', ' + trace.resolution + ' A' : '')],
-    ['Protein', aa.join(', ') + '  (' + p.nums.length + ' of ' + m.declared[aa[0]]
-      + ' declared, ' + p.helices + ' helices, ' + p.strands + ' strands, ss '
-      + trace.ssFrom + ')'],
+    /* ONE ROW PER PROTEIN CHAIN, not a summary of the first one. T7 arrives
+       with a second chain that is a different protein from a different
+       organism — the thioredoxin it borrows as a clamp — and a panel that
+       printed only chain A would leave the most conspicuous thing in the
+       picture unlabelled. What each chain IS comes from the candidate; the
+       counts come from the bake. */
+    ['Protein', aa.map(id => id + ' ' + trace.chains[id].nums.length + ' of '
+      + m.declared[id] + ((trace.chainLabels || {})[id]
+        ? ' — ' + trace.chainLabels[id] : ''))
+      .join('<br>') + '<br>ss ' + trace.ssFrom],
     ['DNA', na.map(id => id + ' ' + trace.chains[id].seq
       + (trace.chains[id].mods.length
         ? ' [' + trace.chains[id].mods.map(x => x.name + ' ' + x.num).join(', ') + ']' : ''))
@@ -203,32 +257,42 @@ function facts() {
     rows.splice(6, 0, ['Reading', 'the incoming base sits ' + trace.templating.d
       + ' A from ' + trace.templating.base + ' ' + trace.templating.at
       + ' — ' + trace.templating.how]);
-  if (trace.fit)
-    rows.push(['Fitted', 'on ' + trace.fit.on + '’s phosphates, ' + trace.fit.atoms
-      + ' atoms, ' + trace.fit.rmsd + ' A residual'],
-      ['Ca after the fit', trace.motion.rmsd + ' A over ' + trace.motion.pairs
-        + ' residues, max ' + trace.motion.max + ' A at ' + trace.motion.at
-        + ' — the domain motion, not a fit residual']);
-  else
-    rows.push(['Fitted', 'no — this is the reference every other view is fitted onto']);
+  if (trace.fit) {
+    rows.push(['Fitted', 'on ' + trace.fit.on + ', by ' + trace.fit.by + ' — '
+      + trace.fit.atoms + ' atoms, ' + trace.fit.rmsd + ' A residual. '
+      + trace.fit.how]);
+    /* NULL IS A FINDING HERE, not a missing number. A Ca RMSD between two
+       states of one construct is a domain motion; between two different
+       enzymes it is residue 500 against residue 500, and it would print as a
+       big number a reader would take for a big movement. */
+    rows.push(['Ca after the fit', trace.motion
+      ? trace.motion.rmsd + ' A over ' + trace.motion.pairs + ' residues, max '
+        + trace.motion.max + ' A at ' + trace.motion.at
+        + ' — the domain motion, not a fit residual'
+      : 'not comparable — a different enzyme, with no alignment between the '
+        + 'two numberings. Compare these two by looking at them, not by a figure']);
+  } else {
+    rows.push(['Fitted', 'no — this is the reference the other views are fitted onto']);
+  }
 
   document.getElementById('facts').innerHTML = rows
     .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
 
-  const closed = traces.get('3KTQ');
+  const closed = traces.get('3KTQ'), t7 = traces.get('1T7P');
   document.getElementById('lede').innerHTML = trace.purpose
-    + '. Both entries are one construct on one primer/template, superposed on '
-    + 'the duplex’s phosphates rather than on the protein — so the DNA '
-    + 'is nailed in place and every angstrom the protein moves is the protein '
-    + 'moving'
+    + '. Every view is superposed on the DNA rather than on the protein, so '
+    + 'the duplex is nailed in place and what moves is the enzyme around it'
     + (closed && closed.motion
-      ? '. Between these two states that is ' + closed.motion.rmsd
+      ? '. Between Taq’s two states that is ' + closed.motion.rmsd
         + ' A over ' + closed.motion.pairs + ' residues, and up to '
-        + closed.motion.max + ' A at ' + closed.motion.at + '.'
-      : '.')
-    + ' The primer ends in dideoxycytidine, which has no 3′-OH: the '
-    + 'reaction cannot finish, which is why the loaded state can be a crystal '
-    + 'at all.';
+        + closed.motion.max + ' A at ' + closed.motion.at
+      : '')
+    + (t7 && t7.fit
+      ? '. T7 is a different enzyme entirely and is fitted by ROLE — its '
+        + 'primer’s last ' + t7.fit.atoms + ' phosphates onto Taq’s, counted '
+        + 'back from the growing end, ' + t7.fit.rmsd + ' A. Two A-family '
+        + 'hands around one duplex, which is the comparison this bench is for.'
+      : '.');
 
   const rc = document.getElementById('d-rcsb');
   rc.href = 'https://www.rcsb.org/structure/' + trace.entry;
@@ -248,7 +312,11 @@ function facts() {
     + [...seen].sort().map(b => '<span class="sw"><i style="background:var(--base-'
       + b + ')"></i>' + b + '</span>').join('')
     + [...els].sort().map(e => '<span class="sw"><i style="background:var(--atom-'
-      + e + ')"></i>' + e + '</span>').join('');
+      + e + ')"></i>' + e + '</span>').join('')
+    + Object.entries(trace.chainLabels || {})
+      .filter(([, w]) => /thioredoxin/i.test(w))
+      .map(([id, w]) => '<span class="sw"><i style="background:var(--partner)">'
+        + '</i>' + id + ' — ' + w + '</span>').join('');
 }
 
 function show(id) {

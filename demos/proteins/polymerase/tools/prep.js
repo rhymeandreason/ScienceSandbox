@@ -58,19 +58,40 @@ const HERE = path.join(__dirname, '..', 'data');
 const SRC = path.join(HERE, 'src');
 
 /* WHAT IS BEING PROPOSED, one row each. `pocket` is the HETATM names that are
-   the subject of the site; everything else in the file is cargo. */
+   the subject of the site; everything else in the file is cargo. `primer` and
+   `template` name the two strands by role, which is what the role fit below
+   needs and what no PDB record states.
+
+   `fitBy` IS THE WHOLE REASON THIS TABLE HAS A THIRD ROW. The two Klentaq
+   entries are one construct on one DNA, so their strands correspond residue
+   by residue and the fit is keyed on the numbers. T7 is a different enzyme
+   carrying a different sequence with different numbering, and there is no
+   pointwise correspondence anywhere in the file — but both files hold a
+   primer/template duplex with its 3' end in a polymerase site, and THAT
+   corresponds. So it is fitted by role, counting back from the growing end. */
 const CANDIDATES = [
   { id: '4KTQ', ref: true,
     what: 'Klentaq, open binary complex',
     purpose: 'the site empty — primer and template held, fingers open',
-    pocket: [] },
+    primer: 'B', template: 'C', pocket: [] },
   { id: '3KTQ',
     what: 'Klentaq, closed ternary complex',
     purpose: 'ddCTP and two Mg caught in the site, fingers closed on it',
-    pocket: ['DCT', 'MG'] },
+    primer: 'B', template: 'C', fitBy: 'num', pocket: ['DCT', 'MG'] },
+  { id: '1T7P',
+    what: 'T7 DNA polymerase with thioredoxin',
+    purpose: 'the same hand on a different enzyme — and the thumb wearing a '
+           + 'borrowed processivity clamp',
+    primer: 'P', template: 'T', fitBy: 'role', pocket: ['DG3', 'MG'],
+    /* Chain B is the host's protein, not the phage's, which is the entry's
+       whole point and the one thing a reader will ask about the picture. */
+    chains: { A: 'T7 polymerase (gp5)', B: 'thioredoxin, borrowed from E. coli' } },
 ];
 
 const REF = CANDIDATES.find(c => c.ref).id;
+
+/* How many phosphates a role fit uses, counting back from the growing end. */
+const ROLE_N = 10;
 const elOf = l => (l.slice(76, 78).trim() || l.slice(12, 14).trim()).toUpperCase();
 
 /* ---- superposition ----------------------------------------------------- */
@@ -89,6 +110,20 @@ function phosphates(text, na) {
     out.set(line[21] + parseInt(line.slice(22, 26), 10), Bake.xyz(line));
   }
   return out;
+}
+
+/* THE SAME DUPLEX IN TWO UNRELATED FILES, matched by role instead of number.
+   Both hold a primer annealed to a template with the primer's 3' end in a
+   polymerase site, so counting phosphates back from that end lines the two
+   duplexes up: position 1 is the growing end in both, whatever it is called
+   and whatever base it is. Ten is enough to fix a duplex in space and short
+   enough to stay inside the enzyme's grip, where the two structures actually
+   have the same thing to say. The residual is baked, because a role match is
+   an assumption and its residual is the evidence for it. */
+function fromGrowingEnd(dna, primer, n) {
+  const res = dna.get(primer);
+  if (!res) throw new Error('no primer chain ' + primer);
+  return res.slice().reverse().slice(0, n).map(r => r.P);
 }
 
 /* The whole file moved. Rewriting the coordinate columns rather than
@@ -165,13 +200,28 @@ function bake(cand, ref) {
      that — the number this bench exists to show. */
   let text = F.raw, fit = null, motion = null;
   if (ref) {
-    const A = phosphates(F.raw, F.naSet), B = ref.P;
-    const keys = [...A.keys()].filter(k => B.has(k));
-    if (keys.length < 8) throw new Error(cand.id + ': only ' + keys.length + ' shared phosphates');
-    const k = Bake.kabsch(keys.map(x => A.get(x)), keys.map(x => B.get(x)));
+    const byRole = cand.fitBy === 'role';
+    let k, atoms, how;
+    if (byRole) {
+      const mine = Bake.naTrace(F.raw, F.naSet, mod);
+      const n = Math.min(ROLE_N,
+        mine.get(cand.primer).length, ref.primer.length);
+      k = Bake.kabsch(fromGrowingEnd(mine, cand.primer, n), ref.primer.slice(0, n));
+      atoms = n;
+      how = 'the primer\'s last ' + n + ' phosphates, counted back from the '
+          + 'growing end — these two entries share no numbering and no '
+          + 'sequence, so nothing here is matched by name';
+    } else {
+      const A = phosphates(F.raw, F.naSet), B = ref.P;
+      const keys = [...A.keys()].filter(x => B.has(x));
+      if (keys.length < 8) throw new Error(cand.id + ': only ' + keys.length + ' shared phosphates');
+      k = Bake.kabsch(keys.map(x => A.get(x)), keys.map(x => B.get(x)));
+      atoms = keys.length;
+      how = 'every phosphate the two files share by chain and residue number';
+    }
     if (Bake.det(k.R) < 0) throw new Error(cand.id + ': kabsch returned a reflection');
     text = moveText(F.raw, k.R, k.t);
-    fit = { on: ref.id, atoms: keys.length, rmsd: Bake.r2(k.rmsd) };
+    fit = { on: ref.id, atoms, rmsd: Bake.r2(k.rmsd), by: byRole ? 'role' : 'number', how };
 
     const mine = Bake.caTrace(text, new Set(F.aa));
     const P = [], Q = [];
@@ -197,8 +247,15 @@ function bake(cand, ref) {
       if (!other) continue;
       for (const r of res) if (other.get(r.num)) { if (i === worst.i) worstNum = id + r.num; i++; }
     }
-    motion = { pairs: P.length, rmsd: Bake.r2(Math.sqrt(sd / P.length)),
-               max: Bake.r2(worst.d), at: worstNum };
+    /* A NUMBER THAT NEEDS AN ALIGNMENT NOBODY HAS IS NULL, NOT COMPUTED.
+       A Ca RMSD between two states of ONE construct is a domain motion; the
+       same arithmetic between Klentaq and T7 is residue 500 of one protein
+       against residue 500 of another, which is not a comparison at all — and
+       it would print as a large number that a reader would take for a large
+       movement. The two enzymes are compared by looking at them. */
+    motion = byRole ? null
+      : { pairs: P.length, rmsd: Bake.r2(Math.sqrt(sd / P.length)),
+          max: Bake.r2(worst.d), at: worstNum };
   }
 
   const prot = Bake.caTrace(text, new Set(F.aa));
@@ -246,7 +303,17 @@ function bake(cand, ref) {
      Reported as a distance and the residue it is to, or null. */
   const templating = (() => {
     if (!site) return null;
-    const n3 = site.atoms.find(a => a.res === 'DCT' && a.name === 'N3');
+    /* THE INCOMING NUCLEOTIDE IS WHICHEVER POCKET RESIDUE IS NOT A METAL, and
+       its Watson-Crick edge atom is asked of its ATOMS rather than of its
+       name: N9 present means purine, whose edge is N1, and a pyrimidine's is
+       N3. Klentaq's ddCTP is a pyrimidine and T7's ddGTP a purine, so a test
+       written for one of them silently reports "no pair" for the other. */
+    const res = [...new Set(site.atoms.map(a => a.res))]
+      .find(r => site.atoms.some(a => a.res === r && a.el !== a.res));
+    if (!res) return null;
+    const mine = site.atoms.filter(a => a.res === res);
+    const purine = mine.some(a => a.name === 'N9');
+    const n3 = mine.find(a => a.name === (purine ? 'N1' : 'N3'));
     if (!n3) return null;
     const paired = new Set();
     for (const p of Bake.basePairs(dna, { hb }))
@@ -258,8 +325,9 @@ function bake(cand, ref) {
       if (!best || d < best.d) best = { d, at: id + r.num, base: r.base };
     }
     if (!best || best.d > hb) return null;
-    return { at: best.at, base: best.base, d: Bake.r2(best.d),
-             how: 'N1...N3, within the ' + hb + ' A this file\'s resolution earns' };
+    return { at: best.at, base: best.base, d: Bake.r2(best.d), of: res,
+             how: 'purine N1 to pyrimidine N3, within the ' + hb
+                + ' A this file\'s resolution earns' };
   })();
   const chains = Object.assign({}, P.chains, D.chains);
   const order = [...F.aa, ...F.na];
@@ -301,6 +369,9 @@ function bake(cand, ref) {
         p: [0, 1, 2].map(k => Bake.r2(a.p[k] - centre[k])) })),
       bonds: site.bonds,
     },
+    primer: cand.primer,
+    template: cand.template,
+    chainLabels: cand.chains || null,
     templating,
     fit,
     motion,
@@ -334,7 +405,9 @@ for (const cand of CANDIDATES) {
     const CA = new Map();
     for (const [id, res] of B.prot) CA.set(id, new Map(res.map(r => [r.num, [r.x, r.y, r.z]])));
     ref = { id: cand.id, P: phosphates(B.text, new Set(B.na)), CA,
-            centre: B.centre, view: B.view };
+            centre: B.centre, view: B.view,
+            /* For a role fit: the reference's own primer, 3' end first. */
+            primer: fromGrowingEnd(B.dna, cand.primer, ROLE_N) };
   }
 
   const dst = path.join(HERE, 'polymerase-' + cand.id + '.json');
@@ -364,8 +437,10 @@ for (const cand of CANDIDATES) {
     ? o.pocket.of + ', ' + o.pocket.atoms.length + ' atoms, ' + o.pocket.bonds.length + ' bonds'
     : 'none — the empty site is the measurement'));
   if (o.fit)
-    console.log('  fit on ' + o.fit.on + ' phosphates: ' + o.fit.atoms + ' atoms, '
-      + o.fit.rmsd + ' A  |  Ca after fit: ' + o.motion.rmsd + ' A over '
-      + o.motion.pairs + ', max ' + o.motion.max + ' A at ' + o.motion.at);
+    console.log('  fit on ' + o.fit.on + ' by ' + o.fit.by + ': ' + o.fit.atoms
+      + ' atoms, ' + o.fit.rmsd + ' A'
+      + (o.motion ? '  |  Ca after fit: ' + o.motion.rmsd + ' A over '
+          + o.motion.pairs + ', max ' + o.motion.max + ' A at ' + o.motion.at
+        : '  |  Ca RMSD not computed — a different construct'));
   console.log('  breaks: ' + Bake.breaks({ order: B.aa, chains: o.chains }));
 }
