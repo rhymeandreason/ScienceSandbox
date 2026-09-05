@@ -1353,11 +1353,11 @@
       const inside = CHEM.sideName(P.context, 'inside'), outside = CHEM.sideName(P.context, 'outside');
       library.inside.text = inside; library.outside.text = outside;
       if (P.context === 'mitochondrion') {
-        library.outside.card = 'The intermembrane space. Every proton the complexes throw out lands here, so this side goes acidic and positive: that is where the energy from NADH now sits.';
+        library.outside.card = 'The intermembrane space. Every proton the complexes throw out lands here, so this side goes acidic and positive: that is where the energy from NADH now sits. This space and a chloroplast\'s thylakoid lumen are the same place by descent, both of them the OUTSIDE of the bacterium each organelle came from. That is why a photosynthesis diagram looks flipped against this one.';
         library.inside.card  = 'The matrix. The Krebs cycle runs here and hands its NADH to the complexes in this membrane. Protons leave from this side and come back through the synthase.';
       } else if (P.context === 'thylakoid') {
         library.outside.card = 'The stroma, around the outside of the thylakoid disc. ATP is made here, and it is what the Calvin cycle spends to fix carbon. Protons leave from this side and come back through the synthase.';
-        library.inside.card  = 'The lumen, the space enclosed by the disc. Light drives protons in here, so this is the acidic side: the energy from the photons is now a gradient across this membrane.';
+        library.inside.card  = 'The lumen, the space enclosed by the disc. Light drives protons in here, so this is the acidic side: the energy from the photons is now a gradient across this membrane. It is the same space as a mitochondrion\'s intermembrane space, both of them the OUTSIDE of the bacterium each organelle came from. A thylakoid ended up with that space sealed inside it, which is why the two diagrams are mirrored for a real reason rather than by convention.';
       }
     }
 
