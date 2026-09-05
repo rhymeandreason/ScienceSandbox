@@ -364,5 +364,75 @@ head('the helix is the ladder, twisted');
      'the two rails bond in opposite directions');
 }
 
+/* ---- dna/nucleotide.js: the module both DNA pages build with -----------
+ * The rigid fit above leaves about 0.7 Å in the backbone, and that residual is
+ * invisible until a THIRD residue is stacked: two rungs made bonds of 1.47 and
+ * 1.61 Å, which read as bonds, and the join above them came out at 2.73 Å,
+ * which does not. wearRecord is the fix — every atom the record has goes where
+ * the record has it — so what is asserted here is the thing that was wrong:
+ * every phosphodiester bond in a run of three residues, on both strands.
+ */
+{
+  head('dna/nucleotide.js: nucleotides on the record\'s own coordinates');
+  const Nucleo = require(path.join(__dirname, 'nucleotide.js'));
+  const B = global.window.BDNA;
+  const dist = (a, b) => Math.hypot(a[0]-b[0], a[1]-b[1], a[2]-b[2]);
+  const nameAt = (spec, n) => spec.names.indexOf(n);
+
+  // Three consecutive pairs, both strands: the arrangement dna-lab's backbone
+  // step builds, and the smallest one that can catch the residual.
+  const PAIRS = [4, 5, 6];
+  const LETTER = { 'DA':'adenine', 'DT':'thymine', 'DG':'guanine', 'DC':'cytosine' };
+  const placed = {};
+  for(const pi of PAIRS) for(const strand of [0, 1]){
+    const seq = B.pairs[pi].seq.split('-')[strand];
+    const key = LETTER[seq];
+    const spec = Nucleo.build(key);
+    ok(spec.names.includes('O3′') && spec.names.includes('Pᴾ'),
+       `${key}: a built nucleotide carries its own 3′ oxygen and phosphorus`);
+    const f = Nucleo.fit(spec, pi, strand);
+    ok(f.ok, `${key} fits residue ${pi}/${strand}`);
+    if(!f.ok) continue;
+    const worn = Nucleo.wearRecord(spec, pi, strand, f);
+    ok(worn.atoms.length === spec.atoms.length,
+       `${key}: wearing the record's coordinates moves atoms, it does not add or drop them`);
+    // Back into the record's frame, which is where the neighbours are.
+    placed[pi + ':' + strand] = n => {
+      const i = nameAt(worn, n);
+      const p = worn.atoms[i].pos;
+      const [x, y, z, w] = f.quat;
+      const t = [2*(y*p[2] - z*p[1]), 2*(z*p[0] - x*p[2]), 2*(x*p[1] - y*p[0])];
+      return [(p[0] + w*t[0] + y*t[2] - z*t[1] + f.pos[0]) / S,
+              (p[1] + w*t[1] + z*t[0] - x*t[2] + f.pos[1]) / S,
+              (p[2] + w*t[2] + x*t[1] - y*t[0] + f.pos[2]) / S];
+    };
+  }
+
+  // Strand 0 runs 4→5→6, strand 1 runs 6→5→4: antiparallel, so the donor and
+  // the taker swap. Four bonds, and every one of them the crystal's.
+  const LINKS = [['4:0','5:0'], ['5:0','6:0'], ['6:1','5:1'], ['5:1','4:1']];
+  for(const [a, b] of LINKS){
+    if(!placed[a] || !placed[b]) continue;
+    const d = dist(placed[a]("O3′"), placed[b]('Pᴾ'));
+    ok(d > 1.5 && d < 1.7,
+       `phosphodiester ${a}→${b} is ${d.toFixed(2)} Å, not 1.5–1.7 — the fit `
+       + `alone gives 1.47 to 2.73, which is what wearRecord exists to fix`);
+  }
+
+  // And nothing inside a residue was stretched into a bond that is not one.
+  {
+    const spec = Nucleo.build('adenine');
+    const f = Nucleo.fit(spec, 5, 0);
+    const worn = Nucleo.wearRecord(spec, 5, 0, f);
+    let worst = 0, which = '';
+    for(const [i, j] of worn.bonds){
+      const d = dist(worn.atoms[i].pos, worn.atoms[j].pos) / S;
+      if(d > worst){ worst = d; which = worn.names[i] + '–' + worn.names[j]; }
+    }
+    ok(worst < 1.8,
+       `longest bond inside the worn nucleotide is ${worst.toFixed(2)} Å (${which}), not under 1.8`);
+  }
+}
+
 console.log(`\n${checks - fails}/${checks} checks passed`);
 if(fails){ console.log(`${fails} FAILED`); process.exit(1); }
