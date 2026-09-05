@@ -80,6 +80,16 @@
     font-family:var(--font-sans);font-size:10.5px;letter-spacing:.06em;
     text-transform:uppercase;color:var(--muted)}
 
+  /* THE ONE BUTTON. It sits where the strip will be, because it is the same
+     slot in the lesson: the thing the student acts on. Pressing it is what
+     starts the fork, so the opening reads as something they did. */
+  #start{position:absolute;left:50%;bottom:42px;transform:translateX(-50%);z-index:7;
+    display:none;cursor:pointer;padding:11px 22px;border-radius:10px;
+    border:2px solid var(--ink);background:var(--ink);color:var(--paper);
+    font-family:var(--font-sans);font-size:13.5px;font-weight:600}
+  #start.on{display:block}
+  #start:hover{background:var(--paper);color:var(--ink)}
+
   /* What is happening, in a sentence. Same slot and same object as the other
      DNA pages, so the three read as one lesson. */
   #note{position:absolute;left:50%;bottom:160px;transform:translateX(-50%);
@@ -97,6 +107,7 @@
     <canvas id="gl"></canvas>
     <nav id="steps"></nav>
     <div id="note"></div>
+    <button id="start" type="button">Open the fork</button>
     <div id="strip">
       <div class="rows">
         <div class="row template"></div>
@@ -133,6 +144,7 @@ const bdna = window.BDNA;
 const stage = document.getElementById('stage');
 const note = document.getElementById('note');
 const stripEl = document.getElementById('strip');
+const startEl = document.getElementById('start');
 
 /* DROP `view:` WHEN BUILDING, for dna-lab's reason: buildMolecule bakes a
  * spec's view rotation into the meshes, and every pose here comes from the
@@ -503,11 +515,12 @@ function snap(pair){
 
 // The fork moves at a pace, not in jumps: the junction travelling is the whole
 // picture, and a junction that teleports is two pictures.
-function moveFork(to, dur){
+function moveFork(to, dur, then){
   const from = openF;
-  if(Math.abs(to - from) < 1e-4) return;
+  if(Math.abs(to - from) < 1e-4){ if(then) then(); return; }
   L.motion.seq([{ dur:dur == null ? 0.5 : dur, ease:'inOutCubic',
-    onUpdate:u=>{ openF = from + (to - from) * u; layout(); say(); } }], { tag:'fork' });
+    onUpdate:u=>{ openF = from + (to - from) * u; layout(); say(); },
+    onDone:then || null }], { tag:'fork' });
 }
 
 /* =============================================================================
@@ -648,6 +661,13 @@ function say(){
 }
 
 function say1(){
+  if(openF === 0){
+    note.innerHTML = 'A finished double helix, and nothing holding the two '
+      + `strands together but <b>${HB_TOTAL} hydrogen bonds</b>. Open it and `
+      + 'watch what has to give: the bonds between the strands, and not one of '
+      + 'the covalent bonds along them.';
+    return;
+  }
   note.innerHTML = 'A fork, not a split: helicase opens a few pairs at a time '
     + `— <b>${brokenCount()} of ${HB_TOTAL} hydrogen bonds</b> so far, and not `
     + 'one covalent bond. The backbones are untouched, so each arm is a whole '
@@ -656,10 +676,11 @@ function say1(){
 
 function say2(){
   if(made === 0){
-    note.innerHTML = 'Now copy it. The fork is open two pairs ahead; choose the '
-      + 'base that pairs with the letter under the cursor and watch what it '
-      + 'takes: <b>hydrogen bonds to the template and a phosphodiester bond to '
-      + 'the strand, in the same move.</b>';
+    note.innerHTML = `Now copy it. The fork runs ${LEAD} pairs ahead of you, `
+      + 'the way helicase runs ahead of the polymerase. Choose the base that '
+      + 'pairs with the letter under the cursor, and watch what it takes: '
+      + '<b>hydrogen bonds to the template and a phosphodiester bond to the '
+      + 'strand, in the same move.</b>';
     return;
   }
   if(made < N){
@@ -714,18 +735,20 @@ function showStep(n){
   L.motion.cancel('fork');
   NOTES.clear();
   note.classList.add('on');
-  note.classList.toggle('low', n !== 2);
+  note.classList.toggle('low', n === 3);
   stripEl.classList.toggle('on', n === 2);
+  startEl.classList.toggle('on', n === 1);
 
   if(n === 1){
-    // Back to the closed duplex, and open the first pairs so the shape of the
-    // thing is on screen before the student is asked to drive it.
+    // Back to the closed duplex. It does not open until the student says so:
+    // an animation that plays on arrival is a thing that happened TO them, and
+    // this one is the first half of the move they are about to make twelve
+    // times.
     made = 0;
     broken.clear();
     for(const res of partner) ghost(res, 0);
     for(const res of copy) res.mol.visible = false;
     openF = 0; layout();
-    moveFork(LEAD + 1, 2.0);
   }
   if(n === 2){
     // The fork never goes backwards: what the student opened stays open.
@@ -760,6 +783,14 @@ function showStep(n){
     b.setAttribute('aria-current', String(+b.dataset.n === n));
   L.fit();
 }
+
+/* The fork opens, and the page moves straight on to the copying: the strip
+ * arriving as the last pair lets go is the same event continuing, and making
+ * the student find the next step in the rail would break it in half. */
+startEl.onclick = () => {
+  startEl.classList.remove('on');
+  moveFork(LEAD + 1, 2.2, () => showStep(2));
+};
 
 const navEl = document.getElementById('steps');
 for(const st of STEPS){
