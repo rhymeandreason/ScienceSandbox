@@ -674,6 +674,31 @@
     const rim = new THREE.DirectionalLight(0xffffff, 0.2);
     rim.position.set(-2, -6, -18);
     box.scene.add(rim, rim.target);
+    /* AN ENVIRONMENT, FOR THE VACUOLE. Four analytic lights give a clearcoat
+       surface highlights but nothing to reflect, so the vacuole comes out
+       milky instead of watery — glass reads as glass by what is in it. This
+       is a two-stop gradient standing in for the room: pale sky above, the
+       stage's warm paper below, the same two colours the hemisphere light
+       uses, so the reflection and the shading agree. Cheap: one 256x128
+       canvas, prefiltered once at mount and thrown away. */
+    {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 128;
+      const g2 = c.getContext('2d'), grad = g2.createLinearGradient(0, 0, 0, 128);
+      grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.45, '#e8eef6');
+      grad.addColorStop(0.55, '#d8cec2'); grad.addColorStop(1, '#b9ab9c');
+      g2.fillStyle = grad; g2.fillRect(0, 0, 256, 128);
+      // one soft window, so a curved surface gets a highlight that moves
+      const hl = g2.createRadialGradient(70, 34, 0, 70, 34, 46);
+      hl.addColorStop(0, 'rgba(255,255,255,.85)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+      g2.fillStyle = hl; g2.fillRect(24, -12, 92, 92);
+      const tex = new THREE.CanvasTexture(c);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.encoding = THREE.sRGBEncoding;
+      const pm = new THREE.PMREMGenerator(box.renderer);
+      box.scene.environment = pm.fromEquirectangular(tex).texture;
+      pm.dispose(); tex.dispose();
+    }
 
     /* camera flights, in Stage's turntable terms (as animalcell.js) */
     const fly = { active: false, t: 0, dur: 1.4, a: null, b: null, t0: new V3(), t1: new V3() };

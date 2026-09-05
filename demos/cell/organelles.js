@@ -274,8 +274,13 @@
     const col = hex => new THREE.Color(hex).convertSRGBToLinear();
     const ORG = global.MolLib.PALETTE.organelles;
     const shellOf = o => ({ outer: col(o.outer), inner: col(o.inner), rim: col(o.rim) });
+    /* envMapIntensity DEFAULTS LOW. A host that sets scene.environment (the
+       plant cell does, for the vacuole) otherwise adds a whole extra bounce
+       to every material at once and the cell goes white. The environment is
+       there for the few surfaces that need something to reflect; everything
+       else takes a fifteenth of it and is lit by the lamps. */
     const mat = o => {
-      const m = new THREE.MeshPhysicalMaterial(Object.assign({ roughness: 0.5, clearcoat: 0.2, clearcoatRoughness: 0.4 }, o));
+      const m = new THREE.MeshPhysicalMaterial(Object.assign({ roughness: 0.5, clearcoat: 0.2, clearcoatRoughness: 0.4, envMapIntensity: 0.15 }, o));
       if (o.color) m.color = col(o.color);
       if (o.emissive) m.emissive = col(o.emissive);
       return m;
@@ -448,38 +453,6 @@
     }
 
 
-    /* A filled cut face for the boundary S(u, cut(u)): a fan from the centre
-       out to the rim, inset so it sits just inside the shell's inner wall.
-       An organelle that is FULL of something needs one, or the cut reads as
-       a tube rather than as a cross-section through a liquid. */
-    function cutCap(S, cut, uSeg, rings, inset) {
-      const pos = [], idx = [], c = new V3();
-      const rim = [];
-      for (let i = 0; i < uSeg; i++) {
-        const u = (i / uSeg) * 2 * PI;
-        rim.push(S(u, cut(u)).multiplyScalar(1 - inset));
-        c.add(rim[i]);
-      }
-      c.multiplyScalar(1 / uSeg);
-      for (let r = 0; r <= rings; r++) {
-        const t = r / rings;
-        for (let i = 0; i < uSeg; i++) {
-          const p = c.clone().lerp(rim[i], t);
-          pos.push(p.x, p.y, p.z);
-        }
-      }
-      for (let r = 0; r < rings; r++)
-        for (let i = 0; i < uSeg; i++) {
-          const a = r * uSeg + i, b = r * uSeg + (i + 1) % uSeg;
-          idx.push(a, b, a + uSeg, b, b + uSeg, a + uSeg);
-        }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      g.setIndex(idx);
-      g.computeVertexNormals();
-      return g;
-    }
-
     /* ---- plastids ------------------------------------------------------
        A plastid is the OTHER endosymbiont, and it is built by the same shell
        code as the mitochondrion on purpose: two membranes with a lumen
@@ -588,34 +561,48 @@
       return g;
     }
 
-    /* central vacuole: one shell, a tonoplast, and sap. The plant cell drives
-       its size directly — that swelling is the turgor lesson — so this takes
-       a radius and nothing about state. */
+    /* central vacuole: NOT CUT, and not solid.
+       Every other organelle here is a cut shell, because a cut is how you
+       show a membrane has two sides and an interior with something in it. A
+       vacuole is the one where that reads wrong: it is mostly water, so a
+       cut face fills it with an opaque disc and turns the largest thing in
+       the cell into a plate. Drawn whole and translucent instead, it does
+       what a vacuole actually does to the view — the cytoplasm and the
+       organelles behind it stay visible through it, which is the reason a
+       plant cell can hold something that big and still be a working cell.
+
+       FOUR NESTED LAYERS, none of them writing depth, ordered outward:
+       the far wall seen from inside, the sap, the water surface, and the
+       tonoplast over the top. Depth writing off is what lets them stack
+       without one erasing another; renderOrder is what keeps them in the
+       right order once it is off. */
     function vacuole(o = {}) {
       const g = new THREE.Group();
       const R = o.R || 4.2, sx = o.sx === undefined ? 1.25 : o.sx, sy = o.sy === undefined ? 0.62 : o.sy, sz = o.sz === undefined ? 0.98 : o.sz;
-      const radius = d => R * (1 + 0.055 * noise.fbm(d.x * 1.6 + 11, d.y * 1.6, d.z * 1.6, 3));
-      const S = (u, w) => { const d = dirUW(u, w); const k = radius(d); return new V3(d.x * k * sx, d.y * k * sy, d.z * k * sz); };
-      const cut = u => PI * 0.6 + 0.04 * Math.sin(3 * u + 2) + 0.025 * Math.sin(6 * u);
-      const shell = new THREE.Mesh(buildShell(THREE, {
-        S, uRange: [0, 2 * PI], wRange: u => [0, cut(u)], uSeg: 140, uPeriodic: true,
-        thickness: o.thickness || 0.14, segs: { outer: 50, rim: 8, inner: 50 },
-        colors: shellOf(ORG.vacuole),
-      }), mat({ vertexColors: true, roughness: 0.22, clearcoat: 0.8, clearcoatRoughness: 0.15 }));
-      g.add(shell);
-      // The sap: the shell again, one step in, PLUS a filled cut face. The
-      // face is what makes the vacuole read as full rather than as a tube,
-      // and a central vacuole that reads as empty is the wrong lesson.
-      // Translucent, because a vacuole is mostly water and the cytoplasm
-      // behind it should show through. Opaque sap reads as a solid bead and
-      // hides that the cell is one continuous space around it.
-      const sapMat = mat({ color: ORG.vacuole.sap, roughness: 0.35, clearcoat: 0.5, transparent: true, opacity: 0.7 });
-      const sap = new THREE.Mesh(shell.geometry, sapMat);
-      sap.scale.setScalar(0.955);
-      g.add(sap);
-      const face = new THREE.Mesh(cutCap(S, cut, 140, 6, 0.055), sapMat);
-      g.add(face);
-      g.userData.parts = { shell, sap };
+      const geo = displace(new THREE.SphereGeometry(R, 64, 48), (x, y, z) => {
+        const d = 1 + 0.06 * Math.sin(3 * x / R + 1.2) * Math.sin(2.3 * y / R + 0.4)
+                    + 0.05 * Math.sin(2.1 * z / R + 2) * Math.cos(2.7 * x / R)
+                    + 0.03 * Math.sin(5 * y / R + 1);
+        return [x * d * sx, y * d * sy, z * d * sz];
+      });
+      const V = ORG.vacuole;
+      const layer = (m, scale, order) => {
+        const e = new THREE.Mesh(geo, m);
+        e.scale.setScalar(scale);
+        e.renderOrder = order;
+        g.add(e);
+        return e;
+      };
+      const glass = (hex, opacity, extra) => mat(Object.assign({
+        color: hex, transparent: true, opacity, depthWrite: false,
+      }, extra));
+      // the inside of the far wall, so the vacuole has a back
+      const back = layer(glass(V.inner, 0.35, { roughness: 0.15, side: THREE.BackSide, clearcoat: 0.4, envMapIntensity: 0.5 }), 1, 0);
+      const sap = layer(glass(V.sap, 0.4, { roughness: 0.6, envMapIntensity: 0.1 }), 0.9, 1);
+      // the one surface the environment is really for
+      const water = layer(glass(V.outer, 0.48, { roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08, reflectivity: 0.7, envMapIntensity: 0.9 }), 1, 2);
+      const tono = layer(glass(V.rim, 0.22, { roughness: 0.2, envMapIntensity: 0.6 }), 1.03, 3);
+      g.userData.parts = { back, sap, water, tono };
       return g;
     }
 
