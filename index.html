@@ -135,22 +135,6 @@
     font-size: 0.63rem; line-height: 1.35; color: #9a9ca3;
     font-variant-numeric: tabular-nums;
   }
-  /* ---- coming soon ---------------------------------------------------- */
-
-  .card.soon {
-    background: transparent;
-    border-style: dashed;
-    cursor: default;
-  }
-  .card.soon .idx  { color: var(--muted); }
-  .card.soon .name { color: var(--muted); }
-  .card.soon:hover {
-    border-color: var(--border-hair);
-    transform: none;
-    box-shadow: none;
-  }
-  .card.soon:hover .name { color: var(--muted); }
-
   /* ---- manifesto ------------------------------------------------------ */
 
   .manifesto {
@@ -215,7 +199,7 @@
 <main>
 
 <section>
-  <div class="sechead"><h2>Lessons</h2><span class="rule"></span><span class="count">05</span></div>
+  <div class="sechead"><h2>Lessons</h2><span class="rule"></span><span class="count">06</span></div>
   <ul class="grid lessons">
     <li><a class="card" href="/water">
       <span class="idx">01</span>
@@ -242,6 +226,11 @@
       <span class="name">Glycolysis</span>
       <span class="note">All ten steps with real molecules</span>
     </a></li>
+    <li><a class="card" href="/dna">
+      <span class="idx">06</span>
+      <span class="name">Structure of DNA</span>
+      <span class="note">Rendered from real data at molecular scale</span>
+    </a></li>
   </ul>
 </section>
 
@@ -252,21 +241,6 @@
   <ul class="grid proteins" id="shelf"></ul>
 </section>
 
-<section>
-  <div class="sechead"><h2>Coming soon</h2><span class="rule"></span><span class="count">02</span></div>
-  <ul class="grid">
-    <li><span class="card soon">
-      <span class="idx">06</span>
-      <span class="name">Enzymes</span>
-      <span class="note">The shape change <em>is</em> what lowers the barrier</span>
-    </span></li>
-    <li><span class="card soon">
-      <span class="idx">07</span>
-      <span class="name">DNA</span>
-      <span class="note">Helix, grooves, antiparallel strands, real H-bonds</span>
-    </span></li>
-  </ul>
-</section>
 
 <section class="manifesto">
   <p class="statement">

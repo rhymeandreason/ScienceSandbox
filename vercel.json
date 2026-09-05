@@ -21,6 +21,7 @@
     { "source": "/demos/hemoglobin-lab.html",  "destination": "/protein",     "permanent": true },
     { "source": "/demos/glycolysis-lab.html",  "destination": "/glycolysis",  "permanent": true },
     { "source": "/demos/membrane-lab.html",    "destination": "/membrane",    "permanent": true },
+    { "source": "/demos/dna-structure.html",   "destination": "/dna",         "permanent": true },
     { "source": "/demos/nodegraph/nodegraph.html", "destination": "/nodes",  "permanent": true },
 
     { "source": "/demos/proteins/index.html",  "destination": "/proteins", "permanent": true },
@@ -59,6 +60,7 @@
     { "source": "/protein",    "destination": "/demos/hemoglobin-lab.html" },
     { "source": "/glycolysis", "destination": "/demos/glycolysis-lab.html" },
     { "source": "/membrane",   "destination": "/demos/membrane-lab.html" },
+    { "source": "/dna",        "destination": "/demos/dna-structure.html" },
     { "source": "/nodes",      "destination": "/demos/nodegraph/nodegraph.html" },
     { "source": "/admin",      "destination": "/demos/admin.html" },
 
