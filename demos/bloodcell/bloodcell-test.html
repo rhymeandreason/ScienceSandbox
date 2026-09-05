@@ -57,8 +57,6 @@ function bench(ctx) {
       <div class="row">
         <label class="switch"><input type="checkbox" id="cut"><span class="track"></span>cut in half</label>
       </div>
-      <div class="slider"><div class="slider-head"><span class="label">membrane</span><span class="value" data-v="membrane"></span></div>
-        <input type="range" id="mem" min="0.04" max="0.4" step="0.005" value="0.16"></div>
     </div>
 
     <div class="bench-group">
@@ -75,7 +73,6 @@ function bench(ctx) {
   /* The half opens on a glide: the states are whole and halved, and the wedge
      between them is the transition, not a setting. */
   ui.q('#cut').onchange = e => C.set({ cut: e.target.checked ? 1 : 0 }, { seconds: 0.7 });
-  ui.range(ui.q('#mem'), x => { C.set({ membrane: x }); v('membrane', x.toFixed(3) + ' µm'); });
 
   /* The glide is the case a step would use, and the sliders above are the case
      that must not glide: a drag a 0.9 s tween is chasing feels broken. */

@@ -63,7 +63,7 @@
        is the whole reason the cell has that shape. On the disc the same plane
        is the classic cross-section through both dimples. */
     cutTurn: 0,
-    membrane: 0.16,     // µm, exaggerated (see header)
+    membrane: 0.1,      // thick enough to see, and no more than that (see header)
     hb: true,           // the haemoglobin inside
     hbCount: 2000,
     autoRotate: false,
