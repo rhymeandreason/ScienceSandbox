@@ -103,7 +103,50 @@ console.log('\n== 5. a chain can only grow one way, and only because of the chem
   ok(!stale, 'no bond survives pointing at an atom that left');
 }
 
-console.log('\n== 6. hydrolysis puts back exactly what condensation took');
+console.log('\n== 6. the pose lands in the same place whichever molecule moved');
+{
+  const Plane = require('./plane.js');
+  // A host sitting somewhere arbitrary and turned arbitrarily: an identity
+  // transform would pass every one of these while hiding a composition bug.
+  const norm = q => { const L = Math.hypot(...q); return q.map(v => v/L); };
+  const at = (p, q) => ({ pos:p, quat:norm(q) });
+  const cases = [
+    at([0,0,0],       [0,0,0,1]),
+    at([12,-7,0],     [0,0,0.38,0.92]),
+    at([-3,5,2],      [0.21,-0.4,0.13,0.88]),
+  ];
+  // A relative pose with a real rotation in it, standing in for what a solver
+  // returns; nothing here depends on it being a peptide bond.
+  const s = { pos:[2.1,-0.6,0.3], quat:norm([0.12,0.44,-0.2,0.86]) };
+  const close = (a, b) => a.every((v,i) => Math.abs(v - b[i]) < 1e-9);
+  // Quaternions double-cover rotations: q and -q are the same turn, so a
+  // comparison that misses that would fail on correct code.
+  const sameQ = (a, b) => close(a, b) || close(a, b.map(v => -v));
+
+  let allOk = true;
+  for(const host of cases){
+    const guest = Plane.compose(host, s);
+    // Dragging the HOST instead has to put it exactly where it already is.
+    const back = Plane.invert(guest, s);
+    if(!close(back.pos, host.pos) || !sameQ(back.quat, host.quat)) allOk = false;
+    // And composing forward from there has to reproduce the same guest.
+    const again = Plane.compose(back, s);
+    if(!close(again.pos, guest.pos) || !sameQ(again.quat, guest.quat)) allOk = false;
+  }
+  ok(allOk, 'compose and invert are exact inverses at every host placement');
+
+  // THE BUG THIS SECTION EXISTS FOR. Re-solving with the arguments swapped is
+  // a different reaction, and it lands somewhere real — so nothing about the
+  // render says which of the two happened. Assert that the two answers differ,
+  // so a page that reaches for the wrong one is not silently agreeing.
+  const host = cases[1];
+  const guest = Plane.compose(host, s);
+  const swapped = Plane.compose(guest, s);      // what re-solving would give
+  ok(!close(swapped.pos, host.pos),
+     'placing the host by re-solving the other way round is NOT the same pose');
+}
+
+console.log('\n== 7. hydrolysis puts back exactly what condensation took');
 {
   const base = un(M.alanine);
   const spent = Peptide.strip(base, Peptide.role(base, 'carboxyl').leaves);

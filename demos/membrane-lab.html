@@ -7,6 +7,9 @@
      vercel.json rewrites the short URL; this is what keeps the assets found. -->
 <base href="/demos/">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<!-- Site-wide chrome: analytics + the foot. Absolute src, because the
+     featured pages set <base href="/demos/">. lib/site.js -->
+<script defer src="/demos/lib/site.js"></script>
 <title>The membrane — what gets through, and what it costs</title>
 <link rel="stylesheet" href="css/kodo.css">          <!-- design system: tokens, type, buttons -->
 <style>

@@ -47,6 +47,7 @@
     { "source": "/demos/proteins/trna/trna-test.html", "destination": "/proteins/trna", "permanent": true },
     { "source": "/demos/proteins/zif268/zif268-test.html", "destination": "/proteins/zif268", "permanent": true },
     { "source": "/demos/proteins/nucleosome/nucleosome-test.html", "destination": "/proteins/nucleosome", "permanent": true },
+    { "source": "/demos/proteins/polymerase/polymerase-test.html", "destination": "/proteins/polymerase", "permanent": true },
 
 
     { "source": "/builder",                    "destination": "/molecular-bonds", "permanent": false },
@@ -63,6 +64,7 @@
     { "source": "/dna",        "destination": "/demos/dna-structure.html" },
     { "source": "/nodes",      "destination": "/demos/nodegraph/nodegraph.html" },
     { "source": "/admin",      "destination": "/demos/admin.html" },
+    { "source": "/privacy",    "destination": "/demos/privacy.html" },
 
     { "source": "/proteins",   "destination": "/demos/proteins/index.html" },
     { "source": "/proteins/reactions", "destination": "/demos/proteins/reaction-map.html" },
@@ -86,7 +88,8 @@
     { "source": "/proteins/rubisco", "destination": "/demos/proteins/rubisco/rubisco-test.html" },
     { "source": "/proteins/trna", "destination": "/demos/proteins/trna/trna-test.html" },
     { "source": "/proteins/zif268", "destination": "/demos/proteins/zif268/zif268-test.html" },
-    { "source": "/proteins/nucleosome", "destination": "/demos/proteins/nucleosome/nucleosome-test.html" }
+    { "source": "/proteins/nucleosome", "destination": "/demos/proteins/nucleosome/nucleosome-test.html" },
+    { "source": "/proteins/polymerase", "destination": "/demos/proteins/polymerase/polymerase-test.html" }
   ],
   "headers": [
     { "source": "/api/(.*)", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }

@@ -38,6 +38,52 @@
 (function(global){
   'use strict';
 
+  /* ---- putting a solved pose on the stage ---------------------------------
+   * `solve` answers with the host at the origin unrotated, because a join is a
+   * relationship between two molecules and not a place on stage. These two put
+   * that answer somewhere, and which one is used depends on which molecule the
+   * student is holding.
+   *
+   * THE TWO ARE NOT TWO SOLVES. Asking the solver again with the arguments
+   * swapped is a DIFFERENT REACTION — for a condensation, the guest's donor
+   * onto the host's acceptor, a bond pointing the other way down the chain —
+   * and it places both molecules somewhere real, so the page renders a
+   * confident, wrong join. There is ONE pose. Whichever molecule is not moving
+   * is the one it is measured from, and the other end of it is that pose
+   * inverted, never re-solved.
+   *
+   * Plain arrays, so the algebra that decides where two molecules end up can be
+   * checked in Node. THREE never reaches this far; `create` converts at the
+   * boundary. Quaternions are [x,y,z,w], the order THREE uses.
+   */
+  const qmul = (a,b) => [
+    a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1],
+    a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0],
+    a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3],
+    a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
+  const qconj = q => [-q[0], -q[1], -q[2], q[3]];
+  const qapp = (q,v) => {
+    const [x,y,z,w] = q;
+    const tx = 2*(y*v[2] - z*v[1]), ty = 2*(z*v[0] - x*v[2]), tz = 2*(x*v[1] - y*v[0]);
+    return [v[0] + w*tx + y*tz - z*ty,
+            v[1] + w*ty + z*tx - x*tz,
+            v[2] + w*tz + x*ty - y*tx];
+  };
+  const vadd = (a,b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
+  const vsub = (a,b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
+
+  // Where the guest goes, given where the host is.
+  function compose(hostAt, s){
+    return { pos: vadd(qapp(hostAt.quat, s.pos), hostAt.pos),
+             quat: qmul(hostAt.quat, s.quat) };
+  }
+  // Where the host goes, given where the guest is. The exact inverse of the
+  // above: compose(invert(g, s), s) is g again, for every g and every s.
+  function invert(guestAt, s){
+    const quat = qmul(guestAt.quat, qconj(s.quat));
+    return { pos: vsub(guestAt.pos, qapp(quat, s.pos)), quat };
+  }
+
   function create(opts){
     const THREE = global.THREE;
     const o = Object.assign({
@@ -152,54 +198,85 @@
       for(const other of pieces){
         if(heldGroup.has(other)) continue;
         for(const [host, guest] of [[other, held], [held, other]]){
-          const t = solved(host, guest);
-          if(!t) continue;
+          const s = o.solve(host, guest);
+          if(!s) continue;
+          const t = placeGuest(host, s);
+          // Where the guest would have to be, against where it is. The test is
+          // symmetric: dragging the host moves the target instead of the piece,
+          // and the same distance closes either way.
           if(guest.mol.position.distanceTo(t.pos) > o.latchR) continue;
-          // Snap whichever of the two the student is holding, so the thing in
-          // their hand is the thing that clicks into place.
-          const move = (guest === held) ? guest : host;
-          const target = (guest === held) ? t : solved(guest, host);
-          if(!target) continue;
           // The pose is no longer the pointer's to set. Dropping the drag here
           // lets the tween land exactly on the solved pose instead of fighting
           // a cursor that is still moving.
           held = null; dragging = [];
-          latch(host, guest, move, target);
+          latch(host, guest, s, heldGroup);
           return;
         }
       }
     }
 
     /* `solve` answers with the host at the origin unrotated, because a join is
-     * a relationship between two molecules and not a place on stage. Composing
-     * it with the host's live transform is this file's job. */
-    function solved(host, guest){
-      const s = o.solve(host, guest);
-      if(!s) return null;
-      const q = host.mol.quaternion;
-      return Object.assign({}, s, {
-        pos: s.pos.clone().applyQuaternion(q).add(host.mol.position),
-        quat: q.clone().multiply(s.quat),
-        world: v => v.clone().applyQuaternion(q).add(host.mol.position),
-      });
-    }
+     * a relationship between two molecules and not a place on stage. Putting
+     * that answer on the stage is this file's job, and there are two ways round
+     * it — the student may be holding either molecule.
+     *
+     * THE TWO ARE NOT TWO SOLVES. Asking the solver again with the arguments
+     * swapped is a DIFFERENT REACTION — the guest's carboxyl onto the host's
+     * amino, a bond pointing the other way down the chain — and it places both
+     * molecules somewhere real, so the page renders a confident, wrong join.
+     * There is one pose; whichever molecule is not being held is the one it is
+     * measured from, and the other end of it is that pose inverted. */
+    // THREE in, THREE out; the algebra itself is the module-level pair above.
+    const whereIs = p => ({ pos:p.mol.position.toArray(), quat:p.mol.quaternion.toArray() });
+    const asThree = r => ({ pos:new THREE.Vector3(...r.pos),
+                            quat:new THREE.Quaternion(...r.quat) });
+    const local = s => ({ pos:s.pos.toArray(), quat:s.quat.toArray() });
+    const placeGuest = (host,  s) => asThree(compose(whereIs(host),  local(s)));
+    const placeHost  = (guest, s) => asThree(invert (whereIs(guest), local(s)));
+    // A point of the solved pose in world space, read from wherever the host
+    // ACTUALLY is. Called after the snap lands, never from the transform the
+    // snap started with: when the host is the piece that moved, the two differ
+    // by the whole length of the tween.
+    const inHost = (host, v) => v.clone().applyQuaternion(host.mol.quaternion)
+                                 .add(host.mol.position);
 
-    function latch(host, guest, mover, target){
-      const from = mover.mol.position.clone(), fq = mover.mol.quaternion.clone();
+    /* The snap. Whichever piece the student was holding is the one that moves,
+     * and it moves with everything already joined to it: a chain dragged by one
+     * end is one object, and tweening a single residue out of it tears the
+     * chain apart while every bond still renders. */
+    function latch(host, guest, s, heldGroup){
+      const mover = heldGroup.has(guest) ? guest : host;
+      const target = mover === guest ? placeGuest(host, s) : placeHost(guest, s);
       const tag = 'latch:' + pieces.indexOf(mover);
       if(motion) motion.cancel(tag);
+
+      // The rigid motion taking the mover to its target, as a delta the rest of
+      // the mover's group rides on.
+      const dq = target.quat.clone().multiply(mover.mol.quaternion.clone().invert());
+      const riders = [...heldGroup].map(p => ({
+        p,
+        fromPos: p.mol.position.clone(), fromQuat: p.mol.quaternion.clone(),
+        toPos: target.pos.clone().add(
+          p.mol.position.clone().sub(mover.mol.position).applyQuaternion(dq)),
+        toQuat: dq.clone().multiply(p.mol.quaternion),
+      }));
+
       const land = () => {
         links.push({ a:host, b:guest });
-        if(o.onJoin) o.onJoin(host, guest, target);
+        if(o.onJoin) o.onJoin(host, guest, {
+          bondAt:  inHost(host, s.bondAt),
+          waterAt: inHost(host, s.waterAt),
+          pose: s });
       };
-      if(!motion){ mover.mol.position.copy(target.pos);
-                   mover.mol.quaternion.copy(target.quat); land(); return; }
+      const put = u => {
+        for(const r of riders){
+          r.p.mol.position.lerpVectors(r.fromPos, r.toPos, u);
+          THREE.Quaternion.slerp(r.fromQuat, r.toQuat, r.p.mol.quaternion, u);
+        }
+      };
+      if(!motion){ put(1); land(); return; }
       motion.seq([
-        { dur:o.snap, ease:'outBack', onUpdate:u => {
-            mover.mol.position.lerpVectors(from, target.pos, u);
-            THREE.Quaternion.slerp(fq, target.quat, mover.mol.quaternion, u);
-            if(o.onMove) o.onMove();
-          }},
+        { dur:o.snap, ease:'outBack', onUpdate:u => { put(u); if(o.onMove) o.onMove(); } },
         { call:land },
       ], { tag });
     }
@@ -232,5 +309,7 @@
              get held(){ return held; } };
   }
 
-  global.MacroPlane = { create };
+  const API = { create, compose, invert };
+  if(typeof module === 'object' && module.exports) module.exports = API;
+  global.MacroPlane = API;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

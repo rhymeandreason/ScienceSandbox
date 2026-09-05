@@ -567,6 +567,14 @@ a.crumb:hover { color: var(--accent) }
 
 body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 
+/* ---- a link in running prose -------------------------------------------- */
+.kodo main p a {
+  color: var(--text-strong); text-decoration: none;
+  border-bottom: 1px solid var(--border-hair); padding-bottom: 1px;
+  transition: color .15s, border-color .15s;
+}
+.kodo main p a:hover { color: var(--accent); border-color: var(--accent) }
+
 /* ---- the foot ------------------------------------------------------------ */
 .sitefoot {
   margin-top: clamp(2.5rem, 6vw, 4rem);

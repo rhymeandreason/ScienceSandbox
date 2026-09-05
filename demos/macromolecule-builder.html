@@ -158,13 +158,15 @@ const P = MacroPlane.create({
              bondAt:v(r.bondAt), waterAt:v(r.waterAt), omega:r.omega };
   },
 
-  onJoin: (host, guest, target) => {
+  // `at` is already in world space: plane.js reads the pose off wherever the
+  // host ENDED UP, which is not where it was when the pose was solved if the
+  // host is the molecule the student dragged.
+  onJoin: (host, guest, at) => {
     host.spent.add('carboxyl'); guest.spent.add('amino');
     respec(host); respec(guest);
     stick(host, guest);
-    if(L.fx) L.fx.condense(target.world(target.bondAt.clone()),
-                           target.world(target.waterAt.clone()), { size:1.1 });
-    water(target.world(target.waterAt.clone()), 'out');
+    if(L.fx) L.fx.condense(at.bondAt, at.waterAt, { size:1.1 });
+    water(at.waterAt, 'out');
     say();
   },
 
