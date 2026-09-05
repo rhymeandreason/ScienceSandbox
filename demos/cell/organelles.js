@@ -488,15 +488,25 @@
       const thyMat = mat({ color: ORG.chloroplast.thylakoid, roughness: 0.5, clearcoat: 0.3 });
       const lamMat = mat({ color: ORG.chloroplast.stroma, roughness: 0.6, clearcoat: 0.1 });
       const disc = new THREE.CylinderGeometry(1, 1, 1, 20);
-      const grana = o.grana || 7, ry = b - th - 0.12;
+      const grana = o.grana || 7;
       const slots = [];
       for (let i = 0; i < grana; i++) {
         const t = grana === 1 ? 0.5 : i / (grana - 1);
-        slots.push([(-0.62 + 1.24 * t) * (a - th) + rr(-0.08, 0.08), rr(-0.42, 0.42) * (c - th)]);
+        slots.push([(-0.55 + 1.1 * t) * (a - th) + rr(-0.06, 0.06), rr(-0.36, 0.36) * (c - th)]);
       }
       for (const [x, z] of slots) {
         const stack = new THREE.Group();
-        const n = 4 + (rand() < 0.5 ? 1 : 0), rad = (0.26 + rr(0, 0.07)) * a;
+        /* A GRANUM HAS TO FIT WHERE IT SITS. The envelope is an ellipsoid,
+           so the room left at a slot shrinks toward the ends; a radius
+           picked as a fraction of the whole plastid puts the outermost
+           stacks through the wall, and once the plastid is small enough
+           they come out through the cut rim as well. Take the ellipse's own
+           half-width at this slot and stay inside it. */
+        const room = Math.min(
+          (c - th) * Math.sqrt(Math.max(0.05, 1 - (x / (a - th)) * (x / (a - th)))) - Math.abs(z),
+          (a - th) - Math.abs(x));
+        const n = 4 + (rand() < 0.5 ? 1 : 0);
+        const rad = Math.min((0.24 + rr(0, 0.06)) * a, room * 0.82);
         for (let i = 0; i < n; i++) {
           const d = new THREE.Mesh(disc, thyMat);
           d.scale.set(rad, 0.075 * b, rad);

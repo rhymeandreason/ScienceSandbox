@@ -302,10 +302,11 @@
     ];
     const pTop = (x, z) => topY(x, z) - PROTO_DROP;
     const RIMW = 0.02 * A;
-    // How far the cytoplasm is scooped below the cut. Deep enough that an
-    // organelle can sit under the rim and be seen from the side; shallow
-    // enough that the floor is still lit from the reader's side.
-    const BOWL = 0.42 * A;
+    // How far the cytoplasm is scooped below the cut. Deep enough that the
+    // nucleus sits under the rim without its far side pushing through the
+    // floor — which is what a shallow bowl does under plasmolysis, when the
+    // protoplast narrows and the same depth becomes a much steeper dish.
+    const BOWL = 0.52 * A;
     /* The bowl's surface under a point on the cut plane, in cutFrame's own
        coordinates (y = 0 is the plane). An organelle far out is near the rim
        and therefore shallow, which is what keeps it from pushing through the
@@ -502,8 +503,16 @@
         Rn: 3.0 * T.nucleus.s, center: new V3(0, 0, 0), y0: 0.6,
         arcs: [{ a0: -0.3 * PI, a1: 0.62 * PI, count: 3 }, { a0: 0.86 * PI, a1: 1.3 * PI, count: 2 }],
       });
-      // The ER rides the nucleus: it wraps that envelope, so it is parented
-      // to it rather than solved for separately.
+      /* The ER rides the nucleus: it wraps that envelope, so it is parented
+         to it rather than solved for separately — which means the solver
+         cannot see it, and its arcs reach well past the nucleus's own
+         footprint. So AIM ITS GAP AT THE VACUOLE. The arcs leave a wide
+         opening centred on 1.5*PI; a group rotation of theta maps an angle
+         a to a - theta, so this puts that opening on the bearing from the
+         nucleus to the vacuole, which is the only direction with something
+         big enough to foul. */
+      const toVac = Math.atan2(T.vacuole.z - T.nucleus.z, T.vacuole.x - T.nucleus.x);
+      er.group.rotation.y = 1.5 * PI - toVac;
       nuc.add(register(er.group, 'er'));
       for (const [type, x, z, rot, s] of T.organelles) {
         const g = register(BUILD[type](s), NAME[type] || type);
@@ -588,7 +597,17 @@
       for (let k = 0; k < sub; k++) solve(items, h);
       for (const it of items) {
         const base = it.type === 'vacuole' ? P.vac : P.org, s = base * grow;
-        it.g.position.set(it.x, bowlY(it.x, it.z) + it.lift * s, it.z);
+        /* Rest on the HIGHEST floor under the footprint, not the floor at
+           the centre. The bowl is concave, so it rises away from an
+           organelle's middle and a wide one planted on its centre height
+           pushes its own edges through the cytoplasm. Six samples round the
+           footprint is enough for shapes this smooth. */
+        let floor = bowlY(it.x, it.z);
+        for (let k = 0; k < 6; k++) {
+          const ang = k * PI / 3;
+          floor = Math.max(floor, bowlY(it.x + Math.cos(ang) * it.r * s, it.z + Math.sin(ang) * it.r * s));
+        }
+        it.g.position.set(it.x, floor + it.lift * s, it.z);
         it.g.scale.setScalar(s);
         if (it.type !== 'nucleus' && it.type !== 'vacuole') {
           const y = it.rot + (it.vx * Math.cos(it.rot) - it.vz * Math.sin(it.rot)) * 0.4 / A + 0.04 * Math.sin(time * 0.3 + it.seed);
