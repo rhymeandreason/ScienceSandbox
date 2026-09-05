@@ -90,12 +90,33 @@ Measure the fixed cost too, with nothing on stage. Membrane's was 3 ms a frame f
 2. `<name>/<name>-test.html`, the bench: every control a `set`, every readout from `state`, **on the lesson shell** (`css/kodo.css` + `css/lesson-shell.css` + `kit/lesson-shell.js`), which is the chrome a student will actually meet the component in, so the bench and the generated app cannot flatter it differently. One step, and `.lshell-nav` / `.lshell-progress` hidden: a bench is one screen, not a sequence. Copy `leaf/leaf-test.html`. Drive it with `pump` from the console; a backgrounded tab never runs the loop.
 3. A checker if the component makes a checkable claim, `<name>/check-<name>.js`, Node-loadable and dependency-free, and its gate line in `.githooks/pre-commit` once the component is past test status.
 4. `docs/Components.md`: a section in the shape of the others. Load order, a **`**Scale**: <rung>, <form>`** line, the `mount` call with every param commented, what it models in two sentences, the `state()` table, events, then **Good for / Not for**. Add the component to `COMPONENTS` in `tools/check-scale.js` and to the ladder table, or the checker fails on a section it does not know. The model reads nothing else, so if the section does not say it, the model does not know it. Keep it tight; the whole file is the cached prompt and every section costs every request.
+
+   **The section is not documentation. It is the model's decision procedure**,
+   and the two want opposite things. The API half can be terse: one `mount`
+   call with commented params is enough, and prose restating what a param does
+   is never consulted. Spend the sentences on WHEN TO REACH FOR IT, which is
+   the one thing that cannot be inferred from an example — and name the thing
+   the model would otherwise do instead, because it already has an answer and
+   you are beating it, not describing yourself. "A step that asks how something
+   CHANGES gets a trace; a step that asks what something IS gets a `.stat`" is
+   what made the model draw a graph. "Good for showing change over time" did
+   not. Say where it mounts if that is not `shell.stage`; the reference says
+   the stage is the only layout, so a component that belongs in the panel has
+   nowhere to go until the section says so.
+
+   **If the section names anything outside `demos/` — a CDN script, a new path
+   — check `api/_builder.js` accepts it.** `validate()` refuses scripts from
+   outside the library while the deps check demands the ones a section
+   declares, and when those two disagree every page mounting the component is
+   unpassable. It fails silently: the draft is rejected and retried without the
+   component, which reads exactly like a model that ignored the section.
 5. `docs/Modules.md`: one bullet under the water/membrane/leaf/tree ones. `admin.html`: one card for the bench. `node tools/check-docs.js` and `node tools/check-scale.js` pass.
-6. Run `node tools/gen-app.js "<a request a teacher would type that needs your component>" tests/gen-<name>-test.html`, open the page, drive it, and fix the component or the reference until it works first try. Add the page to `admin.html` under Generated apps with the `UGC` badge. That page is the eval; keep it.
+6. Run `node tools/gen-app.js "<a request a teacher would type that needs your component>" tests/gen-<name>-test.html`, open the page, drive it, and fix the component or the reference until it works first try. **Twice, and read the `retried` flag in the printed JSON**: `retried:true` means the draft failed `validate()` and the second try dropped whatever caused it, so a page missing your component is a block, not a preference. Add the page to `admin.html` under Generated apps with the `UGC` badge. That page is the eval; keep it.
 
 ## 6. What the last four taught
 
 * The reference is carrying the structure. A bare question produced a three-step lesson. Put effort into the section, not into a prompt.
+* **Cut the section, then let the eval say what was load-bearing.** You cannot tell by reading which sentences earn their place. Graph's went 120 lines to 47 with nothing lost, and the whole difference between two runs drawing a graph and two runs drawing none was one sentence that trimming by judgement would have deleted. Write it short, run it twice, add back only what changes the output.
 * Anything the reference has to say twice, or say in prose as a rule, should be a parameter or a default instead. The salmon app reached under the params twice; both became defaults.
 * What the model forgets goes into the library, not the doc. It forgot `viewOffset`, so the shell now stamps it on its stage and CardStage reads it there.
 * Two flaws from three runs were in the components, not the model: a frame cost and a noisy readout. Drive the generated page by hand; the model's page will use your component the way a student will, not the way your bench does.

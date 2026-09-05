@@ -189,7 +189,8 @@ function inLibrary(u, ext) {
  * moment the doc says so. Listed by hand, the two halves drift and the result
  * is unreachable: the deps check below DEMANDS a component's scripts while
  * this check REFUSES them, and every draft that mounts it is rejected and
- * silently retried without it. */
+ * silently retried without it — which reads from outside as a model that
+ * ignored the section, and sends the next person to rewrite the prose. */
 function externals() {
   const out = new Set([CDN]);
   for (const list of Object.values(needs()))
