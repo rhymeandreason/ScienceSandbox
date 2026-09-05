@@ -52,6 +52,7 @@ const COMPONENTS = {
   Leaf:       'leaf/leaf.js',
   Tree:       'tree/tree.js',
   AnimalCell: 'cell/animalcell.js',
+  PlantCell:  'cell/plantcell.js',
   Graph:      'graph/graph.js',
 };
 

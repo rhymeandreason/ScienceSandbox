@@ -300,27 +300,31 @@
       }), mat({ vertexColors: true, roughness: 0.4, clearcoat: 0.5 }));
       g.add(shell);
 
-      const ng = displace(new THREE.SphereGeometry(1.05, 48, 32), (x, y, z) => {
+      // Parts scale with the envelope. A nucleus built smaller than the
+      // animal cell's 3.6 otherwise keeps full-size pores and reads as a
+      // blackberry; k is 1 at 3.6, so that cell is untouched.
+      const k = R / 3.6;
+      const ng = displace(new THREE.SphereGeometry(1.05 * k, 48, 32), (x, y, z) => {
         const k = 1 + 0.06 * noise.fbm(x * 2.2 + 1, y * 2.2, z * 2.2, 2); return [x * k, y * k, z * k];
       });
       const nucleolus = new THREE.Mesh(ng, mat({ color: ORG.nucleus.nucleolus, emissive: '#ff8a12', emissiveIntensity: 0.45, roughness: 0.55, clearcoat: 0.2 }));
-      nucleolus.position.set(0.35, -0.75, 0.25);
+      nucleolus.position.set(0.35 * k, -0.75 * k, 0.25 * k);
       g.add(nucleolus);
 
       const chromMat = mat({ color: ORG.nucleus.chromatin, roughness: 0.6, clearcoat: 0 });
       for (let i = 0; i < (o.chromatin || 3); i++) {
         const pts = [];
         for (let j = 0; j < 5; j++) pts.push(new V3(rr(-1, 1), rr(-1, 0.3), rr(-1, 1)).normalize().multiplyScalar(rr(0.6, R - 0.6)));
-        const t = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.6), 48, 0.05, 6, false), chromMat);
+        const t = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, false, 'centripetal', 0.6), 48, 0.05 * k, 6, false), chromMat);
         g.add(t);
       }
-      const poreGeo = new THREE.TorusGeometry(0.2, 0.07, 8, 18);
+      const poreGeo = new THREE.TorusGeometry(0.2 * k, 0.07 * k, 8, 18);
       const poreMat = mat({ color: ORG.nucleus.pore, roughness: 0.55, clearcoat: 0 });
       for (let i = 0; i < (o.pores === undefined ? 60 : o.pores); i++) {
         const u = rr(0, 2 * PI), w = rr(0.12 * PI, cut(u) - 0.06 * PI);
         const p = S(u, w), n = surfaceNormal(THREE, S, new V3(), u, w);
         const pore = new THREE.Mesh(poreGeo, poreMat);
-        pore.position.copy(p).addScaledVector(n, 0.03);
+        pore.position.copy(p).addScaledVector(n, 0.03 * k);
         pore.lookAt(p.clone().add(n));
         g.add(pore);
       }
@@ -375,11 +379,15 @@
 
     /* Golgi: a stack of curved, ragged-edged discs with vesicles. A plant
        cell has many of these scattered and an animal cell one ribbon by the
-       nucleus; that difference is the host's placement, not this geometry. */
+       nucleus; that difference is the host's placement, not this geometry.
+       `spacing` exists because a stack only reads AS a stack when the gap is
+       big enough for the eye to separate the cisternae at the size it is
+       drawn — under about a tenth of the disc's width they merge into one
+       lump, and a Golgi that is a lump is indistinguishable from a vesicle. */
     function golgi(o = {}) {
       const g = new THREE.Group();
       const gm = mat({ color: ORG.golgi.outer, roughness: 0.45, clearcoat: 0.5 });
-      const n = o.cisternae || 7;
+      const n = o.cisternae || 7, gap = o.spacing || 0.3;
       for (let i = 0; i < n; i++) {
         const rx = 1.15 + 0.7 * Math.sin(PI * i / (n - 1)) + rr(-0.08, 0.08), rz = rx * 0.78;
         const geo = displace(new THREE.SphereGeometry(1, 72, 24), (x, y, z) => {
@@ -389,14 +397,14 @@
           return [X, y * 0.075 + 0.11 * (X * X + Z * Z), Z];
         });
         const m = new THREE.Mesh(geo, gm);
-        m.position.y = i * 0.3;
+        m.position.y = i * gap;
         g.add(m);
       }
       const vm = mat({ color: ORG.golgi.vesicle, roughness: 0.4, clearcoat: 0.6 });
       for (let i = 0; i < (o.vesicles === undefined ? 8 : o.vesicles); i++) {
         const ang = rr(0, 2 * PI), rad = rr(1.9, 2.5);
         const v = new THREE.Mesh(new THREE.SphereGeometry(rr(0.1, 0.22), 16, 12), vm);
-        v.position.set(Math.cos(ang) * rad, rr(-0.3, n * 0.3 + 0.3), Math.sin(ang) * rad * 0.8);
+        v.position.set(Math.cos(ang) * rad, rr(-0.3, n * gap + 0.3), Math.sin(ang) * rad * 0.8);
         g.add(v);
       }
       return g;
@@ -440,6 +448,38 @@
     }
 
 
+    /* A filled cut face for the boundary S(u, cut(u)): a fan from the centre
+       out to the rim, inset so it sits just inside the shell's inner wall.
+       An organelle that is FULL of something needs one, or the cut reads as
+       a tube rather than as a cross-section through a liquid. */
+    function cutCap(S, cut, uSeg, rings, inset) {
+      const pos = [], idx = [], c = new V3();
+      const rim = [];
+      for (let i = 0; i < uSeg; i++) {
+        const u = (i / uSeg) * 2 * PI;
+        rim.push(S(u, cut(u)).multiplyScalar(1 - inset));
+        c.add(rim[i]);
+      }
+      c.multiplyScalar(1 / uSeg);
+      for (let r = 0; r <= rings; r++) {
+        const t = r / rings;
+        for (let i = 0; i < uSeg; i++) {
+          const p = c.clone().lerp(rim[i], t);
+          pos.push(p.x, p.y, p.z);
+        }
+      }
+      for (let r = 0; r < rings; r++)
+        for (let i = 0; i < uSeg; i++) {
+          const a = r * uSeg + i, b = r * uSeg + (i + 1) % uSeg;
+          idx.push(a, b, a + uSeg, b, b + uSeg, a + uSeg);
+        }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      return g;
+    }
+
     /* ---- plastids ------------------------------------------------------
        A plastid is the OTHER endosymbiont, and it is built by the same shell
        code as the mitochondrion on purpose: two membranes with a lumen
@@ -452,7 +492,7 @@
        differ: thylakoid stacks, or starch. */
 
     function plastidShell(o, colors) {
-      const a = o.a || 2.3, b = o.b || 1.05, c = o.c || 1.5, th = o.thickness || 0.11;
+      const a = o.a || 2.3, b = o.b || 1.05, c = o.c || 1.5, th = o.thickness || 0.075;
       const radius = d => 1 + 0.035 * noise.fbm(d.x * 2.2 + 5, d.y * 2.2 + 2, d.z * 2.2, 2);
       const S = (u, w) => { const d = dirUW(u, w); const k = radius(d); return new V3(d.x * a * k, d.y * b * k, d.z * c * k); };
       const cut = u => PI * 0.58 + 0.03 * Math.sin(2 * u + 1.1) + 0.02 * Math.sin(5 * u);
@@ -482,23 +522,25 @@
       }
       for (const [x, z] of slots) {
         const stack = new THREE.Group();
-        const n = 3 + (rand() < 0.45 ? 1 : 0), rad = (0.18 + rr(0, 0.06)) * a;
+        const n = 4 + (rand() < 0.5 ? 1 : 0), rad = (0.26 + rr(0, 0.07)) * a;
         for (let i = 0; i < n; i++) {
           const d = new THREE.Mesh(disc, thyMat);
-          d.scale.set(rad, 0.055 * b, rad);
-          d.position.y = (i - (n - 1) / 2) * 0.085 * b;
+          d.scale.set(rad, 0.075 * b, rad);
+          d.position.y = (i - (n - 1) / 2) * 0.115 * b;
           stack.add(d);
         }
-        stack.position.set(x, -0.1 * b + rr(-0.05, 0.05) * b, z);
+        stack.position.set(x, -0.34 * b + rr(-0.06, 0.06) * b, z);
         stack.rotation.set(rr(-0.25, 0.25), rand() * PI, rr(-0.25, 0.25));
         g.add(stack);
       }
       // stroma lamellae: flat sheets running between the grana
+      // Lamellae stay well inside the envelope: a sheet sized off the outer
+      // ellipsoid pokes through the cut wall and reads as a bright shard.
       for (let i = 0; i < (o.lamellae === undefined ? 3 : o.lamellae); i++) {
         const sheet = new THREE.Mesh(disc, lamMat);
-        sheet.scale.set((a - th) * 0.72, 0.018 * b, (c - th) * 0.6);
-        sheet.position.set(rr(-0.2, 0.2) * a, -0.12 * b + i * 0.16 * b - 0.16 * b, rr(-0.2, 0.2) * c);
-        sheet.rotation.set(rr(-0.12, 0.12), rand() * PI, rr(-0.12, 0.12));
+        sheet.scale.set((a - th) * 0.42, 0.02 * b, (a - th) * 0.42);
+        sheet.position.set(rr(-0.18, 0.18) * a, -0.5 * b + i * 0.16 * b, rr(-0.14, 0.14) * c);
+        sheet.rotation.set(rr(-0.1, 0.1), rand() * PI, rr(-0.1, 0.1));
         g.add(sheet);
       }
       g.userData.parts = { shell: mesh };
@@ -560,13 +602,18 @@
         colors: shellOf(ORG.vacuole),
       }), mat({ vertexColors: true, roughness: 0.22, clearcoat: 0.8, clearcoatRoughness: 0.15 }));
       g.add(shell);
-      // the sap itself: a slightly smaller copy, drawn behind and translucent
-      const sap = new THREE.Mesh(shell.geometry, mat({
-        color: ORG.vacuole.sap, roughness: 0.5, transparent: true, opacity: 0.5, depthWrite: false,
-      }));
-      sap.scale.setScalar(0.94);
-      sap.renderOrder = -1;
+      // The sap: the shell again, one step in, PLUS a filled cut face. The
+      // face is what makes the vacuole read as full rather than as a tube,
+      // and a central vacuole that reads as empty is the wrong lesson.
+      // Translucent, because a vacuole is mostly water and the cytoplasm
+      // behind it should show through. Opaque sap reads as a solid bead and
+      // hides that the cell is one continuous space around it.
+      const sapMat = mat({ color: ORG.vacuole.sap, roughness: 0.35, clearcoat: 0.5, transparent: true, opacity: 0.7 });
+      const sap = new THREE.Mesh(shell.geometry, sapMat);
+      sap.scale.setScalar(0.955);
       g.add(sap);
+      const face = new THREE.Mesh(cutCap(S, cut, 140, 6, 0.055), sapMat);
+      g.add(face);
       g.userData.parts = { shell, sap };
       return g;
     }

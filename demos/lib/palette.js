@@ -214,8 +214,13 @@
          between. An organelle drawn as ribbons instead carries `side` and
          `top` — the ER and the mitochondrion's cristae. */
       plasma:        { outer:0xee8e84, inner:0xa8132a, rim:0xf4b0a6, head:0xe0705c, tail:0xf0c98a },
+      /* `cristaTop` is the LIT EDGE of a crista, lighter than `cristaSide`
+         but not white: a mitochondrion lying on a cut plane is seen straight
+         down its opening, where the cristae are most of what shows, and a
+         white top there leaves a white bar in a thin orange ring instead of
+         an organelle. */
       mitochondrion: { outer:0xe0552f, inner:0xe2775b, rim:0xf4b8a4, head:0xd9612f, tail:0xeeba7e,
-                       cristaSide:0xf2a3ae, cristaTop:0xfff6f7 },
+                       cristaSide:0xf2a3ae, cristaTop:0xfbcdc7 },
       /* PLASTIDS ARE ONE FAMILY WEARING ONE ENVELOPE. A chloroplast, an
          amyloplast and a chromoplast interconvert — a tuber's amyloplast
          greens on the windowsill into the leaf's chloroplast — so they are
@@ -246,7 +251,7 @@
          the two do overlapping lytic work in different cells, but that is
          convergence, not homology, and one colour would teach otherwise. */
       vacuole:       { outer:0x63b0b8, inner:0x3f8f9a, rim:0xa9d6da, head:0x63b0b8, tail:0xc7d9b0,
-                       sap:0xd3cfa8 },
+                       sap:0xbcd8d6 },
       /* The wall is CELLULOSE AND EXTRACELLULAR, so it is deliberately not
          in the organelle greens: a straw that reads as "not cytoplasm"
          rather than as more plant. `lamella` is the middle lamella, the

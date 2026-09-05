@@ -386,7 +386,22 @@
       nucleus: s => K.nucleus({ R: 3.0 * s, thickness: 0.2, chromatin: 3, pores: 55 }),
       chloroplast: s => K.chloroplast({ a: 2.3 * s, b: 1.05 * s, c: 1.5 * s, grana: 7 }),
       mitochondrion: s => K.mitochondrion({ r: 0.55 * s, L: 0.95 * s, cristae: 7 }),
-      golgi: s => { const g = K.golgi({ cisternae: 7, vesicles: 6 }); g.scale.setScalar(0.85 * s); return g; },
+      /* The kit stacks a Golgi's cisternae along +y. On the cut plane +y
+         points at the reader, so an unrotated stack is seen end-on and reads
+         as a lump. Tip it onto its side inside a wrapper, so the layer's own
+         rotation.y still spins it in the plane of the cut. */
+      golgi: s => {
+        const g = K.golgi({ cisternae: 6, vesicles: 6, spacing: 0.46 });
+        // Tipped most of the way onto its edge, not all of it: flat on the
+        // cut plane only the top cisterna shows, and fully on edge the stack
+        // hides behind its own outermost disc.
+        g.rotation.set(0, 0, -1.15);
+        g.position.y = 0.5 * s;
+        const w = new THREE.Group();
+        w.add(g);
+        w.scale.setScalar(0.8 * s);
+        return w;
+      },
       amyloplast: s => K.amyloplast({ a: 2.0 * s, b: 1.35 * s, c: 1.55 * s, grains: 1 }),
       amyloplast2: s => K.amyloplast({ a: 2.6 * s, b: 1.35 * s, c: 1.55 * s, grains: 2 }),
       vesicle: s => {
@@ -400,9 +415,14 @@
       const L = new THREE.Group();
       L.userData.items = [];
       const add = (g, type, x, z, rot, foot, weight) => {
-        g.rotation.y = rot;
         L.add(g);
-        L.userData.items.push({ g, type, tx: x * A, tz: z * A, x: x * A, z: z * A, vx: 0, vz: 0, rot, r: foot, w: weight, seed: L.userData.items.length });
+        /* A small tilt off the cut plane. Everything lying perfectly flat is
+           seen straight down its own opening, which for a cut organelle is
+           the one angle that shows least of it. The nucleus and vacuole are
+           big enough to read flat and stay level. */
+        const tilt = (type === 'nucleus' || type === 'vacuole') ? 0 : rr(0.18, 0.42);
+        g.rotation.set(tilt * Math.cos(rot * 2.3), rot, tilt * Math.sin(rot * 2.3));
+        L.userData.items.push({ g, type, tx: x * A, tz: z * A, x: x * A, z: z * A, vx: 0, vz: 0, rot, tilt, r: foot, w: weight, seed: L.userData.items.length });
         return g;
       };
       // the nucleus is pinned: everything else arranges around it
@@ -480,8 +500,10 @@
         const base = it.type === 'vacuole' ? P.vac : P.org, s = base * grow;
         it.g.position.set(it.x, 0, it.z);
         it.g.scale.setScalar(s);
-        if (it.type !== 'nucleus' && it.type !== 'vacuole')
-          it.g.rotation.y = it.rot + (it.vx * Math.cos(it.rot) - it.vz * Math.sin(it.rot)) * 0.4 / A + 0.04 * Math.sin(time * 0.3 + it.seed);
+        if (it.type !== 'nucleus' && it.type !== 'vacuole') {
+          const y = it.rot + (it.vx * Math.cos(it.rot) - it.vz * Math.sin(it.rot)) * 0.4 / A + 0.04 * Math.sin(time * 0.3 + it.seed);
+          it.g.rotation.set(it.tilt * Math.cos(y * 2.3), y, it.tilt * Math.sin(y * 2.3));
+        }
       }
     }
 
@@ -563,7 +585,7 @@
 
   /* ---- one box -------------------------------------------------------- */
 
-  const HOME = { pos: [3, 17, 30], target: [0, 4, 0] };
+  const HOME = { pos: [1, 14, 26], target: [0, 7.5, 0] };
 
   function mount(el, params = {}) {
     if (!global.CardStage) throw new Error('cell/plantcell.js: load kit/card-stage.js first');
@@ -589,15 +611,15 @@
     // one studio. See cell/animalcell.js for why there is no shadow map.
     box.renderer.outputEncoding = THREE.sRGBEncoding;
     for (const o of box.camera.children) if (o.isLight) o.intensity *= 0.25;
-    for (const o of box.scene.children) if (o.isAmbientLight) o.intensity = 0.32;
-    box.scene.add(new THREE.HemisphereLight(0xf4f8ff, 0xe8cbb8, 0.85));
-    const key = new THREE.DirectionalLight(0xfff4ea, 0.7);
+    for (const o of box.scene.children) if (o.isAmbientLight) o.intensity = 0.22;
+    box.scene.add(new THREE.HemisphereLight(0xf4f8ff, 0xe8cbb8, 0.55));
+    const key = new THREE.DirectionalLight(0xfff4ea, 0.55);
     key.position.set(14, 26, 16);
     box.scene.add(key, key.target);
-    const fill = new THREE.DirectionalLight(0xdbe6ff, 0.35);
+    const fill = new THREE.DirectionalLight(0xdbe6ff, 0.25);
     fill.position.set(-14, 8, -10);
     box.scene.add(fill, fill.target);
-    const rim = new THREE.DirectionalLight(0xffffff, 0.28);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.2);
     rim.position.set(-2, -6, -18);
     box.scene.add(rim, rim.target);
 

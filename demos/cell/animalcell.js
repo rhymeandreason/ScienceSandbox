@@ -287,19 +287,23 @@
     // that says nothing true about the cell.
     box.renderer.outputEncoding = THREE.sRGBEncoding;
     for (const o of box.camera.children) if (o.isLight) o.intensity *= 0.25;
-    for (const o of box.scene.children) if (o.isAmbientLight) o.intensity = 0.32;
+    for (const o of box.scene.children) if (o.isAmbientLight) o.intensity = 0.22;
     // Sky above, warm bounce off the paper below: the ambient occlusion the
     // scene no longer gets from shadows, as a gradient over each sphere.
-    box.scene.add(new THREE.HemisphereLight(0xf4f8ff, 0xe8cbb8, 0.85));
-    const key = new THREE.DirectionalLight(0xfff4ea, 0.7);
+    // TOTAL INTENSITY IS THE THING TO WATCH with no shadows and four lights.
+    // Over about 1.4 across the rig, small pale parts — a crista top, a
+    // vesicle — clip to white and every organelle under a certain size stops
+    // having a colour. Raise one light here and lower another.
+    box.scene.add(new THREE.HemisphereLight(0xf4f8ff, 0xe8cbb8, 0.55));
+    const key = new THREE.DirectionalLight(0xfff4ea, 0.55);
     key.position.set(14, 22, 16);
     box.scene.add(key, key.target);
-    const fill = new THREE.DirectionalLight(0xdbe6ff, 0.35);
+    const fill = new THREE.DirectionalLight(0xdbe6ff, 0.25);
     fill.position.set(-14, 6, -10);
     box.scene.add(fill, fill.target);
     // Rim from behind and below, so an organelle's silhouette survives against
     // the one behind it now that nothing separates them by contact shadow.
-    const rim = new THREE.DirectionalLight(0xffffff, 0.28);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.2);
     rim.position.set(-2, -8, -16);
     box.scene.add(rim, rim.target);
 
