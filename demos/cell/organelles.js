@@ -1,12 +1,23 @@
 /* =============================================================================
  *  cell/organelles.js — the organelles both cells are built from
  * =============================================================================
- *  A nucleus, a mitochondrion, a Golgi and rough ER, plus the geometry
- *  primitives that make them. cell/animalcell.js drew these first and owned
- *  them; cell/plantcell.js wants the same four, because they ARE the same
- *  four — homologous organelles, same origin, same ultrastructure — and a
- *  student who meets a mitochondrion in one cell has to meet the same object
- *  in the other. Only the arrangement differs, and arrangement is the host's.
+ *  Every organelle either cell is built from, and the geometry primitives
+ *  that make them. A host calls the ones its cell has.
+ *
+ *  THE FOUR IN BOTH CELLS — nucleus, mitochondrion, Golgi, rough ER — are
+ *  ONE geometry, not two that resemble each other. They are homologous:
+ *  same origin, same job, same ultrastructure, and a student who meets a
+ *  mitochondrion in an animal cell has to meet the same object in a plant.
+ *  Only arrangement differs, and arrangement is the host's. A plant Golgi is
+ *  many scattered stacks and an animal Golgi one perinuclear ribbon —
+ *  because the geometry is identical, that difference is what the eye lands
+ *  on, which is the whole reason not to redraw it.
+ *
+ *  THE PLASTIDS AND THE VACUOLE are plant-only and live here anyway, so all
+ *  organelle geometry is in one file and a comparison page can call both
+ *  sets. A plastid is built by the SAME shell code as the mitochondrion:
+ *  both are endosymbionts, two membranes with a folded internal membrane,
+ *  and that kinship is said in the construction rather than in the colour.
  *
  *      CellOrganelles.kit(THREE, { seed })   one seeded stream, four builders
  *
@@ -428,7 +439,140 @@
       return { group, ribosomes };
     }
 
-    return { rand, rr, noise, col, mat, shellOf, dirUW, ORG, nucleus, mitochondrion, golgi, roughER };
+
+    /* ---- plastids ------------------------------------------------------
+       A plastid is the OTHER endosymbiont, and it is built by the same shell
+       code as the mitochondrion on purpose: two membranes with a lumen
+       between them, and a folded internal membrane doing the work. That
+       kinship is drawn, not coloured — hue is spent on identity, so a
+       chloroplast is green and a mitochondrion orange, and what says they
+       are the same kind of thing is that they are the same construction.
+       chloroplast and amyloplast share ONE envelope (palette.js's PLASTID)
+       because they are one organelle in two states. Only the contents
+       differ: thylakoid stacks, or starch. */
+
+    function plastidShell(o, colors) {
+      const a = o.a || 2.3, b = o.b || 1.05, c = o.c || 1.5, th = o.thickness || 0.11;
+      const radius = d => 1 + 0.035 * noise.fbm(d.x * 2.2 + 5, d.y * 2.2 + 2, d.z * 2.2, 2);
+      const S = (u, w) => { const d = dirUW(u, w); const k = radius(d); return new V3(d.x * a * k, d.y * b * k, d.z * c * k); };
+      const cut = u => PI * 0.58 + 0.03 * Math.sin(2 * u + 1.1) + 0.02 * Math.sin(5 * u);
+      const mesh = new THREE.Mesh(buildShell(THREE, {
+        S, uRange: [0, 2 * PI], wRange: u => [0, cut(u)], uSeg: 120, uPeriodic: true,
+        thickness: th, segs: { outer: 44, rim: 8, inner: 44 },
+        colors: shellOf(colors),
+      }), mat({ vertexColors: true, roughness: 0.44, clearcoat: 0.45 }));
+      return { mesh, a, b, c, th };
+    }
+
+    /* chloroplast: grana are STACKS of thylakoid discs, joined by lamellae.
+       Drawn as stacks and not as a green fill because the stacking is the
+       surface area, and the surface area is where the light reactions run. */
+    function chloroplast(o = {}) {
+      const g = new THREE.Group();
+      const { mesh, a, b, c, th } = plastidShell(o, ORG.chloroplast);
+      g.add(mesh);
+      const thyMat = mat({ color: ORG.chloroplast.thylakoid, roughness: 0.5, clearcoat: 0.3 });
+      const lamMat = mat({ color: ORG.chloroplast.stroma, roughness: 0.6, clearcoat: 0.1 });
+      const disc = new THREE.CylinderGeometry(1, 1, 1, 20);
+      const grana = o.grana || 7, ry = b - th - 0.12;
+      const slots = [];
+      for (let i = 0; i < grana; i++) {
+        const t = grana === 1 ? 0.5 : i / (grana - 1);
+        slots.push([(-0.62 + 1.24 * t) * (a - th) + rr(-0.08, 0.08), rr(-0.42, 0.42) * (c - th)]);
+      }
+      for (const [x, z] of slots) {
+        const stack = new THREE.Group();
+        const n = 3 + (rand() < 0.45 ? 1 : 0), rad = (0.18 + rr(0, 0.06)) * a;
+        for (let i = 0; i < n; i++) {
+          const d = new THREE.Mesh(disc, thyMat);
+          d.scale.set(rad, 0.055 * b, rad);
+          d.position.y = (i - (n - 1) / 2) * 0.085 * b;
+          stack.add(d);
+        }
+        stack.position.set(x, -0.1 * b + rr(-0.05, 0.05) * b, z);
+        stack.rotation.set(rr(-0.25, 0.25), rand() * PI, rr(-0.25, 0.25));
+        g.add(stack);
+      }
+      // stroma lamellae: flat sheets running between the grana
+      for (let i = 0; i < (o.lamellae === undefined ? 3 : o.lamellae); i++) {
+        const sheet = new THREE.Mesh(disc, lamMat);
+        sheet.scale.set((a - th) * 0.72, 0.018 * b, (c - th) * 0.6);
+        sheet.position.set(rr(-0.2, 0.2) * a, -0.12 * b + i * 0.16 * b - 0.16 * b, rr(-0.2, 0.2) * c);
+        sheet.rotation.set(rr(-0.12, 0.12), rand() * PI, rr(-0.12, 0.12));
+        g.add(sheet);
+      }
+      g.userData.parts = { shell: mesh };
+      return g;
+    }
+
+    /* amyloplast: the same envelope, filled with starch grains instead.
+       A grain grows in layers around an off-centre hilum, which is why it is
+       drawn as rings around a point that is not the middle. */
+    function amyloplast(o = {}) {
+      const g = new THREE.Group();
+      const { mesh, a, b, c, th } = plastidShell(Object.assign({ a: 2.0, b: 1.35, c: 1.55 }, o), ORG.amyloplast);
+      g.add(mesh);
+      const grainMat = mat({ color: ORG.amyloplast.starch, roughness: 0.42, clearcoat: 0.35 });
+      const ringMat = mat({ color: ORG.amyloplast.hilum, roughness: 0.55, clearcoat: 0.1 });
+      const n = o.grains || 1;
+      for (let i = 0; i < n; i++) {
+        const x = n > 1 ? (i - (n - 1) / 2) * 0.9 * (a - th) : 0;
+        const gr = new THREE.Group();
+        const R0 = (n > 1 ? 0.52 : 0.78) * Math.min(a - th, c - th);
+        const shape = (m, k) => {
+          const e = new THREE.Mesh(displace(new THREE.SphereGeometry(1, 28, 20), (px, py, pz) => {
+            const d = 1 + 0.05 * noise.noise3(px * 3 + i * 4.1, py * 3, pz * 3); return [px * d, py * d, pz * d];
+          }), m);
+          e.scale.set(R0 * k, R0 * k * 0.82, R0 * k * 0.9);
+          return e;
+        };
+        gr.add(shape(grainMat, 1));
+        // growth rings around an off-centre hilum
+        const off = new V3(0.30 * R0, 0.20 * R0, 0.12 * R0);
+        for (const k of [0.66, 0.40]) {
+          const r = shape(k === 0.40 ? grainMat : ringMat, k);
+          r.position.copy(off).multiplyScalar(1 - k);
+          gr.add(r);
+        }
+        const hil = shape(ringMat, 0.17);
+        hil.position.copy(off);
+        gr.add(hil);
+        gr.position.set(x, -0.1 * b, rr(-0.12, 0.12) * c);
+        gr.rotation.y = rand() * PI;
+        g.add(gr);
+      }
+      g.userData.parts = { shell: mesh };
+      return g;
+    }
+
+    /* central vacuole: one shell, a tonoplast, and sap. The plant cell drives
+       its size directly — that swelling is the turgor lesson — so this takes
+       a radius and nothing about state. */
+    function vacuole(o = {}) {
+      const g = new THREE.Group();
+      const R = o.R || 4.2, sx = o.sx === undefined ? 1.25 : o.sx, sy = o.sy === undefined ? 0.62 : o.sy, sz = o.sz === undefined ? 0.98 : o.sz;
+      const radius = d => R * (1 + 0.055 * noise.fbm(d.x * 1.6 + 11, d.y * 1.6, d.z * 1.6, 3));
+      const S = (u, w) => { const d = dirUW(u, w); const k = radius(d); return new V3(d.x * k * sx, d.y * k * sy, d.z * k * sz); };
+      const cut = u => PI * 0.6 + 0.04 * Math.sin(3 * u + 2) + 0.025 * Math.sin(6 * u);
+      const shell = new THREE.Mesh(buildShell(THREE, {
+        S, uRange: [0, 2 * PI], wRange: u => [0, cut(u)], uSeg: 140, uPeriodic: true,
+        thickness: o.thickness || 0.14, segs: { outer: 50, rim: 8, inner: 50 },
+        colors: shellOf(ORG.vacuole),
+      }), mat({ vertexColors: true, roughness: 0.22, clearcoat: 0.8, clearcoatRoughness: 0.15 }));
+      g.add(shell);
+      // the sap itself: a slightly smaller copy, drawn behind and translucent
+      const sap = new THREE.Mesh(shell.geometry, mat({
+        color: ORG.vacuole.sap, roughness: 0.5, transparent: true, opacity: 0.5, depthWrite: false,
+      }));
+      sap.scale.setScalar(0.94);
+      sap.renderOrder = -1;
+      g.add(sap);
+      g.userData.parts = { shell, sap };
+      return g;
+    }
+
+    return { rand, rr, noise, col, mat, shellOf, dirUW, ORG,
+             nucleus, mitochondrion, golgi, roughER, chloroplast, amyloplast, vacuole };
   }
 
   global.CellOrganelles = {

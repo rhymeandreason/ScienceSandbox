@@ -23,6 +23,10 @@
 (function(global){
   'use strict';
 
+  /* The plastid envelope, shared by every state a plastid can be in. See
+     `chloroplast` / `amyloplast` below for why this is one value. */
+  const PLASTID = { outer:0x4f8a33, inner:0x37701f, rim:0xa7c98a, head:0x5f9440, tail:0xcfdc9a };
+
   const PALETTE = {
     // ---- atoms (hex ints) ---------------------------------------------
     // These double as the swatches in water-lab's Debug ▸ Colours tab;
@@ -212,10 +216,18 @@
       plasma:        { outer:0xee8e84, inner:0xa8132a, rim:0xf4b0a6, head:0xe0705c, tail:0xf0c98a },
       mitochondrion: { outer:0xe0552f, inner:0xe2775b, rim:0xf4b8a4, head:0xd9612f, tail:0xeeba7e,
                        cristaSide:0xf2a3ae, cristaTop:0xfff6f7 },
-      /* Not in the animal cell, so it has no entry to copy: the
-         green comes from leaf/leaf.js's `chloro`, lightened to the same
-         degree the other heads are lightened off their shells. */
-      chloroplast:   { outer:0x4f8a33, inner:0x37701f, rim:0xa7c98a, head:0x5f9440, tail:0xcfdc9a },
+      /* PLASTIDS ARE ONE FAMILY WEARING ONE ENVELOPE. A chloroplast, an
+         amyloplast and a chromoplast interconvert — a tuber's amyloplast
+         greens on the windowsill into the leaf's chloroplast — so they are
+         the same organelle in different states, and they share `outer` /
+         `inner` / `rim` / `head` / `tail` from PLASTID rather than each
+         picking a colour. What differs is what is INSIDE: thylakoid stacks
+         or starch grains. A page that gives one of them its own envelope is
+         claiming they are different organelles, which is false.
+         The green itself comes from leaf/leaf.js's `chloro`, lightened to
+         the same degree the other heads are lightened off their shells. */
+      chloroplast:   Object.assign({}, PLASTID, { thylakoid:0x2f7a1d, stroma:0x7fb35e }),
+      amyloplast:    Object.assign({}, PLASTID, { starch:0xf1ead6, hilum:0xd6c9a4 }),
       nucleus:       { outer:0x3f6cb5, inner:0x4a78c0, rim:0x9cb9e6, head:0x4a78c0, tail:0xb9c9e8,
                        nucleolus:0xf6b64a, chromatin:0x3d64a8, pore:0x274a8f },
       er:            { side:0xd9426d, top:0xf6c0ce, ribosome:0x7c1030, head:0xd9426d, tail:0xf6c0ce },
@@ -226,6 +238,27 @@
          centrosome, and an entry that offered one would invite a page to
          try. */
       centrosome:    { outer:0x6fbe62, microtubule:0x8bd07c },
+      /* ---- plant only ----
+         The central vacuole's membrane is the TONOPLAST, a bilayer like any
+         other, so it carries head/tail. `sap` is the solution inside, which
+         is what the shell is filled with and what a page draws when it wants
+         to show the vacuole holding something. NOT tied to the lysosome:
+         the two do overlapping lytic work in different cells, but that is
+         convergence, not homology, and one colour would teach otherwise. */
+      vacuole:       { outer:0x63b0b8, inner:0x3f8f9a, rim:0xa9d6da, head:0x63b0b8, tail:0xc7d9b0,
+                       sap:0xd3cfa8 },
+      /* The wall is CELLULOSE AND EXTRACELLULAR, so it is deliberately not
+         in the organelle greens: a straw that reads as "not cytoplasm"
+         rather than as more plant. `lamella` is the middle lamella, the
+         pectin line shared with the neighbouring cell, which is why it is
+         darker than either face. No head/tail — a wall is not a bilayer,
+         and an entry offering one would invite a page to set one inside. */
+      wall:          { outer:0xe4dcbe, inner:0xd2c79c, rim:0xf0ead6, lamella:0xb09a63 },
+      /* A plasmodesma is LINED BY THE PLASMA MEMBRANE, continuous from one
+         cell into the next, so it takes the plasma membrane's head colour
+         and not a colour of its own. That it matches the membrane is the
+         fact worth showing. */
+      plasmodesma:   { outer:0xe0705c, lumen:0xa8132a },
     },
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks

@@ -1,0 +1,694 @@
+/* =============================================================================
+ *  cell/plantcell.js — a plant cell cut open, in four tissues and three states
+ * =============================================================================
+ *  A hexagonal cell in a wall, cut on a tilted plane, with the organelles
+ *  standing on the cut face. r128 and kit/card-stage.js, no build step.
+ *
+ *      PlantCell.create(THREE, root, camera, opts)   the model: root is yours
+ *      PlantCell.mount(el, params)                   one box, one handle
+ *
+ *  LOAD cell/organelles.js FIRST. The nucleus, mitochondrion, Golgi, rough
+ *  ER, plastids and vacuole are built there, and the first four are the same
+ *  objects cell/animalcell.js builds, because they are the same organelles.
+ *  What is here is what only a plant cell has: the wall, the plasmodesmata,
+ *  the hexagonal protoplast, and the solver that packs everything into
+ *  whatever room the vacuole leaves.
+ *
+ *  ONE UNIT SYSTEM WITH THE ANIMAL CELL. The apothem is `A` scene units and
+ *  the animal cell's radius is 10, so the two can stand in one frame and an
+ *  organelle from the kit is the right size in both without a fudge factor.
+ *  A plant cell being the larger of the two is real. PROP TIER AND NOT A
+ *  SCALE all the same: nothing here is measured, and a page must not print a
+ *  number off it.
+ *
+ *  THE STATE AXIS IS ONE NUMBER, `t` in [0,2]: 0 turgid, 1 flaccid, 2
+ *  plasmolysed. Everything that moves is a function of it — wall bulge,
+ *  protoplast shrink, how round and how wrinkled it goes, and how much room
+ *  the vacuole takes. It is one axis and not three states because the
+ *  interesting part is between them, and a slider has to be able to stop
+ *  there.
+ *
+ *  THE SOLVER IS THE LESSON, NOT DECORATION. Organelles are pushed by the
+ *  vacuole rather than placed around it: as it swells they are squeezed into
+ *  a thin layer against the membrane, and as the protoplast pulls off the
+ *  wall they follow it in. Seeded targets say roughly where a thing belongs;
+ *  the solve says where it ends up. So the same cell in two states is not
+ *  two layouts, it is one layout under two pressures.
+ *
+ *  THE WALL AND THE PROTOPLAST ARE MORPHABLE GRIDS (PanelGeometry), rebuilt
+ *  in place every frame `t` changes rather than regenerated. That is what
+ *  makes plasmolysis a continuous motion instead of a cut between two meshes.
+ * ========================================================================== */
+(function (global) {
+  'use strict';
+
+  const PI = Math.PI;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = t => t * t * (3 - 2 * t);
+  const easeInOut = t => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+  /* ---- morphable panel grid ------------------------------------------
+     A set of parametric patches sharing one buffer. `update()` re-evaluates
+     every vertex from the patch functions, so the wall and the protoplast
+     deform continuously instead of being rebuilt. */
+  function PanelGeometry(THREE) {
+    const panels = [];
+    let count = 0, geometry = null;
+    const api = {
+      add(nu, nv, fn, o = {}) {
+        panels.push({ nu, nv, fn, flip: !!o.flip, normal: o.normal || null, mi: o.mi || 0, uv: o.uv || null, off: count });
+        count += (nu + 1) * (nv + 1);
+        return api;
+      },
+      build() {
+        const g = new THREE.BufferGeometry(), idx = [];
+        for (const p of panels) {
+          const s = idx.length;
+          for (let j = 0; j < p.nv; j++) for (let i = 0; i < p.nu; i++) {
+            const a = p.off + j * (p.nu + 1) + i, b = a + 1, c = a + p.nu + 1, d = c + 1;
+            if (p.flip) idx.push(a, b, c, b, d, c); else idx.push(a, c, b, b, c, d);
+          }
+          p.gs = s; p.gc = idx.length - s;
+        }
+        g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+        g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+        g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(count * 2), 2));
+        g.setIndex(idx);
+        for (const p of panels) g.addGroup(p.gs, p.gc, p.mi);
+        geometry = g;
+        api.update();
+        return g;
+      },
+      update() {
+        const g = geometry, pos = g.attributes.position.array, uv = g.attributes.uv.array;
+        const v = new THREE.Vector3(), w = new THREE.Vector2();
+        for (const p of panels) {
+          let k = p.off * 3, q = p.off * 2;
+          for (let j = 0; j <= p.nv; j++) for (let i = 0; i <= p.nu; i++) {
+            const uu = i / p.nu, vv = j / p.nv;
+            p.fn(uu, vv, v);
+            pos[k++] = v.x; pos[k++] = v.y; pos[k++] = v.z;
+            if (p.uv) { p.uv(uu, vv, v, w); uv[q++] = w.x; uv[q++] = w.y; }
+            else { uv[q++] = uu; uv[q++] = vv; }
+          }
+        }
+        g.attributes.position.needsUpdate = true;
+        g.attributes.uv.needsUpdate = true;
+        g.computeVertexNormals();
+        // A cut face's normal is the CUT PLANE's, not the mesh's: the seam
+        // between the wall's faces would otherwise shade as a crease.
+        const nor = g.attributes.normal.array;
+        for (const p of panels) {
+          if (!p.normal) continue;
+          let k = p.off * 3;
+          for (let j = 0; j <= p.nv; j++) for (let i = 0; i <= p.nu; i++) { p.normal(i / p.nu, j / p.nv, v); nor[k++] = v.x; nor[k++] = v.y; nor[k++] = v.z; }
+        }
+        g.attributes.normal.needsUpdate = true;
+        g.computeBoundingSphere();
+      },
+      get geometry() { return geometry; },
+    };
+    return api;
+  }
+
+  /* ---- tissues -------------------------------------------------------
+     Coordinates are fractions of the apothem; `create` multiplies by A. What
+     differs between tissues is what a student can check against a photo: a
+     leaf cell is full of chloroplasts, a root cell has none and stores
+     starch instead, a potato cell is mostly starch, a cactus cell has a
+     thick wall and a vacuole that is most of the cell. */
+  const TISSUES = {
+    leaf: {
+      ex: 1, wall: 0.07,
+      nucleus: { x: -0.36, z: -0.16, s: 0.9 },
+      vacuole: { x: 0.45, z: 0.25, s: 1.0 },
+      organelles: [
+        ['chloroplast', 0.02, 0.74, 0.15, 1.0], ['chloroplast', 0.62, 0.66, -0.55, 1.0],
+        ['chloroplast', -0.5, 0.62, 0.65, 0.95], ['chloroplast', 0.9, -0.28, 1.15, 1.0],
+        ['chloroplast', -0.22, -0.8, 0.3, 0.95],
+        ['mitochondrion', 0.6, -0.52, 0.35, 1.0], ['mitochondrion', -0.6, 0.36, -0.4, 0.95],
+        ['golgi', 0.3, -0.62, 1.05, 0.85], ['vesicle', 0.3, 0.02, 0, 1], ['vesicle', 0.7, 0.02, 0, 1],
+      ],
+    },
+    root: {
+      ex: 1.5, wall: 0.07,
+      nucleus: { x: -0.35, z: -0.1, s: 0.95 },
+      vacuole: { x: 0.42, z: 0.15, s: 1.3 },
+      organelles: [
+        ['amyloplast', -0.75, 0.32, 0.4, 0.85], ['amyloplast', 0.05, 0.72, -0.3, 0.8], ['amyloplast', -0.7, -0.42, 0.9, 0.8],
+        ['mitochondrion', -0.5, 0.58, 0.9, 0.95], ['mitochondrion', 0.2, -0.72, 0.3, 0.95],
+        ['mitochondrion', -0.8, -0.05, -0.6, 0.95], ['mitochondrion', 0.66, -0.45, 0.9, 0.95],
+        ['mitochondrion', 0.45, 0.7, 0.2, 0.9],
+        ['golgi', 0.05, -0.42, 1.1, 0.8], ['vesicle', -0.6, 0.15, 0, 1], ['vesicle', 0.7, 0.5, 0, 1], ['vesicle', -0.3, -0.75, 0, 0.8],
+      ],
+    },
+    potato: {
+      ex: 1.1, wall: 0.06,
+      nucleus: { x: -0.38, z: -0.28, s: 0.8 },
+      vacuole: { x: 0.34, z: 0.28, s: 1.0 },
+      organelles: [
+        ['amyloplast2', 0.45, -0.7, -0.2, 1.25], ['amyloplast2', -0.6, 0.55, 0.7, 1.2], ['amyloplast2', 0.85, -0.3, 1.1, 1.15],
+        ['amyloplast', 0.15, 0.8, 0.3, 1.05], ['amyloplast', -0.05, -0.15, 0.8, 1.0], ['amyloplast', -0.25, 0.8, 0.2, 0.95],
+        ['mitochondrion', -0.8, 0.05, -0.5, 0.9], ['mitochondrion', 0.5, -0.15, 0.4, 0.9],
+        ['golgi', -0.05, -0.6, 0.9, 0.8], ['vesicle', 0.5, 0.6, 0, 1], ['vesicle', -0.55, 0.05, 0, 0.8],
+      ],
+    },
+    cactus: {
+      ex: 0.95, wall: 0.17,
+      nucleus: { x: -0.38, z: -0.28, s: 0.7 },
+      vacuole: { x: 0.33, z: 0.24, s: 1.25 },
+      organelles: [
+        ['chloroplast', -0.15, 0.72, 0.2, 0.75], ['chloroplast', 0.6, -0.62, -0.5, 0.75],
+        ['chloroplast', -0.72, 0.35, 0.8, 0.7], ['chloroplast', 0.15, -0.78, 0.9, 0.7],
+        ['mitochondrion', -0.35, -0.72, 0.9, 0.8], ['mitochondrion', -0.55, 0.62, 0.4, 0.8],
+        ['golgi', 0.1, -0.62, 1.1, 0.7], ['vesicle', -0.7, 0.05, 0, 0.8], ['vesicle', -0.4, 0.25, 0, 0.8],
+      ],
+    },
+  };
+
+  const STATES = { turgid: 0, flaccid: 1, plasmolysis: 2 };
+  const DEFAULTS = { seed: 1234, tissue: 'leaf', t: 0, A: 11, tilt: 0 };
+
+  /* Every moving quantity as a function of the state axis. Two segments:
+     0→1 the cell goes limp (it loses pressure, the wall stops bulging, the
+     protoplast rounds slightly); 1→2 it plasmolyses (water leaves the
+     vacuole, the protoplast pulls off the wall and wrinkles). */
+  function stateParams(t) {
+    const a = smooth(clamp(t, 0, 1)), b = smooth(clamp(t - 1, 0, 1));
+    return {
+      bulge: lerp(0.05, 0, a),
+      shrink: t < 1 ? lerp(1, 0.965, a) : lerp(0.965, 0.6, b),
+      round: t < 1 ? lerp(0, 0.12, a) : lerp(0.12, 0.9, b),
+      wrinkle: t < 1 ? lerp(0, 0.006, a) : lerp(0.006, 0.045, b),
+      vac: t < 1 ? lerp(1, 0.86, a) : lerp(0.86, 0.42, b),
+      org: t < 1 ? 1 : lerp(1, 0.6, b),
+    };
+  }
+
+  /* ---- the model ------------------------------------------------------ */
+
+  function create(THREE, root, camera, opts = {}) {
+    const O = Object.assign({}, DEFAULTS, opts);
+    if (!global.CellOrganelles) throw new Error('cell/plantcell.js: load cell/organelles.js first');
+    const K = global.CellOrganelles.kit(THREE, { seed: O.seed });
+    const { rand, rr, col, mat, ORG } = K;
+    const V3 = THREE.Vector3;
+    const A = O.A;
+
+    const organelles = [];
+    const register = (obj, name) => { obj.userData.organelle = name; organelles.push(obj); return obj; };
+
+    const cell = new THREE.Group();
+    cell.rotation.x = O.tilt;
+    root.add(cell);
+
+    /* cell shape: a hexagonal prism cut on a plane tilted toward the reader.
+       hexR is the hexagon's radius at an angle; `round` blends it to a
+       circle, which is what a protoplast does as it pulls away. */
+    const CUT = { cb: 0.95 * A, sx: 0.12, sz: -0.32 }, PROTO_DROP = 0.07 * A;
+    const topY = (x, z) => CUT.cb + CUT.sx * x + CUT.sz * z;
+    const planeN = new V3(-CUT.sx, 1, -CUT.sz).normalize();
+    const SEG = 20, M = 6, KSEG = 7;
+    const hexR = (th, a) => { const s = PI / 3, phi = ((th % s) + s) % s - s / 2; return a / Math.cos(phi); };
+    const bulgeF = th => { const s = PI / 3, e = (((th % s) + s) % s - s / 2) / (s / 2); return 1 - e * e; };
+
+    // C: the tissue's shape, tweened between tissues. P: the state.
+    const C = { A, ex: 1, wall: 0.07 * A };
+    let P = stateParams(O.t), St = { t: O.t };
+
+    const wallR = (th, v, inner) => hexR(th, inner ? C.A : C.A + C.wall) * (1 + P.bulge * bulgeF(th) * (0.35 + 0.65 * Math.sin(PI * v)));
+    function protoR(th, v) {
+      const a = C.A - 0.012 * A;
+      const hex = hexR(th, a) * (1 + P.bulge * bulgeF(th) * (0.35 + 0.65 * Math.sin(PI * v)));
+      let r = lerp(hex, a * 1.02, P.round) * P.shrink;
+      r *= 1 + P.wrinkle * (Math.sin(th * 7 + 1.3) * Math.sin(v * 5.1 + 0.4) + 0.6 * Math.sin(th * 13 + v * 3) + 0.5 * Math.sin(th * 4 - v * 2));
+      return r;
+    }
+
+    /* ---- wall: outer face, inner face, cut rim, middle lamella ---- */
+    const wallPG = PanelGeometry(THREE);
+    const wallMats = [
+      mat({ color: ORG.wall.outer, roughness: 0.72, clearcoat: 0.1 }),
+      mat({ color: ORG.wall.inner, roughness: 0.7, clearcoat: 0.1 }),
+      mat({ color: ORG.wall.rim, roughness: 0.66, clearcoat: 0.15 }),
+      mat({ color: ORG.wall.lamella, roughness: 0.75, clearcoat: 0 }),
+    ];
+    for (let k = 0; k < 6; k++) {
+      const th0 = k * PI / 3, dth = PI / 3;
+      wallPG.add(SEG, M, (u, v, o) => { const th = th0 + u * dth, r = wallR(th, v, false), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, lerp(0, topY(x, z), v), z); }, { mi: 0 });
+      wallPG.add(SEG, M, (u, v, o) => { const th = th0 + u * dth, r = wallR(th, v, true), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, lerp(0, topY(x, z), v), z); }, { flip: true, mi: 1 });
+      wallPG.add(SEG, 1, (u, v, o) => { const th = th0 + u * dth, r = lerp(wallR(th, 1, true), wallR(th, 1, false), v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, topY(x, z), z); }, { flip: true, mi: 2, normal: (u, v, o) => o.copy(planeN) });
+      wallPG.add(SEG, 1, (u, v, o) => { const th = th0 + u * dth, r = lerp(wallR(th, 0, true), wallR(th, 0, false), v); o.set(r * Math.cos(th) * C.ex, 0, r * Math.sin(th)); }, { mi: 2, normal: (u, v, o) => o.set(0, -1, 0) });
+      // middle lamella: the pectin line this cell shares with its neighbour
+      wallPG.add(SEG, 1, (u, v, o) => {
+        const th = th0 + u * dth, ri = wallR(th, 1, true), ro = wallR(th, 1, false);
+        const r = lerp(ri, ro, 0.5) + (v - 0.5) * 0.012 * A, x = r * Math.cos(th) * C.ex, z = r * Math.sin(th);
+        o.set(x, topY(x, z) + 0.003 * A, z);
+      }, { flip: true, mi: 3, normal: (u, v, o) => o.copy(planeN) });
+    }
+    const wallMesh = new THREE.Mesh(wallPG.build(), wallMats);
+    cell.add(register(wallMesh, 'wall'));
+
+    /* ---- plasmodesmata: channels straight through the wall ----
+       Lined by plasma membrane continuous into the next cell, which is why
+       they take the membrane's colour and not one of their own. */
+    const PD_N = 42, pdSeeds = [];
+    for (let i = 0; i < PD_N; i++) pdSeeds.push({ th: (Math.floor(rand() * 6) + 0.15 + rand() * 0.7) * PI / 3, v: 0.12 + rand() * 0.75 });
+    const pdMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 8), mat({ color: ORG.plasmodesma.outer, roughness: 0.5 }), PD_N);
+    cell.add(register(pdMesh, 'plasmodesma'));
+    function updatePlasmodesmata() {
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new V3(0, 1, 0);
+      const a = new V3(), b = new V3(), d = new V3(), sc = new V3();
+      for (let i = 0; i < PD_N; i++) {
+        const { th, v } = pdSeeds[i];
+        const ri = wallR(th, v, true) - 0.02 * A, ro = wallR(th, v, false) + 0.015 * A;
+        a.set(ri * Math.cos(th) * C.ex, 0, ri * Math.sin(th)); a.y = lerp(0, topY(a.x, a.z), v);
+        b.set(ro * Math.cos(th) * C.ex, 0, ro * Math.sin(th)); b.y = lerp(0, topY(b.x, b.z), v);
+        if (a.y > topY(a.x, a.z) - 0.03 * A) { m4.makeScale(0, 0, 0); pdMesh.setMatrixAt(i, m4); continue; }
+        d.subVectors(b, a);
+        const len = d.length();
+        q.setFromUnitVectors(up, d.normalize());
+        m4.compose(a.clone().add(b).multiplyScalar(0.5), q, sc.set(0.011 * A, len, 0.011 * A));
+        pdMesh.setMatrixAt(i, m4);
+      }
+      pdMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    /* ---- protoplast: membrane sides, and the cytoplasm as the cut face ---- */
+    const protoPG = PanelGeometry(THREE);
+    const protoMats = [
+      mat({ color: ORG.plasma.outer, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
+      mat({ color: ORG.plasma.inner, roughness: 0.4, clearcoat: 0.35 }),
+    ];
+    const pTop = (x, z) => topY(x, z) - PROTO_DROP;
+    const RIMW = 0.02 * A;
+    for (let k = 0; k < 6; k++) {
+      const th0 = k * PI / 3, dth = PI / 3;
+      protoPG.add(SEG, M, (u, v, o) => { const th = th0 + u * dth, r = protoR(th, v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, lerp(0, pTop(x, z), v), z); }, { mi: 0 });
+      protoPG.add(SEG, 1, (u, v, o) => { const th = th0 + u * dth, r = protoR(th, 1) - RIMW * (1 - v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, pTop(x, z), z); }, { flip: true, mi: 0, normal: (u, v, o) => o.copy(planeN) });
+      protoPG.add(SEG, KSEG, (u, v, o) => { const th = th0 + u * dth, r = (protoR(th, 1) - RIMW) * (0.002 + 0.998 * v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, pTop(x, z), z); }, { flip: true, mi: 1, normal: (u, v, o) => o.copy(planeN) });
+      protoPG.add(SEG, 1, (u, v, o) => { const th = th0 + u * dth, r = protoR(th, 0) * v; o.set(r * Math.cos(th) * C.ex, 0, r * Math.sin(th)); }, { mi: 0, normal: (u, v, o) => o.set(0, -1, 0) });
+    }
+    const protoMesh = new THREE.Mesh(protoPG.build(), protoMats);
+    cell.add(register(protoMesh, 'membrane'));
+
+    /* ---- Hechtian strands ----
+       Threads of membrane still stuck to the wall after the protoplast has
+       pulled away, anchored at plasmodesmata because that is what holds
+       them. They exist only under plasmolysis, so they fade in with t>1 and
+       are the visible evidence that the cell did not simply shrink. */
+    const HS_N = 14;
+    const hsMat = mat({ color: ORG.plasma.rim, roughness: 0.5, transparent: true, opacity: 0 });
+    const hsGroup = new THREE.Group();
+    cell.add(hsGroup);
+    const hsItems = [], footGeo = new THREE.SphereGeometry(1, 10, 8);
+    function strandGeometry() {
+      const R = 6, N = 14, g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((N + 1) * (R + 1) * 3), 3));
+      g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array((N + 1) * (R + 1) * 3), 3));
+      const idx = [];
+      for (let j = 0; j < N; j++) for (let i = 0; i < R; i++) { const a = j * (R + 1) + i, b = a + 1, c = a + R + 1, d = c + 1; idx.push(a, c, b, b, c, d); }
+      g.setIndex(idx); g.userData = { R, N };
+      return g;
+    }
+    function fillStrand(g, curve, r0, r1) {
+      const { R, N } = g.userData, pos = g.attributes.position.array, nor = g.attributes.normal.array;
+      const p = new V3(), t = new V3(), n = new V3(), b = new V3(), up = new V3(0, 1, 0);
+      let k = 0;
+      for (let j = 0; j <= N; j++) {
+        const u = j / N;
+        curve.getPoint(u, p); curve.getTangent(u, t);
+        n.crossVectors(up, t); if (n.lengthSq() < 1e-6) n.set(1, 0, 0);
+        n.normalize(); b.crossVectors(t, n);
+        const rad = lerp(r0, r1, smooth(u));
+        for (let i = 0; i <= R; i++) {
+          const ang = i / R * PI * 2, cx = Math.cos(ang), sy = Math.sin(ang);
+          pos[k] = p.x + (n.x * cx + b.x * sy) * rad; pos[k + 1] = p.y + (n.y * cx + b.y * sy) * rad; pos[k + 2] = p.z + (n.z * cx + b.z * sy) * rad;
+          nor[k] = n.x * cx + b.x * sy; nor[k + 1] = n.y * cx + b.y * sy; nor[k + 2] = n.z * cx + b.z * sy;
+          k += 3;
+        }
+      }
+      g.attributes.position.needsUpdate = true; g.attributes.normal.needsUpdate = true;
+      g.computeBoundingSphere();
+    }
+    {
+      // anchors clustered on a few faces, as they are in a real plasmolysed cell
+      const pool = pdSeeds.filter(sd => sd.v > 0.5 && sd.v < 0.9);
+      const faces = [0, 2, 4].map(f => f + Math.floor(rand() * 2));
+      const chosen = pool.filter(sd => faces.includes(Math.floor(sd.th / (PI / 3)))).slice(0, HS_N - 3);
+      while (chosen.length < HS_N && pool.length) { const c = pool[Math.floor(rand() * pool.length)]; if (!chosen.includes(c)) chosen.push(c); }
+      for (const sd of chosen) {
+        const mesh = new THREE.Mesh(strandGeometry(), hsMat), foot = new THREE.Mesh(footGeo, hsMat);
+        hsGroup.add(mesh, foot);
+        hsItems.push({ sd, mesh, foot, w: rr(0.6, 1.5), sag: rr(0.02, 0.07), side: rr(-0.04, 0.04), curve: new THREE.QuadraticBezierCurve3(new V3(), new V3(), new V3()) });
+      }
+    }
+    function updateStrands() {
+      const k = clamp(St.t - 1, 0, 1);
+      hsMat.opacity = smooth(k);
+      hsGroup.visible = k > 0.02;
+      if (!hsGroup.visible) return;
+      const a = new V3(), b = new V3(), m = new V3(), tang = new V3();
+      for (const it of hsItems) {
+        const { th, v } = it.sd;
+        const rw = wallR(th, v, true) - 0.004 * A, rp = protoR(th, v) - 0.01 * A;
+        a.set(rw * Math.cos(th) * C.ex, 0, rw * Math.sin(th)); a.y = lerp(0, topY(a.x, a.z), v);
+        b.set(rp * Math.cos(th) * C.ex, 0, rp * Math.sin(th)); b.y = lerp(0, pTop(b.x, b.z), v);
+        const len = a.distanceTo(b);
+        if (len < 0.02 * A) { it.mesh.visible = it.foot.visible = false; continue; }
+        it.mesh.visible = it.foot.visible = true;
+        m.addVectors(a, b).multiplyScalar(0.5);
+        tang.set(-Math.sin(th), 0, Math.cos(th));
+        m.y -= it.sag * len * 3;
+        m.addScaledVector(tang, it.side * len);
+        it.curve.v0.copy(a); it.curve.v1.copy(m); it.curve.v2.copy(b);
+        fillStrand(it.mesh.geometry, it.curve, 0.0095 * A * it.w, 0.0035 * A * it.w);
+        it.foot.position.copy(a);
+        it.foot.scale.setScalar(0.016 * A * it.w);
+      }
+    }
+
+    /* The cut frame: its local XZ plane IS the protoplast's cut face and its
+       local +Y the plane normal, so an organelle standing on the cut sits at
+       y=0 here and needs no per-organelle tilt. */
+    const cutFrame = new THREE.Group();
+    cutFrame.position.set(0, CUT.cb - PROTO_DROP, 0);
+    cutFrame.quaternion.setFromUnitVectors(new V3(0, 1, 0), planeN);
+    cell.add(cutFrame);
+
+    /* ---- the organelle layer ----
+       Footprint radii on the cut plane, in scene units. These are what the
+       solver pushes; they are deliberately a little larger than the drawn
+       organelle so nothing ends up touching. */
+    const FOOT = { nucleus: 4.6, chloroplast: 3.0, mitochondrion: 2.2, golgi: 3.0, amyloplast: 2.9, amyloplast2: 3.6, vesicle: 1.2, vacuole: 6.4 };
+    const BUILD = {
+      nucleus: s => K.nucleus({ R: 3.0 * s, thickness: 0.2, chromatin: 3, pores: 55 }),
+      chloroplast: s => K.chloroplast({ a: 2.3 * s, b: 1.05 * s, c: 1.5 * s, grana: 7 }),
+      mitochondrion: s => K.mitochondrion({ r: 0.55 * s, L: 0.95 * s, cristae: 7 }),
+      golgi: s => { const g = K.golgi({ cisternae: 7, vesicles: 6 }); g.scale.setScalar(0.85 * s); return g; },
+      amyloplast: s => K.amyloplast({ a: 2.0 * s, b: 1.35 * s, c: 1.55 * s, grains: 1 }),
+      amyloplast2: s => K.amyloplast({ a: 2.6 * s, b: 1.35 * s, c: 1.55 * s, grains: 2 }),
+      vesicle: s => {
+        const m = new THREE.Mesh(new THREE.SphereGeometry(0.42 * s, 20, 14), mat({ color: ORG.golgi.vesicle, roughness: 0.35, clearcoat: 0.7 }));
+        return new THREE.Group().add(m);
+      },
+    };
+
+    let layer = null;
+    function buildLayer(T) {
+      const L = new THREE.Group();
+      L.userData.items = [];
+      const add = (g, type, x, z, rot, foot, weight) => {
+        g.rotation.y = rot;
+        L.add(g);
+        L.userData.items.push({ g, type, tx: x * A, tz: z * A, x: x * A, z: z * A, vx: 0, vz: 0, rot, r: foot, w: weight, seed: L.userData.items.length });
+        return g;
+      };
+      // the nucleus is pinned: everything else arranges around it
+      const nuc = add(register(BUILD.nucleus(T.nucleus.s), 'nucleus'), 'nucleus', T.nucleus.x, T.nucleus.z, 0, FOOT.nucleus * T.nucleus.s, 0);
+      const vac = add(register(K.vacuole({ R: 4.2 * T.vacuole.s }), 'vacuole'), 'vacuole', T.vacuole.x, T.vacuole.z, 0.35, FOOT.vacuole * T.vacuole.s, 0.35);
+      const er = K.roughER({
+        Rn: 3.0 * T.nucleus.s, center: new V3(0, 0, 0), y0: 0.6,
+        arcs: [{ a0: -0.3 * PI, a1: 0.62 * PI, count: 3 }, { a0: 0.86 * PI, a1: 1.3 * PI, count: 2 }],
+      });
+      // The ER rides the nucleus: it wraps that envelope, so it is parented
+      // to it rather than solved for separately.
+      nuc.add(register(er.group, 'er'));
+      for (const [type, x, z, rot, s] of T.organelles) {
+        const g = register(BUILD[type](s), type === 'amyloplast2' ? 'amyloplast' : type);
+        add(g, type, x, z, rot, FOOT[type] * s, 1);
+      }
+      L.userData.vac = vac;
+      return L;
+    }
+
+    /* One solve on the cut plane: a soft spring to the seeded target, hard
+       repulsion between footprints, and a wall that pushes back. The vacuole
+       has a low weight rather than none, so it gives a little and shoves a
+       lot — which is the asymmetry that makes the squeeze read. */
+    function solve(items, dt) {
+      const a = (C.A - 0.04 * A) * P.shrink, KS = 14, KR = 260 / A, KB = 400 / A, DAMP = 6;
+      for (const it of items) {
+        if (it.w === 0) { it.x = it.tx; it.z = it.tz; it.vx = it.vz = 0; continue; }
+        it.fx = (it.tx - it.x) * KS; it.fz = (it.tz - it.z) * KS;
+      }
+      for (const A1 of items) {
+        if (A1.w === 0) continue;
+        for (const B of items) {
+          if (A1 === B) continue;
+          const dx = A1.x - B.x, dz = A1.z - B.z, d = Math.hypot(dx, dz) || 1e-4, ov = A1.r + B.r + 0.01 - d;
+          if (ov <= 0) continue;
+          const f = KR * ov * (B.w === 0 ? 1.6 : 1);
+          A1.fx += dx / d * f; A1.fz += dz / d * f;
+        }
+        const ux = A1.x / C.ex, uz = A1.z, th = Math.atan2(uz, ux), rad = Math.hypot(ux, uz) || 1e-4;
+        const lim = lerp(hexR(th, a), a * 1.02, P.round) - A1.r;
+        if (rad > lim) { const f = (rad - lim) * KB; A1.fx -= ux / rad * f; A1.fz -= uz / rad * f; }
+      }
+      for (const it of items) {
+        if (it.w === 0) continue;
+        it.vx = (it.vx + it.fx * it.w * dt) * Math.max(0, 1 - DAMP * dt);
+        it.vz = (it.vz + it.fz * it.w * dt) * Math.max(0, 1 - DAMP * dt);
+        it.x += it.vx * dt; it.z += it.vz * dt;
+        // hard wall: project back inside and kill the outward velocity, or a
+        // fast squeeze pushes an organelle through the membrane for a frame
+        const ux = it.x / C.ex, uz = it.z, th = Math.atan2(uz, ux), rad = Math.hypot(ux, uz) || 1e-4;
+        const lim = lerp(hexR(th, a), a * 1.02, P.round) - it.r;
+        if (rad > lim) {
+          const k = lim / rad;
+          it.x = ux * k * C.ex; it.z = uz * k;
+          const vn = (it.vx * ux + it.vz * uz) / rad;
+          if (vn > 0) { it.vx -= vn * ux / rad; it.vz -= vn * uz / rad; }
+        }
+      }
+    }
+
+    function layoutStep(L, grow, dt, time) {
+      const items = L.userData.items;
+      for (const it of items) {
+        // brownian drift of the target, so a settled cell is not a still one
+        const ph = it.seed * 7.1, dr = (it.type === 'vacuole' || it.type === 'nucleus') ? 0 : 0.025 * A;
+        const base = it.type === 'vacuole' ? P.vac : P.org;
+        it.tx = it.seedX * C.ex * P.shrink + dr * Math.sin(time * 0.23 + ph);
+        it.tz = it.seedZ * P.shrink + dr * Math.cos(time * 0.19 + ph * 1.3);
+        it.r = it.foot * base;
+      }
+      const sub = 3, h = Math.min(dt, 0.05) / sub;
+      for (let k = 0; k < sub; k++) solve(items, h);
+      for (const it of items) {
+        const base = it.type === 'vacuole' ? P.vac : P.org, s = base * grow;
+        it.g.position.set(it.x, 0, it.z);
+        it.g.scale.setScalar(s);
+        if (it.type !== 'nucleus' && it.type !== 'vacuole')
+          it.g.rotation.y = it.rot + (it.vx * Math.cos(it.rot) - it.vz * Math.sin(it.rot)) * 0.4 / A + 0.04 * Math.sin(time * 0.3 + it.seed);
+      }
+    }
+
+    /* ---- tissue switching ---- */
+    let tissue = null, dying = [], born = 0;
+    function setTissue(name, instant) {
+      const T = TISSUES[name];
+      if (!T) return;
+      tissue = name;
+      C.ex = T.ex; C.wall = T.wall * A;
+      if (layer) { layer.userData.t0 = 0; dying.push(layer); }
+      layer = buildLayer(T);
+      for (const it of layer.userData.items) { it.seedX = it.tx; it.seedZ = it.tz; it.foot = it.r; }
+      cutFrame.add(layer);
+      born = 0;
+      if (instant) born = 1e9;
+      dirty = true;
+    }
+
+    /* ---- hover and pick ---- */
+    const raycaster = new THREE.Raycaster();
+    const rootOf = o => { while (o && !o.userData.organelle) o = o.parent; return o; };
+    let hovered = null;
+    const setHighlight = (org, on) => org.traverse(o => {
+      if (!o.isMesh || !o.material || !o.material.emissive) return;
+      const m = o.material;
+      if (!m.userData.baseEmissive) { m.userData.baseEmissive = m.emissive.clone(); m.userData.baseIntensity = m.emissiveIntensity; }
+      if (on) { m.emissive.set(0xffffff); m.emissiveIntensity = 0.13; }
+      else { m.emissive.copy(m.userData.baseEmissive); m.emissiveIntensity = m.userData.baseIntensity; }
+    });
+    function pick(ndc) {
+      if (!ndc) return null;
+      raycaster.setFromCamera(ndc, camera);
+      const hits = raycaster.intersectObjects(organelles, true);
+      return hits.length ? rootOf(hits[0].object) : null;
+    }
+    function hover(ndc) {
+      const r = pick(ndc);
+      if (r === hovered) return hovered;
+      if (hovered) setHighlight(hovered, false);
+      hovered = r;
+      if (hovered) setHighlight(hovered, true);
+      return hovered;
+    }
+
+    /* ---- the frame ----
+       The wall and protoplast are rebuilt only when the state axis or the
+       tissue actually moved; the organelle solve runs every frame, because
+       the drift never settles. */
+    let dirty = true, clock = 0;
+    function step(dt) {
+      clock += dt;
+      P = stateParams(St.t);
+      if (dirty) { wallPG.update(); protoPG.update(); updatePlasmodesmata(); updateStrands(); dirty = false; }
+      born = Math.min(born + dt, 1e9);
+      const grow = easeInOut(clamp(born / 0.7, 0, 1));
+      if (layer) layoutStep(layer, grow, dt, clock);
+      for (let i = dying.length - 1; i >= 0; i--) {
+        const L = dying[i];
+        L.userData.t0 += dt;
+        const k = clamp(L.userData.t0 / 0.45, 0, 1);
+        layoutStep(L, 1 - easeInOut(k), dt, clock);
+        if (k >= 1) { cutFrame.remove(L); dying.splice(i, 1); }
+      }
+    }
+    function setT(t) { const v = clamp(t, 0, 2); if (v !== St.t) { St.t = v; dirty = true; } }
+    function bounds(org) {
+      root.updateMatrixWorld(true);
+      return new THREE.Box3().setFromObject(org).getBoundingSphere(new THREE.Sphere());
+    }
+
+    setTissue(O.tissue, true);
+    setT(O.t);
+    return {
+      group: cell, cutFrame, organelles, step, pick, hover, bounds, setTissue, setT,
+      get t() { return St.t; }, get tissue() { return tissue; }, get hovered() { return hovered; },
+    };
+  }
+
+  /* ---- one box -------------------------------------------------------- */
+
+  const HOME = { pos: [3, 17, 30], target: [0, 4, 0] };
+
+  function mount(el, params = {}) {
+    if (!global.CardStage) throw new Error('cell/plantcell.js: load kit/card-stage.js first');
+    const THREE = global.THREE, V3 = THREE.Vector3;
+    const orbitOf = (pos, target) => {
+      const v = new V3().fromArray(pos).sub(new V3().fromArray(target)), r = v.length();
+      return { r, phi: Math.acos(clamp(v.y / r, -1, 1)), theta: Math.atan2(v.x, v.z) };
+    };
+    const home = { pos: params.pos || HOME.pos, target: params.target || HOME.target };
+    let sim = null, lastTouch = 0;
+    const touched = () => { lastTouch = performance.now(); };
+    const listeners = {};
+    const emit = (name, v) => { (listeners[name] || []).forEach(f => f(v)); };
+    const box = global.CardStage.create({
+      mount: el,
+      cam: orbitOf(home.pos, home.target),
+      stage: Object.assign({ phiMin: 0.15, phiMax: 1.5, rMin: 8, rMax: 90, onDrag: touched, onZoom: touched }, params.stage || {}),
+      step: dt => { if (!sim) return; flyStep(dt); tweenStep(dt); sim.step(dt); sim.hover(ndc); turn(dt); },
+      viewOffset: params.viewOffset,
+    });
+    box.cam.target.fromArray(home.target);
+    // Same soft, shadowless rig as the animal cell, so the two read as lit by
+    // one studio. See cell/animalcell.js for why there is no shadow map.
+    box.renderer.outputEncoding = THREE.sRGBEncoding;
+    for (const o of box.camera.children) if (o.isLight) o.intensity *= 0.25;
+    for (const o of box.scene.children) if (o.isAmbientLight) o.intensity = 0.32;
+    box.scene.add(new THREE.HemisphereLight(0xf4f8ff, 0xe8cbb8, 0.85));
+    const key = new THREE.DirectionalLight(0xfff4ea, 0.7);
+    key.position.set(14, 26, 16);
+    box.scene.add(key, key.target);
+    const fill = new THREE.DirectionalLight(0xdbe6ff, 0.35);
+    fill.position.set(-14, 8, -10);
+    box.scene.add(fill, fill.target);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.28);
+    rim.position.set(-2, -6, -18);
+    box.scene.add(rim, rim.target);
+
+    /* camera flights, in Stage's turntable terms (as animalcell.js) */
+    const fly = { active: false, t: 0, dur: 1.4, a: null, b: null, t0: new V3(), t1: new V3() };
+    function flyTo(pos, target, dur = 1.4) {
+      const c = box.cam;
+      fly.a = { theta: c.theta, phi: c.phi, r: c.r }; fly.t0.copy(c.target);
+      fly.b = orbitOf(pos, target); fly.t1.fromArray(target);
+      let d = fly.b.theta - fly.a.theta;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      fly.b.theta = fly.a.theta + d;
+      fly.t = 0; fly.dur = dur; fly.active = true;
+    }
+    function flyStep(dt) {
+      if (!fly.active) return;
+      fly.t += dt / fly.dur;
+      const k = easeInOut(Math.min(fly.t, 1)), c = box.cam;
+      c.theta = lerp(fly.a.theta, fly.b.theta, k);
+      c.phi = lerp(fly.a.phi, fly.b.phi, k);
+      c.r = lerp(fly.a.r, fly.b.r, k);
+      c.target.lerpVectors(fly.t0, fly.t1, k);
+      if (fly.t >= 1) fly.active = false;
+    }
+    const goHome = () => flyTo(home.pos, home.target);
+    function focusOn(org) {
+      const s = sim.bounds(org), dist = Math.max(s.radius * 2.6, 5);
+      const dir = box.camera.position.clone().sub(s.center).normalize();
+      flyTo(s.center.clone().addScaledVector(dir, dist).toArray(), s.center.toArray());
+    }
+    function turn(dt) {
+      if (fly.active || params.autoRotate === false || performance.now() - lastTouch < 5000) return;
+      box.cam.theta += dt * 0.09;
+    }
+
+    /* the state axis, glided: set({t}) animates, set({t, now:true}) jumps */
+    const tw = { active: false, from: 0, to: 0, k: 0, dur: 1 };
+    function tweenStep(dt) {
+      if (!tw.active) return;
+      tw.k = Math.min(tw.k + dt / tw.dur, 1);
+      sim.setT(lerp(tw.from, tw.to, easeInOut(tw.k)));
+      emit('t', sim.t);
+      if (tw.k >= 1) tw.active = false;
+    }
+
+    /* pointer: hover lights, a still click flies, a drag is Stage's */
+    let ndc = null, down = null;
+    const canvas = box.canvas;
+    const toNdc = e => {
+      const r = canvas.getBoundingClientRect();
+      return { x: ((e.clientX - r.left) / r.width) * 2 - 1, y: -((e.clientY - r.top) / r.height) * 2 + 1 };
+    };
+    canvas.addEventListener('pointermove', e => { ndc = toNdc(e); canvas.style.cursor = sim && sim.pick(ndc) ? 'pointer' : 'grab'; });
+    canvas.addEventListener('pointerleave', () => { ndc = null; });
+    canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; fly.active = false; touched(); });
+    canvas.addEventListener('pointerup', e => {
+      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
+      const hit = sim.pick(toNdc(e));
+      if (hit) { focusOn(hit); emit('pick', hit.userData.organelle); } else goHome();
+    });
+    canvas.addEventListener('dblclick', goHome);
+
+    sim = create(THREE, box.root, box.camera, params);
+    box.pump();
+
+    /* The component contract: set / state / on / destroy. `state` is a
+       plain object a page can read every frame without allocating opinions
+       about the model. */
+    function set(p = {}) {
+      if (p.tissue !== undefined && p.tissue !== sim.tissue) { sim.setTissue(p.tissue, !!p.now); emit('tissue', sim.tissue); }
+      if (p.state !== undefined) p.t = STATES[p.state];
+      if (p.t !== undefined && p.t !== null) {
+        if (p.now) { tw.active = false; sim.setT(p.t); emit('t', sim.t); }
+        else { tw.from = sim.t; tw.to = clamp(p.t, 0, 2); tw.k = 0; tw.dur = p.dur || 1.6 * Math.max(0.35, Math.abs(tw.to - tw.from)); tw.active = true; }
+      }
+      return api;
+    }
+    const api = {
+      sim, box, set, flyTo, home: goHome, focusOn,
+      state: () => ({ tissue: sim.tissue, t: sim.t, hovered: sim.hovered && sim.hovered.userData.organelle || null }),
+      on: (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); return api; },
+      start: box.start, stop: box.stop, pump: box.pump, destroy: box.destroy,
+    };
+    return api;
+  }
+
+  global.PlantCell = { create, mount, DEFAULTS, HOME, TISSUES, STATES, stateParams };
+  /* Scale (kit/scale.js, docs/Scale.md). PROP TIER AND NOT A SCALE, like the
+     animal cell: unit is null, so nothing may print a length off this render.
+     The apothem is 11 against the animal cell's radius of 10 because a plant
+     cell IS the larger of the two, but that ratio is the only measured thing
+     here and it is a ratio, not a size. */
+  global.PlantCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: {}, down: {} };
+})(typeof globalThis !== 'undefined' ? globalThis : this);

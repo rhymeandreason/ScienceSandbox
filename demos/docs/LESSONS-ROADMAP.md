@@ -224,7 +224,7 @@ Two cheap wins that belong to no lesson: **hydroxide** (you have hydronium, so a
 | `mol-monomers.js` | AMP only — the rest went to the class files below | 1 | 0 | nothing; dies with `mol-carriers.js` |
 | `mol-aminoacids.js` **(built)** | the eight amino acids, ex-`mol-monomers`/`mol-contrast` | 8 | 14 | `macromolecule-builder`, `contrast-lab` |
 | `mol-glycans.js` **(built)** | the four disaccharides, ex-`mol-contrast` | 4 | 5 | `macromolecule-builder`, `chain/`, `chair/`, `capillary/`, `amylase/` |
-| `mol-pathways.js` | glucose → pyruvate, ATP, NADH, Pi | 14 | 15 | `glycolysis-lab`, **enzymes**, and 3 more pages |
+| `mol-pathways.js` | G6P → pyruvate, ATP, NADH, Pi — glucose moved to `mol-sugars.js` | 16 | 16 | `glycolysis-lab`, `krebs-lab`, `fermentation-lab`, `molecule-viewer` |
 | `mol-compare.js` | `atpSkel` / `nadhSkel` — controls, not lessons | 2 | 2 | `molecule-viewer` |
 | **`mol-lipids.js`** | glycerol ✓ · phospholipid, cholesterol, triglyceride | 1 | \~5 | **membrane** |
 | **`mol-nucleic.js`** | five bases, a nucleotide, A–T and G–C pairs | — | \~9 | **DNA** |
@@ -236,7 +236,7 @@ Three notes on the deltas:
 
 * **ADP lands in `mol-pathways.js`**, not a new file — it's the same reaction the page already draws, from the other side.
 * **hydroxide and O₂ go in `mol-solvation.js` + `mol-small.js` both**, since those two files define the same keys by contract and `register()` throws if one drifts.
-* **`mol-carbs` and `mol-aminoacids` are the two the source plan wants most and this roadmap wants least.** Splitting them out is a refactor of specs that already work, serving no page — and it would break the `mol-pathways.js` load line in five HTML files to move glucose somewhere new. Revisit when a lesson needs a sugar that isn't in glycolysis or the contrast set.
+* **Both splits are now DONE, and the argument against them expired when a lesson arrived.** This entry used to say they served no page and would break the `mol-pathways.js` load line in five HTML files to move glucose. `macromolecule-builder` is that lesson: it wants amino acids and sugars and nothing from a pathway. Moving glucose cost two pages a new script tag and let **ten** pages drop `mol-pathways.js` entirely — the load line got shorter, not longer. See `docs/molecules-wishlist.md`.
 
 ### Corrections to the source docs
 

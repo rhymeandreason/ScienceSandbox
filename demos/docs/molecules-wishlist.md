@@ -21,7 +21,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 
 | File | Existing | Additions |
 | --- | --- | --- |
-| `mol-sugars.js` **(built)** | α-glucose, galactose, ribose, deoxyribose; glucose and ascorbate still to come | **fructose**, **acarbose** |
+| `mol-sugars.js` **(built)** | glucose, α-glucose, galactose, ribose, deoxyribose; ascorbate still to come | **fructose**, **acarbose** |
 | `mol-glycans.js` **(built)** | maltose, cellobiose, lactose, galactobiose | **sucrose** |
 | `mol-aminoacids.js` **(built)** | gly, ala, ser, cys, D-ala, pro, gln, glu | **hydroxyproline**, **tyrosine**, **histidine**, **lysine**, **aspartate**, **tryptophan** |
 | `mol-carriers.js` | ATP, AMP, Pi, NADH, FAD, FADH₂, CoA, acetyl-CoA, succinyl-CoA, atpSkel, nadhSkel | **ADP**, **NAD⁺**, **2,3-BPG** |
@@ -38,7 +38,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 
 ### Placements that are not obvious
 
-**Glucose goes in `mol-sugars.js`, and `glycolysis-lab` loads both files.** The alternative leaves the sugar file without the sugar. Six small monosaccharides cost nothing next to ATP.
+**Glucose goes in `mol-sugars.js`, and `glycolysis-lab` loads both files. DONE.** The alternative leaves the sugar file without the sugar. Six small monosaccharides cost nothing next to ATP — and the move let ten pages stop loading `mol-pathways.js` at all, so it paid for itself twice over.
 
 **`mol-carriers.js` is the biggest structural win.** FAD and CoA are the two largest Skel builds in the repo and are currently stranded in `mol-krebs.js`, which `glycolysis-lab` does not load. No page draws a pathway without drawing its carriers, so they belong in one file every pathway page loads deliberately — and `mol-krebs.js` shrinks to the eight acids.
 
