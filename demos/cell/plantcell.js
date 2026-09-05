@@ -117,7 +117,17 @@
      differs between tissues is what a student can check against a photo: a
      leaf cell is full of chloroplasts, a root cell has none and stores
      starch instead, a potato cell is mostly starch, a cactus cell has a
-     thick wall and a vacuole that is most of the cell. */
+     thick wall and a vacuole that is most of the cell.
+
+     HOW MANY OF EACH IS A CLAIM, and the one a reader takes from a picture
+     is the ORDER, not the number. This is a section, so what governs is not
+     how many the cell has but how many a plane through it catches, which
+     goes as count times width: a mesophyll cell has tens of chloroplasts
+     but they are five microns across, and hundreds of mitochondria a fifth
+     of that, so a section shows roughly as many of one as the other.
+     Dictyosomes are mitochondrion-sized and there are far fewer of them, so
+     they should be the scarcest of the three by a good margin. Counts here
+     are stylised, but that ranking is not free to drift. */
   const TISSUES = {
     leaf: {
       ex: 1, wall: 0.07,
@@ -128,9 +138,9 @@
         ['chloroplast', -0.5, 0.62, 0.65, 0.95], ['chloroplast', 0.9, -0.28, 1.15, 1.0],
         ['chloroplast', -0.22, -0.8, 0.3, 0.95],
         ['mitochondrion', 0.6, -0.52, 0.35, 1.0], ['mitochondrion', -0.6, 0.36, -0.4, 0.95],
-        ['dictyosome', 0.30, -0.62, 1.05, 1.0], ['dictyosome', -0.72, 0.10, 0.40, 0.9],
-        ['dictyosome', 0.78, 0.42, -0.80, 0.95], ['dictyosome', -0.30, -0.32, 2.10, 0.85],
-        ['dictyosome', 0.10, 0.95, 0.60, 0.9],
+        ['mitochondrion', -0.72, 0.10, 0.40, 0.95], ['mitochondrion', 0.78, 0.42, -0.80, 0.9],
+        ['mitochondrion', 0.10, 0.95, 0.60, 0.95],
+        ['dictyosome', 0.30, -0.62, 1.05, 1.0], ['dictyosome', -0.30, -0.32, 2.10, 0.9],
         ['vesicle', 0.3, 0.02, 0, 1], ['vesicle', 0.7, 0.02, 0, 1],
       ],
     },
@@ -144,8 +154,6 @@
         ['mitochondrion', -0.8, -0.05, -0.6, 0.95], ['mitochondrion', 0.66, -0.45, 0.9, 0.95],
         ['mitochondrion', 0.45, 0.7, 0.2, 0.9],
         ['dictyosome', 0.05, -0.42, 1.10, 1.0], ['dictyosome', -0.88, 0.45, 0.30, 0.9],
-        ['dictyosome', 0.92, 0.15, -0.60, 0.95], ['dictyosome', -0.25, -0.85, 1.80, 0.85],
-        ['dictyosome', 0.55, -0.90, 0.50, 0.9],
         ['vesicle', -0.6, 0.15, 0, 1], ['vesicle', 0.7, 0.5, 0, 1], ['vesicle', -0.3, -0.75, 0, 0.8],
       ],
     },
@@ -157,8 +165,8 @@
         ['amyloplast2', 0.45, -0.7, -0.2, 1.25], ['amyloplast2', -0.6, 0.55, 0.7, 1.2], ['amyloplast2', 0.85, -0.3, 1.1, 1.15],
         ['amyloplast', 0.15, 0.8, 0.3, 1.05], ['amyloplast', -0.05, -0.15, 0.8, 1.0], ['amyloplast', -0.25, 0.8, 0.2, 0.95],
         ['mitochondrion', -0.8, 0.05, -0.5, 0.9], ['mitochondrion', 0.5, -0.15, 0.4, 0.9],
-        ['dictyosome', -0.05, -0.60, 0.90, 1.0], ['dictyosome', 0.70, 0.55, -0.40, 0.9],
-        ['dictyosome', -0.80, -0.20, 1.60, 0.9], ['dictyosome', 0.30, 0.38, 0.20, 0.85],
+        ['mitochondrion', 0.70, 0.55, -0.40, 0.9],
+        ['dictyosome', -0.05, -0.60, 0.90, 1.0], ['dictyosome', -0.80, -0.20, 1.60, 0.9],
         ['vesicle', 0.5, 0.6, 0, 1], ['vesicle', -0.55, 0.05, 0, 0.8],
       ],
     },
@@ -170,8 +178,8 @@
         ['chloroplast', -0.15, 0.72, 0.2, 0.75], ['chloroplast', 0.6, -0.62, -0.5, 0.75],
         ['chloroplast', -0.72, 0.35, 0.8, 0.7], ['chloroplast', 0.15, -0.78, 0.9, 0.7],
         ['mitochondrion', -0.35, -0.72, 0.9, 0.8], ['mitochondrion', -0.55, 0.62, 0.4, 0.8],
+        ['mitochondrion', 0.68, 0.50, -0.70, 0.8],
         ['dictyosome', 0.10, -0.62, 1.10, 0.9], ['dictyosome', -0.62, -0.12, 0.50, 0.85],
-        ['dictyosome', 0.68, 0.50, -0.70, 0.85], ['dictyosome', -0.10, 0.85, 1.90, 0.8],
         ['vesicle', -0.7, 0.05, 0, 0.8], ['vesicle', -0.4, 0.25, 0, 0.8],
       ],
     },
