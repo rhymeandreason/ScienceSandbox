@@ -424,6 +424,55 @@
       }
     }
 
+    /* ---- free ribosomes ----
+       ONE GEOMETRY AND ONE MATERIAL, shared with the ER's studs below, so
+       the two read as the same particle and the ER reads as rough. Unlike
+       the animal cell they cannot be one instanced mesh: the studs ride the
+       ER, which rides the nucleus, while these sit in a cytosol that
+       reshapes with every change of state. Two meshes, one particle.
+
+       EXAGGERATED, and the SCALE block at the foot of this file declares by
+       how much. A ribosome is ~25 nm against a nucleus at several microns;
+       drawn true to that it is sub-pixel and the cytoplasm looks empty. */
+    const RIBO_N = 1500;
+    const riboGeo = new THREE.SphereGeometry(0.06 * A / 10, 6, 5);
+    const riboMat = new THREE.MeshStandardMaterial({ color: col(ORG.er.ribosome), roughness: 0.6 });
+    const riboSeeds = [];
+    for (let i = 0; i < RIBO_N; i++)
+      riboSeeds.push({ th: rand() * 2 * PI, u: Math.sqrt(rand()), v: rand(), s: rr(0.6, 1.4) });
+    const riboMesh = new THREE.InstancedMesh(riboGeo, riboMat, RIBO_N);
+
+    /* Seeds are stored as a bearing and two fractions, not as points, so the
+       speckle follows the protoplast when it shrinks and wrinkles instead of
+       being left behind outside it. Recomputed only when the shape changes. */
+    function placeRibosomes() {
+      const m = new THREE.Matrix4(), items = layer ? layer.userData.items : [];
+      let n = 0;
+      for (const r of riboSeeds) {
+        const rim = protoR(r.th, 1) - RIMW, rad = rim * r.u;
+        const x = rad * Math.cos(r.th) * C.ex, z = rad * Math.sin(r.th);
+        /* A ribosome is in the CYTOSOL, so every organelle leaves a hole.
+           Keeping only the free space is also what stops the speckle reading
+           as spots ON the organelles: against this cell's pale cytoplasm the
+           dots carry far more contrast than they do against the animal
+           cell's dark red, so where they are not is as visible as where they
+           are. Many seeds are rejected, which is why there are more of them
+           than instances drawn. */
+        let blocked = false;
+        for (const b of items) {
+          const dx = x - b.x, dz = z - b.z, d = Math.hypot(dx, dz) || 1e-4;
+          if (d < radiusToward(b, dx / d, dz / d) * 0.95) { blocked = true; break; }
+        }
+        if (blocked) continue;
+        const y = bowlY(x, z) * (0.08 + 0.92 * r.v);
+        m.makeScale(r.s, r.s, r.s);
+        m.setPosition(x, y, z);
+        riboMesh.setMatrixAt(n++, m);
+      }
+      riboMesh.count = n;
+      riboMesh.instanceMatrix.needsUpdate = true;
+    }
+
     /* The cut frame: its local XZ plane IS the protoplast's cut face and its
        local +Y the plane normal, so an organelle standing on the cut sits at
        y=0 here and needs no per-organelle tilt. */
@@ -431,6 +480,7 @@
     cutFrame.position.set(0, CUT.cb - PROTO_DROP, 0);
     cutFrame.quaternion.setFromUnitVectors(new V3(0, 1, 0), planeN);
     cell.add(cutFrame);
+    cutFrame.add(register(riboMesh, 'ribosome'));
 
     /* ---- the organelle layer ----
        Footprint radii on the cut plane, in scene units. These are what the
@@ -521,6 +571,11 @@
          big enough to foul. */
       const toVac = Math.atan2(T.vacuole.z - T.nucleus.z, T.vacuole.x - T.nucleus.x);
       er.group.rotation.y = 1.5 * PI - toVac;
+      // the studs, in the ER's own space, sharing the free speckle's particle
+      const studs = new THREE.InstancedMesh(riboGeo, riboMat, er.ribosomes.length);
+      const m4 = new THREE.Matrix4();
+      er.ribosomes.forEach((q, i) => { m4.makeScale(1.15, 1.15, 1.15); m4.setPosition(q.x, q.y, q.z); studs.setMatrixAt(i, m4); });
+      er.group.add(studs);
       nuc.add(register(er.group, 'er'));
       for (const [type, x, z, rot, s] of T.organelles) {
         const g = register(BUILD[type](s), NAME[type] || type);
@@ -692,7 +747,7 @@
     function step(dt) {
       clock += dt;
       P = stateParams(St.t);
-      if (dirty) { wallPG.update(); protoPG.update(); updatePlasmodesmata(); updateStrands(); dirty = false; }
+      if (dirty) { wallPG.update(); protoPG.update(); updatePlasmodesmata(); updateStrands(); placeRibosomes(); dirty = false; }
       if (tint && tint.k < 1) { tint.k = Math.min(tint.k + dt / 0.9, 1); applyTint(); }
       born = Math.min(born + dt, 1e9);
       const grow = easeInOut(clamp(born / 0.7, 0, 1));
@@ -875,5 +930,5 @@
      The apothem is 11 against the animal cell's radius of 10 because a plant
      cell IS the larger of the two, but that ratio is the only measured thing
      here and it is a ratio, not a size. */
-  global.PlantCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: {}, down: {} };
+  global.PlantCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: { ribosome: 30 }, down: {} };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
