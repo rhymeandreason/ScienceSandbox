@@ -220,6 +220,10 @@
         <div class="path">kit/proteinbox-mount-test.html <span class="badge">component</span></div>
         <div class="desc">Proteinbox.mount — any protein in the registry by name, its representation as set(), the registry's facts as state()</div>
       </a>
+      <a class="card component" href="cell/cutaway-test.html">
+        <div class="path">cell/cutaway-test.html <span class="badge">component</span></div>
+        <div class="desc">Cutaway.mount — the textbook cell cut open, organelles built procedurally, full window: hover to brighten, click to fly in, double-click home</div>
+      </a>
     </div>
   </section>
 
@@ -420,6 +424,10 @@
         <div class="path">proteins/tools/stills.html <span class="badge">internal tool</span></div>
         <div class="desc">Bakes the gallery's first frame: every protein drawn once in the gallery's own box, written to proteins/stills/. Dev server only — re-run it after a re-bake or a rotation change</div>
       </a>
+      <a class="card tool" href="proteins/tools/triage.html">
+        <div class="path">proteins/tools/triage.html <span class="badge">internal tool</span></div>
+        <div class="desc">Look at a candidate deposition before baking it — 3Dmol from a CDN, live off RCSB, accepts candidates via URL. Local only, .vercelignore'd</div>
+      </a>
       <a class="card tool" href="proteins/">
         <div class="path">proteins/ <span class="badge">internal tool</span></div>
         <div class="desc">The protein gallery: a card per protein in proteins/proteins.js, each turning its default structure, with the species, method and residue counts read from the registry the bakers write</div>
@@ -447,6 +455,14 @@
       <a class="card test" href="proteins/zif268/zif268-test.html">
         <div class="path">proteins/zif268/zif268-test.html <span class="badge">test</span></div>
         <div class="desc">Zif268 on DNA: the first bake where a protein and a nucleic acid come out of one deposition and share one frame — three zinc fingers, eleven base pairs, one centre solved over both. The smallest mixed file, and the rehearsal for the nucleosome</div>
+      </a>
+      <a class="card test" href="proteins/rb69/rb69-test.html">
+        <div class="path">proteins/rb69/rb69-test.html <span class="badge">test</span></div>
+        <div class="desc">RB69 gp43, one replicative polymerase deposited three times: apo, copying, proofreading. Fitted on the protein, so the DNA is what moves — the primer's growing end travels 33 A from the polymerase site to the exonuclease site without leaving the enzyme. The bench for the DNA replication lesson. Under review</div>
+      </a>
+      <a class="card test" href="proteins/polymerase/polymerase-test.html">
+        <div class="path">proteins/polymerase/polymerase-test.html <span class="badge">test</span></div>
+        <div class="desc">Taq polymerase open and closed: one construct on one primer/template, empty then loaded with a ddCTP and two magnesiums. Superposed on the duplex's phosphates rather than the protein, so the substrate is nailed and the domain motion is the protein's. Under review — the candidates are still in the baker</div>
       </a>
       <a class="card test" href="proteins/nucleosome/nucleosome-test.html">
         <div class="path">proteins/nucleosome/nucleosome-test.html <span class="badge">test</span></div>
@@ -680,6 +696,14 @@
         <div class="path">design-system.html <span class="badge">internal tool</span></div>
         <div class="desc">Every token, type step and button in main.css, on the stage's own paper</div>
       </a>
+      <a class="card test" href="graph/graph-test.html">
+        <div class="path">graph/graph-test.html <span class="badge">test</span></div>
+        <div class="desc">Test bench for graph/graph.js — Observable Plot under a semantic layer (scatter, line, bar, histogram, box; fit line, error bars, x-intercept), six kinds on one look</div>
+      </a>
+      <a class="card test" href="graph/graph-shell-test.html">
+        <div class="path">graph/graph-shell-test.html <span class="badge">test</span></div>
+        <div class="desc">graph.js on kit/lesson-shell.js's own palette — proves it reads the shell's tokens rather than the site sheet's. Embedded as card 7 of graph-test.html</div>
+      </a>
     </div>
   </section>
 
@@ -715,6 +739,10 @@
       <a class="card tool" href="map-cms.html">
         <div class="path">map-cms.html <span class="badge">internal tool</span></div>
         <div class="desc">Edit lib/mapcontent.js on two screens. Questions: the wording, which modules each one names, and the rank on each — every row wears what it JOINS, because a question naming one module is a caption that costs a node and leads nowhere, and the bar keeps the score. Modules: the claim, the door, the state, and the rank that decides which ones a door OPENS with</div>
+      </a>
+      <a class="card tool" href="nodegraph/cards.html">
+        <div class="path">nodegraph/cards.html <span class="badge">internal tool</span></div>
+        <div class="desc">Image inventory: every node's card, flowed as a long gallery instead of positioned on the map, on the map's own CSS fetched and injected at load so it can't drift from how a card actually looks</div>
       </a>
       <a class="card tool" href="clip-shelf.html">
         <div class="path">clip-shelf.html <span class="badge">internal tool</span></div>
