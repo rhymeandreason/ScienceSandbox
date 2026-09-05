@@ -358,6 +358,23 @@ else
   echo "pre-commit: skipping check-dna.js — nothing under demos/dna/ staged"
 fi
 
+# macromolecule/ gates itself, plus the amino-acid specs its answers are built
+# out of. peptide.js reads `condense:`, which molecules.js DERIVES from each
+# spec's `pep` indices — so a renumbered residue, or a change to that
+# derivation, moves the peptide bond onto other atoms and the chain still
+# renders. mol-contrast.js is here because it holds four of the eight residues.
+if git diff --cached --name-only | grep -qE '^demos/(macromolecule/.*|macromolecule-builder\.html|lib/mol-monomers\.js|lib/mol-contrast\.js|lib/molecules\.js)'; then
+  if ! node macromolecule/check-macromolecule.js > /tmp/cmac.$$ 2>&1; then
+    tail -25 /tmp/cmac.$$; rm -f /tmp/cmac.$$
+    echo ""
+    echo "pre-commit FAILED: check-macromolecule.js — the peptide bond no longer holds."
+    exit 1
+  fi
+  rm -f /tmp/cmac.$$
+else
+  echo "pre-commit: skipping check-macromolecule.js — nothing under demos/macromolecule/ staged"
+fi
+
 # kit/ gates itself, plus the domain files it is asserted against: check-kit.js
 # runs molgraph over REAL specs (glucose's five hydroxyls, the phosphoryl group
 # that leaves its bridging oxygen behind), so a spec edit can break it from

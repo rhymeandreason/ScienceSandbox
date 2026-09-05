@@ -627,6 +627,11 @@
     K:  { r: 1.38, color: 0xf0a03c, label: 'K⁺' },
     CL: { r: 1.81, color: 0x63c26b, label: 'Cl⁻' },
     MG: { r: 0.72, color: 0x3cc98f, label: 'Mg²⁺' },
+    /* A BARE PROTON HAS NO RADIUS worth quoting — it is a nucleus, ~1e-5 A,
+       and in water it is really H₃O⁺. Drawn at 0.30 so it reads as the
+       smallest thing on stage and still has a sphere to hang its sign on.
+       Not a Shannon number, unlike the four above. */
+    H:  { r: 0.30, color: 0xdd5b4a, label: 'H⁺' },
     /* Not an ion, and deliberately grey: water is the thing that moves
        when nothing is pushing it, and it should never be mistaken for
        cargo the pump is choosing. */

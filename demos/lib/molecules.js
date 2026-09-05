@@ -249,9 +249,34 @@
         + `it. Check the page's <script> tags: mol-solvation.js (family A, the `
         + `solvation engine's particles) and mol-small.js (family B, to scale) `
         + `both define the small molecules and must never load together.`);
+      if(spec.pep) derivePeptideCondense(key, spec);
       MOLECULES[key] = spec;
     }
     return MOLECULES;
+  }
+
+  /* An amino acid says which atoms the peptide bond acts on ONCE, in `pep`.
+   * `condense:` is the vocabulary every other condensing molecule speaks — a
+   * sugar's anomeric –OH, a phosphate's P–OH — and check-molecules.js checks
+   * that one, not `pep`. Writing both by hand on eight specs is two statements
+   * of the same fact that part company on the first renumbering, so the second
+   * is derived here from the first and then checked like any other.
+   *
+   * The carboxyl keeps its C and loses –OH; the amino keeps its N and loses one
+   * H. `product:null` because a dipeptide has no spec to check the formula
+   * against, which check-molecules.js requires be written out rather than
+   * omitted. A spec that declares its own `condense:` keeps it. */
+  function derivePeptideCondense(key, spec){
+    if(spec.condense) return;
+    const p = spec.pep;
+    spec.condense = {
+      roles:[
+        { key:'carboxyl', label:'\u2013COOH', keep:p.cC, leaves:[p.oOH, p.hOH] },
+        // ONE amino hydrogen, not both: a condensation sheds O + H + H in
+        // total and the carboxyl already brought two of the three. Proline
+        // only has one anyway.
+        { key:'amino',    label:'\u2013NH\u2082', keep:p.nN, leaves:[p.hN[0]] } ],
+      makes:[ { product:null, donor:'carboxyl', acceptor:'amino', bond:'peptide' } ] };
   }
 
   // THE MANIFEST: every domain file, in dependency order. A page loads the

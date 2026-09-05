@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Building a macromolecule — the peptide bond</title>
+
+<!-- ===================================================================
+     A BARE STAGE, FOUR AMINO ACIDS, NO PANEL. The student pushes them
+     together and finds out what happens. The gesture is dna-lab.html
+     step 1's, and so is the reason for it: nothing refuses a drag and
+     nothing is greyed out, so the rule is discovered rather than
+     announced.
+
+     WHAT THERE IS TO FIND OUT. A residue joins by its carboxyl to the
+     next one's amino group, and a water leaves. Push two amino ends
+     together and nothing happens — there is no reaction there. Once a
+     residue has spent its carboxyl it cannot spend it again, so a chain
+     can only grow one way, and that direction (N to C) is not a rule
+     the page states: it is what is left after the chemistry.
+
+     NOTHING HERE TYPES A POSE. macromolecule/peptide.js builds the
+     transform out of the specs' own `condense:` roles — the amide N
+     goes where the departing hydroxyl O was, at the peptide bond's
+     length, turned until the leaving H points back down the new bond —
+     and asserts the one number none of that constrains, omega, trans.
+
+     THE DRAG IS FLAT; THE MOLECULES ARE NOT. Amino acids are sp3 at the
+     alpha carbon and reach about 1.7 A out of any plane you pick. The
+     z = 0 plane is the tabletop the pointer works on, not a claim about
+     the residues lying on it.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="css/kodo.css">
+<link rel="stylesheet" href="css/sandbox.css">
+<style>
+  /* No side panel: the stage is the whole page. */
+  #app{grid-template-columns:1fr}
+  #stage{grid-column:1}
+
+  /* A residue's name, pinned to the molecule it belongs to every frame. */
+  .tag{position:absolute;z-index:5;pointer-events:none;transform:translate(-50%,0);
+    font-family:var(--font-slab);font-size:13px;letter-spacing:.4px;color:var(--ink);
+    background:rgba(255,255,255,.66);border-radius:7px;padding:2px 9px;white-space:nowrap}
+  .tag.joined{background:#5a4fbf;color:#fff}
+
+  /* Names the water a condensation releases. Pinned above the molecule and
+     fading with it, so the name and the thing it names go together. */
+  .leaving{position:absolute;z-index:6;pointer-events:none;
+    transform:translate(-50%,-100%);
+    font-family:var(--font-slab);font-size:13px;color:var(--ink);
+    background:rgba(255,255,255,.72);border-radius:7px;padding:1px 7px;white-space:nowrap}
+
+  /* The running commentary, bottom-centre. */
+  #note{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+    z-index:7;max-width:min(560px,72vw);text-align:center;
+    font-family:var(--font-sans);font-size:13.5px;line-height:1.45;color:var(--ink);
+    background:var(--paper);padding:8px 18px;border-radius:9px}
+  #note b{font-weight:600}
+
+  /* The chain so far, top-centre. Empty until there is one. */
+  #seq{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:7;
+    display:none;text-align:center}
+  #seq .label{font-family:var(--font-slab);font-weight:700;font-size:10.5px;
+    letter-spacing:1.3px;text-transform:uppercase;color:var(--muted)}
+  #seq .chain{font-family:var(--font-marker);font-size:26px;line-height:1.2;margin-top:1px}
+  #seq .ends{font-family:var(--font-slab);font-size:12px;color:var(--muted)}
+
+  #reset{position:absolute;right:24px;top:22px;z-index:7;cursor:pointer;
+    font-family:var(--font-sans);font-size:13px;font-weight:600;
+    padding:7px 14px;border-radius:9px;border:2px solid var(--ink);
+    background:transparent;color:var(--ink)}
+  #reset:hover{background:rgba(0,0,0,.05)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="seq"><div class="label">the chain</div>
+      <div class="chain"></div><div class="ends"></div></div>
+    <button id="reset">Start over</button>
+    <div id="note"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="lib/palette.js"></script>
+<script src="lib/tokens-from-palette.js"></script>
+<script src="lib/molecules.js"></script>
+<script src="lib/mol-monomers.js"></script>
+<script src="lib/mol-small.js"></script>
+<script src="lib/scene.js"></script>
+<script src="lib/fx.js"></script>
+<script src="kit/motion.js"></script>
+<script src="kit/stagekit.js"></script>
+<script src="macromolecule/peptide.js"></script>
+<script src="macromolecule/plane.js"></script>
+<script>
+"use strict";
+
+const S = MolLib.SCALE;
+const M = MolLib.MOLECULES;
+
+/* The four residues on stage. Proline is deliberately absent: its ring holds
+ * the alpha carbon's neighbours in place, so a RIGID pose against most
+ * partners overlaps (peptide.js's `clash`). That is a cost of drawing residues
+ * as fixed conformers, not chemistry refusing, and a sandbox that let the
+ * student meet it as a refusal would teach the wrong thing. */
+const KEYS = ['glycine', 'alanine', 'serine', 'cysteine'];
+
+// Laid out with room between them, and nothing starting within latching
+// distance of anything else: a pair that snapped on load would answer the
+// question the page is asking.
+const HOME = { glycine:[-21, 9], alanine:[-7, -10], serine:[9, 9], cysteine:[22, -10] };
+
+/* peptide.js works in angstroms; a registered spec is in display units. */
+const un = s => ({ ...s, atoms:s.atoms.map(a => ({ el:a.el, pos:a.pos.map(v => v/S) })) });
+/* DROP `view:` WHEN BUILDING. buildMolecule bakes a spec's view rotation into
+ * the atom meshes even at center:false, which would desync every mesh from the
+ * coordinates peptide.js solved against. */
+const flat = s => ({ ...s, view:null });
+
+const L = Lesson.create(document.getElementById('gl'), {
+  cam:{ theta:0, phi:1.5708, r:36 }, rMax:400,
+  // NO ORBIT — the pointer is projected onto the z = 0 plane the residues are
+  // dragged on, which only means anything face-on.
+  orbit:false,
+  boxes:()=>[{ x:0, y:0, rxz:32, hy:22 }],
+  afterFrame:()=>{ P.placeTags(); placeSticks(); stepWaters(); },
+});
+
+const noteEl  = document.getElementById('note');
+const seqEl   = document.getElementById('seq');
+const canvas  = document.getElementById('gl');
+const stageEl = document.getElementById('stage');
+
+/* ---- the sandbox ---------------------------------------------------------
+ * Everything about the GESTURE is macromolecule/plane.js's. This page supplies
+ * the two things that are about chemistry: where a guest lands, and what the
+ * two molecules become once it does. */
+const P = MacroPlane.create({
+  canvas, camera:L.camera, root:L.root, motion:L.motion, stageEl,
+  tagDrop: 10,
+  build: spec => Stage.buildMolecule(flat(spec), { center:false }),
+
+  /* The pose, with the host at the origin unrotated — plane.js composes it
+   * with wherever the host actually is. A clashing pose is still a pose: it is
+   * returned, and the page decides. */
+  solve: (host, guest) => {
+    const r = Peptide.pose(un(host.spec), un(guest.spec));
+    if(!r || r.clash) return null;
+    const v = a => new THREE.Vector3(a[0]*S, a[1]*S, a[2]*S);
+    return { pos:v(r.pos), quat:new THREE.Quaternion(...r.quat),
+             bondAt:v(r.bondAt), waterAt:v(r.waterAt), omega:r.omega };
+  },
+
+  onJoin: (host, guest, target) => {
+    host.spent.add('carboxyl'); guest.spent.add('amino');
+    respec(host); respec(guest);
+    stick(host, guest);
+    if(L.fx) L.fx.condense(target.world(target.bondAt.clone()),
+                           target.world(target.waterAt.clone()), { size:1.1 });
+    water(target.world(target.waterAt.clone()), 'out');
+    say();
+  },
+
+  /* HYDROLYSIS, and it is the condensation run backwards rather than an undo.
+   * The bond goes, the atoms that left come back, and a water is consumed to
+   * put them there — which is the half of the reaction a textbook draws as an
+   * afterthought and is the whole reason a cell can take a protein apart. */
+  onBreak: (a, b) => {
+    a.spent.delete('carboxyl'); b.spent.delete('amino');
+    respec(a); respec(b);
+    const i = sticks.findIndex(s => s.host === a && s.guest === b);
+    if(i >= 0){ L.root.remove(sticks[i].m); sticks.splice(i, 1); }
+    const at = P.centreOf(a).lerp(P.centreOf(b), 0.5);
+    if(L.fx) L.fx.spawnRing(at, MolLib.PALETTE.bonds.condense, null, 0.6);
+    water(at, 'in');
+  },
+
+  onMove: say,
+});
+
+/* A piece's spec is DERIVED from the one it started as, every time, minus the
+ * leaving atoms of whichever roles it has spent. Editing the spec in place
+ * would work for the join and leave nothing to restore on the way back: the
+ * atoms are only recoverable while something still remembers them. */
+const rescale = s => ({ ...s, atoms:s.atoms.map(a => ({ el:a.el, pos:a.pos.map(v => v*S) })) });
+function respec(p){
+  const base = un(p.base);
+  const drop = [...p.spent].flatMap(k => Peptide.role(base, k).leaves);
+  P.rebuild(p, rescale(Peptide.strip(base, drop)));
+}
+
+/* ---- the peptide bonds, drawn between two meshes --------------------------
+ * The chain is NOT rebuilt into one spec. Each residue keeps its own mesh and
+ * the C-N bond is a stick between them, so a join costs one stick instead of
+ * re-triangulating everything already on stage, and the chain stays a chain
+ * rather than becoming one rigid object. */
+const stickGeo = new THREE.CylinderGeometry(0.13*S, 0.13*S, 1, 10);
+const sticks = [];
+function stick(host, guest){
+  const m = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial(
+    { color:MolLib.PALETTE.bonds.condense, roughness:.5 }));
+  L.root.add(m);
+  // The two atoms are named by the roles, not by index: `react` renumbered
+  // both specs a moment ago.
+  sticks.push({ m, host, guest });
+  placeSticks();
+}
+const _d = new THREE.Vector3(), _up = new THREE.Vector3(0,1,0);
+function placeSticks(){
+  for(const s of sticks){
+    const from = P.atomAt(s.host,  Peptide.role(un(s.host.spec),  'carboxyl').keep);
+    const to   = P.atomAt(s.guest, Peptide.role(un(s.guest.spec), 'amino').keep);
+    const d = _d.subVectors(to, from), len = d.length();
+    s.m.position.copy(from).addScaledVector(d, 0.5);
+    s.m.quaternion.setFromUnitVectors(_up, d.clone().normalize());
+    s.m.scale.set(1, len, 1);
+  }
+}
+
+/* ---- the water that leaves ------------------------------------------------ */
+const WATER_LIFE = 2.4;
+const waters = [];
+function water(at, way){
+  const mol = Stage.buildMolecule(flat(M.water), { center:true });
+  mol.position.copy(at);
+  const mats = [];
+  mol.traverse(o => { if(o.material){ o.material.transparent = true; mats.push(o.material); } });
+  L.root.add(mol);
+  const el = document.createElement('div');
+  el.className = 'leaving';
+  el.textContent = M.water.formula;
+  stageEl.appendChild(el);
+  waters.push({ mol, mats, el, at:at.clone(), way:way||'out', born:performance.now() });
+}
+const _w = new THREE.Vector3();
+function stepWaters(){
+  const r = canvas.getBoundingClientRect(), now = performance.now();
+  for(let i = waters.length - 1; i >= 0; i--){
+    const w = waters[i];
+    const u = (now - w.born) / 1000 / WATER_LIFE;
+    if(u >= 1){
+      L.root.remove(w.mol); w.el.remove();
+      w.mol.traverse(o => { if(o.geometry) o.geometry.dispose(); });
+      waters.splice(i, 1); continue;
+    }
+    // Straight up and out of the way: the chain is what the student is looking
+    // at, and a water drifting across it is the thing they would follow. A
+    // hydrolysis runs the same path inwards, because it is the same water.
+    const t = w.way === 'in' ? 1 - u : u;
+    w.mol.position.copy(w.at).addScaledVector(_up, t * 7);
+    const fade = w.way === 'in' ? u * u : 1 - u * u;
+    for(const m of w.mats) m.opacity = fade;
+    w.el.style.opacity = fade;
+    _w.copy(w.mol.position).project(L.camera);
+    w.el.style.left = ((_w.x*0.5+0.5) * r.width) + 'px';
+    w.el.style.top  = ((-_w.y*0.5+0.5) * r.height - 6) + 'px';
+  }
+}
+
+/* ---- what the page says --------------------------------------------------
+ * Read off the pieces every time, never accumulated: a count that is added to
+ * on each join is a number that survives a reset it did not hear about. */
+function chain(){
+  // The N-terminus is the residue that has not spent its amino group. With no
+  // joins yet there are four of them and no chain.
+  const start = P.pieces.filter(p => Peptide.free(un(p.spec), 'amino'));
+  const links = P.links;
+  for(const s of start){
+    const out = [s];
+    for(;;){
+      const nxt = links.find(l => l.a === out[out.length-1]);
+      if(!nxt) break;
+      out.push(nxt.b);
+    }
+    if(out.length > 1) return out;
+  }
+  return [];
+}
+
+function say(){
+  const c = chain();
+  for(const p of P.pieces) p.tag.classList.toggle('joined', c.includes(p));
+  if(c.length < 2){
+    seqEl.style.display = 'none';
+    noteEl.innerHTML = 'Push two of them together. Only one pairing of ends does anything &mdash; '
+      + 'find which, and watch what comes off.';
+    return;
+  }
+  seqEl.style.display = '';
+  seqEl.querySelector('.chain').textContent = c.map(p => p.spec.res || p.spec.name).join(' – ');
+  seqEl.querySelector('.ends').textContent = 'N-terminus → C-terminus';
+  const n = c.length - 1;
+  noteEl.innerHTML = `<b>${n} peptide bond${n>1?'s':''}</b>, and <b>${n} water${n>1?'s':''}</b> gone. `
+    + (P.pieces.length > c.length
+       ? 'The chain can only grow at the end that still has its &ndash;COOH.'
+       : 'Every residue is in. One chain, one direction, four side chains hanging off it.');
+}
+
+/* ---- pointer -------------------------------------------------------------- */
+canvas.addEventListener('pointerdown', e => P.down(e));
+canvas.addEventListener('pointermove', e => P.move(e));
+canvas.addEventListener('pointerup',   e => { P.up(e); say(); });
+// Double-click to hydrolyse: a drag is how a chain gets MOVED, so breaking a
+// bond needs its own gesture rather than happening by accident.
+canvas.addEventListener('dblclick', e => {
+  const n = P.nearest(P.toWorld(e));
+  if(n) P.breakAt(n.p);
+  say();
+});
+
+document.getElementById('reset').addEventListener('click', () => location.reload());
+
+/* ---- lay them out --------------------------------------------------------- */
+for(const key of KEYS){
+  const spec = M[key];
+  const c = P.centroid(spec);
+  const at = new THREE.Vector3(HOME[key][0] - c.x, HOME[key][1] - c.y, -c.z);
+  const p = P.add(spec, at, null, { key, base:spec, spent:new Set() });
+  p.tag.textContent = spec.name;
+}
+say();
+L.fit();
+L.start();
+</script>
+</body>
+</html>
