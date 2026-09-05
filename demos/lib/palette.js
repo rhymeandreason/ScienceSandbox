@@ -177,6 +177,47 @@
                        // ONE strand paired to itself, so a second colour there
                        // would claim a second molecule
     },
+    /* ---- organelles ---------------------------------------------------
+       ONE ORGANELLE, ONE COLOUR, wherever it is drawn. cell/cutaway.js chose
+       these by eye against the cream paper and typed them inline; they are
+       the house colours now, because the cutaway is where a student meets an
+       organelle first and every later view of one has to agree with it. A
+       lesson that zooms from the cut cell into a mitochondrion's inner
+       membrane must not arrive somewhere a different colour.
+
+       `outer` / `inner` / `rim` are the cutaway's shell: the outside face,
+       the cut face (darker — a cut edge reads as depth), and the rim between.
+
+       `head` / `tail` TINT A BILAYER drawn inside that organelle
+       (membrane/membrane.js's `context`). Both are derived from the
+       organelle's own colour, and they keep the relationship the plasma
+       membrane has always had: a saturated head over a paler, warmer tail.
+       So the sheet still reads as the same bilayer everywhere — the tint
+       says which organelle you are standing in, not what the membrane is
+       made of. */
+    organelles: {
+      /* A CUT SHELL is three colours: `outer` the outside face, `inner` the
+         cut face (darker, so a cut edge reads as depth), `rim` the band
+         between. An organelle drawn as ribbons instead carries `side` and
+         `top` — the ER and the mitochondrion's cristae. */
+      plasma:        { outer:0xee8e84, inner:0xa8132a, rim:0xf4b0a6, head:0xe0705c, tail:0xf0c98a },
+      mitochondrion: { outer:0xe0552f, inner:0xe2775b, rim:0xf4b8a4, head:0xd9612f, tail:0xeeba7e,
+                       cristaSide:0xf2a3ae, cristaTop:0xfff6f7 },
+      /* Not in the animal cell, so it has no cutaway entry to copy: the
+         green comes from leaf/leaf.js's `chloro`, lightened to the same
+         degree the other heads are lightened off their shells. */
+      chloroplast:   { outer:0x4f8a33, inner:0x37701f, rim:0xa7c98a, head:0x5f9440, tail:0xcfdc9a },
+      nucleus:       { outer:0x3f6cb5, inner:0x4a78c0, rim:0x9cb9e6, head:0x4a78c0, tail:0xb9c9e8,
+                       nucleolus:0xf6b64a, chromatin:0x3d64a8, pore:0x274a8f },
+      er:            { side:0xd9426d, top:0xf6c0ce, ribosome:0x7c1030, head:0xd9426d, tail:0xf6c0ce },
+      golgi:         { outer:0x7c85cf, inner:0x7c85cf, rim:0xb4bae6, head:0x7c85cf, tail:0xc2c7ea,
+                       vesicle:0x8b93da },
+      lysosome:      { outer:0xec6f95, inner:0xd94f6a, rim:0xf3bdcb, head:0xec6f95, tail:0xf3bdcb },
+      /* No membrane, so no head/tail: a bilayer cannot be set inside a
+         centrosome, and an entry that offered one would invite a page to
+         try. */
+      centrosome:    { outer:0x6fbe62, microtubule:0x8bd07c },
+    },
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks
     // every bond clears the sum of its two. See molecules.js's header.

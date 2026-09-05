@@ -178,6 +178,18 @@ it names cannot drift. Oxygen used to be <code>#e6362f</code> in CSS and <code>#
 </section>
 
 <section>
+<div class="sechead"><h2>Organelles</h2><span class="rule"></span>
+  <span class="count" id="orgcount"></span></div>
+<p>One organelle, one colour, wherever it is drawn. <code>cell/cutaway.js</code>
+chose these against this paper and they are the house numbers now, so a
+membrane lesson set inside a mitochondrion tints its bilayer with the same
+orange the cut cell paints it. The bare name is the outside face; a
+<code>-head</code> and <code>-tail</code> are the bilayer tint, and only the
+organelles that HAVE a membrane carry them.</p>
+<div class="grid" id="orgs"></div>
+</section>
+
+<section>
 <div class="sechead"><h2>Lesson domains</h2><span class="rule"></span>
   <span class="count">domain</span></div>
 <p>A colour a lesson reads, on two conditions: <strong>nothing else already
@@ -331,6 +343,16 @@ put('bonds', bonds.map(b => '--bond-' + b));
 // Counted, not typed: a new element in palette.js changes this line by itself.
 document.getElementById('atomcount').textContent = atoms.length + ' elements';
 document.getElementById('bondcount').textContent = bonds.length + ' kinds';
+// Every part of every organelle, counted off the palette: an entry added there
+// appears here without this page being touched.
+const orgNames = [];
+for (const [k, v] of Object.entries(MolPalette.organelles)) {
+  orgNames.push('--organelle-' + k);
+  for (const part of Object.keys(v)) orgNames.push('--organelle-' + k + '-' + part);
+}
+put('orgs', orgNames);
+document.getElementById('orgcount').textContent =
+  Object.keys(MolPalette.organelles).length + ' organelles';
 document.getElementById('tally').textContent =
   document.querySelectorAll('.sw').length + ' tokens \u00b7 ' +
   document.querySelectorAll('.row').length + ' control rows';

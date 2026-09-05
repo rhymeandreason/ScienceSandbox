@@ -33,9 +33,21 @@
  *  from a DOM button — is the page's, which calls spend() when the chip lands.
  *
  *  Proteins are a LAYOUT, not a step:
- *      proteins: { K:{x} | null, CL:{x} | null, NA:{x} | null, AQP:{x} | null, pump:{x} | null }
+ *      proteins: { K | CL | NA | AQP | pump | complex | synthase | leak: {x} | null }
  *  K, CL and NA are channels for their ion; AQP is an aquaporin, a pore for
  *  water and nothing charged, single file, direction by headcount alone.
+ *
+ *  CHEMIOSMOSIS is the same membrane in an organelle. `context` renames the
+ *  two sides and repaints the lipid ('plasma' | 'mitochondrion' | 'thylakoid')
+ *  and changes nothing else: the code keeps +y outside and −y inside in every
+ *  context. `complex` pumps protons out and pays with `fuel` ('NADH' |
+ *  'FADH2' | 'light') at `fuelRate`, never with ATP; `synthase` lets them back
+ *  down and turns a rotor, three protons a third-turn and one ATP with it;
+ *  `leak` is an uncoupler's hole, protons home without ATP. The gradient's
+ *  arithmetic — pH, the proton-motive force, the rotor's stoichiometry, and
+ *  the rule that neither door runs uphill — is membrane/chemiosmosis.js, kept
+ *  free of THREE so check-chemiosmosis.js can run it in node. `pumped`
+ *  (turns) and `atp` (count) are its events.
  *  The sheet is rebuilt with one hole per protein, so a hole can never stand
  *  without its protein. Rebuilding is a few hundred instanced lipids, fine on
  *  a change; it is not meant to be animated.
@@ -73,7 +85,8 @@
     context: 'plasma',        // 'plasma' | 'mitochondrion' | 'thylakoid'
     fuel: null,               // 'NADH' | 'FADH2' | 'light' | null — null lets the gradient run down
     fuelRate: 1,              // 0..1, a light dimmer or an oxygen switch
-    complexSeconds: 2.4,      // one proton carried across; three real complexes are drawn as one
+    complexSeconds: 6.0,      // ONE FULL CYCLE, the empty half included; three real complexes are drawn as one
+    mvFloor: null,            // how negative the inside may get; null takes it from the context
     potential: 'off',
     E: { K:-90, CL:-75, NA:60 },   // mV, the Nernst potentials of the gradients drawn
     mvPerIon: -2.5,           // stage timing, not a measurement (see netPush)
@@ -163,12 +176,17 @@
        A COMPLEX: the electron-transport chain, or the cytochrome b6f of a
        thylakoid. Three complexes in the real chain, drawn as ONE, because
        the lesson's claim is "something with energy to spend pumps protons",
-       not the identity of the pumper. Red, the colour of a machine burning
-       fuel. It is a carrier, so it takes the pump's snug site.
+       not the identity of the pumper. INDIGO, for parts.js's reason: an
+       organelle tints its bilayer with its own colour, and a mitochondrion's
+       is orange, so the warm red this was first drawn in put the machine and
+       its lipids in the same hue and made it something to hunt for. Cool
+       against a warm sheet and against a thylakoid's green alike, and clear
+       of every other protein here. It is a carrier, so it takes the pump's
+       snug site.
        SYNTHASE: the c-ring is why it has that many lobes, and the rotor is
        drawn below it, on the inside face, where F1 hangs. */
     const CPX_R = 16.0, CPX_LOBE = 0.14, CPX_HOLE = CPX_R * (1 + CPX_LOBE) + 0.5;
-    const COMPLEX = global.Parts.transporter({ half:HALF, site:6.2, mouth:8.0, radius:CPX_R, lobes:3, lobeDepth:CPX_LOBE, color:0xc2564f });
+    const COMPLEX = global.Parts.transporter({ half:HALF, site:6.2, mouth:8.0, radius:CPX_R, lobes:3, lobeDepth:CPX_LOBE, color:0x4d5fa6 });
     const SYN_R = 13.2, SYN_LOBE = 0.09, SYN_HOLE = SYN_R * (1 + SYN_LOBE) + 0.5;
     const SYNTH   = global.Parts.transporter({ half:HALF, site:6.0, mouth:8.2, radius:SYN_R, lobes:8, lobeDepth:SYN_LOBE, color:0xd9a13b });
     /* An UNCOUPLER's hole: dinitrophenol, or thermogenin in brown fat.
@@ -207,6 +225,7 @@
        the order a page chose and spreads what is too close, symmetrically
        about where the crowd was. */
     const PORE_GAP = 72;
+    const LEAK_PREFERENCE = 3;      // protons per one that still takes the synthase
     const PROTEIN_KEYS = { K:null, CL:null, NA:null, AQP:null, pump:null, complex:null, synthase:null, leak:null };
     function spaced(pr) {
       const on = Object.keys(pr).filter(k => pr[k]).map(k => ({ k, x: pr[k].x || 0 })).sort((a, b) => a.x - b.x);
@@ -246,16 +265,20 @@
       SYNTH.group.visible = !!pr.synthase;
       synthX = pr.synthase ? pr.synthase.x : null;
       if (pr.synthase) { SYNTH.group.position.x = synthX; SYNTH.setGates(1, 1);
-        holes.push([synthX, SYN_HOLE]); PORES.push({ x:synthX, R:SYN_R, lumen:8.2, kind:'H' }); }
+        holes.push([synthX, SYN_HOLE]); PORES.push({ x:synthX, R:SYN_R, lumen:8.2, kind:'H', door:'synthase' }); }
       LEAK.group.visible = !!pr.leak;
       if (pr.leak) { LEAK.group.position.x = pr.leak.x; LEAK.setGates(1, 1);
-        holes.push([pr.leak.x, LEAK_HOLE]); PORES.push({ x:pr.leak.x, R:LEAK_R, lumen:7.6, kind:'H' }); }
+        holes.push([pr.leak.x, LEAK_HOLE]); PORES.push({ x:pr.leak.x, R:LEAK_R, lumen:7.6, kind:'H', door:'leak' }); }
       T = pr.pump ? PUMP : pr.K ? CHANNEL : pr.CL ? CLCHAN : pr.NA ? NACHAN : pr.AQP ? AQP
         : pr.complex ? COMPLEX : pr.synthase ? SYNTH : pr.leak ? LEAK : PUMP;
       if (MEM) root.remove(MEM.group);
       /* `exclude` is a signed distance, so holes union as the MINIMUM. */
+      /* The bilayer is TINTED BY THE ORGANELLE it is standing in, out of
+         palette.js, so the sheet a student meets after zooming into a cut
+         cell is the colour that cell's mitochondrion was. */
       const ctx = CHEM.CONTEXTS[P.context] || CHEM.CONTEXTS.plasma;
-      MEM = global.Parts.membrane({ half:HALF, reach:MEM_REACH, head:ctx.head, tail:ctx.tail,
+      const tint = global.MolLib.PALETTE.organelles[ctx.organelle] || global.MolLib.PALETTE.organelles.plasma;
+      MEM = global.Parts.membrane({ half:HALF, reach:MEM_REACH, head:tint.head, tail:tint.tail,
         exclude: holes.length ? (x, z) => holes.reduce((m, h) => Math.min(m, Math.hypot(x - h[0], z) - h[1]), Infinity) : undefined });
       root.add(MEM.group);
       setCut(cut);
@@ -268,7 +291,12 @@
        it at the synthase. */
     function poreX(kind) {
       if (kind === 'H') {
-        const doors = PORES.filter(q => q.kind === 'H');
+        /* THE HOLE WINS, and that is what makes an uncoupler dangerous: it
+           is always open, while the synthase has a rotor to wait for. The
+           weight is a staging choice, declared here rather than emerging
+           from a queue the sim does not model. */
+        const doors = [];
+        for (const q of PORES) if (q.kind === 'H') for (let i = 0; i < (q.door === 'leak' ? LEAK_PREFERENCE : 1); i++) doors.push(q);
         return doors.length ? doors[(Math.random() * doors.length) | 0].x : null;
       }
       const p = PORES.find(q => q.kind === kind); return p ? p.x : null;
@@ -525,6 +553,7 @@
       for (const f of shedding) root.remove(f.obj);
       shedding.length = 0;
       cargo.NA.length = 0; cargo.K.length = 0;
+      cpxCargo.length = 0;
     }
     function rndClear(span) {
       for (let i = 0; i < 24; i++) {
@@ -599,6 +628,9 @@
        and neither can run uphill. With the gradient gone it returns 0 and
        every door stops admitting. */
     const protonDir = () => CHEM.synthaseDirection(sideCount('H'), mV, { ref: protonRef });
+    /* Off the headcount, not off state(): this is read every frame and
+       state() walks every traveller to build its counts. */
+    const pmfNow = () => CHEM.protonState(sideCount('H'), mV, protonRef).pmf;
     const mayEnter = t => t.seeks ? true
       : t.kind === 'water' ? Math.sign(t.y) === crowdedSide('water')   // osmosis: the crowded side sends, always
       : t.kind === 'H' ? (protonDir() === -1 && Math.sign(t.y) === 1)
@@ -671,7 +703,11 @@
       const n = nK + nCl;
       return n ? (drive('K') * nK + drive('CL') * nCl) / n : 0;
     }
-    const floorMV = () => Math.min(P.E.K, P.E.CL);
+    /* How negative the inside is allowed to get. The plasma membrane's floor
+       is its own ion equilibria; an organelle's is the inner membrane's
+       measured Δψ, which is far past any of them. */
+    const floorMV = () => P.mvFloor != null ? P.mvFloor
+      : P.context !== 'plasma' ? CHEM.DPSI_FLOOR : Math.min(P.E.K, P.E.CL);
 
     /* ---- conduction is a HOP, not a conveyor: knock-on, dwell then hop ---- */
     const HOP = { wait:[0.10, 0.30], move:0.10, crowd:0.06 };
@@ -683,7 +719,7 @@
           /* ONE PROTON, ONE NOTCH. The rotor's angle and the ATP count both
              come out of the same pass(), so the picture cannot get ahead of
              the number. A proton down the uncoupler's hole turns nothing. */
-          if (t.kind === 'H') {
+          if (t.kind === 'H' && t.y < 0) {           // only one that actually came home counts
             if (synthX != null && t.lane === synthX) { protonsThroughSynthase++; if (ROT.pass(1)) emit('atp', ROT.atp); }
             else protonsLeaked++;
           }
@@ -710,7 +746,12 @@
         const gap = Math.max(ION_GAP, bulkRadius(t) * 2 + 1.2);
         if (queueAhead(t) < gap) { t.obj.position.y = t.y; return true; }
         h.moving = true; h.t = 0;
-        if (!potentialOn() || t.kind === 'water') h.dir = Math.sign(t.vy);
+        /* A PROTON'S DIRECTION WAS DECIDED AT THE DOOR, by the pmf, and it
+           does not get re-rolled every hop. Left in the coin-flip branch it
+           took drive('H') = 0, went either way with equal odds, and half of
+           them came back out the side they entered: thirty passes for eight
+           protons moved, and a rotor turning on traffic that never crossed. */
+        if (!potentialOn() || t.kind === 'water' || t.kind === 'H') h.dir = Math.sign(t.vy);
         else {
           /* p(forward) = ½ + ½·push: net flux proportional to driving force. */
           const pref = (t.kind === 'CL' ? -1 : 1) * (push >= 0 ? 1 : -1);
@@ -949,49 +990,77 @@
     }
 
     /* ---- the complex: a carrier with one cargo and no ATP ----
-       Same shape as the pump's turn — bind, occlude, open the far side, let
-       go — with two differences that are the lesson. It spends no ATP, it
-       spends FUEL, so its rate is the page's slider and it stops dead when
-       the fuel does. And it never comes back with a proton: one way only, or
-       there is no gradient to build. */
-    let cpxT = 0, cpxRider = null;
+       Driven exactly as the pump is, off a phase table in chemiosmosis.js:
+       the gates come from the cycle, so the picture cannot disagree with it,
+       and the two beats where it comes back EMPTY are drawn rather than cut.
+       Two differences from the pump, and they are the lesson. It spends no
+       ATP, it spends FUEL, so its rate is the page's slider and it stops
+       when the fuel does. And it never comes back with a proton, or there is
+       no gradient to build. */
+    let cpxT = 0, cpxPhase = '';
+    const cpxCargo = [];              // the protons riding, one per cargo seat
     const cpxGates = { top: NaN, bottom: NaN };
+    /* A turn already begun finishes. The energy for it was spent at the
+       occlusion, and a machine frozen mid-carry strands a proton inside the
+       protein where nothing can reach it. */
+    const CPX_COAST = 0.35;
     function setCpxGates(top, bottom) {
       if (top === cpxGates.top && bottom === cpxGates.bottom) return;
       COMPLEX.setGates(top, bottom); cpxGates.top = top; cpxGates.bottom = bottom;
     }
-    function runComplex(dt) {
-      if (!P.proteins.complex) return;
-      const rate = CHEM.complexRate(P.fuel, P.fuelRate);
-      if (!cpxRider) {
-        if (rate <= 0) { setCpxGates(0, 1); return; }      // fuel gone: waiting, inward-open
-        const pool = travellers.filter(t => t.kind === 'H' && !t.aboard && t.lane == null && t.y < 0)
-          .sort((a, b) => ((a.x - complexX) ** 2 + a.y * a.y) - ((b.x - complexX) ** 2 + b.y * b.y));
-        if (!pool.length) { setCpxGates(0, 1); return; }
-        cpxRider = pool[0]; cpxRider.aboard = true; cpxT = 0;
-      }
-      cpxT += dt * rate / Math.max(0.1, P.complexSeconds);
-      const u = -1 + 2 * Math.min(1, cpxT);
-      /* NEVER OPEN AT BOTH ENDS, the same claim the pump makes: the far gate
-         only opens once the near one has shut. */
-      setCpxGates(u > 0.55 ? 1 : 0, u < -0.55 ? 1 : 0);
-      const t = cpxRider;
-      const ty = u * COMPLEX.height;
-      t.x += (complexX - t.x) * 0.18; t.z += (0 - t.z) * 0.18; t.y += (ty - t.y) * 0.18;
-      t.obj.position.set(t.x, t.y, t.z);
-      if (cpxT >= 1) {
+    /* ALL OR NOTHING, the pump's rule: a partly loaded machine turns with an
+       empty seat, and the seat is where a student is counting. */
+    function recruitProtons(n) {
+      const pool = travellers.filter(t => t.kind === 'H' && !t.aboard && t.lane == null && t.y < 0)
+        .sort((a, b) => ((a.x - complexX) ** 2 + a.y * a.y) - ((b.x - complexX) ** 2 + b.y * b.y));
+      if (pool.length < n) return false;
+      for (const t of pool.slice(0, n)) { t.aboard = true; cpxCargo.push(t); }
+      return true;
+    }
+    function releaseProtons(to) {
+      for (const t of cpxCargo) {
         t.aboard = false;
-        t.y = COMPLEX.height * 1.15; t.x = complexX + rnd(-16, 16); t.z = rnd(-8, 8);
+        t.y = to * COMPLEX.height * 1.15; t.x = complexX + rnd(-16, 16); t.z = rnd(-8, 8);
         t.obj.position.set(t.x, t.y, t.z);
         t.lane = null; t.bounded = true;
-        repick(t); t.vy = Math.abs(t.vy);
+        repick(t); t.vy = Math.abs(t.vy) * to;
         t.exitPt = { x:t.x, y:t.y, z:t.z };
-        cpxRider = null; cpxT = 0;
-        complexTurns++; crossed.H += 1;
-        chargeOut += 1;
-        mV = Math.min(0, Math.max(floorMV(), P.mvPerIon * chargeOut));
-        emit('pumped', complexTurns);
       }
+      cpxCargo.length = 0;
+    }
+    function runComplex(dt) {
+      if (!P.proteins.complex) return null;
+      const fuelled = CHEM.complexRate(P.fuel, P.fuelRate, pmfNow());
+      const rate = fuelled > 0 ? fuelled : cpxCargo.length ? CPX_COAST : 0;
+      if (rate > 0) cpxT = (cpxT + dt * rate / Math.max(0.1, P.complexSeconds)) % 1;
+      let st = CHEM.Complex.at(cpxT);
+      /* NOTHING TO CARRY: hold at the moment of binding rather than turning
+         an empty machine. The matrix runs low on protons at a high pmf, and
+         a complex miming a turn with nothing in it is a lie the student can
+         see. */
+      if (st.phase === 'load-H' && !cpxCargo.length) {
+        if (!recruitProtons(CHEM.Complex.PROTONS_PER_CYCLE)) { cpxT = CHEM.Complex.startOf('load-H'); st = CHEM.Complex.at(cpxT); }
+      }
+      if (st.phase !== cpxPhase) {
+        /* The proton is set down at the START of the empty half, so the two
+           beats that follow are visibly carrying nothing. */
+        if (st.phase === 'shut-out') {
+          const n = cpxCargo.length;
+          complexTurns += n; crossed.H += n; chargeOut += n;
+          mV = Math.min(0, Math.max(floorMV(), P.mvPerIon * chargeOut));
+          releaseProtons(1); emit('pumped', complexTurns);
+        }
+        cpxPhase = st.phase;
+      }
+      setCpxGates(st.gates.top, st.gates.bottom);
+      for (let i = 0; i < st.cargo.length; i++) {
+        const t = cpxCargo[i];
+        if (!t) continue;
+        const ty = st.cargo[i].u * COMPLEX.height, tx = complexX + (i - (st.cargo.length - 1) / 2) * 5.5;
+        t.x += (tx - t.x) * 0.18; t.z += (0 - t.z) * 0.18; t.y += (ty - t.y) * 0.18;
+        t.obj.position.set(t.x, t.y, t.z);
+      }
+      return st;
     }
 
     /* ---- one frame, in one order ----
@@ -999,7 +1068,7 @@
        runs after keepClear because whatever moves a traveller last decides
        where it is. Osmosis crossings are counted always; a page that does
        not care ignores them. */
-    let crossings = { up:0, down:0 }, netRecent = 0;
+    let crossings = { up:0, down:0 }, netRecent = 0, cpxState = null;
     const NET_HALFLIFE = 30;
     let phase = null, elapsed = 0;
     function step(dt) {
@@ -1012,7 +1081,7 @@
       }
       const st = runPumpCycle(dt);
       phase = st ? st.phase : null;
-      runComplex(dt);
+      cpxState = runComplex(dt);
       for (const t of travellers) {
         if (t.aboard) continue;
         const was = t.y;
@@ -1070,7 +1139,10 @@
         pH: proton.pH, dpH: proton.dpH, pmf: proton.pmf,
         atpMade: ROT.atp, rotorTurns: ROT.protons / CHEM.PROTONS_PER_TURN,
         protonsThroughSynthase, protonsLeaked, complexTurns,
-        fuel: P.fuel, fuelRate: CHEM.complexRate(P.fuel, P.fuelRate),
+        fuel: P.fuel, fuelRate: CHEM.complexRate(P.fuel, P.fuelRate, proton.pmf), pmfStall: CHEM.PMF_STALL,
+        complexPhase: cpxState ? cpxState.phase : null, complexLabel: cpxState ? cpxState.label : null,
+        complexCaption: cpxState ? cpxState.caption : null, complexT: cpxT,
+        complexStoichiometry: CHEM.Complex.PROTONS_PER_CYCLE,
         stoichiometry: { protonsPerTurn: CHEM.PROTONS_PER_TURN, atpPerTurn: CHEM.ATP_PER_TURN, protonsPerATP: CHEM.PROTONS_PER_ATP },
         crossings:Object.assign({}, crossings), netRecent, net, netPush:netPush(),
         atpSpent, pumpRunning:running, pumpPhase:phase, pumpT,
@@ -1079,8 +1151,8 @@
     function reset() {
       mV = 0; chargeOut = 0; crossed.K = crossed.CL = crossed.NA = crossed.water = crossed.H = 0;
       ROT.reset(); complexTurns = 0; protonsLeaked = 0; protonsThroughSynthase = 0;
-      if (cpxRider) cpxRider.aboard = false;
-      cpxRider = null; cpxT = 0;
+      for (const t of cpxCargo) t.aboard = false;
+      cpxCargo.length = 0; cpxT = 0; cpxPhase = ''; cpxState = null;
       crossings = { up:0, down:0 }; netRecent = 0;
       pumpT = 0; running = false; atpSpent = 0; lastPhase = '';
       for (const t of travellers) t.aboard = false;
@@ -1136,7 +1208,7 @@
       { name: 'aquaporin', color: '#3fa7a0' }, { name: 'Na⁺/K⁺ pump', color: '#4f9e78' },
     ].concat(P.proteins.complex || P.proteins.synthase || P.proteins.leak ? [
       { name: 'H⁺', color: hex(global.Parts.ION.H.color) },
-      { name: 'the complex that pumps H⁺', color: '#c2564f' },
+      { name: 'the complex that pumps H⁺', color: '#4d5fa6' },
       { name: 'ATP synthase', color: '#d9a13b' },
       { name: 'uncoupler (a hole for H⁺)', color: '#8e939b' },
     ] : []);

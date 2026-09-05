@@ -33,6 +33,17 @@
   for (const [k, n] of Object.entries(P.ss)) css.setProperty('--ss-' + k, hex(n));
   for (const [k, n] of Object.entries(P.histones)) css.setProperty('--histone-' + k, hex(n));
 
+  /* --organelle-mitochondrion, --organelle-mitochondrion-head, ... so a
+     caption naming an organelle takes its colour from the same place the
+     render does. The bare name is the shell's outer face, which is what a
+     student sees of it. */
+  for (const [k, v] of Object.entries(P.organelles)) {
+    /* The bare name is the outside face — or the ribbon's side, for an
+       organelle drawn as ribbons and having no cut shell. */
+    css.setProperty('--organelle-' + k, hex(v.outer != null ? v.outer : v.side));
+    for (const [part, n] of Object.entries(v)) css.setProperty('--organelle-' + k + '-' + part, hex(n));
+  }
+
   // legacy bare-element names
   for (const [el, n] of Object.entries(P.atoms)) css.setProperty('--' + el, hex(n));
 })(typeof window !== 'undefined' ? window : globalThis);

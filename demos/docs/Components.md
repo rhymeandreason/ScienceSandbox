@@ -187,12 +187,15 @@ Good for: temperature, phase change, why ice floats, salt dissolving, colligativ
 ```html
 <script src="../membrane/parts.js"></script>
 <script src="../membrane/pump.js"></script>
+<script src="../membrane/chemiosmosis.js"></script>
 <script src="../membrane/membrane.js"></script>
 ```
 
 ```js
 const m = Membrane.mount(el, {
-  proteins: { K:{ x:-36 }, CL:null, NA:null, AQP:null, pump:{ x:36 } },  // which machines stand in the sheet, and where (±x, world units, |x| ≤ 110). Too close and the layout spreads them itself, keeping your order
+  proteins: { K:{ x:-36 }, CL:null, NA:null, AQP:null, pump:{ x:36 },   // which machines stand in the sheet, and where (±x, world units, |x| ≤ 110). Too close and the layout spreads them itself, keeping your order
+              complex:null, synthase:null, leak:null },                 // the chemiosmotic three, below
+  context: 'plasma',     // 'plasma' | 'mitochondrion' | 'thylakoid': renames the two sides and repaints the lipid
   potential: 'nernst',   // 'off': pores conduct forever · 'fixed': E_K, E_Cl constant · 'nernst': from the live counts
   E: { K:-90, CL:-75 },  // mV, used by 'fixed'
   pumpAuto: true,        // the pump re-arms itself; false waits for m.spend()
@@ -205,13 +208,37 @@ const m = Membrane.mount(el, {
 
 Outside is +y (top), inside is −y (bottom). The sheet is an oily bilayer: water and small gases cross it, ions do not. A K⁺ channel admits K⁺ by hydration (Na⁺ is smaller and still refused, because it holds its water too tightly). A Cl⁻ channel admits by charge. A Na⁺ leak channel (`NA`) lets sodium in down its gradient, which is what gives the pump work to do. An aquaporin (`AQP`) passes water in single file and nothing charged, so water crosses fast where one stands; it still seeps through the lipid on its own. The Na⁺/K⁺ pump carries 3 Na⁺ out and 2 K⁺ in per ATP, never open at both ends. With the potential on, every K⁺ leaving builds the voltage that stops the leak. A cell that is honest about seawater has `NA`, `K` and `pump`; an osmosis lesson at the kidney has `AQP`. **This is one patch of one membrane.** A cell in a tissue has two faces with different proteins, and a lesson about a gill, a gut or a kidney should say which face this is, usually the one touching the environment, and that the blood is on the other side of the cell, not on the other side of this membrane.
 
+### Chemiosmosis: the same membrane in an organelle
+
+Respiration and photosynthesis are this picture with one parameter flipped. Set `context` and three more proteins become the point:
+
+```js
+const m = Membrane.mount(el, {
+  context: 'mitochondrion',                                   // or 'thylakoid'
+  fuel: 'NADH',                                               // 'NADH' | 'FADH2' | 'light' | null (nothing driving it)
+  fuelRate: 1,                                                // 0..1: a light dimmer, or an oxygen switch
+  complexSeconds: 6,                                          // ONE FULL CYCLE of the complex, its empty return included
+  proteins: { complex:{ x:-80 }, synthase:{ x:40 }, leak:null },
+  contents: { inside:{ water:30, H:22 }, outside:{ water:30, H:22 } },   // 'H' is a proton
+  potential: 'nernst',
+});
+```
+
+`complex` is the electron-transport chain (three real complexes drawn as one, declared). It runs a six-phase cycle like the Na⁺/K⁺ pump's, off a phase table in `chemiosmosis.js`, so it visibly binds, occludes, turns over, releases, and **comes back empty** — the two beats that make it a pump rather than a hole. Both doors are never open at once. It carries `state().complexStoichiometry`-many protons **inside → outside only** per cycle, and it pays with `fuel`, never with ATP, so turning the fuel off stops it. `state().complexPhase`, `.complexLabel` and `.complexCaption` are where it is in the cycle, for a page that wants to caption the beat it is on. `synthase` is ATP synthase: a turbine, not a pump. Protons come back down through it, the rotor turns, and every third of a turn makes one ATP — `state().stoichiometry` carries the numbers, so print those rather than typing 3. It cannot run uphill, so with the gradient gone it stops on its own. `leak` is an uncoupler's hole (dinitrophenol, thermogenin): protons come home without passing the synthase, no ATP is made, and the fuel's energy all comes out as heat.
+
+The complexes also **slow as the force they are pumping against rises** and stall near `state().pmfStall`, which is respiratory control: a cell that is not spending ATP stops burning fuel.
+
+`context` also tints the bilayer with that organelle's colour out of `palette.js` — the same orange `cell/cutaway.js` paints a mitochondrion, the same green a chloroplast — so the sheet still reads as the same bilayer and the tint says which organelle you are standing in.
+
+The code keeps +y outside and −y inside in every context; `context` only renames them. In a mitochondrion the outside is the intermembrane space and the inside is the matrix; in a thylakoid the outside is the lumen and the inside is the stroma. So the thylakoid pumping *into* its lumen and the mitochondrion pumping *out of* its matrix are the same direction here. **Print the names from `state().sides`, never typed**, or a card will call a matrix "inside the cell".
+
 Populating it. The box starts empty. Say what is dissolved on each side and the module keeps the stage matching it:
 
 ```js
 m.set({ contents: {
   inside:  { water:46, K:20, NA:4, A:8 },     // kind: 'water' | 'o2' | 'co2' | 'NA' | 'K' | 'CL' | 'A' (an impermeant anion)
   outside: { water:26, NA:26, CL:26 },
-} });
+} });                            // 'H' is a proton, for a chemiosmosis scene
 m.reset();                       // zero the counters after a change of scene
 m.spend();                       // one ATP, one pump turn; false if a turn is running or no Na⁺ inside
 ```
@@ -236,14 +263,20 @@ Defaults do the right thing: ions walk slower and are blocked by the bilayer, wa
 | `mV`, `equilibrium.K`, `equilibrium.CL` | membrane potential and each ion's equilibrium potential |
 | `crossed.K`, `crossed.CL`, `crossed.NA`, `crossed.water` | net transits through each channel, signed outward |
 | `atpSpent`, `pumpRunning`, `pumpPhase`, `pumpT` | the pump's ledger and where it is in its cycle |
+| `context`, `sides.inside / .outside` | what to call the two compartments here; print these rather than "inside the cell" |
+| `pH.inside / .outside`, `dpH`, `pmf` | the proton gradient: pH per side, the difference, and the proton-motive force in mV (positive means protons want to come back in) |
+| `atpMade`, `rotorTurns`, `protonsThroughSynthase`, `protonsLeaked`, `complexTurns` | the proton circuit's ledger, every entry counted rather than declared |
+| `stoichiometry.protonsPerTurn / .atpPerTurn / .protonsPerATP` | what the rotor is actually keeping to. Print it; do not type a ratio |
+| `fuel`, `fuelRate`, `pmfStall` | the fuel, the rate after back-pressure has slowed it, and the pmf at which the complexes stall |
+| `complexPhase`, `complexLabel`, `complexCaption`, `complexT` | where the complex is in its six-phase cycle, and the words for that beat |
 
-Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `conduct` (traveller, dir) through a channel · `turn` (n) a pump turn starting · `turned` (n) one finishing.
+Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `conduct` (traveller, dir) through a channel · `turn` (n) a pump turn starting · `turned` (n) one finishing · `pumped` (n) one proton thrown out by the complex · `atp` (n) the synthase completing one.
 
-Anchors for `note()`: `channel.K`, `channel.CL`, `channel.NA`, `aquaporin`, `pump` (each only when that protein is in the layout), `heads` and `tails` (the bilayer's two halves), `outside`, `inside`, and one molecule of each kind on stage: `water`, `NA`, `K`, `CL`, `A`. "What are the two proteins?" is `m.notes(['channel.K', 'pump'])`.
+Anchors for `note()`: `channel.K`, `channel.CL`, `channel.NA`, `aquaporin`, `pump`, `complex`, `synthase`, `leak` (each only when that protein is in the layout), `heads` and `tails` (the bilayer's two halves), `outside`, `inside`, and one molecule of each kind on stage: `water`, `NA`, `K`, `CL`, `A`, `H`. The `outside` and `inside` cards are rewritten by the context, so they name the matrix or the stroma without the page saying so. "What are the two proteins?" is `m.notes(['channel.K', 'pump'])`.
 
 Layers for `show()`: `water`, `ions`, `badges` (the charge signs), `shells`, `cut` (proteins cut open), `membrane`.
 
-Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, active transport and its cost, a cell in a changed environment. Not for: a specific real protein's shape, receptors, vesicles, anything at whole-cell scale.
+Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, active transport and its cost, a cell in a changed environment, chemiosmosis in either organelle, uncouplers and why they make heat. Not for: a specific real protein's shape, receptors, vesicles, anything at whole-cell scale.
 
 ## Proteinbox — a real protein, from the library
 

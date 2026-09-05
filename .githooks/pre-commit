@@ -267,8 +267,21 @@ if git diff --cached --name-only | grep -qE '^demos/membrane/.*$'; then
     exit 1
   fi
   rm -f /tmp/cpu.$$
+  # chemiosmosis.js is the same bargain a second time: the proton circuit's
+  # arithmetic holds no THREE, so ATP that was never paid for, a gradient that
+  # climbs with the fuel off, and a synthase running uphill are all caught here
+  # instead of by watching a rotor and believing it.
+  if ! node membrane/check-chemiosmosis.js > /tmp/cch.$$ 2>&1; then
+    tail -25 /tmp/cch.$$; rm -f /tmp/cch.$$
+    echo ""
+    echo "pre-commit FAILED: check-chemiosmosis.js — the proton circuit is cheating."
+    echo "  A stoichiometry failure means ATP appeared without protons paying for it;"
+    echo "  a direction failure means the synthase became a pump."
+    exit 1
+  fi
+  rm -f /tmp/cch.$$
 else
-  echo "pre-commit: skipping check-pump.js — nothing under demos/membrane/ staged"
+  echo "pre-commit: skipping check-pump.js and check-chemiosmosis.js — nothing under demos/membrane/ staged"
 fi
 
 # demos/water/ gates itself. check-water.js audits thermo(), which is the

@@ -257,6 +257,12 @@
     const rr = (a, b) => a + (b - a) * rand();
     const V3 = THREE.Vector3;
     const col = hex => new THREE.Color(hex).convertSRGBToLinear();
+    /* ORGANELLE COLOURS COME FROM palette.js, not from here. They were typed
+       inline in this file and are the house numbers now, so a membrane
+       lesson set inside a mitochondrion can tint its bilayer with the same
+       orange this cutaway paints it. Editing one moves both. */
+    const ORG = global.MolLib.PALETTE.organelles;
+    const shellOf = o => ({ outer: col(o.outer), inner: col(o.inner), rim: col(o.rim) });
     const mat = o => {
       const m = new THREE.MeshPhysicalMaterial(Object.assign({ roughness: 0.5, clearcoat: 0.2, clearcoatRoughness: 0.4 }, o));
       if (o.color) m.color = col(o.color);
@@ -283,7 +289,7 @@
       const g = buildShell(THREE, {
         S: cellS, uRange: [0, 2 * PI], wRange: u => [0, cellCut(u)], uSeg: 200, uPeriodic: true,
         thickness: TH, segs: { outer: 70, rim: 12, inner: 70 },
-        colors: { outer: col('#ee8e84'), inner: col('#a8132a'), rim: col('#f4b0a6') },
+        colors: shellOf(ORG.plasma),
       });
       const mesh = new THREE.Mesh(g, mat({ vertexColors: true, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.25, emissive: '#3a0008', emissiveIntensity: 0.3 }));
       mesh.castShadow = mesh.receiveShadow = true;
@@ -316,7 +322,7 @@
       const g = buildShell(THREE, {
         S: nucS, uRange: [0, 2 * PI], wRange: u => [0, nucCut(u)], uSeg: 128, uPeriodic: true,
         thickness: 0.22, segs: { outer: 48, rim: 8, inner: 48 },
-        colors: { outer: col('#3f6cb5'), inner: col('#4a78c0'), rim: col('#9cb9e6') },
+        colors: shellOf(ORG.nucleus),
       });
       const mesh = new THREE.Mesh(g, mat({ vertexColors: true, roughness: 0.4, clearcoat: 0.5 }));
       mesh.castShadow = mesh.receiveShadow = true;
@@ -325,12 +331,12 @@
       const ng = displace(new THREE.SphereGeometry(1.05, 48, 32), (x, y, z) => {
         const k = 1 + 0.06 * noise.fbm(x * 2.2 + 1, y * 2.2, z * 2.2, 2); return [x * k, y * k, z * k];
       });
-      nucleolus = new THREE.Mesh(ng, mat({ color: '#f6b64a', emissive: '#ff8a12', emissiveIntensity: 0.45, roughness: 0.55, clearcoat: 0.2 }));
+      nucleolus = new THREE.Mesh(ng, mat({ color: ORG.nucleus.nucleolus, emissive: '#ff8a12', emissiveIntensity: 0.45, roughness: 0.55, clearcoat: 0.2 }));
       nucleolus.position.set(0.35, -0.75, 0.25);
       nucleolus.castShadow = true;
       nucleus.add(nucleolus);
 
-      const chromMat = mat({ color: '#3d64a8', roughness: 0.6, clearcoat: 0 });
+      const chromMat = mat({ color: ORG.nucleus.chromatin, roughness: 0.6, clearcoat: 0 });
       for (let i = 0; i < 3; i++) {
         const pts = [];
         for (let j = 0; j < 5; j++) pts.push(new V3(rr(-1, 1), rr(-1, 0.3), rr(-1, 1)).normalize().multiplyScalar(rr(0.6, Rn - 0.6)));
@@ -339,7 +345,7 @@
         nucleus.add(t);
       }
       const poreGeo = new THREE.TorusGeometry(0.2, 0.07, 8, 18);
-      const poreMat = mat({ color: '#274a8f', roughness: 0.55, clearcoat: 0 });
+      const poreMat = mat({ color: ORG.nucleus.pore, roughness: 0.55, clearcoat: 0 });
       for (let i = 0; i < 60; i++) {
         const u = rr(0, 2 * PI), w = rr(0.12 * PI, nucCut(u) - 0.06 * PI);
         const p = nucS(u, w), n = surfaceNormal(THREE, nucS, new V3(), u, w);
@@ -369,11 +375,11 @@
       const shell = new THREE.Mesh(buildShell(THREE, {
         S, uRange: [0, 1], wRange: () => [0, PI], uSeg: 72, uPeriodic: false, rimStart: true,
         thickness: th, segs: { outer: 40, rim: 7, inner: 40 },
-        colors: { outer: col('#e0552f'), inner: col('#e2775b'), rim: col('#f4b8a4') },
+        colors: shellOf(ORG.mitochondrion),
       }), mat({ vertexColors: true, roughness: 0.42, clearcoat: 0.5 }));
       shell.castShadow = shell.receiveShadow = true;
       g.add(shell);
-      const profile = roundedRectProfile(THREE, 0.1, 0.5, 0.045, col('#f2a3ae'), col('#fff6f7'));
+      const profile = roundedRectProfile(THREE, 0.1, 0.5, 0.045, col(ORG.mitochondrion.cristaSide), col(ORG.mitochondrion.cristaTop));
       const cristaMat = mat({ vertexColors: true, roughness: 0.5, clearcoat: 0.3, side: THREE.DoubleSide });
       const n = 7, h = 0.5;
       for (let i = 0; i < n; i++) {
@@ -407,7 +413,7 @@
     /* Golgi: a stack of curved, ragged-edged discs with vesicles */
     {
       const g = new THREE.Group();
-      const gm = mat({ color: '#7c85cf', roughness: 0.45, clearcoat: 0.5 });
+      const gm = mat({ color: ORG.golgi.outer, roughness: 0.45, clearcoat: 0.5 });
       const n = 7;
       for (let i = 0; i < n; i++) {
         const rx = 1.15 + 0.7 * Math.sin(PI * i / (n - 1)) + rr(-0.08, 0.08), rz = rx * 0.78;
@@ -422,7 +428,7 @@
         m.castShadow = m.receiveShadow = true;
         g.add(m);
       }
-      const vm = mat({ color: '#8b93da', roughness: 0.4, clearcoat: 0.6 });
+      const vm = mat({ color: ORG.golgi.vesicle, roughness: 0.4, clearcoat: 0.6 });
       for (let i = 0; i < 8; i++) {
         const ang = rr(0, 2 * PI), rad = rr(1.9, 2.5);
         const v = new THREE.Mesh(new THREE.SphereGeometry(rr(0.1, 0.22), 16, 12), vm);
@@ -440,7 +446,7 @@
     const riboPositions = [];
     {
       const er = new THREE.Group();
-      const profile = roundedRectProfile(THREE, 0.18, 0.62, 0.07, col('#d9426d'), col('#f6c0ce'));
+      const profile = roundedRectProfile(THREE, 0.18, 0.62, 0.07, col(ORG.er.side), col(ORG.er.top));
       const erMat = mat({ vertexColors: true, roughness: 0.45, clearcoat: 0.5, side: THREE.DoubleSide });
       for (const arc of [{ a0: -0.38 * PI, a1: 0.58 * PI, count: 4 }, { a0: 0.80 * PI, a1: 1.22 * PI, count: 3 }])
         for (let k = 0; k < arc.count; k++) {
@@ -469,7 +475,7 @@
     /* centrosome: two centrioles of nine triplets, microtubules out */
     {
       const c = new THREE.Group();
-      const cm = mat({ color: '#6fbe62', roughness: 0.5, clearcoat: 0.3 });
+      const cm = mat({ color: ORG.centrosome.outer, roughness: 0.5, clearcoat: 0.3 });
       const tube = new THREE.CylinderGeometry(0.035, 0.035, 0.85, 8);
       const centriole = () => {
         const g = new THREE.Group();
@@ -485,7 +491,7 @@
       c2.rotation.z = PI / 2;
       c2.position.set(0.45, -0.6, 0.1);
       c.add(centriole(), c2);
-      const mtMat = mat({ color: '#8bd07c', roughness: 0.55, clearcoat: 0.1 });
+      const mtMat = mat({ color: ORG.centrosome.microtubule, roughness: 0.55, clearcoat: 0.1 });
       for (let i = 0; i < 6; i++) {
         const dir = new V3(rr(-1, 0.4), rr(-0.8, 0.2), rr(-0.3, 1)).normalize(), len = rr(1.6, 3.2);
         const m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, len, 6), mtMat);
@@ -503,8 +509,12 @@
     /* vesicles, lysosomes, peroxisomes: spheres that keep out of everything */
     {
       const palette = [
-        { c: '#f08a3c', e: '#ff5a00', ei: 0.25 }, { c: '#f5a25a' }, { c: '#ec6f95' }, { c: '#6fa1dc' },
-        { c: '#98a4e2' }, { c: '#f6c453', e: '#ff9a00', ei: 0.2 }, { c: '#d94f6a' },
+        /* Vesicles are a MIXED BAG on purpose — they come off the Golgi, the
+           ER and the membrane and are heading anywhere — so two of these
+           borrow a parent's colour and the rest are peroxisome oranges and
+           endosome blue, which nothing else on the page draws. */
+        { c: '#f08a3c', e: '#ff5a00', ei: 0.25 }, { c: '#f5a25a' }, { c: ORG.lysosome.outer }, { c: '#6fa1dc' },
+        { c: ORG.golgi.vesicle }, { c: '#f6c453', e: '#ff9a00', ei: 0.2 }, { c: ORG.lysosome.inner },
       ];
       const placed = [];
       for (let count = 0, tries = 0; count < 18 && tries < 4000; tries++) {
@@ -532,7 +542,7 @@
     {
       const N = 1500;
       const inst = new THREE.InstancedMesh(new THREE.SphereGeometry(0.06, 6, 5),
-        new THREE.MeshStandardMaterial({ color: col('#7c1030'), roughness: 0.6 }), N + riboPositions.length);
+        new THREE.MeshStandardMaterial({ color: col(ORG.er.ribosome), roughness: 0.6 }), N + riboPositions.length);
       const dummy = new THREE.Object3D();
       let i = 0;
       for (let tries = 0; i < N && tries < N * 10; tries++) {
