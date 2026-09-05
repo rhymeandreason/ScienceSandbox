@@ -1,0 +1,147 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>dna/codon — test bench</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="codon.css">
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<style>
+  /* The bench sets nothing kodo.css already owns. This is layout only. */
+  .grid{display:grid;gap:34px}
+  .cap{font-family:var(--font-ui);font-size:13.5px;color:var(--text-dim);
+       max-width:64ch;margin:0 0 10px}
+  .ctl{display:flex;flex-wrap:wrap;gap:14px;align-items:center;
+       font-family:var(--font-ui);font-size:13px;margin:0 0 14px}
+  .ctl b{font-variant-numeric:tabular-nums}
+  .ctl select,.ctl input{font:inherit}
+</style>
+
+<body class="kodo">
+<div class="page">
+
+<nav class="sitenav">
+  <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="crumb">dna / codon</span>
+</nav>
+
+<header class="pagehead">
+  <h1>codon</h1>
+  <p class="deck">One base changes, and every row under it is derived: the template strand,
+  the message, the residue, and the word for what happened.</p>
+</header>
+
+<main class="grid">
+
+<section>
+  <h2 class="sechead">The sickle mutation<span class="rule"></span></h2>
+  <p class="cap">HBB, the first eight codons. The initiator methionine is numbered 0 because it
+  is cleaved off, so the β chain the student meets starts at Val 1 and the glutamate that
+  matters is Glu 6. Nothing below is typed: the mutant rows, the residue and the verdict all
+  come out of the genetic code and one letter.</p>
+  <div id="sickle"></div>
+</section>
+
+<section>
+  <h2 class="sechead">The card — one codon, blown up<span class="rule"></span></h2>
+  <p class="cap"><code>view:'card'</code>. The claim here is the arrows: a change in DNA
+  reaches the protein. Normal and mutant share one label column, so it is one figure and the
+  eye compares across it. <code>focus</code> picks the codon; it defaults to the one the
+  mutation is in.</p>
+  <div id="card"></div>
+</section>
+
+<section>
+  <h2 class="sechead">The chain — where that codon sits<span class="rule"></span></h2>
+  <p class="cap"><code>view:'chain'</code>. Bases become paired rungs, because letters do not
+  survive thirty codons, and only the focused codon is lettered. Each codon is one column
+  holding its own rungs and its own residue, so the chip cannot drift out of register with
+  the bases it is made from.</p>
+  <div id="chain"></div>
+</section>
+
+<section>
+  <h2 class="sechead">Three edits, three outcomes<span class="rule"></span></h2>
+  <p class="cap">The outcome is not a property of mutating — it is a property of where the letter landed.
+  All three are a single substitution in the same fragment, and the last one ends the chain:
+  the codons after a stop are still in the gene, so they are drawn, and never made, so they
+  are faded.</p>
+  <div id="three"></div>
+</section>
+
+<section>
+  <h2 class="sechead">Fewer rows<span class="rule"></span></h2>
+  <p class="cap">A beat that has not introduced transcription yet asks for
+  <code>rows:['dna','mrna','protein']</code> and the figure is still true, just quieter. The
+  template row is the one to cut first: it carries no part of this claim, and it is the row
+  that invites the antiparallel question.</p>
+  <div id="rows"></div>
+</section>
+
+<section>
+  <h2 class="sechead">Any base, any letter<span class="rule"></span></h2>
+  <p class="cap">Drag through the fragment. Every position the module can be asked for is
+  drawn by the same code path the lesson uses.</p>
+  <div class="ctl">
+    <label>base <input id="at" type="range" min="0" max="23" value="19"> <b id="atv"></b></label>
+    <label>to <select id="to"><option>A<option>T<option>G<option>C</select></label>
+    <label>view <select id="view"><option>strip<option>card<option>chain</select></label>
+  </div>
+  <div id="play"></div>
+</section>
+
+</main>
+
+<footer class="sitefoot"></footer>
+</div>
+
+<script src="codon.js"></script>
+<script>
+// HBB codons 0-7. Coding strand, in frame, mature-chain numbering with the
+// initiator Met at 0.
+const HBB = 'ATGGTGCACCTGACTCCTGAGGAG';
+// The same gene, far enough in that letters would be a grey band. The count in
+// the title is read off the sequence, never typed.
+const LONG = HBB + 'AAGTCTGCCGTTACTGCCCTGTGGGGCAAGGTGAACGTGGATGAAGTTGGTGGT'
+                 + 'GAGGCCCTGGGCAGG';
+
+const SICKLE = { dna:HBB, first:0, at:19, to:'T' };
+
+document.getElementById('sickle').innerHTML =
+  Codon.figure({ ...SICKLE, view:'strip', title:'HbA', mutTitle:'HbS' });
+
+document.getElementById('card').innerHTML =
+  Codon.figure({ ...SICKLE, view:'card',
+                 name:'normal haemoglobin', mutName:'sickle haemoglobin' })
+  // a card focused elsewhere is a normal codon and wears no ring
+  + Codon.figure({ ...SICKLE, view:'card', focus:3, verdict:false });
+
+document.getElementById('chain').innerHTML =
+  Codon.figure({ ...SICKLE, view:'chain' })
+  // the longer gene the same view is for: HBB codons 0-24
+  + Codon.figure({ dna:LONG, first:0, at:19, to:'T', view:'chain',
+                   title:`HBB, first ${LONG.length/3} codons`, mutTitle:'HBB, sickle allele',
+                   verdict:false });
+
+document.getElementById('three').innerHTML = [
+  [11,'A'],   // CTG -> CTA, third letter, still leucine
+  [19,'T'],   // GAG -> GTG, the sickle change
+  [18,'T'],   // GAG -> TAG, a stop where a glutamate was
+].map(([at,to]) => Codon.figure({ dna:HBB, first:0, at, to })).join('');
+
+document.getElementById('rows').innerHTML =
+  Codon.figure({ ...SICKLE, rows:['dna','mrna','protein'], title:'HbA', mutTitle:'HbS' });
+
+const at = document.getElementById('at'), to = document.getElementById('to');
+const draw = () => {
+  const i = +at.value;
+  document.getElementById('atv').textContent = `${i+1} (${HBB[i]})`;
+  // A substitution to the letter already there is not a mutation, so the bench
+  // shows the plain strip rather than a pair claiming a silent change.
+  document.getElementById('play').innerHTML = HBB[i] === to.value
+    ? Codon.strip({ dna:HBB, first:0, hit:i, title:'unchanged' })
+    : Codon.figure({ dna:HBB, first:0, at:i, to:to.value, view:view.value });
+};
+const view = document.getElementById('view');
+at.oninput = to.onchange = view.onchange = draw; draw();
+</script>

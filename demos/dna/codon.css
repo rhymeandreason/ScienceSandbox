@@ -1,0 +1,241 @@
+/* ---------------------------------------------------------------------------
+   codon.css — the codon strip.
+
+   Paired with dna/codon.js, which emits every element styled here.
+
+   ONE GRID, NOT FOUR ROWS. `.cdn` owns the columns and every row is
+   `display:contents`, so the four rows cannot drift out of alignment: a base,
+   its partner, its RNA letter and the amino acid over it are literally the same
+   grid column. Four separately-sized rows lining up is a coincidence that holds
+   until a label gets one character longer.
+
+   COLOURS ARE NOBODY'S HERE. --base-A/T/G/C/U are published from palette.js by
+   tokens-from-palette.js, so a letter is the colour of that base in the helix
+   pages. Charge takes the site's --hot and --cold, which mean positive and
+   negative everywhere else; the two uncharged classes stay ink, because a
+   fourth hue would be this module inventing a vocabulary for a distinction the
+   word under the residue already makes.
+
+   LOAD ORDER: the page's sheet (kodo.css or main.css), then this.
+   --------------------------------------------------------------------------- */
+
+.cdn{
+  display:grid;
+  /* label · 5′ · one column per base · 3′ */
+  grid-template-columns:max-content max-content repeat(var(--n),minmax(0,1fr)) max-content;
+  align-items:center;
+  gap:3px 0;
+  font-family:var(--font-mono,ui-monospace,Menlo,monospace);
+  margin:0 0 14px;
+}
+.cdn .crow{display:contents}
+.cdn .ctitle{
+  grid-column:1/-1;
+  font-family:var(--font-ui,sans-serif);font-weight:700;font-size:11px;
+  letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--muted,#8a8578);margin:0 0 2px;
+}
+
+/* the row's name, and the end it runs from. The ends are the module's one
+   defence against the reverse-complement error its header describes: the
+   template row is drawn 3′→5′ and says so. */
+.cdn .clab{
+  font-family:var(--font-ui,sans-serif);font-weight:600;font-size:11.5px;
+  color:var(--muted,#8a8578);padding-right:10px;white-space:nowrap;text-align:right;
+}
+.cdn .clab em{font-style:normal;color:var(--ink,#2b2b2b)}
+.cdn .cend{
+  font-size:10px;color:var(--muted,#8a8578);padding:0 6px;
+}
+
+/* ---- a base ------------------------------------------------------------- */
+.cb{color:var(--base-X,#8a8578)}
+.cdn .cb{text-align:center;font-size:15px;font-weight:600;line-height:1.5}
+/* UNSCOPED ON PURPOSE: all three views letter bases, and a base is the same
+   colour in every one of them. These lived under .cdn once and the card drew
+   its codon in plain ink — which looks like a deliberate quiet treatment
+   rather than a rule that failed to reach. */
+.cb.b-A{color:var(--base-A)} .cb.b-T{color:var(--base-T)}
+.cb.b-G{color:var(--base-G)} .cb.b-C{color:var(--base-C)}
+.cb.b-U{color:var(--base-U)}
+/* the codon grouping is a tint, not a box: three boxes a codon at this size is
+   more line than letter, and the reader is meant to see triplets at a glance
+   rather than be told about them. */
+.cdn .cb[data-cdn="1"],.cdn .ca[data-cdn="1"]{background:var(--surface-stage,#f0ece2)}
+
+/* ---- an amino acid ------------------------------------------------------ */
+.cdn .ca{
+  grid-column:span 3;text-align:center;padding:3px 0 4px;
+  font-family:var(--font-ui,sans-serif);
+}
+.cdn .ca b{display:block;font-size:13px;font-weight:700;color:var(--ink,#2b2b2b)}
+.cdn .ca i{display:block;font-style:normal;font-size:9.5px;
+  color:var(--muted,#8a8578);font-variant-numeric:tabular-nums}
+.cdn .ca[data-klass="acidic"] b{color:var(--cold,var(--accent-cold))}
+.cdn .ca[data-klass="basic"]  b{color:var(--hot,var(--accent-hot))}
+.cdn .ca[data-klass="stop"]   b{color:var(--muted,#8a8578);letter-spacing:.5px}
+/* downstream of a stop: still in the gene, never in the protein. */
+.cdn .ca.past{opacity:.28}
+
+/* ---- the substituted column --------------------------------------------- */
+/* Marked in every row it passes through, so the figure answers "and then what?"
+   by being read downward. The ring is on the column, not on the letter: what
+   changed is a position in the gene, and three of the four rows show a
+   different symbol for it. */
+/* Unscoped for the same reason the base colours are: the ring means "this is
+   the letter that changed" in whichever view is drawing it. */
+.cb.hit{
+  outline:2px solid var(--ink,#2b2b2b);outline-offset:-1px;border-radius:3px;
+  font-weight:800;
+}
+.ca.hit{
+  outline:2px solid var(--ink,#2b2b2b);outline-offset:-1px;border-radius:4px;
+}
+
+/* ---- before and after --------------------------------------------------- */
+.cpair .cdn+.cdn{margin-top:6px}
+.cpair .cverdict{
+  font-family:var(--font-ui,sans-serif);font-size:13px;line-height:1.55;
+  color:var(--text-body,#3a3a3a);margin:2px 0 0;max-width:62ch;
+}
+.cpair .cverdict b{color:var(--ink,#2b2b2b)}
+
+/* ===========================================================================
+   VIEW 2 — THE CODON CARD
+
+   One codon, blown up, flowing downward. The two states share ONE label column
+   so the figure is a single object: labels repeated down each side would make
+   it two figures placed near each other, and the comparison is the point.
+   =========================================================================== */
+.ccard{
+  display:grid;
+  grid-template-columns:max-content repeat(var(--cols),minmax(0,1fr));
+  align-items:center;justify-items:center;
+  gap:4px 18px;
+  font-family:var(--font-mono,ui-monospace,Menlo,monospace);
+  max-width:520px;
+}
+.ccard .cclab{
+  justify-self:end;
+  font-family:var(--font-ui,sans-serif);font-weight:600;font-size:11px;
+  letter-spacing:1px;text-transform:uppercase;color:var(--muted,#8a8578);
+}
+.ccard .cchead{
+  font-family:var(--font-ui,sans-serif);font-weight:700;font-size:10.5px;
+  letter-spacing:1.2px;text-transform:uppercase;color:var(--ink,#2b2b2b);
+  padding:3px 12px 4px;background:var(--surface-stage,#f0ece2);border-radius:3px;
+  margin-bottom:4px;
+}
+.ccard .ccell{display:flex;flex-direction:column;align-items:center;gap:2px}
+/* the strand's own direction, on the strand. Same defence as the strip's end
+   labels: the lower row is the complement read the other way, and a card that
+   omits the ends invites the reader to read both rows left to right. */
+.ccard .cstr{display:flex;align-items:center;gap:1px}
+.ccard .cstr .cend{font-size:9px;color:var(--muted,#8a8578);padding:0 5px}
+.ccard .cstr .cb{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:25px;height:25px;font-size:17px;font-weight:600;
+}
+/* THE CARD MARKS ITS LETTER WITH A DISC, not the outline the other two views
+   use. At three letters a row a ring reads as a form field; at twenty-four,
+   which is what the strip has, a disc behind every marked column would be the
+   loudest thing on the figure. The mark follows the density, so it is scoped
+   here rather than swapped globally. */
+.ccard .cb.hit{
+  outline:none;border-radius:50%;background:var(--surface-stage,#f0ece2);
+}
+.ccard .ccell.dna{
+  padding:5px 4px;border-top:1.5px solid var(--hair,#ddd8cc);
+  border-bottom:1.5px solid var(--hair,#ddd8cc);
+}
+/* the arrows ARE the claim in this view — a change in DNA reaching the protein
+   — so they are ink rather than chrome. */
+.ccard .ccar{width:14px;height:22px;display:block}
+.ccard .ccar .s{stroke:var(--muted,#8a8578);stroke-width:2.4;fill:none}
+.ccard .ccar .h{fill:var(--muted,#8a8578)}
+.ccard .ccname{
+  font-family:var(--font-ui,sans-serif);font-size:12px;line-height:1.35;
+  color:var(--text-dim,#6a6558);text-align:center;margin-top:5px;
+}
+
+/* the residue, in both new views. A box because a residue is a THING in a
+   chain, where a base is a letter in a sequence. */
+.cchip{
+  display:inline-flex;flex-direction:column;align-items:center;
+  font-family:var(--font-ui,sans-serif);line-height:1.15;
+  padding:4px 9px 4px;border:1.5px solid var(--hair,#ddd8cc);border-radius:4px;
+  background:var(--surface-card,#fff);
+}
+.cchip b{font-size:13px;font-weight:700;color:var(--ink,#2b2b2b)}
+.cchip i{font-style:normal;font-size:9px;color:var(--muted,#8a8578);
+  font-variant-numeric:tabular-nums}
+.cchip[data-klass="acidic"] b{color:var(--cold,var(--accent-cold))}
+.cchip[data-klass="basic"]  b{color:var(--hot,var(--accent-hot))}
+.cchip[data-klass="stop"]   b{color:var(--muted,#8a8578);letter-spacing:.5px}
+.ccard .ccell.aa .cchip{padding:6px 14px}
+.ccard .ccell.aa .cchip b{font-size:15px}
+
+/* ===========================================================================
+   VIEW 3 — THE WHOLE GENE
+
+   Bases as paired rungs rather than letters, because letters do not survive
+   thirty codons. EACH CODON IS ONE COLUMN holding its own rungs and its own
+   chip, so the residue cannot drift out of register with the bases it is made
+   from — containment rather than two matched widths.
+   =========================================================================== */
+.cchain{display:flex;flex-direction:column;gap:16px}
+.cchain .cchead{
+  font-family:var(--font-ui,sans-serif);font-weight:700;font-size:10.5px;
+  letter-spacing:1.2px;text-transform:uppercase;color:var(--muted,#8a8578);
+  margin:0 0 5px;
+}
+.cchain .cband{display:flex;align-items:stretch;gap:0}
+.cchain .cband>.cend{
+  align-self:center;font-family:var(--font-mono,monospace);font-size:10px;
+  color:var(--muted,#8a8578);padding:0 7px;
+}
+.cchain .cgrp{
+  flex:1 1 0;min-width:0;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:5px 2px 4px;border-radius:4px;
+}
+/* the focused codon is boxed across BOTH bands, which is what says the rungs
+   and the residue under them are one thing. */
+.cchain .cgrp.on{
+  outline:2px solid var(--ink,#2b2b2b);outline-offset:-1px;
+  background:var(--surface-card,#fff);
+}
+/* A rung takes its share of its codon's width rather than a fixed one, so at
+   the length this view is for the ladder closes up into one band and the codon
+   boundary is carried by the chip and the box instead of by gaps in the DNA.
+   Capped, or an eight-codon chain draws bars the size of the residues. */
+.cchain .crungs{display:flex;gap:2px;align-items:flex-end;width:100%;
+  justify-content:center}
+/* one base pair: the base on top in its own colour, its partner beneath. Two
+   bars rather than a letter, so the eye reads a sequence's TEXTURE at a
+   length where it could not read its letters. */
+.cchain .crung{display:flex;flex-direction:column;gap:1.5px;
+  flex:1 1 0;min-width:4px;max-width:13px;border-radius:1.5px;padding:1px}
+.cchain .crung s{display:block;height:7px;border-radius:1.5px;
+  text-decoration:none;background:var(--base-X,#8a8578)}
+.cchain .crung s.b-A{background:var(--base-A)} .cchain .crung s.b-T{background:var(--base-T)}
+.cchain .crung s.b-G{background:var(--base-G)} .cchain .crung s.b-C{background:var(--base-C)}
+.cchain .crung.hit{outline:2px solid var(--ink,#2b2b2b);outline-offset:1px}
+/* letters only on the focused codon — see codon.js. */
+/* always present, empty off the focus — see codon.js. A row that appears only
+   on the focused group would make that group taller than the band. */
+.cchain .clets{display:flex;gap:2px;font-family:var(--font-mono,monospace);
+  min-height:14px;align-items:center}
+.cchain .clets .cb.sm{width:9px;text-align:center;font-size:11px;font-weight:700}
+.cchain .cchip{padding:3px 4px;width:100%;border-color:transparent;
+  background:var(--surface-stage,#f0ece2)}
+.cchain .cgrp.on .cchip{background:transparent}
+.cchain .cchip b{font-size:11.5px}
+
+/* the figure and the sentence under it */
+.cfig{margin:0 0 18px}
+.cfig .cverdict{
+  font-family:var(--font-ui,sans-serif);font-size:13px;line-height:1.55;
+  color:var(--text-body,#3a3a3a);margin:10px 0 0;max-width:62ch;
+}
+.cfig .cverdict b{color:var(--ink,#2b2b2b)}
