@@ -117,7 +117,14 @@
  *  how far — with extension lines back to the anchors, and it measures only
  *  the height (or the width) between them. A groove, a pitch, a diameter are
  *  drawn that way in every textbook figure, and the diagonal between two
- *  atoms instead reads as a line THROUGH the molecule.
+ *  atoms instead reads as a line THROUGH the molecule. `side:'auto'` is the
+ *  side of the stage the bracket is on, re-read every frame, because a rule
+ *  that stays put while the model turns ends up drawn across it.
+ *
+ *  `text` may name what is being measured as well as state it, and often
+ *  should: a chip reading "Minor groove · 5.4 Å" keeps the number attached
+ *  to the thing rather than to the length of the bracket, which is what a
+ *  bare number on a rule that spans something else quietly claims.
  *
  *  It takes `facing` too, for a gap that turns to the back of the model.
  *  Brackets draw UNDER the labels, in one SVG per layer.
@@ -291,6 +298,16 @@ window.Annot = (function () {
        screen-space and constant — recomputing it per frame would burn a
        trig call per label to arrive at the same number. */
     const SIDE_GAP = 18;         // px from the dot to the label's near edge
+    /* How far past the middle of the stage a bracket has to be before it
+       changes sides. Without it one sitting near the middle flips on alternate
+       frames all the way through a turn. */
+    const AUTO_HYST = 26;
+
+    function pickSide(prev, x, w) {
+      if (x > w / 2 + AUTO_HYST) return 1;
+      if (x < w / 2 - AUTO_HYST) return -1;
+      return prev || (x > w / 2 ? 1 : -1);
+    }
 
     /* The leader's length and angle are solved from the offset HERE and not per
        frame: it is screen-space, so the trig would return the same number every
@@ -333,12 +350,7 @@ window.Annot = (function () {
 
     function add(spec) {
       const el = document.createElement('div');
-      el.className = 'annot' + (spec.tone ? ' annot-' + spec.tone : '')
-        // NO BEAD. For a note whose leader already lands on something drawn —
-        // a measuring bracket's chip — where a dot would be a second marker for
-        // one point. The element stays, so 'click' mode and the card still have
-        // their target; only the bead is gone.
-        + (spec.dot === false ? ' annot-nodot' : '');
+      el.className = 'annot' + (spec.tone ? ' annot-' + spec.tone : '');
 
       const off = spec.offset || [0, 0];
       applyOffset(el, off);
@@ -478,7 +490,11 @@ window.Annot = (function () {
            line THROUGH it. 'y' stands the rule up beside the model and measures
            the height between the anchors; 'x' lays it under them. */
         axis: spec.axis || null,
+        /* 'auto' is the side of the stage the bracket is on, re-read every
+           frame: the model turns, and a rule that stays on the left while what
+           it measures crosses to the right is drawn through the molecule. */
         side: spec.side || 'right',
+        _side: null,
         gap: spec.gap == null ? 28 : spec.gap,
         _a: new THREE.Vector3(), _b: new THREE.Vector3(), _m: new THREE.Vector3(),
         _t: null,
@@ -488,29 +504,6 @@ window.Annot = (function () {
            own — one marker for one place. Null until the first step(), and null
            whenever the bracket is hidden. */
         midPx() { return sp._px; },
-        /* THE CHIP'S EDGE, in the direction a note's own offset points. A note
-           anchored to `midPx` draws its leader from the middle of the chip, so
-           the first half of the line is under the thing it is coming out of;
-           anchored here it starts where the chip stops. `off` is the note's
-           offset — the same array it is placed with, so the two cannot
-           disagree about which way the label went. */
-        edgePx(off, pad) {
-          if (!sp._px) return null;
-          const dx = off[0] || 0, dy = off[1] || 0;
-          const len = Math.hypot(dx, dy) || 1;
-          const ux = dx / len, uy = dy / len;
-          // Where the ray leaves the chip's box: the nearer of the two walls.
-          // A bracket carrying no text has no box, and the fallbacks are for a
-          // chip that has text but has not been laid out yet — reading them off
-          // a hidden label would push the anchor half a chip off the rule.
-          const bare = sp.label.style.display === 'none';
-          const hw = (bare ? 0 : sp.label.offsetWidth || 60) / 2 + (pad == null ? 3 : pad);
-          const hh = (bare ? 0 : sp.label.offsetHeight || 20) / 2 + (pad == null ? 3 : pad);
-          const t = Math.min(
-            Math.abs(ux) > 1e-6 ? hw / Math.abs(ux) : Infinity,
-            Math.abs(uy) > 1e-6 ? hh / Math.abs(uy) : Infinity);
-          return [sp._px[0] + ux * t, sp._px[1] + uy * t];
-        },
         remove() {
           path.remove(); ext.remove(); label.remove();
           const i = spans.indexOf(sp); if (i >= 0) spans.splice(i, 1);
@@ -547,13 +540,21 @@ window.Annot = (function () {
 
         // The two ends of the rule, and where the extensions run from.
         let p = [ax, ay], q = [bx, by], lx = 0, ly = 0;
+        let side = s.side;
+        if (side === 'auto') {
+          const mid = s.axis === 'x' ? (ay + by) / 2 : (ax + bx) / 2;
+          const span = s.axis === 'x' ? h : w;
+          s._side = pickSide(s._side, mid, span);
+          side = s.axis === 'x' ? (s._side > 0 ? 'bottom' : 'top')
+                                : (s._side > 0 ? 'right' : 'left');
+        }
         if (s.axis === 'y') {
-          const x = s.side === 'left' ? Math.min(ax, bx) - s.gap
-                                      : Math.max(ax, bx) + s.gap;
+          const x = side === 'left' ? Math.min(ax, bx) - s.gap
+                                    : Math.max(ax, bx) + s.gap;
           p = [x, ay]; q = [x, by]; lx = SPAN_TICK;      // ticks lie across it
         } else if (s.axis === 'x') {
-          const y = s.side === 'top' ? Math.min(ay, by) - s.gap
-                                     : Math.max(ay, by) + s.gap;
+          const y = side === 'top' ? Math.min(ay, by) - s.gap
+                                   : Math.max(ay, by) + s.gap;
           p = [ax, y]; q = [bx, y]; ly = SPAN_TICK;
         } else {
           let dx = bx - ax, dy = by - ay;
@@ -704,11 +705,6 @@ window.Annot = (function () {
           const q = n.atPx();
           if (!q) { n.el.style.display = 'none'; continue; }
           x = q[0]; y = q[1]; depth = -1;
-          /* `at` ALONGSIDE `atPx` is the facing test's point and nothing else:
-             the note is placed in pixels, but what it names is still somewhere
-             on the model and can still turn to the back. */
-          const fp = n.at && anchor(n.at);
-          if (fp) _p0.copy(fp);
           n.el.style.display = '';
         } else {
         const p = anchor(n.at);

@@ -485,10 +485,6 @@ function midOf(pairIndex, strand, want){
  * ========================================================================== */
 const seqOf = i => bdna.pairs[i].seq.replace(/D/g, '').replace('-', '·');
 
-// The two groove labels' offsets, named because each is used twice: once to
-// place the label, once to ask its bracket which edge the leader leaves from.
-const MINOR_OFF = [-14, -56], MAJOR_OFF = [86, -26];
-
 const PARTS = [
   { key:'whole', title:'DNA: the double helix', sub:'two strands, wound',
     rails:true,
@@ -584,37 +580,32 @@ const PARTS = [
       + `phosphates themselves take up. A protein that reads a sequence without `
       + `opening the helix reaches into the wide one, where the edges of the `
       + `bases are exposed.`,
-    /* THE NAME POINTS AT THE MEASUREMENT, not at a bead of its own: the
-     * bracket has already marked where the groove is, and a second dot beside
-     * it is two markers for one place. `sp` is the brackets below, in order,
-     * and is absent when the section list asks for the text alone. */
-    notes:sp=>[
-      { text:`Minor groove · ${grooveWidth(GROOVE.minor)}`, card:'The narrow gap. The base edges facing into it look much the same whichever pair it is, so there is less to read.',
-        at:grooveAt(GROOVE.minor), atPx:sp && (()=>sp[0].edgePx(MINOR_OFF)),
-        facing:grooveFacing(GROOVE.minor), offset:MINOR_OFF, dot:false },
-      { text:`Major groove · ${grooveWidth(GROOVE.major)}`, card:'The wide gap. Each of the four pairs shows a different pattern of donors and acceptors here, which is what a protein recognises.',
-        at:grooveAt(GROOVE.major), atPx:sp && (()=>sp[1].edgePx(MAJOR_OFF)),
-        facing:grooveFacing(GROOVE.major), offset:MAJOR_OFF, dot:false },
-    ],
+    /* NO CALLOUTS. The brackets name the grooves themselves — the name and the
+     * width sit on the rule, where the measurement did — so a note here would
+     * be a second marker for a place already marked. */
+    notes:()=>[],
     /* THE MEASUREMENT IS THE POINT of this part, and two labelled dots do not
      * make one: a bracket is drawn ACROSS the gap, which is the only thing that
      * says the two grooves are different sizes. Each one spans the pair of
      * phosphates its width was read off, and prints that pair's own distance. */
+    // The side is the bracket's own business: each groove crosses the model as
+    // it turns, and so does the label hanging off it.
     spans:()=>[
-      { g:GROOVE.minor, side:'left'  },
-      { g:GROOVE.major, side:'right' },
-    ].map(({ g, side }) => ({
+      { g:GROOVE.minor, name:'Minor groove' },
+      { g:GROOVE.major, name:'Major groove' },
+    ].map(({ g, name }) => ({
       from:()=>worldAt(g.mid.a.r, g.mid.a.ai),
       to:  ()=>worldAt(g.mid.b.r, g.mid.b.ai),
       // Stood up beside the model, which is how a groove is dimensioned in
       // every textbook figure — and the axis it is measured along is the one
       // the duplex was stood up on, so the bracket and the number agree.
-      axis:'y', side, gap:58,
+      axis:'y', side:'auto', gap:58,
       facing:grooveFacing(g),
-      // NO NUMBER ON THE RULE. It marks where the groove runs; the width is a
-      // measurement ACROSS the groove, which is not the span this bracket
-      // draws, and a bracket labelled with a length it does not cover is a
-      // drawing that lies. The label beside it carries the width.
+      /* THE RULE MARKS WHERE THE GROOVE RUNS; the width beside its name is
+       * measured ACROSS it, which is not the span drawn here. Saying which
+       * groove it is keeps the number attached to a name rather than to the
+       * length of the bracket. */
+      text:`${name} · ${grooveWidth(g)}`,
     })) },
 
 ];
@@ -707,7 +698,7 @@ function show(part){
   // THE BRACKETS FIRST: a note may anchor to one of them (the grooves do), and
   // it can only do that if the bracket it points at already exists.
   const brackets = (part.spans ? part.spans() : []).map(b => NOTES.span(b));
-  for(const n of part.notes(brackets)) if(n.at || n.atPx) NOTES.add(n);
+  for(const n of part.notes(brackets)) if(n.at || n.atPx || n.atSpan) NOTES.add(n);
   for(const el of secs) el.setAttribute('aria-current', String(el.dataset.key === part.key));
 }
 

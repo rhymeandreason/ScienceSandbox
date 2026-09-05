@@ -193,10 +193,6 @@ body {
    pointer-events: none
 }
 
-/* A note whose leader already lands on something drawn — a bracket's
-   measurement chip — has no bead of its own. See `dot:false` in annotate.js. */
-.annot-nodot .annot-dot { display: none }
-
 /* Turned away from the camera. The note is faded to nothing by the facing
     test in annotate.js; this only stops the invisible dot taking a click that
     belongs to the model behind it. */
