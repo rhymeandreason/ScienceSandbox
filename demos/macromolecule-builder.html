@@ -53,6 +53,10 @@
      slots and no way out. Which is also why the ester's bridge oxygen
      is glycerol's and not the acid's: taken the other way round it
      builds a bond one atom out and renders as a perfectly good ester.
+     Three tails, all the same one, and a switch says which: what a
+     tail's shape does to a stack of them is the second claim this card
+     makes, and neither pure state is reachable off a stage holding a
+     mix. Real fats are mixed, and the note says so.
 
      THE DRAG IS FLAT; THE MOLECULES ARE NOT. A sugar is a chair and an
      amino acid is sp3 at the alpha carbon. The z = 0 plane is the
@@ -117,13 +121,15 @@
     background:rgba(255,255,255,.62)}
   #cards button:disabled{opacity:.38;cursor:default}
 
-  /* The one choice the carbohydrate card offers. Two near-identical sugars, so
-     the control has to look like a pair rather than a setting. */
-  #anomer{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:7;
+  /* THE ONE CHOICE A CARD OFFERS, when it offers one: two near-identical
+     monomers, so the control has to look like a pair rather than a setting.
+     Both cards that use it put every unit on stage in the chosen form, because
+     the point each makes is about a stage of ONE monomer. */
+  #choose{position:absolute;left:50%;top:22px;transform:translateX(-50%);z-index:7;
     display:none;gap:0;border:2px solid var(--ink);border-radius:9px;overflow:hidden}
-  #anomer button{cursor:pointer;border:0;background:transparent;color:var(--ink);
+  #choose button{cursor:pointer;border:0;background:transparent;color:var(--ink);
     font-family:var(--font-sans);font-size:13px;font-weight:600;padding:7px 15px}
-  #anomer button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  #choose button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
 
   #reset{position:absolute;right:24px;top:22px;z-index:7;cursor:pointer;
     font-family:var(--font-sans);font-size:13px;font-weight:600;
@@ -137,10 +143,7 @@
   <div id="stage">
     <canvas id="gl"></canvas>
     <nav id="cards"></nav>
-    <div id="anomer">
-      <button data-key="glucose">&beta;-glucose</button>
-      <button data-key="alphaGlucose">&alpha;-glucose</button>
-    </div>
+    <div id="choose"></div>
     <div id="seq"><div class="label">the chain</div>
       <div class="chain"></div><div class="ends"></div></div>
     <button id="reset">Start over</button>
@@ -237,8 +240,9 @@ const CARDS = [
     // Four of the SAME sugar. That a polymer can be one unit over and over is
     // the difference from the card above, and it is visible before anything is
     // joined: all four tags say the same word.
-    monomers:['glucose', 'glucose', 'glucose', 'glucose'],
-    anomer:true,
+    monomers:['sugar', 'sugar', 'sugar', 'sugar'],
+    choose:{ slot:'sugar', key:'glucose',
+             opts:[['glucose','\u03b2-glucose'], ['alphaGlucose','\u03b1-glucose']] },
     home:[[-24, 10], [-9, -11], [7, 10], [23, -11]],
     box:{ x:0, y:0, rxz:38, hy:24 },
     solve:(host, guest) => Glycosidic.pose(un(host), un(guest), DISACC),
@@ -271,10 +275,22 @@ const CARDS = [
     donor:at => at.pose.slot,       // which hydroxyl reacted — three to choose from
     acceptor:'carboxyl',
     chains:false,
-    monomers:['glycerol', 'palmitate', 'palmitoleate', 'palmitate', 'palmitoleate'],
+    /* THREE TAILS, ALL THE SAME ONE, and the chooser says which. A fat's tails
+     * are usually mixed in life, but the claim this card makes is about what a
+     * tail's SHAPE does to a stack of them, and a stage carrying two of each
+     * can reach neither pure state: there is no all-saturated fat to build. So
+     * the contrast becomes a switch, the way the sugar card's anomer is, and
+     * the mixing is said in the note rather than half-built on the table.
+     *
+     * Exactly three, because glycerol takes exactly three. A spare acid left
+     * over is a piece the student keeps trying to attach to a molecule that is
+     * finished, which reads as the page being broken. */
+    monomers:['glycerol', 'acid', 'acid', 'acid'],
+    choose:{ slot:'acid', key:'palmitate',
+             opts:[['palmitate','saturated'], ['palmitoleate','unsaturated']] },
     // Glycerol in the middle; the acids are 16 carbons long and need room to be
     // dragged without crossing each other on the way in.
-    home:[[0, 0], [-36, 20], [-36, -20], [36, 20], [36, -20]],
+    home:[[0, 0], [-36, 21], [-36, -21], [38, 0]],
     box:{ x:0, y:0, rxz:60, hy:40 },
 
     /* THREE SLOTS, and the nearest one wins. Which hydroxyl a tail lands on is
@@ -288,7 +304,12 @@ const CARDS = [
         const r = Ester.pose(h, un(guest), slot);
         if(!r) continue;
         const where = v3(r.pos).applyQuaternion(host.mol.quaternion).add(host.mol.position);
-        const d = guest.mol.position.distanceTo(where);
+        // Compared in the plane, for plane.js's reason: the tail is dragged on
+        // the tabletop and two of the three slots sit well off it, so a 3D
+        // distance would rank the slots by how far out of the plane they are
+        // rather than by where the student pointed.
+        const d = Math.hypot(guest.mol.position.x - where.x,
+                             guest.mol.position.y - where.y);
         if(!best || d < best.d) best = { r, d };
       }
       return best && best.r;
@@ -296,20 +317,20 @@ const CARDS = [
 
     label:p => p.spec.name,
     unit:'tail', bond:'ester bond',
-    lead:'One glycerol, four fatty acids. Only the &ndash;COOH end reacts, and glycerol '
-       + 'has three places to put one. Fill them.',
+    lead:'One glycerol, three fatty acids. Only the &ndash;COOH end reacts, and glycerol '
+       + 'has exactly three places to put one. Fill them.',
     done:(c, card) => {
       const tails = c.filter(p => p.key !== 'glycerol');
-      const sat = tails.filter(p => p.key === 'palmitate').length;
-      const kind = sat === tails.length ? 'every tail saturated &mdash; straight chains that stack, '
-                     + 'which is what makes a fat solid'
-                 : sat === 0 ? 'every tail unsaturated &mdash; each cis kink stops the chains packing, '
-                     + 'which is what keeps an oil liquid'
-                 : `${sat} straight and ${tails.length - sat} kinked`;
+      const kind = card.monomerKey === 'palmitate'
+        ? 'every tail saturated &mdash; straight chains that stack against each other, '
+          + 'which is what makes a fat solid at room temperature'
+        : 'every tail unsaturated &mdash; each cis kink stops the chains packing, '
+          + 'which is what keeps an oil liquid';
       return tails.length < 3
         ? `Glycerol has ${3 - tails.length} hydroxyl${3-tails.length>1?'s':''} left.`
         : `<b>A fat.</b> Three tails, and glycerol is out of hydroxyls &mdash; nothing `
-          + `can attach to a tail, so this is where it stops. No chain, no sequence: ${kind}.`;
+          + `can attach to a tail, so this is where it stops. No chain, no sequence: ${kind}. `
+          + `Switch the tails above. (A real fat usually carries a mix of the two.)`;
     },
     more:(c, card) => card.done(c, card),
   },
@@ -340,8 +361,11 @@ const P = MacroPlane.create({
   solve: (host, guest) => {
     const r = card.solve(host, guest);
     if(!r) return null;
+    // `slot` rides along: it is the only record of WHICH hydroxyl reacted, and
+    // the fat card reads it back off the join to spend that one. Dropped here,
+    // glycerol spends nothing, never loses a hydroxyl, and takes a fourth tail.
     return { pos:v3(r.pos), quat:new THREE.Quaternion(...r.quat),
-             bondAt:v3(r.bondAt), waterAt:v3(r.waterAt) };
+             bondAt:v3(r.bondAt), waterAt:v3(r.waterAt), slot:r.slot };
   },
 
   // `at` is already in world space: plane.js reads the pose off wherever the
@@ -499,7 +523,7 @@ function say(){
   // invent the one property this card exists to say it does not have.
   seqEl.style.display = card.chains ? '' : 'none';
   if(card.chains){
-    seqEl.classList.toggle('low', !!card.anomer);
+    seqEl.classList.toggle('low', !!card.choose);
     seqEl.querySelector('.chain').textContent =
       c.map(p => p.spec.res || p.spec.short || p.spec.name).join(' – ');
     seqEl.querySelector('.ends').textContent =
@@ -543,9 +567,11 @@ function clearStage(){
 
 function layOut(){
   clearStage();
-  card.monomerKey = card.anomer ? (card.monomerKey || 'glucose') : null;
+  // The chooser's pick fills every slot named for it; anything else on the
+  // stage is itself. Glycerol is not a fatty acid and does not become one.
+  if(card.choose) card.monomerKey = card.monomerKey || card.choose.key;
   card.monomers.forEach((name, i) => {
-    const key = card.monomerKey || name;
+    const key = card.choose && name === card.choose.slot ? card.monomerKey : name;
     const spec = M[key];
     const quat = card.start ? card.start(spec, key) : new THREE.Quaternion();
     const c = P.centroid(spec).applyQuaternion(quat);
@@ -554,16 +580,22 @@ function layOut(){
                     { key, base:spec, spent:new Set() });
     p.tag.textContent = card.label(p);
   });
-  anomerEl.style.display = card.anomer ? 'flex' : 'none';
-  for(const b of anomerEl.children)
-    b.setAttribute('aria-pressed', String(b.dataset.key === card.monomerKey));
+  chooseEl.style.display = card.choose ? 'flex' : 'none';
+  chooseEl.innerHTML = '';
+  for(const [key, label] of (card.choose ? card.choose.opts : [])){
+    const b = document.createElement('button');
+    b.dataset.key = key; b.innerHTML = label;
+    b.setAttribute('aria-pressed', String(key === card.monomerKey));
+    b.addEventListener('click', () => { card.monomerKey = key; layOut(); });
+    chooseEl.appendChild(b);
+  }
   say();
   L.fit();
 }
 
 /* ---- the card rail --------------------------------------------------------- */
 const cardsEl  = document.getElementById('cards');
-const anomerEl = document.getElementById('anomer');
+const chooseEl = document.getElementById('choose');
 for(const c of CARDS){
   const b = document.createElement('button');
   b.innerHTML = `<span class="n">${c.n}</span><span>${c.title}`
@@ -576,9 +608,6 @@ function syncRail(){
   for(const b of cardsEl.children)
     b.setAttribute('aria-current', String(b.dataset.key === card.key));
 }
-for(const b of anomerEl.children)
-  b.addEventListener('click', () => { card.monomerKey = b.dataset.key; layOut(); });
-
 document.getElementById('reset').addEventListener('click', layOut);
 
 syncRail();

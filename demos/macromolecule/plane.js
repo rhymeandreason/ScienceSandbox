@@ -87,8 +87,8 @@
   function create(opts){
     const THREE = global.THREE;
     const o = Object.assign({
-      latchR: 3.4,        // how close the solved pose has to be, in world units
-      pickR: 7,           // grab radius about a piece's heavy-atom centroid
+      latchR: 3.4,        // how close the solved pose has to be, in the plane
+      pickR: 4,           // grab radius about any of a piece's heavy atoms
       snap: 0.28,         // seconds
       tagClass: 'tag',
     }, opts);
@@ -152,6 +152,7 @@
     }
 
     /* ---- the plane -------------------------------------------------------- */
+    const _pick = new THREE.Vector3();
     const plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
     const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
     function toWorld(e){
@@ -161,8 +162,24 @@
       ray.ray.intersectPlane(plane, hit);
       return hit;
     }
-    const nearest = w => pieces.map(p => ({ p, d:w.distanceTo(centreOf(p)) }))
-      .filter(x => x.d < o.pickR).sort((a,b) => a.d - b.d)[0];
+    /* PICKED BY ITS NEAREST ATOM, not by its centre. A residue is a blob and
+     * either rule grabs it; a 16-carbon fatty acid is 30 units long, and a
+     * radius about its centroid means the two thirds of the molecule the
+     * student can actually see refuse the drag. Measured in the plane, because
+     * that is where the pointer is. */
+    function nearest(w){
+      let best = null;
+      for(const p of pieces){
+        const q = p.mol.quaternion, o0 = p.mol.position;
+        for(const a of p.spec.atoms){
+          if(a.el === 'H') continue;          // H is drawn small and sits on a heavy atom
+          _pick.set(a.pos[0], a.pos[1], a.pos[2]).applyQuaternion(q).add(o0);
+          const d = Math.hypot(w.x - _pick.x, w.y - _pick.y);
+          if(d < o.pickR && (!best || d < best.d)) best = { p, d };
+        }
+      }
+      return best;
+    }
 
     /* ---- drag ------------------------------------------------------------- */
     let held = null, dragging = [];
@@ -204,7 +221,14 @@
           // Where the guest would have to be, against where it is. The test is
           // symmetric: dragging the host moves the target instead of the piece,
           // and the same distance closes either way.
-          if(guest.mol.position.distanceTo(t.pos) > o.latchR) continue;
+          // IN THE PLANE ONLY. The drag pins z = 0 and a solved pose does not
+          // sit there: glycerol's three hydroxyls point into three different
+          // directions, so two of a fat's esters want the tail 15 units out of
+          // the tabletop and a 3D test can never be satisfied by a gesture that
+          // cannot leave it. What the student aims is x and y; z is where the
+          // chemistry then takes the molecule, and the snap carries it there.
+          if(Math.hypot(guest.mol.position.x - t.pos.x,
+                        guest.mol.position.y - t.pos.y) > o.latchR) continue;
           // The pose is no longer the pointer's to set. Dropping the drag here
           // lets the tween land exactly on the solved pose instead of fighting
           // a cursor that is still moving.
