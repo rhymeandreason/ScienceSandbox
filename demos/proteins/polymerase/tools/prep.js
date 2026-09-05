@@ -4,12 +4,15 @@
  * =============================================================================
  *    node proteins/polymerase/tools/prep.js
  *
- *  writes proteins/polymerase/data/polymerase-<ID>.json, one per CANDIDATES row.
+ *  writes proteins/polymerase/data/polymerase-<ID>.json, one per registered
+ *  variant.
  *
- *  UNDER REVIEW: the candidates live here, not in a registry. Nothing about
- *  this protein has been decided yet, so there is no entry in
- *  proteins/nucleic-acids.js and the page reads these names directly.
- *  AddingAProtein.md step 6 is what moves them.
+ *  REGISTERED. Which entries exist, what each is for, which one opens the
+ *  bench and the chosen rotation are proteins/nucleic-acids.js's — that index
+ *  and not proteins.js, because the line between them is the BAKE and these
+ *  carry nucleic chains. What stays here is how to READ each file, which is
+ *  nobody else's business: which chain is the primer, what counts as being in
+ *  the site, and which fit each entry earns.
  *
  *  Klentaq — the large fragment of Taq DNA polymerase I, the polymerase half
  *  with the 5'-3' exonuclease cut off — caught twice on one primer/template:
@@ -53,6 +56,14 @@ const fs = require('fs');
 const path = require('path');
 const Bake = require(path.join(__dirname, '..', '..', 'bake-lib.js'));
 const FoldLib = require(path.join(__dirname, '..', '..', '..', 'folding', 'folding.js'));
+const REG = require(path.join(__dirname, '..', '..', 'nucleic-acids.js'));
+
+/* THE ENTRY THIS BAKER SERVES. Which structures exist, what each is FOR and
+   which one is the default are the registry's answers now, not this file's —
+   that is what step 6 of AddingAProtein.md moves. What stays here is how to
+   READ each one, which is nobody else's business. */
+const ENTRY = REG.byKey('polymerase');
+if (!ENTRY) throw new Error('no `polymerase` in proteins/nucleic-acids.js');
 
 const HERE = path.join(__dirname, '..', 'data');
 const SRC = path.join(HERE, 'src');
@@ -69,24 +80,29 @@ const SRC = path.join(HERE, 'src');
    pointwise correspondence anywhere in the file — but both files hold a
    primer/template duplex with its 3' end in a polymerase site, and THAT
    corresponds. So it is fitted by role, counting back from the growing end. */
-const CANDIDATES = [
-  { id: '4KTQ', ref: true,
-    what: 'Klentaq, open binary complex',
-    purpose: 'the site empty — primer and template held, fingers open',
-    primer: 'B', template: 'C', pocket: [] },
-  { id: '3KTQ',
-    what: 'Klentaq, closed ternary complex',
-    purpose: 'ddCTP and two Mg caught in the site, fingers closed on it',
-    primer: 'B', template: 'C', fitBy: 'num', pocket: ['DCT', 'MG'] },
-  { id: '1T7P',
-    what: 'T7 DNA polymerase with thioredoxin',
-    purpose: 'the same hand on a different enzyme — and the thumb wearing a '
-           + 'borrowed processivity clamp',
-    primer: 'P', template: 'T', fitBy: 'role', pocket: ['DG3', 'MG'],
-    /* Chain B is the host's protein, not the phage's, which is the entry's
-       whole point and the one thing a reader will ask about the picture. */
-    chains: { A: 'T7 polymerase (gp5)', B: 'thioredoxin, borrowed from E. coli' } },
-];
+const HOW = {
+  '4KTQ': { ref: true, primer: 'B', template: 'C', pocket: [] },
+  '3KTQ': { primer: 'B', template: 'C', fitBy: 'num', pocket: ['DCT', 'MG'] },
+  '1T7P': { primer: 'P', template: 'T', fitBy: 'role', pocket: ['DG3', 'MG'],
+            /* Chain B is the host's protein, not the phage's — the one thing
+               a reader will ask about the picture. */
+            chains: { A: 'T7 polymerase (gp5)',
+                      B: 'thioredoxin, borrowed from E. coli' } },
+};
+
+/* THE REFERENCE IS BAKED FIRST, WHICHEVER ORDER THE REGISTRY LISTS THEM IN.
+   The registry's order is the reader's — 1T7P opens the bench because it is
+   the default — and the superposition's order is the fit's. Reading one off
+   the other would mean the day someone reorders the variants for a reader,
+   every other view silently fits onto a different structure. */
+const CANDIDATES = (() => {
+  const rows = ENTRY.variants.map(v => Object.assign(
+    { id: v.id, what: v.label, purpose: v.purpose }, HOW[v.id]));
+  const missing = rows.filter(r => !HOW[r.id]);
+  if (missing.length)
+    throw new Error('no read instructions for ' + missing.map(r => r.id).join(', '));
+  return rows.sort((a, b) => (b.ref ? 1 : 0) - (a.ref ? 1 : 0));
+})();
 
 const REF = CANDIDATES.find(c => c.ref).id;
 
@@ -349,6 +365,9 @@ function bake(cand, ref) {
   const ext = hi.map((h, k) => Bake.r2(h - lo[k]));
 
   const declared = Bake.declared(text);
+  const V = Bake.viewFor(ENTRY, { view: B.map(ax => ax.map(Bake.r2)),
+                                  frame: 'computed' },
+                         REG.variantOf(ENTRY, cand.id), REG);
   const out = {
     source: cand.id + '.pdb',
     entry: cand.id,
@@ -377,9 +396,19 @@ function bake(cand, ref) {
     motion,
     radius: Math.max(P.radius, D.radius),
     extents: ext,
-    view: B.map(ax => ax.map(Bake.r2)),
-    frame: cand.ref ? 'the duplex\'s helix axis across the page'
-                    : 'the reference\'s, carried by the fit',
+    /* WHERE THE ROTATION COMES FROM, resolved by bake-lib rather than decided
+       here. A CHOSEN basis is not baked: it lives in nucleic-acids.js and
+       kit/proteinbox.js reads it at draw time, so re-aiming this structure is
+       an edit and a reload instead of a re-bake that rewrites files whose
+       coordinates did not change. So while the registry holds one, `view` is
+       null and `frame` says so; the day it does not, the solved duplex axis
+       below stands and the same field says that instead. Passing the nucleic
+       index because that is the one these bakes are in. */
+    view: V.view,
+    frame: V.frame + (V.view
+      ? cand.ref ? ' — the duplex\'s helix axis across the page'
+                 : ' — the reference\'s, carried by the fit'
+      : ''),
     /* EVERY FIGURE THE PANEL PRINTS, counted here so a re-bake re-counts it. */
     meta: {
       declared,

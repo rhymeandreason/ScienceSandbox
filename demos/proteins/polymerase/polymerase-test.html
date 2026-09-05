@@ -8,8 +8,10 @@
 
 <!-- ===================================================================
      SCRATCH. Not a lesson, not linked from anywhere but admin.html.
-     AddingAProtein.md step 4: this page exists so a human can decide
-     whether these three entries earn a place in the registry.
+     Reviewed and registered: the entries, their order, what each is for
+     and the rotation are proteins/nucleic-acids.js's answers, and this
+     page asks for them rather than holding its own copies. It stays a
+     bench — a place to look at the structures, not a lesson.
 
      WHAT IT IS FOR SETTLING:
 
@@ -112,9 +114,9 @@
   <div id="stage"></div>
   <div class="panel">
     <h1>The polymerase hand</h1>
-    <p class="deck">Taq twice — site empty, then loaded — and T7 beside them
-      for comparison. Every view is fitted on the DNA, so the duplex holds
-      still and the enzyme is what changes.</p>
+    <p class="deck">T7 opens it — the hand a textbook draws. Klentaq
+      follows, empty and then loaded. Every view is fitted on the DNA, so the
+      duplex holds still and the enzyme is what changes.</p>
 
     <h2>state</h2>
     <div id="states"></div>
@@ -131,8 +133,9 @@
     <div id="tris"></div>
 
     <h2>rotation</h2>
-    <p class="meta" id="pick-note">A basis is set by hand. Turn the molecule and
-      copy to replace it — it lives in this page until the protein is registered.</p>
+    <p class="meta" id="pick-note">Set by hand, in
+      <code>proteins/nucleic-acids.js</code>. Turn the molecule and copy to
+      replace it there.</p>
     <button class="mode" id="pick"><span class="who">copy this view</span></button>
 
     <h2>colour</h2>
@@ -161,39 +164,32 @@
 <script src="../../kit/ribbon.js"></script>
 <script src="../../kit/nucleic.js"></script>
 <script src="../../kit/proteinbox.js"></script>
+<script src="../nucleic-acids.js"></script>
 <script>
 'use strict';
 
-/* THE BAKES ARE NAMED HERE BECAUSE THE PROTEIN IS NOT IN A REGISTRY YET.
-   Under review, so the CANDIDATES table lives in tools/prep.js and this list
-   mirrors it; step 6 of AddingAProtein.md moves both into
-   proteins/nucleic-acids.js and this becomes a defaultOf() call, the way
-   zif268-test.html already reads. */
-const VIEWS = [
-  { id: '4KTQ', chip: 'open', label: 'Taq — site empty' },
-  { id: '3KTQ', chip: 'closed', label: 'Taq — ddCTP + 2 Mg in the site' },
-  { id: '1T7P', chip: 't7', label: 'T7 + thioredoxin — the same hand' },
-];
+/* WHAT THIS BENCH DRAWS IS THE REGISTRY'S ANSWER NOW, not a list here.
+   proteins/nucleic-acids.js holds which entries exist, what each is for, which
+   one opens, and the rotation — and it is the index these bakes belong in
+   because they carry nucleic chains, which is where the line between the two
+   registries is drawn. A page naming its own files is how a bench and a
+   gallery card come to disagree about one molecule.
 
-/* THE ROTATION A HUMAN PICKED, AND THE ONE PLACE IT IS ALLOWED TO BE WRONG.
-   A chosen basis belongs in the registry and nowhere else — AddingAProtein.md
-   says so, and the page-side tables that used to hold one were deleted because
-   they turned a bench while a gallery card reading the same bake stayed put,
-   with no checker able to see the disagreement.
+   THE ORDER IS THE REGISTRY'S TOO, and it is the reader's order rather than
+   the fit's: the default comes first. The baker sorts its own copy so the
+   superposition reference is read first, which is a different question. */
+const ME = NucleicAcids.byKey('polymerase');
+const CHIPS = { '1T7P': 't7', '4KTQ': 'open', '3KTQ': 'closed' };
+const VIEWS = ME.variants.map(v => ({ id: v.id, chip: CHIPS[v.id] || v.id,
+                                      label: v.label }));
 
-   It is here because this protein has no registry entry yet: step 6 is what
-   creates one, and this constant is what that step deletes. Until then there
-   is exactly one consumer of these bakes — this page — so there is nothing for
-   it to disagree with. The moment a second page or a gallery card reads them,
-   this is a bug rather than a stopgap.
-
-   IT IS ONE BASIS FOR ALL THREE ENTRIES BECAUSE THEY ARE ONE SUPERPOSITION
-   GROUP. Every view here is fitted onto 4KTQ, so they share coordinates and
-   therefore share a rotation; a frame is exactly a superposition group. RB69
-   is a different group and does not get this one. */
-const VIEW = [[0.1387, 0.9772, 0.1719],
-              [0.6805, 0.0353, -0.7339],
-              [-0.7236, 0.2198, -0.6585]];
+/* THE ROTATION, ASKED OF THE REGISTRY RATHER THAN HELD HERE. Every consumer
+   calling `viewOf` is what stops this bench and the gallery card facing one
+   molecule two ways, and it is why the constant that used to sit here is gone:
+   a page-side basis applies after the fetch, so it turns the bench while
+   anything else reading the same bake stays put, and no checker can see it.
+   One basis covers all three because they are one superposition group. */
+const VIEW = NucleicAcids.viewOf(ME);
 
 /* THE BOX IS kit/proteinbox.js, WHICH DRAWS BOTH POLYMERS. The scene, the
    camera, the framing, the drag and the WebGL context are the module's, and
@@ -291,14 +287,11 @@ function facts() {
     ['Ligands', m.ligands.join(', ') || 'none'],
     ['EC', m.ec.join(', ') || 'none'],
     ['Extents', (trace.extents || []).join(' x ') + ' A'],
-    /* WHERE THE ROTATION CAME FROM, and it is not the bake's answer any more.
-       `Bake.viewFor` writes `chosen in the registry` when a human has picked
-       one, and there is no registry entry to hold this yet — so the bake still
-       says `deposited`/`carried by the fit` under a rotation someone chose,
-       and the row has to say which. Step 6 collapses these back into one. */
-    ['Frame', VIEW ? 'chosen by hand — on the page until this protein is '
-        + 'registered; the bake still says “' + trace.frame + '”'
-      : trace.frame],
+    /* The bake's own word, which is `Bake.viewFor`'s and not a baker's:
+       `chosen in the registry`, `computed` or `deposited`. It says the first
+       of those now, because the registry holds a basis and the bake therefore
+       carries none. */
+    ['Frame', trace.frame],
   ];
   if (trace.templating)
     rows.splice(6, 0, ['Reading', 'the incoming base sits ' + trace.templating.d
@@ -396,7 +389,7 @@ document.getElementById('states').addEventListener('click', e => {
   if (b) show(b.dataset.id);
 });
 
-Promise.all(VIEWS.map(v => fetch('data/polymerase-' + v.id + '.json')
+Promise.all(VIEWS.map(v => fetch('data/' + NucleicAcids.variantOf(ME, v.id).read.baked)
   .then(r => { if (!r.ok) throw new Error(v.id + ': ' + r.status); return r.json(); })
   .then(t => traces.set(v.id, t))))
   .then(() => show(current))

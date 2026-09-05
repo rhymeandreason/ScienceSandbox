@@ -161,6 +161,89 @@
             baked: 'nucleosome-1AOI.json' } },
       ],
     },
+    {
+      key: 'polymerase', name: 'DNA polymerase', dir: 'proteins/polymerase',
+      kind: 'complex', does: 'enzyme',
+      blurb: 'The enzyme that copies DNA, caught with a primer and template '
+           + 'in its grip: a hand whose fingers close over each incoming '
+           + 'nucleotide only when it pairs with the base being read.',
+      /* THREE ENTRIES, TWO ENZYMES, AND THAT IS THE POINT RATHER THAN AN
+         UNTIDINESS. The Klentaq pair is one construct open and closed, which
+         is the motion; T7 is a different A-family polymerase in the same
+         posture, which is what says the hand is the family's and not Taq's.
+         RB69 would have been a fourth and is deliberately not here: it is
+         B-family, 360 more residues packed around the same hand, and it reads
+         as a blob rather than as the shape a textbook draws. It earns its own
+         entry when the proofreading beat does.
+
+         EVERY VARIANT IS FITTED ONTO 4KTQ, which is what lets one basis below
+         cover all three — a frame is exactly a superposition group. The two
+         Klentaq entries match residue by residue; T7 shares no numbering and
+         no sequence with them and is fitted by ROLE, on the primer's last ten
+         phosphates counted back from the growing end. Its residual, 0.99 A,
+         is the evidence that role match is real, and the bench prints it. */
+      pipeline: 'trace',
+      /* THE ROTATION A HUMAN PICKED. One bare 3x3 rather than a map, because
+         these three are one frame; see viewOf below for when it becomes a map.
+         `Bake.viewFor` writes no view into a bake once this exists, so the
+         bakes say `chosen in the registry` and a page that forgets to pass the
+         basis opens in the deposited frame — visibly wrong rather than
+         subtly. */
+      view: { by: 'human',
+              basis: [[0.1387, 0.9772, 0.1719],
+                      [0.6805, 0.0353, -0.7339],
+                      [-0.7236, 0.2198, -0.6585]] },
+      variants: [
+        { id: '1T7P',
+          purpose: 'the hand a textbook draws, on a replicative polymerase',
+          default: true,
+          species: 'bacteriophage T7',
+          label: 'T7 polymerase + thioredoxin', chip: '4 chains',
+          /* Chain B is the HOST's protein: T7 encodes no sliding clamp and
+             bolts an E. coli thioredoxin to its thumb to hold on. The bench
+             draws it only on request — it is the highest-contrast thing in
+             the frame and the one part that is not the polymerase. */
+          source: { kind: 'rcsb', id: '1T7P' },
+          read: {
+            method: 'x-ray diffraction',
+            chains: 4,
+            nucleotides: 24,
+            residues: 767,
+            pairs: 10,
+            wobble: 0,
+            modified: 1,
+            baked: 'polymerase-1T7P.json' } },
+        { id: '4KTQ',
+          purpose: 'the site empty, fingers open',
+          species: 'Thermus aquaticus',
+          label: 'Klentaq, binary complex', chip: '3 chains',
+          source: { kind: 'rcsb', id: '4KTQ' },
+          read: {
+            method: 'x-ray diffraction',
+            chains: 3,
+            nucleotides: 25,
+            residues: 539,
+            pairs: 12,
+            wobble: 0,
+            modified: 1,
+            baked: 'polymerase-4KTQ.json' } },
+        { id: '3KTQ',
+          purpose: 'the same enzyme with a nucleotide caught in the site, '
+                 + 'fingers closed on it',
+          species: 'Thermus aquaticus',
+          label: 'Klentaq, ternary complex', chip: '3 chains',
+          source: { kind: 'rcsb', id: '3KTQ' },
+          read: {
+            method: 'x-ray diffraction',
+            chains: 3,
+            nucleotides: 26,
+            residues: 539,
+            pairs: 12,
+            wobble: 0,
+            modified: 1,
+            baked: 'polymerase-3KTQ.json' } },
+      ],
+    },
   ];
 
   const KINDS = ['dna', 'rna', 'complex'];
@@ -188,6 +271,30 @@
     return (e && e.variants.find(v => v.default)) || null;
   };
 
+  /* THE CHOSEN ROTATION, and every consumer asks THIS rather than reading the
+     field — it is everyone calling one function that stops a bench and a
+     gallery card becoming two opinions about which way a molecule faces.
+     `proteins.js`'s `viewOf` is the same function on the other index, and the
+     two must not drift: a bare 3x3 is one frame that every variant wears, and
+     a map keyed by frame name is a structure whose variants sit at more than
+     one scale, each variant naming its `frame`.
+
+     A FRAME IS EXACTLY A SUPERPOSITION GROUP. Views that share a rotation are
+     views that share coordinates, so a structure whose variants are fitted
+     onto one reference takes one basis; one that is not, must not.
+
+     Null is the honest answer for a structure nobody has aimed: its bake's
+     own solved basis stands, and the checker allows exactly that bake to carry
+     a view. */
+  function viewOf(s, v) {
+    const e = typeof s === 'string' ? byKey(s) : s;
+    if (!e || !e.view || e.view.by !== 'human' || !e.view.basis) return null;
+    const b = e.view.basis;
+    if (Array.isArray(b)) return b;
+    const at = v || defaultOf(e);
+    return (at && b[at.frame]) || null;
+  }
+
   /* The bake's path, from the entry and the variant — so a bench names a
      structure and not a file, and a renamed bake is one edit here. */
   const bakedPath = (s, id) => {
@@ -204,7 +311,7 @@
   });
 
   global.NucleicAcids = { STRUCTURES, KINDS, byKey, variantOf, defaultOf,
-                          bakedPath, urls, withProtein };
+                          bakedPath, urls, withProtein, viewOf };
   if (typeof module === 'object' && module.exports)
     module.exports = global.NucleicAcids;
 })(typeof window !== 'undefined' ? window : globalThis);

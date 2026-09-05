@@ -103,6 +103,20 @@ for (const s of lib.STRUCTURES) {
     if (!na.length)
       say(`${at}: no nucleic chain in the bake — does this belong in proteins.js?`);
 
+    /* A CHOSEN ROTATION IS NEVER BAKED, which is the rule that keeps re-aiming
+       a structure an edit and a reload instead of a re-bake, and keeps one
+       decision in one place. Where this index holds a human's basis the bake
+       must carry none: two answers with nothing holding them level is how a
+       bench and a gallery card come to face one molecule two ways. A frame
+       nobody has aimed has no entry here, and then its bake's own solved basis
+       is exactly what should stand. */
+    const chosen = lib.viewOf(s, v);
+    if (chosen && t.view)
+      say(`${at}: the index holds a chosen basis and the bake carries a view `
+        + `too — re-run the baker, which writes none while a chosen one exists`);
+    if (!chosen && !t.view && t.frame !== 'deposited')
+      say(`${at}: no basis anywhere and \`frame\` says '${t.frame}'`);
+
     if (!bad) ok(`${at}: ${got.chains} chains, ${got.nucleotides} nt`
       + (got.residues ? ` + ${got.residues} residues` : '')
       + `, ${got.pairs} pairs`

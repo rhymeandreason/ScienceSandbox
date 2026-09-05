@@ -422,15 +422,22 @@ function frameOf(points) {
  *  Everything else falls through to what the baker worked out: `frameOf` for
  *  most, `FoldLib.basisFrom` where a field has a convention about which axis
  *  stands up. Pass that as `fallback` and it comes back untouched.
+ *
+ *  `reg` IS WHICH INDEX HOLDS THE ANSWER, and it defaults to `proteins.js`.
+ *  A bake carrying nucleic chains is indexed in `nucleic-acids.js` instead —
+ *  the line between the two files is the bake, not the biology — and that
+ *  index has a `viewOf` with the same contract. Without this argument a mixed
+ *  structure could never say `chosen in the registry`, so its bakes would keep
+ *  a solved basis under a rotation a human had picked and the two would fight.
  */
-function viewFor(p, fallback, v) {
+function viewFor(p, fallback, v, reg) {
   /* WHETHER A HUMAN HAS PICKED ONE FOR **THIS** VIEW'S FRAME, resolved by
      ProteinLib rather than re-read here: a protein at two scales keys its
      basis by frame, and a frame nobody has aimed yet still falls through to
      the solved one below. One resolver, because a second copy of the rule is
      how a bake and a bench come to disagree about which way a molecule
      faces. */
-  if (REG.viewOf(p, v))
+  if ((reg || REG).viewOf(p, v))
     return { view: null, frame: 'chosen in the registry' };
   const f = fallback || {};
   return { view: f.view || null, frame: f.view ? (f.frame || 'computed') : 'deposited' };

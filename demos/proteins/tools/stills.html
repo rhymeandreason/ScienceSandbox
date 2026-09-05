@@ -85,7 +85,14 @@ async function bake(p) {
     mount, orbit: false, pad: 1.15, sub: 8,
     stage: { ortho: false },
     colors: isNA(p) ? null : ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
-    view: isNA(p) ? null : ProteinLib.viewOf(p),
+    /* THE SAME `viewOf` index.html ASKS, which is the whole contract above:
+       everything deciding what the frame looks like has to match the card or
+       the still jumps when the live box replaces it. Passing null for a
+       nucleic entry was right while every nucleic bake carried its own solved
+       basis, and wrong the moment one took a hand-picked rotation — the bake
+       then carries no view at all, and this would bake the crystal's frame
+       under a card drawing the chosen one. */
+    view: (isNA(p) ? NucleicAcids : ProteinLib).viewOf(p),
     data: t,
   });
   if (box.setPocket && t.pocket) box.setPocket(t.pocket);

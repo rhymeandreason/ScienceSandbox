@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Site-wide chrome: analytics + the foot. Absolute src, because the
+     featured pages set <base href="/demos/">. lib/site.js -->
+<script defer src="/demos/lib/site.js"></script>
 <!-- SERVED AT A SHORT URL BY A vercel.json REWRITE, which does not move the
      file: without this every ../../ path would resolve against `/`.
      Correct at its own path and on the dev server too. docs/deploy.md. -->
@@ -353,14 +356,18 @@ function open(key, mount) {
          one green rope and the braid, which is the whole subject, is invisible
          on the card that indexes it. Read from the registry so this card and
          the bench cannot colour the same molecule two ways. */
-      /* Colour and a chosen rotation are the protein registry's to state. A
-         nucleic bake carries its own solved view and the ladder takes the
-         palette's base family, so both are left to the box. */
+      /* Colour is the protein registry's to state; the ladder takes the
+         palette's base family, so a nucleic entry leaves it to the box. */
       colors: isNA(p) ? null : ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
-      /* And the same for the rotation, for the same reason: a chosen basis
-         lives in the registry, so this card and the bench cannot face one
-         molecule two ways. */
-      view: isNA(p) ? null : ProteinLib.viewOf(p),
+      /* THE ROTATION IS ASKED OF WHICHEVER REGISTRY HOLDS THE ENTRY. Passing
+         null for a nucleic one was right while every nucleic bake carried its
+         own solved basis — and it stopped being right the moment one of them
+         got a hand-picked rotation, because `Bake.viewFor` then writes NO view
+         into the bake and the card would open in the crystal's frame while the
+         bench opened in the chosen one. Both indexes answer `viewOf`, and it
+         is every consumer calling it that stops this card and that bench
+         becoming two opinions about which way one molecule faces. */
+      view: (isNA(p) ? NucleicAcids : ProteinLib).viewOf(p),
       data: t,
     }));
     /* THE POCKET, where a protein has one. Myoglobin without its heme is the
