@@ -181,33 +181,36 @@ body.is-night .lshell-progress button.is-current { background: #9fd98a; }
    ONE CONTROL, N ANSWERS. Chips are the wrong control for that — a chip is a thing
    you turn on and off beside other things you can also turn on, and a row of
    them cannot say "these three are the same question".
+
+   PILLS IN A TRAY, NOT SLICES OF A BAR. The wrapper is the group; the chosen
+   answer is a pill floating inside it, the same capsule shape as .chip and
+   .btn, so a panel has one button vocabulary instead of two.
 */
 .lshell-panel .segmented {
-  display: inline-flex; align-self: flex-start; overflow: hidden;
-  border: 1.5px solid var(--line); border-radius: 999px; background: #fff;
+  display: inline-flex; align-self: flex-start; gap: 2px; padding: 4px;
+  /* 32 + 8 padding + 2 border = 42, the height of .btn beside it. */
+  border: 1px solid var(--line); border-radius: 999px; background: #fff;
 }
 .lshell-panel .segmented > * {
-  border: 0; padding: 8px 16px; background: transparent; color: var(--ink-2);
-  font-family: var(--display); font-size: 14px; font-weight: 500; line-height: 1.15;
+  border: 0; padding: 7px 16px; border-radius: 999px; background: transparent; color: var(--ink-2);
+  font-family: var(--display); font-size: 14px; font-weight: 500; line-height: 18px;
   /* STATED, NOT INHERITED: kodo.css loads first and its own .segmented shouts
      in uppercase with wide tracking. Its `.segmented > *` matches these
      elements too, so anything this rule does not say, that one still says. */
   text-transform: none; letter-spacing: 0.02em;
   white-space: nowrap; cursor: pointer; transition: background 0.2s, color 0.2s;
 }
-.lshell-panel .segmented > * + * { border-left: 1.5px solid var(--line); }
-.lshell-panel .segmented > *:hover:not([disabled]):not(.is-on):not([aria-pressed="true"]) { color: var(--ink); }
+.lshell-panel .segmented > *:hover:not([disabled]):not(.is-on):not([aria-pressed="true"]) { background: var(--paper); color: var(--ink); }
 .lshell-panel .segmented > *.is-on,
 .lshell-panel .segmented > *[aria-pressed="true"] { background: var(--accent); color: #fff; }
-/* THE DIVIDER DIES INTO THE FILL. A hairline down the side of a filled segment
-   reads as a crack in it, so the chosen one eats the rule on both its edges. */
-.lshell-panel .segmented > *.is-on,
-.lshell-panel .segmented > *[aria-pressed="true"],
-.lshell-panel .segmented > *.is-on + *,
-.lshell-panel .segmented > *[aria-pressed="true"] + * { border-left-color: transparent; }
-/* Inside, because an outline on a joined segment draws over its neighbours. */
+/* Inside, because an outline on a pill in a tray draws over the tray's edge. */
 .lshell-panel .segmented > *:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ink); }
 .lshell-panel .segmented > *[disabled] { opacity: 0.35; cursor: default; }
+/* THE CHOSEN ONE IS NOT DIMMED. A control that disables the current answer to
+   stop it being re-pressed would otherwise draw the fill at 35% and read as
+   the segment least available rather than the one in force. */
+.lshell-panel .segmented > *.is-on[disabled],
+.lshell-panel .segmented > *[aria-pressed="true"][disabled] { opacity: 1; }
 
 /* NO SCRIPT NEEDED WHEN THE CONTROL IS THE ANSWER. A radio per segment and a
    label for each, and the browser owns which one is chosen — arrow keys, the
@@ -223,10 +226,7 @@ body.is-night .lshell-progress button.is-current { background: #9fd98a; }
    writes, or one that can sit between the named answers, where the honest
    drawing is no segment lit at all. A radio cannot say none-of-these. */
 .lshell-panel .segmented > input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
-.lshell-panel .segmented > input[type="radio"] + label { border-left: 1.5px solid var(--line); }
-.lshell-panel .segmented > input[type="radio"]:first-child + label { border-left: 0; }
-.lshell-panel .segmented > input[type="radio"]:checked + label { background: var(--accent); color: #fff; border-left-color: transparent; }
-.lshell-panel .segmented > input[type="radio"]:checked + label + input + label { border-left-color: transparent; }
+.lshell-panel .segmented > input[type="radio"]:checked + label { background: var(--accent); color: #fff; }
 .lshell-panel .segmented > input[type="radio"]:focus-visible + label { box-shadow: inset 0 0 0 2px var(--ink); }
 
 .lshell-panel .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-family: var(--display); font-weight: 500; font-size: 14px; position: relative; }
