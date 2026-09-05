@@ -48,6 +48,11 @@
  *  the rule that neither door runs uphill — is membrane/chemiosmosis.js, kept
  *  free of THREE so check-chemiosmosis.js can run it in node. `pumped`
  *  (turns) and `atp` (count) are its events.
+ *
+ *  mount() NAMES BOTH HALVES ON THE STAGE and keeps them there, whatever the
+ *  context, because a compartment with no name on it is one the reader has to
+ *  be told about in prose. `sideLabels:false` for a page drawing its own, as
+ *  membrane-lab does.
  *  The sheet is rebuilt with one hole per protein, so a hole can never stand
  *  without its protein. Rebuilding is a few hundred instanced lipids, fine on
  *  a change; it is not meant to be animated.
@@ -87,6 +92,14 @@
     fuelRate: 1,              // 0..1, a light dimmer or an oxygen switch
     complexSeconds: 6.0,      // ONE FULL CYCLE, the empty half included; three real complexes are drawn as one
     mvFloor: null,            // how negative the inside may get; null takes it from the context
+    /* WHICH HALF IS WHICH, on the stage, always. membrane-lab pins its two
+       tallies at the edges and keeps them across every step, and the reason
+       is the same here: a compartment with no name on it is a compartment
+       the reader has to be told about in prose, and prose is where it goes
+       wrong. A generated photosynthesis page called the lumen "inner"
+       because the screen never said otherwise. mount() draws these; a page
+       driving create() puts its own up, as membrane-lab does. */
+    sideLabels: true,
     potential: 'off',
     E: { K:-90, CL:-75, NA:60 },   // mV, the Nernst potentials of the gradients drawn
     mvPerIon: -2.5,           // stage timing, not a measurement (see netPush)
@@ -1331,6 +1344,47 @@
       get membrane() { return MEM; } };
   }
 
+  /* ---- which half is which ----
+     Two labels down the stage's RIGHT edge, one in the middle of each
+     compartment, naming them the way the context does. Right rather than
+     membrane-lab's left because a lesson shell puts its step card over the
+     left of the stage and would bury them. Mid-compartment rather than
+     membrane-lab's top and bottom edges because the same shell keeps its own
+     chrome in the corners — the progress dots and "drag to rotate" both sat
+     on top of these when they were pinned there. It is the better place
+     anyway: the label names a half of the screen, so it belongs in the
+     middle of that half. Text-shadowed, membrane-lab's own trick, so they
+     stay readable over whatever drifts behind them.
+
+     They are DOM, not a mesh: they name a half of the screen rather than a
+     thing in the scene, so they must not move with the camera. */
+  let sideCss = false;
+  function sideLabels(el, sim) {
+    if (!sideCss) {
+      sideCss = true;
+      const st = document.createElement('style');
+      st.textContent = `
+.mem-side { position:absolute; right:16px; z-index:3; pointer-events:none;
+  font-family:var(--font-display, inherit); font-size:var(--cap-sm, 11px);
+  font-weight:var(--cap-weight, 600); letter-spacing:var(--cap-track, .12em);
+  text-transform:uppercase; opacity:.6; white-space:nowrap;
+  text-shadow:0 1px 10px rgba(255,255,255,.85); }
+.mem-side.out { top:24%; }
+.mem-side.in  { bottom:24%; }`;
+      document.head.appendChild(st);
+    }
+    if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+    const mk = cls => { const d = document.createElement('div'); d.className = 'mem-side ' + cls; el.appendChild(d); return d; };
+    const out = mk('out'), inn = mk('in');
+    const paint = () => {
+      const s = sim.state();
+      if (out.textContent !== s.sides.outside) out.textContent = s.sides.outside;
+      if (inn.textContent !== s.sides.inside) inn.textContent = s.sides.inside;
+    };
+    paint();
+    return { paint, destroy() { out.remove(); inn.remove(); } };
+  }
+
   /* ---- one box ----
      The compartments' extent is solved off the camera, so a molecule never
      blinks into existence in view. Like watersim-mount.js, this adds no
@@ -1355,6 +1409,7 @@
     };
     let last = null;
     sim = create(THREE, box.root, box.camera, Object.assign({ extent: extentOf() }, params));
+    const sides = params.sideLabels === false ? null : sideLabels(el, sim);
     if (params.cut != null) sim.set({ cut: params.cut }); else sim.set({ cut: true });
     nb = global.Notebook ? global.Notebook.create({ box, anchors: sim.anchors, library: sim.library }) : null;
     return {
@@ -1364,7 +1419,7 @@
       layers: sim.layers, show: (n, on) => { sim.show(n, on); if (!box.running) box.draw(); return this; }, palette: sim.palette,
       /* What the panel offers first: the proteins standing in the sheet and
          the two compartments; the switches a student reaches for. */
-      set(next) { sim.set(next); return this; },
+      set(next) { sim.set(next); if (sides) sides.paint(); return this; },
       state: () => last || sim.state(),
       /* The handle carries them so graph.js can resolve a signal by name off
          the thing it is following, without knowing it is a membrane. */
@@ -1372,7 +1427,7 @@
       on: sim.on, spend: sim.spend,
       add: sim.add, scatter: sim.scatter, clear: sim.clear, reset: sim.reset,
       start: box.start, stop: box.stop, pump: box.pump,
-      destroy() { box.destroy(); },
+      destroy() { if (sides) sides.destroy(); box.destroy(); },
     };
   }
 

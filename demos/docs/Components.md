@@ -220,12 +220,13 @@ const m = Membrane.mount(el, {
   proteins: { complex:{ x:-80 }, synthase:{ x:40 }, leak:null },
   contents: { inside:{ water:30, H:22 }, outside:{ water:30, H:22 } },   // 'H' is a proton
   potential: 'nernst',
+  sideLabels: true,           // both halves named on the stage; false only if you have your own
 });
 ```
 
 `complex` burns fuel to carry protons **inside → outside only**, on a six-phase cycle it visibly turns through. `synthase` is a turbine, not a pump: protons come back down through it and the rotor turns, and it cannot run uphill, so with the gradient gone it stops. `leak` is an uncoupler's hole — protons home without making ATP, and the fuel all comes out as heat. The complexes slow as the force they pump against rises and stall near `state().pmfStall`: respiratory control.
 
-**THE SIM ALWAYS DRAWS THE PUMPED-INTO SIDE ON TOP, and in a thylakoid that is the lumen.** A real chloroplast has the lumen inside and the stroma around it, so the sentence you are about to write — "the outer stroma and the inner lumen" — is true of the plant and backwards on this screen. Say which side protons are pumped *to*, not which is inner. `state().sides.inside` and `.outside` are the two names; a card that types them instead will eventually call a matrix "inside the cell".
+**THE SIM ALWAYS DRAWS THE PUMPED-INTO SIDE ON TOP, and in a thylakoid that is the lumen.** A real chloroplast has the lumen inside and the stroma around it, so the sentence you are about to write — "the outer stroma and the inner lumen" — is true of the plant and backwards on this screen. Say which side protons are pumped *to*, not which is inner. The box labels both halves on the stage itself and keeps them there, so do not add your own; `state().sides.inside` and `.outside` are those two names if a caption needs them.
 
 A step that asks **what the gradient IS** gets `state().pH`, `.dpH`, `.pmf` in a stat tile. A step that asks **where the energy WENT** gets `state().atpMade` against `.protonsThroughSynthase` and `.protonsLeaked` — the ledger only means something as a comparison. A step that asks **what the machine is DOING** gets `state().complexLabel`, which names the beat of the cycle it is on. Do not caption a machine from the step's own prose while it is mid-turn; the label is what it is actually doing.
 
