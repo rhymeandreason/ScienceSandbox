@@ -488,14 +488,13 @@ const seqOf = i => bdna.pairs[i].seq.replace(/D/g, '').replace('-', '·');
 const PARTS = [
   { key:'whole', title:'DNA: the double helix', sub:'two strands, wound',
     rails:true,
-    deck:'One real molecule, as it was solved. Scroll and it takes itself apart, '
-      + 'one part at a time.',
+    deck:'One real molecule, rendered from real data. Scroll to examine each part. ',
     hint:'Drag the model to turn it',
-    note:()=>`Every rung turns ${bdna.twistDeg.toFixed(1)}° from the one below `
-      + `it and sits ${bdna.rise.toFixed(1)} Å above it, so a full turn takes `
-      + `${(360 / bdna.twistDeg).toFixed(1)} rungs. The two strands run in `
-      + `opposite directions — <b>antiparallel</b> — which is what lets each one `
-      + `be a template for the other.`,
+    note:()=>`The two strands run in opposite directions, <b>antiparallel</b>, `
+      + `which is what lets each one act as a template for the other. Wound `
+      + `together, every rung turns ${bdna.twistDeg.toFixed(1)}° from the one `
+      + `below it and rises ${bdna.rise.toFixed(1)} Å, so a full turn takes `
+      + `${(360 / bdna.twistDeg).toFixed(1)} rungs.`,
     // NO CALLOUTS. The first part is the whole molecule, and naming the two
     // strands on it labels the thing the reader has not been shown a part of
     // yet; the next section is that.
@@ -522,9 +521,11 @@ const PARTS = [
   { key:'nucleotide', title:'One nucleotide', sub:'base + sugar + phosphate',
     atoms:(r, i)=>inResidue(r, i, SHOWN),
     note:()=>'The repeating unit, and the whole of it: a <b>base</b>, a '
-      + '<b>deoxyribose sugar</b>, and a <b>phosphate</b>. Chain millions of '
-      + 'these together and the sugar and phosphate become the backbone, with '
-      + 'the bases pointing inward.',
+      + '<b>deoxyribose sugar</b>, and a <b>phosphate</b>. The base is the only '
+      + 'part that changes from one nucleotide to the next, so it is the only '
+      + 'part that carries information. Chain millions of these together and the '
+      + 'identical sugar-phosphate units become the backbone, with the bases '
+      + 'pointing inward, where the code is read.',
     notes:()=>[
       { text:'Base', card:'Adenine here. The part that differs between the four nucleotides, and the only part that carries information.',
         at:midOf(SHOWN.pair, SHOWN.strand, isBase), offset:[118, -116] },
@@ -538,10 +539,10 @@ const PARTS = [
     atoms:(r, i)=>r.p.i === SHOWN.pair && isBase(nameOf(r.names[i])),
     note:()=>{
       const r = rungs[SHOWN.pair];
-      return `${seqOf(SHOWN.pair)}, held by <b>${hbonds(r)} hydrogen bonds</b> `
-        + '— weak on their own, and there are millions of them. A·T holds with '
-        + 'two and G·C with three, which is the pairing rule: nothing else fits '
-        + 'the shape and the charges at once.';
+      return `${seqOf(SHOWN.pair)}, held by <b>${hbonds(r)} hydrogen bonds</b>, `
+        + 'weak on their own, but there are millions of them. A·T holds with '
+        + 'two and G·C with three: nothing else fits both the shape and the '
+        + 'charges, which is why each base only pairs with one partner.';
     },
     notes:()=>[
       { text:'Hydrogen bonds', card:'Not covalent. They break with heat or a helicase, which is how the two strands can be pulled apart and read.',
@@ -551,7 +552,7 @@ const PARTS = [
   { key:'backbone', title:'The backbone', sub:'sugar–phosphate, covalent',
     atoms:(r, i)=>{ const a = nameOf(r.names[i]); return isSugar(a) || isPhos(a); },
     rails:true,
-    note:()=>'Sugar, phosphate, sugar, phosphate, all the way down — and '
+    note:()=>'Sugar, phosphate, sugar, phosphate, all the way down, and '
       + 'identical whatever the sequence is. These bonds are <b>covalent</b>, '
       + 'unlike the ones holding the two strands together, which is why a '
       + 'strand survives being separated from its partner.',
@@ -564,7 +565,7 @@ const PARTS = [
     atoms:(r, i)=>isBase(nameOf(r.names[i])),
     note:()=>'Every base points into the middle and stacks flat against the '
       + 'ones above and below it. That stacking, not the hydrogen bonding, is '
-      + 'most of what holds the helix together — and it is why the sequence is '
+      + 'most of what holds the helix together, and it is why the sequence is '
       + 'protected on the inside while the backbone takes the outside.',
     notes:()=>[
       { text:'Stacked flat', card:'Rungs 3.4 Å apart, face to face. The ring faces are greasy, so water pushes them together.',
@@ -607,6 +608,11 @@ const PARTS = [
        * length of the bracket. */
       text:`${name} · ${grooveWidth(g)}`,
     })) },
+
+  { key:'significance', title:'The reference molecule', sub:'the Drew-Dickerson dodecamer',
+    rails:true,
+    note:()=>'This sequence, CGCGAATTCGCG, is <b>1BNA</b>: the first DNA ever solved at atomic resolution, in 1980. <br><br> It killed the idea of "uniform" B-DNA. The idealized Watson-Crick model has constant twist and rise. Notice here how twist and roll change base-pair to base-pair, and the bases sit propeller-twisted relative to each other rather than flat. <br><br> 1BNA is self-complementary (the sequence is a palindrome) and small, so it crystallizes easily. Thus it has become a standard reference for DNA structure.',
+    notes:()=>[] },
 
 ];
 
