@@ -27,8 +27,14 @@
  *  ctx.ui, for steps:
  *      controls(html)  fill the slot · q(sel) / qa(sel) inside it · show(el) /
  *      hide(el) · setNext(label, visible) · range(input, onChange) paints the
- *      track and fires once with the current value · showPanel(component,
+ *      track, fires once with the current value, and RETURNS sync(v) for
+ *      writing that slider from code · showPanel(component,
  *      {only:['notes','layers','legend']}) appends the component's own chips
+ *
+ *  Controls a step's `controls(html)` can use, all styled by the sheet:
+ *  `.btn` (.primary / .secondary / .ghost) · `.switch` · `.slider` · `.chips`
+ *  with `.chip.is-on` for independent toggles · `.segmented` with `.is-on` for
+ *  ONE choice among several · `.choices` · `.stats`.
  *
  *  Chrome is css/lesson-shell.css; `body.lshell-page` is set here. A step's
  *  `body` may be a function of ctx, for copy that depends on what the
@@ -92,11 +98,18 @@
       /* The component's own "point at / show / colours" chips, appended to
          the controls slot. kit/card-stage.js draws it; this only places it. */
       showPanel(c, opts) { return global.CardStage.showPanel(els.controls, c, opts); },
+      /* Returns `sync(v)`: write a value into the slider FROM CODE and repaint
+         its fill. The fill is a custom property this paints on 'input', and
+         setting `.value` fires no event — so a slider driven by a tween or a
+         step otherwise slides its thumb and leaves the green where it was.
+         onChange is deliberately NOT called: the value came from the thing
+         onChange would have told. */
       range(input, onChange) {
         const paint = () => input.style.setProperty('--p', `${((input.value - input.min) / (input.max - input.min)) * 100}%`);
         input.addEventListener('input', () => { paint(); onChange(+input.value); });
         paint();
         onChange(+input.value);
+        return v => { if (v !== undefined) input.value = v; paint(); };
       },
     };
     const ctx = Object.assign(opts.ctx || {}, { ui, goTo: i => goTo(i) });

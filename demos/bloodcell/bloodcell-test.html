@@ -60,6 +60,20 @@ function bench(ctx) {
     </div>
 
     <div class="bench-group">
+      <div class="bench-hd">the water outside</div>
+      <div class="slider"><div class="slider-head"><span class="label">tonicity</span><span class="value" data-v="tonicity"></span></div>
+        <input type="range" id="tonicity" min="-1" max="1" step="0.01" value="0"></div>
+      <div class="slider"><div class="slider-head"><span class="label">lysis</span><span class="value" data-v="spill"></span></div>
+        <input type="range" id="spill" min="0" max="1" step="0.01" value="0"></div>
+      <div class="segmented" id="bath" role="group" aria-label="The water outside">
+        <button type="button" data-bath="-1">Pure water</button>
+        <button type="button" data-bath="0">Plasma</button>
+        <button type="button" data-bath="1">Brine</button>
+      </div>
+      <p class="foot" id="facts"></p>
+    </div>
+
+    <div class="bench-group">
       <div class="bench-hd">haemoglobin</div>
       <div class="row">
         <label class="switch"><input type="checkbox" id="hb" checked><span class="track"></span>show</label>
@@ -68,30 +82,102 @@ function bench(ctx) {
     </div>`);
 
   const v = (k, s) => ui.q(`[data-v=${k}]`).textContent = s;
-
-  ui.range(ui.q('#sickle'), x => { C.set({ sickle: x }, { snap: true }); v('sickle', x === 0 ? 'discocyte' : x === 1 ? 'sickled' : x.toFixed(2)); });
+  /* Named ends compare with a tolerance, not ===: a tween lands on its target
+     but a slider quantises to its own step, and a value a hundredth short of
+     the end is at the end as far as a reader is concerned. */
+  const at = (x, n) => Math.abs(x - n) < 0.005;
+  const TON = x => at(x, 0) ? 'plasma' : at(x, -1) ? 'pure water' : at(x, 1) ? 'brine'
+    : (x < 0 ? 'hypotonic ' : 'hypertonic ') + Math.abs(x).toFixed(2);
+  const LABEL = {
+    sickle: x => at(x, 0) ? 'discocyte' : at(x, 1) ? 'sickled' : x.toFixed(2),
+    tonicity: TON,
+    spill: x => at(x, 0) ? 'intact' : at(x, 1) ? 'ghost' : x.toFixed(2),
+  };
+  /* THE CONTROL SHOWS THE INTENT, NOT THE ARRIVAL. A press starts a three
+     second glide, and a control that waits for the value to land leaves the
+     press looking ignored — the reader presses it again. These hold what was
+     asked for, and the frame handler at the foot lights that instead of the
+     current value. They are cleared when the value SETTLES somewhere else,
+     which is how a slider drag or a console call takes the lit state back. */
+  let want = null, wantSickle = null, wasTon = null, wasSickle = null;
+  const sync = {};
+  sync.sickle = ui.range(ui.q('#sickle'), x => { wantSickle = null; C.set({ sickle: x }, { snap: true }); v('sickle', LABEL.sickle(x)); });
   /* The half opens on a glide: the states are whole and halved, and the wedge
      between them is the transition, not a setting. */
   ui.q('#cut').onchange = e => C.set({ cut: e.target.checked ? 1 : 0 }, { seconds: 0.7 });
 
+  sync.tonicity = ui.range(ui.q('#tonicity'), x => { want = null; C.set({ tonicity: x }, { snap: true }); v('tonicity', TON(x)); });
+  sync.spill = ui.range(ui.q('#spill'), x => { C.set({ spill: x }, { snap: true }); v('spill', LABEL.spill(x)); });
+
+  /* The two halves of what pure water does, in the order it does them: the
+     cell fills until it is the sphere its membrane area allows, and then it
+     has nowhere left to put the next litre. */
+  /* THE CONTROL SHOWS THE INTENT, NOT THE ARRIVAL. A press starts a three
+     second glide, and a segment that waits for the value to land leaves the
+     press looking ignored — the reader presses it again. So `want` is set on
+     the press and the panel lights that, while the value is still travelling.
+     It is cleared when the value SETTLES anywhere else, which is how a slider
+     drag or a console call takes the lit state back. */
+  for (const b of ui.qa('[data-bath]')) b.onclick = () => {
+    const to = +b.dataset.bath;
+    want = to;
+    C.set({ spill: 0 }, { snap: true });
+    if (to < 0) C.set({ tonicity: -1 }, { seconds: 3.2, onDone: () => C.set({ spill: 1 }, { seconds: 1.8 }) });
+    else C.set({ tonicity: to }, { seconds: to ? 2.6 : 1.2 });
+  };
+
+  /* Read off the component. Typing "1.6x" here is a claim nothing checks. */
+  const f = C.state();
+  ui.q('#facts').textContent =
+    `${Math.round(f.area)} µm² of membrane, whatever the water does: it holds `
+    + `${f.swellRatio.toFixed(2)}x the volume as a ${(f.sphereR * 2).toFixed(1)} µm sphere, `
+    + `and at ${Math.round(f.crenateFraction * 100)}% of the water there is more of it than the shape needs.`;
+
   /* The glide is the case a step would use, and the sliders above are the case
      that must not glide: a drag a 0.9 s tween is chasing feels broken. */
   ui.q('#toggle').onclick = () => {
-    const to = C.state().sickle > 0.5 ? 0 : 1;
-    C.set({ sickle: to }, { seconds: 2.4 });
-    ui.q('#toggle').textContent = to ? 'Un-sickle it' : 'Sickle it';
+    wantSickle = C.state().sickle > 0.5 ? 0 : 1;
+    C.set({ sickle: wantSickle }, { seconds: 2.4 });
   };
   ui.q('#rot').onchange = e => C.set({ autoRotate: e.target.checked });
   ui.q('#hb').onchange = e => C.show('hb', e.target.checked);
   ui.q('#seed').onclick = () => C.set({ seed: (Math.random() * 1e9) >>> 0 });
 
-  /* The tween owns the slider while it runs; a slider the reader is dragging
-     is not written to, which a blanket write every frame would do. */
-  const sl = ui.q('#sickle');
+  /* The tween owns a slider while it runs; a slider the reader is dragging is
+     not written to, which a blanket write every frame would do. */
+  const follow = { sickle: ui.q('#sickle'), tonicity: ui.q('#tonicity'), spill: ui.q('#spill') };
+  const sw = { cut: ui.q('#cut'), rot: ui.q('#rot'), hb: ui.q('#hb') };
+  const toggle = ui.q('#toggle');
+  /* EVERY CONTROL READS THE COMPONENT, none of them remembers what it did.
+     A button that sets its own label is wrong the moment anything else moves
+     the value — a tween, a slider, the console. */
   C.on('frame', s => {
-    if (document.activeElement === sl || Math.abs(sl.value - s.sickle) < 0.004) return;
-    sl.value = s.sickle;
-    v('sickle', s.sickle === 0 ? 'discocyte' : s.sickle === 1 ? 'sickled' : s.sickle.toFixed(2));
+    for (const k in follow) {
+      /* The reader owns a slider only while they are on it. Any other test —
+         "close enough already" — swallows the last write of a glide, which is
+         the one that lands on the end and is the only one whose label reads
+         `pure water` instead of `hypotonic 1.00`. */
+      if (document.activeElement === follow[k]) continue;
+      if (+follow[k].value !== s[k]) sync[k](s[k]);
+      v(k, LABEL[k](s[k]));
+    }
+    // Settled somewhere other than what was asked for: the press is history.
+    if (s.tonicity === wasTon && want !== null && Math.abs(s.tonicity - want) > 0.02) want = null;
+    if (s.sickle === wasSickle && wantSickle !== null && Math.abs(s.sickle - wantSickle) > 0.02) wantSickle = null;
+    wasTon = s.tonicity; wasSickle = s.sickle;
+
+    for (const b of ui.qa('[data-bath]')) {
+      const t = +b.dataset.bath;
+      const on = want !== null ? t === want : Math.abs(s.tonicity - t) < 0.02;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', String(on));
+    }
+    const on = (wantSickle !== null ? wantSickle : s.sickle) > 0.5;
+    toggle.textContent = on ? 'Un-sickle it' : 'Sickle it';
+    toggle.setAttribute('aria-pressed', String(on));
+    if (sw.cut.checked !== s.cut > 0.5) sw.cut.checked = s.cut > 0.5;
+    if (sw.rot.checked !== !!s.autoRotate) sw.rot.checked = !!s.autoRotate;
+    if (sw.hb.checked !== !!s.hb) sw.hb.checked = !!s.hb;
   });
 }
 

@@ -177,6 +177,38 @@ body.is-night .lshell-progress button.is-current { background: #9fd98a; }
 .lshell-panel .chip i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); opacity: 0.3; transition: opacity 0.2s; }
 .lshell-panel .chip.is-on { border-color: var(--ink); color: var(--ink); }
 .lshell-panel .chip.is-on i { opacity: 1; }
+/* ---------- .segmented ----------
+   ONE CONTROL, N ANSWERS. Chips are the wrong control for that — a chip is a thing
+   you turn on and off beside other things you can also turn on, and a row of
+   them cannot say "these three are the same question".
+*/
+.lshell-panel .segmented {
+  display: inline-flex; align-self: flex-start; overflow: hidden;
+  border: 1.5px solid var(--line); border-radius: 999px; background: #fff;
+}
+.lshell-panel .segmented > * {
+  border: 0; padding: 8px 16px; background: transparent; color: var(--ink-2);
+  font-family: var(--display); font-size: 14px; font-weight: 500; line-height: 1.15;
+  /* STATED, NOT INHERITED: kodo.css loads first and its own .segmented shouts
+     in uppercase with wide tracking. Its `.segmented > *` matches these
+     elements too, so anything this rule does not say, that one still says. */
+  text-transform: none; letter-spacing: 0.02em;
+  white-space: nowrap; cursor: pointer; transition: background 0.2s, color 0.2s;
+}
+.lshell-panel .segmented > * + * { border-left: 1.5px solid var(--line); }
+.lshell-panel .segmented > *:hover:not([disabled]):not(.is-on):not([aria-pressed="true"]) { color: var(--ink); }
+.lshell-panel .segmented > *.is-on,
+.lshell-panel .segmented > *[aria-pressed="true"] { background: var(--accent); color: #fff; }
+/* THE DIVIDER DIES INTO THE FILL. A hairline down the side of a filled segment
+   reads as a crack in it, so the chosen one eats the rule on both its edges. */
+.lshell-panel .segmented > *.is-on,
+.lshell-panel .segmented > *[aria-pressed="true"],
+.lshell-panel .segmented > *.is-on + *,
+.lshell-panel .segmented > *[aria-pressed="true"] + * { border-left-color: transparent; }
+/* Inside, because an outline on a joined segment draws over its neighbours. */
+.lshell-panel .segmented > *:focus-visible { outline: 0; box-shadow: inset 0 0 0 2px var(--ink); }
+.lshell-panel .segmented > *[disabled] { opacity: 0.35; cursor: default; }
+
 .lshell-panel .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-family: var(--display); font-weight: 500; font-size: 14px; position: relative; }
 .lshell-panel .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
 .lshell-panel .track { width: 44px; height: 26px; border-radius: 13px; background: #cfd2d8; position: relative; transition: background 0.25s; flex: none; }

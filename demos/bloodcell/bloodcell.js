@@ -33,16 +33,25 @@
  *  the contents inside the cell for free — no clamping, no collision — and it
  *  is why the fibres follow the crescent without knowing about it.
  *
+ *  `tonicity` IS ONE AXIS WITH THE SAME ARGUMENT AT BOTH ENDS, and that
+ *  argument is that the membrane's AREA is fixed. In pure water the cell fills
+ *  to the sphere that area can enclose — the most water it can hold — and then
+ *  lyses (`spill`). In brine the water leaves, and the area that is now
+ *  surplus buckles out as spicules: a crenated cell. The numbers behind both
+ *  are measured off the profile and returned by `state()`, never quoted. See
+ *  `swellPoint` and `spicules`.
+ *
  *  Shape sources: Evans & Fung's profile for the discocyte (7.8 µm across,
  *  2.4 µm at the rim, 0.8 in the dimple). The sickle is a caricature of the
  *  deoxygenated cell, not a measured one: HbS polymer bundles the cell into a
  *  boat with drawn-out horns, and the beads become those bundles. It is drawn
  *  from `seed`, and no two seeds give the same cell — see `makeShape`.
  *
- *  BUDGET: ~6 ms a frame WHILE MORPHING (19k vertices warped, their normals,
- *  2000 instanced beads, the cut ribbon, and the render), and a render alone
- *  once it settles — nothing recomputes unless a parameter moved. Most of it
- *  is the trigonometry a vertex costs; the irregularity is what it buys.
+ *  BUDGET: ~6 ms a frame while SICKLING (19k vertices warped, their normals,
+ *  2000 instanced beads, the cut ribbon, and the render), 2 ms on the tonicity
+ *  axis, and a render alone once either settles — nothing recomputes unless a
+ *  parameter moved. The difference between the two is the trigonometry the
+ *  sickle's irregularity costs; crenation's spikes are baked onto the grid.
  * ========================================================================== */
 (function (global) {
   'use strict';
@@ -50,11 +59,19 @@
   const R0 = 3.91;      // µm — disc radius
   const AMP = 1.945;    // µm — scales the profile to a 2.4 µm rim, 0.8 µm dimple
 
+  const CRENATE = 0.6;  // how much water a crenated cell has left
+  const SPIKE = 0.62;   // µm a full-grown spicule stands out
+
   const K = 72;         // profile samples, pole to pole
   const J = 96;         // spokes; also the cut's angular resolution (3.75°)
 
   const DEFAULTS = {
     sickle: 0,          // 0 discocyte · 1 sickled
+    /* THE SOLUTION THE CELL IS SITTING IN, not a property of the cell:
+       -1 pure water · 0 plasma · +1 brine. Water crosses toward the saltier
+       side, so the cell swells to the left and shrivels to the right. */
+    tonicity: 0,
+    spill: 0,           // lysis: the haemoglobin leaves and a ghost is left
     cut: 0,             // whole (0) or halved (1); between is the opening, not a state
     /* WHICH HALF IS REMOVED, in turns, and 0 is the one the sickle needs: it
        takes the near side away and cuts the cell along its length, so the
@@ -75,6 +92,7 @@
     inner: 0x7d1c10,
     edge: 0xe08268,                 // the cut face: lighter, so thickness reads
     hb: 0xc9c469, hbFibre: 0xd6d074,
+    ghost: 0xe8b4a6,
   };
 
   /* ---- the resting profile ---------------------------------------------- */
@@ -107,7 +125,38 @@
       ir[k] = Math.max(0, pr[k] - t * nr);
       iy[k] = py[k] - t * ny;
     }
-    return { pr, py, ir, iy };
+    /* THE AREA IS THE THING THAT CANNOT CHANGE, so it is measured here rather
+       than typed: a lipid bilayer stretches a few percent and then tears, and
+       every osmotic story about this cell follows from that. `sphereR` is the
+       sphere that this much membrane can enclose, and `swellRatio` how much
+       more water it holds than the disc — the swelling limit, read off the
+       geometry instead of quoted. */
+    let area = 0, vol = 0;
+    for (let k = 0; k < K; k++) {
+      const dr = pr[k + 1] - pr[k], dy = py[k + 1] - py[k];
+      area += Math.PI * (pr[k] + pr[k + 1]) * Math.hypot(dr, dy);
+      if (k < (K >> 1)) vol += Math.PI * (pr[k] + pr[k + 1]) * dr * (py[k] + py[k + 1]);
+    }
+    const sphereR = Math.sqrt(area / (4 * Math.PI));
+    const swellRatio = (4 / 3 * Math.PI * sphereR ** 3) / vol;
+    return { pr, py, ir, iy, area, vol, sphereR, swellRatio };
+  }
+
+  /* Half-height of the OUTER surface at radius r: the ceiling a point sits
+     under, which is what says where it goes when the cell rounds out. */
+  function topY(prof, r) {
+    const { pr, py } = prof, h = K >> 1;
+    if (r >= pr[h]) return 0;
+    let k = 0;
+    while (k < h && pr[k + 1] < r) k++;
+    const span = pr[k + 1] - pr[k];
+    const u = span > 1e-9 ? (r - pr[k]) / span : 0;
+    return Math.max(0, py[k] + (py[k + 1] - py[k]) * u);
+  }
+  function topTable(prof) {
+    const N = 192, t = new Float32Array(N + 1);
+    for (let i = 0; i <= N; i++) t[i] = topY(prof, R0 * i / N);
+    return t;
   }
 
   /* Half-height of the lumen at radius r, for placing beads inside it. */
@@ -128,12 +177,100 @@
     for (let i = 0; i <= N; i++) t[i] = lumenY(prof, R0 * i / N);
     return t;
   }
-  function lumenAt(tab, r) {
+  function tableAt(tab, r) {
     const N = tab.length - 1, u = r / R0 * N;
     if (u <= 0) return tab[0];
     if (u >= N) return 0;
     const i = u | 0;
     return tab[i] + (tab[i + 1] - tab[i]) * (u - i);
+  }
+
+  /* PURE WATER, AND WHY THE CELL STOPS AT A SPHERE. Water follows its own
+     gradient into the cytoplasm and the cell fills. It cannot answer by
+     stretching — the membrane gives a few percent and tears — so the shape it
+     ends at is the one that holds the most volume for a FIXED area, which is
+     the sphere, and the biconcave disc's dimples are exactly the slack that
+     makes the journey possible. That sphere is NARROWER across than the disc
+     and about half again as much water; both numbers come off `profile`.
+     Past it there is nowhere left to go, and the cell lyses.
+
+     A point of the cell is carried by the height it sits at as a fraction of
+     the surface above it: that fraction is preserved, so the surface lands on
+     the sphere, the middle stays the middle, and the contents spread through
+     the new volume without any of them being tested against the membrane. */
+  /* AND SALT IS THE SAME ARGUMENT RUN BACKWARDS. Water leaves, the volume
+     falls, and the area STILL cannot change — so now there is too much
+     membrane for the shape, and the surplus buckles out as spicules. That is
+     what a crenated cell (an echinocyte) is: not a shrunken disc, a disc
+     wearing its own leftover skin. The same lerp does both, at a smaller
+     target radius, and the spikes below are where the leftover goes. */
+  function swellPoint(x, y, z, s, Rt, tab, o) {
+    if (s <= 0.0005) { o[0] = x; o[1] = y; o[2] = z; return o; }
+    const rr = Math.hypot(x, z);
+    const h0 = tableAt(tab, rr);
+    let u = h0 > 1e-4 ? y / h0 : 0;
+    if (u > 1) u = 1; else if (u < -1) u = -1;
+    const rho = Math.min(1, rr / R0);
+    const tr = Rt * rho, th = Rt * Math.sqrt(Math.max(0, 1 - rho * rho));
+    const nr = rr + (tr - rr) * s;
+    o[0] = rr > 1e-6 ? x * (nr / rr) : x;
+    o[1] = y + (u * th - y) * s;
+    o[2] = rr > 1e-6 ? z * (nr / rr) : z;
+    return o;
+  }
+
+  /* The spicules, baked onto the grid once: a value per (k, j), so crenating
+     costs an array read and not two dozen dot products a vertex.
+
+     THEY ARE EVENLY SPACED BECAUSE THE PHYSICS IS, and only that far. Buckling
+     picks a wavelength — set by how stiff the membrane is against how much of
+     it is surplus — so the spikes really do come out roughly one spacing
+     apart, and a random scatter would look wrong in the other direction. What
+     a real echinocyte does NOT have is one spike shape repeated: the seats are
+     nudged off the lattice, and every spike gets its own width, height and
+     bluntness, some of them knobs and some of them thorns. The two smooth
+     harmonics under all of it are what keeps the body from being a sphere with
+     decoration on it. */
+  function spicules(seed) {
+    const R = rng(seed ^ 0x5bd1), N = 14 + ((R() * 14) | 0);
+    const sp = new Float64Array(N * 6), GA = Math.PI * (3 - Math.sqrt(5)), turn = R() * 6.283;
+    const jit = 0.42 / Math.sqrt(N);           // a fraction of the spacing, never more
+    for (let i = 0; i < N; i++) {
+      const yy = 1 - (2 * i + 1) / N, rr = Math.sqrt(Math.max(0, 1 - yy * yy)), th = GA * i + turn;
+      let dx = rr * Math.cos(th) + (R() * 2 - 1) * jit;
+      let dy = yy + (R() * 2 - 1) * jit;
+      let dz = rr * Math.sin(th) + (R() * 2 - 1) * jit;
+      const L = Math.hypot(dx, dy, dz) || 1;
+      sp[i * 6] = dx / L; sp[i * 6 + 1] = dy / L; sp[i * 6 + 2] = dz / L;
+      sp[i * 6 + 3] = 0.45 + R() * 0.85;                 // height
+      sp[i * 6 + 4] = Math.cos(0.17 + R() * 0.26);       // width
+      sp[i * 6 + 5] = 1.3 + R() * 1.9;                   // 1.3 a knob, 3 a thorn
+    }
+    const h = [0.30 + R() * 0.22, 2 + ((R() * 3) | 0), 1 + ((R() * 3) | 0), R() * 6.283,
+               0.18 + R() * 0.16, 3 + ((R() * 4) | 0), 2 + ((R() * 3) | 0), R() * 6.283];
+    const field = new Float32Array((K + 1) * J);
+    let min = 0;
+    for (let k = 0; k <= K; k++) {
+      const f = Math.PI * k / K, si = Math.sin(f), co = Math.cos(f);
+      for (let j = 0; j < J; j++) {
+        const t = 2 * Math.PI * j / J;
+        const dx = si * Math.cos(t), dy = co, dz = si * Math.sin(t);
+        let v = h[0] * Math.sin(h[1] * t + h[2] * f + h[3]) + h[4] * Math.sin(h[5] * t + h[6] * f + h[7]);
+        for (let i = 0; i < N * 6; i += 6) {
+          const d = dx * sp[i] + dy * sp[i + 1] + dz * sp[i + 2];
+          if (d <= sp[i + 4]) continue;
+          v += sp[i + 3] * Math.pow((d - sp[i + 4]) / (1 - sp[i + 4]), sp[i + 5]);
+        }
+        const w = Math.max(-0.5, v);            // a dent, never an inversion
+        field[k * J + j] = w;
+        if (w < min) min = w;
+      }
+    }
+    /* The DEEPEST dent, because the contents have to clear it: a bead is
+       placed against the smooth target and the buckling can push the membrane
+       inside that. Whoever pulls the target in is who reads this. */
+    field.min = min;
+    return field;
   }
 
   /* ---- the deformation --------------------------------------------------- */
@@ -272,6 +409,7 @@
     const R = rng(seed);
     const free = new Float32Array(n * 3), fib = new Float32Array(n * 3);
     const rad = new Float32Array(n), lag = new Float32Array(n);
+    const esc = new Float32Array(n * 4);       // where each one goes when the cell lets go
 
     for (let i = 0; i < n; i++) {
       let r, y;
@@ -287,6 +425,10 @@
       free[i * 3 + 2] = r * Math.sin(th);
       rad[i] = 0.048 + R() * 0.026;
       lag[i] = R() * 0.35;
+      esc[i * 4] = 0.5 + R() * 2.2;            // how far out
+      esc[i * 4 + 1] = R() * 2 - 1;            // and off which way, so it is a
+      esc[i * 4 + 2] = R() * 2 - 1;            // cloud rather than a starburst
+      esc[i * 4 + 3] = R() * 2 - 1;
     }
 
     const F = 16, per = Math.ceil(n / F);
@@ -305,7 +447,7 @@
         fib[i * 3 + 2] = z;
       }
     }
-    return { free, fib, rad, lag };
+    return { free, fib, rad, lag, esc };
   }
 
   /* ---- the cell ---------------------------------------------------------- */
@@ -368,8 +510,27 @@
     for (let j = 0; j < J; j++) { const t = 2 * Math.PI * j / J; cosT[j] = Math.cos(t); sinT[j] = Math.sin(t); }
 
     let prof = profile(P.membrane);
-    let lut = lumenTable(prof);
+    let lut = lumenTable(prof), top = topTable(prof);
     let shape = makeShape(P.seed);
+    /* The sphere the membrane can just enclose, sampled on the same k so a
+       swell is a lerp between two arrays and not a second parametrisation. */
+    const sO = new Float64Array((K + 1) * 2), sI = new Float64Array((K + 1) * 2);
+    const cO = new Float64Array((K + 1) * 2), cI = new Float64Array((K + 1) * 2);
+    let spic = spicules(P.seed);
+    function sphere() {
+      /* Two targets on the same axis: the sphere this much membrane can just
+         enclose, and the smaller one left when 40% of the water has gone. */
+      const Ro = prof.sphereR, Rc = Math.cbrt(3 * CRENATE * prof.vol / (4 * Math.PI));
+      prof.crenR = Rc;
+      for (let k = 0; k <= K; k++) {
+        const f = Math.PI * k / K, si = Math.sin(f), co = Math.cos(f);
+        sO[k * 2] = Ro * si; sO[k * 2 + 1] = Ro * co;
+        sI[k * 2] = (Ro - P.membrane) * si; sI[k * 2 + 1] = (Ro - P.membrane) * co;
+        cO[k * 2] = Rc * si; cO[k * 2 + 1] = Rc * co;
+        cI[k * 2] = (Rc - P.membrane) * si; cI[k * 2 + 1] = (Rc - P.membrane) * co;
+      }
+    }
+    sphere();
     let bd = beads(P.hbCount, prof, P.seed);
     const dummy = new THREE.Object3D();
     const o3 = [0, 0, 0, 1];
@@ -402,14 +563,33 @@
 
     /* -- every vertex, every bead, through one warp -- */
     function apply() {
-      const m = P.sickle, { pr, py, ir, iy } = prof;
+      const m = P.sickle, t = P.tonicity, w = Math.abs(t);
+      const tO = t <= 0 ? sO : cO, tI = t <= 0 ? sI : cI;
+      const spike = Math.max(0, t) * SPIKE;
+      const { pr, py, ir, iy } = prof;
+      /* The lerped profile's own normal, which is the direction a spicule
+         stands in and the ONLY direction it may: pushed along anything else it
+         would thin the membrane, and the membrane is the thing that cannot
+         change. Both surfaces take the same push, so the shell keeps its
+         thickness and only its shape buckles. */
       for (let k = 0; k <= K; k++) {
-        const rO = pr[k], yO = py[k], rI = ir[k], yI = iy[k];
+        const rO = pr[k] + (tO[k * 2] - pr[k]) * w, yO = py[k] + (tO[k * 2 + 1] - py[k]) * w;
+        const rI = ir[k] + (tI[k * 2] - ir[k]) * w, yI = iy[k] + (tI[k * 2 + 1] - iy[k]) * w;
+        let nr = 0, ny = k === 0 ? 1 : -1;
+        if (k > 0 && k < K) {
+          const ka = k - 1, kb = k + 1;
+          const dr = (pr[kb] + (tO[kb * 2] - pr[kb]) * w) - (pr[ka] + (tO[ka * 2] - pr[ka]) * w);
+          const dy = (py[kb] + (tO[kb * 2 + 1] - py[kb]) * w) - (py[ka] + (tO[ka * 2 + 1] - py[ka]) * w);
+          const L = Math.hypot(dr, dy) || 1;
+          nr = -dy / L; ny = dr / L;
+        }
         for (let j = 0; j < J; j++) {
           const o = (k * J + j) * 3, c = cosT[j], s = sinT[j];
-          warp(rO * c, yO, rO * s, m, shape, o3);
+          const p = spike ? spike * spic[k * J + j] : 0;
+          const dr = p * nr, dy = p * ny;
+          warp((rO + dr) * c, yO + dy, (rO + dr) * s, m, shape, o3);
           posOut[o] = o3[0]; posOut[o + 1] = o3[1]; posOut[o + 2] = o3[2];
-          warp(rI * c, yI, rI * s, m, shape, o3);
+          warp((rI + dr) * c, yI + dy, (rI + dr) * s, m, shape, o3);
           posIn[o] = o3[0]; posIn[o + 1] = o3[1]; posIn[o + 2] = o3[2];
         }
       }
@@ -463,33 +643,65 @@
     }
 
     function instances(m) {
-      const n = P.hbCount, TAU = Math.PI * 2;
+      const n = P.hbCount, TAU = Math.PI * 2, t = P.tonicity, sp = P.spill;
+      const w = Math.abs(t);
+      // The beads take the smooth target and never the spikes: a spicule only
+      // pushes the membrane outward, so what was inside stays inside.
+      const Rt = (t <= 0 ? prof.sphereR : prof.crenR + spic.min * SPIKE) - P.membrane;
       for (let i = 0; i < n; i++) {
         const o = i * 3;
         // Each bead starts moving at its own moment, so the cloud gathers into
         // fibres in a wave rather than as one rigid slide.
         const u = smooth(bd.lag[i], bd.lag[i] + 0.65, m);
-        const x = bd.free[o] + (bd.fib[o] - bd.free[o]) * u;
+        let x = bd.free[o] + (bd.fib[o] - bd.free[o]) * u;
         let y = bd.free[o + 1] + (bd.fib[o + 1] - bd.free[o + 1]) * u;
-        const z = bd.free[o + 2] + (bd.fib[o + 2] - bd.free[o + 2]) * u;
+        let z = bd.free[o + 2] + (bd.fib[o + 2] - bd.free[o + 2]) * u;
+
         /* BOTH ENDS OF THAT LERP ARE INSIDE THE CELL AND THE PATH BETWEEN THEM
            IS NOT: the lumen is a quarter of a micron deep over the dimple and
            four times that at the rim, so a bead crossing the middle surfaces
-           straight through the membrane. Held under the ceiling at its own
-           radius instead. The warp is what keeps it inside thereafter. */
-        const cap = lumenAt(lut, Math.hypot(x, z)) - bd.rad[i];
+           straight through the membrane. Held under the ceiling at whatever
+           radius it has reached, and fitted to the room there. */
+        const room = tableAt(lut, Math.hypot(x, z));
+        const rad = Math.min(bd.rad[i], room * 0.8);
+        const cap = room - rad;
         if (cap <= 0) y = 0; else if (y > cap) y = cap; else if (y < -cap) y = -cap;
-        // Hidden with the wedge it sits in, tested on the RESTING angle so the
-        // test matches the spokes the index buffer withheld.
+
+        // Hidden with the half it sits in, tested on the RESTING angle so the
+        // test matches the spokes the index buffer withheld. Once it is outside
+        // the cell, the cut is not its business.
         let hide = false;
-        if (cutN > 0) {
+        if (cutN > 0 && sp < 0.15) {
           let th = Math.atan2(z, x); if (th < 0) th += TAU;
           const j = Math.floor(th / TAU * J) % J;
           hide = ((j - cutA + J) % J) < cutN;
         }
+        /* And smaller out where the rim's own points stretch the sheet
+           sideways, which no vertical measure sees. Scaled by the sickling,
+           because a cell that has not sickled has no points to stretch it. */
+        const edge = 1 - 0.75 * m * smooth(0.58, 1.0, Math.hypot(x, z) / R0);
+
+        swellPoint(x, y, z, w, Rt, top, o3);
+        x = o3[0]; y = o3[1]; z = o3[2];
+
+        /* Lysis: the membrane has torn and the haemoglobin is in the plasma.
+           It leaves along its own line, not the surface's normal — the cell
+           does not push it out, it stops holding it in. */
+        if (sp > 0.0005) {
+          const e = bd.esc, k2 = smooth(bd.lag[i], bd.lag[i] + 0.7, sp) * e[i * 4];
+          x += (x + e[i * 4 + 1] * 1.2) * k2;
+          y += (y + e[i * 4 + 2] * 1.2) * k2;
+          z += (z + e[i * 4 + 3] * 1.2) * k2;
+        }
+
+        /* AND THE WARP THINS THE CELL UNDER IT. A bead fitted to the resting
+           lumen still breaks the surface at a horn, where the sheet is squeezed
+           to a fifth of its thickness — the bead is a sphere and does not
+           squeeze with it. o3[3] is that local thinning, so the granules get
+           smaller toward the points and vanish inside the sharpest of them. */
         warp(x, y, z, m, shape, o3);
         dummy.position.set(o3[0], o3[1], o3[2]);
-        dummy.scale.setScalar(hide ? 0 : bd.rad[i]);
+        dummy.scale.setScalar(hide ? 0 : rad * o3[3] * edge);
         dummy.updateMatrix();
         hb.setMatrixAt(i, dummy.matrix);
       }
@@ -498,7 +710,19 @@
     }
 
     const cSickle = new THREE.Color(COL.outerSickle), cSickleHb = new THREE.Color(COL.hbFibre);
-    function paint() { matOut.color.setHex(COL.outer).lerp(cSickle, P.sickle); }
+    const cGhost = new THREE.Color(COL.ghost);
+    /* A GHOST IS WHAT IS LEFT, and it is the whole point of the lysis step:
+       the membrane does not vanish, it stays as an empty pale bag. Opacity is
+       the only place this component draws anything transparent, so the flag
+       goes on with the spill and off again with it. */
+    function paint() {
+      const sp = P.spill;
+      matOut.color.setHex(COL.outer).lerp(cSickle, P.sickle).lerp(cGhost, sp);
+      matOut.transparent = sp > 0.001;
+      matOut.opacity = 1 - 0.62 * sp;
+      matIn.opacity = matOut.opacity; matIn.transparent = matOut.transparent;
+      matEdge.opacity = matOut.opacity; matEdge.transparent = matOut.transparent;
+    }
 
     reindex(); apply(); paint();
 
@@ -513,7 +737,7 @@
           if (k === 'seed') rebuild = true;
           P[k] = next[k];
         }
-        if (rebuild) { prof = profile(P.membrane); lut = lumenTable(prof); shape = makeShape(P.seed); bd = beads(P.hbCount, prof, P.seed); }
+        if (rebuild) { prof = profile(P.membrane); lut = lumenTable(prof); top = topTable(prof); shape = makeShape(P.seed); spic = spicules(P.seed); bd = beads(P.hbCount, prof, P.seed); sphere(); }
         hb.visible = !!P.hb;
         if (re) reindex();
         dirty = true;
@@ -526,6 +750,9 @@
       },
       touch() { dirty = true; },
       params: P,
+      /* Measured off the profile, never typed: a page printing "half as much
+         again" reads it from here. */
+      facts() { return { discR: R0, sphereR: prof.sphereR, crenR: prof.crenR, area: prof.area, volume: prof.vol, swellRatio: prof.swellRatio, crenateFraction: CRENATE }; },
       dispose() {
         root.remove(grp);
         geoOut.dispose(); geoIn.dispose(); geoEdge.dispose(); hbGeo.dispose();
@@ -573,18 +800,21 @@
     const api = {
       set(next, opts = {}) {
         const glide = opts.snap ? 0 : (opts.seconds === undefined ? 0.9 : opts.seconds);
-        for (const k of ['sickle', 'cut']) {
+        let done = opts.onDone || null;        // fires once, on the first key that glides
+        for (const k of ['sickle', 'tonicity', 'spill', 'cut']) {
           if (next[k] === undefined) continue;
           const from = cell.params[k], to = next[k];
           if (glide > 0 && from !== to) {
-            tw.to(from, to, glide, v => { cell.set({ [k]: v }); }, { key: k, ease: 'smooth' });
+            tw.to(from, to, glide, v => { cell.set({ [k]: v }); }, { key: k, ease: 'smooth', onDone: done });
+            done = null;
           } else { tw.cancel(k); cell.set({ [k]: to }); }
           delete next[k];
         }
+        if (done) done();
         cell.set(next);
         return api;
       },
-      state() { return Object.assign({}, cell.params); },
+      state() { return Object.assign({}, cell.params, cell.facts()); },
       on(ev, fn) { (listeners[ev] || (listeners[ev] = [])).push(fn); return api; },
       show(name, on) { if (name === 'hb') cell.set({ hb: !!on }); return api; },
       box,
