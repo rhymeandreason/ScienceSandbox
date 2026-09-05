@@ -12,6 +12,7 @@
 'use strict';
 const Lib = require('../lib/lib-node.js');
 const Peptide = require('./peptide.js');
+const Spec = require('./spec.js');
 
 const S = Lib.SCALE, M = Lib.MOLECULES;
 const un = s => ({ ...s, atoms:s.atoms.map(a => ({ el:a.el, pos:a.pos.map(v => v/S) })) });
@@ -103,7 +104,74 @@ console.log('\n== 5. a chain can only grow one way, and only because of the chem
   ok(!stale, 'no bond survives pointing at an atom that left');
 }
 
-console.log('\n== 6. the pose lands in the same place whichever molecule moved');
+console.log('\n== 6. the glycosidic pose repeats into the polymer it names');
+{
+  const G = require('./glycosidic.js');
+  const key = (k) => ({ ...un(M[k]), key:k });
+  const lib = { cellobiose:key('cellobiose'), maltose:key('maltose') };
+  // What mol-contrast.js's LINK table was solved against. Printed beside the
+  // measurement because that comparison IS the assertion (chain-repeat.js's
+  // header): the torsions are not quoted from a paper, the POLYMER is.
+  const WANT = {
+    glucose:      { turn:2.00, rise:5.32, polymer:'cellulose' },
+    alphaGlucose: { turn:6.26, rise:1.43, polymer:'starch' },
+  };
+  for(const k of Object.keys(WANT)){
+    const h = key(k);
+    const r = G.pose(h, key(k), lib);
+    if(!r){ fails++; checks++; console.log(`  FAIL  ${k}: no pose`); continue; }
+    // The pose IS the residue-to-residue screw, so its own rotation and its
+    // slide along that rotation's axis are the polymer's two numbers. Nothing
+    // is repeated to find them: a rigid transform applied over and over is a
+    // helix by construction, which is chain-repeat.js's whole argument.
+    const q = r.quat, w = Math.min(1, Math.abs(q[3]));
+    const ang = 2*Math.acos(w), sn = Math.sqrt(1 - w*w);
+    const axis = sn < 1e-8 ? [0,0,1] : [q[0]/sn, q[1]/sn, q[2]/sn].map(v => q[3] < 0 ? -v : v);
+    const turn = 360/(ang*180/Math.PI);
+    const rise = Math.abs(r.pos[0]*axis[0] + r.pos[1]*axis[1] + r.pos[2]*axis[2]);
+    const want = WANT[k];
+    ok(Math.abs(turn - want.turn) < 0.01 && Math.abs(rise - want.rise) < 0.01,
+       `${k}: ${turn.toFixed(2)} residues/turn, ${rise.toFixed(2)} A rise `
+       + `— ${want.polymer}, as mol-contrast.js solved it (${want.turn} and ${want.rise})`);
+    ok(r.polymer === want.polymer, `${k}: names ${want.polymer}`);
+  }
+  // A half turn per residue is not a fact about cellulose that anyone typed. It
+  // is what beta-1,4 comes out at, and it is the whole reason a cellulose chain
+  // can be built on a flat plane while a starch chain cannot.
+  const b = G.pose(key('glucose'), key('glucose'), lib);
+  const half = 2*Math.acos(Math.min(1, Math.abs(b.quat[3])))*180/Math.PI;
+  ok(Math.abs(half - 180) < 0.5,
+     `beta-1,4 turns ${half.toFixed(1)} degrees per residue — a half turn, which is flat`);
+
+  // Two different sugars would be a linkage no disaccharide here measures.
+  ok(G.pose(key('glucose'), key('alphaGlucose'), lib) === null,
+     'an alpha and a beta glucose do not join: nothing measures that linkage');
+
+  // The bridge oxygen is the DONOR's. Getting this backwards builds a bond one
+  // atom out and still renders as a linkage.
+  const out = G.react(key('glucose'), key('glucose'));
+  ok(out.host.names.includes('O1') && !out.host.names.includes('HO1'),
+     'the donor keeps its anomeric O and loses only its H');
+  ok(!out.guest.names.includes('O4') && !out.guest.names.includes('HO4'),
+     'the acceptor gives up its whole C4 hydroxyl');
+}
+
+console.log('\n== 7. a residue stops claiming to be the monomer it was');
+{
+  const g = un(M.glucose);
+  const r = Spec.strip(g, Spec.role(g, 'c1').leaves);
+  ok(r.residue === true, 'a stripped spec says it is a residue');
+  const kept = Spec.MONOMER_ONLY.filter(k => k in r);
+  ok(kept.length === 0,
+     `no claim about the free monomer survives (${Spec.MONOMER_ONLY.join(', ')})`);
+  // The one that would have been quietly wrong rather than merely stale.
+  ok(!('formula' in r) && !('smiles' in r),
+     'a residue carries no formula and no SMILES of its own');
+  const stale = (r.groups || []).some(gr => gr.atoms.some(i => i >= r.atoms.length));
+  ok(!stale, 'no group survives pointing at an atom that left');
+}
+
+console.log('\n== 8. the pose lands in the same place whichever molecule moved');
 {
   const Plane = require('./plane.js');
   // A host sitting somewhere arbitrary and turned arbitrarily: an identity
@@ -146,7 +214,7 @@ console.log('\n== 6. the pose lands in the same place whichever molecule moved')
      'placing the host by re-solving the other way round is NOT the same pose');
 }
 
-console.log('\n== 7. hydrolysis puts back exactly what condensation took');
+console.log('\n== 9. hydrolysis puts back exactly what condensation took');
 {
   const base = un(M.alanine);
   const spent = Peptide.strip(base, Peptide.role(base, 'carboxyl').leaves);
@@ -159,6 +227,8 @@ console.log('\n== 7. hydrolysis puts back exactly what condensation took');
 
 console.log(fails
   ? `\nFAIL: ${fails} of ${checks} checks`
-  : `\nPASS: ${checks} checks — every peptide pose lands at ${Peptide.CN} A and omega 180, `
-    + `every residue's roles agree with its own indices, and a chain grows only at its C-terminus`);
+  : `\nPASS: ${checks} checks — every peptide pose lands at ${Peptide.CN} A and omega 180; `
+    + `every glycosidic pose repeats into the polymer it names, at the helix `
+    + `mol-contrast.js solved its torsions against; a chain grows only at the end `
+    + `that still has its leaving group; and a residue makes no claim it stopped being true of`);
 process.exit(fails ? 1 : 0);

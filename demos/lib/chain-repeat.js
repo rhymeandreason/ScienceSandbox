@@ -22,18 +22,27 @@
  *  two different rotation angles, and the angle comes from where the glycosidic
  *  bond points.
  *
- *  WHAT IS AND IS NOT CLAIMED. The linkage CONFIGURATION is checked geometry —
- *  maltose and cellobiose carry `glycosidic:` blocks that check-molecules.js
- *  audits. The two torsions about that linkage are NOT: mol-contrast.js declares
- *  them a deliberate schematic, swept for a readable pose, because a real
- *  disaccharide's φ/ψ are floppy in solution. A chain built by repeating them
- *  inherits exactly that status.
+ *  WHAT IS CLAIMED, AND WHAT BACKS IT. Both halves of a chain's shape are
+ *  asserted, by different means, and a page may say so.
  *
- *  So: the DIRECTION the chain takes is real, because it follows from the
- *  axial/equatorial choice the specs do assert. The PITCH is not — do not print
- *  a residues-per-turn figure next to a textbook one and imply they should
- *  match. `screwOf` returns the numbers this geometry gives; a page showing them
- *  owes the reader that sentence.
+ *  The linkage CONFIGURATION — which is what makes the chain turn the way it
+ *  does — is checked geometry: maltose and cellobiose carry `glycosidic:`
+ *  blocks that check-molecules.js audits.
+ *
+ *  The two TORSIONS about that linkage (φ about C1–O, ψ about O–C4) are each
+ *  sugar's own, and they are SOLVED rather than quoted — tools/solve-linkage.js
+ *  searches for the pair whose repeat reproduces the helix the real polymer
+ *  forms, because published φ/ψ come in several conventions and a number copied
+ *  without its convention is unfalsifiable. The citation is therefore the
+ *  POLYMER PARAMETER, which a textbook states unambiguously, and
+ *  chain/check-chain.js fails if a rebuilt spec stops reproducing it.
+ *
+ *  So a page MAY print `screwOf`'s residues-per-turn and rise beside the
+ *  published figures: that comparison is the assertion, not a coincidence being
+ *  passed off as one. mol-contrast.js's LINK table carries both pairs and the
+ *  targets they were solved against. What a page still may not do is imply the
+ *  torsions were measured off a deposited disaccharide; they were not, and the
+ *  helix is what stands behind them.
  *
  *  Usage:
  *    const s = ChainRepeat.screwOf(MOLECULES.maltose, ['O5','C1','C4'], 'A','B');

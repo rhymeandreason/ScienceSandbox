@@ -371,12 +371,19 @@ else
   echo "pre-commit: skipping check-dna.js — nothing under demos/dna/ staged"
 fi
 
-# macromolecule/ gates itself, plus the amino-acid specs its answers are built
+# macromolecule/ gates itself, plus every spec and module its answers are built
 # out of. peptide.js reads `condense:`, which molecules.js DERIVES from each
 # spec's `pep` indices — so a renumbered residue, or a change to that
 # derivation, moves the peptide bond onto other atoms and the chain still
-# renders. mol-contrast.js is here because it holds four of the eight residues.
-if git diff --cached --name-only | grep -qE '^demos/(macromolecule/.*|macromolecule-builder\.html|lib/mol-monomers\.js|lib/mol-contrast\.js|lib/molecules\.js)'; then
+# renders.
+#
+# The sugars are here for a sharper reason: glycosidic.js does not construct a
+# pose, it READS one off cellobiose and maltose, whose phi/psi are the solved
+# values in mol-contrast.js's LINK table and whose residues it matches by name
+# out of mol-pathways.js's glucose and mol-sugars.js's alpha anomer, through
+# chain/frame.js. Any of those moving changes what shape a chain comes out —
+# cellulose stops being flat — and every frame still renders.
+if git diff --cached --name-only | grep -qE '^demos/(macromolecule/.*|macromolecule-builder\.html|chain/frame\.js|lib/(mol-monomers|mol-contrast|mol-pathways|mol-sugars|molecules)\.js)'; then
   if ! node macromolecule/check-macromolecule.js > /tmp/cmac.$$ 2>&1; then
     tail -25 /tmp/cmac.$$; rm -f /tmp/cmac.$$
     echo ""

@@ -100,24 +100,18 @@
     return -Math.atan2(dot(m,n2), dot(n1,n2));
   }
 
-  /* ---- the roles, out of the spec's own `condense:` block ------------------ */
-  const role = (spec, key) => ((spec.condense && spec.condense.roles) || [])
-    .find(r => r.key === key) || null;
+  /* ---- the roles, out of the spec's own `condense:` block ------------------
+   * The reading and the spec surgery are macromolecule/spec.js's: one
+   * condensation is one reaction whichever class it happens to, and a second
+   * copy of "which atoms left and what do the indices become" is the drift this
+   * whole folder exists to avoid. */
+  const Spec = (typeof require === 'function' && typeof module === 'object')
+    ? require('./spec.js') : global.MacroSpec;
+  const { role, free, bondedTo, strip } = Spec;
 
   // Every amino acid declares both halves of the reaction, so one predicate
   // covers "can this be a residue at all".
   const isResidue = spec => !!(role(spec,'carboxyl') && role(spec,'amino'));
-
-  /* A role that can still react: one whose leaving atoms are still on the
-   * molecule. A residue in the middle of a chain has spent both, and asking
-   * whether it can bond again has to be a question about THIS spec rather than
-   * about what an amino acid is in general. */
-  const free = (spec, key) => { const r = role(spec, key);
-                                return r && r.leaves.length ? r : null; };
-
-  const bondedTo = (spec, i) => (spec.bonds || [])
-    .filter(b => b[0] === i || b[1] === i)
-    .map(b => b[0] === i ? b[1] : b[0]);
 
   /* The α-carbon: the heavy atom bonded to both backbone termini. Found rather
    * than indexed — see the header. */
@@ -206,55 +200,9 @@
     return min < CLASH ? { dist:min, atoms:at } : null;
   }
 
-  /* ---- the molecule after it has reacted ----------------------------------
-   * The atoms a condensation loses have to actually go: hiding them leaves
-   * them in the bond list, and a hidden atom is still a claim about what the
-   * molecule is. Every index in a spec moves when an atom goes, so one map is
-   * built and bonds, names and roles all read through it.
-   *
-   * A SPENT ROLE IS KEPT, EMPTIED, NOT DELETED. The carboxyl carbon is still
-   * there after the bond forms — it is an amide carbon now — and the α-carbon
-   * is found by looking between the two backbone termini, so a residue that
-   * dropped its amino role would stop being able to report its own Cα the
-   * moment it joined a chain. Emptying `leaves` is also what says "this end is
-   * used": `free()` above is the whole rule for where a chain can still grow.
-   */
-  function strip(spec, drop){
-    const gone = new Set(drop);
-    const keep = spec.atoms.map((_,i) => i).filter(i => !gone.has(i));
-    const at = new Map(keep.map((old, ni) => [old, ni]));
-    const remap = i => at.has(i) ? at.get(i) : -1;
-    const out = Object.assign({}, spec, {
-      atoms: keep.map(i => spec.atoms[i]),
-      names: spec.names ? keep.map(i => spec.names[i]) : undefined,
-      bonds: (spec.bonds || []).filter(b => at.has(b[0]) && at.has(b[1]))
-        .map(b => [at.get(b[0]), at.get(b[1]), ...b.slice(2)]),
-    });
-    if(spec.condense) out.condense = Object.assign({}, spec.condense, {
-      roles: spec.condense.roles.map(r => Object.assign({}, r, {
-        keep: remap(r.keep),
-        leaves: r.leaves.map(remap).filter(i => i >= 0) })) });
-    // `pep` is the amino acid's own index map and molecules.js derives the
-    // roles above from it. Leaving it pointing at the old numbering would let
-    // anything reading it disagree with the roles beside it.
-    if(spec.pep) out.pep = { cC:remap(spec.pep.cC), oOH:remap(spec.pep.oOH),
-                             hOH:remap(spec.pep.hOH), nN:remap(spec.pep.nN),
-                             hN:spec.pep.hN.map(remap).filter(i => i >= 0) };
-    // Optional-hydrogen lists are indices too, and a page hiding H by a stale
-    // one hides whichever atom moved into that slot.
-    if(spec.optH) out.optH = spec.optH.map(remap).filter(i => i >= 0);
-    if(spec.groups) out.groups = spec.groups.map(g => Object.assign({}, g, {
-      atoms: g.atoms.map(remap).filter(i => i >= 0) }));
-    return out;
-  }
-
-  /* What the two residues become. Returns the stripped specs in the same order
-   * they went in; the C–N bond itself is BETWEEN them and belongs to whatever
-   * is drawing the chain, not to either molecule. */
-  function react(host, guest){
-    return { host: strip(host, role(host,'carboxyl').leaves),
-             guest: strip(guest, role(guest,'amino').leaves) };
-  }
+  /* What the two residues become, in the peptide bond's own roles. The C-N
+   * bond is BETWEEN them and belongs to whatever draws the chain. */
+  const react = (host, guest) => Spec.react(host, guest, 'carboxyl', 'amino');
 
   const API = { pose, isResidue, free, role, alphaOf, torsion, clashOf,
                 strip, react, CN, OMEGA, CLASH };
