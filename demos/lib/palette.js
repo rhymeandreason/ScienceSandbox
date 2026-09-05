@@ -252,18 +252,34 @@
          convergence, not homology, and one colour would teach otherwise. */
       vacuole:       { outer:0x63b0b8, inner:0x3f8f9a, rim:0xa9d6da, head:0x63b0b8, tail:0xc7d9b0,
                        sap:0xbcd8d6 },
-      /* The wall is CELLULOSE AND EXTRACELLULAR, so it is deliberately not
-         in the organelle greens: a straw that reads as "not cytoplasm"
-         rather than as more plant. `lamella` is the middle lamella, the
-         pectin line shared with the neighbouring cell, which is why it is
-         darker than either face. No head/tail — a wall is not a bilayer,
-         and an entry offering one would invite a page to set one inside. */
-      wall:          { outer:0xe4dcbe, inner:0xd2c79c, rim:0xf0ead6, lamella:0xb09a63 },
+      /* The wall's faces are PER TISSUE (see `plantTissue` below) because a
+         cactus wall and a leaf wall are not the same thickness or the same
+         colour. What lives here is the middle lamella, the pectin line
+         shared with the neighbouring cell, which does not vary: it is
+         darker than either face because it is the seam between two cells.
+         No head/tail — a wall is not a bilayer, and an entry offering one
+         would invite a page to set one inside. */
+      wall:          { lamella:0x86c24a },
       /* A plasmodesma is LINED BY THE PLASMA MEMBRANE, continuous from one
          cell into the next, so it takes the plasma membrane's head colour
          and not a colour of its own. That it matches the membrane is the
          fact worth showing. */
       plasmodesma:   { outer:0xe0705c, lumen:0xa8132a },
+    },
+    /* ---- plant tissues -------------------------------------------------
+       The wall and the cytosol are the two things in a plant cell that are
+       NOT shared with the animal cell — one is extracellular, the other is
+       not an organelle — so they are the two that may carry a plant's own
+       greens without breaking one-organelle-one-colour. They vary by tissue
+       because a leaf, a root, a tuber and a cactus really do differ here.
+       `wall` is the outer face, `wallRim` the cut rim (the inner face is the
+       same, a shade down). Everything else in the cell, the plasma membrane
+       included, takes the house colour from `organelles` above. */
+    plantTissue: {
+      leaf:   { wall:0xa3e64e, wallRim:0xd9f7a8, cytosol:0x8fdcb8 },
+      root:   { wall:0xb8e07a, wallRim:0xe2f3bb, cytosol:0xa3dfc6 },
+      potato: { wall:0xc7e58b, wallRim:0xe9f5c9, cytosol:0xabe0cc },
+      cactus: { wall:0xbfe08a, wallRim:0xeaf6cf, cytosol:0x93dbbd },
     },
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks

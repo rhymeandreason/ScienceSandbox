@@ -168,7 +168,7 @@ chloride to work at all.
 
 **The conflict.** As bad as it gets — ladder vs helix, bases as jigsaw tabs instead of hydrogen bonds, grooves invisible, antiparallel strands drawn parallel.
 
-**Started as `dna-lab.html` (prototype).** The pieces are already built: `skel.js` has `adenine`, `ribosyl` and `phosphoUnit`, and `mol-monomers.js` has AMP. Payoff is structure→function on a molecule where the structure *is* the function.
+**Started as `dna-lab.html` (prototype).** The pieces are already built: `skel.js` has `adenine`, `ribosyl` and `phosphoUnit`, and `mol-carriers.js` has AMP. Payoff is structure→function on a molecule where the structure *is* the function.
 
 Matrix rows: integrated systems, scale.
 
@@ -221,11 +221,10 @@ Two cheap wins that belong to no lesson: **hydroxide** (you have hydronium, so a
 | --- | --- | --- | --- | --- |
 | `mol-solvation.js` | water, salts, small polars/nonpolars — display units | 10 | 12 | `water-lab`, `molecule-lab`, `molecule-builder` |
 | `mol-small.js` | the same substances to scale (family B) — either/or | 5 | 7 | family-B pages |
-| `mol-monomers.js` | AMP only — the rest went to the class files below | 1 | 0 | nothing; dies with `mol-carriers.js` |
 | `mol-aminoacids.js` **(built)** | the eight amino acids, ex-`mol-monomers`/`mol-contrast` | 8 | 14 | `macromolecule-builder`, `contrast-lab` |
 | `mol-glycans.js` **(built)** | the four disaccharides, ex-`mol-contrast` | 4 | 5 | `macromolecule-builder`, `chain/`, `chair/`, `capillary/`, `amylase/` |
 | `mol-pathways.js` | G6P → pyruvate, ATP, NADH, Pi — glucose moved to `mol-sugars.js` | 16 | 16 | `glycolysis-lab`, `krebs-lab`, `fermentation-lab`, `molecule-viewer` |
-| `mol-compare.js` | `atpSkel` / `nadhSkel` — controls, not lessons | 2 | 2 | `molecule-viewer` |
+| `mol-carriers.js` **(built)** | ATP, NADH, Pi, AMP, FAD/FADH₂, CoA + thioesters, `atpSkel`/`nadhSkel` | 11 | 14 | every pathway page |
 | **`mol-lipids.js`** | glycerol ✓ · phospholipid, cholesterol, triglyceride | 1 | \~5 | **membrane** |
 | **`mol-nucleic.js`** | five bases, a nucleotide, A–T and G–C pairs | — | \~9 | **DNA** |
 | *deferred* `mol-photosynthesis.js` | chlorophyll a | — | \~4 | photosynthesis / ETC |
@@ -240,7 +239,7 @@ Three notes on the deltas:
 
 ### Corrections to the source docs
 
-* **ATP and NADH already exist** (`mol-pathways.js`, plus `atpSkel`/`nadhSkel` controls in `mol-compare.js`). The wishlist's wave 1 is largely already shipped; **ADP** is the real gap, and glycolysis needs it anyway to show the γ phosphate coming off onto something.
+* **ATP and NADH already exist** (`mol-carriers.js`, conformers and schematics both). The wishlist's wave 1 is largely already shipped; **ADP** is the real gap, and glycolysis needs it anyway to show the γ phosphate coming off onto something.
 * **Amino acids: 7 standalone specs, not 4** — glycine, alanine, serine, cysteine, plus proline, glutamine, glutamate (and `dAlanine` as the mirror), all eight now in `mol-aminoacids.js`. Separately, `residues.js` holds **all twenty side chains**, measured, in each residue's N–CA–C frame. So "no positively charged side chain" is wrong for `SIDE` and right for the spec registry — wave 2 should graft from `residues.js` rather than fetch twenty PubChem records.
 * **The resolver is done.** `docs/molecule-grouping.md` closes on "the resolver blocks everything above" — `tools/resolve-catalog.js` and the resolved `tools/catalog/` (265 rows with CIDs) are committed. The tier-1 baker is unblocked; that recommendation is spent.
 * **The wishlist is written against the AP CED.** This project's audience is college Bio 101, so its "the CED does not require this" judgment calls — Krebs intermediates especially — aren't binding here. They're still deferred, but on build cost, not on that.

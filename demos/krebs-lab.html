@@ -401,7 +401,7 @@
 <!-- the cycle proper: the six acids, the two thioesters, CoA and FAD -->
 <script src="lib/mol-krebs.js"></script>
 <!-- the carrier is drawn from `atpSkel`, not the conformer — see ATP below -->
-<script src="lib/mol-compare.js"></script>
+<script src="lib/mol-carriers.js"></script>
 <script src="lib/scene.js"></script>
 <script src="lib/fx.js"></script>
 <script src="kit/motion.js"></script>
@@ -482,7 +482,7 @@ const FXi=L.fx, MO=L.motion;
 const KIT=AtomKit.create(THREE);
 const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
 
-/* THE IDEALIZED ATP AND NADH (`atpSkel`, `nadhSkel`, mol-compare.js), for the
+/* THE IDEALIZED ATP AND NADH (`atpSkel`, `nadhSkel`, mol-carriers.js), for the
  * reason glycolysis states: a PubChem conformer folds its tail over the part
  * the step is about. Declared schematic, MolecularGeometry.md §1.6.
  *

@@ -139,7 +139,7 @@ const REF = {
 
 /* THE HAND-BUILT CONTROLS REFERENCE THEMSELVES.
  *
- * A spec in mol-compare.js is one molecule derived twice: `atpSkel` is `atp`
+ * A paired spec in mol-carriers.js is one molecule derived twice: `atpSkel` is `atp`
  * built from ideal geometry, and it says so — `compare:{against:'atp'}`. What
  * makes that comparison mean anything is that BOTH canonicalise to the same
  * external record, because a hand-built ribose has four stereocentres and no

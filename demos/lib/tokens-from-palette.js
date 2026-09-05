@@ -39,10 +39,19 @@
      student sees of it. */
   for (const [k, v] of Object.entries(P.organelles)) {
     /* The bare name is the outside face — or the ribbon's side, for an
-       organelle drawn as ribbons and having no cut shell. */
-    css.setProperty('--organelle-' + k, hex(v.outer != null ? v.outer : v.side));
+       organelle drawn as ribbons and having no cut shell. An entry with
+       NEITHER gets no bare token: the cell wall's faces are per tissue
+       (`plantTissue` below), so there is no one colour a caption could mean
+       by "wall", and publishing a wrong one is worse than publishing none. */
+    const face = v.outer != null ? v.outer : v.side;
+    if (face != null) css.setProperty('--organelle-' + k, hex(face));
     for (const [part, n] of Object.entries(v)) css.setProperty('--organelle-' + k + '-' + part, hex(n));
   }
+
+  /* --plant-leaf-wall, --plant-leaf-cytosol, … so a tissue's caption and the
+     cell it names cannot drift either. */
+  for (const [t, v] of Object.entries(P.plantTissue))
+    for (const [part, n] of Object.entries(v)) css.setProperty('--plant-' + t + '-' + part, hex(n));
 
   // legacy bare-element names
   for (const [el, n] of Object.entries(P.atoms)) css.setProperty('--' + el, hex(n));

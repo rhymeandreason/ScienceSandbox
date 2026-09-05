@@ -50,9 +50,12 @@ const KNOWN_ABSENT = {
   // that may not say what a file USED to be is a doc that cannot explain a move.
   'mol-contrast.js':    'dissolved into mol-glycans/mol-aminoacids/mol-nucleic/mol-lipids '
                         + '— molecules-wishlist.md records the split',
+  'mol-compare.js':     'dissolved into mol-carriers.js, which holds both derivations '
+                        + '— molecules-wishlist.md and AddingAPage.md record why',
+  'mol-monomers.js':    'dissolved into mol-aminoacids/mol-lipids/mol-carriers '
+                        + '— molecules-wishlist.md records the split',
   // molecules-wishlist.md's proposed re-partition. These five are the files the
   // class-based split would create; nothing is moved yet, and the doc says so.
-  'mol-carriers.js':    'molecules-wishlist.md proposal — not built',
   'mol-glycolysis.js':  'molecules-wishlist.md proposal — not built',
   'mol-cofactors.js':   'molecules-wishlist.md proposal — not built',
   'engine.js':          'the monolith CLAUDE.md/§10 exist to argue against',

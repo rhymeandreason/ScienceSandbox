@@ -543,9 +543,34 @@
     return { p, bridge, oxy };
   };
 
+  /* ---- carboxylate, the group the acids draw over and over ----------------
+   * One C=O and one C–O⁻ on an sp2 carbon, both at 120°. Lived in
+   * mol-krebs.js until mol-carriers.js was split out of it and succinyl-CoA
+   * went with the carriers — at which point two files needed it, which is this
+   * file's own test for what belongs here.
+   *
+   * ONE DOUBLE AND ONE SINGLE, which is a drawing decision and not a claim
+   * about the electrons. The real anion is symmetric, both C–O at 1.26 Å;
+   * GL.CdO (1.23) is close enough that the asymmetry is invisible next to the
+   * sphere radii, and the double stick is what makes it read as a carboxylate
+   * rather than as an ester.
+   */
+  const carboxylate = (s, i, slot) => {
+    const o1 = s.grow(i, 'O', GL.CdO, 'sp2', slot || 0, 2);   // C=O
+    const o2 = s.grow(i, 'O', GL.CdO, 'sp2', 0);              // C–O⁻
+    return [o1, o2];
+  };
+  // …and the same thing on a carbon that is not yet in the skeleton: grow the
+  // carboxyl CARBON off `i`, then put its two oxygens on. Returns [c, o1, o2].
+  const carboxylBranch = (s, i, slot) => {
+    const c = s.grow(i, 'C', GL.CC, 'sp3', slot || 0);
+    const [o1, o2] = carboxylate(s, c, 0);
+    return [c, o1, o2];
+  };
+
   global.SkelLib = { GL, AR, TET, SP2, V, vadd, vsub, vmul, vlen, vnorm, vcross, rad,
     perpTo, vdot, spinAbout, alignTo, absorb, fitOnto,
     FURANOSE_UP, FURANOSE_DOWN,
     Skel, chainC, ringPyranose, ringFuranose, flatRing, fuseRing, flatH,
-    adenine, ribosyl };
+    adenine, ribosyl, carboxylate, carboxylBranch };
 })(this);

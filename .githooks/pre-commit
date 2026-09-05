@@ -399,7 +399,7 @@ fi
 # The sugars are here for a sharper reason: glycosidic.js does not construct a
 # pose, it READS one off cellobiose and maltose, whose phi/psi are the solved
 # values in mol-glycans.js's LINK table and whose residues it matches by name
-# out of mol-pathways.js's glucose and mol-sugars.js's alpha anomer, through
+# out of mol-sugars.js's glucose and alpha anomer, through
 # chain/frame.js. Any of those moving changes what shape a chain comes out —
 # cellulose stops being flat — and every frame still renders.
 if git diff --cached --name-only | grep -qE '^demos/(macromolecule/.*|macromolecule-builder\.html|chain/frame\.js|lib/(mol-aminoacids|mol-glycans|mol-pathways|mol-sugars|molecules)\.js)'; then

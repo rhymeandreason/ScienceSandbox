@@ -193,6 +193,7 @@
     if (!global.CellOrganelles) throw new Error('cell/plantcell.js: load cell/organelles.js first');
     const K = global.CellOrganelles.kit(THREE, { seed: O.seed });
     const { rand, rr, col, mat, ORG } = K;
+    const TIS = global.MolLib.PALETTE.plantTissue;
     const V3 = THREE.Vector3;
     const A = O.A;
 
@@ -228,10 +229,15 @@
 
     /* ---- wall: outer face, inner face, cut rim, middle lamella ---- */
     const wallPG = PanelGeometry(THREE);
+    /* The wall's three faces and the cytosol are the tissue's, not the house
+       palette's — see palette.js's `plantTissue` for why those two are the
+       ones allowed to vary. Colours are held on the materials and glided on
+       a tissue switch, so a leaf becoming a root is one motion rather than a
+       cut. The lamella does not vary and is set once. */
     const wallMats = [
-      mat({ color: ORG.wall.outer, roughness: 0.72, clearcoat: 0.1 }),
-      mat({ color: ORG.wall.inner, roughness: 0.7, clearcoat: 0.1 }),
-      mat({ color: ORG.wall.rim, roughness: 0.66, clearcoat: 0.15 }),
+      mat({ color: TIS.leaf.wall, roughness: 0.72, clearcoat: 0.1 }),
+      mat({ color: TIS.leaf.wallRim, roughness: 0.7, clearcoat: 0.1 }),
+      mat({ color: TIS.leaf.wallRim, roughness: 0.66, clearcoat: 0.15 }),
       mat({ color: ORG.wall.lamella, roughness: 0.75, clearcoat: 0 }),
     ];
     for (let k = 0; k < 6; k++) {
@@ -277,9 +283,12 @@
 
     /* ---- protoplast: membrane sides, and the cytoplasm as the cut face ---- */
     const protoPG = PanelGeometry(THREE);
+    /* The membrane keeps the HOUSE plasma colour: it is the same organelle
+       as the animal cell's, and a student who meets it in one has to meet it
+       in the other. Only the cytosol behind it is the plant's own. */
     const protoMats = [
       mat({ color: ORG.plasma.outer, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
-      mat({ color: ORG.plasma.inner, roughness: 0.4, clearcoat: 0.35 }),
+      mat({ color: TIS.leaf.cytosol, roughness: 0.4, clearcoat: 0.35 }),
     ];
     const pTop = (x, z) => topY(x, z) - PROTO_DROP;
     const RIMW = 0.02 * A;
@@ -508,12 +517,21 @@
     }
 
     /* ---- tissue switching ---- */
-    let tissue = null, dying = [], born = 0;
+    let tissue = null, dying = [], born = 0, tint = null;
+    function applyTint() {
+      for (let i = 0; i < tint.m.length; i++)
+        if (tint.m[i]) tint.m[i].color.copy(tint.from[i]).lerp(tint.to[i], tint.k);
+    }
     function setTissue(name, instant) {
       const T = TISSUES[name];
       if (!T) return;
       tissue = name;
       C.ex = T.ex; C.wall = T.wall * A;
+      const P4 = TIS[name];
+      const want = [col(P4.wall), col(P4.wallRim).multiplyScalar(0.95), col(P4.wallRim), null, col(P4.cytosol)];
+      const have = [wallMats[0], wallMats[1], wallMats[2], null, protoMats[1]];
+      tint = { k: instant ? 1 : 0, from: have.map(m => m && m.color.clone()), to: want, m: have };
+      if (instant) applyTint();
       if (layer) { layer.userData.t0 = 0; dying.push(layer); }
       layer = buildLayer(T);
       for (const it of layer.userData.items) { it.seedX = it.tx; it.seedZ = it.tz; it.foot = it.r; }
@@ -558,6 +576,7 @@
       clock += dt;
       P = stateParams(St.t);
       if (dirty) { wallPG.update(); protoPG.update(); updatePlasmodesmata(); updateStrands(); dirty = false; }
+      if (tint && tint.k < 1) { tint.k = Math.min(tint.k + dt / 0.9, 1); applyTint(); }
       born = Math.min(born + dt, 1e9);
       const grow = easeInOut(clamp(born / 0.7, 0, 1));
       if (layer) layoutStep(layer, grow, dt, clock);

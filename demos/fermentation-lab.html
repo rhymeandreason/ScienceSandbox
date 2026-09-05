@@ -208,7 +208,7 @@
 <script src="lib/skel.js"></script>
 <script src="lib/mol-pathways.js"></script>
 <!-- the carrier is drawn from `nadhSkel`, not the conformer — see NADH below -->
-<script src="lib/mol-compare.js"></script>
+<script src="lib/mol-carriers.js"></script>
 <script src="lib/scene.js"></script>
 <script src="lib/fx.js"></script>
 <script src="kit/motion.js"></script>
@@ -274,7 +274,7 @@ const {scene,camera,renderer,root,cam,applyCam,resize}=L;
 const FXi=L.fx, MO=L.motion;
 const KIT=AtomKit.create(THREE);
 const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
-/* THE CARRIER IS THE IDEALIZED NADH (`nadhSkel`, mol-compare.js), not the
+/* THE CARRIER IS THE IDEALIZED NADH (`nadhSkel`, mol-carriers.js), not the
  * PubChem conformer (`nadh`) — glycolysis's choice, and the reason is sharper
  * here. A conformer folds its tail over the nicotinamide C4, and C4 is the atom
  * every step on this page is about: the hydride leaves from it. Same molecule,

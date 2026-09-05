@@ -36,7 +36,7 @@
  *
  *    · `PREFIX.key = …`      GLYCOLYSIS.nadh={ · COMPARE.atpSkel = s.spec({
  *    · `key: { … }`          a property of the object handed to register(),
- *                            which is how mol-monomers/-solvation/-small are
+ *                            which is how mol-aminoacids/-solvation/-small are
  *                            written
  *
  *  For the second, the key's own INDENT delimits the block: a sibling spec

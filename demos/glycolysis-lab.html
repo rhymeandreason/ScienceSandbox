@@ -285,7 +285,7 @@
 <script src="lib/mol-pathways.js"></script>
 <script src="lib/mol-sugars.js"></script>
 <!-- the carrier is drawn from `atpSkel`, not the conformer — see ATP below -->
-<script src="lib/mol-compare.js"></script>
+<script src="lib/mol-carriers.js"></script>
 <script src="lib/scene.js"></script>
 <script src="lib/fx.js"></script>
 <script src="kit/motion.js"></script>
@@ -390,7 +390,7 @@ const FXi=L.fx, MO=L.motion;
 const KIT=AtomKit.create(THREE);
 const M=MolLib.MOLECULES, PAL=MolLib.PALETTE;
 
-/* THE CARRIER IS THE IDEALIZED ATP (`atpSkel`, mol-compare.js), not the PubChem
+/* THE CARRIER IS THE IDEALIZED ATP (`atpSkel`, mol-carriers.js), not the PubChem
  * conformer (`atp`) — same molecule, same scale family, same `gly` block, so
  * switching is one name. A conformer folds its phosphate tail over the ribose: true
  * in solution, unreadable here, where the lesson is a straight chain of three

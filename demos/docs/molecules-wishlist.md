@@ -1,4 +1,4 @@
-<!-- KIND: argument — the proposed re-partition of the mol-*.js files, and every molecule we have decided is worth adding. Load when deciding WHICH molecule to build next, before moving a spec between domain files, or to find the record a planned spec is generated from. `AddingAMolecule.md` is the recipe for building one once it is chosen; `MolecularGeometry.md` §1 is the rulebook both obey. `mol-sugars.js`, `mol-glycans.js` and `mol-aminoacids.js` are built and `mol-contrast.js` is deleted; the rest is not. `mol-monomers.js` is down to AMP and dies with `mol-carriers.js`. -->
+<!-- KIND: argument — the proposed re-partition of the mol-*.js files, and every molecule we have decided is worth adding. Load when deciding WHICH molecule to build next, before moving a spec between domain files, or to find the record a planned spec is generated from. `AddingAMolecule.md` is the recipe for building one once it is chosen; `MolecularGeometry.md` §1 is the rulebook both obey. `mol-sugars.js`, `mol-glycans.js`, `mol-aminoacids.js` and `mol-carriers.js` are built, and `mol-contrast.js`, `mol-compare.js` and `mol-monomers.js` are deleted. What is left of the re-partition is `mol-glycolysis.js` (renaming what remains of `mol-pathways.js`), `mol-cofactors.js`, and dissolving `mol-vitamins.js`. -->
 
 # Molecules wishlist
 
@@ -11,9 +11,9 @@ Files are named for a chemical class rather than for a page. Class tracks builde
 Two files were named for pages and are dissolved:
 
 * **`mol-contrast.js` — DISSOLVED, and the file is gone.** It held four unrelated chemical classes grouped by "appear side by side on `contrast-lab`". Five pages that are not `contrast-lab` loaded it — `amylase`, `chain/`, `chair/`, `capillary/`, `macromolecule-builder` — and all five wanted only the disaccharides. They were parsing proline and palmitoleate to get maltose, which is the cost failure inverted: the contrast page's convenience billed to everyone else. Its contents went to `mol-glycans.js` (the four disaccharides), `mol-aminoacids.js` (D-alanine, proline, glutamine, glutamate), `mol-nucleic.js` (purine, pyrimidine) and `mol-lipids.js` (palmitoleate). Contrast survives where it always lived, in each spec's `contrast:` block naming its partner and `diff`. It was never a property a file had to carry.
-* **`mol-compare.js`** held two specs, and every page that loaded it also loaded `mol-pathways.js`. The split saved nobody anything.
+* **`mol-compare.js` — DISSOLVED, and the file is gone.** It held two specs, and every page that loaded it also loaded `mol-pathways.js`, so the split saved nobody anything. It turned out to be worse than that: its own header set the condition "one more consumer of `atpSkel`/`nadhSkel` and the split is costing more than it saves", and by the time anyone looked, **three** lesson pages were drawing their carriers from it. Both specs are in `mol-carriers.js`.
 
-`mol-vitamins.js` goes too: one occupant, and `essential:` is a flag on the spec rather than a class. `mol-monomers.js` and `mol-pathways.js` are dissolved into the class files their contents belong to.
+`mol-vitamins.js` goes too: one occupant, and `essential:` is a flag on the spec rather than a class. **`mol-monomers.js` is dissolved and deleted** — its amino acids to `mol-aminoacids.js`, palmitate to `mol-lipids.js`, AMP to `mol-carriers.js`. `mol-pathways.js` still holds the ten glycolysis intermediates and becomes `mol-glycolysis.js` when it is renamed.
 
 The trade is that `contrast-lab` goes from three domain files to five, because a contrast page is cross-class by nature. That is the correct place for the cost — it draws six pairs and uses nearly everything it loads.
 
@@ -24,7 +24,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 | `mol-sugars.js` **(built)** | glucose, α-glucose, galactose, ribose, deoxyribose; ascorbate still to come | **fructose**, **acarbose** |
 | `mol-glycans.js` **(built)** | maltose, cellobiose, lactose, galactobiose | **sucrose** |
 | `mol-aminoacids.js` **(built)** | gly, ala, ser, cys, D-ala, pro, gln, glu | **hydroxyproline**, **tyrosine**, **histidine**, **lysine**, **aspartate**, **tryptophan** |
-| `mol-carriers.js` | ATP, AMP, Pi, NADH, FAD, FADH₂, CoA, acetyl-CoA, succinyl-CoA, atpSkel, nadhSkel | **ADP**, **NAD⁺**, **2,3-BPG** |
+| `mol-carriers.js` **(built)** | ATP, AMP, Pi, NADH, FAD, FADH₂, CoA, acetyl-CoA, succinyl-CoA, atpSkel, nadhSkel | **ADP**, **NAD⁺**, **2,3-BPG** |
 | `mol-glycolysis.js` | G6P, F6P, F16BP, DHAP, G3P, 1,3-BPG, 3PGA, 2PGA, PEP, pyruvate, lactate, acetaldehyde, ethanolSkel | — |
 | `mol-krebs.js` | OAA, citrate, isocitrate, αKG, succinate, fumarate, malate | — |
 | `mol-lipids.js` | glycerol, palmitate, palmitoleate, POPC | **elaidate**, **triacylglycerol**, **cholesterol**, **retinal (11-cis / all-trans)**, **testosterone / estradiol**, **ouabain** |
@@ -32,7 +32,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 | `mol-cofactors.js` | — | **heme b**, **chlorophyll a**, **β-carotene** |
 | `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol | **CO**, **urea**, **methanol** |
 | `mol-solvation.js` | water, NaCl, KCl, ethanol, ammonia, methane, O₂, CO₂, carbonic, bicarbonate, hydronium | **Zn²⁺**, **Fe²⁺/Fe³⁺** |
-| *deleted* | ~~`mol-contrast.js`~~ **(done)** · `mol-compare.js`, `mol-vitamins.js`, `mol-monomers.js`, `mol-pathways.js` still to go | dissolved into the rows above |
+| *deleted* | ~~`mol-contrast.js`~~ ~~`mol-compare.js`~~ ~~`mol-monomers.js`~~ **(done)** · `mol-vitamins.js` and renaming `mol-pathways.js` still to go | dissolved into the rows above |
 
 `mol-small.js` and `mol-solvation.js` stay the family A / family B either-or they already are; `register()` throws if both load, and that is the point.
 
@@ -40,7 +40,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 
 **Glucose goes in `mol-sugars.js`, and `glycolysis-lab` loads both files. DONE.** The alternative leaves the sugar file without the sugar. Six small monosaccharides cost nothing next to ATP — and the move let ten pages stop loading `mol-pathways.js` at all, so it paid for itself twice over.
 
-**`mol-carriers.js` is the biggest structural win.** FAD and CoA are the two largest Skel builds in the repo and are currently stranded in `mol-krebs.js`, which `glycolysis-lab` does not load. No page draws a pathway without drawing its carriers, so they belong in one file every pathway page loads deliberately — and `mol-krebs.js` shrinks to the eight acids.
+**`mol-carriers.js` is the biggest structural win. DONE.** FAD and CoA are the two largest Skel builds in the repo and are currently stranded in `mol-krebs.js`, which `glycolysis-lab` does not load. No page draws a pathway without drawing its carriers, so they belong in one file every pathway page loads deliberately — and `mol-krebs.js` shrinks to the eight acids.
 
 **Ions go in `mol-solvation.js`** because `nacl` and `kcl` already live there as bare dissociation records with no coordinates. A molecule with no geometry has no family, so Zn²⁺ and Fe are the same kind of object.
 

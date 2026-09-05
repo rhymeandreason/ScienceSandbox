@@ -23,7 +23,7 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in th
 <script src="molecules.js"></script>   <!-- always — PALETTE, SCALE, VIEW + the empty registry -->
 <script src="skel.js"></script>        <!-- only if the page shows a Skel-built molecule -->
 <script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
-<script src="mol-monomers.js"></script>    <!-- the domains this page shows -->
+<script src="mol-aminoacids.js"></script>  <!-- the domains this page shows -->
 <script src="mol-krebs.js"></script>       <!-- the citric-acid cycle + CoA/FAD; needs skel.js -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
 <script src="water/watersim.js"></script>  <!-- only for a solvation page; after scene.js, needs mol-solvation.js -->
@@ -68,7 +68,7 @@ A page that needs a real water beside measured molecules loads `mol-small` (not 
 | `molecules.js` | `MolLib` = `PALETTE` · `MOLECULES` (registry, empty until a domain file loads) · `SCALE` · `VIEW` · `DOMAINS` · `register` · `atomIndex`/`resolveAtoms` | `MolecularGeometry.md` §1 |
 | `skel.js` | `SkelLib` = `Skel` + `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds + the **nucleotide fragments** `adenine`, `ribosyl` and `Skel.phosphoUnit` (one link of a phosphate chain), which thirteen catalog rows share. Builder, not data; no dependencies | MolecularGeometry.md §1.2, §1.5 |
 | `residues.js` | `ResidueLib` = `SIDE` (twenty side chains in each residue's N–CA–C frame) + `graft` + `TYPES`. **Generated** by `tools/bake-residues.js` — real ångströms, no `SCALE`, no MolLib. Not a domain file: it holds pieces of molecules | own header |
-| `mol-solvation.js` · `mol-aminoacids.js` · `mol-monomers.js` · `mol-pathways.js` · `mol-sugars.js` · `mol-glycans.js` · `mol-compare.js` · `mol-lipids.js` · `mol-nucleic.js` · `mol-vitamins.js` | nothing — each `register()`s its specs into `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
+| `mol-solvation.js` · `mol-aminoacids.js` · `mol-pathways.js` · `mol-krebs.js` · `mol-carriers.js` · `mol-sugars.js` · `mol-glycans.js` · `mol-lipids.js` · `mol-nucleic.js` · `mol-vitamins.js` | nothing — each `register()`s its specs into `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
 | `mol-small.js` | the same substances as `mol-solvation.js` but **to scale** (family B). Either/or — `register()` throws if both load, and that stays true however many scenes a page has: the two define the same KEYS, so the loser is overwritten for every stage at once. Mixing family B with family A *in general* is a per-scene question (MolecularGeometry.md §1.5); this pair is not | own header, MolecularGeometry.md §1.5 |
 | `haworth.js` | `Haworth` = `haworth` (sugar spec → Haworth-projection SVG) + `findRings` + `faces`. Derived from the spec's own geometry — ring finder, committed `names`, substituent face from the ring normal — so nothing is hand-placed and a regenerated spec redraws correctly. Never goes through SMILES, which sidesteps the rooted-SMILES anomer bug. `contrast-lab.html` only | own header |
 | `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |

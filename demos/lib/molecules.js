@@ -302,12 +302,17 @@
     'mol-aminoacids.js',   // family B, PubChem conversions + one mirror — no builder.
                            //   D-alanine reflects alanine, so the two are in ONE
                            //   file and the ordering is local to it.
-    'mol-monomers.js',     // AMP only, until mol-carriers.js exists to take it
-    'mol-pathways.js',   // needs skel.js
-    'mol-krebs.js',        // needs skel.js — split off mol-pathways.js on COST,
-                           //   not topic: FAD and CoA are the two largest Skel
-                           //   builds here and glycolysis-lab draws neither.
-                           //   See that file's header for the argument.
+    'mol-pathways.js',   // needs skel.js — G6P to pyruvate, and nothing else:
+                           //   the carriers those steps move went to
+                           //   mol-carriers.js, and glucose to mol-sugars.js
+    'mol-krebs.js',        // needs skel.js — the eight acids. FAD and CoA were
+                           //   the reason this file was split off on cost; they
+                           //   are in mol-carriers.js now, which every pathway
+                           //   page loads and this one no longer has to.
+    'mol-carriers.js',     // needs skel.js — ATP, NADH, Pi, AMP, FAD/FADH2, CoA
+                           //   and the two thioesters, plus atpSkel/nadhSkel.
+                           //   No page draws a pathway without its carriers, so
+                           //   they are one file rather than four.
     'mol-sugars.js',       // needs skel.js — the monosaccharides, split OUT of
                            //   the old mol-contrast.js: four pages wanted one
                            //   sugar each and were parsing proline to get it.
@@ -317,7 +322,6 @@
                            //   the monosaccharides were: five pages wanted only
                            //   these and were parsing an amino acid and a fatty
                            //   acid to reach one.
-    'mol-compare.js',      // needs skel.js — the derivation comparison, viewer only
     'mol-lipids.js',       // family B, literals — plus palmitoleate, the one
                            //   spec here that is built and the only reason this
                            //   file touches skel.js
