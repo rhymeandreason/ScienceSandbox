@@ -23,10 +23,6 @@
 (function(global){
   'use strict';
 
-  /* The plastid envelope, shared by every state a plastid can be in. See
-     `chloroplast` / `amyloplast` below for why this is one value. */
-  const PLASTID = { outer:0x4f8a33, inner:0x37701f, rim:0xa7c98a, head:0x5f9440, tail:0xcfdc9a };
-
   const PALETTE = {
     // ---- atoms (hex ints) ---------------------------------------------
     // These double as the swatches in water-lab's Debug ▸ Colours tab;
@@ -221,18 +217,21 @@
          an organelle. */
       mitochondrion: { outer:0xe0552f, inner:0xe2775b, rim:0xf4b8a4, head:0xd9612f, tail:0xeeba7e,
                        cristaSide:0xf2a3ae, cristaTop:0xfbcdc7 },
-      /* PLASTIDS ARE ONE FAMILY WEARING ONE ENVELOPE. A chloroplast, an
-         amyloplast and a chromoplast interconvert — a tuber's amyloplast
-         greens on the windowsill into the leaf's chloroplast — so they are
-         the same organelle in different states, and they share `outer` /
-         `inner` / `rim` / `head` / `tail` from PLASTID rather than each
-         picking a colour. What differs is what is INSIDE: thylakoid stacks
-         or starch grains. A page that gives one of them its own envelope is
-         claiming they are different organelles, which is false.
-         The green itself comes from leaf/leaf.js's `chloro`, lightened to
-         the same degree the other heads are lightened off their shells. */
-      chloroplast:   Object.assign({}, PLASTID, { thylakoid:0x2f7a1d, stroma:0x7fb35e }),
-      amyloplast:    Object.assign({}, PLASTID, { starch:0xf1ead6, hilum:0xd6c9a4 }),
+      /* ---- plant only: PLASTIDS ----
+         A chloroplast and an amyloplast are one organelle in two states —
+         a tuber's amyloplast greens on a windowsill — but they are drawn
+         with DIFFERENT envelopes, because in a cell you tell them apart at a
+         glance and the colour is what does it. What says they are kin is
+         that they are built by the same shell code as each other and as the
+         mitochondrion (cell/organelles.js): two membranes, a lumen, a folded
+         or packed interior. The kinship is in the construction, the identity
+         is in the colour.
+         `head`/`tail` tint a bilayer set inside one (membrane/membrane.js's
+         `context`, which chemiosmosis.js uses for the thylakoid). */
+      chloroplast:   { outer:0x4fc22e, inner:0x2f8f22, rim:0x8fe25a, head:0x4fc22e, tail:0xc4e79a,
+                       thylakoid:0x178a2a, stroma:0x0f6b1e },
+      amyloplast:    { outer:0xeef0e0, inner:0xd6d8c4, rim:0xf6f7ef,
+                       starch:0xf3ead0, hilum:0xd8cba0 },
       nucleus:       { outer:0x3f6cb5, inner:0x4a78c0, rim:0x9cb9e6, head:0x4a78c0, tail:0xb9c9e8,
                        nucleolus:0xf6b64a, chromatin:0x3d64a8, pore:0x274a8f },
       er:            { side:0xd9426d, top:0xf6c0ce, ribosome:0x7c1030, head:0xd9426d, tail:0xf6c0ce },
@@ -250,8 +249,8 @@
          to show the vacuole holding something. NOT tied to the lysosome:
          the two do overlapping lytic work in different cells, but that is
          convergence, not homology, and one colour would teach otherwise. */
-      vacuole:       { outer:0x63b0b8, inner:0x3f8f9a, rim:0xa9d6da, head:0x63b0b8, tail:0xc7d9b0,
-                       sap:0xbcd8d6 },
+      vacuole:       { outer:0x9cc9d2, inner:0x6fb3b4, rim:0xbfe6d8, head:0x9cc9d2, tail:0xd8cfa6,
+                       sap:0xd8cfa6 },
       /* The wall's faces are PER TISSUE (see `plantTissue` below) because a
          cactus wall and a leaf wall are not the same thickness or the same
          colour. What lives here is the middle lamella, the pectin line
@@ -260,11 +259,11 @@
          No head/tail — a wall is not a bilayer, and an entry offering one
          would invite a page to set one inside. */
       wall:          { lamella:0x86c24a },
-      /* A plasmodesma is LINED BY THE PLASMA MEMBRANE, continuous from one
-         cell into the next, so it takes the plasma membrane's head colour
-         and not a colour of its own. That it matches the membrane is the
-         fact worth showing. */
-      plasmodesma:   { outer:0xe0705c, lumen:0xa8132a },
+      /* A plasmodesma is lined by plasma membrane continuous into the next
+         cell, and a Hechtian strand is that same membrane left stretched
+         across the gap when the protoplast pulls away — which is why the
+         strand's colour lives on this entry and not on its own. */
+      plasmodesma:   { outer:0x35907a, hechtian:0x6cc9a8 },
     },
     /* ---- plant tissues -------------------------------------------------
        The wall and the cytosol are the two things in a plant cell that are

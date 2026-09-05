@@ -487,9 +487,10 @@
        kinship is drawn, not coloured — hue is spent on identity, so a
        chloroplast is green and a mitochondrion orange, and what says they
        are the same kind of thing is that they are the same construction.
-       chloroplast and amyloplast share ONE envelope (palette.js's PLASTID)
-       because they are one organelle in two states. Only the contents
-       differ: thylakoid stacks, or starch. */
+       chloroplast and amyloplast run through the SAME builder for the same
+       reason, and differ in their envelope colour and their contents:
+       thylakoid stacks, or starch. They are one organelle in two states, and
+       the shared construction is what says so. */
 
     function plastidShell(o, colors) {
       const a = o.a || 2.3, b = o.b || 1.05, c = o.c || 1.5, th = o.thickness || 0.075;

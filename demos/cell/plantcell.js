@@ -257,8 +257,8 @@
     cell.add(register(wallMesh, 'wall'));
 
     /* ---- plasmodesmata: channels straight through the wall ----
-       Lined by plasma membrane continuous into the next cell, which is why
-       they take the membrane's colour and not one of their own. */
+       Lined by plasma membrane continuous into the next cell, so a solute
+       can cross without ever leaving a cytoplasm. */
     const PD_N = 42, pdSeeds = [];
     for (let i = 0; i < PD_N; i++) pdSeeds.push({ th: (Math.floor(rand() * 6) + 0.15 + rand() * 0.7) * PI / 3, v: 0.12 + rand() * 0.75 });
     const pdMesh = new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 8), mat({ color: ORG.plasmodesma.outer, roughness: 0.5 }), PD_N);
@@ -308,7 +308,7 @@
        them. They exist only under plasmolysis, so they fade in with t>1 and
        are the visible evidence that the cell did not simply shrink. */
     const HS_N = 14;
-    const hsMat = mat({ color: ORG.plasma.rim, roughness: 0.5, transparent: true, opacity: 0 });
+    const hsMat = mat({ color: ORG.plasmodesma.hechtian, roughness: 0.5, transparent: true, opacity: 0 });
     const hsGroup = new THREE.Group();
     cell.add(hsGroup);
     const hsItems = [], footGeo = new THREE.SphereGeometry(1, 10, 8);
