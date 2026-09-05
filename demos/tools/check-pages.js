@@ -80,10 +80,9 @@ const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
                           'questions-cms.html', 'map-cms.html', 'clip-shelf.html']);
 
 // The lessons at the top level, plus the benches in tests/. Both directories,
-// because two of the pages in tests/ (aminoacid-lab, macromolecule-lab) build
-// real scenes out of the shared registry and were covered here before they
-// moved — a checker that only read the top level would have dropped them
-// silently, which is the failure this whole file exists to prevent.
+// because a bench builds a real scene out of the shared registry too — a
+// checker that only read the top level would drop one silently when a page
+// moved, which is the failure this whole file exists to prevent.
 //
 // attic/ is NOT walked. Those pages are superseded (admin.html: reference) and
 // not deployed; holding them to the registry's current shape would mean

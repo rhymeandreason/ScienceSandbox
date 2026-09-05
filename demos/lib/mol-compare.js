@@ -38,11 +38,10 @@
  *  that difference costs a student anything is answerable by eye in a way no
  *  paragraph settles.
  *
- *  IT IS A SEPARATE FILE BECAUSE OF WHO PAYS — and the argument has NARROWED to
- *  one page. macromolecule-lab loads mol-pathways.js and draws none of these,
- *  so a second 43-atom ATP in there would bill it for a spec it never uses,
- *  which is the failure the domain split exists to prevent (CLAUDE.md, "Adding
- *  a new page"). glycolysis-lab used to be the other half of that sentence and
+ *  IT IS A SEPARATE FILE BECAUSE OF WHO PAYS. A page that loads mol-pathways.js
+ *  and draws none of these would be billed for a second 43-atom ATP it never
+ *  uses, which is the failure the domain split exists to prevent (CLAUDE.md,
+ *  "Adding a new page"). glycolysis-lab used to be the other half of that and
  *  no longer is: it draws both, and pays for them on purpose by loading this
  *  file explicitly. One more consumer of `atpSkel`/`nadhSkel` and the split is
  *  costing more than it saves — merge them into the pathway file then.

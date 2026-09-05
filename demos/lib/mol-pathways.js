@@ -102,8 +102,8 @@
     // C–H hydrogens. Grown LAST so every index above (cN, c6, the OH's) is
     // unchanged — glycolysis-lab addresses those by position. Every other spec
     // on the pathway omits C–H entirely, and this one keeps that look by listing
-    // them all in `optH`: glycolysis-lab hides optional H, macromolecule-lab
-    // offers them behind its toggle. A ring carbon has three bonds already, so
+    // them all in `optH`: glycolysis-lab hides optional H, a page that wants the
+    // full formula shows it. A ring carbon has three bonds already, so
     // exactly one slot is free; C6 has two.
     const CH=[];
     C.forEach(k=>CH.push(g.grow(k,'H',GL.CH,'sp3',0)));
@@ -123,11 +123,11 @@
       stereo:'all-equatorial',
       view:VIEW.pyranose,
       optH:CH,                            // nonpolar C–H; the five O–H are never optional
-      mono:'carbohydrate',                // tests/macromolecule-lab.html: the carbohydrate monomer
+      mono:'carbohydrate',                // the carbohydrate monomer of the four-class set
       gly:{ carbons:6, ring:true, cN:[...C,c6], phosphates:0,
             note:'β-D-glucopyranose — the ring form that dominates in water' },
-      // functional-group index map for tests/macromolecule-lab.html's gallery — the
-      // same kind of contract as `gly` above. Derived from the build variables,
+      // functional-group index map, a curated captioned list — the same kind of
+      // contract as `gly` above. Derived from the build variables,
       // not typed out, so re-ordering the build can't silently mislabel a group.
       groups:[
         { key:'hydroxyl', label:'Hydroxyl', formula:'–OH',

@@ -138,7 +138,7 @@
   const inRing=(spec,i)=>rings(spec).some(r=>r.includes(i));
 
   /* ---- functional groups, FOUND rather than listed ----
-   * `spec.groups` (macromolecule-lab) is a curated, captioned list — the ones a
+   * `spec.groups` is a curated, captioned list — the ones a
    * lesson names. This is the other half: every instance in the molecule,
    * derived from the graph, so a page can say "there are five of these" without
    * anyone typing five. Where both exist the curated list wins for TEXT and
@@ -256,9 +256,9 @@
     idxs.forEach(i=>{ const p=pos(spec,i); c[0]+=p[0]; c[1]+=p[1]; c[2]+=p[2]; });
     return c.map(v=>v/(idxs.length||1));
   }
-  // how spread out a set is about its own centroid — the test macromolecule-lab
-  // applies before ringing a group, because a flash at the centroid of five
-  // hydroxyls points at the one place none of them is.
+  // how spread out a set is about its own centroid — the test to apply before
+  // ringing a group, because a flash at the centroid of five hydroxyls points
+  // at the one place none of them is.
   function spread(spec,idxs){
     const c=centroid(spec,idxs);
     return Math.max(0,...idxs.map(i=>len(sub(pos(spec,i),c))));

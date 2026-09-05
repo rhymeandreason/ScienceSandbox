@@ -155,7 +155,7 @@
     { id:'pumps', name:'Channels & pumps', door:'boundaries', rank:1, state:'built', away:1, host:'membrane-lab',
       alt:'pump · channel · active transport · sodium potassium pump',
       claim:'A channel lets things through; a pump spends ATP to push them the wrong way.' },
-    { id:'polymers', name:'Monomers & polymers', door:'carbon', rank:1, state:'built', away:1, host:'macromolecule-lab',
+    { id:'polymers', name:'Monomers & polymers', door:'carbon', rank:1, state:'planned', away:1,
       alt:'polymer · monomer · macromolecule',
       claim:'Four classes of macromolecule, each one a chain of repeating units.' },
     { id:'glycolysis', name:'Glycolysis', door:'energy', rank:1, state:'built', host:'glycolysis-lab',

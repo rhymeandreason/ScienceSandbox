@@ -28,7 +28,7 @@
  *  whichever loads last wins for every stage at once.
  *  Duplicating the SUBSTANCE is the cost; the alternative was every page that
  *  merely draws a water having to either re-tune solvation or show a molecule
- *  16% too small, which is what tests/aminoacid-lab.html did until this file existed.
+ *  16% too small, which is what the peptide bench did until this file existed.
  *
  *  `register()` throws if both files load, so the mistake is loud.
  *

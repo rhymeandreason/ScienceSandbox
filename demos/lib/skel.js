@@ -33,8 +33,9 @@
   // fine — this page only ever shows its own specs — but it made C–C and C–O
   // the SAME length when C–O is really the shorter of the two, used one number
   // for both C–O and C=O, and put the whole page at ~0.7× the derived specs.
-  // That last one only surfaced when tests/macromolecule-lab.html put this glucose
-  // next to alanine and AMP under the words "true relative size".
+  // That last one only surfaced when this glucose was put beside alanine and
+  // AMP under the words "true relative size" — a scale error is invisible
+  // until two families share a frame.
   //
   // Every value below still clears its radii sum by a wide margin (the tightest
   // is O–H at 1.84 against 1.50); check-molecules.js asserts that.

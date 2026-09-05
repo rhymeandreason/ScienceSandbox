@@ -219,11 +219,11 @@ condensation*. `opt.size` is the ångström scaling every `fx` primitive takes.
   `molecule-lab.html`.
 - Solute settle — `updateSolutes()` when descent ends and the hydration toast
   fires (gated to `class === 'polar'`), `molecule-lab.html`.
-- Dehydration synthesis — `fx.condense()`, called by `tests/aminoacid-lab.html`
-  (the peptide bond) and by `dna-lab.html` step 2 (the glycosidic bond and the
-  phosphoester). `aminoacid-lab` adds `popGlow` on both residues; `dna-lab`
-  deliberately does not, because its nucleotide is hydrogen-bonded to a partner
-  four ångströms away and a 1.7× punch swells one straight through the other.
+- Dehydration synthesis — `fx.condense()`, called by `dna-lab.html` step 2 (the
+  glycosidic bond and the phosphoester) and step 3 (the phosphodiester).
+  `dna-lab` deliberately adds no `popGlow` on the two molecules, because its
+  nucleotide is hydrogen-bonded to a partner four ångströms away and a 1.7×
+  punch swells one straight through the other.
 
 New pages: add `<script src="fx.js">`, `FX.create(THREE, root, camera)` once,
 `FXi.step()` in the loop, then call the primitives at your own event sites.

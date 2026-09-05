@@ -21,8 +21,10 @@
     //   3 Cα  4 H              (α-carbon; 4 is the backbone H)
     //   5 C   6 O(=O)  7 O(–OH)  8 H   (carboxyl; the –OH, atoms 7+8, leaves)
     //   9…    side chain (R), bonded to Cα (atom 3), splayed −Y
-    // `pep` names the atoms the peptide-bond reaction acts on (tests/aminoacid-lab.html):
+    // `pep` names the atoms the peptide-bond reaction acts on:
     //   cC carboxyl carbon · oOH/hOH the leaving hydroxyl · nN amino N · hN amino H's.
+    // check-molecules.js gates its L-handedness assertion on this block, so a
+    // spec that drops it stops being checked without failing anything.
     // Only the ANGLES/topology carry the lesson; bond lengths are stylised as
     // elsewhere (must exceed the two display radii so the stick shows).
     // Zwitterion form is skipped on purpose — the neutral –NH₂/–COOH makes the
@@ -139,10 +141,9 @@
           { key:'carboxyl', label:'–COOH', keep:5, leaves:[7,8] },
           { key:'amino',    label:'–NH₂',  keep:0, leaves:[1] } ],
         makes:[ { product:null, donor:'carboxyl', acceptor:'amino', bond:'peptide' } ] },
-      // alanine doubles as the PROTEIN monomer in tests/macromolecule-lab.html's
-      // gallery, so it carries the same `groups` index map the other three
-      // monomers do. Indices are the fixed backbone order (see above) —
-      // regenerating this spec must not renumber them.
+      // alanine is the PROTEIN monomer of the four-class set, so it carries the
+      // same `groups` index map the other three do. Indices are the fixed
+      // backbone order (see above) — regenerating this spec must not renumber them.
       mono:'protein',
       groups:[
         { key:'amino', label:'Amino group', formula:'–NH₂', atoms:[0,1,2],
@@ -209,7 +210,7 @@
     },
 
     /* -------------------------------------------------------------------
-     *  MACROMOLECULE MONOMERS  (tests/macromolecule-lab.html)
+     *  MACROMOLECULE MONOMERS
      * -------------------------------------------------------------------
      *  One representative monomer per class, for the four-class comparison
      *  gallery. Two of the four are specs that already existed and were reused

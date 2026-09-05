@@ -5,10 +5,10 @@
  *  somewhere. A phosphoryl group onto ADP, a hydride onto NAD⁺, a water off a
  *  condensation, CO₂ off a decarboxylation, an electron off a metal. Four pages
  *  in this repo had already written it, separately, and they did not agree —
- *  aminoacid-lab's released water is built from the SOLVATION water spec, whose
- *  O–H is exaggerated to 1.55 for that engine's physics, so it lands about 70%
- *  of the size it should be beside PubChem-measured residues. Nobody wrote that
- *  bug; it is what "each page solves it alone" produces.
+ *  one built its released water from the SOLVATION water spec, whose O–H is
+ *  exaggerated to 1.55 for that engine's physics, so it landed about 70% of the
+ *  size it should be beside PubChem-measured residues. Nobody wrote that bug;
+ *  it is what "each page solves it alone" produces.
  *
  *  What is easy to get wrong, and therefore what this owns:
  *

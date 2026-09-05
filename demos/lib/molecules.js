@@ -180,7 +180,7 @@
   // "Keeping the docs true" lists this table as one that goes stale silently.
   const VIEW = {
     // The 3/4 chair. Every pyranose on every page uses this, which is what makes
-    // glucose look the same in glycolysis-lab, macromolecule-lab and contrast-lab.
+    // glucose look the same in glycolysis-lab and contrast-lab.
     // Tuned +28° x / -24.4° y off an earlier [1.05, 0.45, -0.2] pass.
     pyranose:[1.5387, 0.0241, -0.2],
     // Tuned -30.5° y off an earlier [-0.89, -2.723, -1.257] pass.

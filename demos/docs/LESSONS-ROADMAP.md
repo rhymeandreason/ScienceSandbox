@@ -28,7 +28,7 @@ Useful here as corroboration, not as the build order — it ranks by *concept co
 
 | Matrix row | Covered by |
 | --- | --- |
-| subcellular ↔ macroscopic, scale | `macromolecule-lab`, `molecule-viewer` |
+| subcellular ↔ macroscopic, scale | `molecule-viewer` |
 | energy transformation | `glycolysis-lab`, and `coupling/` |
 | dynamic equilibrium, probability, randomness | the mass-action modal, and `diffusion/` |
 | integrated systems (structure→function) | `hemoglobin-lab` |
@@ -43,9 +43,7 @@ Chapter numbers are OpenStax *Biology 2e*, TRU/BCcampus edition (<https://bccamp
 | --- | --- | --- |
 | `molecule-builder` | featured | [5 Atoms, Isotopes, Ions, and Molecules](https://bccampusbiology.pressbooks.tru.ca/chapter/atoms-isotopes-ions-and-molecules-the-building-blocks/) |
 | `water-lab` | featured | [6 Water](https://bccampusbiology.pressbooks.tru.ca/chapter/water/) · [5](https://bccampusbiology.pressbooks.tru.ca/chapter/atoms-isotopes-ions-and-molecules-the-building-blocks/) (ionic bonds, dissolving) |
-| `macromolecule-lab` | prototype | [7 Carbon](https://bccampusbiology.pressbooks.tru.ca/chapter/carbon/) · [9 Synthesis of Biological Macromolecules](https://bccampusbiology.pressbooks.tru.ca/chapter/synthesis-of-biological-macromolecules/) |
 | `contrast-lab` | prototype | [10 Carbohydrates](https://bccampusbiology.pressbooks.tru.ca/chapter/carbohydrates/) · [11 Lipids](https://bccampusbiology.pressbooks.tru.ca/chapter/lipids/) · [13 Nucleic Acids](https://bccampusbiology.pressbooks.tru.ca/chapter/nucleic-acids/) |
-| `aminoacid-lab` | prototype | [9 Synthesis](https://bccampusbiology.pressbooks.tru.ca/chapter/synthesis-of-biological-macromolecules/) (dehydration) · [12 Proteins](https://bccampusbiology.pressbooks.tru.ca/chapter/proteins/) |
 | `hemoglobin-lab` | featured | [12 Proteins](https://bccampusbiology.pressbooks.tru.ca/chapter/proteins/) (all four levels) |
 | `molecule-viewer` | prototype | [30 ATP](https://bccampusbiology.pressbooks.tru.ca/chapter/atp-adenosine-triphosphate/) · [33 Energy in Living Systems](https://bccampusbiology.pressbooks.tru.ca/chapter/energy-in-living-systems/) (NADH) |
 | `molecule-lab` | prototype | [6 Water](https://bccampusbiology.pressbooks.tru.ca/chapter/water/) · [5](https://bccampusbiology.pressbooks.tru.ca/chapter/atoms-isotopes-ions-and-molecules-the-building-blocks/) (CO₂ → carbonic acid, pH) |
@@ -170,7 +168,7 @@ chloride to work at all.
 
 **The conflict.** As bad as it gets — ladder vs helix, bases as jigsaw tabs instead of hydrogen bonds, grooves invisible, antiparallel strands drawn parallel.
 
-**Started as `dna-lab.html` (prototype).** The pieces are already built: `skel.js` has `adenine`, `ribosyl` and `phosphoUnit`, and `macromolecule-lab` draws AMP. Payoff is structure→function on a molecule where the structure *is* the function.
+**Started as `dna-lab.html` (prototype).** The pieces are already built: `skel.js` has `adenine`, `ribosyl` and `phosphoUnit`, and `mol-monomers.js` has AMP. Payoff is structure→function on a molecule where the structure *is* the function.
 
 Matrix rows: integrated systems, scale.
 
@@ -222,8 +220,8 @@ Two cheap wins that belong to no lesson: **hydroxide** (you have hydronium, so a
 | file | holds | now | after | needed by |
 | --- | --- | --- | --- | --- |
 | `mol-solvation.js` | water, salts, small polars/nonpolars — display units | 10 | 12 | `water-lab`, `molecule-lab`, `molecule-builder` |
-| `mol-small.js` | the same substances to scale (family B) — either/or | 5 | 7 | `aminoacid-lab` |
-| `mol-monomers.js` | amino acids, palmitate, AMP | 6 | 6 | `aminoacid-lab`, `macromolecule-lab` |
+| `mol-small.js` | the same substances to scale (family B) — either/or | 5 | 7 | family-B pages |
+| `mol-monomers.js` | amino acids, palmitate, AMP | 6 | 6 | `polymer/` (planned) |
 | `mol-pathways.js` | glucose → pyruvate, ATP, NADH, Pi | 14 | 15 | `glycolysis-lab`, **enzymes**, and 3 more pages |
 | `mol-contrast.js` | the six near-identical pairs | 12 | 12 | `contrast-lab` |
 | `mol-compare.js` | `atpSkel` / `nadhSkel` — controls, not lessons | 2 | 2 | `molecule-viewer` |

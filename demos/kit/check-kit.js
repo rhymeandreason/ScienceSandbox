@@ -160,7 +160,7 @@ head('molgraph.js — connectivity');
   // Five hydroxyls on the open pyranose (C1,C2,C3,C4 + the C6 primary).
   const oh=MolGraph.findGroups(g,'hydroxyl');
   ok(oh.length===5,`glucose has five hydroxyls (got ${oh.length})`);
-  // and they are SPREAD — the reason macromolecule-lab refuses to ring them.
+  // and they are SPREAD — the reason a group flash must not ring them as one.
   ok(MolGraph.spread(g, oh.flatMap(x=>x.atoms))>3,
      'glucose hydroxyls are spread around the ring, not a compact site');
 }
