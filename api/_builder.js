@@ -183,9 +183,24 @@ function inLibrary(u, ext) {
 /* What the source has to satisfy before anyone is handed it. Strings, one per
  * problem; empty means it passed. Reads the source only: it cannot run the
  * page, so a runtime error is the browser's to report on the next turn. */
+/* The absolute script URLs a page may load: three.js, plus every https src a
+ * component section declares. Derived from the reference rather than listed
+ * here, so a component whose section names a CDN dependency is usable the
+ * moment the doc says so. Listed by hand, the two halves drift and the result
+ * is unreachable: the deps check below DEMANDS a component's scripts while
+ * this check REFUSES them, and every draft that mounts it is rejected and
+ * silently retried without it. */
+function externals() {
+  const out = new Set([CDN]);
+  for (const list of Object.values(needs()))
+    for (const u of list) if (/^https:\/\//.test(u)) out.add(u);
+  return out;
+}
+
 function validate(html, names) {
   const problems = [];
   const src = String(html || '');
+  const allowed = externals();
   if (!/<html[\s>]/i.test(src) || !/<\/html>/i.test(src)) problems.push('not a whole HTML file');
   if (!/<script[\s>]/i.test(src)) problems.push('no script: the page mounts nothing');
   // The shell is the page. The sidebar layout over sandbox.css was the first
@@ -195,7 +210,7 @@ function validate(html, names) {
 
   for (const m of src.matchAll(/<script[^>]*\ssrc=["']([^"']+)["']/gi)) {
     const u = m[1];
-    if (u === CDN) continue;
+    if (allowed.has(u)) continue;
     if (inLibrary(u, '.js')) continue;
     problems.push(`script from outside the library: ${u}`);
   }

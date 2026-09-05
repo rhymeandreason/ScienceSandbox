@@ -52,7 +52,14 @@ const COMPONENTS = {
   Leaf:       'leaf/leaf.js',
   Tree:       'tree/tree.js',
   Cutaway:    'cell/cutaway.js',
+  Graph:      'graph/graph.js',
 };
+
+/* NOT IN THE WORLD. A graph has no size, so it sits on no rung and shares a
+   frame with anything; its SCALE says rung: null and its Components.md section
+   says "**Scale**: none". Both halves are required, so the exemption has to be
+   claimed twice and cannot be reached by omission. */
+const isDimensionless = S => S && S.rung === null;
 
 const errors = [], warnings = [];
 const fail = m => errors.push(m);
@@ -77,6 +84,7 @@ for (const [name, file] of Object.entries(COMPONENTS)) {
   const S = sandbox[name] && sandbox[name].SCALE;
   if (!S) { fail(`${name} (${file}) exports no SCALE block. See kit/scale.js.`); continue; }
   SCALES[name] = S;
+  if (isDimensionless(S)) continue;
   Ladder.validate(name, S).forEach(fail);
 }
 
@@ -137,6 +145,12 @@ else {
     const start = md.indexOf(`## ${name} `);
     const next = md.indexOf('\n## ', start + 1);
     const body = md.slice(start, next < 0 ? md.length : next);
+    if (isDimensionless(SCALES[name])) {
+      if (!/\*\*Scale\*\*:\s*none\b/.test(body))
+        fail(`${name} declares rung: null, so its Components.md section must say ` +
+             `"**Scale**: none". A component with no rung has to say why, not omit the line.`);
+      continue;
+    }
     const m = body.match(/\*\*Scale\*\*:\s*([a-z]+)\s*,\s*(single|bulk)/);
     if (!m) {
       fail(`Components.md section "${name}" has no "**Scale**: <rung>, <form>" line. ` +

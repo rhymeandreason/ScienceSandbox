@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="../css/main.css">
 <link rel="stylesheet" href="../css/sandbox.css">
 <link rel="stylesheet" href="../css/annotate.css">
+<link rel="stylesheet" href="../graph/graph.css">
 <style>
   /* The first app written in the shape a generated page takes: one mounted
      component, controls that are set(), readouts that are state(). The
@@ -23,12 +24,6 @@
   table.rd td:last-child { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
   .env { display:flex; gap:6px; }
   .env button[aria-pressed=true] { outline:2px solid currentColor; }
-  svg.chart { width:100%; height:110px; display:block; }
-  svg.chart .in  { fill:none; stroke:#3b6fd6; stroke-width:1.6; }
-  svg.chart .out { fill:none; stroke:#c9702c; stroke-width:1.6; }
-  svg.chart text { font-size:10px; fill:currentColor; opacity:.7; }
-  .key { font-size:12px; opacity:.8; }
-  .key .in { color:#3b6fd6; } .key .out { color:#c9702c; }
 </style>
 </head>
 <body>
@@ -53,8 +48,7 @@
 
     <div class="grp">
       <div class="hd">free water on each side</div>
-      <svg class="chart" id="chart" viewBox="0 0 300 110" preserveAspectRatio="none"></svg>
-      <div class="key"><span class="in">■ inside the cell</span> · <span class="out">■ outside</span></div>
+      <div id="chart"></div>
     </div>
 
     <div class="grp">
@@ -86,6 +80,9 @@
 <script src="../membrane/pump.js"></script>
 <script src="../membrane/chemiosmosis.js"></script>
 <script src="../membrane/membrane.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js"></script>
+<script src="../graph/graph.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -127,7 +124,7 @@ function populate() {
   } });
   m.reset();
   $('claim').innerHTML = CLAIM[env];
-  series.length = 0;
+  chart.clear();
 }
 
 for (const b of document.querySelectorAll('[data-env]')) b.onclick = () => {
@@ -141,31 +138,21 @@ $('speed').oninput = e => m.set({ timeScale: +e.target.value });
 /* The component's own chips: point at, show, colours. Nothing here was written for this page. */
 CardStage.showPanel($('panel'), m, { notes: ['channel.K', 'pump'], layers: ['shells', 'water'] });
 
-/* ---- the chart: free water per side, over the last two minutes ---- */
-const series = [];
-const SPAN = 120;                                 // seconds on screen
-function chart() {
-  const svg = $('chart');
-  if (series.length < 2) { svg.innerHTML = ''; return; }
-  const t0 = series[0].t, t1 = Math.max(series[series.length - 1].t, t0 + 10);
-  const X = t => 300 * (t - t0) / (t1 - t0);
-  const Y = n => 100 - 90 * n / PARTICLES;
-  const path = key => series.map((s, i) => (i ? 'L' : 'M') + X(s.t).toFixed(1) + ' ' + Y(s[key]).toFixed(1)).join(' ');
-  svg.innerHTML =
-    `<path class="in" d="${path('in')}"/><path class="out" d="${path('out')}"/>` +
-    `<text x="2" y="10">${PARTICLES}</text><text x="2" y="104">0</text>`;
-}
+/* ---- the chart: free water per side, over the last two minutes ----
+   This page used to draw it: twenty lines of path arithmetic, a y-maximum
+   typed as PARTICLES, and a viewBox stretched with preserveAspectRatio="none"
+   so the strokes came out thicker across than down. All of it is now the
+   membrane's own `water` signal, which carries the label, the unit and the
+   range, so nothing here knows how many particles there are. */
+const chart = Graph.mount($('chart'), { live: { span: 120 }, height: 130, legend: false })
+  .follow(m, 'water');
 
 const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
-/* On the sim's own clock: a backgrounded tab freezes the sim and the chart
-   together, and a bench driving pump() by hand still plots. */
+/* The chart keeps its own subscription, on the sim's own clock: a backgrounded
+   tab freezes the sim and the trace together, and a bench driving pump() by
+   hand still plots. What is left here is the table. */
 m.on('frame', s => {
   const w = s.counts.water || { inside:0, outside:0 };
-  if (!series.length || s.t - series[series.length - 1].t >= 1) {
-    series.push({ t:s.t, in:w.inside, out:w.outside });
-    while (series.length && s.t - series[0].t > SPAN) series.shift();
-    chart();
-  }
   const na = s.counts.NA || { inside:0, outside:0 };
   const k = s.counts.K || { inside:0, outside:0 };
   $('rd').innerHTML =

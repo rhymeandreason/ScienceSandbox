@@ -1333,6 +1333,9 @@
          the two compartments; the switches a student reaches for. */
       set(next) { sim.set(next); return this; },
       state: () => last || sim.state(),
+      /* The handle carries them so graph.js can resolve a signal by name off
+         the thing it is following, without knowing it is a membrane. */
+      signals: () => SIGNALS,
       on: sim.on, spend: sim.spend,
       add: sim.add, scatter: sim.scatter, clear: sim.clear, reset: sim.reset,
       start: box.start, stop: box.stop, pump: box.pump,
@@ -1340,7 +1343,77 @@
     };
   }
 
-  global.Membrane = { create, mount, DEFAULTS };
+  /* ---- SIGNALS: what is worth plotting, and over what range -----------------
+     A component knows what its own numbers MEAN and what range they live in;
+     a page does not, and a generated page least of all. Two generated apps
+     each typed their own y-maximum for the water count (90 in one, 80 in the
+     other) and both clip silently the moment the particle count changes.
+     Nothing can check a typed maximum, so the number is declared here instead
+     and graph/graph.js reads it: `g.follow(m, 'water')` and no page types a
+     range again.
+
+     `pick` returns a number, or an object of side to number when `split` is
+     set, in which case the graph draws one series per side and labels them
+     with the CONTEXT's own names — matrix and intermembrane space in a
+     mitochondrion, not "inside" and "outside".
+
+     `domain` is a function of the first reading, evaluated once and then
+     frozen: the total water is knowable from the sim and constant for a run,
+     but a domain recomputed every frame would rescale the axis under the
+     trace and turn a steady line into a wandering one. `cumulative` is the
+     exception that may only grow. */
+  const SIGNALS = {
+    water: {
+      label: 'Free water', unit: 'molecules', split: true,
+      pick: s => sides(s.counts.water),
+      domain: s => [0, total(s.counts.water)],
+    },
+    sodium: {
+      label: 'Na\u207A', unit: 'ions', split: true,
+      pick: s => sides(s.counts.NA),
+      domain: s => [0, total(s.counts.NA)],
+    },
+    potassium: {
+      label: 'K\u207A', unit: 'ions', split: true,
+      pick: s => sides(s.counts.K),
+      domain: s => [0, total(s.counts.K)],
+    },
+    protons: {
+      label: 'H\u207A', unit: 'protons', split: true,
+      pick: s => sides(s.counts.H),
+      domain: s => [0, total(s.counts.H)],
+    },
+    /* The membrane potential is exaggerated (MV_PER_ION), so the range is the
+       sim's, not a physiology textbook's. It is still signed, and the axis has
+       to show the sign: a voltage plotted 0-up reads as a magnitude. */
+    voltage: {
+      label: 'Membrane potential', unit: 'mV',
+      pick: s => s.mV,
+      domain: () => [-100, 40],
+    },
+    /* Chemiosmosis. dpH and pmf are chemiosmosis.js's arithmetic, and their
+       ranges are what that file can produce, not what a chloroplast does. */
+    dpH: {
+      label: 'pH difference across the membrane', unit: 'pH',
+      pick: s => s.dpH,
+      domain: () => [0, 1.6],
+    },
+    pmf: {
+      label: 'Proton-motive force', unit: 'mV',
+      pick: s => s.pmf,
+      domain: () => [0, 250],
+    },
+    atp: {
+      label: 'ATP made', unit: 'molecules', cumulative: true,
+      pick: s => s.atpMade,
+      domain: () => [0, 10],
+    },
+  };
+
+  const total = c => c ? (c.inside || 0) + (c.outside || 0) : 0;
+  const sides = c => ({ inside: (c && c.inside) || 0, outside: (c && c.outside) || 0 });
+
+  global.Membrane = { create, mount, DEFAULTS, SIGNALS };
   /* Scale (kit/scale.js, docs/Scale.md). The sheet is angstroms at MolLib.SCALE
      display units each. Everything CROSSING is then enlarged by DEFAULTS.exag,
      so only the comparison against the membrane is exaggerated; that is the one

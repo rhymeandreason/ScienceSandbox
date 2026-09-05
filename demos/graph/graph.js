@@ -39,7 +39,21 @@
  *               The isotonic point of an osmosis lab is exactly this.
  *      zeroLine a heavier rule at y = 0 when the data crosses it
  *      ref      [{y|x, label}] reference lines: a known value, a control
+ *      live     {span, every} seconds; see follow() below
  *      title, caption, height, legend, tip, sort
+ *
+ *  LIVE, off a running component:
+ *
+ *      Graph.mount(el, { live: { span: 120 } })
+ *           .follow(m, 'water');       // m is any handle with on('frame')
+ *
+ *  The second argument is a signal the component declares in its own SIGNALS
+ *  table — `Membrane.SIGNALS` is the first — so the label, the unit and the
+ *  Y RANGE come from the thing that knows them. A page never types a maximum,
+ *  which is the bug this exists to end: two generated apps each typed their
+ *  own, and both clip in silence when the particle count changes. A spec
+ *  object or a plain function of the reading works too, for something no
+ *  component thought to publish.
  *
  *  set() re-renders. Nothing here animates: a graph that tweens between two
  *  datasets is showing a third that was never measured.
@@ -76,7 +90,11 @@
     return fallback;
   }
 
-  SERIES.forEach((c, i) => document.documentElement.style.setProperty('--graph-s' + (i + 1), c));
+  /* Guarded so the module LOADS without a DOM: tools/check-scale.js reads
+     SCALE out of every component in a bare node sandbox, and a top-level
+     document reference would put this one out of its reach. */
+  if (typeof document !== 'undefined')
+    SERIES.forEach((c, i) => document.documentElement.style.setProperty('--graph-s' + (i + 1), c));
 
   /* ---- data ---------------------------------------------------------------- */
 
@@ -168,6 +186,7 @@
     color: null, mean: false, error: null, fit: 'none', ci: 0,
     xIntercept: false, zeroLine: true, ref: [],
     title: null, caption: null, height: null, legend: true, tip: true, sort: null,
+    live: null,
   };
 
   function mount(el, params) {
@@ -248,12 +267,17 @@
           stroke: cf || SERIES[0], tip,
         }));
       } else if (P.kind === 'line') {
+        /* A live trace is sampled dense and read as a shape, so it takes a
+           straight interpolation and no markers: catmull-rom overshoots a step
+           change into a value the sim never held, and a dot per sample at 1 Hz
+           is 120 dots of nothing. A measured series keeps both. */
         marks.push(Plot.line(rows, {
-          x: xf, y: yf, strokeWidth: 2, curve: 'catmull-rom', sort: xf,
+          x: xf, y: yf, strokeWidth: 2, sort: xf,
+          curve: P.live ? 'linear' : 'catmull-rom',
           stroke: cf || SERIES[0],
         }));
         if (errField) marks.push(bars());
-        marks.push(Plot.dot(rows, {
+        if (!P.live) marks.push(Plot.dot(rows, {
           x: xf, y: yf, r: 3.4, fill: paper, strokeWidth: 1.6,
           stroke: cf || SERIES[0], tip,
         }));
@@ -311,12 +335,21 @@
       /* A dilution series was mixed at six concentrations, so the axis has six
          ticks. Left to a pixel count Plot rules 0.05 M steps across a 0-1 axis
          and rotates the labels to fit, which reads as continuous sampling that
-         nobody did. Only when the levels are few enough to label. */
-      const levels = xf ? [...new Set(rows.map(d => +d[xf]).filter(isFinite))].sort((a, b) => a - b) : [];
+         nobody did. Only when the levels are few enough to label.
+
+         NEVER IN LIVE MODE. A trace's x values are sample times, not levels
+         somebody chose, and for its first twelve seconds it has twelve of
+         them: the rule below ruled a tick at 0.1, 1.2, 2.3 and so on, piled
+         them against the left edge of a 0-120 axis, and un-piled itself at the
+         thirteenth sample. The axis has to be readable in the first second,
+         because that is when the reader is deciding what they are looking at. */
+      const levels = (xf && !P.live)
+        ? [...new Set(rows.map(d => +d[xf]).filter(isFinite))].sort((a, b) => a - b) : [];
       const w = wrap.clientWidth || 640;
+      const compact = w < 380;
       const xTicks = P.kind === 'histogram' ? undefined
         : (levels.length && levels.length <= 12) ? levels
-        : Math.max(3, Math.round(w / 64));
+        : Math.max(3, Math.round(w / (compact ? 52 : 64)));
       /* Capped, not just proportional. A graph that grows with a wide column
          gets to 580px tall, which is taller than the reading it carries and
          pushes the caption off the screen the marks are on. */
@@ -324,7 +357,15 @@
       const fig = Plot.plot({
         marks,
         width: w, height: h,
-        marginLeft: 60, marginBottom: 48, marginTop: 16, marginRight: 20,
+        /* A sidebar trace is 290px wide and 130 tall, and the full-size chrome
+           eats more than half of it: the margins are the plot area, so they
+           shrink with the box rather than staying at the figure's size. The
+           labels stay either way, because a compact axis with no unit is where
+           a reader starts guessing. */
+        marginLeft: compact ? 44 : 60,
+        marginBottom: compact ? 34 : 48,
+        marginTop: compact ? 8 : 16,
+        marginRight: compact ? 12 : 20,
         style: { background: 'transparent', color: ink, fontFamily: font, fontSize: '12px' },
         /* labelArrow: Plot ends an axis label with an arrow by default. It is
            telling the reader which way the value increases, which a Bio 101
@@ -334,14 +375,17 @@
            these box sizes it lands on a rung every 12px. One label per ~64px
            across and ~52px down is the density a printed lab graph uses. */
         x: {
-          label: axisLabel(P.x), labelAnchor: 'center', labelOffset: 40, labelArrow: 'none',
-          grid: false, nice: true, domain: P.x.domain, type: P.x.log ? 'log' : undefined,
+          label: axisLabel(P.x), labelAnchor: 'center', labelOffset: compact ? 30 : 40, labelArrow: 'none',
+          grid: false, nice: !P.x.domain, domain: P.x.domain, type: P.x.log ? 'log' : undefined,
           ticks: P.x.ticks != null ? P.x.ticks : xTicks,
           tickFormat: P.x.tickFormat,
         },
         y: {
-          label: axisLabel(P.y), labelAnchor: 'center', labelOffset: 48, labelArrow: 'none',
-          grid: true, nice: true, domain: P.y.domain, type: P.y.log ? 'log' : undefined,
+          /* nice ROUNDS A DOMAIN OUTWARD, so a component that declared 72 free
+             waters got an axis reading 80 and a trace that never reaches the
+             top. Round only what we chose ourselves. */
+          label: axisLabel(P.y), labelAnchor: 'center', labelOffset: compact ? 36 : 48, labelArrow: 'none',
+          grid: true, nice: !P.y.domain, domain: P.y.domain, type: P.y.log ? 'log' : undefined,
           zero: P.y.zero != null ? P.y.zero : (P.kind === 'bar' || P.kind === 'histogram'),
           ticks: P.y.ticks != null ? P.y.ticks : Math.max(3, Math.round(h / 52)),
           tickFormat: P.y.tickFormat,
@@ -380,8 +424,112 @@
     ro.observe(wrap);
     render();
 
+    /* ---- live: a trace fed by a running sim --------------------------------
+       Three things this owns that a page kept getting wrong:
+
+       THE CLOCK IS THE SIM'S. Every sample is stamped with the reading's own
+       `t`, never Date.now(). A backgrounded tab freezes rAF, so a wall clock
+       would draw a flat minute the sim never spent; and a bench driving
+       pump(dt) by hand still plots, at whatever rate it likes.
+
+       THE WINDOW IS A FIXED WIDTH IN SECONDS. Two generated pages disagreed
+       about this: one scaled x by the number of samples so far, so the trace
+       re-stretched as it filled, and the other by the buffer's capacity, so it
+       scrolled in from the left. Both are the same graph reading differently.
+       Here the axis is always `span` seconds wide, so a slope means one thing
+       for the whole run.
+
+       THE DOMAIN COMES FROM THE COMPONENT, ONCE. A signal declares it, it is
+       evaluated on the first reading and then frozen. An autoscaled live trace
+       is the worst default in the module: it rescales under the line, so a
+       reading that never moves fills the box with noise. */
+    let series = [], span = 0, every = 1, unfollow = null, frozenY = null, growTo = null;
+
+    /* One call per reading, however many series that reading carries: a split
+       signal that throttled per row would admit the first side and drop the
+       second, and draw one line twice as dense as the other. */
+    let lastT = -Infinity;
+    function sample(t, rows) {
+      if (!isFinite(t) || t - lastT < every) return;
+      lastT = t;
+      series.push(...rows);
+      while (series.length && t - series[0].t > span) series.shift();
+      P.data = series;
+      P.x.domain = [Math.max(0, t - span), Math.max(span, t)];
+      render();
+    }
+
     return {
       el: wrap,
+
+      /* follow(source, signal) where source is any component handle with
+         on('frame') — membrane, leaf, tree, watersim. `signal` is a name the
+         source declares in SIGNALS, a spec of the same shape, or a plain
+         function of the reading for a page that wants something no component
+         thought to publish. */
+      follow(source, signal, opts) {
+        const o = Object.assign({ span: 120, every: 1 }, P.live, opts);
+        span = o.span; every = o.every;
+        P.live = o;
+
+        let spec = signal;
+        if (typeof signal === 'string') {
+          const table = (source.signals && source.signals()) || {};
+          spec = table[signal];
+          if (!spec) throw new Error('graph: ' + signal + ' is not a signal this component declares');
+        } else if (typeof signal === 'function') {
+          spec = { pick: signal };
+        }
+
+        P.kind = 'line';
+        P.tip = false;                 /* a tip on a moving trace chases the pointer */
+        /* The window is known now, so the axis is drawn to its final width
+           before the first reading. Left until the first sample, the graph
+           auto-fits an empty dataset and then jumps once the data lands. */
+        P.x = Object.assign({}, P.x, { domain: [0, o.span] });
+        P.x = Object.assign({ field: 't', label: 'Time', unit: 's' }, P.x);
+        P.y = Object.assign({ field: 'v', label: spec.label, unit: spec.unit }, P.y);
+        if (spec.split) P.color = 'side';
+        render();                      /* the empty axis, already at its final width */
+
+        if (unfollow) unfollow();
+        unfollow = source.on('frame', s => {
+          if (!frozenY) {
+            /* once, off the first real reading */
+            frozenY = (P.y.domain || (spec.domain ? spec.domain(s) : null));
+            if (frozenY) { P.y.domain = frozenY.slice(); growTo = spec.cumulative ? frozenY[1] : null; }
+          }
+          const v = spec.pick(s);
+          if (v == null) return;
+          if (spec.split) {
+            /* the component names its own sides, so a mitochondrion says
+               matrix and intermembrane space rather than inside and outside */
+            const name = s.sides || { inside: 'inside', outside: 'outside' };
+            sample(s.t, [{ t: s.t, side: name.inside, v: v.inside },
+                         { t: s.t, side: name.outside, v: v.outside }]);
+          } else {
+            /* A cumulative signal is the one thing allowed to move its own
+               ceiling, and only upward: ATP made never falls, so an axis that
+               followed it down would be redrawing history. */
+            if (growTo != null && v > growTo) { growTo = Math.ceil(v * 1.4); P.y.domain = [frozenY[0], growTo]; }
+            sample(s.t, [{ t: s.t, v: v }]);
+          }
+        });
+        return this;
+      },
+
+      unfollow() { if (unfollow) { unfollow(); unfollow = null; } return this; },
+
+      /* Empty the trace without dropping the subscription: a page that resets
+         the sim wants the same graph, not a second one. The frozen domain goes
+         with it, because a reset can change what the sim holds. */
+      clear() {
+        series = []; lastT = -Infinity; frozenY = null; growTo = null;
+        P.data = [];
+        render();
+        return this;
+      },
+
       set(next) {
         for (const k in next) {
           if ((k === 'x' || k === 'y') && next[k]) Object.assign(P[k], next[k]);
@@ -396,11 +544,23 @@
         return () => { listeners[name] = listeners[name].filter(f => f !== fn); };
       },
       render,
-      destroy() { ro.disconnect(); cancelAnimationFrame(raf); wrap.remove(); },
+      destroy() {
+        if (unfollow) unfollow();
+        ro.disconnect(); cancelAnimationFrame(raf); wrap.remove();
+      },
     };
   }
 
   global.Graph = { mount, csv, load, leastSquares, mean, sd, fmt, deslug, SERIES, DEFAULTS };
-  /* Scale (kit/scale.js): a graph is not in the world. It declares no unit and
-     sits on no rung of the ladder; its axes carry their own. */
-})(window);
+
+  /* Scale (kit/scale.js, docs/Scale.md). A graph is the one component NOT IN
+     THE WORLD: it has no size, so it sits on no rung and can share a frame
+     with anything. `rung: null` is that claim written down rather than left
+     out, and check-scale.js pairs it with the section's "**Scale**: none". */
+  global.Graph.SCALE = {
+    rung: null, form: null, unit: null, exag: {}, down: {},
+    /* `height` is pixels of drawing, the only length this component has. It is
+       declared so nothing mistakes it for a measurement of something. */
+    sceneUnits: ['height'],
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
