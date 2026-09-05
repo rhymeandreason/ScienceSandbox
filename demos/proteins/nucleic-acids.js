@@ -199,10 +199,21 @@
           default: true,
           species: 'bacteriophage T7',
           label: 'T7 polymerase + thioredoxin', chip: '4 chains',
-          /* Chain B is the HOST's protein: T7 encodes no sliding clamp and
-             bolts an E. coli thioredoxin to its thumb to hold on. The bench
-             draws it only on request — it is the highest-contrast thing in
-             the frame and the one part that is not the polymerase. */
+          /* WHAT EACH PROTEIN CHAIN IS, AND WHICH ONE IS NOT THE SUBJECT.
+             T7 encodes no sliding clamp: it bolts an E. coli thioredoxin to
+             its thumb to hold onto the DNA. So chain B is a different protein
+             from a different organism, and `partner` says a picture of this
+             structure is about the polymerase without it.
+
+             IT IS HERE RATHER THAN IN THE BAKE because it is a decision about
+             how the structure should be SHOWN, and three consumers have to
+             make the same one — the gallery card, the still baked from it and
+             the bench. A still that drew a chain the card hides would break
+             the one contract stills.html has, which is that the live box
+             replaces the picture with the same picture. */
+          chains: { A: { is: 'T7 polymerase (gp5)' },
+                    B: { is: 'thioredoxin, borrowed from E. coli',
+                         partner: true } },
           source: { kind: 'rcsb', id: '1T7P' },
           read: {
             method: 'x-ray diffraction',
@@ -295,6 +306,28 @@
     return (at && b[at.frame]) || null;
   }
 
+  /* THE CHAINS A PICTURE OF THIS VARIANT IS ABOUT, and the ones it is not.
+     A partner is in the file and not in the subject — a clamp, a Fab, a lid.
+     `partnersOf` is the declaration; `drawnOf` turns it into the chain list
+     `kit/proteinbox.js` takes, against a trace, and returns null where there
+     is nothing to leave out so the box keeps its own default.
+
+     A PAGE THAT WANTS THE PARTNER ASKS FOR IT. The bench has a checkbox; the
+     gallery card and its still do not, and they are the reason this lives in
+     the index rather than in each page. */
+  const partnersOf = (s, v) => {
+    const e = typeof s === 'string' ? byKey(s) : s;
+    const at = v || defaultOf(e);
+    const c = at && at.chains;
+    return c ? Object.keys(c).filter(id => c[id].partner) : [];
+  };
+
+  const drawnOf = (s, v, t) => {
+    const skip = partnersOf(s, v);
+    if (!skip.length || !t || !t.order) return null;
+    return t.order.filter(id => !skip.includes(id)).join(',');
+  };
+
   /* The bake's path, from the entry and the variant — so a bench names a
      structure and not a file, and a renamed bake is one edit here. */
   const bakedPath = (s, id) => {
@@ -311,7 +344,8 @@
   });
 
   global.NucleicAcids = { STRUCTURES, KINDS, byKey, variantOf, defaultOf,
-                          bakedPath, urls, withProtein, viewOf };
+                          bakedPath, urls, withProtein, viewOf,
+                          partnersOf, drawnOf };
   if (typeof module === 'object' && module.exports)
     module.exports = global.NucleicAcids;
 })(typeof window !== 'undefined' ? window : globalThis);

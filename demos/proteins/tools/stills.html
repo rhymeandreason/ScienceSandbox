@@ -84,6 +84,10 @@ async function bake(p) {
   const box = Proteinbox.create({
     mount, orbit: false, pad: 1.15, sub: 8,
     stage: { ortho: false },
+    /* The same chain list the card draws — see index.html. A still holding a
+       chain the card hides is the contract above broken in the one direction
+       nobody looks at. */
+    chains: isNA(p) ? NucleicAcids.drawnOf(p, null, t) : null,
     colors: isNA(p) ? null : ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
     /* THE SAME `viewOf` index.html ASKS, which is the whole contract above:
        everything deciding what the frame looks like has to match the card or

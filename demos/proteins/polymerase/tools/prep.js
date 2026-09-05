@@ -83,11 +83,10 @@ const SRC = path.join(HERE, 'src');
 const HOW = {
   '4KTQ': { ref: true, primer: 'B', template: 'C', pocket: [] },
   '3KTQ': { primer: 'B', template: 'C', fitBy: 'num', pocket: ['DCT', 'MG'] },
-  '1T7P': { primer: 'P', template: 'T', fitBy: 'role', pocket: ['DG3', 'MG'],
-            /* Chain B is the host's protein, not the phage's — the one thing
-               a reader will ask about the picture. */
-            chains: { A: 'T7 polymerase (gp5)',
-                      B: 'thioredoxin, borrowed from E. coli' } },
+  /* What each chain IS, and which one is a partner, is the registry's — three
+     consumers have to make one decision about whether a picture of this
+     structure includes the borrowed clamp. */
+  '1T7P': { primer: 'P', template: 'T', fitBy: 'role', pocket: ['DG3', 'MG'] },
 };
 
 /* THE REFERENCE IS BAKED FIRST, WHICHEVER ORDER THE REGISTRY LISTS THEM IN.
@@ -390,7 +389,6 @@ function bake(cand, ref) {
     },
     primer: cand.primer,
     template: cand.template,
-    chainLabels: cand.chains || null,
     templating,
     fit,
     motion,

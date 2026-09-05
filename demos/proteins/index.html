@@ -358,6 +358,12 @@ function open(key, mount) {
          the bench cannot colour the same molecule two ways. */
       /* Colour is the protein registry's to state; the ladder takes the
          palette's base family, so a nucleic entry leaves it to the box. */
+      /* WHICH CHAINS THE CARD IS ABOUT. A partner chain is in the file and
+         not in the subject — T7's borrowed thioredoxin is the case — and the
+         index says which, so this card, the still baked from it and the bench
+         cannot disagree. Null keeps the box's own default, which is every
+         chain, and that is what every entry without a partner gets. */
+      chains: isNA(p) ? NucleicAcids.drawnOf(p, null, t) : null,
       colors: isNA(p) ? null : ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
       /* THE ROTATION IS ASKED OF WHICHEVER REGISTRY HOLDS THE ENTRY. Passing
          null for a nucleic one was right while every nucleic bake carried its

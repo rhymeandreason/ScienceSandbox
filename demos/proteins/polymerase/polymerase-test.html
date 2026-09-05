@@ -210,11 +210,10 @@ const box = Proteinbox.create({
    folded into. A chain the map does not name keeps the palette. */
 const PARTNER = parseInt(getComputedStyle(document.documentElement)
   .getPropertyValue('--partner').trim().slice(1), 16);
-const paintFor = t => t.chainLabels
-  ? { byChain: Object.fromEntries(Object.keys(t.chainLabels)
-      .filter(id => /thioredoxin/i.test(t.chainLabels[id]))
-      .map(id => [id, PARTNER])) }
-  : null;
+const paintFor = () => {
+  const ids = partnersOf();
+  return ids.length ? { byChain: Object.fromEntries(ids.map(id => [id, PARTNER])) } : null;
+};
 
 const traces = new Map();
 let trace = null, current = VIEWS[0].id;
@@ -222,15 +221,16 @@ let trace = null, current = VIEWS[0].id;
 /* WHAT TO HAND THE BOX, given the checkboxes. `chains` is the box's own
    filter, so hiding a polymer is a re-feed rather than a second renderer here;
    the pocket is fed separately because it is not a chain. */
-/* WHICH CHAINS ARE PARTNERS RATHER THAN THE SUBJECT — the candidate's own
-   answer, since only it knows that T7's chain B is a borrowed protein and not
-   a second lobe of the polymerase. */
-const partnersOf = t => Object.keys(t.chainLabels || {})
-  .filter(id => /thioredoxin/i.test(t.chainLabels[id]));
+/* WHICH CHAINS ARE PARTNERS RATHER THAN THE SUBJECT — the registry's answer,
+   the same one the gallery card and its still ask for. This page used to match
+   the word "thioredoxin" against a label in the bake, which would have been
+   quietly wrong for the next partner to arrive. */
+const partnersOf = () => NucleicAcids.partnersOf(ME, NucleicAcids.variantOf(ME, current));
+const chainsOf = () => (NucleicAcids.variantOf(ME, current) || {}).chains || {};
 
 function draw() {
   if (!trace) return;
-  const partners = partnersOf(trace);
+  const partners = partnersOf();
   const showPartner = document.getElementById('partner').checked;
   const want = trace.order.filter(id => {
     if (partners.includes(id)) return showPartner;
@@ -243,7 +243,7 @@ function draw() {
      framing on no points, so an all-off state keeps the last structure. */
   if (want.length)
     box.setData(trace, { chains: want.join(','), sub, view: VIEW,
-                         colors: paintFor(trace) });
+                         colors: paintFor() });
   if (document.getElementById('site').checked && trace.pocket)
     box.setPocket(trace.pocket);
 
@@ -271,8 +271,7 @@ function facts() {
        picture unlabelled. What each chain IS comes from the candidate; the
        counts come from the bake. */
     ['Protein', aa.map(id => id + ' ' + trace.chains[id].nums.length + ' of '
-      + m.declared[id] + ((trace.chainLabels || {})[id]
-        ? ' — ' + trace.chainLabels[id] : ''))
+      + m.declared[id] + (chainsOf()[id] ? ' — ' + chainsOf()[id].is : ''))
       .join('<br>') + '<br>ss ' + trace.ssFrom],
     ['DNA', na.map(id => id + ' ' + trace.chains[id].seq
       + (trace.chains[id].mods.length
@@ -356,10 +355,8 @@ function facts() {
     /* Only while it is on screen. A legend entry for a hidden chain sends a
        reader hunting the picture for a colour that is not in it. */
     + (document.getElementById('partner').checked
-      ? Object.entries(trace.chainLabels || {})
-        .filter(([, w]) => /thioredoxin/i.test(w))
-        .map(([id, w]) => '<span class="sw"><i style="background:var(--partner)">'
-          + '</i>' + id + ' — ' + w + '</span>').join('')
+      ? partnersOf().map(id => '<span class="sw"><i style="background:var('
+          + '--partner)"></i>' + id + ' — ' + chainsOf()[id].is + '</span>').join('')
       : '');
 }
 
@@ -369,11 +366,11 @@ function show(id) {
   /* The control is named after the chain it holds, off the candidate's own
      label, so an entry with a different partner does not need a second row
      written for it. */
-  const partners = partnersOf(trace);
+  const partners = partnersOf();
   document.getElementById('partner-row').hidden = !partners.length;
   if (partners.length)
     document.getElementById('partner-what').textContent =
-      partners.map(c => trace.chainLabels[c]).join(', ');
+      partners.map(c => chainsOf()[c].is).join(', ');
   for (const b of document.querySelectorAll('#states button'))
     b.setAttribute('aria-pressed', String(b.dataset.id === id));
   facts();
