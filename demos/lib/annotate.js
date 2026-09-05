@@ -100,6 +100,28 @@
  *  never culled for being behind the camera; it sorts as nearest, since a
  *  control is in front of the scene by definition.
  *
+ *  ---- MEASURING BRACKETS ----------------------------------------------
+ *
+ *  `span()` draws a DIMENSION LINE between two anchors — end ticks, a rule
+ *  across, and the measurement on it — for the question a label cannot
+ *  answer: how far apart. Both ends are anchors under the same contract as
+ *  `at`, so a bracket on a turning model stays across the gap it measures,
+ *  and `text` may be a function, which is where the number should come
+ *  from: measured off those same two points rather than typed.
+ *
+ *    notes.span({ from:() => pA(), to:() => pB(),
+ *                 text:() => pA().distanceTo(pB()).toFixed(1) + ' Å' });
+ *
+ *  `axis:'y'` (or `'x'`) is what makes it read as a DRAWING rather than as a
+ *  chord: the rule stands off to one side — `side` and `gap` say which and
+ *  how far — with extension lines back to the anchors, and it measures only
+ *  the height (or the width) between them. A groove, a pitch, a diameter are
+ *  drawn that way in every textbook figure, and the diagonal between two
+ *  atoms instead reads as a line THROUGH the molecule.
+ *
+ *  It takes `facing` too, for a gap that turns to the back of the model.
+ *  Brackets draw UNDER the labels, in one SVG per layer.
+ *
  *  ---- CARDS -----------------------------------------------------------
  *
  *  A note may carry `card`: HTML for a short popover that opens when the
@@ -311,7 +333,12 @@ window.Annot = (function () {
 
     function add(spec) {
       const el = document.createElement('div');
-      el.className = 'annot' + (spec.tone ? ' annot-' + spec.tone : '');
+      el.className = 'annot' + (spec.tone ? ' annot-' + spec.tone : '')
+        // NO BEAD. For a note whose leader already lands on something drawn —
+        // a measuring bracket's chip — where a dot would be a second marker for
+        // one point. The element stays, so 'click' mode and the card still have
+        // their target; only the bead is gone.
+        + (spec.dot === false ? ' annot-nodot' : '');
 
       const off = spec.offset || [0, 0];
       applyOffset(el, off);
@@ -388,6 +415,160 @@ window.Annot = (function () {
       notes.push(note);
       applyMode();
       return note;
+    }
+
+    /* ---- measuring brackets ----------------------------------------
+       A DIMENSION LINE between two points on the model: end ticks, the rule
+       between them, and the measurement sitting on it. It answers the one
+       question a label cannot — "how far apart" — and it is the drawing every
+       textbook figure uses for a width, so it needs no explaining.
+
+       IT IS NOT A CALLOUT WITH TWO ENDS. A callout names a thing and hangs off
+       it; a bracket IS the measurement, drawn where the gap is, and its text is
+       a number. Pages that tried this with two notes and a caption drew three
+       objects for one fact and left the reader to pair them up.
+
+       THE ENDS ARE ANCHORS, same contract as `at`: functions returning world
+       points, re-read every frame, so a bracket on a turning model stays across
+       the gap it measures. `text` may be a function, and should be wherever the
+       number is measured off those same two points — a typed number is a claim
+       nothing checks.
+
+       ONE SVG for all the brackets in a layer, under the labels: geometry the
+       browser can draw crisply at any zoom, which a rotated div cannot. */
+    const spans = [];
+    let svg = null;
+    const SPAN_TICK = 7;               // px, half the end tick
+
+    function ensureSvg() {
+      if (svg) return svg;
+      svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'annot-spans');
+      // FIRST child: the brackets draw UNDER every label, so a label's chip
+      // masks the rule where it crosses it rather than being cut by it.
+      layer.insertBefore(svg, layer.firstChild);
+      return svg;
+    }
+
+    function span(spec) {
+      const g = ensureSvg();
+      // TWO PATHS: the dimension line, and the extension lines that carry it
+      // out to the side. They are drawn differently (the extensions are the
+      // fainter of the two, as they are on any drawing) and one path cannot
+      // hold two strokes.
+      const ext = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      ext.setAttribute('class', 'annot-span-ext');
+      g.appendChild(ext);
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('class', 'annot-span-line');
+      g.appendChild(path);
+
+      const label = document.createElement('span');
+      label.className = 'annot-span-label';
+      layer.appendChild(label);
+
+      const sp = {
+        path, ext, label,
+        from: spec.from, to: spec.to, text: spec.text, facing: spec.facing,
+        /* AXIS is what makes it read as a drawing rather than as a chord. A
+           bracket with no axis runs straight between the two points, which is
+           right for a bond length and wrong for anything measured ALONG a
+           molecule: a groove, a pitch, a diameter are all drawn as a rule
+           standing off to one side, and a diagonal across the model reads as a
+           line THROUGH it. 'y' stands the rule up beside the model and measures
+           the height between the anchors; 'x' lays it under them. */
+        axis: spec.axis || null,
+        side: spec.side || 'right',
+        gap: spec.gap == null ? 28 : spec.gap,
+        _a: new THREE.Vector3(), _b: new THREE.Vector3(), _m: new THREE.Vector3(),
+        _t: null,
+        _px: null,
+        /* WHERE THE CHIP IS, in the layer's pixels. A note can anchor to this
+           with `atPx` and point at the measurement instead of at a bead of its
+           own — one marker for one place. Null until the first step(), and null
+           whenever the bracket is hidden. */
+        midPx() { return sp._px; },
+        remove() {
+          path.remove(); ext.remove(); label.remove();
+          const i = spans.indexOf(sp); if (i >= 0) spans.splice(i, 1);
+          return api;
+        },
+      };
+      spans.push(sp);
+      return sp;
+    }
+
+    function hideSpan(s) {
+      s._px = null;
+      s.path.style.display = 'none';
+      s.ext.style.display = 'none';
+      s.label.style.display = 'none';
+    }
+
+    /* Place every bracket. Called from step(), which already has the stage's
+       CSS box — Trap 3 applies here exactly as it does to a label. */
+    function stepSpans(w, h) {
+      for (const s of spans) {
+        const a = anchor(s.from); if (a) s._a.copy(a);
+        const b = anchor(s.to);   if (b) s._b.copy(b);
+        if (!a || !b) { hideSpan(s); continue; }
+        s._m.copy(s._a).add(s._b).multiplyScalar(0.5);
+
+        const wa = s._a.clone(), wb = s._b.clone();
+        wa.project(camera); wb.project(camera);
+        if (wa.z < -1 || wa.z > 1 || wb.z < -1 || wb.z > 1) { hideSpan(s); continue; }
+        s.path.style.display = ''; s.ext.style.display = ''; s.label.style.display = '';
+
+        const ax = (wa.x + 1) / 2 * w, ay = (1 - wa.y) / 2 * h;
+        const bx = (wb.x + 1) / 2 * w, by = (1 - wb.y) / 2 * h;
+
+        // The two ends of the rule, and where the extensions run from.
+        let p = [ax, ay], q = [bx, by], lx = 0, ly = 0;
+        if (s.axis === 'y') {
+          const x = s.side === 'left' ? Math.min(ax, bx) - s.gap
+                                      : Math.max(ax, bx) + s.gap;
+          p = [x, ay]; q = [x, by]; lx = SPAN_TICK;      // ticks lie across it
+        } else if (s.axis === 'x') {
+          const y = s.side === 'top' ? Math.min(ay, by) - s.gap
+                                     : Math.max(ay, by) + s.gap;
+          p = [ax, y]; q = [bx, y]; ly = SPAN_TICK;
+        } else {
+          let dx = bx - ax, dy = by - ay;
+          const len = Math.hypot(dx, dy) || 1;
+          lx = -dy / len * SPAN_TICK; ly = dx / len * SPAN_TICK;
+        }
+        const seg = (x1, y1, x2, y2) =>
+          `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`;
+        s.path.setAttribute('d',
+          seg(p[0] - lx, p[1] - ly, p[0] + lx, p[1] + ly)
+          + seg(p[0], p[1], q[0], q[1])
+          + seg(q[0] - lx, q[1] - ly, q[0] + lx, q[1] + ly));
+        // The extensions only exist where the rule was carried off the model.
+        s.ext.setAttribute('d', s.axis
+          ? seg(ax, ay, p[0], p[1]) + seg(bx, by, q[0], q[1]) : '');
+
+        s._px = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+
+        const t = (typeof s.text === 'function') ? s.text() : s.text;
+        if (t !== s._t) { s.label.textContent = t; s._t = t; }
+        // The -50% pair is what centres the chip on the point; annotate.css
+        // sets no offset of its own, so the two halves live in one place.
+        s.label.style.transform =
+          `translate3d(${((p[0] + q[0]) / 2).toFixed(1)}px, ${((p[1] + q[1]) / 2).toFixed(1)}px, 0)`
+          + ' translate(-50%, -50%)';
+
+        // Same facing rule as a note, and for the same reason: a bracket across
+        // a gap on the far side of the model measures something nobody can see.
+        let face = 1;
+        const fw = s.facing && s.facing();
+        if (fw) {
+          _vd.copy(s._m).sub(camera.position).normalize();
+          face = clamp01((-fw.dot(_vd) + FACE_BAND) / (2 * FACE_BAND));
+        }
+        s.path.style.opacity = face;
+        s.ext.style.opacity = face;
+        s.label.style.opacity = face;
+      }
     }
 
     /* Resolve an anchor to a world point. A function is the interesting
@@ -482,6 +663,7 @@ window.Annot = (function () {
       const w = stageEl.clientWidth, h = stageEl.clientHeight;
       if (!w || !h) return;
       const now = performance.now() / 1000;
+      if (spans.length) stepSpans(w, h);
       const ko = keepOut();
       const live = [];
 
@@ -493,6 +675,11 @@ window.Annot = (function () {
           const q = n.atPx();
           if (!q) { n.el.style.display = 'none'; continue; }
           x = q[0]; y = q[1]; depth = -1;
+          /* `at` ALONGSIDE `atPx` is the facing test's point and nothing else:
+             the note is placed in pixels, but what it names is still somewhere
+             on the model and can still turn to the back. */
+          const fp = n.at && anchor(n.at);
+          if (fp) _p0.copy(fp);
           n.el.style.display = '';
         } else {
         const p = anchor(n.at);
@@ -634,8 +821,13 @@ window.Annot = (function () {
     }
 
     const api = {
-      add, step, play, show, fade, setMode, openCard, closeCard, atElement,
-      clear() { closeCard(); while (notes.length) notes[0].remove(); return api; },
+      add, span, step, play, show, fade, setMode, openCard, closeCard, atElement,
+      clear() {
+        closeCard();
+        while (notes.length) notes[0].remove();
+        while (spans.length) spans[0].remove();
+        return api;
+      },
       get cardOpen() { return !!cardNote; },
       get mode() { return mode; },
       get alpha() { return alpha; },

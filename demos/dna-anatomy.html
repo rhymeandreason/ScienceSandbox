@@ -82,8 +82,8 @@
     font-style:italic;color:var(--text-muted)}
   /* The claim. Serif on the paper, emphasis carried by the <b> inside it —
      the same object as a step's claim on membrane-lab and water-lab. */
-  #read .claim{margin:18px 0 0;font-family:var(--font-editorial);font-size:17px;
-    line-height:1.55;color:var(--text-body)}
+  #read .claim{margin:18px 0 0;font-family:var(--font-editorial);font-size:18px;
+    line-height:1.6;color:var(--text-body)}
   #read .claim b{font-weight:600;color:var(--text-strong)}
 
   /* What the callouts on the model say, in reading order. The model labels the
@@ -339,13 +339,15 @@ function grooves(){
   const runs = [];
   for(let k = -6; k <= 6; k++){
     let sum = 0, n = 0, mid = null;
+    const mids = [];
     for(let i = 0; i < bdna.n; i++){
       const a = phosOf(i, 0), b = phosOf(i + k, 1);
       if(!a || !b) continue;
       sum += atomAt(a.r, a.ai).distanceTo(atomAt(b.r, b.ai)) / S; n++;
+      mids.push({ i, a, b });
       if(!mid || Math.abs(i - bdna.n / 2) < Math.abs(mid.i - bdna.n / 2)) mid = { i, a, b };
     }
-    if(n >= 4) runs.push({ k, d:sum / n, mid });
+    if(n >= 4) runs.push({ k, d:sum / n, mid, mids });
   }
   // The two ways round the duplex are the two signs of the offset: each side's
   // closest approach is one groove, and the narrower of the two is the minor.
@@ -566,17 +568,40 @@ const PARTS = [
     atoms:(r, i)=>{ const a = nameOf(r.names[i]); return isSugar(a) || isPhos(a); },
     rails:true,
     note:()=>`Wind a ladder and the gap between the rails comes out in two `
-      + `sizes. Measured phosphorus to phosphorus across each one, this molecule `
-      + `has them at <b>${GROOVE.minor.d.toFixed(1)} Å</b> and `
-      + `<b>${GROOVE.major.d.toFixed(1)} Å</b>. A protein that reads a sequence `
+      + `sizes. The brackets measure them up the axis, from one strand's `
+      + `backbone across to the other's. A protein that reads a sequence `
       + `without opening the helix reaches into the wide one, where the edges of `
       + `the bases are exposed.`,
-    notes:()=>[
+    /* THE NAME POINTS AT THE MEASUREMENT, not at a bead of its own: the
+     * bracket has already marked where the groove is, and a second dot beside
+     * it is two markers for one place. `sp` is the brackets below, in order,
+     * and is absent when the section list asks for the text alone. */
+    notes:sp=>[
       { text:'Minor groove', card:'The narrow gap. The base edges facing into it look much the same whichever pair it is, so there is less to read.',
-        at:grooveAt(GROOVE.minor), facing:grooveFacing(GROOVE.minor), offset:[-62, 14] },
+        at:grooveAt(GROOVE.minor), atPx:sp && (()=>sp[0].midPx()),
+        facing:grooveFacing(GROOVE.minor), offset:[-96, -30], dot:false },
       { text:'Major groove', card:'The wide gap. Each of the four pairs shows a different pattern of donors and acceptors here, which is what a protein recognises.',
-        at:grooveAt(GROOVE.major), facing:grooveFacing(GROOVE.major), offset:[64, -14] },
-    ] },
+        at:grooveAt(GROOVE.major), atPx:sp && (()=>sp[1].midPx()),
+        facing:grooveFacing(GROOVE.major), offset:[98, -30], dot:false },
+    ],
+    /* THE MEASUREMENT IS THE POINT of this part, and two labelled dots do not
+     * make one: a bracket is drawn ACROSS the gap, which is the only thing that
+     * says the two grooves are different sizes. Each one spans the pair of
+     * phosphates its width was read off, and prints that pair's own distance. */
+    spans:()=>[
+      { g:GROOVE.minor, side:'left'  },
+      { g:GROOVE.major, side:'right' },
+    ].map(({ g, side }) => ({
+      from:()=>worldAt(g.mid.a.r, g.mid.a.ai),
+      to:  ()=>worldAt(g.mid.b.r, g.mid.b.ai),
+      // Stood up beside the model, which is how a groove is dimensioned in
+      // every textbook figure — and the axis it is measured along is the one
+      // the duplex was stood up on, so the bracket and the number agree.
+      axis:'y', side, gap:58,
+      facing:grooveFacing(g),
+      text:()=>(Math.abs(worldAt(g.mid.a.r, g.mid.a.ai).y
+        - worldAt(g.mid.b.r, g.mid.b.ai).y) / S).toFixed(1) + ' Å',
+    })) },
 
 ];
 
@@ -665,7 +690,10 @@ function show(part){
   } }], { tag:'frame' });
   home();
   NOTES.clear();
-  for(const n of part.notes()) if(n.at) NOTES.add(n);
+  // THE BRACKETS FIRST: a note may anchor to one of them (the grooves do), and
+  // it can only do that if the bracket it points at already exists.
+  const brackets = (part.spans ? part.spans() : []).map(b => NOTES.span(b));
+  for(const n of part.notes(brackets)) if(n.at || n.atPx) NOTES.add(n);
   for(const el of secs) el.setAttribute('aria-current', String(el.dataset.key === part.key));
 }
 
@@ -716,6 +744,24 @@ const canvas = document.getElementById('gl');
  * model at is a part with its labels over its own spheres. */
 const HOME = { yaw:1.145, pitch:0 };
 SPIN.rotation.set(HOME.pitch, HOME.yaw, 0);
+
+/* WHICH RUNG EACH GROOVE IS MEASURED AT, chosen so that at HOME it faces the
+ * reader. A groove spirals, so it is on the near side at some heights and the
+ * far side at others; measuring both at the middle rung puts one of them round
+ * the back, where its bracket fades to nothing and the step that exists to
+ * contrast two widths shows one. Read off HOME rather than typed, so moving
+ * HOME moves these with it. */
+{
+  const q = new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(HOME.pitch, HOME.yaw, 0));
+  const towards = m => {
+    const g = { mid:m };
+    return grooveRadial(g).rad.applyQuaternion(q).z;   // +Z is out of the screen
+  };
+  for(const g of [GROOVE.minor, GROOVE.major])
+    if(g && g.mids && g.mids.length)
+      g.mid = g.mids.reduce((best, m) => towards(m) > towards(best) ? m : best, g.mids[0]);
+}
 
 let turn = null, homing = false, drifting = true;
 
