@@ -443,7 +443,20 @@
     if (want.includes('legend') && c.palette) {
       const h = document.createElement('div'); h.className = 'show-hd'; h.textContent = opts.legendLabel || 'colours'; el.appendChild(h);
       const lg = document.createElement('div'); lg.className = 'show-legend'; el.appendChild(lg);
-      for (const p of c.palette()) { const s = document.createElement('span'); s.innerHTML = `<i style="background:${p.color}"></i>${p.name}`; lg.appendChild(s); }
+      /* THE LEGEND IS BUILT ONCE AND THE SCENE IS NOT. A page that populates
+         after mount — a bench switching environment, a step that stages its
+         second protein — had a legend from the empty stage for the rest of
+         its life. Rebuilt only when the NAMES change, so a component whose
+         palette is fixed pays one string compare per frame and no DOM. */
+      let sig = null;
+      const paint = () => {
+        const list = c.palette(), next = list.map(p => p.name + p.color).join('|');
+        if (next === sig) return;
+        sig = next; lg.innerHTML = '';
+        for (const p of list) { const s = document.createElement('span'); s.innerHTML = `<i style="background:${p.color}"></i>${p.name}`; lg.appendChild(s); }
+      };
+      paint();
+      if (c.on) c.on('frame', paint);
     }
     container.appendChild(el);
     return el;

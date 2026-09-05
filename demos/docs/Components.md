@@ -210,27 +210,26 @@ Outside is +y (top), inside is −y (bottom). The sheet is an oily bilayer: wate
 
 ### Chemiosmosis: the same membrane in an organelle
 
-Respiration and photosynthesis are this picture with one parameter flipped. Set `context` and three more proteins become the point:
+Respiration and photosynthesis are this picture with one parameter flipped.
 
 ```js
 const m = Membrane.mount(el, {
-  context: 'mitochondrion',                                   // or 'thylakoid'
-  fuel: 'NADH',                                               // 'NADH' | 'FADH2' | 'light' | null (nothing driving it)
-  fuelRate: 1,                                                // 0..1: a light dimmer, or an oxygen switch
-  complexSeconds: 6,                                          // ONE FULL CYCLE of the complex, its empty return included
+  context: 'mitochondrion',   // or 'thylakoid': renames the two sides, tints the lipid
+  fuel: 'light',              // 'NADH' | 'FADH2' | 'light' | null (nothing driving it)
+  fuelRate: 1,                // 0..1: a light dimmer, or an oxygen switch
   proteins: { complex:{ x:-80 }, synthase:{ x:40 }, leak:null },
   contents: { inside:{ water:30, H:22 }, outside:{ water:30, H:22 } },   // 'H' is a proton
   potential: 'nernst',
 });
 ```
 
-`complex` is the electron-transport chain (three real complexes drawn as one, declared). It runs a six-phase cycle like the Na⁺/K⁺ pump's, off a phase table in `chemiosmosis.js`, so it visibly binds, occludes, turns over, releases, and **comes back empty** — the two beats that make it a pump rather than a hole. Both doors are never open at once. It carries `state().complexStoichiometry`-many protons **inside → outside only** per cycle, and it pays with `fuel`, never with ATP, so turning the fuel off stops it. `state().complexPhase`, `.complexLabel` and `.complexCaption` are where it is in the cycle, for a page that wants to caption the beat it is on. `synthase` is ATP synthase: a turbine, not a pump. Protons come back down through it, the rotor turns, and every third of a turn makes one ATP — `state().stoichiometry` carries the numbers, so print those rather than typing 3. It cannot run uphill, so with the gradient gone it stops on its own. `leak` is an uncoupler's hole (dinitrophenol, thermogenin): protons come home without passing the synthase, no ATP is made, and the fuel's energy all comes out as heat.
+`complex` burns fuel to carry protons **inside → outside only**, on a six-phase cycle it visibly turns through. `synthase` is a turbine, not a pump: protons come back down through it and the rotor turns, and it cannot run uphill, so with the gradient gone it stops. `leak` is an uncoupler's hole — protons home without making ATP, and the fuel all comes out as heat. The complexes slow as the force they pump against rises and stall near `state().pmfStall`: respiratory control.
 
-The complexes also **slow as the force they are pumping against rises** and stall near `state().pmfStall`, which is respiratory control: a cell that is not spending ATP stops burning fuel.
+**THE SIM ALWAYS DRAWS THE PUMPED-INTO SIDE ON TOP, and in a thylakoid that is the lumen.** A real chloroplast has the lumen inside and the stroma around it, so the sentence you are about to write — "the outer stroma and the inner lumen" — is true of the plant and backwards on this screen. Say which side protons are pumped *to*, not which is inner. `state().sides.inside` and `.outside` are the two names; a card that types them instead will eventually call a matrix "inside the cell".
 
-`context` also tints the bilayer with that organelle's colour out of `palette.js` — the same orange `cell/cutaway.js` paints a mitochondrion, the same green a chloroplast — so the sheet still reads as the same bilayer and the tint says which organelle you are standing in.
+A step that asks **what the gradient IS** gets `state().pH`, `.dpH`, `.pmf` in a stat tile. A step that asks **where the energy WENT** gets `state().atpMade` against `.protonsThroughSynthase` and `.protonsLeaked` — the ledger only means something as a comparison. A step that asks **what the machine is DOING** gets `state().complexLabel`, which names the beat of the cycle it is on. Do not caption a machine from the step's own prose while it is mid-turn; the label is what it is actually doing.
 
-The code keeps +y outside and −y inside in every context; `context` only renames them. In a mitochondrion the outside is the intermembrane space and the inside is the matrix; in a thylakoid the outside is the lumen and the inside is the stroma. So the thylakoid pumping *into* its lumen and the mitochondrion pumping *out of* its matrix are the same direction here. **Print the names from `state().sides`, never typed**, or a card will call a matrix "inside the cell".
+Ratios come from `state().stoichiometry` and `.complexStoichiometry`, never typed: the rotor is what decides them.
 
 Populating it. The box starts empty. Say what is dissolved on each side and the module keeps the stage matching it:
 

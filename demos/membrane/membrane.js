@@ -1198,20 +1198,53 @@
       if (!L) { console.warn('membrane.js: no layer named ' + name + '; have ' + Object.keys(LAYERS).join(', ')); return; }
       L.set(!!on);
     }
-    /* What the colours mean, for a legend a page did not have to write. */
+    /* What the colours mean, for a legend a page did not have to write.
+       ONLY WHAT IS ON STAGE. A fixed list is worse than no list: a generated
+       photosynthesis page printed "K⁺ channel · Cl⁻ channel · Na⁺ leak
+       channel · aquaporin" beside a thylakoid holding none of them, because
+       it called palette() and believed the answer. A legend naming absent
+       machines is a page confidently mislabelling itself. Travellers come
+       off the current headcount, proteins off the current layout. */
     const hex = n => '#' + n.toString(16).padStart(6, '0');
-    const palette = () => [
-      { name: 'water', color: global.MolLib.PALETTE.atoms.O ? hex(global.MolLib.PALETTE.atoms.O) : '#c33' },
-      { name: 'Na⁺', color: hex(global.Parts.ION.NA.color) }, { name: 'K⁺', color: hex(global.Parts.ION.K.color) },
-      { name: 'Cl⁻', color: hex(global.Parts.ION.CL.color) }, { name: 'anion that cannot leave', color: '#8f7fae' },
-      { name: 'K⁺ channel', color: '#5b9bd5' }, { name: 'Cl⁻ channel', color: '#b58a4f' }, { name: 'Na⁺ leak channel', color: '#9b6fd8' },
-      { name: 'aquaporin', color: '#3fa7a0' }, { name: 'Na⁺/K⁺ pump', color: '#4f9e78' },
-    ].concat(P.proteins.complex || P.proteins.synthase || P.proteins.leak ? [
-      { name: 'H⁺', color: hex(global.Parts.ION.H.color) },
-      { name: 'the complex that pumps H⁺', color: '#4d5fa6' },
-      { name: 'ATP synthase', color: '#d9a13b' },
-      { name: 'uncoupler (a hole for H⁺)', color: '#8e939b' },
-    ] : []);
+    const TRAVELLER_KEY = {
+      water: () => ({ name: 'water', color: hex(global.MolLib.PALETTE.atoms.O) }),
+      o2:    () => ({ name: 'O₂', color: hex(global.MolLib.PALETTE.atoms.O) }),
+      co2:   () => ({ name: 'CO₂', color: hex(global.MolLib.PALETTE.atoms.C) }),
+      NA:    () => ({ name: 'Na⁺', color: hex(global.Parts.ION.NA.color) }),
+      K:     () => ({ name: 'K⁺',  color: hex(global.Parts.ION.K.color) }),
+      CL:    () => ({ name: 'Cl⁻', color: hex(global.Parts.ION.CL.color) }),
+      H:     () => ({ name: 'H⁺',  color: hex(global.Parts.ION.H.color) }),
+      A:     () => ({ name: 'anion that cannot leave', color: '#8f7fae' }),
+    };
+    const PROTEIN_KEY = {
+      K:        { name: 'K⁺ channel', color: '#5b9bd5' },
+      CL:       { name: 'Cl⁻ channel', color: '#b58a4f' },
+      NA:       { name: 'Na⁺ leak channel', color: '#9b6fd8' },
+      AQP:      { name: 'aquaporin', color: '#3fa7a0' },
+      pump:     { name: 'Na⁺/K⁺ pump', color: '#4f9e78' },
+      complex:  { name: 'the complex that pumps H⁺', color: '#4d5fa6' },
+      synthase: { name: 'ATP synthase', color: '#d9a13b' },
+      leak:     { name: 'uncoupler (a hole for H⁺)', color: '#8e939b' },
+    };
+    /* WHAT A MACHINE CARRIES is knowable from the layout alone, and that
+       matters because card-stage builds its legend at mount, before a page
+       has called set({contents}). Without this a bench that populates on its
+       first step drew a legend of proteins and nothing to put through them. */
+    const PROTEIN_CARRIES = { K:['K'], CL:['CL'], NA:['NA'], AQP:['water'],
+                              pump:['NA','K'], complex:['H'], synthase:['H'], leak:['H'] };
+    function palette() {
+      const out = [], seen = new Set();
+      const take = kind => {
+        if (seen.has(kind) || !TRAVELLER_KEY[kind]) return;
+        seen.add(kind); out.push(TRAVELLER_KEY[kind]());
+      };
+      for (const t of travellers) take(t.kind);
+      for (const side of ['inside', 'outside'])
+        if (P.contents && P.contents[side]) for (const k of Object.keys(P.contents[side])) take(k);
+      for (const k of Object.keys(PROTEIN_KEY)) if (P.proteins[k]) for (const kind of PROTEIN_CARRIES[k]) take(kind);
+      for (const k of Object.keys(PROTEIN_KEY)) if (P.proteins[k]) out.push(PROTEIN_KEY[k]);
+      return out;
+    }
 
     /* ---- the parts a page can point at, by name (Notebook, in lib/annotate.js) ----
        Live functions: a pore moves with the layout, an ion with itself. The

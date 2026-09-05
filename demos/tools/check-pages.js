@@ -153,7 +153,14 @@ for (const page of PAGES) {
     .filter(f => !/^https?:/.test(f) && CONTENT.has(path.basename(f)))
     .map(f => { try { return fs.readFileSync(path.resolve(dir, f), 'utf8'); }
                 catch { return ''; } });
-  const hay = [src, ...content].join('\n');
+  /* A SIGNAL NAME IS NOT A SPEC NAME, and `atp` is both: Membrane.SIGNALS
+     carries an `atp` trace and MOLECULES an ATP molecule. The bare-string
+     rule below cannot tell them apart, so every page that plots ATP
+     accumulation was told to load mol-small.js to draw a molecule it never
+     draws. Stripped before matching, not exempted after — a page that both
+     follows the signal AND draws the molecule still has the drawing to
+     match on. */
+  const hay = [src, ...content].join('\n').replace(/\.follow\s*\([^,]+,\s*['"][^'"]+['"]\s*\)/g, '.follow()');
 
   const used = ALL.filter(n =>
     new RegExp(`MOLECULES\\s*\\.\\s*${n}\\b`).test(hay) ||
