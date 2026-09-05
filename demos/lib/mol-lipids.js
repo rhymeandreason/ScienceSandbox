@@ -29,7 +29,8 @@
 
   /* ---------- the numbers every coordinate below is derived from ------ */
   const CC = 1.54,          // C–C single
-        CO = 1.43;          // C–O alcohol / ester
+        CO = 1.43,          // C–O alcohol / ester
+        OH = 0.96;          // O–H. Only the hydroxyls carry their H (see glycerol)
   const TET = 109.47 * Math.PI / 180;
 
   const V = {
@@ -160,6 +161,18 @@
       // position that's a single bond here and palmitoleate's cis C=C there —
       // so the highlight lands on the same chain segment in both columns even
       // though only one of them kinks.
+      /* THE HALF-REACTION THAT MAKES A FAT. The acid gives up its WHOLE
+       * hydroxyl — O2 and its H — and keeps the carbonyl carbon; glycerol
+       * gives up only an H and keeps its oxygen, so the ester's bridge O is
+       * the ALCOHOL's. Taking that the other way round builds the bond one
+       * atom out and still renders as a perfectly good ester, which is why it
+       * is declared here rather than counted off the formula at draw time.
+       *
+       * No `makes:` — the two halves are on different molecules, so there is
+       * no product spec to check a formula against, the same standing
+       * deoxyribose's roles have. The product is assembled at runtime. */
+      condense:{
+        roles:[ { key:'carboxyl', label:'\u2013COOH', keep:0, leaves:[17, 18] } ] },
       contrast:{ pair:'palmitate-palmitoleate', partner:'palmitoleate',
         differs:'one C=C, cis',
         lesson:"why butter is solid and oil is not",
@@ -192,23 +205,48 @@
       const o1 = at(c[0], tetra3(back(0,1))[0], CO);
       const o3 = at(c[2], tetra3(back(2,1))[0], CO);
       const o2 = at(c[1], tetra2(back(1,0), back(1,2))[0], CO);
+      // THE HYDROXYL HYDROGENS, and they are not decoration. A condensation is
+      // DEFINED by the atoms that leave, and an esterification takes one H off
+      // each glycerol oxygen; without them this molecule has nothing to give
+      // and `condense:` below could not be written. Each H goes on a
+      // tetrahedral direction off its own O, pointing away from the carbon —
+      // the same construction the oxygens themselves got.
+      const h = (o, cIdx) => at(o, tetra3([c[cIdx][0]-o[0], c[cIdx][1]-o[1],
+                                           c[cIdx][2]-o[2]])[0], OH);
+      const h1 = h(o1, 0), h2 = h(o2, 1), h3 = h(o3, 2);
       const r = v => v.map(x => +x.toFixed(4));
       return {
         name:'Glycerol', formula:'C₃H₈O₃', charge:0, class:'lipid',
-        // United-atom, like palmitate: a CH₂ is one carbon sphere, and
-        // the formula states the hydrogens (MolecularGeometry.md §1.3b —
-        // H is a drawing decision, the formula's count is a chemical one).
+        // United-atom on the CARBONS, like palmitate: a CH₂ is one carbon
+        // sphere, and the formula states the hydrogens (MolecularGeometry.md
+        // §1.3b — H is a drawing decision, the formula's count is a chemical
+        // one). The three O–H are the exception, because they REACT.
         atoms:[ {el:'C',pos:r(c[0])}, {el:'C',pos:r(c[1])}, {el:'C',pos:r(c[2])},
-                {el:'O',pos:r(o1)},   {el:'O',pos:r(o2)},   {el:'O',pos:r(o3)} ],
-        names:['C1','C2','C3','O1','O2','O3'],
-        bonds:[ [0,1],[1,2],[0,3],[1,4],[2,5] ],
+                {el:'O',pos:r(o1)},   {el:'O',pos:r(o2)},   {el:'O',pos:r(o3)},
+                {el:'H',pos:r(h1)},   {el:'H',pos:r(h2)},   {el:'H',pos:r(h3)} ],
+        names:['C1','C2','C3','O1','O2','O3','HO1','HO2','HO3'],
+        bonds:[ [0,1],[1,2],[0,3],[1,4],[2,5],[3,6],[4,7],[5,8] ],
+        // Nonpolar filler is what `optH` is for, and these are the opposite of
+        // that: hiding one would hide half of what leaves as water.
+        /* THE THREE SLOTS A FAT IS BUILT IN, and there is no fourth. Glycerol
+         * donates an H from each hydroxyl and KEEPS THE OXYGEN — an ester's
+         * bridge O comes from the alcohol, not from the acid, which is the
+         * opposite of a glycosidic bond and builds a bond one atom out if it
+         * is taken the other way round. Nothing here can accept, so a chain
+         * cannot grow past three: a fat is not a polymer, and that falls out
+         * of the roles rather than being announced. */
+        condense:{
+          roles:[
+            { key:'sn1', label:'C1 –OH', keep:3, leaves:[6] },
+            { key:'sn2', label:'C2 –OH', keep:4, leaves:[7] },
+            { key:'sn3', label:'C3 –OH', keep:5, leaves:[8] } ] },
         units:'angstrom',
         src:{ path:'built', charge:0,
               method:'all-anti C3 backbone, tetrahedral 109.47° from existing bonds, united-atom' },
         groups:[
           { key:'backbone', label:'Three-carbon backbone', formula:'C₃', atoms:[0,1,2],
             note:'The hook everything else hangs off. Two hydroxyls take fatty acid tails; the third takes the phosphate.' },
-          { key:'hydroxyls', label:'Three hydroxyls', formula:'–OH ×3', atoms:[3,4,5],
+          { key:'hydroxyls', label:'Three hydroxyls', formula:'–OH ×3', atoms:[3,4,5,6,7,8],
             note:'Polar, and all three get used — which is why glycerol dissolves in water and the lipid it becomes does not.' },
         ],
       };
@@ -431,6 +469,12 @@
                 [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
         hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
         cis:{ atoms:[7,8,9,10], value:true },   // asserted by check-molecules.js
+        // The same half-reaction palmitate declares, on the same indices —
+        // this molecule is built from that one's numbering, so the pair
+        // esterifies identically and the only difference a fat made from it
+        // shows is the cis kink.
+        condense:{
+          roles:[ { key:'carboxyl', label:'\u2013COOH', keep:0, leaves:[17, 18] } ] },
         contrast:{ pair:'palmitate-palmitoleate', partner:'palmitate',
           differs:'one C=C, cis',
           lesson:"why butter is solid and oil is not",

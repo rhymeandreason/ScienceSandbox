@@ -12,12 +12,13 @@
      nothing is greyed out, so the rule is discovered rather than
      announced.
 
-     TWO CARDS SO FAR, AND THE SHARED PART IS THE SPINE, NOT THE POINT.
-     Both classes join by dehydration synthesis, and meeting that twice
-     is what makes the four classes one page. But the water is the
-     lesson only on the first card. The protein card is about SEQUENCE
-     and direction; the carbohydrate card is about the monomer NOT
-     determining the polymer.
+     THREE CARDS, AND THE SHARED PART IS THE SPINE, NOT THE POINT. All
+     three join by dehydration synthesis, and meeting that three times
+     is what makes the classes one page. But the water is the lesson
+     only on the first card. The protein card is about SEQUENCE and
+     direction; the carbohydrate card is about the monomer NOT
+     determining the polymer; the fat card is the control, and it is
+     the one that makes the other two mean something.
 
      PROTEIN. A residue joins by its carboxyl to the next one's amino
      group. Push two amino ends together and nothing happens — there is
@@ -43,6 +44,15 @@
      so it is READ (macromolecule/glycosidic.js) off the disaccharide the
      library already carries, whose phi/psi were solved against the helix
      the real polymer forms.
+
+     FAT. Three ester bonds onto one glycerol, and then it stops. Nothing
+     can attach to a tail, so there is no chain and no sequence — a fat
+     is not a polymer, and the stage does that rather than the page
+     asserting it. The other three classes are chains BECAUSE their
+     monomers have two usable ends; this one has a backbone with three
+     slots and no way out. Which is also why the ester's bridge oxygen
+     is glycerol's and not the acid's: taken the other way round it
+     builds a bond one atom out and renders as a perfectly good ester.
 
      THE DRAG IS FLAT; THE MOLECULES ARE NOT. A sugar is a chair and an
      amino acid is sp3 at the alpha carbon. The z = 0 plane is the
@@ -146,6 +156,7 @@
 <script src="lib/mol-sugars.js"></script>
 <script src="lib/mol-aminoacids.js"></script>
 <script src="lib/mol-glycans.js"></script>
+<script src="lib/mol-lipids.js"></script>
 <script src="lib/mol-small.js"></script>
 <script src="lib/scene.js"></script>
 <script src="lib/fx.js"></script>
@@ -155,6 +166,7 @@
 <script src="macromolecule/spec.js"></script>
 <script src="macromolecule/peptide.js"></script>
 <script src="macromolecule/glycosidic.js"></script>
+<script src="macromolecule/ester.js"></script>
 <script src="macromolecule/plane.js"></script>
 <script>
 "use strict";
@@ -198,7 +210,7 @@ const DISACC = { cellobiose:unSpec(M.cellobiose, 'cellobiose'),
 const CARDS = [
   {
     key:'protein', n:1, title:'Protein', sub:'four different monomers',
-    donor:'carboxyl', acceptor:'amino',
+    donor:'carboxyl', acceptor:'amino', chains:true,
     /* Proline is deliberately absent: its ring holds the alpha carbon's
      * neighbours in place, so a RIGID pose against most partners overlaps
      * (peptide.js's `clash`). That is a cost of drawing residues as fixed
@@ -221,7 +233,7 @@ const CARDS = [
   },
   {
     key:'carb', n:2, title:'Carbohydrate', sub:'one monomer, repeated',
-    donor:'c1', acceptor:'c4',
+    donor:'c1', acceptor:'c4', chains:true,
     // Four of the SAME sugar. That a polymer can be one unit over and over is
     // the difference from the card above, and it is visible before anything is
     // joined: all four tags say the same word.
@@ -246,6 +258,60 @@ const CARDS = [
     more:(c, card) => Glycosidic.LINKAGE[card.monomerKey].config === 'beta'
       ? 'A half turn per sugar, so the chain is a flat ribbon and stays on the table.'
       : 'A sixth of a turn per sugar. Watch the fourth one leave the plane.',
+  },
+  {
+    /* THE CONTROL. Every other card builds a chain; this one cannot, and that
+     * is what it is for. Glycerol declares three roles and no acceptor of its
+     * own, so nothing can attach to a tail once it has landed — the reaction
+     * stops at three because the molecule runs out of hydroxyls. "Fat is not a
+     * polymer" is therefore something the stage does rather than something the
+     * page asserts, and it is the sentence that makes the other three cards
+     * mean something: they are chains BECAUSE their monomers have two ends. */
+    key:'lipid', n:3, title:'Fat', sub:'not a polymer',
+    donor:at => at.pose.slot,       // which hydroxyl reacted — three to choose from
+    acceptor:'carboxyl',
+    chains:false,
+    monomers:['glycerol', 'palmitate', 'palmitoleate', 'palmitate', 'palmitoleate'],
+    // Glycerol in the middle; the acids are 16 carbons long and need room to be
+    // dragged without crossing each other on the way in.
+    home:[[0, 0], [-36, 20], [-36, -20], [36, 20], [36, -20]],
+    box:{ x:0, y:0, rxz:60, hy:40 },
+
+    /* THREE SLOTS, and the nearest one wins. Which hydroxyl a tail lands on is
+     * a question about where the student dragged it, so the card tries every
+     * role glycerol still has and takes the closest — rather than filling them
+     * in a fixed order, which would move a tail somewhere nobody pointed. */
+    solve:(host, guest) => {
+      const h = un(host);
+      let best = null;
+      for(const slot of Ester.slots(h)){
+        const r = Ester.pose(h, un(guest), slot);
+        if(!r) continue;
+        const where = v3(r.pos).applyQuaternion(host.mol.quaternion).add(host.mol.position);
+        const d = guest.mol.position.distanceTo(where);
+        if(!best || d < best.d) best = { r, d };
+      }
+      return best && best.r;
+    },
+
+    label:p => p.spec.name,
+    unit:'tail', bond:'ester bond',
+    lead:'One glycerol, four fatty acids. Only the &ndash;COOH end reacts, and glycerol '
+       + 'has three places to put one. Fill them.',
+    done:(c, card) => {
+      const tails = c.filter(p => p.key !== 'glycerol');
+      const sat = tails.filter(p => p.key === 'palmitate').length;
+      const kind = sat === tails.length ? 'every tail saturated &mdash; straight chains that stack, '
+                     + 'which is what makes a fat solid'
+                 : sat === 0 ? 'every tail unsaturated &mdash; each cis kink stops the chains packing, '
+                     + 'which is what keeps an oil liquid'
+                 : `${sat} straight and ${tails.length - sat} kinked`;
+      return tails.length < 3
+        ? `Glycerol has ${3 - tails.length} hydroxyl${3-tails.length>1?'s':''} left.`
+        : `<b>A fat.</b> Three tails, and glycerol is out of hydroxyls &mdash; nothing `
+          + `can attach to a tail, so this is where it stops. No chain, no sequence: ${kind}.`;
+    },
+    more:(c, card) => card.done(c, card),
   },
 ];
 let card = CARDS[0];
@@ -282,9 +348,13 @@ const P = MacroPlane.create({
   // host ENDED UP, which is not where it was when the pose was solved if the
   // host is the molecule the student dragged.
   onJoin: (host, guest, at) => {
-    host.spent.add(card.donor); guest.spent.add(card.acceptor);
+    // Which role each end spent. Glycerol has THREE, so the card answers with
+    // the pose rather than a constant: which hydroxyl reacted is a fact about
+    // the join, not about the class.
+    const donor = roleOf(card.donor, at), acceptor = roleOf(card.acceptor, at);
+    host.spent.add(donor); guest.spent.add(acceptor);
     respec(host); respec(guest);
-    stick(host, guest);
+    stick(host, guest, donor, acceptor);
     if(L.fx) L.fx.condense(at.bondAt, at.waterAt, { size:1.1 });
     water(at.waterAt, 'out');
     say();
@@ -295,10 +365,14 @@ const P = MacroPlane.create({
    * put them there — which is the half of the reaction a textbook draws as an
    * afterthought and is the whole reason a cell can take a polymer apart. */
   onBreak: (a, b) => {
-    a.spent.delete(card.donor); b.spent.delete(card.acceptor);
-    respec(a); respec(b);
+    // The stick remembers which roles this particular bond spent, which is the
+    // only record of it: `a` may have spent two others as well.
     const i = sticks.findIndex(s => s.host === a && s.guest === b);
-    if(i >= 0){ L.root.remove(sticks[i].m); sticks.splice(i, 1); }
+    if(i >= 0){
+      a.spent.delete(sticks[i].donor); b.spent.delete(sticks[i].acceptor);
+      L.root.remove(sticks[i].m); sticks.splice(i, 1);
+    }
+    respec(a); respec(b);
     const mid = P.centreOf(a).lerp(P.centreOf(b), 0.5);
     if(L.fx) L.fx.spawnRing(mid, MolLib.PALETTE.bonds.condense, null, 0.6);
     water(mid, 'in');
@@ -327,11 +401,12 @@ function respec(p){
  * specs the moment the bond formed. */
 const stickGeo = new THREE.CylinderGeometry(0.13*S, 0.13*S, 1, 10);
 const sticks = [];
-function stick(host, guest){
+const roleOf = (r, at) => (typeof r === 'function' ? r(at) : r);
+function stick(host, guest, donor, acceptor){
   const m = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial(
     { color:MolLib.PALETTE.bonds.condense, roughness:.5 }));
   L.root.add(m);
-  sticks.push({ m, host, guest, donor:card.donor, acceptor:card.acceptor });
+  sticks.push({ m, host, guest, donor, acceptor });
   placeSticks();
 }
 const _d = new THREE.Vector3(), _up = new THREE.Vector3(0,1,0);
@@ -392,6 +467,10 @@ function dropWater(i){
  * Read off the pieces every time, never accumulated: a count that is added to
  * on each join is a number that survives a reset it did not hear about. */
 function chain(){
+  // A fat is not a chain: three tails hang off one glycerol and none of them
+  // joins another. The card says so rather than this function guessing.
+  if(!card.chains) return P.links.length ? P.pieces.filter(
+    p => P.links.some(l => l.a === p || l.b === p)) : [];
   // The chain starts at the unit that has not spent its ACCEPTOR — the
   // N-terminus, or the sugar whose C4 is still free.
   const starts = P.pieces.filter(p => MacroSpec.free(un(p), card.acceptor));
@@ -415,12 +494,17 @@ function say(){
     noteEl.innerHTML = card.lead;
     return;
   }
-  seqEl.style.display = '';
-  seqEl.classList.toggle('low', !!card.anomer);
-  seqEl.querySelector('.chain').textContent =
-    c.map(p => p.spec.res || p.spec.short || p.spec.name).join(' – ');
-  seqEl.querySelector('.ends').textContent =
-    card.key === 'protein' ? 'N-terminus → C-terminus' : 'non-reducing end → reducing end';
+  // The sequence card is for things that HAVE a sequence. A fat has three
+  // tails on one backbone and no order at all, so printing them in a row would
+  // invent the one property this card exists to say it does not have.
+  seqEl.style.display = card.chains ? '' : 'none';
+  if(card.chains){
+    seqEl.classList.toggle('low', !!card.anomer);
+    seqEl.querySelector('.chain').textContent =
+      c.map(p => p.spec.res || p.spec.short || p.spec.name).join(' – ');
+    seqEl.querySelector('.ends').textContent =
+      card.key === 'protein' ? 'N-terminus → C-terminus' : 'non-reducing end → reducing end';
+  }
   const n = c.length - 1;
   const tail = P.pieces.length > c.length
     ? (typeof card.more === 'function' ? card.more(c, card) : card.more)

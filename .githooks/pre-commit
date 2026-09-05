@@ -402,7 +402,7 @@ fi
 # out of mol-sugars.js's glucose and alpha anomer, through
 # chain/frame.js. Any of those moving changes what shape a chain comes out —
 # cellulose stops being flat — and every frame still renders.
-if git diff --cached --name-only | grep -qE '^demos/(macromolecule/.*|macromolecule-builder\.html|chain/frame\.js|lib/(mol-aminoacids|mol-glycans|mol-pathways|mol-sugars|molecules)\.js)'; then
+if git diff --cached --name-only | grep -qE '^demos/(macromolecule/.*|macromolecule-builder\.html|chain/frame\.js|lib/(mol-aminoacids|mol-glycans|mol-lipids|mol-sugars|molecules)\.js)'; then
   if ! node macromolecule/check-macromolecule.js > /tmp/cmac.$$ 2>&1; then
     tail -25 /tmp/cmac.$$; rm -f /tmp/cmac.$$
     echo ""

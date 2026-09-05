@@ -156,7 +156,48 @@ console.log('\n== 6. the glycosidic pose repeats into the polymer it names');
      'the acceptor gives up its whole C4 hydroxyl');
 }
 
-console.log('\n== 7. a residue stops claiming to be the monomer it was');
+console.log('\n== 7. the ester bond, and the reaction that stops');
+{
+  const E = require('./ester.js');
+  const gly = un(M.glycerol);
+  ok(E.slots(gly).length === 3, 'glycerol offers three slots and no more');
+
+  for(const acid of ['palmitate','palmitoleate']){
+    let bad = [];
+    for(const slot of ['sn1','sn2','sn3']){
+      const r = E.pose(gly, un(M[acid]), slot);
+      if(!r){ bad.push(slot + ': no pose'); continue; }
+      const O = gly.atoms[Spec.role(gly, slot).keep].pos;
+      const C = place(un(M[acid]), r, Spec.role(un(M[acid]), 'carboxyl').keep);
+      if(Math.abs(d(O, C) - E.CO) > 1e-6) bad.push(`${slot} C-O ${d(O,C).toFixed(4)}`);
+      // Z, exactly: the one turn the construction leaves free.
+      if(Math.abs(r.twist - E.ZTOR) > 1e-6) bad.push(`${slot} twist ${(r.twist*180/Math.PI).toFixed(3)}`);
+    }
+    ok(!bad.length, `${acid}: all three slots at C-O ${E.CO} A and Z exactly`
+                    + (bad.length ? ' — ' + bad.join(', ') : ''));
+  }
+
+  // THE BRIDGE OXYGEN IS THE ALCOHOL'S. Backwards, this builds a real-looking
+  // ester of a molecule nobody asked for, so it is asserted rather than drawn.
+  const out = E.react(gly, un(M.palmitate), 'sn1');
+  ok(out.host.names.includes('O1') && !out.host.names.includes('HO1'),
+     'glycerol keeps its oxygen and loses only the H');
+  ok(!out.guest.names.includes('O2') && !out.guest.names.includes('HO2'),
+     'the acid gives up its whole hydroxyl');
+  ok(out.host.atoms.length + out.guest.atoms.length
+     === gly.atoms.length + un(M.palmitate).atoms.length - 3,
+     'one ester removes exactly three atoms, one water');
+
+  // A FAT IS NOT A POLYMER, and it has to be the molecule that says so.
+  let host = gly;
+  for(const slot of ['sn1','sn2','sn3']) host = E.react(host, un(M.palmitate), slot).host;
+  ok(E.slots(host).length === 0, 'after three tails glycerol has no slot left');
+  const tail = E.react(gly, un(M.palmitate), 'sn1').guest;
+  ok(E.slots(tail).length === 0 && !Spec.free(tail, 'carboxyl'),
+     'a tail cannot accept anything, so no fourth unit can attach to one');
+}
+
+console.log('\n== 8. a residue stops claiming to be the monomer it was');
 {
   const g = un(M.glucose);
   const r = Spec.strip(g, Spec.role(g, 'c1').leaves);
@@ -171,7 +212,7 @@ console.log('\n== 7. a residue stops claiming to be the monomer it was');
   ok(!stale, 'no group survives pointing at an atom that left');
 }
 
-console.log('\n== 8. the pose lands in the same place whichever molecule moved');
+console.log('\n== 9. the pose lands in the same place whichever molecule moved');
 {
   const Plane = require('./plane.js');
   // A host sitting somewhere arbitrary and turned arbitrarily: an identity
@@ -214,7 +255,7 @@ console.log('\n== 8. the pose lands in the same place whichever molecule moved')
      'placing the host by re-solving the other way round is NOT the same pose');
 }
 
-console.log('\n== 9. hydrolysis puts back exactly what condensation took');
+console.log('\n== 10. hydrolysis puts back exactly what condensation took');
 {
   const base = un(M.alanine);
   const spent = Peptide.strip(base, Peptide.role(base, 'carboxyl').leaves);
@@ -229,6 +270,8 @@ console.log(fails
   ? `\nFAIL: ${fails} of ${checks} checks`
   : `\nPASS: ${checks} checks — every peptide pose lands at ${Peptide.CN} A and omega 180; `
     + `every glycosidic pose repeats into the polymer it names, at the helix `
-    + `mol-glycans.js solved its torsions against; a chain grows only at the end `
-    + `that still has its leaving group; and a residue makes no claim it stopped being true of`);
+    + `mol-glycans.js solved its torsions against; every ester lands at 1.34 A and Z, `
+    + `and stops at three because glycerol runs out of hydroxyls; a chain grows only `
+    + `at the end that still has its leaving group; and a residue makes no claim it `
+    + `stopped being true of`);
 process.exit(fails ? 1 : 0);
