@@ -67,6 +67,9 @@
      slot it is being read into. */
   #strip .cell.at{outline:2px solid var(--ink);outline-offset:1px}
   #strip .cell.wrong{background:#b3261e;color:#fff}
+  /* A letter the fork has not reached yet is still paired up, and cannot be
+     read: the strip says so rather than offering it. */
+  #strip .row.template .cell.shut{opacity:.32}
   #strip .picks{display:flex;gap:7px;margin-top:2px}
   #strip .picks button{cursor:pointer;width:34px;height:28px;border-radius:7px;
     border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);
@@ -137,29 +140,35 @@ const stripEl = document.getElementById('strip');
 const flat = s => ({ ...s, view:null });
 
 let step = 1;
-let forkOut = 0;                 // 0 closed duplex · 1 the strand fully peeled
+let forkOut = 0;                 // 0 the closed duplex · 1 the arm fully swung out
 
 const L = Lesson.create(document.getElementById('gl'), {
   cam:{ theta:0, phi:1.5708, r:34 }, rMax:400, orbit:false,
-  // The frame OPENS WITH THE FORK. A duplex is 17 units across and the peeled
-  // strand swings out past 30, so a fixed frame either crops the opening or
-  // draws the closed duplex tiny for the whole lesson.
+  // The frame OPENS WITH THE FORK. A duplex is 17 units across and the splayed
+  // arm swings out past 30, so a fixed frame either crops the fork or draws the
+  // closed duplex tiny for the whole lesson.
   boxes:()=>[{ x:0, y:0, rxz:17 + 15 * forkOut, hy:58 }],
   reservePx:()=>({ bottom: stripEl.classList.contains('on') ? 190 : 90 }),
   afterFrame:()=>NOTES.step(),
 });
 
 /* =============================================================================
- *  THE MOLECULE
+ *  THE MOLECULE — THREE STRANDS, NOT TWO
  * =============================================================================
- *  Twelve pairs of 1BNA, but built as TWENTY-FOUR NUCLEOTIDES rather than as
- *  twelve rungs: this page takes the duplex apart along the join a cell takes
- *  it apart along, so a residue has to be its own object.
+ *  Twelve pairs of 1BNA, built as individual nucleotides rather than as rungs:
+ *  this page takes the duplex apart along the join a cell takes it apart along,
+ *  so a residue has to be its own object.
  *
- *  Strand 0 is the template and stays. Strand 1 is the partner that leaves when
- *  the fork opens — and comes back one nucleotide at a time as the copy, which
- *  is exactly the claim: the new strand has the old one's sequence because the
- *  template dictated it.
+ *  TEMPLATE is one parental strand and never moves. PARTNER is the other
+ *  parental strand, which swings away behind the fork. COPY is the new strand
+ *  the student builds, and it lands on the partner's own coordinates — because
+ *  that is the claim: the new strand has the old partner's sequence, and it has
+ *  it because the template dictated it, base by base.
+ *
+ *  So partner and copy are the same molecule twice, in the same places, and
+ *  that is not a duplicate to be cleaned up: one of them is what was there and
+ *  the other is what gets made. Watching one leave and the other arrive IS
+ *  semiconservative replication.
  * ========================================================================== */
 const SPIN = new THREE.Group();
 L.root.add(SPIN);
@@ -174,13 +183,15 @@ const keyAt = (pair, strand) => LETTER[bdna.pairs[pair].seq.split('-')[strand]];
 
 /* One nucleotide, on the record's own coordinates. The three steps are
  * dna/nucleotide.js's — build the spec, fit it onto the residue it is, then
- * wear the record's coordinates so the backbone bonds come out at 1.6 Å. */
+ * wear the record's coordinates, which is what makes the backbone bonds come
+ * out at 1.6 Å instead of anywhere between 1.47 and 2.73. */
 function residue(pair, strand){
   const key = keyAt(pair, strand);
   const built = Nucleo.build(key);
   const f = Nucleo.fit(built, pair, strand);
   const spec = f.ok ? Nucleo.wearRecord(built, pair, strand, f) : built;
-  const res = { key, pair, strand, spec, home:new THREE.Vector3(), quat:new THREE.Quaternion() };
+  const res = { key, pair, strand, spec,
+                home:new THREE.Vector3(), quat:new THREE.Quaternion() };
   if(f.ok){ res.home.set(...f.pos); res.quat.set(...f.quat); }
   res.mol = Stage.buildMolecule(flat(spec), { center:false });
   res.mol.position.copy(res.home);
@@ -189,57 +200,81 @@ function residue(pair, strand){
   return res;
 }
 
+/* WHAT HAS LET GO STEPS BACK. Once a pair's hydrogen bonds are gone the old
+ * partner is no longer part of anything on stage, and at full colour it argues
+ * with the duplex being built beside it. Greyed IN PLACE, the same treatment
+ * dna-structure uses for a part that is present but not the subject — no
+ * transparency, so nothing sorts wrongly through twelve pairs of depth. */
+const GREY = new THREE.Color(0x9a9186);
+function ghost(res, u){
+  res.mol.traverse(o => {
+    if(!o.isMesh || !o.material) return;
+    if(o.userData.base === undefined) o.userData.base = o.material.color.getHex();
+    o.material.color.setHex(o.userData.base);
+    if(u > 0) o.material.color.lerp(GREY, u);
+  });
+}
+
 const template = bdna.pairs.map((_, i) => residue(i, 0));
-const copy     = bdna.pairs.map((_, i) => residue(i, 1));
+const partner  = bdna.pairs.map((_, i) => residue(i, 1));
+const copy      = bdna.pairs.map((_, i) => residue(i, 1));
+for(const res of copy) res.mol.visible = false;
+
 const atomOf = (res, name) => res.spec.names.indexOf(name);
 const posOf = (res, i) => new THREE.Vector3(...res.spec.atoms[i].pos)
   .applyQuaternion(res.mol.quaternion).add(res.mol.position);
 // At HOME, whatever the mesh is doing: which atoms bond is a question about the
-// finished strand, not about where a nucleotide is being flown in from.
+// finished strand, not about where a nucleotide is being held.
 const homeOf = (res, i) => new THREE.Vector3(...res.spec.atoms[i].pos)
   .applyQuaternion(res.quat).add(res.home);
 const worldOf = (res, i) => G.localToWorld(posOf(res, i));
 
 /* ---- the rails ------------------------------------------------------------
  * A phosphodiester bond runs between two nucleotides, so it belongs to neither
- * and is drawn here. The template's are all there from the start — it is one
- * finished molecule — and the copy's appear as the student makes them. */
+ * and is drawn here. The parental strands' rails exist from the start — they
+ * are finished molecules — and the copy's appear as the student makes them.
+ * The partner's are re-placed every frame, because that strand moves and its
+ * backbone is the one thing that must be seen NOT to break. */
 const stickGeo = new THREE.CylinderGeometry(0.15, 0.15, 1, 8);
 const UP = new THREE.Vector3(0, 1, 0);
 function rail(a, b, colour){
-  const from = posOf(a, atomOf(a, 'O3′')), to = posOf(b, atomOf(b, 'Pᴾ'));
-  const d = to.clone().sub(from);
   const m = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial(
     { color:colour, roughness:.55 }));
-  m.position.copy(from).addScaledVector(d, 0.5);
-  m.quaternion.setFromUnitVectors(UP, d.clone().normalize());
-  m.scale.set(1, d.length(), 1);
+  m.userData.link = [a, b];
   G.add(m);
+  placeRail(m);
   return m;
 }
-// Strand 0 runs 0→1→…→11: every link is O3′ of the lower pair to P of the next.
-for(let i = 0; i < bdna.n - 1; i++) rail(template[i], template[i + 1], 0xbfae8e);
+const _d = new THREE.Vector3();
+function placeRail(m){
+  const [a, b] = m.userData.link;
+  const from = posOf(a, atomOf(a, 'O3′')), to = posOf(b, atomOf(b, 'Pᴾ'));
+  _d.subVectors(to, from);
+  m.position.copy(from).addScaledVector(_d, 0.5);
+  m.quaternion.setFromUnitVectors(UP, _d.clone().normalize());
+  m.scale.set(1, _d.length(), 1);
+}
+const COVALENT = 0xbfae8e;
+// Strand 0 runs 0→1→…→11; strand 1 runs the other way, which is what
+// antiparallel means and what the record's own links say.
+for(let i = 0; i < bdna.n - 1; i++) rail(template[i], template[i + 1], COVALENT);
+const partnerRails = [];
+for(let i = bdna.n - 1; i > 0; i--) partnerRails.push(rail(partner[i], partner[i - 1], COVALENT));
 
 /* ---- the hydrogen bonds ---------------------------------------------------
  * kit/hbond.js's dashes, the same object dna-structure draws, at the same navy.
  * Which atoms is dna/nucleotide.js's `baseContacts`: mutual nearest, so a pair
- * shows the two or three bonds it actually has rather than every close contact.
- * Gap and radius are scaled to this molecule, whose lengths have been through
- * SCALE — the module's defaults are for a scene built in ångströms. */
+ * shows the two or three bonds it has rather than every close contact. Gap and
+ * radius are scaled to this molecule, whose lengths have been through SCALE —
+ * the module's defaults are for a scene built in ångströms. */
 const HB = HBond.create(THREE, { gap:0.95, radius:0.085, fill:0.55 });
 G.add(HB.group);
-const contactsAt = pair =>
-  Nucleo.baseContacts(template[pair], copy[pair],
-    (r, i) => (r === template[pair] ? homeOf(template[pair], i) : homeOf(copy[pair], i)).toArray());
-// Cached: it is a question about the finished pair, and the answer cannot change.
-const CONTACTS = bdna.pairs.map((_, i) => contactsAt(i));
-function paintHB(pairs){
-  const segs = [];
-  for(const p of pairs) for(const [i, j] of CONTACTS[p])
-    segs.push([posOf(template[p], i), posOf(copy[p], j)]);
-  HB.setVisible(segs.length > 0);
-  if(segs.length) HB.set(segs);
-}
+// A question about the finished pair, so it is asked once: the same two bases
+// at the same coordinates, whether the partner is leaving or the copy arriving.
+const CONTACTS = bdna.pairs.map((_, p) =>
+  Nucleo.baseContacts(template[p], partner[p],
+    (r, i) => (r === template[p] ? homeOf(template[p], i) : homeOf(partner[p], i)).toArray()));
+const HB_TOTAL = CONTACTS.reduce((n, c) => n + c.length, 0);
 
 /* STAND IT UP, SOLVED, and centre on the pair origins — dna-structure's reason:
  * the crystallographers' cell points the axis wherever it points, so a typed
@@ -260,13 +295,13 @@ SPIN.rotation.y = 1.145;
 const NOTES = Annot.create(THREE, stage, L.camera, { mode:'on' });
 
 /* =============================================================================
- *  THE ORDER A STRAND IS BUILT IN, AND WHY IT IS THAT ONE
+ *  THE ORDER, AND WHY IT IS THAT ONE
  * =============================================================================
  *  Read off the record's own links rather than chosen. On strand 1 every bond
  *  runs from a pair to the one BELOW it (11→10→…), so 11 is that strand's 5′
  *  end and 0 is its 3′ end — and a strand only grows at its 3′ end. So the copy
  *  is made 11, 10, 9 … and the template is read the other way, 3′ to 5′, which
- *  is the fact the page is for.
+ *  is the fact this page is for.
  * ========================================================================== */
 const ORDER = (() => {
   const links = bdna.links.filter(l => l.strand === 1);
@@ -274,7 +309,206 @@ const ORDER = (() => {
   const idx = bdna.pairs.map((_, i) => i);
   return downwards ? idx.slice().reverse() : idx;
 })();
-let made = 0;                            // how many of ORDER have been built
+const N = ORDER.length;
+const kOf = pair => ORDER.indexOf(pair);
+
+/* =============================================================================
+ *  THE FORK, WHICH IS A JUNCTION AND NOT AN EVENT
+ * =============================================================================
+ *  A cell does not unwind a chromosome and then copy it. Helicase opens a
+ *  short stretch — about twenty base pairs — and the polymerase copies each
+ *  strand immediately behind it, so finished duplex trails the fork and closed
+ *  parental duplex runs ahead of it. Copying the whole thing after opening the
+ *  whole thing is the CONSERVATIVE model, which Meselson and Stahl ruled out in
+ *  1958, and it is exactly the shape a page gets if it opens everything in one
+ *  step and copies in the next.
+ *
+ *  So the fork here is a POSITION, kept a couple of pairs ahead of what the
+ *  student has built, and it advances because they build. At any moment:
+ *
+ *      ahead of it   parental duplex, closed, paired
+ *      at it         one or two pairs letting go
+ *      behind it     template + copy, paired again, and the old partner
+ *                    swinging away as the other arm of the Y
+ *
+ *  THE ARM HINGES AT THE JUNCTION. A departing nucleotide's displacement grows
+ *  with how far BEHIND the fork it is, so the two arms open at a widening angle
+ *  from a travelling point, which is what a zip does. Displacing every open
+ *  nucleotide by the same amount reads as a wall being moved instead.
+ * ========================================================================== */
+// Helicase runs AHEAD of the polymerase — a real fork has a stretch of open
+// single strand between them — so the fork is kept a few pairs in front of the
+// cursor rather than one. It is also what makes the opening visible: a pair
+// does not come apart until the bend has had two or three joints to work with.
+const LEAD = 4;                  // pairs open ahead of the cursor
+const RAMP = 3.5;                // pairs it takes the arm to reach full swing
+const SPLAY = 26;                // how far out the arm swings, in scene units
+let openF = 0;                   // the fork, in ORDER positions, animated
+let made = 0;                    // nucleotides the student has added
+
+/* ---- THE ARM BENDS, IT DOES NOT STRETCH ----------------------------------
+ * The first version moved each open nucleotide outward along its own radius,
+ * which pulled the backbone between it and its neighbour to twenty ångströms —
+ * a covalent bond drawn stretched, in a step whose whole claim is that no
+ * covalent bond breaks. The picture contradicted the caption.
+ *
+ * So the arm is a HINGED CHAIN. Each phosphodiester bond gets a few degrees of
+ * turn, and every nucleotide outside that joint is carried rigidly with it —
+ * which is what a rotation about a point on the bond does, and it leaves every
+ * length in the strand exactly what it was. Bend enough joints and the arm
+ * swings clear of the duplex; the backbone is never anything but intact, and
+ * the opening reads as a zip because the bend accumulates from the junction
+ * outward.
+ *
+ * WHERE THE PIVOT IS. For the joint between an open nucleotide and the one
+ * still paired, the pivot is the phosphorus on the PAIRED side. A rotation
+ * about that atom cannot change its distance to anything, so the bond across
+ * the junction — the one bond that would otherwise take the strain — is exactly
+ * as long after the turn as before it. */
+/* HOW THE BEND IS SPREAD, and this is the difference between a zip and a curl.
+ * If every joint behind the fork holds the same angle the arm rolls up like a
+ * watch spring. A zip's arms are STRAIGHT: all of the bending is in the few
+ * joints at the junction, and a joint straightens again once the fork has moved
+ * well past it, handing the turn to the joints now at the front. So a joint's
+ * angle is a bump — nothing at the junction itself, most of it a bond or two
+ * behind, nothing again further back — and the bump's total is the angle the
+ * arm ends up at. */
+const BEND_SPAN = 4;             // joints the bend is spread over
+const ARM_ANGLE = 1.05;          // radians the open arm finally sits at
+const bendAt = d => (d <= 0 || d >= BEND_SPAN) ? 0
+  : ARM_ANGLE * Math.pow(Math.sin(Math.PI * d / BEND_SPAN), 2) / (BEND_SPAN / 2);
+const ease = u => u * u * (3 - 2 * u);
+
+// Which way a joint turns: about the tangent, so the arm swings out of the
+// duplex rather than around it or along it. Read off the helix, in G's frame.
+const gi = G.quaternion.clone().invert();
+const AXIS_UP = new THREE.Vector3(0, 1, 0).applyQuaternion(gi).normalize();
+const HINGE_AXIS = partner.map(res => {
+  const v = res.home.clone().applyQuaternion(G.quaternion);
+  const rad = new THREE.Vector3(v.x, 0, v.z);
+  if(rad.lengthSq() < 1e-6) rad.set(1, 0, 0);
+  rad.normalize().applyQuaternion(gi);
+  return new THREE.Vector3().crossVectors(AXIS_UP, rad).normalize();
+});
+// Kept for one job only: the direction an arriving nucleotide comes in from.
+const PEEL = partner.map((res, i) => {
+  const v = res.home.clone().applyQuaternion(G.quaternion);
+  const rad = new THREE.Vector3(v.x, 0, v.z);
+  if(rad.lengthSq() < 1e-6) rad.set(1, 0, 0);
+  return rad.normalize().multiplyScalar(SPLAY).applyQuaternion(gi);
+});
+
+/* Fold the open arm, joint by joint, from the junction outward. `T` is the
+ * transform in force for everything further out than the joint being applied,
+ * and each joint composes one more rotation onto it — so a nucleotide ten
+ * bonds back from the fork carries the sum of ten small turns. */
+const _tq = new THREE.Quaternion(), _tp = new THREE.Vector3();
+const _piv = new THREE.Vector3(), _rq = new THREE.Quaternion();
+function foldArm(){
+  const j = Math.min(N - 1, Math.floor(openF));
+  _tq.identity(); _tp.set(0, 0, 0);
+  const apply = (v, out) => out.copy(v).applyQuaternion(_tq).add(_tp);
+  for(let k = j; k >= 0; k--){
+    const res = partner[ORDER[k]];
+    const inner = k + 1 < N ? partner[ORDER[k + 1]] : res;
+    // The pivot is where that atom is NOW — the joint nearer the fork has
+    // already been folded, and this one turns about the arm it is holding.
+    apply(homeOf(inner, atomOf(inner, 'Pᴾ')), _piv);
+    /* THE LAST NUCLEOTIDE HAS NOTHING AHEAD OF IT. Every other joint hands its
+     * turn on to the joints in front as the fork passes; this one has none, so
+     * it keeps the whole arm angle instead of letting the bump run off the end.
+     * Without it one pair of the twelve was still holding hands after
+     * everything else had let go, and the tally stopped at 29 of 32. */
+    const last = k === N - 1;
+    const turn = last ? ARM_ANGLE * ease(Math.max(0, Math.min(1, (openF - k) / 2)))
+                      : bendAt(openF - k);
+    _rq.setFromAxisAngle(HINGE_AXIS[ORDER[k]], turn);
+    // Compose about the pivot: rotate, then put the pivot back where it was.
+    _tq.premultiply(_rq);
+    _tp.sub(_piv).applyQuaternion(_rq).add(_piv);
+    apply(res.home, res.mol.position);
+    res.mol.quaternion.copy(_tq).multiply(res.quat);
+  }
+  // Everything the fork has not reached is still where the record put it.
+  for(let k = j + 1; k < N; k++){
+    const res = partner[ORDER[k]];
+    res.mol.position.copy(res.home);
+    res.mol.quaternion.copy(res.quat);
+  }
+}
+
+// A hydrogen bond stretched this far past its resting length is not one any
+// more. Its own contacts say what it started at, so this is a ratio.
+const BREAK_AT = 2.4;
+const broken = new Set();
+
+/* Everything that depends on where the fork is, in one place and called on
+ * every frame of every animation: the arm's position, the rails that follow it,
+ * which pairs are still holding, and how wide the stage has to be. */
+function layout(){
+  foldArm();
+  for(const m of partnerRails) placeRail(m);
+
+  const segs = [];
+  for(let p = 0; p < bdna.n; p++){
+    const k = kOf(p);
+    // Ahead of the fork and at it: the parental pair, until it lets go.
+    if(!broken.has(p)){
+      if(stretch(p) > BREAK_AT){ broken.add(p); snap(p); ghost(partner[p], 0.55); }
+      else for(const [i, j] of CONTACTS[p])
+        segs.push([posOf(template[p], i), posOf(partner[p], j)]);
+    }
+    // Behind it: the pair the student has just made, which is the same pair
+    // again — same two bases, same two or three bonds.
+    if(k < made) for(const [i, j] of CONTACTS[p])
+      segs.push([posOf(template[p], i), posOf(copy[p], j)]);
+  }
+  HB.setVisible(segs.length > 0);
+  if(segs.length) HB.set(segs);
+
+  // How wide the stage has to be: measured off the arm rather than guessed
+  // from the fork position, because a hinged arm's reach is what the frame has
+  // to hold and that depends on how many joints have turned.
+  let reach = 0;
+  for(const res of partner) reach = Math.max(reach, res.mol.position.distanceTo(res.home));
+  forkOut = Math.max(0, Math.min(1, reach / SPLAY));
+  L.fit();
+}
+
+// How far past its resting length this pair's hydrogen bonds are, as a ratio:
+// the same contacts that are drawn, measured where they are now.
+function stretch(pair){
+  const cs = CONTACTS[pair];
+  if(!cs.length) return 0;
+  let now = 0, rest = 0;
+  for(const [i, j] of cs){
+    now  += posOf(template[pair], i).distanceTo(posOf(partner[pair], j));
+    rest += homeOf(template[pair], i).distanceTo(homeOf(partner[pair], j));
+  }
+  return rest ? now / rest : 0;
+}
+
+/* The moment a pair lets go, at the gap it was holding. Navy, which is this
+ * repo's hydrogen bond wherever one is drawn: the flash is that object
+ * disappearing, not a new kind of event. */
+function snap(pair){
+  if(!L.fx) return;
+  const cs = CONTACTS[pair];
+  if(!cs.length) return;
+  const at = new THREE.Vector3();
+  for(const [i, j] of cs) at.add(worldOf(template[pair], i)).add(worldOf(partner[pair], j));
+  L.fx.spawnBurst(at.multiplyScalar(1 / (cs.length * 2)),
+                  MolLib.PALETTE.bonds.hbond, 9, null, 0.7, { blend:'normal' });
+}
+
+// The fork moves at a pace, not in jumps: the junction travelling is the whole
+// picture, and a junction that teleports is two pictures.
+function moveFork(to, dur){
+  const from = openF;
+  if(Math.abs(to - from) < 1e-4) return;
+  L.motion.seq([{ dur:dur == null ? 0.5 : dur, ease:'inOutCubic',
+    onUpdate:u=>{ openF = from + (to - from) * u; layout(); say(); } }], { tag:'fork' });
+}
 
 /* =============================================================================
  *  THE STRIP
@@ -293,9 +527,7 @@ for(const p of ORDER){
   t.className = 'cell';
   t.textContent = CODE[keyAt(p, 0)];
   rowT.appendChild(t);
-  const b = document.createElement('div');
-  b.className = 'cell';
-  rowB.appendChild(b);
+  rowB.appendChild(Object.assign(document.createElement('div'), { className:'cell' }));
 }
 for(const key of ['adenine', 'thymine', 'guanine', 'cytosine']){
   const b = document.createElement('button');
@@ -308,28 +540,32 @@ for(const key of ['adenine', 'thymine', 'guanine', 'cytosine']){
 const cellsT = [...rowT.children], cellsB = [...rowB.children];
 
 function paintStrip(){
-  cellsT.forEach((c, i) => c.classList.toggle('at', i === made));
+  cellsT.forEach((c, i) => {
+    c.classList.toggle('at', i === made);
+    // A letter the fork has not reached is still paired up and cannot be read.
+    c.classList.toggle('shut', i >= openF);
+  });
   cellsB.forEach((c, i) => {
     c.classList.toggle('at', i === made);
     c.classList.toggle('done', i < made);
     c.textContent = i < made ? CODE[keyAt(ORDER[i], 1)] : '';
   });
-  const done = made >= ORDER.length;
-  for(const b of picks.children) b.disabled = done || busy;
+  const done = made >= N;
+  for(const b of picks.children) b.disabled = done || busy || step !== 2;
 }
 
 /* =============================================================================
  *  ADDING ONE NUCLEOTIDE
  * =============================================================================
- *  The two bonds in one beat, which is the whole argument of the page: the
- *  incoming nucleotide pairs with the template AND joins the strand, and there
- *  is no moment between them where a bare pair is waiting to be stitched in.
+ *  The two bonds in one beat, which is the argument of the page: the incoming
+ *  nucleotide pairs with the template AND joins the strand, and there is no
+ *  moment in between where a bare pair waits to be stitched in. Then the fork
+ *  advances, because the polymerase is what opens the next pair.
  * ========================================================================== */
 let busy = false;
-const AWAY = 26;                          // where an incoming nucleotide flies from
 
 function choose(key){
-  if(busy || made >= ORDER.length) return;
+  if(busy || step !== 2 || made >= N) return;
   const pair = ORDER[made];
   const want = PAIRS_WITH[keyAt(pair, 0)];
   if(key !== want){ refuse(key, pair); return; }
@@ -341,43 +577,42 @@ function choose(key){
  * wrong. */
 function refuse(key, pair){
   const t = keyAt(pair, 0);
-  // THE CELL, NOT THE CURSOR. The flash clears on a timer, and by then the
-  // student may have played the right letter and moved the cursor on — or run
-  // off the end of the strip, where there is no cell to clear.
+  // THE CELL, NOT THE CURSOR: the flash clears on a timer, and by then the
+  // student may have played the right letter and moved the cursor on.
   const cell = cellsB[made];
   cell.classList.add('wrong');
   cell.textContent = CODE[key];
   setTimeout(() => { cell.classList.remove('wrong'); paintStrip(); }, 700);
   note.innerHTML = `<b>${CODE[key]} cannot sit opposite ${CODE[t]}.</b> `
-    + 'The donors and acceptors on the two edges have to line up, and only one '
-    + `of the four bases does that with ${CODE[t]}.`;
+    + 'The donors and acceptors along the two edges have to line up, and only '
+    + `one of the four bases does that with ${CODE[t]}.`;
 }
+
+// Out of open solution, from the side the fork is open on.
+const arriveFrom = pair => partner[pair].home.clone().addScaledVector(PEEL[pair], 1.6);
 
 function place(pair){
   busy = true;
   paintStrip();
   const res = copy[pair];
-  const from = res.home.clone().add(offStage());
+  const from = arriveFrom(pair);
+  const prev = made > 0 ? copy[ORDER[made - 1]] : null;
   res.mol.visible = true;
   res.mol.position.copy(from);
-  const prev = made > 0 ? copy[ORDER[made - 1]] : null;
   L.motion.seq([
-    { dur:0.55, ease:'outCubic',
-      onUpdate:u=>{ res.mol.position.lerpVectors(from, res.home, u);
-                    paintHB(builtPairs()); } },
+    { dur:0.5, ease:'outCubic',
+      onUpdate:u=>{ res.mol.position.lerpVectors(from, res.home, u); layout(); } },
     { call:()=>{
         res.mol.position.copy(res.home);
         made++;
-        paintHB(builtPairs());
-        /* The phosphodiester bond, made at the 3′ end of what is already
-         * there — and NO LEAVING WATER DRAWN, which is the one place this page
+        /* The phosphodiester bond, made at the 3′ end of what is already there
+         * — and NO LEAVING WATER DRAWN, which is the one place this page
          * simplifies. Everywhere else in this repo a condensation shows its
          * water going; here the incoming nucleotide is a triphosphate in a
-         * cell, and what leaves is pyrophosphate — the two extra phosphates,
-         * whose hydrolysis is what pays for the bond. Our nucleotide carries
-         * one phosphate, so the page flares the bond and says the rest in
-         * words rather than drawing a molecule that is not the one that
-         * leaves. */
+         * cell and what leaves is pyrophosphate, whose hydrolysis pays for the
+         * bond. Ours carries one phosphate, so the page flares the bond and
+         * says the rest in words rather than drawing a molecule that is not
+         * the one that leaves. */
         if(prev){
           rail(prev, res, MolLib.PALETTE.bonds.condense);
           const at = worldOf(prev, atomOf(prev, 'O3′'))
@@ -386,181 +621,63 @@ function place(pair){
         }
         busy = false;
         paintStrip();
-        say2();
+        // The polymerase opens what it is about to read: one more pair, kept
+        // LEAD ahead of the cursor.
+        // Past the end at the end: the fork's lead is what stretches a pair
+        // apart, so stopping it at the last one leaves that pair still holding.
+        moveFork(Math.max(openF, Math.min(N + RAMP, made + LEAD)), 0.45);
+        layout();
+        say();
       } },
   ], { tag:'place' });
 }
 
-// Straight out of the duplex at that height, so a nucleotide arrives from open
-// solution rather than from some axis of the crystal's.
-function offStage(){
-  const c = new THREE.Vector3(0, 0, 0);
-  return new THREE.Vector3(AWAY, 0, AWAY * 0.4).add(c);
-}
-const builtPairs = () => ORDER.slice(0, made);
-
 /* =============================================================================
- *  THE STEPS
+ *  WHAT THE PAGE SAYS
  * =============================================================================
- *  1 shows what has to be true before anything can be copied; 2 is the copying;
- *  3 is what the direction cost.
+ *  Every number in here is read at render time off the molecule: how many
+ *  hydrogen bonds have gone, how long the bond just made is, how many pairs are
+ *  open. A typed number is a claim nothing checks.
  * ========================================================================== */
-const STEPS = [
-  { n:1, title:'The fork opens', sub:'hydrogen bonds only' },
-  { n:2, title:'Copy the template', sub:'pair and join, together' },
-  { n:3, title:'One direction', sub:'5′ to 3′, always' },
-];
+const brokenCount = () => [...broken].reduce((n, p) => n + CONTACTS[p].length, 0);
 
-function setCopyVisible(on){
-  for(const res of copy) res.mol.visible = on;
+function say(){
+  if(step === 1) return say1();
+  if(step === 2) return say2();
+  return say3();
 }
 
-/* =============================================================================
- *  STEP 1 — THE FORK, WHICH IS A TRAVELLING EVENT
- * =============================================================================
- *  A duplex does not come apart everywhere at once; it unzips from one end, and
- *  that is why the thing is called a fork. So each pair runs its own copy of
- *  the clock, offset by where it sits along the strand: at any instant one pair
- *  is letting go, the ones behind it are open and the ones ahead are still
- *  closed. The same stagger the ladder-to-helix winding uses, for the same
- *  reason — a change that happens everywhere at once gives the eye nothing to
- *  follow and says the wrong thing about the mechanism.
- *
- *  AND IT PEELS OUTWARD. Every departing nucleotide swings along ITS OWN radius
- *  from the axis rather than every one sliding down a shared vector: a strand
- *  that translates as a slab reads as a wall being moved, and one that opens
- *  along its own radii keeps the shape it had while it goes.
- *
- *  Nothing covalent breaks, which is the claim. The hydrogen bonds are drawn
- *  the whole way out, so they stretch and then let go one pair at a time.
- * ========================================================================== */
-// How much of the clock one pair takes; the rest is the stagger. At 0.4 the
-// first pair is fully open about the time the last one starts to move.
-const PEEL_SPAN = 0.4;
-const PEEL_OUT = 26;                     // how far out a nucleotide swings
-// A hydrogen bond that is stretched this far is not one any more. Its own
-// contacts say what it started at, so this is a multiple rather than a length.
-const BREAK_AT = 2.4;
-
-/* OUTWARD FROM THE AXIS, in the frame the meshes live in. Standing the duplex
- * up put the axis on SPIN's Y, so a residue's radial direction is its own
- * position with the axial component dropped — then carried back into G, which
- * is where the mesh's position is read. */
-const _gi = new THREE.Quaternion();
-const peelDir = res => {
-  _gi.copy(G.quaternion).invert();
-  const v = res.home.clone().applyQuaternion(G.quaternion);   // into SPIN's frame
-  const rad = new THREE.Vector3(v.x, 0, v.z);
-  if(rad.lengthSq() < 1e-6) rad.set(1, 0, 0);
-  // A little along the axis as well, so the strand lifts off rather than
-  // sliding straight out of the pairs it was in.
-  return rad.normalize().multiplyScalar(PEEL_OUT)
-    .add(new THREE.Vector3(0, PEEL_OUT * 0.12, 0)).applyQuaternion(_gi);
-};
-const PEEL = copy.map(res => peelDir(res));
-
-// The order it unzips in is the order it will be copied in: the fork opens at
-// the end the first nucleotide goes onto.
-const peelAt = (pair, t) => {
-  const k = ORDER.indexOf(pair);
-  const start = (k / (ORDER.length - 1)) * (1 - PEEL_SPAN);
-  return Math.max(0, Math.min(1, (t - start) / PEEL_SPAN));
-};
-
-let broken = new Set();
-function openFork(){
-  L.motion.cancel('fork');
-  broken = new Set();
-  setCopyVisible(true);
-  for(const res of copy) res.mol.position.copy(res.home);
-  paintHB(bdna.pairs.map((_, i) => i));
-  L.motion.seq([
-    { dur:0.7 },
-    { dur:2.6, ease:'linear', onUpdate:t=>{
-        const holding = [];
-        for(let p = 0; p < bdna.n; p++){
-          const u = ease(peelAt(p, t));
-          copy[p].mol.position.copy(copy[p].home).addScaledVector(PEEL[p], u);
-          if(broken.has(p)) continue;
-          // A pair lets go when its own bonds are stretched past breaking —
-          // asked of the contacts rather than of the clock, so what the student
-          // sees snap is the thing that was drawn holding.
-          if(stretch(p) > BREAK_AT){ broken.add(p); snap(p); }
-          else holding.push(p);
-        }
-        paintHB(holding);
-        forkOut = ease(t); L.fit();
-        say1();
-      } },
-    // The frame comes back in once the strand is gone: what is left is one
-    // template, and it is the width of a single strand.
-    { dur:0.6, ease:'inOutCubic', onUpdate:u=>{ forkOut = 1 - u; L.fit(); },
-      onDone:()=>{ forkOut = 0; L.fit(); } },
-    { call:()=>{ setCopyVisible(false); HB.setVisible(false); say1(); } },
-  ], { tag:'fork' });
-}
-const ease = u => u * u * (3 - 2 * u);
-
-// How far past its resting length this pair's hydrogen bonds are, as a ratio:
-// the same contacts that are drawn, measured where they are now.
-function stretch(pair){
-  const cs = CONTACTS[pair];
-  if(!cs.length) return 0;
-  let now = 0, rest = 0;
-  for(const [i, j] of cs){
-    now  += posOf(template[pair], i).distanceTo(posOf(copy[pair], j));
-    rest += homeOf(template[pair], i).distanceTo(homeOf(copy[pair], j));
-  }
-  return rest ? now / rest : 0;
-}
-
-/* The moment a pair lets go, at the gap it was holding. Navy, which is this
- * repo's hydrogen bond wherever one is drawn — the flash is the same object
- * disappearing, not a new kind of event. */
-function snap(pair){
-  if(!L.fx) return;
-  const cs = CONTACTS[pair];
-  const at = new THREE.Vector3();
-  for(const [i, j] of cs) at.add(worldOf(template[pair], i)).add(worldOf(copy[pair], j));
-  L.fx.spawnBurst(at.multiplyScalar(1 / (cs.length * 2 || 1)),
-                  MolLib.PALETTE.bonds.hbond, 9, null, 0.7, { blend:'normal' });
-}
-
-/* WHAT THE OPENING COST, COUNTED OFF THE MOLECULE. Every pair's bonds were
- * found, not assumed, so the total is this sequence's own — a run of G·C would
- * say a bigger number, which is the reason G·C-rich DNA is harder to melt. */
-const HB_TOTAL = CONTACTS.reduce((n, c) => n + c.length, 0);
 function say1(){
-  const gone = [...broken].reduce((n, p) => n + CONTACTS[p].length, 0);
-  note.innerHTML = 'Two strands, and only <b>hydrogen bonds</b> between them: '
-    + `<b>${gone} of ${HB_TOTAL} broken</b>, and not one covalent bond. The `
-    + 'backbones are untouched, so what is left is two whole chains, each '
-    + 'carrying the whole sequence. <b>That is what makes a template.</b>';
+  note.innerHTML = 'A fork, not a split: helicase opens a few pairs at a time '
+    + `— <b>${brokenCount()} of ${HB_TOTAL} hydrogen bonds</b> so far, and not `
+    + 'one covalent bond. The backbones are untouched, so each arm is a whole '
+    + 'chain carrying the whole sequence. <b>That is what makes a template.</b>';
 }
+
 function say2(){
   if(made === 0){
-    note.innerHTML = 'One strand left, read 3′ to 5′. Choose the base that '
-      + 'pairs with the letter under the cursor, and watch what it takes: '
-      + '<b>hydrogen bonds to the template and a phosphodiester bond to the '
-      + 'strand, in the same move.</b>';
+    note.innerHTML = 'Now copy it. The fork is open two pairs ahead; choose the '
+      + 'base that pairs with the letter under the cursor and watch what it '
+      + 'takes: <b>hydrogen bonds to the template and a phosphodiester bond to '
+      + 'the strand, in the same move.</b>';
     return;
   }
-  if(made < ORDER.length){
+  if(made < N){
     const pair = ORDER[made - 1];
-    const n = CONTACTS[pair].length;
     const d = bondLength(made - 1);
     note.innerHTML = `${CODE[keyAt(pair, 1)]} paired with ${CODE[keyAt(pair, 0)]}: `
-      + `<b>${n} hydrogen bonds</b>`
+      + `<b>${CONTACTS[pair].length} hydrogen bonds</b>`
       + (d ? `, and a phosphodiester bond of <b>${d.toFixed(2)} Å</b> onto the 3′ end` : '')
-      + `. ${ORDER.length - made} to go.`;
+      + `. The fork opens as you go — finished duplex behind it, parental helix `
+      + `ahead. ${N - made} to go.`;
     return;
   }
-  note.innerHTML = 'Twelve nucleotides, and the copy is finished. Every base is '
-    + 'the one the template chose; nothing about the backbone carries any of '
-    + 'that information. <b>The sequence was copied by the pairing rule, one '
-    + 'nucleotide at a time, while the strand was being built.</b> In a cell '
-    + 'each arriving nucleotide carries three phosphates, not one, and the two '
-    + 'it loses are what pay for the bond.';
+  note.innerHTML = 'Finished. Every base is the one the template chose, and '
+    + 'nothing about the backbone carries any of that information. <b>The old '
+    + 'strand and the new one are now a double helix</b> — and the parental '
+    + 'strand that swung away is being copied the same way, which is why each '
+    + 'daughter molecule keeps one old strand. In a cell each arriving '
+    + 'nucleotide carries three phosphates, and the two it loses pay for the bond.';
 }
 
 // Measured off the molecule, never typed: the bond that was just made.
@@ -571,11 +688,25 @@ function bondLength(k){
 }
 
 function say3(){
-  note.innerHTML = 'The copy grew in one direction only: every nucleotide was '
-    + 'added onto the <b>3′</b> end, because that is the end with the free –OH '
-    + 'the incoming phosphate reacts with. The template was therefore read 3′ '
-    + 'to 5′ — the opposite way — which is what antiparallel is FOR.';
+  note.innerHTML = 'The copy grew in one direction only: every nucleotide went '
+    + 'onto the <b>3′</b> end, because that is the end with the free –OH the '
+    + 'incoming phosphate reacts with. So the template was read the other way, '
+    + '3′ to 5′ — which is what antiparallel is FOR, and why the two strands at '
+    + 'a real fork are copied by different tricks.';
 }
+
+/* =============================================================================
+ *  THE STEPS
+ * =============================================================================
+ *  One scene throughout: the fork does not reset between steps, because a fork
+ *  that reappears closed after the student opened it says the opening was a
+ *  demonstration rather than the thing they are doing.
+ * ========================================================================== */
+const STEPS = [
+  { n:1, title:'The fork opens', sub:'hydrogen bonds only' },
+  { n:2, title:'Copy as it opens', sub:'pair and join, together' },
+  { n:3, title:'One direction', sub:'5′ to 3′, always' },
+];
 
 function showStep(n){
   step = n;
@@ -586,33 +717,45 @@ function showStep(n){
   note.classList.toggle('low', n !== 2);
   stripEl.classList.toggle('on', n === 2);
 
-  if(n === 1){ made = 0; forkOut = 0; paintStrip(); openFork(); say1(); }
+  if(n === 1){
+    // Back to the closed duplex, and open the first pairs so the shape of the
+    // thing is on screen before the student is asked to drive it.
+    made = 0;
+    broken.clear();
+    for(const res of partner) ghost(res, 0);
+    for(const res of copy) res.mol.visible = false;
+    openF = 0; layout();
+    moveFork(LEAD + 1, 2.0);
+  }
   if(n === 2){
-    forkOut = 0;
-    setCopyVisible(false);
-    for(const res of copy) res.mol.position.copy(res.home);
-    for(let i = 0; i < made; i++) copy[ORDER[i]].mol.visible = true;
-    paintHB(builtPairs());
-    paintStrip();
-    say2();
+    // The fork never goes backwards: what the student opened stays open.
+    moveFork(Math.max(openF, Math.min(N + RAMP, made + LEAD)), 0.6);
+    layout();
   }
   if(n === 3){
-    forkOut = 0;
-    // The finished thing, both strands, so the direction can be pointed at.
-    made = ORDER.length;
-    setCopyVisible(true);
-    for(const res of copy) res.mol.position.copy(res.home);
-    paintHB(bdna.pairs.map((_, i) => i));
-    paintStrip();
-    say3();
+    // The finished thing: the copy complete, the old partner swung clear.
+    made = N;
+    openF = N + RAMP;
+    for(const res of copy) res.mol.visible = true;
+    for(const res of partner) ghost(res, 0.55);
+    for(let k = 1; k < N; k++){
+      const a = copy[ORDER[k - 1]], b = copy[ORDER[k]];
+      if(!a.railed){ rail(a, b, MolLib.PALETTE.bonds.condense); a.railed = true; }
+    }
+    layout();
     const end = (res, name) => () => worldOf(res, atomOf(res, name));
-    NOTES.add({ text:'3′ — added here', at:end(copy[ORDER[ORDER.length - 1]], 'O3′'),
+    NOTES.add({ text:'3′ — added here', at:end(copy[ORDER[N - 1]], 'O3′'),
       card:'Every nucleotide arrived at this end. A strand cannot grow the other way: nothing reacts with a phosphate that is already esterified.',
       offset:[62, 16] });
     NOTES.add({ text:'5′ — where it started', at:end(copy[ORDER[0]], 'Pᴾ'),
       card:'The first nucleotide of the copy. Its phosphate is free, which is why this end is called 5′.',
       offset:[-62, -16] });
+    NOTES.add({ text:'The other parental strand', at:()=>worldOf(partner[ORDER[Math.floor(N / 2)]], atomOf(partner[0], 'Pᴾ')),
+      card:'Copied the same way, against its own new partner. That is why each daughter molecule is one old strand and one new one.',
+      offset:[70, -20] });
   }
+  paintStrip();
+  say();
   for(const b of document.querySelectorAll('#steps button'))
     b.setAttribute('aria-current', String(+b.dataset.n === n));
   L.fit();
