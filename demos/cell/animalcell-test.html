@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>cutaway-test — a cell cut open, as one box</title>
-<!-- TEST BENCH. Not a lesson, not linked from the index. cell/cutaway.js
-     through Cutaway.mount, full window, no copy: the model is the whole
+<title>animalcell-test — an animal cell cut open, as one box</title>
+<!-- TEST BENCH. Not a lesson, not linked from the index. cell/animalcell.js
+     through AnimalCell.mount, full window, no copy: the model is the whole
      subject. Hover an organelle, click it, double-click to come home. -->
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; background: #f5f2ef; }
@@ -20,9 +20,10 @@
 <script src="../lib/molecules.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="../kit/card-stage.js"></script>
-<script src="../cell/cutaway.js"></script>
+<script src="../cell/organelles.js"></script>
+<script src="../cell/animalcell.js"></script>
 <script>
-const C = Cutaway.mount(document.getElementById('stage'));
+const C = AnimalCell.mount(document.getElementById('stage'));
 </script>
 </body>
 </html>

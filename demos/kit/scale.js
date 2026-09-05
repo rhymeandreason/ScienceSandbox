@@ -4,7 +4,7 @@
  *  Every component declares one SCALE block. It answers the three questions a
  *  page (and the model writing one) has to get right, which used to be four
  *  private conventions: membrane.js declared EXAG in code, tree.js and leaf.js
- *  said "the organism scale" in prose, cutaway.js said "not a scale" in prose,
+ *  said "the organism scale" in prose, animalcell.js said "not a scale" in prose,
  *  and Components.md said nothing.
  *
  *      X.SCALE = {

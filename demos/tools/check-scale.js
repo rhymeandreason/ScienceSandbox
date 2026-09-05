@@ -6,7 +6,7 @@
  *
  *  Why this exists: scale used to be four private conventions and a prose
  *  claim. membrane/membrane.js declared EXAG in code, tree/tree.js and leaf/leaf.js said "the
- *  organism scale" in a header, cell/cutaway.js said "not a scale" in a header,
+ *  organism scale" in a header, cell/animalcell.js said "not a scale" in a header,
  *  and Components.md — the only thing the generator's model ever sees —
  *  said nothing at all. Nothing could disagree with anything, because
  *  nothing was comparable.
@@ -51,7 +51,7 @@ const COMPONENTS = {
   Membrane:   'membrane/membrane.js',
   Leaf:       'leaf/leaf.js',
   Tree:       'tree/tree.js',
-  Cutaway:    'cell/cutaway.js',
+  AnimalCell: 'cell/animalcell.js',
   Graph:      'graph/graph.js',
 };
 

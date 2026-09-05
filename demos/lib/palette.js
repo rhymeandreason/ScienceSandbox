@@ -187,14 +187,14 @@
                        // would claim a second molecule
     },
     /* ---- organelles ---------------------------------------------------
-       ONE ORGANELLE, ONE COLOUR, wherever it is drawn. cell/cutaway.js chose
+       ONE ORGANELLE, ONE COLOUR, wherever it is drawn. cell/animalcell.js chose
        these by eye against the cream paper and typed them inline; they are
-       the house colours now, because the cutaway is where a student meets an
+       the house colours now, because the animal cell is where a student meets an
        organelle first and every later view of one has to agree with it. A
        lesson that zooms from the cut cell into a mitochondrion's inner
        membrane must not arrive somewhere a different colour.
 
-       `outer` / `inner` / `rim` are the cutaway's shell: the outside face,
+       `outer` / `inner` / `rim` are the cut cell's shell: the outside face,
        the cut face (darker — a cut edge reads as depth), and the rim between.
 
        `head` / `tail` TINT A BILAYER drawn inside that organelle
@@ -212,7 +212,7 @@
       plasma:        { outer:0xee8e84, inner:0xa8132a, rim:0xf4b0a6, head:0xe0705c, tail:0xf0c98a },
       mitochondrion: { outer:0xe0552f, inner:0xe2775b, rim:0xf4b8a4, head:0xd9612f, tail:0xeeba7e,
                        cristaSide:0xf2a3ae, cristaTop:0xfff6f7 },
-      /* Not in the animal cell, so it has no cutaway entry to copy: the
+      /* Not in the animal cell, so it has no entry to copy: the
          green comes from leaf/leaf.js's `chloro`, lightened to the same
          degree the other heads are lightened off their shells. */
       chloroplast:   { outer:0x4f8a33, inner:0x37701f, rim:0xa7c98a, head:0x5f9440, tail:0xcfdc9a },

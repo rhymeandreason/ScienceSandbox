@@ -4,9 +4,9 @@
 
 The cell is where most generated requests land, because "cell" is the word students use. It is also where the osmosis question every run has asked for gets answered, which no component could show: a cell that swells, shrivels and bursts.
 
-**Most of the animal render is already done.** `cell/cutaway.js` draws the textbook animal cutaway at reference quality: a bowl of cytoplasm with a nucleus, mitochondria with cristae, ER ribbons studded with ribosomes, a Golgi stack, centrioles and vesicles, procedurally from noise, on r128 and `kit/card-stage.js`. `cell/cutaway-test.html` mounts it. Look at it before reading further.
+**Most of the animal render is already done.** `cell/animalcell.js` draws the textbook animal cutaway at reference quality: a bowl of cytoplasm with a nucleus, mitochondria with cristae, ER ribbons studded with ribosomes, a Golgi stack, centrioles and vesicles, procedurally from noise, on r128 and `kit/card-stage.js`. `cell/animalcell-test.html` mounts it. Look at it before reading further.
 
-What `cutaway.js` is not is a component. It has `create` · `mount` · `flyTo` · `focusOn` · `pick` · `hover` · `bounds`, and none of `set` · `state` · `on` · `show` · `layers` · `featured`. Its params are `seed` and `tilt`. It does carry a `SCALE` block.
+What `animalcell.js` is not is a component. It has `create` · `mount` · `flyTo` · `focusOn` · `pick` · `hover` · `bounds`, and none of `set` · `state` · `on` · `show` · `layers` · `featured`. Its params are `seed` and `tilt`. It does carry a `SCALE` block.
 
 The test of done is unchanged: `tools/gen-app.js` writes a working page from `Components.md` and a request such as "why does a red blood cell burst in pure water?"
 
@@ -50,13 +50,13 @@ They do not have to be identical: a labelled cutaway and a whole cell swelling a
 
 ## 3. Fidelity: `buildShell` is the answer, and it exists
 
-Do not write a fidelity spec for these. `cutaway.js` already reaches the reference standard, and the reason is one idea:
+Do not write a fidelity spec for these. `animalcell.js` already reaches the reference standard, and the reason is one idea:
 
 **`buildShell` takes any parametric surface `S(u,w)`, keeps `w` up to a per-`u` cut, offsets an inner wall along the finite-difference normal, and closes the two with a rounded lip.** A cut organelle therefore has real membrane thickness instead of a clipped single surface, and the lip is what makes the render read as a cell rather than a diagram. Outer, lip and inner are vertex colours, which is why those materials carry no `color`. `sweepProfile` gives the cristae and the ER ribbons; the noise gives the cytoplasm speckle and the ragged Golgi discs.
 
 The anatomy components want all of that. **The osmosis components mostly do not**: they need one deformable surface and a wall, cheap, because their whole cost is per-frame. Take the idea of the lip, not necessarily the builder.
 
-There is no `cell/cell-core.js` and there should not be one yet. `cutaway.js`'s header says its builders are inlined because nothing else wanted them; when a second component genuinely wants one, move that one, and let two consumers inform the interface rather than guessing it from one. A component that finds itself wanting a whole builder verbatim should say so rather than copy it silently.
+There is no `cell/cell-core.js` and there should not be one yet. `animalcell.js`'s header says its builders are inlined because nothing else wanted them; when a second component genuinely wants one, move that one, and let two consumers inform the interface rather than guessing it from one. A component that finds itself wanting a whole builder verbatim should say so rather than copy it silently.
 
 Per component, the shapes:
 
@@ -65,7 +65,7 @@ Per component, the shapes:
 - **`RedBloodCell`**: a biconcave profile revolved, cut, with nothing inside but a haemoglobin tint and a spectrin mesh. The shape change is the subject.
 - **`EpithelialCell`**: a column with a tight junction to each neighbour's stub, and the animal organelle set with many mitochondria.
 
-**Prop tier, and not a scale** (`MolecularGeometry.md` §1.4). Every one of these declares `rung: 'cell'` and `unit: null` against the ladder in `demos/docs/Scale.md`; `cell/cutaway.js` already carries the block. A null unit is a claim, not a gap: the render is not measurable, no page prints a length off it, and `tools/check-scale.js` fails a commit where one advertises a length anyway.
+**Prop tier, and not a scale** (`MolecularGeometry.md` §1.4). Every one of these declares `rung: 'cell'` and `unit: null` against the ladder in `demos/docs/Scale.md`; `cell/animalcell.js` already carries the block. A null unit is a claim, not a gap: the render is not measurable, no page prints a length off it, and `tools/check-scale.js` fails a commit where one advertises a length anyway.
 
 Sizes that ARE claimed, such as a red blood cell's 8 µm across, belong in the library card as prose, where they read as a fact about real cells rather than a measurement of the render. How big a cell IS survives the picture not being to scale.
 
@@ -77,11 +77,11 @@ Every organelle is an anchor with a library card, so a page answers "what is tha
 
 `membrane`, `wall`, `lamella`, `nucleus`, `nucleolus`, `chromatin`, `pore`, `mitochondrion`, `chloroplast`, `amyloplast`, `starch`, `roughER`, `smoothER`, `golgi`, `vesicle`, `lysosome`, `vacuole`, `tonoplast`, `ribosome`, `cytoskeleton`, `centriole`, `hair`, `nucleoid`, `plasmid`, `flagellum`, `capsule`, `cytoplasm`, and for the epithelial cell `apical`, `basolateral`, `junction`.
 
-**Split `er` into `roughER` and `smoothER`.** `cutaway.js` registers one part named `er`, and what it draws is rough ER: two arcs of swept ribbon around the nucleus with ribosome studs pushed into `riboPositions`. Register those arcs as `roughER`, and add a third run of ribbon further out with no studs, a paler profile and more tubular curvature as `smoothER`. Two parts, two library cards, because a Bio 101 student is asked for the difference by name and one `er` anchor cannot say it. The instanced ribosome mesh keeps serving both the cytoplasm speckle and `roughER`'s studs, so the split costs one more group and no new draw call.
+**Split `er` into `roughER` and `smoothER`.** `animalcell.js` registers one part named `er`, and what it draws is rough ER: two arcs of swept ribbon around the nucleus with ribosome studs pushed into `riboPositions`. Register those arcs as `roughER`, and add a third run of ribbon further out with no studs, a paler profile and more tubular curvature as `smoothER`. Two parts, two library cards, because a Bio 101 student is asked for the difference by name and one `er` anchor cannot say it. The instanced ribosome mesh keeps serving both the cytoplasm speckle and `roughER`'s studs, so the split costs one more group and no new draw call.
 
 The library is keyed by component and by name. A vacuole in a potato is a store and in a leaf it is turgor, and the card should say the thing the lesson is about. The card is two sentences in a tutor's voice: what it is, what it does. Write them as carefully as the header; they are what a generated page says.
 
-Hover lights a part and click isolates it, as Leaf does; `cutaway.js` has the hover and the pick already, and `setHighlight` is where isolate hooks in. `featured()` returns the five or six a student asks about first: for `AnimalCellAnatomy`, nucleus, mitochondrion, roughER, golgi, membrane, lysosome.
+Hover lights a part and click isolates it, as Leaf does; `animalcell.js` has the hover and the pick already, and `setHighlight` is where isolate hooks in. `featured()` returns the five or six a student asks about first: for `AnimalCellAnatomy`, nucleus, mitochondrion, roughER, golgi, membrane, lysosome.
 
 The osmosis components have few parts and short featured sets, which is correct. `AnimalOsmosis` has `membrane`, `cytoplasm`, `nucleus` as a landmark; `PlantOsmosis` has `wall`, `membrane`, `vacuole`, `cytoplasm`. A part list is not a lesson, and a show panel with every anchor was a menu.
 
@@ -135,7 +135,7 @@ The cell is where the ladder goes from a cell to a membrane, and the handoff is 
 Three rungs:
 
 1. **At cell zoom the membrane is a visible double line**, exaggerated and declared. `buildShell` already gives the outer membrane a real inner wall and a lip, so this is a material and thickness change, not new geometry. The student sees it is two layers before going anywhere, which makes the transition legible instead of magical.
-2. **The flight.** `zoomTo('membrane')` picks a point on the surface and closes on it until the patch fills the frame, organelles fading as it goes. `bounds(org)` and `flyTo` exist in `cutaway.js`, in the stage's own theta/phi/r terms as `tree/tree.js` does it.
+2. **The flight.** `zoomTo('membrane')` picks a point on the surface and closes on it until the patch fills the frame, organelles fading as it goes. `bounds(org)` and `flyTo` exist in `animalcell.js`, in the stage's own theta/phi/r terms as `tree/tree.js` does it.
 3. **The swap.** At frame-fill, crossfade into `Membrane`. Hold the patch orientation across the fade, same normal up and same roll, and it reads as one motion.
 
 ```js
@@ -156,7 +156,7 @@ The event carries the params describing the patch the camera reached, so the nex
 
 ## 9. Counts and what is exaggerated
 
-A real animal cell has hundreds of mitochondria and millions of ribosomes. `cutaway.js` draws five mitochondria and an instanced ribosome speckle. Draw what reads and declare the rest:
+A real animal cell has hundreds of mitochondria and millions of ribosomes. `animalcell.js` draws five mitochondria and an instanced ribosome speckle. Draw what reads and declare the rest:
 
 - One number per organelle kind in a `COUNTS` table at the top of each anatomy file: drawn versus typical real. `state().organelles[name]` carries `{drawn, real}` so a page can print "5 drawn, about 1,000 in a real cell."
 - Ribosomes cannot be drawn to scale beside a nucleus; they are oversize and it goes in `SCALE.exag` as drawn/true, so a page prints the factor rather than typing it.
@@ -168,24 +168,24 @@ Measure the step alone, with nothing moving and again mid-morph, at the biggest 
 
 The two families have different profiles and should be measured differently. An anatomy component is a heavy build and a near-free step; its risk is the build blocking the first frame. An osmosis component is a light build and a per-frame deformation; its risk is the step. Measure the one that matters for each.
 
-Add a triangle budget per component when the first is measured; `cutaway.js` is the baseline and nobody has counted it yet.
+Add a triangle budget per component when the first is measured; `animalcell.js` is the baseline and nobody has counted it yet.
 
 ## 11. Traps this project has already fallen into
 
 - A rule in the reference is not enforcement. Every rule the model broke (particle budget, protein spacing, the view offset, a second script for notes) was fixed by moving it into the library. Clamp, default and enforce in the component. The split in §1 is this lesson applied to the parameter table itself.
 - `state()` must read the live thing, not the params. Tree reported flow intensities from its params while the steps drove the flows directly, and a page printed zeros over visible traffic.
-- Materials are per part, not shared, or isolating one dims another. `cutaway.js` shares `erMat` across the ER ribbons, which is right within a part and wrong across the `roughER` / `smoothER` split, so give the smooth run its own material.
+- Materials are per part, not shared, or isolating one dims another. `animalcell.js` shares `erMat` across the ER ribbons, which is right within a part and wrong across the `roughER` / `smoothER` split, so give the smooth run its own material.
 - A hidden part is still simulated. Hiding is visibility only.
 - Featured sets are short.
 - Every number a page could print is in `state()`.
-- Colours are typed as sRGB and converted; r128 has no colour management and a hex lands in the material as linear. Any new part goes through `cutaway.js`'s `col()`.
+- Colours are typed as sRGB and converted; r128 has no colour management and a hex lands in the material as linear. Any new part goes through `animalcell.js`'s `col()`.
 
 ## 12. Files, and the order to build them
 
 Each component is the file set in `demos/docs/AddingAComponent.md` §5: the module with its header as the contract and its `SCALE` block, a bench on the sidebar shell, a checker if it makes a checkable claim, a `Components.md` section with the `**Scale**:` line, an entry in `COMPONENTS` in `tools/check-scale.js`, a `Modules.md` bullet, an admin card, then the generation run.
 
 1. **`RedBloodCell`** first. It is self-contained, it is the request that keeps arriving, and it exercises the deformation machinery on the simplest geometry. It builds its own shapes and does not wait for anything.
-2. **`AnimalCellAnatomy`**, which is `cutaway.js` wrapped in the contract with `er` split. Retire `cutaway.js` into it rather than keeping both.
+2. **`AnimalCellAnatomy`**, which is `animalcell.js` wrapped in the contract with `er` split. Retire `animalcell.js` into it rather than keeping both.
 3. **`AnimalOsmosis`**, sharing nothing with the above but the palette.
 4. **`PlantCellAnatomy`** and **`PlantOsmosis`**, in that order.
 5. `CardStage.handoff`, then `zoomTo('membrane')` on the components that declare it.
