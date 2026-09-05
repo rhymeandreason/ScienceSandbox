@@ -419,6 +419,31 @@ head('the helix is the ladder, twisted');
        + `alone gives 1.47 to 2.73, which is what wearRecord exists to fix`);
   }
 
+  // THE PAIRING RULE, COUNTED BETWEEN TWO BUILT NUCLEOTIDES. Two for A·T and
+  // three for G·C — the claim every page in this family makes, and the one a
+  // reader cannot check by looking, because the record has no hydrogens.
+  for(const pi of PAIRS){
+    const [sa, sb] = B.pairs[pi].seq.split('-');
+    const want = (sa === 'DA' || sa === 'DT') ? 2 : 3;
+    const res = st => {
+      const spec = Nucleo.build(LETTER[st === 0 ? sa : sb]);
+      const f = Nucleo.fit(spec, pi, st);
+      return { spec:Nucleo.wearRecord(spec, pi, st, f), f };
+    };
+    const a = res(0), b = res(1);
+    // Both in the record's frame, which is the only frame in which they are a pair.
+    const at = (r, i) => {
+      const p = r.spec.atoms[i].pos, [x, y, z, w] = r.f.quat;
+      const t = [2*(y*p[2] - z*p[1]), 2*(z*p[0] - x*p[2]), 2*(x*p[1] - y*p[0])];
+      return [p[0] + w*t[0] + y*t[2] - z*t[1] + r.f.pos[0],
+              p[1] + w*t[1] + z*t[0] - x*t[2] + r.f.pos[1],
+              p[2] + w*t[2] + x*t[1] - y*t[0] + r.f.pos[2]];
+    };
+    const n = Nucleo.baseContacts(a, b, (r, i) => at(r === a ? a : b, i)).length;
+    ok(n === want,
+       `${B.pairs[pi].seq} at pair ${pi}: ${n} hydrogen bonds, not ${want}`);
+  }
+
   // And nothing inside a residue was stretched into a bond that is not one.
   {
     const spec = Nucleo.build('adenine');

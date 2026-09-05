@@ -294,6 +294,34 @@
     return out;
   }
 
+  /* ---- and the hydrogen bonds that hold two of them together ---------------
+   * MUTUAL NEAREST, NOT EVERYTHING UNDER A CUTOFF. Every nitrogen and oxygen on
+   * one base has a neighbour on the other within a few ångströms, so a plain
+   * distance test counts the pair's own crowding: it makes G·C five bonds and
+   * A·T three, both wrong and neither of them looking it. Requiring each atom
+   * to be the OTHER'S CLOSEST leaves exactly the Watson-Crick contacts — three
+   * for G·C, two for A·T, at 2.6 to 3.3 Å. The cutoff only stops a lone atom
+   * pairing with something across the groove.
+   *
+   * A base atom is one whose name carries neither suffix, because the sugar's
+   * end in ′ and the phosphate's in ᴾ. So "which atoms are the base" is the
+   * split the two joins already made. */
+  function baseContacts(a, b, posOf, opts){
+    const o = Object.assign({ maxDist:3.4, scale:S() }, opts || {});
+    const sites = res => res.spec.names.map((n, i) => i)
+      .filter(i => !/[′ᴾ]$/.test(res.spec.names[i]) && /^[NO]/.test(res.spec.names[i]));
+    const A = sites(a), B = sites(b);
+    if(!A.length || !B.length) return [];
+    const d = (i, j) => dist(posOf(a, i), posOf(b, j)) / o.scale;
+    const out = [];
+    for(const i of A){
+      const j = B.reduce((best, k) => d(i, k) < d(i, best) ? k : best, B[0]);
+      const back = A.reduce((best, k) => d(k, j) < d(best, j) ? k : best, A[0]);
+      if(d(i, j) < o.maxDist && back === i) out.push([i, j]);
+    }
+    return out;
+  }
+
   /* Which of the phosphate's two spare hydroxyls reacts: the one nearest the
    * oxygen replacing it. The three –OH on a phosphate are equivalent, so naming
    * one would be an accident of the record it was converted from. */
@@ -310,7 +338,8 @@
   }
 
   const API = { pose, addPart, build, assemble, without, leaving, keptAtom,
-                pdbName, pdbAtoms, fit, wearRecord, backboneLinks, esterOH };
+                pdbName, pdbAtoms, fit, wearRecord, backboneLinks, baseContacts,
+                esterOH };
   if(typeof module === 'object' && module.exports) module.exports = API;
   global.Nucleo = API;
 })(typeof window !== 'undefined' ? window : globalThis);
