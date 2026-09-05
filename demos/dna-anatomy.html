@@ -86,9 +86,9 @@
     line-height:1.6;color:var(--text-body)}
   #read .claim b{font-weight:600;color:var(--text-strong)}
 
-  /* What the callouts on the model say, in reading order. The model labels the
-     spheres; this is the same terms where a reader can take them in without
-     hunting the stage for them. */
+  /* A TERM LIST IN A SECTION. Nothing writes one today — the callouts say it on
+     the model and repeating them here said it twice — and the rules are kept
+     for the next thing in a section that is a list of named things. */
   #read dl{margin:20px 0 0;padding-left:14px;
     border-left:1px solid var(--border-hair)}
   #read dt{font-family:var(--font-ui);font-size:12.5px;font-weight:600;
@@ -751,16 +751,13 @@ const host = document.getElementById('sections');
 const secs = PARTS.map((part, i) => {
   const el = document.createElement('section');
   el.dataset.key = part.key;
-  const terms = part.notes().filter(n => n.at)
-    .map(n => `<dt>${n.text}</dt><dd>${n.card}</dd>`).join('');
   el.innerHTML =
     `<p class="num">${String(i + 1).padStart(2, '0')} / ${String(PARTS.length).padStart(2, '0')}</p>`
     + `<h3>${part.title}</h3>`
     + `<p class="gloss">${part.sub}</p>`
     + (part.deck ? `<p class="deck">${part.deck}</p>` : '')
     + `<p class="claim">${part.note()}</p>`
-    + (part.hint ? `<p class="hint">${part.hint}</p>` : '')
-    + (terms ? `<dl>${terms}</dl>` : '');
+    + (part.hint ? `<p class="hint">${part.hint}</p>` : '');
   host.appendChild(el);
   return el;
 });
