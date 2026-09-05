@@ -488,8 +488,8 @@ const seqOf = i => bdna.pairs[i].seq.replace(/D/g, '').replace('-', '·');
 const PARTS = [
   { key:'whole', title:'DNA: the double helix', sub:'two strands, wound',
     rails:true,
-    deck:'One real molecule, rendered from real data. Scroll to examine each part. ',
-    hint:'Drag the model to turn it',
+    deck:'Rendered from real data.',
+    hint:'Scroll to examine each part',
     note:()=>`The two strands run in opposite directions, <b>antiparallel</b>, `
       + `which is what lets each one act as a template for the other. Wound `
       + `together, every rung turns ${bdna.twistDeg.toFixed(1)}° from the one `
