@@ -73,6 +73,10 @@
 
   .row { display: flex; align-items: center; gap: var(--space-2);
          margin: 6px 0; font-size: 0.8rem; color: var(--h-ink); }
+  /* A `display` on the class beats the browser's own [hidden] rule, so a row
+     marked hidden stays on screen — here, a control for a chain the entry
+     does not have. It reads as a bug in the checkbox rather than in the CSS. */
+  .row[hidden] { display: none; }
   .row label { display: flex; align-items: center; gap: 6px; flex: 1; }
   .row input[type=checkbox] { accent-color: var(--h-accent); }
   .row input[type=range] { width: 110px; accent-color: var(--h-accent); }
@@ -119,12 +123,16 @@
     <div class="row"><label><input type="checkbox" id="protein" checked> protein</label></div>
     <div class="row"><label><input type="checkbox" id="dna" checked> DNA</label></div>
     <div class="row"><label><input type="checkbox" id="site" checked> what is in the site</label></div>
+    <!-- Hidden on an entry with no partner chain rather than shown greyed:
+         a control for something the structure does not have is a question the
+         reader has to answer before they can ignore it. -->
+    <div class="row" id="partner-row" hidden><label><input type="checkbox" id="partner"> <span id="partner-what">partner chain</span></label></div>
     <div class="row"><label>samples / nt</label><input type="range" id="sub" min="2" max="16" value="8"></div>
     <div id="tris"></div>
 
     <h2>rotation</h2>
-    <p class="meta" id="pick-note">Turn the molecule, then copy the basis into
-      the registry entry when there is one.</p>
+    <p class="meta" id="pick-note">A basis is set by hand. Turn the molecule and
+      copy to replace it — it lives in this page until the protein is registered.</p>
     <button class="mode" id="pick"><span class="who">copy this view</span></button>
 
     <h2>colour</h2>
@@ -167,6 +175,26 @@ const VIEWS = [
   { id: '1T7P', chip: 't7', label: 'T7 + thioredoxin — the same hand' },
 ];
 
+/* THE ROTATION A HUMAN PICKED, AND THE ONE PLACE IT IS ALLOWED TO BE WRONG.
+   A chosen basis belongs in the registry and nowhere else — AddingAProtein.md
+   says so, and the page-side tables that used to hold one were deleted because
+   they turned a bench while a gallery card reading the same bake stayed put,
+   with no checker able to see the disagreement.
+
+   It is here because this protein has no registry entry yet: step 6 is what
+   creates one, and this constant is what that step deletes. Until then there
+   is exactly one consumer of these bakes — this page — so there is nothing for
+   it to disagree with. The moment a second page or a gallery card reads them,
+   this is a bug rather than a stopgap.
+
+   IT IS ONE BASIS FOR ALL THREE ENTRIES BECAUSE THEY ARE ONE SUPERPOSITION
+   GROUP. Every view here is fitted onto 4KTQ, so they share coordinates and
+   therefore share a rotation; a frame is exactly a superposition group. RB69
+   is a different group and does not get this one. */
+const VIEW = [[0.1387, 0.9772, 0.1719],
+              [0.6805, 0.0353, -0.7339],
+              [-0.7236, 0.2198, -0.6585]];
+
 /* THE BOX IS kit/proteinbox.js, WHICH DRAWS BOTH POLYMERS. The scene, the
    camera, the framing, the drag and the WebGL context are the module's, and
    its nucleic branch is why this page owns no ribbon code, no runs(), no
@@ -198,16 +226,28 @@ let trace = null, current = VIEWS[0].id;
 /* WHAT TO HAND THE BOX, given the checkboxes. `chains` is the box's own
    filter, so hiding a polymer is a re-feed rather than a second renderer here;
    the pocket is fed separately because it is not a chain. */
+/* WHICH CHAINS ARE PARTNERS RATHER THAN THE SUBJECT — the candidate's own
+   answer, since only it knows that T7's chain B is a borrowed protein and not
+   a second lobe of the polymerase. */
+const partnersOf = t => Object.keys(t.chainLabels || {})
+  .filter(id => /thioredoxin/i.test(t.chainLabels[id]));
+
 function draw() {
   if (!trace) return;
-  const want = trace.order.filter(id => trace.chains[id].kind === 'na'
-    ? document.getElementById('dna').checked
-    : document.getElementById('protein').checked);
+  const partners = partnersOf(trace);
+  const showPartner = document.getElementById('partner').checked;
+  const want = trace.order.filter(id => {
+    if (partners.includes(id)) return showPartner;
+    return trace.chains[id].kind === 'na'
+      ? document.getElementById('dna').checked
+      : document.getElementById('protein').checked;
+  });
   const sub = +document.getElementById('sub').value;
   /* An empty chain list would ask the box to draw nothing and re-solve its
      framing on no points, so an all-off state keeps the last structure. */
   if (want.length)
-    box.setData(trace, { chains: want.join(','), sub, colors: paintFor(trace) });
+    box.setData(trace, { chains: want.join(','), sub, view: VIEW,
+                         colors: paintFor(trace) });
   if (document.getElementById('site').checked && trace.pocket)
     box.setPocket(trace.pocket);
 
@@ -251,7 +291,14 @@ function facts() {
     ['Ligands', m.ligands.join(', ') || 'none'],
     ['EC', m.ec.join(', ') || 'none'],
     ['Extents', (trace.extents || []).join(' x ') + ' A'],
-    ['Frame', trace.frame],
+    /* WHERE THE ROTATION CAME FROM, and it is not the bake's answer any more.
+       `Bake.viewFor` writes `chosen in the registry` when a human has picked
+       one, and there is no registry entry to hold this yet — so the bake still
+       says `deposited`/`carried by the fit` under a rotation someone chose,
+       and the row has to say which. Step 6 collapses these back into one. */
+    ['Frame', VIEW ? 'chosen by hand — on the page until this protein is '
+        + 'registered; the bake still says “' + trace.frame + '”'
+      : trace.frame],
   ];
   if (trace.templating)
     rows.splice(6, 0, ['Reading', 'the incoming base sits ' + trace.templating.d
@@ -313,15 +360,27 @@ function facts() {
       + b + ')"></i>' + b + '</span>').join('')
     + [...els].sort().map(e => '<span class="sw"><i style="background:var(--atom-'
       + e + ')"></i>' + e + '</span>').join('')
-    + Object.entries(trace.chainLabels || {})
-      .filter(([, w]) => /thioredoxin/i.test(w))
-      .map(([id, w]) => '<span class="sw"><i style="background:var(--partner)">'
-        + '</i>' + id + ' — ' + w + '</span>').join('');
+    /* Only while it is on screen. A legend entry for a hidden chain sends a
+       reader hunting the picture for a colour that is not in it. */
+    + (document.getElementById('partner').checked
+      ? Object.entries(trace.chainLabels || {})
+        .filter(([, w]) => /thioredoxin/i.test(w))
+        .map(([id, w]) => '<span class="sw"><i style="background:var(--partner)">'
+          + '</i>' + id + ' — ' + w + '</span>').join('')
+      : '');
 }
 
 function show(id) {
   current = id;
   trace = traces.get(id);
+  /* The control is named after the chain it holds, off the candidate's own
+     label, so an entry with a different partner does not need a second row
+     written for it. */
+  const partners = partnersOf(trace);
+  document.getElementById('partner-row').hidden = !partners.length;
+  if (partners.length)
+    document.getElementById('partner-what').textContent =
+      partners.map(c => trace.chainLabels[c]).join(', ');
   for (const b of document.querySelectorAll('#states button'))
     b.setAttribute('aria-pressed', String(b.dataset.id === id));
   facts();
@@ -348,6 +407,10 @@ Promise.all(VIEWS.map(v => fetch('data/polymerase-' + v.id + '.json')
 
 for (const id of ['protein', 'dna', 'site', 'sub'])
   document.getElementById(id).addEventListener('input', draw);
+
+/* The partner also moves the legend, so it re-runs facts() rather than draw()
+   alone — the swatch and what is on screen have to agree. */
+document.getElementById('partner').addEventListener('input', () => { facts(); draw(); });
 
 /* THE ONLY PATH A HUMAN'S ROTATION TAKES, and it is the box's pickView():
    what is on screen is camera-inverse times the structure's view, so a button

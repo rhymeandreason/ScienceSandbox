@@ -77,7 +77,8 @@ const PDB_PAGES = new Set();
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
                           'tests/droplet-test.html', 'tests/adhesion-test.html',
                           'tests/concept-map.html',
-                          'questions-cms.html', 'map-cms.html', 'clip-shelf.html']);
+                          'questions-cms.html', 'map-cms.html', 'clip-shelf.html',
+                          'privacy.html']);
 
 // The lessons at the top level, plus the benches in tests/. Both directories,
 // because a bench builds a real scene out of the shared registry too — a
