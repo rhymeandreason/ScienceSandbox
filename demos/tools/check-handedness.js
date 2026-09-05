@@ -49,6 +49,16 @@ const REF = {
   proline: 'L-proline',
   glutamine: 'L-glutamine',
   glutamate: 'L-glutamic acid',
+  // the four dNTPs. Three stereocentres each, all of them the deoxyribose's,
+  // and the sugar arrives from dATP's record while the base is superposed on a
+  // frame — two chances for a reflection, neither visible from inside the spec.
+  // Reference names are PubChem's own, and dGTP is here even though PubChem
+  // publishes no 3D conformer for it: the 2D record pins the stereochemistry,
+  // which is the only thing this tool is asking about.
+  dATP: "2'-deoxyadenosine 5'-triphosphate",
+  dTTP: "dTTP",
+  dGTP: "dGTP",
+  dCTP: "dCTP",
   // the Skel-built sugars — what this tool exists for
   glucose: 'beta-D-glucopyranose',
   galactose: 'beta-D-galactopyranose',

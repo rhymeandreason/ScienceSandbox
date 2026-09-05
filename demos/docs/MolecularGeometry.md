@@ -218,6 +218,7 @@ and `check-molecules.js` fails if the geometry disagrees:
 | `tautomer:{nh:[…]}` | exactly these ring nitrogens carry a hydrogen — the fetched free-base tautomer is not always DNA's | the four nucleobases |
 | `wc:{partner,bonds:[{self,role,partnerAtom}]}` | the Watson–Crick edge: each donor/acceptor and the partner atom it meets, checked to be reciprocal and role-swapped on the partner spec | the four nucleobases |
 | `chiral:[{at,priority,hand}]` | the four substituents at a stereocentre, named in CIP order 1→4, and the hand that order implies — a signed volume, checked with a guard that priority 4 really is opposite the other three. The *ranking* is the spec's to state (CIP needs a substituent-tree walk the checker does not do); the *geometry* is the checker's | malate, isocitrate |
+| `nucleotidyl:{ester,alpha,bridge,nucleophile,proton,leaves}` | the bond a POLYMERASE makes, which is not a condensation: the α phosphate is esterified to `ester` (checked to be the 5′ oxygen, on C5′), the anhydride `bridge` breaks, and everything still reachable from the bridge leaves as pyrophosphate — derived from the bond graph, compared against the baked `leaves`, and required to be H₄O₇P₂ once the `nucleophile`'s `proton` goes with it. States the DIRECTION a strand grows: the 5′ ester and the free 3′ –OH are different atoms and only one of them attacks | the four dNTPs |
 | `glycosidic:{anomeric,bridge,partner,config,link}` | the bridging O joins one ring's anomeric carbon to carbon 4 of *another* ring, and the bond leaving the anomeric carbon is axial (`'alpha'`) or equatorial (`'beta'`) | maltose, cellobiose |
 
 `{faces}` deliberately cannot catch a *global* mirror — flip every substituent and
@@ -252,7 +253,7 @@ spec satisfies it is the trap. Two families:
 | Family | Specs | Rule | Implied scale |
 |---|---|---|---|
 | **A. hand-written** | everything in `mol-solvation.js` — water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium, the two salts | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
-| **B. derived** | everything in `mol-monomers.js`, `mol-pathways.js`, `mol-contrast.js`, `mol-compare.js` — amino acids, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec | **stored in real Å** (`units:'angstrom'`); `register()` applies the display scale once | **1.9×**, relative lengths truthful |
+| **B. derived** | everything in `mol-monomers.js`, `mol-nucleic.js`, `mol-pathways.js`, `mol-contrast.js`, `mol-compare.js` — amino acids, the four bases and the four dNTPs, palmitate, AMP, glucose + all glycolysis intermediates, every contrast-pair spec | **stored in real Å** (`units:'angstrom'`); `register()` applies the display scale once | **1.9×**, relative lengths truthful |
 
 Families line up with the domain files, so **a page's script tags show which
 families it has available**. That's the only mechanical signal — nothing fails a

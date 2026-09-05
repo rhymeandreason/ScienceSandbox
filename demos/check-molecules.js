@@ -62,6 +62,13 @@
  *                                 has others. `fused` cannot tell anthracene
  *                                 from phenanthrene; for a flavin that is the
  *                                 whole molecule            [FAD/FADH₂]
+ *    nucleotidyl:{ ester, alpha, bridge, nucleophile, proton, leaves }
+ *                                the bond a POLYMERASE makes, which is not a
+ *                                condensation: the α phosphate sits on O5′, the
+ *                                3′–OH attacks it, and pyrophosphate leaves with
+ *                                the bridging O. `leaves` is baked and re-derived
+ *                                here from the bond graph. States the DIRECTION
+ *                                a strand grows              [the four dNTPs]
  *    gly:{ phosphates:n }         n phosphorus atoms, and — where the spec also
  *                                 names pa/pb/pg — that they form ONE chain
  *                                 bridged by oxygen with γ on the end [ATP]
@@ -762,6 +769,89 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
           + `to ${mol.wc.partner}, every one reciprocal and role-matched`);
       else stereoFails += bad;
     }
+  }
+
+  // ---- nucleotidyl transfer: the bond a polymerase makes ----------------
+  // NOT A CONDENSATION, which is why it is not `condense:`. Nothing sheds a
+  // water: the 3′–OH of the growing strand attacks the α phosphorus and
+  // PYROPHOSPHATE leaves, carrying the bridging oxygen with it. `condense:`
+  // sheds at most O+H+H by construction and cannot say that.
+  //
+  // The claim is four named atoms, and everything else is DERIVED. `leaves` is
+  // baked into the spec so a page can read it without walking a graph, and
+  // re-derived here so a re-emitted tail cannot silently falsify it — the same
+  // contract bake-flat2d.js has with `flat2d`.
+  //
+  // What it is really asserting is DIRECTION. The α phosphate is esterified to
+  // O5′ and the hydroxyl that will take the next one is O3′; a strand grows
+  // 5′→3′ because those are different atoms and only one is a nucleophile.
+  // Swap them and every bond length, every angle and the render stay perfect
+  // while the molecule polymerises the way no cell can.
+  if (mol.nucleotidyl) {
+    const n = mol.nucleotidyl;
+    const fail = m => { stereoFails++; console.log(`   NUCLEOTIDYL FAIL: ${m}`); };
+    const at = nm => (mol.names || []).indexOf(nm);
+    const adj = i => bonds.filter(b => b[0] === i || b[1] === i)
+                          .map(b => (b[0] === i ? b[1] : b[0]));
+    const el = i => mol.atoms[i].el;
+    const named = {};
+    let ok = true;
+    for (const k of ['ester', 'alpha', 'bridge', 'nucleophile', 'proton']) {
+      named[k] = at(n[k]);
+      if (named[k] < 0) { fail(`names no atom '${n[k]}' for \`${k}\``); ok = false; }
+    }
+    if (ok) {
+      const { ester, alpha, bridge, nucleophile, proton } = named;
+      // 1. the α phosphorus, esterified to the 5′ oxygen and bridged onward
+      if (el(alpha) !== 'P') fail(`\`alpha\` ${n.alpha} is ${el(alpha)}, not a phosphorus`);
+      if (!adj(alpha).includes(ester)) fail(`${n.alpha} is not bonded to ${n.ester}`);
+      if (!adj(alpha).includes(bridge)) fail(`${n.alpha} is not bonded to ${n.bridge}`);
+      // 2. …and that ester oxygen really is the sugar's 5′ carbon's
+      if (el(ester) !== 'O') fail(`\`ester\` ${n.ester} is ${el(ester)}, not an oxygen`);
+      else if (!adj(ester).some(i => mol.names[i] === 'C5′'))
+        fail(`${n.ester} is not bonded to C5′ — the α phosphate is not on the 5′ carbon`);
+      // 3. the bridge is the anhydride oxygen: one P on each side
+      if (el(bridge) !== 'O') fail(`\`bridge\` ${n.bridge} is ${el(bridge)}, not an oxygen`);
+      const beta = adj(bridge).filter(i => el(i) === 'P' && i !== alpha);
+      if (beta.length !== 1)
+        fail(`${n.bridge} bridges ${beta.length + 1} phosphorus atoms, not two — `
+          + 'this is not an anhydride');
+      // 4. cut α–bridge, and what is still reachable from the bridge is the
+      //    leaving group. Derived, then compared with what the spec baked.
+      const seen = new Set([bridge]), stack = [bridge];
+      while (stack.length) for (const i of adj(stack.pop()))
+        if (!seen.has(i) && !(i === alpha)) { seen.add(i); stack.push(i); }
+      const got = [...seen].sort((a, b) => a - b);
+      const want = (n.leaves || []).slice().sort((a, b) => a - b);
+      if (got.length !== want.length || got.some((i, k) => i !== want[k]))
+        fail(`\`leaves\` is [${want.map(i => mol.names[i]).join(' ')}] but cutting `
+          + `${n.alpha}–${n.bridge} frees [${got.map(i => mol.names[i]).join(' ')}]`);
+      // 5. …and it is PYROPHOSPHATE. The 3′ hydroxyl's proton goes with it —
+      //    that is the atom balance of the whole reaction, on one molecule.
+      const c = {};
+      for (const i of [...got, proton]) c[el(i)] = (c[el(i)] || 0) + 1;
+      const want2 = { H: 4, O: 7, P: 2 };
+      const shed = Object.keys({ ...c, ...want2 })
+        .filter(e => (c[e] || 0) !== want2[e]);
+      if (shed.length)
+        fail(`what leaves is ${Object.entries(c).map(([e, k]) => e + k).join('')} `
+          + '— pyrophosphate plus the nucleophile\'s proton is H4O7P2');
+      // 6. the nucleophile: a free 3′ hydroxyl, and not part of what leaves
+      if (el(nucleophile) !== 'O')
+        fail(`\`nucleophile\` ${n.nucleophile} is ${el(nucleophile)}, not an oxygen`);
+      if (!adj(nucleophile).includes(proton) || el(proton) !== 'H')
+        fail(`${n.nucleophile} carries no hydrogen — a nucleophile here is an –OH`);
+      if (!adj(nucleophile).some(i => mol.names[i] === 'C3′'))
+        fail(`${n.nucleophile} is not bonded to C3′ — the strand would not grow 3′-ward`);
+      if (seen.has(nucleophile))
+        fail(`${n.nucleophile} leaves with the pyrophosphate — it cannot also attack`);
+      if (nucleophile === ester)
+        fail('the 5′ ester and the 3′ nucleophile are the same atom — a strand '
+          + 'with one end has no direction');
+    }
+    if (!stereoFails)
+      console.log(`   nucleotidyl OK: ${n.alpha} on ${n.ester}, ${n.nucleophile} free, `
+        + `${n.leaves.length} atoms leave as pyrophosphate`);
   }
 
   // ---- the pathway's one surviving stereocentre ------------------------

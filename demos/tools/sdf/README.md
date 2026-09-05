@@ -1,7 +1,7 @@
 # tools/sdf/ — the committed PubChem inputs
 
 The source records for every `src:{path:'pubchem'}` spec in `molecules.js`.
-Ten files, 65 KB. They are **build-time inputs, never a page dependency** — no
+Eleven files, 84 KB. They are **build-time inputs, never a page dependency** — no
 HTML here loads them, and nothing fetches at runtime.
 
 Committed because path 2 was the one path that could not be re-run from this
@@ -37,15 +37,26 @@ by `src.sdf` exists.
 | `amp.sdf` | 15938965 | `00F3359500000005` | `exact` | rebuilds to 0.000 |
 | `atp.sdf` | 5461108 | `0053547400000001` | `exact` | rebuilds to 0.000 |
 | `phosphate.sdf` | 1004 | `000003EC00000001` | `exact` | rebuilds to 0.000 |
+| `datp.sdf` | 15993 | `00003E7900000001` | `manual` | the frame for all four dNTPs |
 | `proline.sdf` | 145742 | `0002394E00000001` | `manual` | `sdf2spec.js` throws on it |
 | `glutamine.sdf` | 5961 | `0000174900000002` | **`lost`** | does *not* rebuild the spec |
 | `glutamate.sdf` | 33032 | `0000810800000001` | **`lost`** | does *not* rebuild the spec |
 
-Verified 2026-07-30, `atp.sdf` added 2026-08-12, `phosphate.sdf` 2026-09-02. Seven of ten rebuild exactly; the three that do not are
+Verified 2026-07-30, `atp.sdf` added 2026-08-12, `phosphate.sdf` 2026-09-02, `datp.sdf` 2026-09-05. Seven of eleven rebuild exactly; the three that do not are
 each a different problem, and the two marked `lost` are the ones to be careful
 with.
 
 ## The three that are not straightforward
+
+**`datp` — one record, four molecules.** All four dNTP specs are built from
+this one file: its adenine is removed and each of the four bases is superposed
+on the frame that adenine occupied, so the four wear one sugar and one
+triphosphate. PubChem publishes no 3D conformer for dGTP at all, and four
+independently-relaxed floppy triphosphates would have been the worse choice
+anyway. The conversion re-runs, but the graft and the two swept torsions sit in
+the middle of it, which is what `manual` records. `mol-nucleic.js`'s dNTP header
+is the argument; `tools/check-handedness.js` is what proves the graft did not
+mirror anything, against all four published records.
 
 **`proline` — the converter refuses it.** `reindex` assumes the backbone order
 `0 N · 1 H · 2 H · 3 Ca`, i.e. two hydrogens on the amino nitrogen. Proline's

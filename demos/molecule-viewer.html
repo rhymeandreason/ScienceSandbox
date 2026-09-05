@@ -352,6 +352,58 @@ const SHELF=[
                + 'oxygen left bridging is the sugar\u2019s, not the phosphate\u2019s.',
             atoms:s=>[s.condense.roles[0].keep, ...s.condense.roles[0].leaves] },
   },
+  /* THE FOUR dNTPs, ONE SHELF ENTRY EACH — not one entry with an `alt` toggle,
+     and not a `group:` dropdown. `alt` is the derivation control (the same
+     molecule built the other way) and these are four different molecules that
+     happen to share a tail; the dropdown is the citric-acid cycle's, which the
+     shelf hard-codes. The blurbs say the shared part once, on dATP, and then
+     only what differs. */
+  { key:'dATP', card:'dATP',
+    blurb:'What a polymerase actually adds. A base, a <b>2′-deoxyribose</b>, and '
+        + '<b>three phosphates</b> — and the two on the end are the whole reason '
+        + 'a strand can be built at all: they leave as pyrophosphate, and their '
+        + 'hydrolysis pays for the bond.',
+    focus:{ title:'What leaves',
+            body:'The 3′–OH of the growing strand attacks the <b>α</b> '
+               + 'phosphorus. Everything past the bridging oxygen goes, as one '
+               + 'pyrophosphate. <b>No water leaves</b> — this is not the '
+               + 'condensation that builds a protein or a starch.',
+            atoms:s=>[s.names.indexOf(s.nucleotidyl.alpha), ...s.nucleotidyl.leaves] },
+  },
+  { key:'dTTP', card:'dTTP',
+    blurb:'The same sugar and the same three phosphates, carrying <b>thymine</b>. '
+        + 'Every difference you can see between these four is the base: they are '
+        + 'drawn on one tail in one conformation, so nothing else can vary.',
+    focus:{ title:'The 5′ end and the 3′ end',
+            body:'The phosphates are on <b>C5′</b>. The free –OH is on '
+               + '<b>C3′</b>. Different atoms, and only the hydroxyl is a '
+               + 'nucleophile — which is the whole of why a strand grows 5′→3′ '
+               + 'and never the other way.',
+            atoms:s=>[s.nucleotidyl.ester, s.nucleotidyl.nucleophile,
+                      s.nucleotidyl.proton, s.nucleotidyl.alpha]
+                      .map(n=>s.names.indexOf(n)) },
+  },
+  { key:'dGTP', card:'dGTP',
+    blurb:'<b>Guanine</b> on the same tail. PubChem publishes no 3D conformer for '
+        + 'this one at all, so it is built the way the other three are: dATP’s '
+        + 'sugar and phosphates, with the base superposed on the frame adenine '
+        + 'left behind.',
+    focus:{ title:'Three hydrogen bonds’ worth of edge',
+            body:'Acceptor, donor, donor — the count that makes G·C the stronger '
+               + 'pair. The sugar is on <b>N9</b>, the far side of the ring from '
+               + 'all of it.',
+            atoms:s=>s.wc.bonds.map(b=>b.self) },
+  },
+  { key:'dCTP', card:'dCTP',
+    blurb:'<b>Cytosine</b>, the smallest of the four and the only one whose '
+        + 'formula has nine carbons rather than ten. One ring, so the base '
+        + 'reaches half as far across the helix as a purine does.',
+    focus:{ title:'The Watson–Crick edge',
+            body:'Donor, acceptor, acceptor — the mirror of guanine’s, which is '
+               + 'what makes the two fit. Push this against adenine instead and '
+               + 'two of the three face the wrong partner.',
+            atoms:s=>s.wc.bonds.map(b=>b.self) },
+  },
   { key:'atp', card:'ATP', alt:'atpSkel',
     blurb:'The cell’s spendable energy. Adenine and a ribose — the same '
         + 'handle RNA is built from — with <b>three phosphates</b> chained in a '
