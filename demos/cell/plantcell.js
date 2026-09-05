@@ -128,7 +128,10 @@
         ['chloroplast', -0.5, 0.62, 0.65, 0.95], ['chloroplast', 0.9, -0.28, 1.15, 1.0],
         ['chloroplast', -0.22, -0.8, 0.3, 0.95],
         ['mitochondrion', 0.6, -0.52, 0.35, 1.0], ['mitochondrion', -0.6, 0.36, -0.4, 0.95],
-        ['golgi', 0.3, -0.62, 1.05, 0.85], ['vesicle', 0.3, 0.02, 0, 1], ['vesicle', 0.7, 0.02, 0, 1],
+        ['dictyosome', 0.30, -0.62, 1.05, 1.0], ['dictyosome', -0.72, 0.10, 0.40, 0.9],
+        ['dictyosome', 0.78, 0.42, -0.80, 0.95], ['dictyosome', -0.30, -0.32, 2.10, 0.85],
+        ['dictyosome', 0.10, 0.95, 0.60, 0.9],
+        ['vesicle', 0.3, 0.02, 0, 1], ['vesicle', 0.7, 0.02, 0, 1],
       ],
     },
     root: {
@@ -140,7 +143,10 @@
         ['mitochondrion', -0.5, 0.58, 0.9, 0.95], ['mitochondrion', 0.2, -0.72, 0.3, 0.95],
         ['mitochondrion', -0.8, -0.05, -0.6, 0.95], ['mitochondrion', 0.66, -0.45, 0.9, 0.95],
         ['mitochondrion', 0.45, 0.7, 0.2, 0.9],
-        ['golgi', 0.05, -0.42, 1.1, 0.8], ['vesicle', -0.6, 0.15, 0, 1], ['vesicle', 0.7, 0.5, 0, 1], ['vesicle', -0.3, -0.75, 0, 0.8],
+        ['dictyosome', 0.05, -0.42, 1.10, 1.0], ['dictyosome', -0.88, 0.45, 0.30, 0.9],
+        ['dictyosome', 0.92, 0.15, -0.60, 0.95], ['dictyosome', -0.25, -0.85, 1.80, 0.85],
+        ['dictyosome', 0.55, -0.90, 0.50, 0.9],
+        ['vesicle', -0.6, 0.15, 0, 1], ['vesicle', 0.7, 0.5, 0, 1], ['vesicle', -0.3, -0.75, 0, 0.8],
       ],
     },
     potato: {
@@ -151,7 +157,9 @@
         ['amyloplast2', 0.45, -0.7, -0.2, 1.25], ['amyloplast2', -0.6, 0.55, 0.7, 1.2], ['amyloplast2', 0.85, -0.3, 1.1, 1.15],
         ['amyloplast', 0.15, 0.8, 0.3, 1.05], ['amyloplast', -0.05, -0.15, 0.8, 1.0], ['amyloplast', -0.25, 0.8, 0.2, 0.95],
         ['mitochondrion', -0.8, 0.05, -0.5, 0.9], ['mitochondrion', 0.5, -0.15, 0.4, 0.9],
-        ['golgi', -0.05, -0.6, 0.9, 0.8], ['vesicle', 0.5, 0.6, 0, 1], ['vesicle', -0.55, 0.05, 0, 0.8],
+        ['dictyosome', -0.05, -0.60, 0.90, 1.0], ['dictyosome', 0.70, 0.55, -0.40, 0.9],
+        ['dictyosome', -0.80, -0.20, 1.60, 0.9], ['dictyosome', 0.30, 0.38, 0.20, 0.85],
+        ['vesicle', 0.5, 0.6, 0, 1], ['vesicle', -0.55, 0.05, 0, 0.8],
       ],
     },
     cactus: {
@@ -162,7 +170,9 @@
         ['chloroplast', -0.15, 0.72, 0.2, 0.75], ['chloroplast', 0.6, -0.62, -0.5, 0.75],
         ['chloroplast', -0.72, 0.35, 0.8, 0.7], ['chloroplast', 0.15, -0.78, 0.9, 0.7],
         ['mitochondrion', -0.35, -0.72, 0.9, 0.8], ['mitochondrion', -0.55, 0.62, 0.4, 0.8],
-        ['golgi', 0.1, -0.62, 1.1, 0.7], ['vesicle', -0.7, 0.05, 0, 0.8], ['vesicle', -0.4, 0.25, 0, 0.8],
+        ['dictyosome', 0.10, -0.62, 1.10, 0.9], ['dictyosome', -0.62, -0.12, 0.50, 0.85],
+        ['dictyosome', 0.68, 0.50, -0.70, 0.85], ['dictyosome', -0.10, 0.85, 1.90, 0.8],
+        ['vesicle', -0.7, 0.05, 0, 0.8], ['vesicle', -0.4, 0.25, 0, 0.8],
       ],
     },
   };
@@ -417,7 +427,14 @@
        Footprint radii on the cut plane, in scene units. These are what the
        solver pushes; they are deliberately a little larger than the drawn
        organelle so nothing ends up touching. */
-    const FOOT = { nucleus: 4.6, chloroplast: 3.0, mitochondrion: 2.2, golgi: 3.0, amyloplast: 2.9, amyloplast2: 3.6, vesicle: 1.2, vacuole: 6.4 };
+    /* Footprint radii on the cut plane, in scene units — what the solver
+       pushes. A LITTLE larger than the drawn organelle so nothing ends up
+       touching, and no more than that: these are circles packed into a
+       hexagon, so their areas have to fit inside it with room to move. Pad
+       them generously and the sum exceeds the cell, the solve cannot
+       succeed, and organelles settle overlapping no matter how stiff the
+       repulsion is. Check the sum against 2*sqrt(3)*A^2 before adding one. */
+    const FOOT = { nucleus: 3.4, chloroplast: 2.6, mitochondrion: 1.8, dictyosome: 2.0, amyloplast: 2.4, amyloplast2: 3.0, vesicle: 0.7, vacuole: 5.6 };
     const BUILD = {
       nucleus: s => K.nucleus({ R: 3.0 * s, thickness: 0.2, chromatin: 3, pores: 55 }),
       chloroplast: s => K.chloroplast({ a: 2.3 * s, b: 1.05 * s, c: 1.5 * s, grana: 7 }),
@@ -426,16 +443,23 @@
          points at the reader, so an unrotated stack is seen end-on and reads
          as a lump. Tip it onto its side inside a wrapper, so the layer's own
          rotation.y still spins it in the plane of the cut. */
-      golgi: s => {
-        const g = K.golgi({ cisternae: 6, vesicles: 6, spacing: 0.46 });
-        // Tipped most of the way onto its edge, not all of it: flat on the
-        // cut plane only the top cisterna shows, and fully on edge the stack
-        // hides behind its own outermost disc.
+      /* A DICTYOSOME is one Golgi stack, and a plant cell has many of them
+         scattered through the cytoplasm where an animal cell has a single
+         ribbon beside the nucleus. Same organelle, same builder, same
+         colour — only the number and the placement differ, which is exactly
+         why that difference is the thing you notice. Registered as `golgi`,
+         because that is what it is; `dictyosome` is the word for one of
+         them, not for a different organelle.
+         Tipped most of the way onto its edge, not all of it: flat on the cut
+         plane only the top cisterna shows, and fully on edge the stack hides
+         behind its own outermost disc. */
+      dictyosome: s => {
+        const g = K.golgi({ cisternae: 5, vesicles: 4, spacing: 0.46 });
         g.rotation.set(0, 0, -1.15);
-        g.position.y = 0.5 * s;
+        g.position.y = 0.4 * s;
         const w = new THREE.Group();
         w.add(g);
-        w.scale.setScalar(0.8 * s);
+        w.scale.setScalar(0.55 * s);
         return w;
       },
       amyloplast: s => K.amyloplast({ a: 2.0 * s, b: 1.35 * s, c: 1.55 * s, grains: 1 }),
@@ -446,11 +470,14 @@
       },
     };
 
+    // What a built type is CALLED to the reader, where the two differ.
+    const NAME = { amyloplast2: 'amyloplast', dictyosome: 'golgi' };
+
     let layer = null;
     function buildLayer(T) {
       const L = new THREE.Group();
       L.userData.items = [];
-      const add = (g, type, x, z, rot, foot, weight) => {
+      const add = (g, type, x, z, rot, foot, weight, shape) => {
         L.add(g);
         /* A small tilt off the cut plane. Everything lying perfectly flat is
            seen straight down its own opening, which for a cut organelle is
@@ -464,12 +491,13 @@
            scales with it. */
         g.updateMatrixWorld(true);
         const lift = -new THREE.Box3().setFromObject(g).min.y;
-        L.userData.items.push({ g, type, tx: x * A, tz: z * A, x: x * A, z: z * A, vx: 0, vz: 0, rot, tilt, lift, r: foot, w: weight, seed: L.userData.items.length });
+        L.userData.items.push({ g, type, tx: x * A, tz: z * A, x: x * A, z: z * A, vx: 0, vz: 0, rot, tilt, lift,
+          r: foot, rx: (shape && shape.rx) || 1, rz: (shape && shape.rz) || 1, w: weight, seed: L.userData.items.length });
         return g;
       };
       // the nucleus is pinned: everything else arranges around it
       const nuc = add(register(BUILD.nucleus(T.nucleus.s), 'nucleus'), 'nucleus', T.nucleus.x, T.nucleus.z, 0, FOOT.nucleus * T.nucleus.s, 0);
-      const vac = add(register(K.vacuole({ R: 4.2 * T.vacuole.s }), 'vacuole'), 'vacuole', T.vacuole.x, T.vacuole.z, 0.35, FOOT.vacuole * T.vacuole.s, 0.35);
+      const vac = add(register(K.vacuole({ R: 4.2 * T.vacuole.s }), 'vacuole'), 'vacuole', T.vacuole.x, T.vacuole.z, 0.35, FOOT.vacuole * T.vacuole.s, 0.35, { rx: 1.25, rz: 0.98 });
       const er = K.roughER({
         Rn: 3.0 * T.nucleus.s, center: new V3(0, 0, 0), y0: 0.6,
         arcs: [{ a0: -0.3 * PI, a1: 0.62 * PI, count: 3 }, { a0: 0.86 * PI, a1: 1.3 * PI, count: 2 }],
@@ -478,7 +506,7 @@
       // to it rather than solved for separately.
       nuc.add(register(er.group, 'er'));
       for (const [type, x, z, rot, s] of T.organelles) {
-        const g = register(BUILD[type](s), type === 'amyloplast2' ? 'amyloplast' : type);
+        const g = register(BUILD[type](s), NAME[type] || type);
         add(g, type, x, z, rot, FOOT[type] * s, 1);
       }
       L.userData.vac = vac;
@@ -489,8 +517,27 @@
        repulsion between footprints, and a wall that pushes back. The vacuole
        has a low weight rather than none, so it gives a little and shoves a
        lot — which is the asymmetry that makes the squeeze read. */
+    /* An item's footprint radius in a given direction. Most organelles are
+       round enough on the cut plane for one number, but the vacuole is a
+       1.25:0.98 ellipse and a single radius either over-claims across it or
+       lets things into it along it — which is the whole cell's worst overlap
+       either way, because it is the biggest thing in the cell. Exact ellipse
+       radius, in the item's own frame. */
+    function radiusToward(it, dx, dz) {
+      if (!it.rz || it.rz === it.rx) return it.r;
+      const c = Math.cos(-it.rot), sn = Math.sin(-it.rot);
+      const ux = (dx * c - dz * sn) / it.rx, uz = (dx * sn + dz * c) / it.rz;
+      return (it.r / it.rx) / Math.hypot(ux, uz);
+    }
+
     function solve(items, dt) {
-      const a = (C.A - 0.04 * A) * P.shrink, KS = 14, KR = 260 / A, KB = 400 / A, DAMP = 6;
+      /* CONSTANTS ARE SCALE-FREE, so none of them is divided by A. Every
+         force here is a stiffness times a distance — the spring times a
+         displacement, the repulsion times an overlap — and all three
+         distances scale with the cell. Dividing the repulsion by A to
+         "convert it to world units" makes it lose to the spring by a factor
+         of A, and organelles settle overlapping instead of touching. */
+      const a = (C.A - 0.04 * A) * P.shrink, KS = 14, KR = 260, KB = 400, DAMP = 6;
       for (const it of items) {
         if (it.w === 0) { it.x = it.tx; it.z = it.tz; it.vx = it.vz = 0; continue; }
         it.fx = (it.tx - it.x) * KS; it.fz = (it.tz - it.z) * KS;
@@ -499,13 +546,14 @@
         if (A1.w === 0) continue;
         for (const B of items) {
           if (A1 === B) continue;
-          const dx = A1.x - B.x, dz = A1.z - B.z, d = Math.hypot(dx, dz) || 1e-4, ov = A1.r + B.r + 0.01 - d;
+          const dx = A1.x - B.x, dz = A1.z - B.z, d = Math.hypot(dx, dz) || 1e-4;
+          const ov = radiusToward(A1, dx / d, dz / d) + radiusToward(B, -dx / d, -dz / d) + 0.01 - d;
           if (ov <= 0) continue;
           const f = KR * ov * (B.w === 0 ? 1.6 : 1);
           A1.fx += dx / d * f; A1.fz += dz / d * f;
         }
         const ux = A1.x / C.ex, uz = A1.z, th = Math.atan2(uz, ux), rad = Math.hypot(ux, uz) || 1e-4;
-        const lim = lerp(hexR(th, a), a * 1.02, P.round) - A1.r;
+        const lim = lerp(hexR(th, a), a * 1.02, P.round) - radiusToward(A1, ux / rad, uz / rad);
         if (rad > lim) { const f = (rad - lim) * KB; A1.fx -= ux / rad * f; A1.fz -= uz / rad * f; }
       }
       for (const it of items) {
@@ -516,7 +564,7 @@
         // hard wall: project back inside and kill the outward velocity, or a
         // fast squeeze pushes an organelle through the membrane for a frame
         const ux = it.x / C.ex, uz = it.z, th = Math.atan2(uz, ux), rad = Math.hypot(ux, uz) || 1e-4;
-        const lim = lerp(hexR(th, a), a * 1.02, P.round) - it.r;
+        const lim = lerp(hexR(th, a), a * 1.02, P.round) - radiusToward(it, ux / rad, uz / rad);
         if (rad > lim) {
           const k = lim / rad;
           it.x = ux * k * C.ex; it.z = uz * k;
