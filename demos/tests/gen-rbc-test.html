@@ -6,14 +6,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tonicity in Red Blood Cells</title>
+<title>Osmosis and Tonicity in Red Blood Cells</title>
 <link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="../css/lesson-shell.css">
 <link rel="stylesheet" href="../graph/graph.css">
-<style>
-  .readout-box { margin-top: 10px; }
-  .status-tag { font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; }
-</style>
 </head>
 <body>
 
@@ -35,133 +31,242 @@
 <script src="../graph/graph.js"></script>
 <script src="../kit/lesson-shell.js"></script>
 <script>
-let m;
-let chart = null;
-let unsub = null;
+let unsubs = [];
+function cleanFrameListeners() {
+  unsubs.forEach(fn => fn());
+  unsubs = [];
+}
 
 const shell = LessonShell.create({
   brand: 'Cell Membrane & Tonicity',
-  hint: 'Drag to rotate · Scroll to zoom',
+  hint: 'Drag to rotate bilayer · Scroll to zoom',
   ctx: {},
   steps: [
     {
-      eyebrow: 'Isotonic Environment',
-      title: 'Equilibrium in Normal Blood Plasma',
-      body: '<p><b>In an isotonic solution, solute concentration is balanced inside and outside the cell.</b> Water molecules rapidly cross the membrane in both directions via aquaporins and lipid diffusion, but there is no net flow.</p><p>A real human red blood cell is about 8 µm across and maintains its flexible biconcave disc shape in normal 300 mOsm plasma.</p>',
-      nextLabel: 'Dilute Solution',
+      eyebrow: 'Isotonic Solution',
+      title: 'Dynamic Equilibrium in Blood Plasma',
+      body: '<p><strong>In an isotonic solution, solute concentrations match on both sides of the membrane.</strong> Water molecules cross the lipid bilayer and aquaporin channels at equal rates in both directions, so there is no net movement of water.</p><p>A real human red blood cell is about 8 µm across and maintains its normal biconcave disc shape in isotonic blood plasma (~300 mOsm). Whole-cell shape changes happen at the cellular rung, while here we observe the molecular crossings across an individual patch of membrane.</p>',
+      nextLabel: 'Hypotonic Solution',
       onEnter(ctx) {
+        cleanFrameListeners();
         m.set({
           contents: {
-            inside: { K: 130, NA: 15, A: 10 },
-            outside: { NA: 140, CL: 140 }
+            inside:  { water: 48, NA: 15, CL: 15 },
+            outside: { water: 48, NA: 15, CL: 15 }
           }
         });
+        m.reset();
         m.notes(['aquaporin', 'water']);
 
         ctx.ui.controls(`
           <div class="stats">
-            <div class="stat">
-              <span class="stat-label">Net Water Movement</span>
-              <span class="stat-value" id="net-dir">--</span>
-            </div>
+            <div class="stat"><div class="stat-label">Net Water Movement</div><div class="stat-value" id="net-val">--</div></div>
+            <div class="stat"><div class="stat-label">Inside Solutes</div><div class="stat-value" id="in-sol">--</div><div class="stat-sub">mM</div></div>
+            <div class="stat"><div class="stat-label">Outside Solutes</div><div class="stat-value" id="out-sol">--</div><div class="stat-sub">mM</div></div>
           </div>
-          <div class="readout-box" id="chart-box"></div>
+          <div id="trace-box" style="margin-top:12px;"></div>
+          <div id="show-box" style="margin-top:10px;"></div>
         `);
-        ctx.ui.showPanel(m, { notes: ['aquaporin', 'water'], layers: ['water', 'ions'] });
 
-        chart = Graph.mount(ctx.ui.q('#chart-box'), { live: { span: 60 }, height: 120 }).follow(m, 'water');
-        unsub = m.on('frame', s => {
-          const dirEl = ctx.ui.q('#net-dir');
-          if (dirEl && s) dirEl.textContent = s.net.toUpperCase();
+        const netEl = ctx.ui.q('#net-val');
+        const inEl = ctx.ui.q('#in-sol');
+        const outEl = ctx.ui.q('#out-sol');
+
+        const g = Graph.mount(ctx.ui.q('#trace-box'), { live: { span: 60 }, height: 110 }).follow(m, 'water');
+        ctx._graph = g;
+
+        CardStage.showPanel(ctx.ui.q('#show-box'), m, { notes: ['aquaporin', 'water', 'heads'], layers: ['water', 'ions'] });
+
+        const off = m.on('frame', s => {
+          if (!s) return;
+          if (netEl) netEl.textContent = s.net;
+          const inConc = ((s.concentration.NA ? s.concentration.NA.inside : 0) + (s.concentration.CL ? s.concentration.CL.inside : 0));
+          const outConc = ((s.concentration.NA ? s.concentration.NA.outside : 0) + (s.concentration.CL ? s.concentration.CL.outside : 0));
+          if (inEl) inEl.textContent = Math.round(inConc);
+          if (outEl) outEl.textContent = Math.round(outConc);
         });
+        unsubs.push(off);
       },
-      onExit() {
-        if (unsub) { unsub(); unsub = null; }
-        if (chart) { chart.destroy(); chart = null; }
+      onExit(ctx) {
+        if (ctx._graph) { ctx._graph.destroy(); ctx._graph = null; }
+        cleanFrameListeners();
       }
     },
     {
-      eyebrow: 'Hypotonic Environment',
-      title: 'Net Influx in Pure or Dilute Water',
-      body: '<p><b>When external solute concentration drops below the cytoplasm, free water concentration outside becomes higher.</b> Water enters down its chemical potential gradient much faster than it leaves.</p><p>Because animal cells lack rigid cell walls, continuous water influx causes a red blood cell to swell, stretch its membrane, and ultimately undergo osmotic lysis (bursting).</p>',
-      nextLabel: 'Concentrated Solution',
+      eyebrow: 'Hypotonic Solution',
+      title: 'Net Water Influx and Cell Lysis',
+      body: '<p><strong>When placed in pure water or a dilute hypotonic solution, free water is crowded outside and rushes into the cell.</strong> Osmosis is a headcount: more free water collisions outside drive a steady net inward flux across the aquaporin channel and lipid bilayer.</p><p>Because animal cells lack a rigid cell wall, excessive osmotic pressure forces the red blood cell to swell and burst (hemolysis). Watch how the water counters skew toward the inside compartment.</p>',
+      nextLabel: 'Hypertonic Solution',
       onEnter(ctx) {
+        cleanFrameListeners();
         m.set({
           contents: {
-            inside: { K: 130, NA: 15, A: 10 },
-            outside: { NA: 10, CL: 10 }
+            inside:  { water: 48, NA: 15, CL: 15 },
+            outside: { water: 78, NA: 0, CL: 0 }
           }
         });
+        m.reset();
         m.notes(['aquaporin']);
 
         ctx.ui.controls(`
           <div class="stats">
-            <div class="stat">
-              <span class="stat-label">Net Water Movement</span>
-              <span class="stat-value" id="net-dir">--</span>
-            </div>
+            <div class="stat"><div class="stat-label">Net Water Movement</div><div class="stat-value" id="net-val">--</div></div>
+            <div class="stat"><div class="stat-label">Outside Water Count</div><div class="stat-value" id="out-w">--</div></div>
+            <div class="stat"><div class="stat-label">Inside Water Count</div><div class="stat-value" id="in-w">--</div></div>
           </div>
-          <div class="readout-box" id="chart-box"></div>
+          <div id="trace-box" style="margin-top:12px;"></div>
+          <div id="show-box" style="margin-top:10px;"></div>
         `);
-        ctx.ui.showPanel(m, { notes: ['aquaporin'], layers: ['water', 'ions'] });
 
-        chart = Graph.mount(ctx.ui.q('#chart-box'), { live: { span: 60 }, height: 120 }).follow(m, 'water');
-        unsub = m.on('frame', s => {
-          const dirEl = ctx.ui.q('#net-dir');
-          if (dirEl && s) dirEl.textContent = s.net.toUpperCase();
+        const netEl = ctx.ui.q('#net-val');
+        const outWEl = ctx.ui.q('#out-w');
+        const inWEl = ctx.ui.q('#in-w');
+
+        const g = Graph.mount(ctx.ui.q('#trace-box'), { live: { span: 60 }, height: 110 }).follow(m, 'water');
+        ctx._graph = g;
+
+        CardStage.showPanel(ctx.ui.q('#show-box'), m, { notes: ['aquaporin', 'water', 'outside'], layers: ['water', 'ions'] });
+
+        const off = m.on('frame', s => {
+          if (!s) return;
+          if (netEl) netEl.textContent = s.net;
+          if (outWEl && s.counts.water) outWEl.textContent = s.counts.water.outside;
+          if (inWEl && s.counts.water) inWEl.textContent = s.counts.water.inside;
         });
+        unsubs.push(off);
       },
-      onExit() {
-        if (unsub) { unsub(); unsub = null; }
-        if (chart) { chart.destroy(); chart = null; }
+      onExit(ctx) {
+        if (ctx._graph) { ctx._graph.destroy(); ctx._graph = null; }
+        cleanFrameListeners();
       }
     },
     {
-      eyebrow: 'Hypertonic Environment',
-      title: 'Net Efflux in Concentrated Saline',
-      body: '<p><b>In a hypertonic solution, external solutes bind water molecules and lower free water concentration outside.</b> Free water inside the cell now exits into the extracellular fluid.</p><p>As water rushes out, the red blood cell loses turgor and internal volume, shrinking and collapsing into a spiky morphology known as crenation.</p>',
+      eyebrow: 'Hypertonic Solution',
+      title: 'Net Water Efflux and Crenation',
+      body: '<p><strong>In a concentrated hypertonic bath, dissolved ions tie up surrounding water molecules outside.</strong> The interior now has a higher concentration of free water than the outside, driving rapid net water exit through the membrane.</p><p>As water drains outward down its concentration gradient, a whole red blood cell loses volume and shrivels into a spiked form called a crenated cell.</p>',
+      nextLabel: 'Interactive Tonicity Lab',
+      onEnter(ctx) {
+        cleanFrameListeners();
+        m.set({
+          contents: {
+            inside:  { water: 54, NA: 12, CL: 12 },
+            outside: { water: 18, NA: 30, CL: 30 }
+          }
+        });
+        m.reset();
+        m.notes(['aquaporin']);
+
+        ctx.ui.controls(`
+          <div class="stats">
+            <div class="stat"><div class="stat-label">Net Water Movement</div><div class="stat-value" id="net-val">--</div></div>
+            <div class="stat"><div class="stat-label">Outside Salinity</div><div class="stat-value" id="out-sal">--</div><div class="stat-sub">mM</div></div>
+            <div class="stat"><div class="stat-label">Aquaporin Transits</div><div class="stat-value" id="aqp-val">--</div></div>
+          </div>
+          <div id="trace-box" style="margin-top:12px;"></div>
+          <div id="show-box" style="margin-top:10px;"></div>
+        `);
+
+        const netEl = ctx.ui.q('#net-val');
+        const outSalEl = ctx.ui.q('#out-sal');
+        const aqpEl = ctx.ui.q('#aqp-val');
+
+        const g = Graph.mount(ctx.ui.q('#trace-box'), { live: { span: 60 }, height: 110 }).follow(m, 'water');
+        ctx._graph = g;
+
+        CardStage.showPanel(ctx.ui.q('#show-box'), m, { notes: ['aquaporin', 'NA', 'CL'], layers: ['water', 'ions'] });
+
+        const off = m.on('frame', s => {
+          if (!s) return;
+          if (netEl) netEl.textContent = s.net;
+          const outConc = ((s.concentration.NA ? s.concentration.NA.outside : 0) + (s.concentration.CL ? s.concentration.CL.outside : 0));
+          if (outSalEl) outSalEl.textContent = Math.round(outConc);
+          if (aqpEl) aqpEl.textContent = s.crossed.water || 0;
+        });
+        unsubs.push(off);
+      },
+      onExit(ctx) {
+        if (ctx._graph) { ctx._graph.destroy(); ctx._graph = null; }
+        cleanFrameListeners();
+      }
+    },
+    {
+      eyebrow: 'Experiment',
+      title: 'Test Solute Gradients on the Membrane',
+      body: '<p><strong>Adjust the external bath concentration and observe how the direction of osmosis responds in real time.</strong> Notice how ions remain trapped on their respective sides of the bilayer while water flows freely across aquaporin pores.</p><p>Track the dynamic live readout to verify whether water is currently entering, leaving, or balanced.</p>',
       nextLabel: 'Back to Start',
       onEnter(ctx) {
-        m.set({
-          contents: {
-            inside: { K: 130, NA: 15, A: 10 },
-            outside: { NA: 420, CL: 420 }
+        cleanFrameListeners();
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Extracellular Salinity</span>
+              <span class="value" id="sal-val">300 mM (Isotonic)</span>
+            </div>
+            <input type="range" id="sal-range" min="0" max="600" step="60" value="300">
+          </div>
+          <div class="stats" style="margin-top:10px;">
+            <div class="stat"><div class="stat-label">Osmotic Status</div><div class="stat-value" id="stat-net">--</div></div>
+            <div class="stat"><div class="stat-label">Outside / Inside Waters</div><div class="stat-value" id="stat-w">--</div></div>
+          </div>
+          <div id="trace-box" style="margin-top:12px;"></div>
+          <div id="show-box" style="margin-top:10px;"></div>
+        `);
+
+        const salVal = ctx.ui.q('#sal-val');
+        const statNet = ctx.ui.q('#stat-net');
+        const statW = ctx.ui.q('#stat-w');
+
+        function applySalinity(mM) {
+          const totalSlot = 78;
+          const ionPairs = Math.round(mM / 20);
+          const waters = Math.max(10, totalSlot - ionPairs * 2);
+          const ions = Math.min(30, ionPairs);
+          m.set({
+            contents: {
+              inside:  { water: 48, NA: 15, CL: 15 },
+              outside: { water: waters, NA: ions, CL: ions }
+            }
+          });
+          let desc = 'Isotonic';
+          if (mM < 240) desc = 'Hypotonic (RBC Swells)';
+          else if (mM > 360) desc = 'Hypertonic (RBC Shrivels)';
+          salVal.textContent = mM + ' mM (' + desc + ')';
+        }
+
+        ctx.ui.range(ctx.ui.q('#sal-range'), v => applySalinity(Number(v)));
+
+        const g = Graph.mount(ctx.ui.q('#trace-box'), { live: { span: 60 }, height: 110 }).follow(m, 'water');
+        ctx._graph = g;
+
+        CardStage.showPanel(ctx.ui.q('#show-box'), m, { notes: ['aquaporin', 'water'], layers: ['water', 'ions'] });
+
+        const off = m.on('frame', s => {
+          if (!s) return;
+          if (statNet) statNet.textContent = s.net;
+          if (statW && s.counts.water) {
+            statW.textContent = s.counts.water.outside + ' / ' + s.counts.water.inside;
           }
         });
-        m.notes(['aquaporin']);
-
-        ctx.ui.controls(`
-          <div class="stats">
-            <div class="stat">
-              <span class="stat-label">Net Water Movement</span>
-              <span class="stat-value" id="net-dir">--</span>
-            </div>
-          </div>
-          <div class="readout-box" id="chart-box"></div>
-        `);
-        ctx.ui.showPanel(m, { notes: ['aquaporin'], layers: ['water', 'ions'] });
-
-        chart = Graph.mount(ctx.ui.q('#chart-box'), { live: { span: 60 }, height: 120 }).follow(m, 'water');
-        unsub = m.on('frame', s => {
-          const dirEl = ctx.ui.q('#net-dir');
-          if (dirEl && s) dirEl.textContent = s.net.toUpperCase();
-        });
+        unsubs.push(off);
       },
-      onExit() {
-        if (unsub) { unsub(); unsub = null; }
-        if (chart) { chart.destroy(); chart = null; }
+      onExit(ctx) {
+        if (ctx._graph) { ctx._graph.destroy(); ctx._graph = null; }
+        cleanFrameListeners();
       }
     }
-  ]
+  ],
+  onStep(step) {}
 });
 
-m = Membrane.mount(shell.stage, {
+const m = Membrane.mount(shell.stage, {
   viewOffset: shell.viewOffset,
   context: 'plasma',
-  units: 'mM',
   proteins: { AQP: { x: 0 }, K: null, CL: null, NA: null, pump: null, complex: null, synthase: null, leak: null },
   potential: 'off',
-  cut: true
+  contents: {
+    inside:  { water: 48, NA: 15, CL: 15 },
+    outside: { water: 48, NA: 15, CL: 15 }
+  }
 });
 
 shell.goTo(0);

@@ -414,121 +414,49 @@ shell.goTo(0);
 
 **Scale**: none. A graph is not in the world; its axes carry their own units.
 
-**Never draw a chart by hand.** No `<path>` arithmetic, no `viewBox`, no
-`preserveAspectRatio`. Mount this instead, the same way as any other component.
-
 ```html
 <link rel="stylesheet" href="../graph/graph.css">
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js"></script>
-<script src="../graph/graph.js"></script>     <!-- d3 first: the Plot bundle reads it as a global -->
+<script src="../graph/graph.js"></script>
 ```
 
-Load these three only on a page that draws a graph. They are the one dependency
-in the library, and a page that mounts no graph must not pay for them.
-
-### Measured data
+Never draw a chart by hand. A graph goes in the panel, not on the stage: mount it
+in `onEnter` from `ctx.ui.q()`, destroy it in `onExit`.
 
 ```js
-const g = Graph.mount(el, {
-  kind: 'scatter',     // scatter | line | bar | histogram | box
-  data: rows,          // array of plain objects; Graph.csv(text) parses a CSV into them
-  x: { field: 'molarity_M', label: 'Sucrose concentration', unit: 'M' },
-  y: { field: 'pct_change', label: 'Mass change', unit: '%' },
-  color: 'team',       // a field to split into series; draws its own legend
-  error: 'sd',         // 'sd' | 'sem' | a field of plus/minus values
-  fit: 'linear',       // least squares, drawn and reported
-  ci: 0.95,            // confidence band around the fit, or 0
-  xIntercept: true,    // mark where the fit crosses y = 0
-  ref: [{ x: 37, label: 'body temp' }],       // a known value, a control
+Graph.mount(el, {
+  kind: 'scatter',       // scatter | line | bar | histogram | box
+  data: rows,            // plain objects; Graph.csv(text) parses a CSV into them
+  x: { field: 'temp', label: 'Temperature', unit: 'C' },   // the axis writes "Temperature (C)"
+  y: { field: 'rate', label: 'Reaction rate', unit: 'umol/min' },
+  color: 'group',        // a field to split into series, with a legend
+  error: 'sd',           // 'sd' | 'sem' | a field of plus/minus values
+  fit: 'linear', ci: 0.95, xIntercept: true,
+  ref: [{ x: 37, label: 'body temp' }],
   caption: 'one sentence about what the marks are',
 });
 ```
 
-`label` and `unit` are separate: the axis writes `Mass change (%)` itself, so no
-page types a unit into a label. `field` alone is enough and the label falls back
-to the field name. `error: 'sd'` or `'sem'` groups the repeats at each x and
-plots their mean, because a spread bar on a single reading is a lie about the
-data; a field name plots that column as given.
-
-`state()` carries `{n, rows, series, x:{min,max}, y:{min,max}, fit}`, and `fit`
-is `{slope, intercept, r2, xIntercept, n}`. **A number the page prints about a
-graph is read from `state()`**, never typed:
-
-```js
-g.on('render', s => el.textContent = `isotonic at ${Graph.fmt(s.fit.xIntercept)} M`);
-```
-
-### Where a graph goes
-
-**In the panel, never on the stage.** The stage holds the scene; a graph is a
-readout, so it lives in the step's own controls slot beside the copy it belongs
-to. `controls()` replaces the slot, so the graph is mounted in `onEnter` and
-destroyed in `onExit`:
-
-```js
-onEnter(ctx) {
-  ctx.ui.controls('<div class="stats"><div id="trace"></div></div>');
-  ctx.state.chart = Graph.mount(ctx.ui.q('#trace'), { live: { span: 120 }, height: 130 })
-    .follow(m, 'water');
-},
-onExit(ctx) { ctx.state.chart.destroy(); },
-```
-
-A step that asks how something CHANGES gets a trace. A step that asks what
-something IS gets a `.stat` and a number. The trace is the better answer
-whenever the reading only means something next to where it was a minute ago:
-net water flow, a gradient building, ATP accumulating.
-
-### A live trace off a running component
+A live trace off a running component is one line. The signal carries its own
+label, unit and y range, so no page types a maximum:
 
 ```js
 Graph.mount(el, { live: { span: 120 }, height: 130 }).follow(m, 'water');
 ```
 
-That is the whole of it. `follow` subscribes to the component's `frame`, samples
-on the sim's own clock, keeps the last `span` seconds, and unsubscribes on
-`destroy`. `clear()` empties the trace without dropping the subscription, for a
-step that resets the sim.
+`Membrane.SIGNALS`: `water`, `sodium`, `potassium`, `protons` — each side, two
+lines named by context · `voltage` mV · `dpH` · `pmf` mV · `atp` cumulative.
 
-**The second argument names a signal the component declares**, and the signal
-carries the label, the unit and the y range. **A page never types a y-maximum.**
-The component is the only thing that knows how many particles there are, and a
-typed maximum clips the trace in silence the moment that changes.
+**A step that asks how something CHANGES gets a trace; a step that asks what
+something IS gets a `.stat` and a number.** Net water flow, a gradient
+building, ATP accumulating: a stat reading "balanced" is a word for a shape the
+student could have watched.
 
-`Membrane.SIGNALS`:
-
-| signal | is | drawn |
-| --- | --- | --- |
-| `water` | free water each side | two lines, named by context |
-| `sodium`, `potassium`, `protons` | ions each side | two lines |
-| `voltage` | membrane potential, mV | one line, signed |
-| `dpH` | pH difference across the membrane | one line |
-| `pmf` | proton-motive force, mV | one line |
-| `atp` | ATP made, cumulative | one line, ceiling grows |
-
-A signal split by side names its lines from the component's own `sides`, so the
-same call says *inside the cell* on a plasma membrane and *matrix* in a
-mitochondrion.
-
-For a reading no component publishes, pass a function of the state instead of a
-name: `.follow(m, s => s.crossed.water)`. Give it a `y: {label, unit, domain}`
-in the mount params when you do, since there is no signal to supply them.
-
-### When a step wants one
-
-**A quantity that only means something over time is a trace, not a number.**
-Net water flow, a gradient building, ATP accumulating: a `.stat` reading
-"balanced" is a word for a shape the student could have watched. Mount the
-trace and let the panel's copy point at it.
-
-**A quantity with one current value is a `.stat`.** Solute concentration,
-temperature, a count. Do not draw a graph of a number that is not going
-anywhere.
-
-**No second y-axis.** Two quantities on one x go on one axis, normalized to
-percent of maximum with the caption saying so. Two axes let either curve slide
-until it agrees with the other, which is the claim the graph is making.
+`state()` is `{n, rows, series, x, y, fit:{slope, intercept, r2, xIntercept}}`,
+and a number the page prints about a graph is read from it. Two quantities on
+one x share one axis, normalized to percent of maximum: there is no second
+y-axis.
 
 ## Copy
 
