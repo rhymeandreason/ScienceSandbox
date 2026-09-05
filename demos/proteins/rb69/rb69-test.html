@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="/demos/proteins/rb69/">
+<title>RB69 — copying and proofreading</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+     AddingAProtein.md step 4: it exists so a human can decide whether
+     these three entries earn a place in the registry, and it is the
+     bench for the DNA replication lesson rather than for a portrait.
+
+     WHAT IT IS FOR SETTLING:
+
+       one enzyme, three jobs   apo, copying, proofreading — one 903
+                                residue construct, one numbering, so all
+                                three superpose. RB69 is a B-family
+                                polymerase, the family human pol alpha,
+                                delta and epsilon belong to. Taq, on the
+                                bench next door, is pol I.
+       two active sites         flipping copying to proofreading should
+                                show the primer's growing end LEAVE the
+                                polymerase site and travel to the
+                                exonuclease site. The distance is
+                                measured in the baker and printed here.
+       what a fit means         the same pair is 6.5 A over every shared
+                                Ca and 1.2 A over the part that does not
+                                move. Both are printed, because the gap
+                                between them IS the domain motion and
+                                either number alone misreports it.
+       a strand drawn at all    1CLQ numbers its template 12 down to 1.
+                                Left alone every runs() in the repo
+                                splits it into twelve one-residue stubs.
+                                If that strand has a backbone, the
+                                reversal in the baker is working.
+
+     THE ROTATION IS NOT CHOSEN YET. frameOf calls this shape globular —
+     its three extents are too close to tell apart, so a solved basis
+     would flip between rebakes — and the bake therefore says
+     `deposited`. A human picks one, with the copy-this-view button in
+     the panel: that is kit/proteinbox.js's pickView(), and it is the
+     only correct path, because what is on screen is the camera's
+     inverse times whatever view the structure already wears and only
+     the box can see the second half of that.
+
+     WHAT IT DOES NOT DO. No animation between the states. The
+     deposition supports three stills, and a tween between two crystal
+     forms is an interpolation nobody measured.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+
+<style>
+  /* The panel chrome is ../protein-test.css. What stays here is the two
+     vocabularies in one frame — a colour legend — and the state switch. */
+  #stage { min-height: 0; }
+
+  .row { display: flex; align-items: center; gap: var(--space-2);
+         margin: 6px 0; font-size: 0.8rem; color: var(--h-ink); }
+  .row label { display: flex; align-items: center; gap: 6px; flex: 1; }
+  .row input[type=checkbox] { accent-color: var(--h-accent); }
+  .row input[type=range] { width: 110px; accent-color: var(--h-accent); }
+
+  #legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
+            margin: var(--space-2) 0 0; font-size: 0.75rem;
+            color: var(--h-muted); }
+  .sw { display: inline-flex; align-items: center; gap: .35em;
+        font-variant-numeric: tabular-nums; }
+  .sw i { width: .8em; height: .8em; border-radius: 2px; display: inline-block; }
+
+  #facts td:last-child { text-align: left; font-weight: 400; font-size: 0.78rem;
+                         padding-left: var(--space-3); overflow-wrap: anywhere; }
+  #tris { color: var(--h-muted); font-variant-numeric: tabular-nums;
+          font-size: 0.75rem; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>RB69 gp43</h1>
+    <p class="deck">One replicative polymerase, three depositions: empty,
+      copying, proofreading. Fitted on the protein, so what moves is the DNA.</p>
+
+    <h2>state</h2>
+    <div id="states"></div>
+
+    <h2>what is drawn</h2>
+    <div class="row"><label><input type="checkbox" id="protein" checked> protein</label></div>
+    <div class="row"><label><input type="checkbox" id="dna" checked> DNA</label></div>
+    <div class="row"><label><input type="checkbox" id="site" checked> what is in the site</label></div>
+    <div class="row"><label>samples / nt</label><input type="range" id="sub" min="2" max="16" value="8"></div>
+    <div id="tris"></div>
+
+    <h2>rotation</h2>
+    <p class="meta" id="pick-note">Nobody has chosen one. Turn the molecule,
+      then copy the basis into the registry entry when there is one.</p>
+    <button class="mode" id="pick"><span class="who">copy this view</span></button>
+
+    <h2>colour</h2>
+    <div id="legend"></div>
+
+    <h2>the claim</h2>
+    <p class="claim" id="lede">Loading…</p>
+
+    <h2>measured, not typed</h2>
+    <table id="facts"></table>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/nucleic.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script>
+'use strict';
+
+/* THE BAKES ARE NAMED HERE BECAUSE THE PROTEIN IS NOT IN A REGISTRY YET.
+   Under review, so the CANDIDATES table lives in tools/prep.js and this list
+   mirrors it; step 6 of AddingAProtein.md moves both into
+   proteins/nucleic-acids.js and this becomes a defaultOf() call, the way
+   zif268-test.html already reads.
+
+   THE ORDER IS THE STORY'S, NOT THE BAKER'S. The baker's reference is 1IG9,
+   because the two DNA-bound states are what the comparison is between and the
+   apo is 6.5 A from either; a reader meets them empty, working, correcting. */
+const VIEWS = [
+  { id: '1IH7', chip: 'apo', label: 'the empty hand' },
+  { id: '1IG9', chip: 'copying', label: 'primer end in the polymerase site' },
+  { id: '1CLQ', chip: 'editing', label: 'primer end in the exonuclease site' },
+];
+
+/* THE BOX IS kit/proteinbox.js, WHICH DRAWS BOTH POLYMERS. The scene, the
+   camera, the framing, the drag and the WebGL context are the module's, which
+   is what makes every protein in the repo behave the same way — and its
+   nucleic branch is why this page owns no ribbon code, no runs(), no strand
+   colours and no ball-and-stick constants.
+
+   `sub:10` and `turn:'trackball'` on a full-height stage: the box's defaults
+   are a card's, six samples per residue and a turntable whose pitch clamps
+   about a hundred pixels into an upward drag, and both run out at this size.
+   AddingAProtein.md's row is why. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true, sub: 10,
+  stage: { ortho: false, turn: 'trackball' },
+});
+
+const traces = new Map();
+let trace = null, current = VIEWS[0].id;
+
+/* WHAT TO HAND THE BOX, given the checkboxes. `chains` is the box's own
+   filter, so hiding a polymer is a re-feed rather than a second renderer here;
+   the pocket is fed separately because it is not a chain. */
+function draw() {
+  if (!trace) return;
+  const want = trace.order.filter(id => trace.chains[id].kind === 'na'
+    ? document.getElementById('dna').checked
+    : document.getElementById('protein').checked);
+  const sub = +document.getElementById('sub').value;
+  /* An empty chain list would ask the box to draw nothing and re-solve its
+     framing on no points, so an all-off state keeps the last structure and
+     the checkbox that emptied it is simply refused. */
+  if (want.length) box.setData(trace, { chains: want.join(','), sub });
+  if (document.getElementById('site').checked && trace.pocket)
+    box.setPocket(trace.pocket);
+
+  const hasDNA = trace.order.some(id => trace.chains[id].kind === 'na');
+  /* The apo structure has no nucleic chain at all, which is the one view where
+     this readout has nothing to report rather than zero. */
+  document.getElementById('tris').textContent = hasDNA
+    ? NucleicLib.triangles(trace, { sub }).toLocaleString() + ' triangles (DNA only)'
+    : 'no DNA in this entry';
+}
+
+/* EVERY NUMBER READ FROM THE BAKE. Helices and strands especially: they are
+   the deposited records' counts, not letters counted off `ss`, because
+   adjacent helices merge into one run of H. */
+function facts() {
+  const aa = trace.order.filter(id => (trace.chains[id].kind || 'aa') === 'aa');
+  const na = trace.order.filter(id => trace.chains[id].kind === 'na');
+  const nnt = na.reduce((k, id) => k + trace.chains[id].nums.length, 0);
+  const p = trace.chains[aa[0]];
+  const m = trace.meta;
+
+  const rows = [
+    ['Entry', trace.entry + ' — ' + trace.what],
+    ['Method', (trace.method || '?') + (trace.resolution ? ', ' + trace.resolution + ' A' : '')],
+    ['Protein', aa.join(', ') + '  (' + p.nums.length + ' of ' + m.declared[aa[0]]
+      + ' declared, ' + p.helices + ' helices, ' + p.strands + ' strands, ss '
+      + trace.ssFrom + ')'],
+  ];
+
+  if (na.length) {
+    rows.push(['DNA', na.map(id => id + ' ' + trace.chains[id].seq
+      + (id === trace.primer ? ' (primer)' : id === trace.template ? ' (template)' : '')
+      + (trace.chains[id].mods.length
+        ? ' [' + trace.chains[id].mods.map(x => x.name + ' ' + x.num).join(', ') + ']' : ''))
+      .join('   ')]);
+    rows.push(['Base pairs', trace.pairs.length + '  — ' + trace.pairsFrom]);
+    /* PER CHAIN, because the total is a number about the FILE and the claim is
+       about the primer. 1CLQ has seven unpaired nucleotides and only three of
+       them are the frayed growing end; the rest are the template's overhang,
+       which is how the duplex was designed and says nothing about editing. */
+    const paired = new Set();
+    for (const q of trace.pairs) { paired.add(q.a.join('')); paired.add(q.b.join('')); }
+    rows.push(['Unpaired', na.map(id => {
+      const n = trace.chains[id].nums.filter(x => !paired.has(id + x)).length;
+      return id + ' ' + n + (id === trace.primer ? ' (at the growing end)' : '');
+    }).join(',   ')]);
+    /* A strand the baker had to turn round says so here. Silence would be the
+       failure: the deposition and the bake would disagree about the direction
+       of a chain with nothing on the page to notice it. */
+    if (trace.reversed && trace.reversed.length)
+      rows.push(['Renumbered', 'chain ' + trace.reversed.join(', ')
+        + ' is deposited descending; the baker reversed it so the backbone is '
+        + 'drawn as one strand rather than as one stub per residue']);
+  } else {
+    rows.push(['DNA', 'none — this entry is the enzyme on its own']);
+  }
+
+  rows.push(['In the site', trace.pocket
+    ? trace.pocket.of + ' within ' + trace.pocket.within + ' A of the growing end — '
+      + trace.pocket.atoms.length + ' atoms, ' + trace.pocket.bonds.length
+      + ' bonds from CONECT'
+    : na.length ? 'nothing within ' + '15' + ' A of the growing end'
+                : 'no DNA, so there is no growing end to measure from']);
+  /* WHAT WAS LEFT OUT AND HOW FAR AWAY IT WAS. An exclusion is a decision, and
+     printing the distance is what stops "in the site" from being a word this
+     page can define to suit itself: 1CLQ's GDP is 61 A away and 1IH7's GMP
+     lands 34 A from where an incoming nucleotide sits. */
+  if (trace.pocket && trace.pocket.out.length)
+    rows.push(['Not in the site', trace.pocket.out
+      .map(x => x.name + ' at ' + x.d + ' A').join(', ')]);
+
+  rows.push(['Ligands', m.ligands.join(', ') || 'none']);
+  rows.push(['EC', m.ec.join(', ') || 'none']);
+
+  if (trace.fit) {
+    rows.push(['Fitted', 'on ' + trace.fit.on + ', ' + trace.fit.of + ' — '
+      + trace.fit.allRmsd + ' A over all ' + trace.fit.all + ', and '
+      + trace.fit.coreRmsd + ' A over the ' + trace.fit.core
+      + ' that do not move. The gap between those two numbers is the '
+      + 'domain motion; neither alone reports it']);
+  } else {
+    rows.push(['Fitted', 'no — this is the reference the other views are fitted onto']);
+  }
+  if (trace.moved)
+    rows.push(['The growing end moved', trace.moved.C1 + ' A at C1′, '
+      + trace.moved.P + ' A at the phosphate  (' + trace.moved.from + ' → '
+      + trace.moved.to + ') — ' + trace.moved.how]);
+
+  rows.push(['Extents', (trace.extents || []).join(' x ') + ' A']);
+  rows.push(['Frame', trace.frame + (trace.view ? '' : ' — nobody has chosen one')]);
+
+  document.getElementById('facts').innerHTML = rows
+    .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
+
+  /* THE HEADLINE NUMBER IS THE EDITING COMPLEX'S, whichever view is on
+     screen, because it is the one thing this bench is for and a reader
+     looking at the apo state should still be told what the flip will show. */
+  const ed = traces.get('1CLQ');
+  document.getElementById('lede').innerHTML = trace.purpose
+    + '. One 903-residue construct deposited three times, superposed on the '
+    + 'protein rather than the DNA — the enzyme is the fixed frame here, and '
+    + 'the DNA is what travels'
+    + (ed && ed.moved
+      ? '. Between copying and proofreading the primer’s growing end moves '
+        + ed.moved.C1 + ' A, out of the polymerase site and into the '
+        + 'exonuclease site, without leaving the enzyme.'
+      : '.')
+    + ' The reaction is stopped twice over: the metals are calcium where '
+    + 'magnesium belongs, and the copying complex’s primer is '
+    + 'dideoxy-terminated. Neither is a fact about the enzyme.';
+
+  const rc = document.getElementById('d-rcsb');
+  rc.href = 'https://www.rcsb.org/structure/' + trace.entry;
+  document.getElementById('d-rcsb-label').textContent = 'RCSB ' + trace.entry;
+
+  const seen = new Set();
+  for (const id of na) for (const c of trace.chains[id].seq) seen.add(c);
+  /* THE ELEMENT'S OWN TOKEN, not a number read out of the palette here.
+     tokens-from-palette.js publishes every atom colour as --atom-<El> at load,
+     in the palette's own casing, so a swatch and the sphere it names cannot
+     drift — the same rule the ss and base swatches beside it follow. */
+  const cap = e => e[0] + e.slice(1).toLowerCase();
+  const els = new Set((trace.pocket ? trace.pocket.atoms : []).map(a => cap(a.el)));
+  document.getElementById('legend').innerHTML =
+    ['C', 'H', 'E'].map(c => '<span class="sw"><i style="background:var(--ss-'
+      + c + ')"></i>' + ({ C: 'coil', H: 'helix', E: 'strand' })[c] + '</span>').join('')
+    + [...seen].sort().map(b => '<span class="sw"><i style="background:var(--base-'
+      + b + ')"></i>' + b + '</span>').join('')
+    + [...els].sort().map(e => '<span class="sw"><i style="background:var(--atom-'
+      + e + ')"></i>' + e + '</span>').join('');
+}
+
+function show(id) {
+  current = id;
+  trace = traces.get(id);
+  for (const b of document.querySelectorAll('#states button'))
+    b.setAttribute('aria-pressed', String(b.dataset.id === id));
+  facts();
+  draw();
+}
+
+document.getElementById('states').innerHTML = VIEWS
+  .map(v => '<button class="mode" data-id="' + v.id + '" aria-pressed="false">'
+    + '<span class="chip">' + v.chip + '</span>'
+    + '<span class="who">' + v.label + '</span></button>').join('');
+document.getElementById('states').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) show(b.dataset.id);
+});
+
+Promise.all(VIEWS.map(v => fetch('data/rb69-' + v.id + '.json')
+  .then(r => { if (!r.ok) throw new Error(v.id + ': ' + r.status); return r.json(); })
+  .then(t => traces.set(v.id, t))))
+  .then(() => show(current))
+  .catch(e => {
+    document.getElementById('lede').textContent =
+      'No bake. Run: node proteins/rb69/tools/prep.js  (' + e.message + ')';
+  });
+
+for (const id of ['protein', 'dna', 'site', 'sub'])
+  document.getElementById(id).addEventListener('input', draw);
+
+/* THE ONLY PATH A HUMAN'S ROTATION TAKES, and it is kit/proteinbox.js's
+   pickView(): what is on screen is camera-inverse times the structure's view,
+   so a button that reads the camera alone is right until the structure has a
+   view and silently wrong forever after. Only the box can see the chain
+   group's rotation. */
+document.getElementById('pick').addEventListener('click', () => {
+  const text = JSON.stringify(box.pickView());
+  if (navigator.clipboard) navigator.clipboard.writeText(text);
+  document.getElementById('pick-note').textContent = text;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<base href="/demos/proteins/polymerase/">
+<title>Taq polymerase — open and closed</title>
+
+<!-- ===================================================================
+     SCRATCH. Not a lesson, not linked from anywhere but admin.html.
+     AddingAProtein.md step 4: this page exists so a human can decide
+     whether these two entries earn a place in the registry.
+
+     WHAT IT IS FOR SETTLING:
+
+       one motion       4KTQ and 3KTQ are the same construct on the same
+                        primer/template, empty and loaded. Flip between
+                        them and the fingers should close on the incoming
+                        nucleotide while the DNA stays put. If the DNA
+                        moves instead, the fit is on the wrong thing.
+       the fit          it is on the duplex's phosphates, not the Ca
+                        trace, so the protein is free to move around a
+                        nailed-down substrate. The panel prints the fit
+                        residual and the Ca RMSD after it as two
+                        different numbers, because they answer two
+                        different questions.
+       an absence       the open structure has no pocket, and that is
+                        half the comparison rather than a gap. It is
+                        baked as null and printed as a sentence.
+       the last rung    the primer ends in DOC, dideoxycytidine, a
+                        HETATM. It is on the ladder because the baker
+                        asked for modified residues; if the rung nearest
+                        the site is missing, that opt-in was dropped.
+
+     WHAT IT DOES NOT DO. No animation between the states. Two
+     superposed stills is what the deposition supports; a tween would be
+     an interpolation nobody measured, and AddingAProtein.md says to ask
+     before animating.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../css/main.css">
+<link rel="stylesheet" href="../../css/sandbox.css">
+<link rel="stylesheet" href="../protein-test.css">
+
+<style>
+  /* The panel chrome is ../protein-test.css. What stays here is the two
+     vocabularies in one frame — a colour legend — and the state switch. */
+  #stage { min-height: 0; }
+
+  .row { display: flex; align-items: center; gap: var(--space-2);
+         margin: 6px 0; font-size: 0.8rem; color: var(--h-ink); }
+  .row label { display: flex; align-items: center; gap: 6px; flex: 1; }
+  .row input[type=checkbox] { accent-color: var(--h-accent); }
+  .row input[type=range] { width: 110px; accent-color: var(--h-accent); }
+
+  #legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3);
+            margin: var(--space-2) 0 0; font-size: 0.75rem;
+            color: var(--h-muted); }
+  .sw { display: inline-flex; align-items: center; gap: .35em;
+        font-variant-numeric: tabular-nums; }
+  .sw i { width: .8em; height: .8em; border-radius: 2px; display: inline-block; }
+
+  #facts td:last-child { text-align: left; font-weight: 400; font-size: 0.78rem;
+                         padding-left: var(--space-3); overflow-wrap: anywhere; }
+  #tris { color: var(--h-muted); font-variant-numeric: tabular-nums;
+          font-size: 0.75rem; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="stage"></div>
+  <div class="panel">
+    <h1>Taq polymerase</h1>
+    <p class="deck">The same enzyme on the same primer and template, twice:
+      site empty, then site loaded. Fitted on the DNA, so what moves is the
+      protein.</p>
+
+    <h2>state</h2>
+    <div id="states"></div>
+
+    <h2>what is drawn</h2>
+    <div class="row"><label><input type="checkbox" id="protein" checked> protein</label></div>
+    <div class="row"><label><input type="checkbox" id="dna" checked> DNA</label></div>
+    <div class="row"><label><input type="checkbox" id="site" checked> what is in the site</label></div>
+    <div class="row"><label>samples / nt</label><input type="range" id="sub" min="2" max="16" value="8"></div>
+    <div id="tris"></div>
+
+    <h2>rotation</h2>
+    <p class="meta" id="pick-note">Turn the molecule, then copy the basis into
+      the registry entry when there is one.</p>
+    <button class="mode" id="pick"><span class="who">copy this view</span></button>
+
+    <h2>colour</h2>
+    <div id="legend"></div>
+
+    <h2>the claim</h2>
+    <p class="claim" id="lede">Loading…</p>
+
+    <h2>measured, not typed</h2>
+    <table id="facts"></table>
+
+    <p class="src">
+      <a id="d-rcsb" href="https://www.rcsb.org/" target="_blank" rel="noopener"><span id="d-rcsb-label">RCSB entry</span><svg class="ext" viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2h5.5v5.5M10 2 4.5 7.5M8 9.5H2V3.5"/></svg></a>
+      <a href="data/">what this page loads</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../lib/palette.js"></script>
+<script src="../../lib/tokens-from-palette.js"></script>
+<script src="../../lib/molecules.js"></script>
+<script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
+<script src="../../kit/card-stage.js"></script>
+<script src="../../kit/ribbon.js"></script>
+<script src="../../kit/nucleic.js"></script>
+<script src="../../kit/proteinbox.js"></script>
+<script>
+'use strict';
+
+/* THE BAKES ARE NAMED HERE BECAUSE THE PROTEIN IS NOT IN A REGISTRY YET.
+   Under review, so the CANDIDATES table lives in tools/prep.js and this list
+   mirrors it; step 6 of AddingAProtein.md moves both into
+   proteins/nucleic-acids.js and this becomes a defaultOf() call, the way
+   zif268-test.html already reads. */
+const VIEWS = [
+  { id: '4KTQ', chip: 'open', label: 'binary — site empty' },
+  { id: '3KTQ', chip: 'closed', label: 'ternary — ddCTP + 2 Mg' },
+];
+
+/* THE BOX IS kit/proteinbox.js, WHICH DRAWS BOTH POLYMERS. The scene, the
+   camera, the framing, the drag and the WebGL context are the module's, and
+   its nucleic branch is why this page owns no ribbon code, no runs(), no
+   strand colours and no ball-and-stick constants.
+
+   `sub:10` and `turn:'trackball'` on a full-height stage: the box's defaults
+   are a card's, and both run out at this size. AddingAProtein.md's row is why. */
+const box = Proteinbox.create({
+  mount: document.getElementById('stage'),
+  orbit: true, sub: 10,
+  stage: { ortho: false, turn: 'trackball' },
+});
+
+const traces = new Map();
+let trace = null, current = VIEWS[0].id;
+
+/* WHAT TO HAND THE BOX, given the checkboxes. `chains` is the box's own
+   filter, so hiding a polymer is a re-feed rather than a second renderer here;
+   the pocket is fed separately because it is not a chain. */
+function draw() {
+  if (!trace) return;
+  const want = trace.order.filter(id => trace.chains[id].kind === 'na'
+    ? document.getElementById('dna').checked
+    : document.getElementById('protein').checked);
+  const sub = +document.getElementById('sub').value;
+  /* An empty chain list would ask the box to draw nothing and re-solve its
+     framing on no points, so an all-off state keeps the last structure. */
+  if (want.length) box.setData(trace, { chains: want.join(','), sub });
+  if (document.getElementById('site').checked && trace.pocket)
+    box.setPocket(trace.pocket);
+
+  document.getElementById('tris').textContent =
+    NucleicLib.triangles(trace, { sub }).toLocaleString() + ' triangles (DNA only)';
+}
+
+/* EVERY NUMBER READ FROM THE BAKE. Helices and strands especially: they are
+   the deposited records' counts, not letters counted off `ss`, because
+   adjacent helices merge into one run of H. */
+function facts() {
+  const aa = trace.order.filter(id => (trace.chains[id].kind || 'aa') === 'aa');
+  const na = trace.order.filter(id => trace.chains[id].kind === 'na');
+  const nnt = na.reduce((k, id) => k + trace.chains[id].nums.length, 0);
+  const p = trace.chains[aa[0]];
+  const m = trace.meta;
+
+  const rows = [
+    ['Entry', trace.entry + ' — ' + trace.what],
+    ['Method', (trace.method || '?') + (trace.resolution ? ', ' + trace.resolution + ' A' : '')],
+    ['Protein', aa.join(', ') + '  (' + p.nums.length + ' of ' + m.declared[aa[0]]
+      + ' declared, ' + p.helices + ' helices, ' + p.strands + ' strands, ss '
+      + trace.ssFrom + ')'],
+    ['DNA', na.map(id => id + ' ' + trace.chains[id].seq
+      + (trace.chains[id].mods.length
+        ? ' [' + trace.chains[id].mods.map(x => x.name + ' ' + x.num).join(', ') + ']' : ''))
+      .join('   ')],
+    ['Base pairs', trace.pairs.length + '  — ' + trace.pairsFrom],
+    ['Unpaired', (nnt - trace.pairs.length * 2) + '  (the templating base, and any 5\' overhang)'],
+    ['In the site', trace.pocket
+      ? trace.pocket.of + ' — ' + trace.pocket.atoms.length + ' atoms, '
+        + trace.pocket.bonds.length + ' bonds from CONECT'
+      : 'nothing. The empty site is this view\'s measurement'],
+    ['Ligands', m.ligands.join(', ') || 'none'],
+    ['EC', m.ec.join(', ') || 'none'],
+    ['Extents', (trace.extents || []).join(' x ') + ' A'],
+    ['Frame', trace.frame],
+  ];
+  if (trace.templating)
+    rows.splice(6, 0, ['Reading', 'the incoming base sits ' + trace.templating.d
+      + ' A from ' + trace.templating.base + ' ' + trace.templating.at
+      + ' — ' + trace.templating.how]);
+  if (trace.fit)
+    rows.push(['Fitted', 'on ' + trace.fit.on + '’s phosphates, ' + trace.fit.atoms
+      + ' atoms, ' + trace.fit.rmsd + ' A residual'],
+      ['Ca after the fit', trace.motion.rmsd + ' A over ' + trace.motion.pairs
+        + ' residues, max ' + trace.motion.max + ' A at ' + trace.motion.at
+        + ' — the domain motion, not a fit residual']);
+  else
+    rows.push(['Fitted', 'no — this is the reference every other view is fitted onto']);
+
+  document.getElementById('facts').innerHTML = rows
+    .map(([k, v]) => '<tr><td>' + k + '</td><td class="n">' + v + '</td></tr>').join('');
+
+  const closed = traces.get('3KTQ');
+  document.getElementById('lede').innerHTML = trace.purpose
+    + '. Both entries are one construct on one primer/template, superposed on '
+    + 'the duplex’s phosphates rather than on the protein — so the DNA '
+    + 'is nailed in place and every angstrom the protein moves is the protein '
+    + 'moving'
+    + (closed && closed.motion
+      ? '. Between these two states that is ' + closed.motion.rmsd
+        + ' A over ' + closed.motion.pairs + ' residues, and up to '
+        + closed.motion.max + ' A at ' + closed.motion.at + '.'
+      : '.')
+    + ' The primer ends in dideoxycytidine, which has no 3′-OH: the '
+    + 'reaction cannot finish, which is why the loaded state can be a crystal '
+    + 'at all.';
+
+  const rc = document.getElementById('d-rcsb');
+  rc.href = 'https://www.rcsb.org/structure/' + trace.entry;
+  document.getElementById('d-rcsb-label').textContent = 'RCSB ' + trace.entry;
+
+  const seen = new Set();
+  for (const id of na) for (const c of trace.chains[id].seq) seen.add(c);
+  /* THE ELEMENT'S OWN TOKEN, not a number read out of the palette here.
+     tokens-from-palette.js publishes every atom colour as --atom-<El> at load,
+     in the palette's own casing, so a swatch and the sphere it names cannot
+     drift — the same rule the ss and base swatches beside it follow. */
+  const cap = e => e[0] + e.slice(1).toLowerCase();
+  const els = new Set((trace.pocket ? trace.pocket.atoms : []).map(a => cap(a.el)));
+  document.getElementById('legend').innerHTML =
+    ['C', 'H', 'E'].map(c => '<span class="sw"><i style="background:var(--ss-'
+      + c + ')"></i>' + ({ C: 'coil', H: 'helix', E: 'strand' })[c] + '</span>').join('')
+    + [...seen].sort().map(b => '<span class="sw"><i style="background:var(--base-'
+      + b + ')"></i>' + b + '</span>').join('')
+    + [...els].sort().map(e => '<span class="sw"><i style="background:var(--atom-'
+      + e + ')"></i>' + e + '</span>').join('');
+}
+
+function show(id) {
+  current = id;
+  trace = traces.get(id);
+  for (const b of document.querySelectorAll('#states button'))
+    b.setAttribute('aria-pressed', String(b.dataset.id === id));
+  facts();
+  draw();
+}
+
+document.getElementById('states').innerHTML = VIEWS
+  .map(v => '<button class="mode" data-id="' + v.id + '" aria-pressed="false">'
+    + '<span class="chip">' + v.chip + '</span>'
+    + '<span class="who">' + v.label + '</span></button>').join('');
+document.getElementById('states').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) show(b.dataset.id);
+});
+
+Promise.all(VIEWS.map(v => fetch('data/polymerase-' + v.id + '.json')
+  .then(r => { if (!r.ok) throw new Error(v.id + ': ' + r.status); return r.json(); })
+  .then(t => traces.set(v.id, t))))
+  .then(() => show(current))
+  .catch(e => {
+    document.getElementById('lede').textContent =
+      'No bake. Run: node proteins/polymerase/tools/prep.js  (' + e.message + ')';
+  });
+
+for (const id of ['protein', 'dna', 'site', 'sub'])
+  document.getElementById(id).addEventListener('input', draw);
+
+/* THE ONLY PATH A HUMAN'S ROTATION TAKES, and it is the box's pickView():
+   what is on screen is camera-inverse times the structure's view, so a button
+   that reads the camera alone is right until the structure has a view and
+   silently wrong forever after. */
+document.getElementById('pick').addEventListener('click', () => {
+  const text = JSON.stringify(box.pickView());
+  if (navigator.clipboard) navigator.clipboard.writeText(text);
+  document.getElementById('pick-note').textContent = text;
+});
+</script>
+</body>
+</html>
