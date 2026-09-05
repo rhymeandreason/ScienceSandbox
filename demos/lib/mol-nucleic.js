@@ -232,7 +232,7 @@
   /* ---- phosphate ------------------------------------------------------
    * Phosphoric acid, as fetched (CID 1004). The nucleotide's third part, and
    * the only one of the three this file has to add — the sugar already exists
-   * as MOLECULES.deoxyribose, built by mol-contrast.js.
+   * as MOLECULES.deoxyribose, built by mol-sugars.js.
    *
    * WHY THE NEUTRAL ACID AND NOT THE ION. At pH 7 free phosphate is HPO4²⁻ and
    * the phosphate in a nucleotide carries a negative charge; that charge is the
@@ -519,5 +519,79 @@
 
   register({ adenine, thymine, guanine, cytosine, phosphate,
              dATP, dTTP, dGTP, dCTP }, SELFNAME);
+
+
+  /* ---------------------------------------------------------------------
+   *  THE TWO PARENT RING SYSTEMS
+   * ---------------------------------------------------------------------
+   *  Moved here out of the old mol-contrast.js, which grouped them with an amino acid
+   *  and a fatty acid because they shared a page. They are bases; this is the
+   *  base file. Their `contrast:` blocks still name each other, which is where
+   *  a contrast lives and always did.
+   *
+   *  These two are the ONLY specs in this file that are BUILT rather than
+   *  fetched, so they are the only reason it touches skel.js. It is required
+   *  inside this block rather than at the top so that the dependency is
+   *  visible next to the thing that has it; every page loading this file
+   *  already loads skel.js.
+   * ------------------------------------------------------------------- */
+  {
+    const SkelLib = global.SkelLib
+      || (typeof require === 'function' ? require('./skel.js').SkelLib : null);
+    if (!SkelLib) throw new Error(SELFNAME + ': skel.js must be loaded first');
+    const { AR, V, flatRing, fuseRing, flatH } = SkelLib;
+    const PARENTS = {};
+      // — purine and pyrimidine, the two parent ring systems. Named as the parents
+      //   rather than as adenine/thymine on purpose (SCIENCE.md rule 1): the claim
+      //   being made is about ring COUNT and width, and dressing them up with
+      //   substituents would add features this page does not check.
+      //
+      //   Both rings are drawn as regular polygons — a ~4% idealisation, since real
+      //   C–N (1.34 Å) is a little shorter than C–C (1.39 Å). That is deliberate:
+      //   the lesson is the two-ring vs one-ring WIDTH, and a regular polygon makes
+      //   that width read cleanly without changing it meaningfully.
+
+      // pyrimidine: one six-ring, N1 C2 N3 C4 C5 C6 at indices 0…5
+      const p=flatRing(6, ['N','C','N','C','C','C']);
+      p.order(0,1,2).order(2,3,2).order(4,5,2);      // one Kekulé structure
+      const pH=[1,3,4,5].map(i=>flatH(p,i,AR.CH));
+      PARENTS.pyrimidine=p.spec({ name:'Pyrimidine', formula:'C₄H₄N₂', class:'base',
+        names:['N1','C2','N3','C4','C5','C6','H2','H4','H5','H6'],
+        smiles:'c1nc[cH:1][cH:1]n1',
+        topology:{ rings:[6] },
+        view:VIEW.flatRing,
+        contrast:{ pair:'purine-pyrimidine', partner:'purine',
+          differs:'one ring vs two',
+          lesson:'why A–T and G–C are equal width',
+          // The C4–C5 edge and its two hydrogens: on purine this exact edge is
+          // where the second ring is fused. Highlighting a plain edge on one side
+          // and a whole fused ring on the other is what makes the absence visible
+          // — a pyrimidine's difference from a purine is something it does NOT have.
+          diff:[3,4,pH[1],pH[2]],
+          note:'C and T are pyrimidines — one ring, the narrow ones. Where purine '
+             + 'carries a second ring, this edge just carries two hydrogens.' } });
+
+      // purine: the same six-ring with an imidazole fused across C4–C5.
+      // Indices 0…5 = N1 C2 N3 C4 C5 C6, then 6,7,8 = N7 C8 N9.
+      const q=flatRing(6, ['N','C','N','C','C','C']);
+      const five=fuseRing(q, 5, 3, 4, V(0,0,0), ['N','C','N']);   // N7, C8, N9
+      q.order(0,1,2).order(2,3,2).order(4,5,2);      // six-ring, same Kekulé form
+      q.order(five[0],five[1],2);                    // N7=C8
+      const qH=[1,5,five[1]].map(i=>flatH(q,i,AR.CH));
+      qH.push(flatH(q,five[2],AR.NH));               // N9–H, the 9H tautomer
+      PARENTS.purine=q.spec({ name:'Purine', formula:'C₅H₄N₄', class:'base',
+        names:['N1','C2','N3','C4','C5','C6','N7','C8','N9','H2','H6','H8','H9'],
+        smiles:'c1nc[c:1]2[n:1][cH:1][nH:1][c:1]2n1',
+        topology:{ rings:[5,6], fused:true },
+        view:VIEW.flatRing,
+        contrast:{ pair:'purine-pyrimidine', partner:'pyrimidine',
+          differs:'one ring vs two',
+          lesson:'why A–T and G–C are equal width',
+          diff:[3,4,...five, ...qH.slice(2)],
+          note:'A and G are purines — two fused rings, the wide ones. Every base pair '
+             + 'is one wide plus one narrow, so the DNA ladder keeps a constant 2 nm '
+             + 'rung. Two purines would bulge; two pyrimidines would pinch.' } });
+    register(PARENTS, SELFNAME);
+  }
 
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,4 +1,4 @@
-<!-- KIND: argument — the proposed re-partition of the mol-*.js files, and every molecule we have decided is worth adding. Load when deciding WHICH molecule to build next, before moving a spec between domain files, or to find the record a planned spec is generated from. `AddingAMolecule.md` is the recipe for building one once it is chosen; `MolecularGeometry.md` §1 is the rulebook both obey. `mol-sugars.js` is the first row built; the rest is not. -->
+<!-- KIND: argument — the proposed re-partition of the mol-*.js files, and every molecule we have decided is worth adding. Load when deciding WHICH molecule to build next, before moving a spec between domain files, or to find the record a planned spec is generated from. `AddingAMolecule.md` is the recipe for building one once it is chosen; `MolecularGeometry.md` §1 is the rulebook both obey. `mol-sugars.js`, `mol-glycans.js` and `mol-aminoacids.js` are built and `mol-contrast.js` is deleted; the rest is not. `mol-monomers.js` is down to AMP and dies with `mol-carriers.js`. -->
 
 # Molecules wishlist
 
@@ -10,7 +10,7 @@ Files are named for a chemical class rather than for a page. Class tracks builde
 
 Two files were named for pages and are dissolved:
 
-* **`mol-contrast.js`** held four unrelated chemical classes grouped by "appear side by side on `contrast-lab`". Four pages that are not `contrast-lab` load it — `amylase`, `chain/`, `chair/`, `capillary/` — and all four want only the disaccharides. They were parsing proline and palmitoleate to get maltose, which is the cost failure inverted: the contrast page's convenience billed to everyone else. Contrast survives where it already lives, in each spec's `contrast:` block naming its partner and `diff`. It was never a property a file had to carry.
+* **`mol-contrast.js` — DISSOLVED, and the file is gone.** It held four unrelated chemical classes grouped by "appear side by side on `contrast-lab`". Five pages that are not `contrast-lab` loaded it — `amylase`, `chain/`, `chair/`, `capillary/`, `macromolecule-builder` — and all five wanted only the disaccharides. They were parsing proline and palmitoleate to get maltose, which is the cost failure inverted: the contrast page's convenience billed to everyone else. Its contents went to `mol-glycans.js` (the four disaccharides), `mol-aminoacids.js` (D-alanine, proline, glutamine, glutamate), `mol-nucleic.js` (purine, pyrimidine) and `mol-lipids.js` (palmitoleate). Contrast survives where it always lived, in each spec's `contrast:` block naming its partner and `diff`. It was never a property a file had to carry.
 * **`mol-compare.js`** held two specs, and every page that loaded it also loaded `mol-pathways.js`. The split saved nobody anything.
 
 `mol-vitamins.js` goes too: one occupant, and `essential:` is a flag on the spec rather than a class. `mol-monomers.js` and `mol-pathways.js` are dissolved into the class files their contents belong to.
@@ -21,9 +21,9 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 
 | File | Existing | Additions |
 | --- | --- | --- |
-| `mol-sugars.js` **(built)** | α-glucose, galactose, ribose, deoxyribose — moved out of `mol-contrast.js`; glucose and ascorbate still to come | **fructose**, **acarbose** |
-| `mol-glycans.js` | maltose, cellobiose, lactose, galactobiose | **sucrose** |
-| `mol-aminoacids.js` | gly, ala, ser, cys, D-ala, pro, gln, glu | **hydroxyproline**, **tyrosine**, **histidine**, **lysine**, **aspartate**, **tryptophan** |
+| `mol-sugars.js` **(built)** | α-glucose, galactose, ribose, deoxyribose; glucose and ascorbate still to come | **fructose**, **acarbose** |
+| `mol-glycans.js` **(built)** | maltose, cellobiose, lactose, galactobiose | **sucrose** |
+| `mol-aminoacids.js` **(built)** | gly, ala, ser, cys, D-ala, pro, gln, glu | **hydroxyproline**, **tyrosine**, **histidine**, **lysine**, **aspartate**, **tryptophan** |
 | `mol-carriers.js` | ATP, AMP, Pi, NADH, FAD, FADH₂, CoA, acetyl-CoA, succinyl-CoA, atpSkel, nadhSkel | **ADP**, **NAD⁺**, **2,3-BPG** |
 | `mol-glycolysis.js` | G6P, F6P, F16BP, DHAP, G3P, 1,3-BPG, 3PGA, 2PGA, PEP, pyruvate, lactate, acetaldehyde, ethanolSkel | — |
 | `mol-krebs.js` | OAA, citrate, isocitrate, αKG, succinate, fumarate, malate | — |
@@ -32,7 +32,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 | `mol-cofactors.js` | — | **heme b**, **chlorophyll a**, **β-carotene** |
 | `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol | **CO**, **urea**, **methanol** |
 | `mol-solvation.js` | water, NaCl, KCl, ethanol, ammonia, methane, O₂, CO₂, carbonic, bicarbonate, hydronium | **Zn²⁺**, **Fe²⁺/Fe³⁺** |
-| *deleted* | `mol-contrast.js`, `mol-compare.js`, `mol-vitamins.js`, `mol-monomers.js`, `mol-pathways.js` | dissolved into the rows above |
+| *deleted* | ~~`mol-contrast.js`~~ **(done)** · `mol-compare.js`, `mol-vitamins.js`, `mol-monomers.js`, `mol-pathways.js` still to go | dissolved into the rows above |
 
 `mol-small.js` and `mol-solvation.js` stay the family A / family B either-or they already are; `register()` throws if both load, and that is the point.
 

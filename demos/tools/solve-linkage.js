@@ -31,16 +31,16 @@ const path = require('path');
 const CR = require(path.join(__dirname, '../lib/chain-repeat.js'));
 const { MolLib } = require(path.join(__dirname, '../lib/molecules.js'));
 require(path.join(__dirname, '../lib/skel.js'));
-require(path.join(__dirname, '../lib/mol-monomers.js'));
 require(path.join(__dirname, '../lib/mol-pathways.js'));
-require(path.join(__dirname, '../lib/mol-contrast.js'));
+require(path.join(__dirname, '../lib/mol-sugars.js'));
+require(path.join(__dirname, '../lib/mol-glycans.js'));
 
 /* The builder hands back RAW ångströms — register() is what multiplies by
  * SCALE, and nothing here goes through it. Dividing by SCALE anyway (as the
  * first version did) under-reports every rise by 1.9×, which quietly moved both
  * targets and made a wrong linkage look like a perfect fit. */
 const build = MolLib.BUILD && MolLib.BUILD.disaccharide;
-if (!build) { console.log('FAIL: mol-contrast.js did not expose BUILD.disaccharide'); process.exit(1); }
+if (!build) { console.log('FAIL: mol-glycans.js did not expose BUILD.disaccharide'); process.exit(1); }
 
 /* The published targets. These are the citation — everything else is derived.
  * Rise is per RESIDUE, in ångströms.

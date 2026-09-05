@@ -139,13 +139,9 @@
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/skel.js"></script>
-<!-- mol-monomers BEFORE mol-contrast: mol-contrast mirrors alanine out of it,
-     and without it that whole domain file throws at register() and every spec
-     in it silently fails to exist. -->
-<script src="../lib/mol-monomers.js"></script>
 <script src="../lib/mol-pathways.js"></script>
 <script src="../lib/mol-sugars.js"></script>
-<script src="../lib/mol-contrast.js"></script>
+<script src="../lib/mol-glycans.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="frame.js"></script>
 <script src="../lib/chain-repeat.js"></script>
@@ -313,7 +309,7 @@ document.getElementById('warn').innerHTML = out.maltose.close
   : `<b>Negative result, recorded on purpose.</b> Cellulose comes out right `
     + `(${out.cellobiose.perTurn.toFixed(2)} residues/turn against a real 2). Starch does not: `
     + `${out.maltose.perTurn.toFixed(2)} against a real ~6, so it draws as a ribbon rather than a helix. `
-    + `The cause is not this page — <code>mol-contrast.js</code> gives maltose and cellobiose `
+    + `The cause is not this page — <code>mol-glycans.js</code> gives maltose and cellobiose `
     + `<b>one shared pair of torsions</b> about the glycosidic bond, deliberately, so that the only `
     + `difference between those two cards is the α/β configuration. Those torsions therefore carry `
     + `no polymer information, and repeating them cannot make two different helices. Fixing it needs `

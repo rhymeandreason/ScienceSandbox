@@ -45,9 +45,13 @@ const SCIENCE = rd('docs/SCIENCE.md');
 // excused — it is asserted ABSENT, so if one gets built the check fails and
 // tells you to update the doc that called it hypothetical.
 const KNOWN_ABSENT = {
+  // Deleted, and named in the docs that record deleting it. molecules-wishlist.md
+  // is the argument for dissolving it and LESSONS-ROADMAP.md the history; a doc
+  // that may not say what a file USED to be is a doc that cannot explain a move.
+  'mol-contrast.js':    'dissolved into mol-glycans/mol-aminoacids/mol-nucleic/mol-lipids '
+                        + '— molecules-wishlist.md records the split',
   // molecules-wishlist.md's proposed re-partition. These five are the files the
   // class-based split would create; nothing is moved yet, and the doc says so.
-  'mol-glycans.js':     'molecules-wishlist.md proposal — not built',
   'mol-carriers.js':    'molecules-wishlist.md proposal — not built',
   'mol-glycolysis.js':  'molecules-wishlist.md proposal — not built',
   'mol-cofactors.js':   'molecules-wishlist.md proposal — not built',
@@ -102,8 +106,7 @@ const KNOWN_ABSENT = {
   // the file that proposes them, so building one must fail here until that
   // row moves from "after" to "now".
   'mol-photosynthesis.js': 'LESSONS-ROADMAP.md tier-after — deferred',
-  'mol-carbs.js':          'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined',
-  'mol-aminoacids.js':     'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined',
+  'mol-carbs.js':          'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined;\n                            //   the carbohydrates went to mol-sugars.js + mol-glycans.js instead',
   'mol-signaling.js':      'LESSONS-ROADMAP.md — out of scope',
   'mol-ecology.js':        'LESSONS-ROADMAP.md — out of scope',
   // Build outputs and runtime strings, not repo files.

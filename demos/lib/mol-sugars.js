@@ -2,7 +2,7 @@
  *  mol-sugars.js — the monosaccharides, one family, one file
  * =====================================================================
  *  docs/molecules-wishlist.md's re-partition, first instalment. These four
- *  were in mol-contrast.js because they happen to appear beside each other on
+ *  were in the old mol-contrast.js because they happen to appear beside each other on
  *  contrast-lab; that is a fact about a page, not about a molecule. Four pages
  *  that are not contrast-lab already load that file, and dna-lab needs exactly
  *  one sugar out of it — the cost failure the wishlist names.

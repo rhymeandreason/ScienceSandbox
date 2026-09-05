@@ -448,7 +448,7 @@
 
   // Adenine: a flat six-ring with an imidazole fused across C4–C5, plus the
   // 6-amino that makes it adenine rather than purine. Same construction as
-  // `purine` in mol-contrast.js, and flat for the same reason — a base is
+  // `purine` in mol-nucleic.js, and flat for the same reason — a base is
   // planar, and a tetrahedral builder would pucker it.
   // Indices: 0…5 = N1 C2 N3 C4 C5 C6, then N7 C8 N9. Returns the N9 that bonds
   // to a sugar's anomeric carbon.

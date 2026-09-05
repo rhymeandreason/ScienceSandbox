@@ -39,7 +39,7 @@
  *
  *  So a page MAY print `screwOf`'s residues-per-turn and rise beside the
  *  published figures: that comparison is the assertion, not a coincidence being
- *  passed off as one. mol-contrast.js's LINK table carries both pairs and the
+ *  passed off as one. mol-glycans.js's LINK table carries both pairs and the
  *  targets they were solved against. What a page still may not do is imply the
  *  torsions were measured off a deposited disaccharide; they were not, and the
  *  helix is what stands behind them.

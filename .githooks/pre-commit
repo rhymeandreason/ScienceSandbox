@@ -371,6 +371,25 @@ else
   echo "pre-commit: skipping check-dna.js — nothing under demos/dna/ staged"
 fi
 
+# codon.js is in dna/ but shares nothing with check-dna.js, so it gets its own
+# gate rather than a second block inside that one. The narrow pattern is on
+# purpose: the strip's answers come from the standard genetic code and the
+# sequence a host passes, so nothing outside these two files can change a
+# verdict — and a verdict is what a page prints.
+if git diff --cached --name-only | grep -qE '^demos/dna/(codon\.js|check-codon\.js)$'; then
+  if ! node dna/check-codon.js > /tmp/ccdn.$$ 2>&1; then
+    tail -25 /tmp/ccdn.$$; rm -f /tmp/ccdn.$$
+    echo ""
+    echo "pre-commit FAILED: check-codon.js — the codon strip no longer derives what"
+    echo "  it prints. A table failure means the genetic code moved; a figure failure"
+    echo "  means the drawing stopped agreeing with the verdict under it."
+    exit 1
+  fi
+  rm -f /tmp/ccdn.$$
+else
+  echo "pre-commit: skipping check-codon.js — no codon file staged"
+fi
+
 # macromolecule/ gates itself, plus every spec and module its answers are built
 # out of. peptide.js reads `condense:`, which molecules.js DERIVES from each
 # spec's `pep` indices — so a renumbered residue, or a change to that
@@ -379,11 +398,11 @@ fi
 #
 # The sugars are here for a sharper reason: glycosidic.js does not construct a
 # pose, it READS one off cellobiose and maltose, whose phi/psi are the solved
-# values in mol-contrast.js's LINK table and whose residues it matches by name
+# values in mol-glycans.js's LINK table and whose residues it matches by name
 # out of mol-pathways.js's glucose and mol-sugars.js's alpha anomer, through
 # chain/frame.js. Any of those moving changes what shape a chain comes out —
 # cellulose stops being flat — and every frame still renders.
-if git diff --cached --name-only | grep -qE '^demos/(macromolecule/.*|macromolecule-builder\.html|chain/frame\.js|lib/(mol-monomers|mol-contrast|mol-pathways|mol-sugars|molecules)\.js)'; then
+if git diff --cached --name-only | grep -qE '^demos/(macromolecule/.*|macromolecule-builder\.html|chain/frame\.js|lib/(mol-aminoacids|mol-glycans|mol-pathways|mol-sugars|molecules)\.js)'; then
   if ! node macromolecule/check-macromolecule.js > /tmp/cmac.$$ 2>&1; then
     tail -25 /tmp/cmac.$$; rm -f /tmp/cmac.$$
     echo ""

@@ -161,7 +161,7 @@
       // cellobiose. Maltose is NOT a second product of this molecule: getting
       // there means moving C1's oxygen to the other side of the ring, which is
       // breaking a bond, not turning the molecule round. Starch's linkage
-      // starts from a different reagent, `alphaGlucose` in mol-contrast.js.
+      // starts from a different reagent, `alphaGlucose` in mol-sugars.js.
       condense:{
         roles:[
           { key:'c1', label:'anomeric –OH', keep:OH[0], leaves:[ohH[0]] },

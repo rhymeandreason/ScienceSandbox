@@ -80,6 +80,100 @@
   }
 
   register({
+    /* -------------------------------------------------------------------
+     *  MACROMOLECULE MONOMERS
+     * -------------------------------------------------------------------
+     *  One representative monomer per class, for the four-class comparison
+     *  gallery. Two of the four are specs that already existed and were reused
+     *  rather than duplicated: the protein monomer is `alanine` above, and the
+     *  carbohydrate is `glucose` in the glycolysis section below. Only the
+     *  lipid and the nucleotide are new.
+     *
+     *  Each carries a `groups` map: the functional groups the gallery labels,
+     *  as {key, label, formula, atoms:[…], note}. This is the same kind of
+     *  index contract as `pep` / `gly` (MolecularGeometry.md §1, rule 4) — the page
+     *  addresses atoms by position, so a reindex would silently mislabel
+     *  chemistry rather than crash. Regenerate; don't renumber by hand.
+     * ------------------------------------------------------------------- */
+
+    //  The CARBOHYDRATE monomer is `glucose`, built in the glycolysis section
+    //  below — one glucose in the library, not two. It gained `groups`, `optH`
+    //  and its C–H there rather than being duplicated here.
+    //
+    // — LIPID. SCHEMATIC ON PURPOSE (MolecularGeometry.md §1, "derive when shape carries
+    //   the lesson; schematize when topology does"). A real palmitate conformer
+    //   is floppy and renders as spaghetti; the lesson here is "long nonpolar
+    //   tail, one small polar head", which an idealised all-anti zigzag shows
+    //   far better. So: 16 carbons at a real 109.5° C–C–C, planar, united-atom
+    //   (the CH₂'s are single C spheres, the same convention ethanol uses).
+    //   SATURATED deliberately — MolecularGeometry.md §1 notes that nothing yet asserts a
+    //   double bond is *cis*, and the cis kink is the entire point of the
+    //   unsaturated contrast, so that molecule waits for a torsion check.
+    //   Drawn as the neutral acid so the –COOH head is legible; at cell pH it is
+    //   really the carboxylate, palmitate.
+    palmitate: {
+      name:'Palmitic acid', formula:'C₁₆H₃₂O₂', class:'lipid', mono:'lipid',
+      // NOT a PubChem conversion, despite sitting in family B — see the comment
+      // above: an idealised all-anti zigzag at a real 109.5°, united-atom, worked
+      // out once and baked in as literals. molecule-pipeline.md item 0 listed this
+      // as a path-2 spec that failed to reproduce (32 fetched H vs 1 committed)
+      // and read that as hydrogen stripping. It is not: the record was never the
+      // source, and the H count is what united-atom MEANS. `path:'built'` is the
+      // whole reason that misreading was possible.
+      units:'angstrom',
+      src:{path:'built', method:'all-anti zigzag, united-atom', charge:0},
+      atoms:[ {el:'C',pos:[-7.9468,-0.2474,0]},
+              {el:'C',pos:[-6.6895,0.6411,0]},
+              {el:'C',pos:[-5.4316,-0.2474,0]},
+              {el:'C',pos:[-4.1742,0.6411,0]},
+              {el:'C',pos:[-2.9163,-0.2474,0]},
+              {el:'C',pos:[-1.6589,0.6411,0]},
+              {el:'C',pos:[-0.4011,-0.2474,0]},
+              {el:'C',pos:[0.8563,0.6411,0]},
+              {el:'C',pos:[2.1142,-0.2474,0]},
+              {el:'C',pos:[3.3716,0.6411,0]},
+              {el:'C',pos:[4.6295,-0.2474,0]},
+              {el:'C',pos:[5.8868,0.6411,0]},
+              {el:'C',pos:[7.1447,-0.2474,0]},
+              {el:'C',pos:[8.4021,0.6411,0]},
+              {el:'C',pos:[9.66,-0.2474,0]},
+              {el:'C',pos:[10.9174,0.6411,0]},
+              {el:'O',pos:[-9.0642,0.2674,0]},
+              {el:'O',pos:[-7.8226,-1.6016,0]},
+              {el:'H',pos:[-6.8763,-1.8158,0]} ],
+      names:['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12','C13','C14','C15','C16','O1','O2','HO2'],
+      smiles:'CCCCC[CH2:1][CH2:1][CH2:1][CH2:1]CCCCCCC(=O)O',
+      bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],
+              [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
+      hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+      groups:[
+        { key:'carboxyl', label:'Carboxyl head', formula:'–COOH', atoms:[0,16,17,18],
+          note:'The only polar part of the whole molecule — one water-friendly end on a sixteen-carbon chain.' },
+        { key:'tail', label:'Hydrocarbon tail', formula:'–(CH₂)₁₄CH₃',
+          atoms:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+          note:'Carbon and hydrogen only: no charge, no H-bonds. Water closes ranks and squeezes it out — that is what "hydrophobic" means.' },
+        { key:'saturated', label:'Saturated', formula:'no C=C', atoms:[],
+          note:'Every C–C is single, so the chain lies straight and packs tightly — solid at room temperature. One cis double bond would kink it, and that is an oil.' },
+      ],
+      // contrast-lab.html: palmitate is the saturated (reference) half of the
+      // saturated/unsaturated pair. `diff` marks C9-C10 — the exact backbone
+      // position that's a single bond here and palmitoleate's cis C=C there —
+      // so the highlight lands on the same chain segment in both columns even
+      // though only one of them kinks.
+      contrast:{ pair:'palmitate-palmitoleate', partner:'palmitoleate',
+        differs:'one C=C, cis',
+        lesson:"why butter is solid and oil is not",
+        diff:['C8','C9','C10','C11'],
+        note:'No double bond anywhere in this chain, so every C–C rotates freely '
+           + 'into the same all-anti zigzag. Straight chains stack against each '
+           + 'other like pencils in a box — tight packing is what makes a '
+           + 'saturated fat solid at room temperature.' } },
+
+    // — NUCLEIC ACID. Derived from the PubChem 3D record for AMP
+    //   (tools/sdf2spec-generic.js): the furanose ring shape and the 2′-OH are
+    //   the claims, and the 2′-OH is exactly the one atom that separates RNA
+    //   from DNA. Drawn as the dianion the record supplies — accurate at
+    //   cytosolic pH, and the same convention the glycolysis phosphates use.
     // — GLYCEROL. Three carbons, three hydroxyls. Tier 1 prop
     //   (MolecularGeometry.md §1.4): correct shape and polarity is the
     //   whole ask, and it is compared against nothing. It earns its
@@ -169,7 +263,7 @@
     //   hydrogen to draw.
     //
     //   THE KINK IS THE sn-2 CHAIN'S, and it is one cis C=C at delta-9,
-    //   the same feature palmitoleate carries in mol-contrast.js. `cis:`
+    //   the same feature palmitoleate carries below. `cis:`
     //   asserts it, because bond lengths and angles cannot see it - cis
     //   and trans share the same C=C length and the same ~123 degrees,
     //   and only the torsion differs.
@@ -263,4 +357,89 @@
    * replaced them is in popc's own comment: solve the torsions, don't
    * type them.
    */
+
+  /* ---------------------------------------------------------------------
+   *  THE UNSATURATED PARTNER
+   * ---------------------------------------------------------------------
+   *  palmitoleate moved here with palmitate, out of the old mol-contrast.js. The two
+   *  have to travel together: the pair's whole claim is that they are built
+   *  the same way and differ in one bond, and a pair split across two files is
+   *  a pair that drifts.
+   *
+   *  It is the only spec in this file that reads skel.js, and only for three
+   *  CONSTANT tables — bond lengths and the sp2/sp3 angles — not for a
+   *  builder. Required inside this block so the dependency sits next to the
+   *  thing that has it.
+   * ------------------------------------------------------------------- */
+  {
+    const SkelLib = global.SkelLib
+      || (typeof require === 'function' ? require('./skel.js').SkelLib : null);
+    if (!SkelLib) throw new Error(SELFNAME + ': skel.js must be loaded first');
+    const { GL, SP2, TET } = SkelLib;
+    const UNSAT = {};
+      // — palmitoleate: palmitate's exact carbon count (16) with one cis C=C at
+      // Δ9 (atoms 8,9 here — C9=C10 in 1-indexed chemistry numbering), the real
+      // structure of palmitoleic acid. Built the same way palmitate was — a flat,
+      // schematic, real-angle zigzag (MolecularGeometry.md §1.6) — not a PubChem conformer,
+      // so the two sit in the exact same visual language and only the one
+      // feature differs.
+      //
+      // A cis double bond is invisible to bond length/angle alone: both cis and
+      // trans use the same C=C length (GL.CdC) and the same ~120° angles at each
+      // alkene carbon (`SP2` below vs the chain's usual `TET`) — only the
+      // TORSION about the C=C differs, which is exactly what `cis:` asserts
+      // (see check-molecules.js). Geometrically, the two backbone carbons
+      // flanking the double bond are folded to the SAME side of it (dihedral
+      // 0°) rather than continuing the ordinary alternating zigzag (which would
+      // read trans, dihedral 180°) — worked out and verified against the
+      // dihedral formula before being baked in as literals here, the same way
+      // the VIEW angles were.
+      //
+      // The carboxyl head (atoms 16,17,18) is copied verbatim from palmitate's,
+      // offset onto this spec's own C0 — the two chains start identically for
+      // eight carbons, so the head sits in exactly the same place relative to
+      // C0 in both molecules.
+      const chain=[
+        [0,0], [1.2574,0.8889], [2.5153,0], [3.7726,0.8889], [5.0305,0],
+        [6.2879,0.8889], [7.5458,0], [8.8032,0.8889], [10.0611,0],
+        [11.2689,0.5568], [11.41,2.0905], [12.9026,2.4695], [13.0432,4.0032],
+        [14.5358,4.3821], [14.6768,5.9158], [16.1695,6.2947],
+      ];
+      UNSAT.palmitoleate={ name:'Palmitoleic acid', formula:'C₁₆H₃₀O₂', class:'lipid',
+        // Built exactly as palmitate was, and for the same reason — the pair must
+        // sit in one visual language so the single cis C=C is the only difference.
+        // The cis torsion was worked out against the dihedral formula and verified
+        // before being written as literals; `cis:` asserts it at check time.
+        units:'angstrom',
+        src:{path:'built', method:'all-anti zigzag, united-atom, one cis C=C at Δ9',
+             charge:0, like:'palmitate'},
+        atoms:[
+          ...chain.map(p=>({ el:'C', pos:[p[0],p[1],0] })),
+          { el:'O', pos:[-1.1174,0.5147,0] },
+          { el:'O', pos:[0.1242,-1.3542,0] },
+          { el:'H', pos:[1.0705,-1.5684,0] },
+        ],
+        names:['C1','C2','C3','C4','C5','C6','C7','C8','C9','C10','C11','C12','C13','C14','C15','C16','O1','O2','HO2'],
+        smiles:'CCCCC[CH2:1]/[CH:1]=[CH:1]\\[CH2:1]CCCCCCC(=O)O',
+        // SmilesDrawer lays this chain out kinking DOWN; the coordinates above
+        // kink UP. Mirror the flat panel so the two views agree about which way
+        // the chain bends — the model is the geometry that is asserted, so it is
+        // the drawing that moves, not the molecule. Safe here only because
+        // nothing in this molecule is chiral: a cis C=C reflects to a cis C=C.
+        flatFlipY:true,
+        bonds:[ [0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9,2],[9,10],
+                [10,11],[11,12],[12,13],[13,14],[14,15],[0,16,2],[0,17],[17,18] ],
+        hydrophobic:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
+        cis:{ atoms:[7,8,9,10], value:true },   // asserted by check-molecules.js
+        contrast:{ pair:'palmitate-palmitoleate', partner:'palmitate',
+          differs:'one C=C, cis',
+          lesson:"why butter is solid and oil is not",
+          diff:['C8','C9','C10','C11'],
+          note:'One cis double bond, and the whole back half of the chain bends '
+             + 'away. That kink is why vegetable oil stays liquid in the fridge: a '
+             + 'bent chain cannot stack flush against its neighbours the way a '
+             + 'straight one does.' } };
+    register(UNSAT, SELFNAME);
+  }
+
 })(this);

@@ -109,7 +109,7 @@ console.log('\n== 6. the glycosidic pose repeats into the polymer it names');
   const G = require('./glycosidic.js');
   const key = (k) => ({ ...un(M[k]), key:k });
   const lib = { cellobiose:key('cellobiose'), maltose:key('maltose') };
-  // What mol-contrast.js's LINK table was solved against. Printed beside the
+  // What mol-glycans.js's LINK table was solved against. Printed beside the
   // measurement because that comparison IS the assertion (chain-repeat.js's
   // header): the torsions are not quoted from a paper, the POLYMER is.
   const WANT = {
@@ -132,7 +132,7 @@ console.log('\n== 6. the glycosidic pose repeats into the polymer it names');
     const want = WANT[k];
     ok(Math.abs(turn - want.turn) < 0.01 && Math.abs(rise - want.rise) < 0.01,
        `${k}: ${turn.toFixed(2)} residues/turn, ${rise.toFixed(2)} A rise `
-       + `— ${want.polymer}, as mol-contrast.js solved it (${want.turn} and ${want.rise})`);
+       + `— ${want.polymer}, as mol-glycans.js solved it (${want.turn} and ${want.rise})`);
     ok(r.polymer === want.polymer, `${k}: names ${want.polymer}`);
   }
   // A half turn per residue is not a fact about cellulose that anyone typed. It
@@ -229,6 +229,6 @@ console.log(fails
   ? `\nFAIL: ${fails} of ${checks} checks`
   : `\nPASS: ${checks} checks — every peptide pose lands at ${Peptide.CN} A and omega 180; `
     + `every glycosidic pose repeats into the polymer it names, at the helix `
-    + `mol-contrast.js solved its torsions against; a chain grows only at the end `
+    + `mol-glycans.js solved its torsions against; a chain grows only at the end `
     + `that still has its leaving group; and a residue makes no claim it stopped being true of`);
 process.exit(fails ? 1 : 0);

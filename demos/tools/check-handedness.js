@@ -269,7 +269,7 @@ require('@rdkit/rdkit')().then(RDKit => {
       console.log('          A mirror preserves every bond length, every angle and the render.');
       console.log('          For a pyranose the handedness is the pucker phase in');
       console.log('          skel.js ringPyranose(); for a furanose it is the UP/DOWN face');
-      console.log('          tags in mol-contrast.js, because face() is normal-sign-dependent.');
+      console.log('          tags in mol-glycans.js, because face() is normal-sign-dependent.');
     }
   }
 

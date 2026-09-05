@@ -286,7 +286,6 @@
   // does not mean remembering four checkers.
   //   ENUM: a new mol-*.js goes here AND in CLAUDE.md's script table.
   //   tools/check-docs.js asserts every name below is a real file.
-  // Order matters: mol-contrast.js mirrors alanine out of mol-monomers.js.
   /* THE PARTITION IS BY DERIVATION AND SCALE FAMILY, NOT BY TOPIC. Every
    * comment below names a BUILDER dependency or a family, and the array is
    * dependency-ORDERED because of it — `skel.js` first, then the files that
@@ -300,19 +299,30 @@
    * is what splits a file, not subject matter. */
   const DOMAINS = [
     'mol-solvation.js',    // family A — needs no builder
-    'mol-monomers.js',     // family B, PubChem + literals — needs no builder
+    'mol-aminoacids.js',   // family B, PubChem conversions + one mirror — no builder.
+                           //   D-alanine reflects alanine, so the two are in ONE
+                           //   file and the ordering is local to it.
+    'mol-monomers.js',     // AMP only, until mol-carriers.js exists to take it
     'mol-pathways.js',   // needs skel.js
     'mol-krebs.js',        // needs skel.js — split off mol-pathways.js on COST,
                            //   not topic: FAD and CoA are the two largest Skel
                            //   builds here and glycolysis-lab draws neither.
                            //   See that file's header for the argument.
     'mol-sugars.js',       // needs skel.js — the monosaccharides, split OUT of
-                           //   mol-contrast.js: four pages wanted one sugar
-                           //   each and were parsing proline to get it.
-    'mol-contrast.js',     // needs skel.js AND mol-monomers.js
+                           //   the old mol-contrast.js: four pages wanted one
+                           //   sugar each and were parsing proline to get it.
+    'mol-glycans.js',      // needs skel.js AND mol-sugars.js — lactose and
+                           //   galactobiose are built against its galactose.
+                           //   The disaccharides, split out for the same reason
+                           //   the monosaccharides were: five pages wanted only
+                           //   these and were parsing an amino acid and a fatty
+                           //   acid to reach one.
     'mol-compare.js',      // needs skel.js — the derivation comparison, viewer only
-    'mol-lipids.js',       // family B, literals — needs no builder
-    'mol-nucleic.js',      // family B, PubChem — needs no builder
+    'mol-lipids.js',       // family B, literals — plus palmitoleate, the one
+                           //   spec here that is built and the only reason this
+                           //   file touches skel.js
+    'mol-nucleic.js',      // family B, PubChem — plus purine and pyrimidine, the
+                           //   two parent rings, which are built
     'mol-vitamins.js',     // needs skel.js — split on COST like mol-krebs.js:
                            //   nothing else in the library wants a vitamin,
                            //   and they turn up beside proteins, not inside
