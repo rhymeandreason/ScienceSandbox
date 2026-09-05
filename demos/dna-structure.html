@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<!-- Served at a short URL (/dna) as well as its own path, so every relative
+     src/href/fetch below must resolve against demos/ either way. vercel.json
+     rewrites the short URL; this is what keeps the assets found. -->
+<base href="/demos/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DNA — the parts</title>
+<title>Structure of DNA — Kodolab</title>
 
 <!-- ===================================================================
      THE GLOSSARY. One finished molecule, 1BNA as deposited, held on the left
