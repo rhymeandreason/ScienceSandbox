@@ -210,7 +210,7 @@
     const CUT = { cb: 0.95 * A, sx: 0.12, sz: -0.32 }, PROTO_DROP = 0.07 * A;
     const topY = (x, z) => CUT.cb + CUT.sx * x + CUT.sz * z;
     const planeN = new V3(-CUT.sx, 1, -CUT.sz).normalize();
-    const SEG = 20, M = 6, KSEG = 7;
+    const SEG = 20, M = 6, KSEG = 16;
     const hexR = (th, a) => { const s = PI / 3, phi = ((th % s) + s) % s - s / 2; return a / Math.cos(phi); };
     const bulgeF = th => { const s = PI / 3, e = (((th % s) + s) % s - s / 2) / (s / 2); return 1 - e * e; };
 
@@ -292,11 +292,38 @@
     ];
     const pTop = (x, z) => topY(x, z) - PROTO_DROP;
     const RIMW = 0.02 * A;
+    // How far the cytoplasm is scooped below the cut. Deep enough that an
+    // organelle can sit under the rim and be seen from the side; shallow
+    // enough that the floor is still lit from the reader's side.
+    const BOWL = 0.42 * A;
+    /* The bowl's surface under a point on the cut plane, in cutFrame's own
+       coordinates (y = 0 is the plane). An organelle far out is near the rim
+       and therefore shallow, which is what keeps it from pushing through the
+       bowl wall without the solver having to know about depth at all. */
+    function bowlY(x, z) {
+      const ux = x / C.ex, uz = z, th = Math.atan2(uz, ux), rad = Math.hypot(ux, uz);
+      const rim = protoR(th, 1) - RIMW;
+      return -BOWL * Math.cos(Math.asin(clamp(rad / (rim || 1e-4), 0, 1)));
+    }
     for (let k = 0; k < 6; k++) {
       const th0 = k * PI / 3, dth = PI / 3;
       protoPG.add(SEG, M, (u, v, o) => { const th = th0 + u * dth, r = protoR(th, v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, lerp(0, pTop(x, z), v), z); }, { mi: 0 });
       protoPG.add(SEG, 1, (u, v, o) => { const th = th0 + u * dth, r = protoR(th, 1) - RIMW * (1 - v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, pTop(x, z), z); }, { flip: true, mi: 0, normal: (u, v, o) => o.copy(planeN) });
-      protoPG.add(SEG, KSEG, (u, v, o) => { const th = th0 + u * dth, r = (protoR(th, 1) - RIMW) * (0.002 + 0.998 * v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, pTop(x, z), z); }, { flip: true, mi: 1, normal: (u, v, o) => o.copy(planeN) });
+      /* THE CYTOPLASM IS A BOWL, NOT A LID. A flat cut face turns every
+         organelle into an object resting on a plate, and since each one
+         carries its own local cut, they read as separately hollowed shells
+         set down on it rather than as things the same knife went through.
+         Scooping the cytoplasm out gives them somewhere to BE — at many
+         depths and angles, which is what makes the animal cell read — and
+         the reader looks into an open cell instead of down at a section.
+         Radius follows sin, depth cos, so the bowl meets the membrane rim
+         tangentially and there is no crease where the two join. */
+      protoPG.add(SEG, KSEG, (u, v, o) => {
+        const th = th0 + u * dth, a = lerp(0.02, PI / 2, v);
+        const r = (protoR(th, 1) - RIMW) * Math.sin(a);
+        const x = r * Math.cos(th) * C.ex, z = r * Math.sin(th);
+        o.set(x, pTop(x, z) - BOWL * Math.cos(a), z);
+      }, { flip: true, mi: 1 });
       protoPG.add(SEG, 1, (u, v, o) => { const th = th0 + u * dth, r = protoR(th, 0) * v; o.set(r * Math.cos(th) * C.ex, 0, r * Math.sin(th)); }, { mi: 0, normal: (u, v, o) => o.set(0, -1, 0) });
     }
     const protoMesh = new THREE.Mesh(protoPG.build(), protoMats);
@@ -431,7 +458,13 @@
            big enough to read flat and stay level. */
         const tilt = (type === 'nucleus' || type === 'vacuole') ? 0 : rr(0.18, 0.42);
         g.rotation.set(tilt * Math.cos(rot * 2.3), rot, tilt * Math.sin(rot * 2.3));
-        L.userData.items.push({ g, type, tx: x * A, tz: z * A, x: x * A, z: z * A, vx: 0, vz: 0, rot, tilt, r: foot, w: weight, seed: L.userData.items.length });
+        /* Rest it on the floor rather than guessing a lift per type: measure
+           the group once, tilt and all, and remember how far its lowest
+           point is below its origin. Scale is applied later, and the lift
+           scales with it. */
+        g.updateMatrixWorld(true);
+        const lift = -new THREE.Box3().setFromObject(g).min.y;
+        L.userData.items.push({ g, type, tx: x * A, tz: z * A, x: x * A, z: z * A, vx: 0, vz: 0, rot, tilt, lift, r: foot, w: weight, seed: L.userData.items.length });
         return g;
       };
       // the nucleus is pinned: everything else arranges around it
@@ -507,7 +540,7 @@
       for (let k = 0; k < sub; k++) solve(items, h);
       for (const it of items) {
         const base = it.type === 'vacuole' ? P.vac : P.org, s = base * grow;
-        it.g.position.set(it.x, 0, it.z);
+        it.g.position.set(it.x, bowlY(it.x, it.z) + it.lift * s, it.z);
         it.g.scale.setScalar(s);
         if (it.type !== 'nucleus' && it.type !== 'vacuole') {
           const y = it.rot + (it.vx * Math.cos(it.rot) - it.vz * Math.sin(it.rot)) * 0.4 / A + 0.04 * Math.sin(time * 0.3 + it.seed);
