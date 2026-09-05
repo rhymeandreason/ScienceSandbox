@@ -21,7 +21,7 @@
  *  ---------------------------------------------------------------------------
  *  WHAT THIS OWNS, AND WHAT IT REFUSES TO OWN
  *  ---------------------------------------------------------------------------
- *  SCIENCE.md §6: share the plumbing, not the physics — except that here the
+ *  Modules.md: share the plumbing, not the physics — except that here the
  *  physics IS the shared thing, and the lesson is what stays on the page.
  *
  *  OWNS   molecule pool and integration · H-bond matching, drawing and forces

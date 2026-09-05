@@ -45,7 +45,7 @@ that file's load-order block and take the rows you need.
 * **A `flat2d` layout is positions, not decoration.** molecule-viewer.html moves the real atoms onto it, so a stale one flies them to the wrong places in front of the student. Heavy atoms, in spec order, real ångströms; `register()` does not scale it, so the page applies `SCALE` itself. Re-run `tools/bake-flat2d.js` after touching the spec — `check-molecules.js` fails on the length, the scale and any overlap.
 ## Architecture principle: **share the plumbing, not the physics**
 
-Deliberately **no monolithic `engine.js`**. What each shared module does and does not own, the test for whether something belongs in one, and the same split a level down inside the bonding builder: **`SCIENCE.md` §6.**
+Deliberately **no monolithic `engine.js`**. What each shared module does and does not own, the test for whether something belongs in one, and the same split a level down inside the bonding builder: **`Modules.md`.**
 
 ## Adding a new page
 

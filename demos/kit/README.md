@@ -9,7 +9,7 @@ again — and the fourth one, camera fit against pixel chrome, cost glycolysis
 five functions.
 
 That gap is what these files are. They own **no lesson state, no physics, and
-no chemistry beyond what a spec already says.** SCIENCE.md §6's test still
+no chemistry beyond what a spec already says.** Modules.md's test still
 applies: if two pages would write it identically, it belongs here; if the
 second page would want it *slightly* different, it does not.
 

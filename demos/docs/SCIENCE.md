@@ -1,10 +1,11 @@
-<!-- KIND: rulebook — load whole before adding a molecule, changing geometry, or changing what a motion implies happened. §6 is module architecture; polish on a reviewed animation does not need it. -->
+<!-- KIND: rulebook — load whole before adding a molecule, changing geometry, or changing what a motion implies happened. -->
 
 # Scientific Accuracy Rules
 
 The rulebook for every page. §§2–3 are chemistry (polarity, covalent bonding);
-§§4–6 are per-page. Water/solvation physics lives in `WaterSim.md` (solvation
-apps only).
+§§4–5 are per-page. Water/solvation physics lives in `WaterSim.md` (solvation
+apps only). Module architecture — what's shared and what stays local — lives
+in `Modules.md`.
 
 **Read `MolecularGeometry.md` §1.1–§1.6 before adding or converting any molecule
 spec** — angles, bond lengths, geometry sources, stereochemistry. It moved out
@@ -226,37 +227,3 @@ condensation*. `opt.size` is the ångström scaling every `fx` primitive takes.
 
 New pages: add `<script src="fx.js">`, `FX.create(THREE, root, camera)` once,
 `FXi.step()` in the loop, then call the primitives at your own event sites.
-
----
-
-## 6. Module architecture — share the plumbing, not the physics
-
-Deliberately **no monolithic `engine.js`**. The lessons are distinct paradigms —
-solvation, assembly, pathways, bonding — with no shared simulation core, and
-pretending otherwise produces an engine whose every option exists for one caller.
-
-What *is* extracted is the scaffolding nobody's lesson is about:
-
-| Module | Owns | Deliberately does **not** own |
-|---|---|---|
-| `molecules.js` | colours, radii, geometry specs | anything that moves |
-| `scene.js` | renderer/camera/orbit/lights/resize, `atom`/`bond`/`buildMolecule` | any page's physics |
-| `fx.js` | transient event effects | when an event happened |
-| `atomkit.js` | how an atom is **drawn** for the bonding lessons | how a bond **forms** |
-| `annotate.js` | how a callout **looks** and how it **tracks** a point | what a callout **says**, and which atom it points at |
-
-The test for a shared module: **would two lessons disagree about it?** Colours,
-radii and the look of an electron must not vary between pages — a student moving
-tabs has to read the second lesson with the vocabulary the first one taught. How
-a bond forms is exactly what the lessons are *for*, so it stays local.
-
-The split repeats inside the bonding builder. Water and methane share
-`covalent-drag.js` — the **same mechanic at two slot counts**, a recipe. Salt
-gets `ionic-drag.js` because filling a valence slot and handing an electron over
-are **different mechanics**, and expressing the second as a mode of the first
-means a flag that turns the lesson off. Rule of thumb: *same mechanic, different
-constants* → one file with a recipe; *different mechanic* → a different file.
-
-The two solvation pages keep their **own** molecule builder — cel outlines, Debug
-recolour/toon, hydration `userData` — and share only the scene bootstrap, for the
-same reason.

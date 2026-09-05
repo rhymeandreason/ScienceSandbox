@@ -17,7 +17,7 @@
  *  ---------------------------------------------------------------------------
  *  WHAT THIS OWNS, AND WHAT IT REFUSES TO OWN
  *  ---------------------------------------------------------------------------
- *  SCIENCE.md §6: share the plumbing, not the physics. water-lab's H-bonds
+ *  Modules.md: share the plumbing, not the physics. water-lab's H-bonds
  *  pull — there is a spring constant, a linearity weight and an equilibrium
  *  separation, and those belong to water-lab's sim. DNA's do not pull at all;
  *  the helix is baked and the bonds are drawn onto it.

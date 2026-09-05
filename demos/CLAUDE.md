@@ -14,7 +14,7 @@ Self-contained browser 3D molecular simulations for Biology 101. One HTML page p
 | --- | --- |
 | Adding or converting a molecule | `AddingAMolecule.md` — the eight steps, two of which catch failures that render correctly. `MolecularGeometry.md` §1 is the rulebook behind it, §1.4 for the fidelity tier it owes |
 | The chemistry a molecule has to obey | `SCIENCE.md` §§2-3, plus the target `mol-*.js` |
-| Changing geometry, or what a motion implies happened | `SCIENCE.md` §§2-5 |
+| Changing geometry, or what a motion implies happened at the molecule scale | `SCIENCE.md` §§2-5 |
 | Polish on a reviewed animation (timing, easing, camera) | nothing extra |
 | **Any page at all: which shell it takes, its header, its wordmark, its chrome** | `Design.md` — **there are two shells** (`body.kodo` for a document, `body.lshell-page` for a full-window lesson or a component bench) and its first section is how to pick. Also the one way the logo is written and the tokens a page may not restate. Read it BEFORE the recipe below, whichever kind of page it is |
 | A new page that hand-draws molecules | `AddingAPage.md`, then the sibling page the human names |
@@ -78,7 +78,7 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 
 ## Architecture principle: **share the plumbing, not the physics**
 
-Deliberately **no monolithic `engine.js`**. What each shared module does and does not own, the test for whether something belongs in one, and the same split a level down inside the bonding builder: **`SCIENCE.md` §6.**
+Deliberately **no monolithic `engine.js`**. What each shared module does and does not own, the test for whether something belongs in one, and the same split a level down inside the bonding builder: **`Modules.md`.**
 
 ## The primary UX is always a bespoke 3D molecular simulation
 
@@ -96,7 +96,7 @@ Beside the hand-built lessons there is a **component library**: scenes a page mo
 
 ## Scientific accuracy
 
-`SCIENCE.md` is the rulebook — §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions, §6 module architecture. When to open it, and the rest: the table above.
+`SCIENCE.md` is the rulebook — §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions. Module architecture is `Modules.md`. When to open it, and the rest: the table above.
 
 **A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** — `MolecularGeometry.md` §1.4's fidelity tiers (prop / contrast / subject) set how much accuracy it owes for the claim it makes. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
 

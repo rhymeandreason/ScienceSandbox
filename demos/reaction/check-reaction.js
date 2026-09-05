@@ -25,7 +25,7 @@
  *      argument to have; a third whole-stage verb NOT in it is the failure.
  *   4. NO VERB READS A LESSON'S STATE. `done`, `busy`, `intro`, `lanes` and
  *      the tray belong to the page; a verb reaching for one is the module
- *      growing lesson physics (SCIENCE.md §6).
+ *      growing lesson physics (Modules.md).
  *
  * `node reaction/check-reaction.js`, offline, no dependencies.
  */
@@ -116,7 +116,7 @@ else ok(`${VERBS.length} verbs: ${VERBS.length - wholes.length} per-lane, `
 console.log('\n== 3. no verb reads a lesson\'s state');
 /* The module reaches the page through `host` and nothing else. These are
  * glycolysis-lab's own names; a verb using one has taken a lesson's physics
- * into the shared layer, which is the thing SCIENCE.md §6 exists to stop. */
+ * into the shared layer, which is the thing Modules.md exists to stop. */
 const LESSON_STATE = /\b(done|busy|intro|reviewing|laneDone|platesOff|nSteps|STEPS|stepAt|speciesAt|refresh)\b/;
 VERBS.forEach(v => {
   // strip comments — these words are discussed in the prose on purpose
@@ -148,7 +148,7 @@ console.log('\n== 4. the default host answers only STAGE questions');
        + `that the answer cannot depend on the lesson — check that it cannot.`);
   else ok(`the default host answers ${got.length} stage questions and no others`);
 
-  // Same rule as the verbs, and the same reason (SCIENCE.md §6).
+  // Same rule as the verbs, and the same reason (Modules.md).
   const src = Reaction.stageHost.toString()
                 .replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'');
   const m = src.match(LESSON_STATE);

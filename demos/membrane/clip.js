@@ -99,7 +99,7 @@
      as a step rather than being folded into section() is localClipping:
      it is a renderer-wide flag, section() does not otherwise need the
      renderer, and a module that quietly reaches for a global renderer is
-     the kind of thing SCIENCE.md §6 says not to write.
+     the kind of thing Modules.md says not to write.
      --------------------------------------------------------------------- */
   function create(opts) {
     const renderer = opts && opts.renderer;

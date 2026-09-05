@@ -9,7 +9,7 @@
  *  places. Nothing here knows what a molecule MEANS. Which molecules a page
  *  shelves, what its notes say, which atoms are "the working end", whether there
  *  is a second derivation to switch to — all of that is the lesson, and stays in
- *  the page (SCIENCE.md §6: share the plumbing, not the physics).
+ *  the page (Modules.md: share the plumbing, not the physics).
  *
  *  THREE VIEWS, and the difference between them is the point.
  *

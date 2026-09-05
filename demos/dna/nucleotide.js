@@ -5,9 +5,9 @@
  *  what it is made of, where the record puts its atoms, and which atoms leave
  *  when one is joined to the next. Nothing about how any of that is drawn,
  *  animated, dragged or narrated — that is the lesson's, and it stays in the
- *  page (SCIENCE.md §6).
+ *  page (Modules.md).
  *
- *  The test the section sets is "would two lessons disagree about it?", and
+ *  The test Modules.md sets is "would two lessons disagree about it?", and
  *  this side of the line is where the answer is no. Two pages disagreeing about
  *  which atom the phosphate esterifies would be two pages teaching different
  *  chemistry; two pages disagreeing about how the join is animated is two

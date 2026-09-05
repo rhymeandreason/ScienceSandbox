@@ -27,7 +27,7 @@
  *     world space, and which atoms a phosphoryl transfer moves
  *   · the ± badge, and the name that rides a molecule that never lands
  *
- * WHAT IT DOES NOT OWN, and must not (SCIENCE.md §6): lanes, carriers, the
+ * WHAT IT DOES NOT OWN, and must not (Modules.md): lanes, carriers, the
  * tray, the ledger, `done`/`busy`, or any lesson's arithmetic. Those reach it
  * through `host`, and every one of them is a question about the STAGE, never
  * about the chemistry. If a verb needs a new host entry to know what reacted,

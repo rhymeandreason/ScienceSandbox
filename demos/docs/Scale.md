@@ -21,17 +21,17 @@ X.SCALE = {
 molecules · macromolecule · membrane · organelle · cell · tissue · organ · organism · population
 ```
 
-Ordered small to large. It governs exactly one thing: **components at the same rung may share a scene; components at different rungs may not.** Crossing a rung is a handoff between two boxes, never a camera move — a cell is ~20 µm and a bilayer ~5 nm, and no camera survives that.
+Ordered small to large. It governs exactly one thing: **components at the same rung may share a scene; components at different rungs may not.** Crossing a rung is a handoff between two boxes, never a camera move — a cell is \~20 µm and a bilayer \~5 nm, and no camera survives that.
 
 ## Form
 
 `single` or `bulk` — how many, independent of rung. `bulk` recurs at every rung: `WaterSim` is bulk molecules, `Leaf`'s mesophyll is bulk cells. **Bulk and single at the same rung, in one scene, is normal** — a solute in water, a chloroplast in mesophyll, a red cell in a vessel.
 
-## Measurement: molecules only
+## Measurement: molecules and macromolecules only
 
-Only the **molecules** rung is held to real numbers — bond lengths, angles, chirality. That's `MolecularGeometry.md`'s job, not this doc's.
+Only the **molecules** and **macromolecules** rung are held to real numbers — bond lengths, angles, chirality. That's `MolecularGeometry.md`'s job, not this doc’s. Proteins are imported in from data and have their own pipeline.
 
-**Everything above molecules is an illustration.** Approximate is expected; no one is checking it with a ruler. Real-world sizes still belong in prose on the library card ("a red blood cell is about 8 µm across" is a fact about red blood cells), but the render itself doesn't have to earn that number.
+**Everything above is an illustration.** Approximate is expected; no one is checking it with a ruler. Real-world sizes still belong in prose on the library card ("a red blood cell is about 8 µm across" is a fact about red blood cells), but the render itself doesn't have to earn that number.
 
 `unit` on `SCALE` reflects this: leave it `null` unless the component is genuinely built from measured data (`Proteinbox` from lab coordinates, `Membrane` from a real bilayer thickness). A `null` unit means the render supports no length claims; `tools/check-scale.js` enforces that nothing measurable is advertised without one.
 
