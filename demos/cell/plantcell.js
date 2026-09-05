@@ -283,11 +283,11 @@
 
     /* ---- protoplast: membrane sides, and the cytoplasm as the cut face ---- */
     const protoPG = PanelGeometry(THREE);
-    /* The membrane keeps the HOUSE plasma colour: it is the same organelle
-       as the animal cell's, and a student who meets it in one has to meet it
-       in the other. Only the cytosol behind it is the plant's own. */
+    /* The membrane is the tissue's green, not the house salmon — see
+       palette.js's `plantTissue` for why that exception is made here and
+       nowhere else. */
     const protoMats = [
-      mat({ color: ORG.plasma.outer, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
+      mat({ color: TIS.leaf.membrane, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
       mat({ color: TIS.leaf.cytosol, roughness: 0.4, clearcoat: 0.35 }),
     ];
     const pTop = (x, z) => topY(x, z) - PROTO_DROP;
@@ -528,8 +528,8 @@
       tissue = name;
       C.ex = T.ex; C.wall = T.wall * A;
       const P4 = TIS[name];
-      const want = [col(P4.wall), col(P4.wallRim).multiplyScalar(0.95), col(P4.wallRim), null, col(P4.cytosol)];
-      const have = [wallMats[0], wallMats[1], wallMats[2], null, protoMats[1]];
+      const want = [col(P4.wall), col(P4.wallRim).multiplyScalar(0.95), col(P4.wallRim), col(P4.membrane), col(P4.cytosol)];
+      const have = [wallMats[0], wallMats[1], wallMats[2], protoMats[0], protoMats[1]];
       tint = { k: instant ? 1 : 0, from: have.map(m => m && m.color.clone()), to: want, m: have };
       if (instant) applyTint();
       if (layer) { layer.userData.t0 = 0; dying.push(layer); }

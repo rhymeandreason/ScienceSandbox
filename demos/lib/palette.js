@@ -272,13 +272,22 @@
        greens without breaking one-organelle-one-colour. They vary by tissue
        because a leaf, a root, a tuber and a cactus really do differ here.
        `wall` is the outer face, `wallRim` the cut rim (the inner face is the
-       same, a shade down). Everything else in the cell, the plasma membrane
-       included, takes the house colour from `organelles` above. */
+       same, a shade down).
+
+       `membrane` IS A DELIBERATE EXCEPTION to one-organelle-one-colour: the
+       plasma membrane is the same organelle in both cells, and the animal
+       cell paints it salmon. A plant cell is a green cell in a green wall,
+       and a salmon band wrapped round the protoplast reads as a wound rather
+       than as a boundary. So the plant keeps its own greens here, and the
+       link back to the animal cell's membrane is carried by the plasmodesmata
+       instead. Do not copy this exception to another organelle.
+
+       Everything else in the cell takes the house colour from `organelles`. */
     plantTissue: {
-      leaf:   { wall:0xa3e64e, wallRim:0xd9f7a8, cytosol:0x8fdcb8 },
-      root:   { wall:0xb8e07a, wallRim:0xe2f3bb, cytosol:0xa3dfc6 },
-      potato: { wall:0xc7e58b, wallRim:0xe9f5c9, cytosol:0xabe0cc },
-      cactus: { wall:0xbfe08a, wallRim:0xeaf6cf, cytosol:0x93dbbd },
+      leaf:   { wall:0xa3e64e, wallRim:0xd9f7a8, cytosol:0x8fdcb8, membrane:0x3fa080 },
+      root:   { wall:0xb8e07a, wallRim:0xe2f3bb, cytosol:0xa3dfc6, membrane:0x4ea88c },
+      potato: { wall:0xc7e58b, wallRim:0xe9f5c9, cytosol:0xabe0cc, membrane:0x55ab92 },
+      cactus: { wall:0xbfe08a, wallRim:0xeaf6cf, cytosol:0x93dbbd, membrane:0x46a385 },
     },
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks
