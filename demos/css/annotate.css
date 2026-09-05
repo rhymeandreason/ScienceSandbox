@@ -33,6 +33,14 @@
 body {
    --annot-live: var(--accent, #3d6fb0);
    --annot-radius: var(--radius-md, 4px);
+   /* THE LINES A CALLOUT DRAWS, in one place, and TWO WEIGHTS. A leader only
+      has to join a label to its point, so it stays the quieter line; a
+      bracket's rule IS the measurement, and it is read as a drawing over the
+      model rather than followed from one end. Both are darker than the
+      hairline the leader used to borrow — a hairline is right for a rule
+      between blocks of text on paper and disappears over a lit 3D scene. */
+   --annot-line: var(--text-muted, #6d6f76);
+   --annot-rule: var(--text-dim, #55585f);
 }
 @supports (color: color-mix(in srgb, red, blue)) {
    body { --annot-live-dark: color-mix(in srgb, var(--annot-live) 76%, #000) }
@@ -89,7 +97,7 @@ body {
    top: 0;
    height: 0;
    width: var(--alen, 18px);
-   border-top: 1px solid var(--border-hair);
+   border-top: 1px solid var(--annot-line);
    transform-origin: 0 0;
    transform: rotate(var(--aang, 0deg));
    pointer-events: none
@@ -144,7 +152,7 @@ body {
 
 .annot-span-ext {
    fill: none;
-   stroke: var(--text-muted, #6b6257);
+   stroke: var(--annot-rule);
    stroke-width: 1;
    stroke-dasharray: 2 3;
    opacity: .5;
@@ -153,7 +161,7 @@ body {
 
 .annot-span-line {
    fill: none;
-   stroke: var(--text-muted, #6b6257);
+   stroke: var(--annot-rule);
    stroke-width: 1.25;
    stroke-linecap: round;
    vector-effect: non-scaling-stroke;

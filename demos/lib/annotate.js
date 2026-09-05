@@ -488,6 +488,25 @@ window.Annot = (function () {
            own — one marker for one place. Null until the first step(), and null
            whenever the bracket is hidden. */
         midPx() { return sp._px; },
+        /* THE CHIP'S EDGE, in the direction a note's own offset points. A note
+           anchored to `midPx` draws its leader from the middle of the chip, so
+           the first half of the line is under the thing it is coming out of;
+           anchored here it starts where the chip stops. `off` is the note's
+           offset — the same array it is placed with, so the two cannot
+           disagree about which way the label went. */
+        edgePx(off, pad) {
+          if (!sp._px) return null;
+          const dx = off[0] || 0, dy = off[1] || 0;
+          const len = Math.hypot(dx, dy) || 1;
+          const ux = dx / len, uy = dy / len;
+          // Where the ray leaves the chip's box: the nearer of the two walls.
+          const hw = (sp.label.offsetWidth || 60) / 2 + (pad == null ? 3 : pad);
+          const hh = (sp.label.offsetHeight || 20) / 2 + (pad == null ? 3 : pad);
+          const t = Math.min(
+            Math.abs(ux) > 1e-6 ? hw / Math.abs(ux) : Infinity,
+            Math.abs(uy) > 1e-6 ? hh / Math.abs(uy) : Infinity);
+          return [sp._px[0] + ux * t, sp._px[1] + uy * t];
+        },
         remove() {
           path.remove(); ext.remove(); label.remove();
           const i = spans.indexOf(sp); if (i >= 0) spans.splice(i, 1);

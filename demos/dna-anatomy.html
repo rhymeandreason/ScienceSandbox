@@ -478,6 +478,10 @@ function midOf(pairIndex, strand, want){
  * ========================================================================== */
 const seqOf = i => bdna.pairs[i].seq.replace(/D/g, '').replace('-', '·');
 
+// The two groove labels' offsets, named because each is used twice: once to
+// place the label, once to ask its bracket which edge the leader leaves from.
+const MINOR_OFF = [-14, -56], MAJOR_OFF = [86, -26];
+
 const PARTS = [
   { key:'whole', title:'DNA: the double helix', sub:'two strands, wound',
     rails:true,
@@ -578,11 +582,11 @@ const PARTS = [
      * and is absent when the section list asks for the text alone. */
     notes:sp=>[
       { text:'Minor groove', card:'The narrow gap. The base edges facing into it look much the same whichever pair it is, so there is less to read.',
-        at:grooveAt(GROOVE.minor), atPx:sp && (()=>sp[0].midPx()),
-        facing:grooveFacing(GROOVE.minor), offset:[-96, -30], dot:false },
+        at:grooveAt(GROOVE.minor), atPx:sp && (()=>sp[0].edgePx(MINOR_OFF)),
+        facing:grooveFacing(GROOVE.minor), offset:MINOR_OFF, dot:false },
       { text:'Major groove', card:'The wide gap. Each of the four pairs shows a different pattern of donors and acceptors here, which is what a protein recognises.',
-        at:grooveAt(GROOVE.major), atPx:sp && (()=>sp[1].midPx()),
-        facing:grooveFacing(GROOVE.major), offset:[98, -30], dot:false },
+        at:grooveAt(GROOVE.major), atPx:sp && (()=>sp[1].edgePx(MAJOR_OFF)),
+        facing:grooveFacing(GROOVE.major), offset:MAJOR_OFF, dot:false },
     ],
     /* THE MEASUREMENT IS THE POINT of this part, and two labelled dots do not
      * make one: a bracket is drawn ACROSS the gap, which is the only thing that
