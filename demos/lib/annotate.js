@@ -500,8 +500,12 @@ window.Annot = (function () {
           const len = Math.hypot(dx, dy) || 1;
           const ux = dx / len, uy = dy / len;
           // Where the ray leaves the chip's box: the nearer of the two walls.
-          const hw = (sp.label.offsetWidth || 60) / 2 + (pad == null ? 3 : pad);
-          const hh = (sp.label.offsetHeight || 20) / 2 + (pad == null ? 3 : pad);
+          // A bracket carrying no text has no box, and the fallbacks are for a
+          // chip that has text but has not been laid out yet — reading them off
+          // a hidden label would push the anchor half a chip off the rule.
+          const bare = sp.label.style.display === 'none';
+          const hw = (bare ? 0 : sp.label.offsetWidth || 60) / 2 + (pad == null ? 3 : pad);
+          const hh = (bare ? 0 : sp.label.offsetHeight || 20) / 2 + (pad == null ? 3 : pad);
           const t = Math.min(
             Math.abs(ux) > 1e-6 ? hw / Math.abs(ux) : Infinity,
             Math.abs(uy) > 1e-6 ? hh / Math.abs(uy) : Infinity);
@@ -568,8 +572,14 @@ window.Annot = (function () {
 
         s._px = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
 
+        /* A BRACKET NEED NOT CARRY A NUMBER. Passing no `text` leaves the rule
+           marking WHERE something is and nothing else — which is how a groove
+           is bracketed in a textbook figure, the measurement belonging to the
+           label that names it. The chip is still positioned, so a note can
+           still anchor to it. */
         const t = (typeof s.text === 'function') ? s.text() : s.text;
-        if (t !== s._t) { s.label.textContent = t; s._t = t; }
+        if (t !== s._t) { s.label.textContent = t == null ? '' : t; s._t = t; }
+        s.label.style.display = (t == null || t === '') ? 'none' : '';
         // The -50% pair is what centres the chip on the point; annotate.css
         // sets no offset of its own, so the two halves live in one place.
         s.label.style.transform =
