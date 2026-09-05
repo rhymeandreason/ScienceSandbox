@@ -82,7 +82,7 @@ DNA or RNA → a ladder: a flat backbone ribbon per strand, and one rung per bas
 
 * `kit/check-nucleic.js` asserts all of the above on an ideal B-DNA it builds itself, plus an oblique case for the anchor and an off-centre split for the wobble. Every claim in it is a bug that shipped looking merely ugly, which is why it is gated on the module. **Two of its assertions carry non-degeneracy guards** — on ideal B-DNA the pair axis IS the radial, so an anchor test without one passes while proving nothing, and this checker did exactly that for two rounds.
 
-* **`kit/proteinbox.js` has no nucleic branch yet.** A page drawing DNA — or a mixed file — builds its own `CardStage`. `proteins/zif268/zif268-test.html` is the worked example and the argument for giving the box one.
+* **`kit/proteinbox.js` draws nucleic chains too**, on any chain a bake marks `kind:'na'` — a backbone per strand and one rung per pair, through `kit/nucleic.js`, which a page loads alongside `kit/ribbon.js`. A protein and a duplex out of one bake share one box, one scale and one centre. `proteins/zif268/`, `proteins/polymerase/` and `proteins/rb69/` are the worked examples, and `proteins/index.html` draws every nucleic entry through it. **A page that builds its own `CardStage` to draw DNA is out of date, not making a choice** — this bullet said the branch did not exist for long enough that the claim got copied into new benches, and each copy brought its own `runs()`, strand colours and ball-and-stick constants with it. `proteins/nucleosome/nucleosome-test.html` is the one still to convert.
 
 **`kit/surface.js` — `SurfLib`**
 

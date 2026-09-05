@@ -116,7 +116,9 @@
  *  Returns kit/card-stage.js's box, so a pool's acquire / snapshot / destroy
  *  work on it unchanged, plus `drop()` (back to ribbon, release the surface),
  *  `setData(t)` (draw a different structure in the same box, keeping the
- *  camera), `setPocket(p)`, `focus(f)`, `setGhost(o)` and `rep` for a caller that wants to know what is
+ *  camera; `setData(t, {sub})` also moves the mesh density, for a bench with
+ *  a samples-per-residue slider — recreating the box to change it costs a
+ *  WebGL context per drag and throws away the reader's camera), `setPocket(p)`, `focus(f)`, `setGhost(o)` and `rep` for a caller that wants to know what is
  *  showing.
  *
  *  `focus({at:[x,y,z], radius, view, ghost}, ms)` leans the camera in on a few
@@ -135,13 +137,15 @@
  *  as a container. It survives setData, because a page that walked the meshes
  *  itself would lose the fade on the next switch and not be able to tell.
  *
- *  `setPocket({atoms, bonds})` draws the few atoms that belong INSIDE the
- *  ribbon — a heme, what is bound to its iron, the side chain a bench is about
+ *  `setPocket({atoms, bonds}, {ball})` draws the few atoms that belong INSIDE
+ *  the ribbon — a heme, what is bound to its iron, the side chain a bench is about
  *  — ball-and-stick, in the structure's frame, at the proportions BALL /
  *  FE_BALL / STICK below. It returns `{group, materials}` so a lesson can fade
  *  or tint them, and it clears with the ribbon on every setData. What is IN
  *  the pocket is the baker's decision, never the box's, for the same reason
- *  the box does not parse PDB.
+ *  the box does not parse PDB. `ball` scales the whole group, for the one case
+ *  the proportions below cannot cover on their own: a metal with nothing drawn
+ *  around it to be sized against.
  * ============================================================================= */
 (function (global) {
   'use strict';
@@ -151,7 +155,7 @@
      carbon and stay the biggest atom in a group at whatever scale it is drawn.
      A set rather than a test for 'Fe', because the second one to arrive would
      otherwise be a grey ball the size of a carbon. */
-  const METAL = new Set(['Fe', 'Co', 'Mg', 'Zn', 'Mn', 'Ni', 'Cu']);
+  const METAL = new Set(['Fe', 'Co', 'Mg', 'Zn', 'Mn', 'Ni', 'Cu', 'Ca']);
 
   /* Coil, helix, strand — kit/ribbon-test.html's, so a card and the bench
      that tunes the ribbon are never two opinions about the same helix. */
@@ -344,6 +348,14 @@
        a ten-rung stack framing a single chain. The loop checks the token it
        started with and stops when it is no longer the current one. */
     let generation = 0;
+
+    /* MESH DENSITY, WHICH A BENCH MAY CHANGE WITHOUT REBUILDING THE BOX.
+       `opts.sub` is the page's standing answer; `setData(t, {sub})` overrides
+       it for one structure. It is a variable rather than a read of `opts`
+       because a bench with a samples-per-residue slider would otherwise have
+       to destroy and recreate the box to move it — a WebGL context per drag,
+       and the reader's camera thrown away each time. */
+    let subNow = opts.sub == null ? 6 : opts.sub;
     let stillMid = null, stillR = 0, foldR = 0;
 
     /* WHERE THE CAMERA IS POINTED, when it is not pointed at the whole
@@ -586,6 +598,7 @@
 
     function setData(t, o) {
       o = o || {};
+      if (o.sub != null) subNow = o.sub;
       const mine = ++generation;
       chainGroup.clear();
       /* The pocket belongs to the structure that was just replaced, so it goes
@@ -688,8 +701,7 @@
                as a framing bug rather than as a missing rotation. */
             drawn.push(...pts.map(v => v.clone()));
             const mesh = new THREE.Mesh(
-              RibbonLib.build(THREE, pts, seg.ss,
-                              { sub: opts.sub == null ? 6 : opts.sub }),
+              RibbonLib.build(THREE, pts, seg.ss, { sub: subNow }),
               (paint.byChain && paint.byChain[cid]) || paint.mats);
             /* WHICH CHAIN THIS MESH CAME FROM, and nothing more. A page that
                has to move PART of a structure — one subassembly of a machine,
@@ -757,8 +769,7 @@
           + 'kit/nucleic.js is not loaded — load it after kit/ribbon.js');
         return;
       }
-      const parts = NucleicLib.build(THREE, t,
-        { chains: ids, sub: opts.sub == null ? 6 : opts.sub });
+      const parts = NucleicLib.build(THREE, t, { chains: ids, sub: subNow });
 
       const q = chainGroup.quaternion;
       const keep = geo => {
@@ -1149,10 +1160,23 @@
        bond colour — so a LESSON can fade the group in, tint it, or hide it
        without the box growing an opinion about timing. Call with no argument
        to clear. */
-    function setPocket(p) {
+    function setPocket(p, o) {
       pocketGroup.clear();
       if (!p || !p.atoms || !p.atoms.length) return { group: pocketGroup, materials: [] };
 
+      /* `ball` SCALES THE WHOLE GROUP, and it exists for the case FE_BALL's
+         reasoning does not cover: a metal with nothing drawn around it. The
+         proportions below are relative — an iron is the biggest atom in a
+         group because the porphyrin it sits in is drawn at the same scale — so
+         a LONE metal has nothing to be biggest against and comes out at its
+         honest size, which from across a 47 A complex is a couple of pixels.
+         Zif268 is the case: three zincs and no group, and the bench's whole
+         subject is where they sit. A caller that draws a group passes nothing.
+
+         It is one number for the group rather than a per-atom radius, because
+         how big an atom should look is the module's answer and how far away
+         the reader is standing is the page's. */
+      const ball = (o && o.ball) || 1;
       const R = MolLib.PALETTE.radii, C = R.C / MolLib.SCALE;
       const colourOf = el => MolLib.PALETTE.atoms[el] || 0x888888;
       const materials = [], byEl = {};
@@ -1168,8 +1192,8 @@
 
       for (const a of p.atoms) {
         const el = norm(a.el);
-        const r = METAL.has(el) ? BALL * C * FE_BALL
-                                : BALL * ((R[el] || R.C) / MolLib.SCALE);
+        const r = ball * (METAL.has(el) ? BALL * C * FE_BALL
+                                        : BALL * ((R[el] || R.C) / MolLib.SCALE));
         const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), matFor(el));
         m.position.set(a.p[0], a.p[1], a.p[2]);
         pocketGroup.add(m);

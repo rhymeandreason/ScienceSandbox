@@ -120,145 +120,65 @@
 <script src="../../lib/tokens-from-palette.js"></script>
 <script src="../../lib/molecules.js"></script>
 <script src="../../lib/scene.js"></script>
+<script src="../../folding/folding.js"></script>
 <script src="../../kit/card-stage.js"></script>
 <script src="../../kit/ribbon.js"></script>
 <script src="../../kit/nucleic.js"></script>
+<script src="../../kit/proteinbox.js"></script>
 <script src="../nucleic-acids.js"></script>
 <script>
 'use strict';
 
 /* ONE SCENE, TWO POLYMERS, ONE SCALE FAMILY. Both are real angstroms out of
    the same deposition, which is what lets them share a stage at all
-   (MolecularGeometry.md 1.5). The bench builds its own CardStage rather than
-   going through kit/proteinbox.js because that module has no nucleic branch
-   yet — this page is the argument for giving it one, not a use of it. */
-const box = CardStage.create({
+   (MolecularGeometry.md 1.5).
+
+   THE BOX IS kit/proteinbox.js AND ITS NUCLEIC BRANCH. This page used to build
+   its own CardStage and draw both polymers itself, from a time when the module
+   had no way to draw DNA; it has one, `proteins/index.html` has been drawing
+   every nucleic entry through it, and the comment here saying otherwise
+   outlived the code by long enough to get copied into two new benches. What
+   went with the conversion: a runs(), a ribbon build, the strand and base
+   colours, and a hand-copied set of ball-and-stick constants.
+
+   `sub:10` and `turn:'trackball'` on a full-height stage: the box's defaults
+   are a card's, and both run out at this size. */
+const box = Proteinbox.create({
   mount: document.getElementById('stage'),
-  stage: { ortho: true, turn: 'trackball' },
-  cam: { theta: 0, phi: Math.PI / 2, r: 90 },
-  autoplay: false,
+  orbit: true, sub: 10,
+  stage: { ortho: false, turn: 'trackball' },
 });
 
-/* COLOUR COMES FROM lib/palette.js AND NOWHERE ELSE. The ribbon takes the
-   house ss palette — the same three colours every other protein in the repo
-   wears — and the ladder takes the base family. Two vocabularies, one source. */
-const mats = {};
-const mat = (key, color) => (mats[key] = mats[key] || new THREE.MeshStandardMaterial({
-  color, roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide }));
-const baseMat = b => mat('base:' + b,
-  MolPalette.bases[b] !== undefined ? MolPalette.bases[b] : MolPalette.bases.X);
-const ssMat = c => mat('ss:' + c, MolPalette.ss[c]);
-
 let trace = null;
-const group = new THREE.Group();
-box.root.add(group);
 
-function clear() {
-  for (const c of group.children.slice()) {
-    group.remove(c);
-    if (c.geometry) c.geometry.dispose();
-  }
-}
+/* WHAT TO HAND THE BOX, given the checkboxes. `chains` is the box's own
+   filter, so hiding a polymer is a re-feed rather than a second renderer here.
 
-/* Contiguous runs on the numbers, the same rule kit/nucleic.js and
-   kit/proteinbox.js both apply: a ribbon splined across an unmodelled stretch
-   is indistinguishable from data at ribbon width. */
-function runs(ch) {
-  const out = [];
-  let from = 0;
-  for (let i = 1; i <= ch.nums.length; i++)
-    if (i === ch.nums.length || ch.nums[i] !== ch.nums[i - 1] + 1) {
-      out.push({ CA: ch.CA.slice(from, i), ss: ch.ss.slice(from, i) });
-      from = i;
-    }
-  return out;
-}
-
-/* ONE GEOMETRY PER CONTIGUOUS RUN, COLOURED BY ITS OWN GROUPS. RibbonLib
-   stamps geometry groups with material index 0/1/2 for coil, helix and strand,
-   so three colours come out of one build and the caller passes an array.
-
-   DO NOT SLICE THE CHAIN AND BUILD PER ELEMENT. It is the obvious way to get
-   three colours and kit/ribbon.js's header says why not: the arrowhead logic
-   re-runs on every slice, so every strand grows a duplicate head, and the
-   bands come out as disconnected fragments with the coil between them missing.
-   This page did it that way first and the protein rendered as scattered
-   splinters around an intact duplex. */
-const RIB_MATS = ['C', 'H', 'E'].map(c => ssMat(c));
-
-function drawProtein(ch) {
-  for (const seg of runs(ch)) {
-    if (seg.CA.length < 4) continue;   // RibbonLib needs a spline's worth
-    const pts = seg.CA.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-    group.add(new THREE.Mesh(
-      RibbonLib.build(THREE, pts, seg.ss.split(''), { sub: 10 }), RIB_MATS));
-  }
-}
-
+   THE ZINCS GO THROUGH setPocket. They are three lone metals rather than a
+   heme, but they are the same KIND of thing — a handful of atoms drawn inside
+   a ribbon — and the box already sizes a deposition-only metal as a multiple
+   of carbon so it stays readable from across a 47 A complex. Drawn here it was
+   a copy of that constant, which is how two pages come to disagree about how
+   big a zinc is. */
 function draw() {
   if (!trace) return;
-  clear();
+  const want = trace.order.filter(id => trace.chains[id].kind === 'na'
+    ? document.getElementById('dna').checked
+    : document.getElementById('protein').checked);
   const sub = +document.getElementById('sub').value;
-
-  if (document.getElementById('protein').checked)
-    for (const id of trace.order)
-      if ((trace.chains[id].kind || 'aa') === 'aa') drawProtein(trace.chains[id]);
-
-  if (document.getElementById('dna').checked) {
-    /* NucleicLib walks the same `chains` object and skips anything that is not
-       `kind:'na'`, so neither renderer has to know what else is in the file. */
-    const parts = NucleicLib.build(THREE, trace, { sub });
-    /* BY POSITION AMONG THE NUCLEIC STRANDS, not by position in `order`.
-       Indexing into `order` works only when the DNA happens to come first: the
-       nucleosome's order is eight histones and then I, J, so both strands
-       failed that test and came out one colour — two backbones a reader cannot
-       tell apart, which is the one thing the strand colours exist to prevent. */
-    parts.strands.forEach((sd, i) => {
-      group.add(new THREE.Mesh(sd.geo,
-        mat('strand:' + sd.id, MolPalette.strands[i % 2 ? 'b' : 'a'])));
-    });
-    for (const [b, geo] of Object.entries(parts.rungs))
-      group.add(new THREE.Mesh(geo, baseMat(b)));
-    for (const [b, geo] of Object.entries(parts.stubs))
-      group.add(new THREE.Mesh(geo, baseMat(b)));
-  }
-
+  if (want.length) box.setData(trace, { chains: want.join(','), sub });
   if (document.getElementById('zinc').checked)
-    for (const z of trace.zinc) {
-      /* SIZED THE WAY kit/proteinbox.js SIZES A HEME'S IRON, at its own
-         proportions: a shrunk carbon times FE_BALL. A deposition-only metal
-         has a colour in the palette and deliberately no display radius,
-         because how big it should look depends on what else is in the frame —
-         and at a true ionic ~1.4 A a zinc is invisible from across a 47 A
-         complex, which is the framing this is judged at. The subject is the
-         metal's PLACE in the finger, not its volume. */
-      const m = new THREE.Mesh(
-        new THREE.SphereGeometry(MolPalette.radii.C * 0.72 * 2.7, 20, 14),
-        mat('zn', MolPalette.atoms.Zn));
-      m.position.set(z.xyz[0], z.xyz[1], z.xyz[2]);
-      group.add(m);
-    }
+    /* `ball:2` because these three are a group of one atom each. The box's
+       proportions size a metal against the group it sits in — a heme's iron
+       against its porphyrin — and a lone zinc has nothing to be sized against,
+       so at the module's default it is under an angstrom across from a 47 A
+       framing and disappears into the finger it holds together. Judged at the
+       whole-protein framing, which is the only one this bench opens at. */
+    box.setPocket({ atoms: trace.zinc.map(z => ({ el: 'Zn', p: z.xyz })), bonds: [] },
+                  { ball: 2 });
 
-  reframe();
   document.getElementById('tris').textContent =
     NucleicLib.triangles(trace, { sub }).toLocaleString() + ' triangles (DNA only)';
-  box.draw();
-}
-
-function reframe() {
-  const e = trace.extents;
-  Stage.frame(box.camera, box.cam,
-    [{ x: 0, y: 0, rxz: e ? e[0] / 2 : trace.radius, hy: e ? e[1] / 2 : trace.radius }],
-    { pad: 1.1 });
-  box.applyCam();
-}
-
-function aim(v) {
-  if (!v) return;
-  group.setRotationFromMatrix(new THREE.Matrix4().set(
-    v[0][0], v[0][1], v[0][2], 0,
-    v[1][0], v[1][1], v[1][2], 0,
-    v[2][0], v[2][1], v[2][2], 0, 0, 0, 0, 1));
 }
 
 /* EVERY NUMBER READ FROM THE BAKE. The helix and strand counts especially:
@@ -314,14 +234,11 @@ function facts() {
    is one edit there rather than a page that silently fetches nothing. */
 fetch('data/' + NucleicAcids.defaultOf('zif268').read.baked)
   .then(r => r.json())
-  .then(t => { trace = t; aim(t.view); facts(); draw(); })
+  .then(t => { trace = t; facts(); draw(); })
   .catch(e => {
     document.getElementById('lede').textContent =
       'No bake. Run: node proteins/zif268/tools/prep.js  (' + e.message + ')';
   });
-
-new ResizeObserver(() => { if (trace) { reframe(); box.draw(); } })
-  .observe(document.getElementById('stage'));
 
 for (const id of ['protein', 'dna', 'zinc', 'sub'])
   document.getElementById(id).addEventListener('input', draw);

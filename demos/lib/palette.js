@@ -63,6 +63,15 @@
                       // that reads as either is worse than a metal that reads
                       // as no colour in particular. Teal is unclaimed and
                       // clears chlorine's green.
+      Ca: 0xcbbfa6,   // calcium — pale mineral. A fourth deposition-only metal,
+                      // so like Fe, Zn and Co it has a colour and deliberately
+                      // no display radius. It is the ONE metal here that is
+                      // usually standing in for another: a crystallographer
+                      // swaps Ca for Mg to stop a reaction mid-turnover, so it
+                      // must not read as a shade of magnesium's rose or the
+                      // substitution becomes invisible. Kept unsaturated and
+                      // lighter than sulfur's goldenrod, which is the only
+                      // warm neutral it could otherwise be taken for.
       P:  0xe07b1f,   // phosphorus — orange (CPK). Deliberately the warmest atom
                       // in the palette: in glycolysis the phosphate IS the energy
                       // currency, so every P a student sees is "something ATP paid
