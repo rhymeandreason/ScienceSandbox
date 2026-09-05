@@ -221,15 +221,24 @@
     function buildRotor(h) {
       const g = new THREE.Group();
       const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 9, 12), global.Parts.flat(0xb8862c));
-      shaft.position.y = -h - 4.5; g.add(shaft);
+      shaft.userData.baseY = h + 4.5; g.add(shaft);
       for (let i = 0; i < 3; i++) {
         const lobe = new THREE.Mesh(new THREE.SphereGeometry(6.2, 18, 12), global.Parts.flat(0xd9a13b));
         lobe.scale.set(1, 1.25, 1);
         const th = (i / 3) * Math.PI * 2;
-        lobe.position.set(Math.cos(th) * 7.4, -h - 12.5, Math.sin(th) * 7.4);
+        lobe.position.set(Math.cos(th) * 7.4, 0, Math.sin(th) * 7.4);
+        lobe.userData.baseY = h + 12.5;
         g.add(lobe);
       }
       return g;
+    }
+    /* F1 HANGS WHERE THE ATP IS MADE, which is the side the protons come out
+       on: the matrix in a mitochondrion, the stroma in a chloroplast. Drawn
+       below the membrane in both until the thylakoid flipped, and then it was
+       making ATP into the lumen. Positioned by sign rather than mirrored by a
+       negative scale, which would turn the lighting inside out. */
+    function orientRotor(d) {
+      for (const child of ROTOR.children) child.position.y = -d * child.userData.baseY;
     }
 
     /* Two machines closer than this share lipid and read as one lump. A
@@ -282,6 +291,7 @@
       LEAK.group.visible = !!pr.leak;
       if (pr.leak) { LEAK.group.position.x = pr.leak.x; LEAK.setGates(1, 1);
         holes.push([pr.leak.x, LEAK_HOLE]); PORES.push({ x:pr.leak.x, R:LEAK_R, lumen:7.6, kind:'H', door:'leak' }); }
+      orientRotor(CHEM.pumpDir(P.context));
       T = pr.pump ? PUMP : pr.K ? CHANNEL : pr.CL ? CLCHAN : pr.NA ? NACHAN : pr.AQP ? AQP
         : pr.complex ? COMPLEX : pr.synthase ? SYNTH : pr.leak ? LEAK : PUMP;
       if (MEM) root.remove(MEM.group);
@@ -640,13 +650,13 @@
        voltage together, so the synthase and the uncoupler obey the same rule
        and neither can run uphill. With the gradient gone it returns 0 and
        every door stops admitting. */
-    const protonDir = () => CHEM.synthaseDirection(sideCount('H'), mV, { ref: protonRef });
+    const protonDir = () => CHEM.synthaseDirection(sideCount('H'), mV, { ref: protonRef, dir: pumpDir() });
     /* Off the headcount, not off state(): this is read every frame and
        state() walks every traveller to build its counts. */
-    const pmfNow = () => CHEM.protonState(sideCount('H'), mV, protonRef).pmf;
+    const pmfNow = () => CHEM.protonState(sideCount('H'), mV, protonRef, pumpDir()).pmf;
     const mayEnter = t => t.seeks ? true
       : t.kind === 'water' ? Math.sign(t.y) === crowdedSide('water')   // osmosis: the crowded side sends, always
-      : t.kind === 'H' ? (protonDir() === -1 && Math.sign(t.y) === 1)
+      : t.kind === 'H' ? (protonDir() === -pumpDir() && Math.sign(t.y) === pumpDir())
       : potentialOn() || Math.sign(t.y) === crowdedSide(t.kind);
     function refuseAt(t, lane) {
       const away = Math.sign(t.y) || 1, sp = (t.speed || WALK_SPEED)[1];
@@ -721,6 +731,15 @@
        measured Δψ, which is far past any of them. */
     const floorMV = () => P.mvFloor != null ? P.mvFloor
       : P.context !== 'plasma' ? CHEM.DPSI_FLOOR : Math.min(P.E.K, P.E.CL);
+    /* WHICH HALF THE COMPLEX FILLS, +1 top and −1 bottom, and everything with
+       a direction in it reads this rather than assuming. */
+    const pumpDir = () => CHEM.pumpDir(P.context);
+    /* mV is the inside relative to the outside, so filling the top drives it
+       negative and filling the bottom drives it positive. The clamp has to
+       turn with that, or a thylakoid's voltage sits pinned at zero by a floor
+       written for a cell membrane. */
+    const clampMV = v => { const f = floorMV();
+      return pumpDir() > 0 ? Math.min(0, Math.max(f, v)) : Math.max(0, Math.min(-f, v)); };
 
     /* ---- conduction is a HOP, not a conveyor: knock-on, dwell then hop ---- */
     const HOP = { wait:[0.10, 0.30], move:0.10, crowd:0.06 };
@@ -732,11 +751,11 @@
           /* ONE PROTON, ONE NOTCH. The rotor's angle and the ATP count both
              come out of the same pass(), so the picture cannot get ahead of
              the number. A proton down the uncoupler's hole turns nothing. */
-          if (t.kind === 'H' && t.y < 0) {           // only one that actually came home counts
+          if (t.kind === 'H' && Math.sign(t.y) === -pumpDir()) {   // only one that came home counts
             if (synthX != null && t.lane === synthX) { protonsThroughSynthase++; if (ROT.pass(1)) emit('atp', ROT.atp); }
             else protonsLeaked++;
           }
-          if (q) mV = Math.min(0, Math.max(floorMV(), P.mvPerIon * chargeOut));
+          if (q) mV = clampMV(P.mvPerIon * chargeOut);
           emit('conduct', t, Math.sign(t.y));
         }
         t.inPore = false; t.hop = null; t.lane = null;
@@ -1024,7 +1043,8 @@
     /* ALL OR NOTHING, the pump's rule: a partly loaded machine turns with an
        empty seat, and the seat is where a student is counting. */
     function recruitProtons(n) {
-      const pool = travellers.filter(t => t.kind === 'H' && !t.aboard && t.lane == null && t.y < 0)
+      const from = -pumpDir();          // it loads at the mouth it is NOT filling
+      const pool = travellers.filter(t => t.kind === 'H' && !t.aboard && t.lane == null && Math.sign(t.y) === from)
         .sort((a, b) => ((a.x - complexX) ** 2 + a.y * a.y) - ((b.x - complexX) ** 2 + b.y * b.y));
       if (pool.length < n) return false;
       for (const t of pool.slice(0, n)) { t.aboard = true; cpxCargo.push(t); }
@@ -1058,18 +1078,23 @@
         /* The proton is set down at the START of the empty half, so the two
            beats that follow are visibly carrying nothing. */
         if (st.phase === 'shut-out') {
-          const n = cpxCargo.length;
-          complexTurns += n; crossed.H += n; chargeOut += n;
-          mV = Math.min(0, Math.max(floorMV(), P.mvPerIon * chargeOut));
-          releaseProtons(1); emit('pumped', complexTurns);
+          const n = cpxCargo.length, d = pumpDir();
+          complexTurns += n; crossed.H += d * n; chargeOut += d * n;
+          mV = clampMV(P.mvPerIon * chargeOut);
+          releaseProtons(d); emit('pumped', complexTurns);
         }
         cpxPhase = st.phase;
       }
-      setCpxGates(st.gates.top, st.gates.bottom);
+      /* MIRRORED WHEN IT PUMPS DOWN. The phase table's `u` runs −1 at the
+         loading mouth to +1 at the far one, so multiplying by the direction
+         puts the loading mouth at the bottom in a mitochondrion and at the top
+         in a thylakoid, and the two gates swap with it. */
+      const d = pumpDir();
+      setCpxGates(d > 0 ? st.gates.top : st.gates.bottom, d > 0 ? st.gates.bottom : st.gates.top);
       for (let i = 0; i < st.cargo.length; i++) {
         const t = cpxCargo[i];
         if (!t) continue;
-        const ty = st.cargo[i].u * COMPLEX.height, tx = complexX + (i - (st.cargo.length - 1) / 2) * 5.5;
+        const ty = st.cargo[i].u * d * COMPLEX.height, tx = complexX + (i - (st.cargo.length - 1) / 2) * 5.5;
         t.x += (tx - t.x) * 0.18; t.z += (0 - t.z) * 0.18; t.y += (ty - t.y) * 0.18;
         t.obj.position.set(t.x, t.y, t.z);
       }
@@ -1146,9 +1171,14 @@
       const diff = w.inside - w.outside;
       const net = Math.abs(diff) <= Math.max(2, 0.08 * nW) ? 'balanced' : diff > 0 ? 'leaving' : 'entering';
       const h = counts.H || { inside:0, outside:0 };
-      const proton = CHEM.protonState(h, mV, protonRef);
+      const proton = CHEM.protonState(h, mV, protonRef, pumpDir());
       return { t:elapsed, counts, concentration, mMPerParticle: P.mMPerParticle, mV, chargeOut, crossed:Object.assign({}, crossed), layers: layers(),
-        context: P.context, sides: { inside: CHEM.sideName(P.context, 'inside'), outside: CHEM.sideName(P.context, 'outside') },
+        context: P.context,
+        /* `pumpedInto` saves a page working out which half that is from the
+           direction — the one thing about a context a caption most wants and
+           most easily gets backwards. */
+        sides: { inside: CHEM.sideName(P.context, 'inside'), outside: CHEM.sideName(P.context, 'outside'),
+                 pumpedInto: CHEM.sideName(P.context, pumpDir() > 0 ? 'outside' : 'inside') },
         pH: proton.pH, dpH: proton.dpH, pmf: proton.pmf,
         atpMade: ROT.atp, rotorTurns: ROT.protons / CHEM.PROTONS_PER_TURN,
         protonsThroughSynthase, protonsLeaked, complexTurns,
@@ -1272,7 +1302,8 @@
       aquaporin:    () => { const x = poreX('water'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
       pump:    () => P.proteins.pump ? _a.set(pumpX, T.height * 0.98, 0) : null,
       complex:  () => P.proteins.complex  ? _a.set(complexX, COMPLEX.height * 0.98, 0) : null,
-      synthase: () => synthX == null ? null : _a.set(synthX, -SYNTH.height * 1.15, 0),
+      /* On the rotor, which moves with the context. */
+      synthase: () => synthX == null ? null : _a.set(synthX, -CHEM.pumpDir(P.context) * SYNTH.height * 1.15, 0),
       leak:     () => P.proteins.leak ? _a.set(P.proteins.leak.x, LEAK.height * 0.98, 0) : null,
       H: () => firstOf('H'),
       heads:   () => _a.set(150, HALF, 0),        // right of the proteins: a shell's panel covers the left
@@ -1325,8 +1356,8 @@
         library.outside.card = 'The intermembrane space. Every proton the complexes throw out lands here, so this side goes acidic and positive: that is where the energy from NADH now sits.';
         library.inside.card  = 'The matrix. The Krebs cycle runs here and hands its NADH to the complexes in this membrane. Protons leave from this side and come back through the synthase.';
       } else if (P.context === 'thylakoid') {
-        library.outside.card = 'The lumen, inside the thylakoid disc. Photosynthesis pumps protons in here, so it is the acidic side even though the sim draws it on top.';
-        library.inside.card  = 'The stroma. ATP made here is what the Calvin cycle spends to fix carbon. Protons leave from this side and come back through the synthase.';
+        library.outside.card = 'The stroma, around the outside of the thylakoid disc. ATP is made here, and it is what the Calvin cycle spends to fix carbon. Protons leave from this side and come back through the synthase.';
+        library.inside.card  = 'The lumen, the space enclosed by the disc. Light drives protons in here, so this is the acidic side: the energy from the photons is now a gradient across this membrane.';
       }
     }
 

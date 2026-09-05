@@ -111,23 +111,37 @@ console.log('\n== 4. a turbine, not a pump');
   is(uphill === 0 && r.atp === 0, 'starting inverted, no proton moved and no ATP was made');
 }
 
-/* ---- 5. a thylakoid is the same sim with the names swapped ---- */
-console.log('\n== 5. context renames, and does nothing else');
+/* ---- 5. a thylakoid is the mitochondrion mirrored ---- */
+console.log('\n== 5. context: the names, and which way the pumping runs');
 {
-  const counts = { inside: 12, outside: 48 }, mV = -70;
-  const strip = ctx => JSON.stringify({
-    dir: C.synthaseDirection(counts, mV),
-    s: C.protonState(counts, mV),
-    rate: C.complexRate('NADH', 1),
-    keys: Object.keys(C.CONTEXTS[ctx]).sort(),
-  });
-  is(strip('mitochondrion') === strip('thylakoid') && strip('plasma') === strip('thylakoid'),
-     'state with the names stripped is identical in all three contexts');
-  const names = Object.keys(C.CONTEXTS).map(k => [C.sideName(k, 'inside'), C.sideName(k, 'outside')]);
-  is(new Set(names.flat()).size === names.flat().length, 'every context names its two sides, and no name is reused');
-  is(C.sideName('mitochondrion', 'inside') === 'the matrix' && C.sideName('thylakoid', 'outside') === 'the lumen',
-     'the matrix is inside and the lumen is outside, which is the one flip the module promises');
+  is(C.pumpDir('mitochondrion') === 1 && C.pumpDir('plasma') === 1, 'a mitochondrion and a cell membrane pump UP the screen');
+  is(C.pumpDir('thylakoid') === -1, 'a thylakoid pumps DOWN, because every textbook draws the lumen at the bottom');
+  is(C.sideName('mitochondrion', 'inside') === 'the matrix' && C.sideName('thylakoid', 'inside') === 'the lumen',
+     'the enclosed compartment is the bottom one in both: the matrix, and the lumen');
+  is(C.sideName('thylakoid', 'outside') === 'the stroma', 'the stroma is on top, where the figure puts it');
   is(C.sideName('nonsense', 'inside') === C.sideName('plasma', 'inside'), 'an unknown context falls back to the plasma membrane');
+
+  /* THE MIRROR, checked rather than asserted in prose. Reflecting the scene —
+     swapping the two headcounts and negating the voltage — has to give the
+     same proton-motive force and the opposite flow, or the two organelles are
+     two physics that merely resemble each other. */
+  const up = { counts: { inside: 8, outside: 36 }, mV: -70, dir: 1 };
+  const down = { counts: { inside: 36, outside: 8 }, mV: 70, dir: -1 };
+  const pmfOf = c => C.protonState(c.counts, c.mV, 22, c.dir).pmf;
+  const flowOf = c => C.synthaseDirection(c.counts, c.mV, { ref: 22, dir: c.dir });
+  is(Math.abs(pmfOf(up) - pmfOf(down)) < 1e-9, `mirrored, the pmf is identical (${pmfOf(up).toFixed(1)} mV both ways)`);
+  is(flowOf(up) === -1 && flowOf(down) === 1, 'and the return flow is opposite: down the screen in a mitochondrion, up in a thylakoid');
+  is(flowOf({ counts: down.counts, mV: down.mV, dir: 1 }) === 0,
+     'a thylakoid read with the wrong direction reports no gradient at all, so a half-flipped context cannot pass unnoticed');
+
+  /* Every context names both halves and says which it fills. */
+  for (const k of Object.keys(C.CONTEXTS)) {
+    const c = C.CONTEXTS[k];
+    if (!c.top || !c.bottom || !c.organelle || (c.pumpTo !== 'top' && c.pumpTo !== 'bottom'))
+      fail(`context ${k} is missing a top, a bottom, an organelle or a pumpTo`);
+  }
+  const names = Object.values(C.CONTEXTS).flatMap(c => [c.top, c.bottom]);
+  is(new Set(names).size === names.length, `${Object.keys(C.CONTEXTS).length} contexts, every half named, no name reused`);
 }
 
 console.log(bad ? `\n${bad} FAILED` : '\nall good');

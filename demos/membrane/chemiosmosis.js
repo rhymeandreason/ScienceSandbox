@@ -5,17 +5,24 @@
  *  gradient IS and what the synthase is allowed to do with it, membrane.js
  *  draws the result, and check-chemiosmosis.js runs this in node.
  *
- *  Respiration and photosynthesis are one picture with one parameter flipped.
- *  Something with energy to spend pumps protons across a membrane; ATP
- *  synthase lets them back down and makes ATP on the way. The sim's own words
- *  are `inside` (−y) and `outside` (+y) always; a CONTEXT only renames them:
+ *  Respiration and photosynthesis are one picture, mirrored. Something with
+ *  energy to spend pumps protons across a membrane; ATP synthase lets them
+ *  back down and makes ATP on the way. The sim's own words are `inside` (−y,
+ *  the BOTTOM of the screen) and `outside` (+y, the top), and a CONTEXT says
+ *  what those two halves are called AND which way the pumping runs:
  *
- *      mitochondrion   outside = intermembrane space, inside = matrix
- *      thylakoid       outside = lumen,               inside = stroma
+ *      plasma          top = outside the cell,     bottom = inside the cell
+ *      mitochondrion   top = intermembrane space,  bottom = the matrix
+ *      thylakoid       top = the stroma,           bottom = the lumen
  *
- *  Both pump inside → outside, so the physics never moves; which real space
- *  is "inside" is the context. The thylakoid pumps into the lumen and the
- *  mitochondrion out of the matrix, and those are the same direction here.
+ *  A MITOCHONDRION PUMPS UP AND A THYLAKOID PUMPS DOWN, because every textbook
+ *  cross-section puts the enclosed compartment at the bottom: the matrix
+ *  there, and the lumen there too. So the pumped-into half is the top one in a
+ *  mitochondrion and the bottom one in a thylakoid, and `pumpTo` is a real
+ *  parameter rather than a label. Everything downstream — which side the
+ *  synthase admits from, which way the pmf points, which mouth the complex
+ *  loads at — is read off it, so the two organelles are one physics reflected
+ *  rather than one physics renamed.
  *
  *  STOICHIOMETRY. A c-ring turn is one full rotation of the rotor and makes
  *  ATP_PER_TURN ATP for PROTONS_PER_TURN protons. Mammalian F1Fo has a c8
@@ -52,24 +59,38 @@
      is looked up in palette.js by whoever is drawing, which is also what
      stops the membrane and the cut cell from drifting apart. */
   const CONTEXTS = {
-    plasma:        { outside: 'outside the cell',    inside: 'inside the cell', organelle: 'plasma' },
-    mitochondrion: { outside: 'intermembrane space', inside: 'the matrix',      organelle: 'mitochondrion' },
-    thylakoid:     { outside: 'the lumen',           inside: 'the stroma',      organelle: 'chloroplast' },
+    plasma:        { top: 'outside the cell',    bottom: 'inside the cell', pumpTo: 'top',    organelle: 'plasma' },
+    mitochondrion: { top: 'intermembrane space', bottom: 'the matrix',      pumpTo: 'top',    organelle: 'mitochondrion' },
+    thylakoid:     { top: 'the stroma',          bottom: 'the lumen',       pumpTo: 'bottom', organelle: 'chloroplast' },
   };
-  const sideName = (context, side) => (CONTEXTS[context] || CONTEXTS.plasma)[side];
+  const ctxOf = context => CONTEXTS[context] || CONTEXTS.plasma;
+  /* +1 = the complex fills the TOP half (+y), −1 = the bottom. Every other
+     direction in the module is derived from this one, so a context cannot
+     half-flip. */
+  const pumpDir = context => ctxOf(context).pumpTo === 'top' ? 1 : -1;
+  /* `outside` is the top half and `inside` the bottom, always — the sim's
+     words for +y and −y, not a claim about the biology. */
+  const sideName = (context, side) =>
+    side === 'outside' || side === 'top' ? ctxOf(context).top : ctxOf(context).bottom;
 
   /* pH from a headcount, and the proton-motive force from both terms.
      `mV` is the inside relative to the outside, membrane.js's own sign, so
      pumping protons OUT makes it negative and the electrical term is −mV:
      positive pmf means protons want to come back in. */
-  function protonState(counts, mV, ref) {
+  function protonState(counts, mV, ref, dir) {
+    const d = dir == null ? 1 : dir;
     const n = ref == null ? (counts.inside + counts.outside) / 2 : ref;
     const pH = {
       inside:  PH_REF - (counts.inside  - n) / PROTONS_PER_PH,
       outside: PH_REF - (counts.outside - n) / PROTONS_PER_PH,
     };
     const dpH = pH.inside - pH.outside;
-    return { pH, dpH, dPsi: mV, pmf: -mV + MV_PER_PH * dpH };
+    /* BOTH TERMS TURN WITH THE PUMPING. Filling the top half drives the inside
+       negative and makes −mV the electrical push; filling the bottom half does
+       the opposite. One `d` in front of the pair, rather than two sign
+       conventions to keep straight, and pmf keeps its meaning: positive means
+       the protons want to come back. */
+    return { pH, dpH, dPsi: mV, pmf: d * (MV_PER_PH * dpH - mV) };
   }
 
   /* THE SYNTHASE NEVER RUNS UPHILL. It is a turbine, not a pump: with the
@@ -82,9 +103,12 @@
        threshold moves with the pH exaggeration instead of being a second
        number that can drift from it. */
     const slack = opts.slack == null ? 1 : opts.slack;
+    const dir = opts.dir == null ? 1 : opts.dir;
     const floor = MV_PER_PH * (2 * slack / PROTONS_PER_PH);
-    const s = protonState(counts, mV, opts.ref);
-    return s.pmf > floor ? -1 : 0;      // outside → inside, the only way it turns
+    const s = protonState(counts, mV, opts.ref, dir);
+    /* Home is whichever half the complex is NOT filling: −1 is downward on
+       screen, +1 up. A thylakoid's protons come back UP, into the stroma. */
+    return s.pmf > floor ? -dir : 0;
   }
 
   /* The rotor: protons in, angle and ATP out. One place, so the animation and
@@ -242,7 +266,7 @@
   const Complex = { at: complexAt, selfTest: complexSelfTest, PHASES: CPX_PHASES, startOf: cpxStartOf, PROTONS_PER_CYCLE: CPX_PROTONS };
 
   const API = { PROTONS_PER_TURN, ATP_PER_TURN, PROTONS_PER_ATP, PROTONS_PER_PH, PH_REF, MV_PER_PH, PMF_STALL, DPSI_FLOOR,
-                CONTEXTS, sideName, protonState, synthaseDirection, rotor, FUELS, complexRate, Complex };
+                CONTEXTS, sideName, pumpDir, protonState, synthaseDirection, rotor, FUELS, complexRate, Complex };
   global.Chemiosmosis = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
