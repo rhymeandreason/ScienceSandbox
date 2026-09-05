@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>red cell bench — discocyte, sickled, cut open</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+  /* The bench borrows the shell's chrome and its paper: no scene background of
+     its own. */
+  .bench-group { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .bench-group:first-child { padding-top: 0; border-top: 0; }
+  .bench-hd { font-family: var(--display); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  /* A bench is one screen, not a sequence. */
+  .lshell-nav, .lshell-progress { display: none; }
+  .lshell-scroll { padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script src="bloodcell.js"></script>
+<script>
+/* The bench for bloodcell/bloodcell.js: every parameter live on the cell
+   itself. No lesson copy — the model is the thing under test. It runs on the
+   lesson shell so the component is judged in the chrome a student sees. */
+
+const shell = LessonShell.create({
+  brand: 'Red cell · component bench',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: [{ eyebrow: 'bloodcell/bloodcell.js', title: 'One membrane, moved', onEnter: bench }],
+});
+
+const C = BloodCell.mount(shell.stage, { viewOffset: shell.viewOffset });
+/* The bench's console is part of the bench, and the only way to drive a frame
+   when a backgrounded tab has paused rAF: `cell.set({sickle:1})`, `cell.box.pump()`. */
+window.cell = C;
+
+function bench(ctx) {
+  const ui = ctx.ui;
+  ui.controls(`
+    <div class="bench-group">
+      <div class="bench-hd">shape</div>
+      <div class="slider"><div class="slider-head"><span class="label">sickle</span><span class="value" data-v="sickle"></span></div>
+        <input type="range" id="sickle" min="0" max="1" step="0.01" value="0"></div>
+      <div class="row">
+        <button class="btn secondary" type="button" id="toggle">Sickle it</button>
+        <label class="switch"><input type="checkbox" id="rot"><span class="track"></span>turn slowly</label>
+      </div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">cut</div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="cut"><span class="track"></span>cut in half</label>
+      </div>
+      <div class="slider"><div class="slider-head"><span class="label">membrane</span><span class="value" data-v="membrane"></span></div>
+        <input type="range" id="mem" min="0.04" max="0.4" step="0.005" value="0.16"></div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">haemoglobin</div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="hb" checked><span class="track"></span>show</label>
+        <button class="btn ghost" type="button" id="seed">new seed</button>
+      </div>
+    </div>`);
+
+  const v = (k, s) => ui.q(`[data-v=${k}]`).textContent = s;
+
+  ui.range(ui.q('#sickle'), x => { C.set({ sickle: x }, { snap: true }); v('sickle', x === 0 ? 'discocyte' : x === 1 ? 'sickled' : x.toFixed(2)); });
+  /* The half opens on a glide: the states are whole and halved, and the wedge
+     between them is the transition, not a setting. */
+  ui.q('#cut').onchange = e => C.set({ cut: e.target.checked ? 1 : 0 }, { seconds: 0.7 });
+  ui.range(ui.q('#mem'), x => { C.set({ membrane: x }); v('membrane', x.toFixed(3) + ' µm'); });
+
+  /* The glide is the case a step would use, and the sliders above are the case
+     that must not glide: a drag a 0.9 s tween is chasing feels broken. */
+  ui.q('#toggle').onclick = () => {
+    const to = C.state().sickle > 0.5 ? 0 : 1;
+    C.set({ sickle: to }, { seconds: 2.4 });
+    ui.q('#toggle').textContent = to ? 'Un-sickle it' : 'Sickle it';
+  };
+  ui.q('#rot').onchange = e => C.set({ autoRotate: e.target.checked });
+  ui.q('#hb').onchange = e => C.show('hb', e.target.checked);
+  ui.q('#seed').onclick = () => C.set({ seed: (Math.random() * 1e9) >>> 0 });
+
+  /* The tween owns the slider while it runs; a slider the reader is dragging
+     is not written to, which a blanket write every frame would do. */
+  const sl = ui.q('#sickle');
+  C.on('frame', s => {
+    if (document.activeElement === sl || Math.abs(sl.value - s.sickle) < 0.004) return;
+    sl.value = s.sickle;
+    v('sickle', s.sickle === 0 ? 'discocyte' : s.sickle === 1 ? 'sickled' : s.sickle.toFixed(2));
+  });
+}
+
+shell.goTo(0);
+</script>
+</body>
+</html>
