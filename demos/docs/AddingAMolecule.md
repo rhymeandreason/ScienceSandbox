@@ -14,7 +14,7 @@ Eight steps, in the order that avoids rework.
 
 `molecules.js`'s manifest note is the argument, and it is load-bearing: the partition is which builder a spec needs and which scale family it is in. A topic-shaped file ("respiration") names no builder and is nobody's alternate.
 
-A NEW domain file needs a cost argument — nothing already in the library wants these specs, and a page drawing one would otherwise parse a pathway to get it. That is what `mol-krebs.js` and `mol-vitamins.js` each argue in their headers. Add it to `DOMAINS` and to `Modules.md`'s table.
+A NEW domain file needs a cost argument — nothing already in the library wants these specs, and a page drawing one would otherwise parse a pathway to get it. That is what `mol-krebs.js` and `mol-carriers.js` each argue in their headers — and `mol-vitamins.js` argued it too, until glucose moved into `mol-sugars.js` and reaching its one occupant stopped being expensive. A cost argument expires when the cost does; re-read the header before trusting it. Add it to `DOMAINS` and to `Modules.md`'s table.
 
 ## 3. Build in real ångströms
 

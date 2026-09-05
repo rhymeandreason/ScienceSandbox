@@ -50,6 +50,8 @@ const KNOWN_ABSENT = {
   // that may not say what a file USED to be is a doc that cannot explain a move.
   'mol-contrast.js':    'dissolved into mol-glycans/mol-aminoacids/mol-nucleic/mol-lipids '
                         + '— molecules-wishlist.md records the split',
+  'mol-vitamins.js':    'dissolved into mol-sugars.js — AddingAMolecule.md and '
+                        + 'molecules-wishlist.md record why the cost argument expired',
   'mol-compare.js':     'dissolved into mol-carriers.js, which holds both derivations '
                         + '— molecules-wishlist.md and AddingAPage.md record why',
   'mol-monomers.js':    'dissolved into mol-aminoacids/mol-lipids/mol-carriers '

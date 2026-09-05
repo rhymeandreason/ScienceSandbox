@@ -327,10 +327,6 @@
                            //   file touches skel.js
     'mol-nucleic.js',      // family B, PubChem — plus purine and pyrimidine, the
                            //   two parent rings, which are built
-    'mol-vitamins.js',     // needs skel.js — split on COST like mol-krebs.js:
-                           //   nothing else in the library wants a vitamin,
-                           //   and they turn up beside proteins, not inside
-                           //   pathways. That file's header has the argument.
   ];
 
   // Files that REPLACE one of the above rather than adding to it. They define

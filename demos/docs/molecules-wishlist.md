@@ -1,4 +1,4 @@
-<!-- KIND: argument — the proposed re-partition of the mol-*.js files, and every molecule we have decided is worth adding. Load when deciding WHICH molecule to build next, before moving a spec between domain files, or to find the record a planned spec is generated from. `AddingAMolecule.md` is the recipe for building one once it is chosen; `MolecularGeometry.md` §1 is the rulebook both obey. `mol-sugars.js`, `mol-glycans.js`, `mol-aminoacids.js` and `mol-carriers.js` are built, and `mol-contrast.js`, `mol-compare.js` and `mol-monomers.js` are deleted. What is left of the re-partition is `mol-glycolysis.js` (renaming what remains of `mol-pathways.js`), `mol-cofactors.js`, and dissolving `mol-vitamins.js`. -->
+<!-- KIND: argument — the proposed re-partition of the mol-*.js files, and every molecule we have decided is worth adding. Load when deciding WHICH molecule to build next, before moving a spec between domain files, or to find the record a planned spec is generated from. `AddingAMolecule.md` is the recipe for building one once it is chosen; `MolecularGeometry.md` §1 is the rulebook both obey. `mol-sugars.js`, `mol-glycans.js`, `mol-aminoacids.js` and `mol-carriers.js` are built, and `mol-contrast.js`, `mol-compare.js` and `mol-monomers.js` are deleted. The re-partition is DONE except for `mol-cofactors.js`, which is a file for molecules that do not exist yet. The one proposal here that was NOT carried out is renaming `mol-pathways.js` — see the note under the file table. -->
 
 # Molecules wishlist
 
@@ -13,7 +13,7 @@ Two files were named for pages and are dissolved:
 * **`mol-contrast.js` — DISSOLVED, and the file is gone.** It held four unrelated chemical classes grouped by "appear side by side on `contrast-lab`". Five pages that are not `contrast-lab` loaded it — `amylase`, `chain/`, `chair/`, `capillary/`, `macromolecule-builder` — and all five wanted only the disaccharides. They were parsing proline and palmitoleate to get maltose, which is the cost failure inverted: the contrast page's convenience billed to everyone else. Its contents went to `mol-glycans.js` (the four disaccharides), `mol-aminoacids.js` (D-alanine, proline, glutamine, glutamate), `mol-nucleic.js` (purine, pyrimidine) and `mol-lipids.js` (palmitoleate). Contrast survives where it always lived, in each spec's `contrast:` block naming its partner and `diff`. It was never a property a file had to carry.
 * **`mol-compare.js` — DISSOLVED, and the file is gone.** It held two specs, and every page that loaded it also loaded `mol-pathways.js`, so the split saved nobody anything. It turned out to be worse than that: its own header set the condition "one more consumer of `atpSkel`/`nadhSkel` and the split is costing more than it saves", and by the time anyone looked, **three** lesson pages were drawing their carriers from it. Both specs are in `mol-carriers.js`.
 
-`mol-vitamins.js` goes too: one occupant, and `essential:` is a flag on the spec rather than a class. **`mol-monomers.js` is dissolved and deleted** — its amino acids to `mol-aminoacids.js`, palmitate to `mol-lipids.js`, AMP to `mol-carriers.js`. `mol-pathways.js` still holds the ten glycolysis intermediates and becomes `mol-glycolysis.js` when it is renamed.
+**`mol-vitamins.js` is dissolved and deleted**: one occupant, and `essential:` is a flag on the spec rather than a class. Ascorbate went to `mol-sugars.js` — it is a lactone built from a hexose, and reaching it there costs four small monosaccharides rather than the seventeen glycolysis intermediates its own header was written against. **`mol-monomers.js` is dissolved and deleted** — its amino acids to `mol-aminoacids.js`, palmitate to `mol-lipids.js`, AMP to `mol-carriers.js`.
 
 The trade is that `contrast-lab` goes from three domain files to five, because a contrast page is cross-class by nature. That is the correct place for the cost — it draws six pairs and uses nearly everything it loads.
 
@@ -25,16 +25,24 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 | `mol-glycans.js` **(built)** | maltose, cellobiose, lactose, galactobiose | **sucrose** |
 | `mol-aminoacids.js` **(built)** | gly, ala, ser, cys, D-ala, pro, gln, glu | **hydroxyproline**, **tyrosine**, **histidine**, **lysine**, **aspartate**, **tryptophan** |
 | `mol-carriers.js` **(built)** | ATP, AMP, Pi, NADH, FAD, FADH₂, CoA, acetyl-CoA, succinyl-CoA, atpSkel, nadhSkel | **ADP**, **NAD⁺**, **2,3-BPG** |
-| `mol-glycolysis.js` | G6P, F6P, F16BP, DHAP, G3P, 1,3-BPG, 3PGA, 2PGA, PEP, pyruvate, lactate, acetaldehyde, ethanolSkel | — |
+| `mol-pathways.js` **(kept its name — see below)** | G6P, F6P, F16BP, DHAP, G3P, 1,3-BPG, 3PGA, 2PGA, PEP, pyruvate, lactate, acetaldehyde, ethanolSkel | — |
 | `mol-krebs.js` | OAA, citrate, isocitrate, αKG, succinate, fumarate, malate | — |
 | `mol-lipids.js` | glycerol, palmitate, palmitoleate, POPC | **elaidate**, **triacylglycerol**, **cholesterol**, **retinal (11-cis / all-trans)**, **testosterone / estradiol**, **ouabain** |
 | `mol-nucleic.js` | adenine, thymine, guanine, cytosine, purine, pyrimidine | **uracil**, **CMP** |
 | `mol-cofactors.js` | — | **heme b**, **chlorophyll a**, **β-carotene** |
 | `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol | **CO**, **urea**, **methanol** |
 | `mol-solvation.js` | water, NaCl, KCl, ethanol, ammonia, methane, O₂, CO₂, carbonic, bicarbonate, hydronium | **Zn²⁺**, **Fe²⁺/Fe³⁺** |
-| *deleted* | ~~`mol-contrast.js`~~ ~~`mol-compare.js`~~ ~~`mol-monomers.js`~~ **(done)** · `mol-vitamins.js` and renaming `mol-pathways.js` still to go | dissolved into the rows above |
+| *deleted* | ~~`mol-contrast.js`~~ ~~`mol-compare.js`~~ ~~`mol-monomers.js`~~ ~~`mol-vitamins.js`~~ **(all done)** | dissolved into the rows above |
 
 `mol-small.js` and `mol-solvation.js` stay the family A / family B either-or they already are; `register()` throws if both load, and that is the point.
+
+### The one proposal not carried out: renaming `mol-pathways.js`
+
+This doc's table called for `mol-glycolysis.js`. **That rename was attempted and reverted**, because the file's own header records being renamed *away* from a glycolysis-shaped name, and the argument still holds: the library is partitioned by **derivation and scale family, never by topic**, and a topic-shaped file can take part in neither the load order nor `DOMAIN_ALTERNATES`. The header goes further and says the Krebs and electron-transport intermediates belong *in* that file when they come, not in a file named for respiration.
+
+Two smaller facts back it up. The file holds `lactate`, `acetaldehyde` and `ethanolSkel`, which are fermentation, not glycolysis — so the proposed name is also inaccurate. And `mol-krebs.js` was split off on **cost**, because FAD and CoA were the two largest Skel builds in the repo; those are in `mol-carriers.js` now, so that cost argument has expired too and the seven acids could fold back into `mol-pathways.js`, which is the opposite of splitting the file further by topic.
+
+**If this doc and a file header disagree, read the header.** It is written next to the thing it constrains, and twice in this re-partition it turned out to be the more current of the two.
 
 ### Placements that are not obvious
 
