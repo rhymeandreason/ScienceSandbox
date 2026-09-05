@@ -597,17 +597,26 @@
       for (let k = 0; k < sub; k++) solve(items, h);
       for (const it of items) {
         const base = it.type === 'vacuole' ? P.vac : P.org, s = base * grow;
-        /* Rest on the HIGHEST floor under the footprint, not the floor at
-           the centre. The bowl is concave, so it rises away from an
-           organelle's middle and a wide one planted on its centre height
-           pushes its own edges through the cytoplasm. Six samples round the
-           footprint is enough for shapes this smooth. */
-        let floor = bowlY(it.x, it.z);
-        for (let k = 0; k < 6; k++) {
-          const ang = k * PI / 3;
-          floor = Math.max(floor, bowlY(it.x + Math.cos(ang) * it.r * s, it.z + Math.sin(ang) * it.r * s));
+        /* SIT IT IN THE BOWL. Both surfaces curve, so neither the floor at
+           the organelle's centre nor the highest floor under its footprint
+           is right on its own: the first lets a wide organelle push its far
+           side through the cytoplasm, the second lifts the whole thing until
+           it floats, because it demands full clearance at the rim where the
+           organelle has already curved away to nothing.
+           So compare the two shapes. Treat the underside as a dome of height
+           `lift` over the footprint, and require the centre to clear the
+           floor by however much of that dome is left at each sample. At the
+           middle that is the full lift; at the rim it is zero. */
+        const R = it.r * s, H = it.lift * s;
+        let y = bowlY(it.x, it.z) + H;
+        for (const f of [0.6, 1]) {
+          const clear = H * Math.sqrt(Math.max(0, 1 - f * f));
+          for (let k = 0; k < 6; k++) {
+            const ang = k * PI / 3 + f;
+            y = Math.max(y, bowlY(it.x + Math.cos(ang) * R * f, it.z + Math.sin(ang) * R * f) + clear);
+          }
         }
-        it.g.position.set(it.x, floor + it.lift * s, it.z);
+        it.g.position.set(it.x, y, it.z);
         it.g.scale.setScalar(s);
         if (it.type !== 'nucleus' && it.type !== 'vacuole') {
           const y = it.rot + (it.vx * Math.cos(it.rot) - it.vz * Math.sin(it.rot)) * 0.4 / A + 0.04 * Math.sin(time * 0.3 + it.seed);
