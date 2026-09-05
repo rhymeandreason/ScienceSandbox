@@ -597,11 +597,12 @@
         color: hex, transparent: true, opacity, depthWrite: false,
       }, extra));
       // the inside of the far wall, so the vacuole has a back
-      const back = layer(glass(V.inner, 0.35, { roughness: 0.15, side: THREE.BackSide, clearcoat: 0.4, envMapIntensity: 0.5 }), 1, 0);
-      const sap = layer(glass(V.sap, 0.4, { roughness: 0.6, envMapIntensity: 0.1 }), 0.9, 1);
+      const back = layer(glass(V.inner, 0.35, { roughness: 0.15, side: THREE.BackSide, clearcoat: 0.4, envMapIntensity: 0.3 }), 1, 0);
+      // the sap is what makes it cream if you let it: kept faint
+      const sap = layer(glass(V.sap, 0.22, { roughness: 0.6, envMapIntensity: 0.1 }), 0.9, 1);
       // the one surface the environment is really for
-      const water = layer(glass(V.outer, 0.48, { roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08, reflectivity: 0.7, envMapIntensity: 0.9 }), 1, 2);
-      const tono = layer(glass(V.rim, 0.22, { roughness: 0.2, envMapIntensity: 0.6 }), 1.03, 3);
+      const water = layer(glass(V.outer, 0.55, { roughness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08, reflectivity: 0.7, envMapIntensity: 0.45 }), 1, 2);
+      const tono = layer(glass(V.rim, 0.22, { roughness: 0.2, envMapIntensity: 0.3 }), 1.03, 3);
       g.userData.parts = { back, sap, water, tono };
       return g;
     }

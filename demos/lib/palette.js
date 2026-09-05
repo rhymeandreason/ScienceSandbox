@@ -249,7 +249,11 @@
          to show the vacuole holding something. NOT tied to the lysosome:
          the two do overlapping lytic work in different cells, but that is
          convergence, not homology, and one colour would teach otherwise. */
-      vacuole:       { outer:0x9cc9d2, inner:0x6fb3b4, rim:0xbfe6d8, head:0x9cc9d2, tail:0xd8cfa6,
+      /* `outer` is the water surface, and it is DEEPER THAN IT LOOKS ON A
+         SWATCH on purpose: the vacuole is three translucent layers stacked
+         over a pale cytoplasm, and each one lightens what is behind it, so a
+         colour picked to look right alone comes out white in place. */
+      vacuole:       { outer:0x4f9fb2, inner:0x3d8895, rim:0xbfe6d8, head:0x63b0c0, tail:0xd8cfa6,
                        sap:0xd8cfa6 },
       /* The wall's faces are PER TISSUE (see `plantTissue` below) because a
          cactus wall and a leaf wall are not the same thickness or the same
