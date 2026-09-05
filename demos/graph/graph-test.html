@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>graph.js — test bench</title>
+
+<!-- ===================================================================
+     TEST BENCH for graph/graph.js. Not a lesson, not linked from the index.
+
+     ON THE DOCUMENT SHELL, DELIBERATELY. Design.md says a component bench
+     takes the lesson shell, and the reason is that a scene should be judged
+     in the chrome a student sees it in. A graph is not a scene: what has to
+     be judged here is whether SIX kinds share one look, and six of them
+     inside one glass panel is not a thing anyone would see. The lesson-shell
+     mount is the last card on the page instead, so the shell's own palette
+     is still exercised.
+
+     WHAT EACH CARD IS FOR:
+
+       1  the real lab CSV, every team's raw points. The claim is that the
+          semantic layer needs no marks: kind + fields + fit.
+       2  the same CSV collapsed to mean and sd, with the x-intercept found.
+          The isotonic molarity is READ FROM state(), never typed, so the
+          number in the prose cannot survive a change to the data.
+       3  saturation curves, three series, legend drawn by the module
+       4  error bars from an explicit +/- column rather than a computed spread
+       5  bars, a histogram and a box plot: the three kinds with a categorical
+          or binned axis, where Plot's defaults most need overriding
+       6  set() under a control, which is the whole Generator use case
+       7  the same graph on body.lshell-page tokens, in an iframe
+
+     WHAT TO LOOK AT: tick density, the axis-label-to-tick size step, whether
+     the grid sits behind the marks or fights them, and whether the six cards
+     read as one system.
+     =================================================================== -->
+
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="graph.css">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js"></script>
+<style>
+  main { display: grid; gap: 2rem; }
+  .card {
+    background: var(--surface-card);
+    border: 1px solid var(--border-hair);
+    border-radius: 10px;
+    padding: 1.25rem 1.4rem 1.4rem;
+  }
+  .card > h2 {
+    font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-muted); margin: 0 0 1rem;
+  }
+  .row { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  .readout {
+    margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px solid var(--border-hair);
+    font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); line-height: 1.6;
+  }
+  .readout b { color: var(--text-strong); font-weight: 600; }
+  .controls { display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; font-size: 13px; }
+  .controls label { display: flex; gap: 0.5rem; align-items: center; color: var(--text-dim); }
+  iframe { width: 100%; height: 420px; border: 1px solid var(--border-hair); border-radius: 8px; }
+  .fail { color: var(--accent-hot); font-family: var(--font-mono); font-size: 12px; }
+</style>
+</head>
+<body class="kodo">
+<div class="page">
+
+  <nav class="sitenav">
+    <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+    <span class="crumb">graph.js bench</span>
+  </nav>
+
+  <header class="pagehead">
+    <h1>graph</h1>
+    <p class="deck">Observable Plot under a semantic layer. Every card below names a kind and some fields, and nothing else.</p>
+  </header>
+
+  <main>
+
+    <section class="card">
+      <h2>1 &middot; the raw lab data</h2>
+      <div id="g1"></div>
+      <div class="readout" id="r1"></div>
+    </section>
+
+    <section class="card">
+      <h2>2 &middot; mean, spread, and the isotonic point</h2>
+      <div id="g2"></div>
+      <div class="readout" id="r2"></div>
+    </section>
+
+    <section class="card">
+      <h2>3 &middot; series and a legend</h2>
+      <div class="row">
+        <div id="g3"></div>
+        <div id="g4"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>4 &middot; categorical and binned axes</h2>
+      <div class="row">
+        <div id="g5"></div>
+        <div id="g6"></div>
+        <div id="g7"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>5 &middot; set() under a control</h2>
+      <div class="controls">
+        <label>replicates
+          <input id="reps" type="range" min="1" max="12" value="3" step="1">
+          <b id="repsv">3</b>
+        </label>
+        <label>noise
+          <input id="noise" type="range" min="0" max="30" value="10" step="1">
+          <b id="noisev">10</b>%
+        </label>
+        <label>error
+          <select id="err">
+            <option value="sem">sem</option>
+            <option value="sd">sd</option>
+            <option value="">none</option>
+          </select>
+        </label>
+      </div>
+      <div id="g8"></div>
+      <div class="readout" id="r8"></div>
+    </section>
+
+    <section class="card">
+      <h2>6 &middot; the same graph on the lesson shell's palette</h2>
+      <iframe src="graph-shell-test.html" title="graph on lesson-shell tokens"></iframe>
+    </section>
+
+  </main>
+
+  <footer class="sitefoot"></footer>
+</div>
+
+<script src="graph.js"></script>
+<script>
+/* ---------------------------------------------------------------------------
+   Generated data. Every dataset here is built from a stated model plus seeded
+   noise, so the bench looks the same on every reload and a change to the
+   module is the only thing that can change the picture.
+   ------------------------------------------------------------------------ */
+let _s = 20250905;
+function rnd() { _s = (_s * 1664525 + 1013904223) % 4294967296; return _s / 4294967296; }
+function jitter(m) { return (rnd() + rnd() + rnd() - 1.5) * m; }   /* roughly normal */
+
+/* Light response: a rectangular hyperbola on top of dark respiration, which is
+   why every curve starts below zero and crosses it at the compensation point. */
+function lightCurve(co2, vmax) {
+  const out = [];
+  for (const I of [0, 50, 100, 200, 400, 600, 900, 1200, 1600, 2000]) {
+    const gross = vmax * I / (I + 260);
+    out.push({ light: I, co2: co2, rate: +(gross - 2.1 + jitter(0.5)).toFixed(2) });
+  }
+  return out;
+}
+const LIGHT = [].concat(lightCurve('200 ppm', 9), lightCurve('400 ppm', 14), lightCurve('800 ppm', 17));
+
+/* Enzyme rate against temperature: Arrhenius up, denaturation down, with an
+   explicit sd column so card 4 exercises the "error is a field" path. */
+const ENZYME = [10, 20, 30, 37, 45, 50, 55, 60, 65].map(t => {
+  const rise = Math.exp(0.075 * (t - 10));
+  const alive = 1 / (1 + Math.exp((t - 48) / 3.2));
+  const rate = 12 * rise * alive / 8;
+  return { temp: t, rate: +(rate + jitter(0.3)).toFixed(2), sd: +(0.18 + rate * 0.08).toFixed(2) };
+});
+
+const RESPIRATION = [
+  { tissue: 'germinating pea', rate: 4.8 }, { tissue: 'dormant pea', rate: 0.4 },
+  { tissue: 'cricket', rate: 6.9 }, { tissue: 'liver', rate: 9.4 }, { tissue: 'root tip', rate: 3.1 },
+];
+
+const LEAVES = Array.from({ length: 240 }, () => ({ length: +(8.4 + jitter(2.6)).toFixed(2) }));
+
+/* --------------------------------------------------------------------------- */
+
+const fmt = Graph.fmt;
+
+/* Cards 3-5 do not wait on the fetch. */
+Graph.mount(document.querySelector('#g3'), {
+  kind: 'line', data: LIGHT, color: 'co2',
+  x: { field: 'light', label: 'Light intensity', unit: 'umol photons m-2 s-1' },
+  y: { field: 'rate', label: 'Net CO2 uptake', unit: 'umol m-2 s-1' },
+  caption: 'Every curve starts below zero: in the dark the leaf is only respiring.',
+});
+
+Graph.mount(document.querySelector('#g4'), {
+  kind: 'line', data: ENZYME, error: 'sd',
+  x: { field: 'temp', label: 'Temperature', unit: 'C' },
+  y: { field: 'rate', label: 'Reaction rate', unit: 'umol/min' },
+  ref: [{ x: 37, label: 'body temp' }],
+  caption: 'Error bars are an sd column measured in the lab, not a spread computed here.',
+});
+
+Graph.mount(document.querySelector('#g5'), {
+  kind: 'bar', data: RESPIRATION, sort: 'value',
+  x: { field: 'tissue', label: null },
+  y: { field: 'rate', label: 'O2 consumed', unit: 'uL/g/min' },
+});
+
+Graph.mount(document.querySelector('#g6'), {
+  kind: 'histogram', data: LEAVES,
+  x: { field: 'length', label: 'Leaf length', unit: 'cm' },
+  y: { label: 'Leaves counted' },
+});
+
+/* --------------------------------------------------------------------------- */
+
+const g8 = Graph.mount(document.querySelector('#g8'), {
+  kind: 'scatter', data: [], error: 'sem', fit: 'linear', ci: 0.95,
+  x: { field: 'dose', label: 'Substrate', unit: 'mM' },
+  y: { field: 'rate', label: 'Initial rate', unit: 'umol/min' },
+  caption: 'Drag the sliders: set() rebuilds the graph, and the fit below is read from state().',
+});
+g8.on('render', s => {
+  document.querySelector('#r8').innerHTML = s.fit
+    ? 'n = <b>' + s.n + '</b> points &nbsp; slope <b>' + fmt(s.fit.slope) +
+      '</b> &nbsp; r&sup2; <b>' + fmt(s.fit.r2, 3) + '</b>'
+    : 'not enough points to fit';
+});
+
+function rebuild() {
+  const reps = +document.querySelector('#reps').value;
+  const noise = +document.querySelector('#noise').value / 100;
+  document.querySelector('#repsv').textContent = reps;
+  document.querySelector('#noisev').textContent = document.querySelector('#noise').value;
+  _s = 20250905;
+  const rows = [];
+  for (const dose of [0, 1, 2, 4, 6, 8, 10]) {
+    const true_ = 0.62 * dose + 0.4;
+    for (let i = 0; i < reps; i++) rows.push({ dose, rate: +(true_ + jitter(true_ * noise + 0.15)).toFixed(3) });
+  }
+  g8.set({ data: rows, error: document.querySelector('#err').value || null });
+}
+['#reps', '#noise', '#err'].forEach(s => document.querySelector(s).addEventListener('input', rebuild));
+rebuild();
+
+/* --------------------------------------------------------------------------- */
+
+/* The real CSV. Percent mass change against sucrose molarity: the line crosses
+   zero where the bathing solution matches the potato's own solute concentration,
+   and that crossing is the whole experiment. */
+Graph.load('../lab-data/osmosisstudentdata.csv').then(rows => {
+
+  Graph.mount(document.querySelector('#g1'), {
+    kind: 'scatter', data: rows, color: 'team', fit: 'linear',
+    x: { field: 'molarity_M', label: 'Sucrose concentration', unit: 'M' },
+    y: { field: 'reported_pct_change', label: 'Mass change', unit: '%' },
+    caption: 'Every core every team weighed. One fit through all of it.',
+  }).on('render', s => {
+    document.querySelector('#r1').innerHTML =
+      '<b>' + s.series.length + '</b> teams &nbsp; <b>' + s.n + '</b> cores &nbsp; ' +
+      'slope <b>' + fmt(s.fit.slope) + '</b> %/M &nbsp; r&sup2; <b>' + fmt(s.fit.r2, 3) + '</b>';
+  });
+
+  Graph.mount(document.querySelector('#g2'), {
+    kind: 'scatter', data: rows, error: 'sd', fit: 'linear', ci: 0.95, xIntercept: true,
+    x: { field: 'molarity_M', label: 'Sucrose concentration', unit: 'M' },
+    y: { field: 'reported_pct_change', label: 'Mass change', unit: '%' },
+    caption: 'Bars are one sd across the teams at each concentration. The marked crossing is the isotonic point.',
+  }).on('render', s => {
+    document.querySelector('#r2').innerHTML =
+      'isotonic at <b>' + fmt(s.fit.xIntercept) + ' M</b> sucrose &nbsp; ' +
+      'from <b>' + s.n + '</b> means &nbsp; r&sup2; <b>' + fmt(s.fit.r2, 3) + '</b>';
+  });
+
+  /* Spread between teams at one concentration, which the scatter hides. */
+  Graph.mount(document.querySelector('#g7'), {
+    kind: 'box', data: rows,
+    x: { field: 'molarity_M', label: 'Sucrose', unit: 'M' },
+    y: { field: 'reported_pct_change', label: 'Mass change', unit: '%' },
+  });
+
+}).catch(e => {
+  document.querySelector('#r1').innerHTML =
+    '<span class="fail">lab-data CSV did not load: ' + e.message + '. Serve the repo, do not open the file.</span>';
+});
+</script>
+</body>
+</html>

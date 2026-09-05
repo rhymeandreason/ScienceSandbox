@@ -1,0 +1,64 @@
+/* graph/graph.css - chrome for graph/graph.js. Observable Plot draws the marks;
+   everything here is the paper they sit on and the type they are labelled in.
+   Plot writes inline styles for colour and family, so the rules that have to
+   beat it are the SIZE and WEIGHT of axis text, which it does not set per-tick. */
+
+.graph {
+  width: 100%;
+  color: var(--text-body);
+  font-family: var(--font-ui);
+}
+
+.graph-title {
+  font-size: var(--text-sm, 13px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+  margin: 0 0 4px 2px;
+}
+
+/* Tick labels sit one step below body text; the axis NAME keeps body size and
+   goes to the dim ink, so the pair reads as label-then-numbers rather than as
+   two competing rows of type. */
+.graph svg [aria-label$="axis tick label"] text,
+.graph svg [aria-label$="-axis tick label"] text {
+  font-size: 11px;
+  fill: var(--text-dim);
+}
+.graph svg [aria-label$="axis label"] text {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--text-body);
+}
+
+/* Plot's default grid is a solid mid-grey that fights the dots. Ours is the
+   page's own rule colour, thinned until it reads as ruled paper. */
+.graph svg [aria-label="y-grid"] line,
+.graph svg [aria-label="x-grid"] line {
+  stroke: var(--border-hair);
+  stroke-opacity: 0.9;
+}
+
+.graph figure { margin: 0; }
+
+.graph figcaption {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-dim);
+  max-width: 62ch;
+}
+
+/* The legend Plot emits is a flow of swatch+label spans. */
+.graph .plot-swatches {
+  font-size: 12px;
+  color: var(--text-body);
+  margin-bottom: 6px;
+}
+.graph .plot-swatches span { margin-right: 12px; }
+
+/* Its tip is a white box with a hard border by default. */
+.graph svg [aria-label="tip"] path {
+  fill: var(--surface-card);
+  stroke: var(--border-hair);
+}

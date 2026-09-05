@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>graph.js on the lesson shell</title>
+
+<!-- The second half of graph-test.html, which embeds this in an iframe. Its
+     job is to prove graph.js reads the shell's palette: lesson-shell.css
+     declares --ink, --line and --panel on body.lshell-page and shadows the
+     site sheet's names, so a graph that hard-read --text-strong would come
+     out in the wrong ink here and nowhere else. -->
+
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<link rel="stylesheet" href="graph.css">
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js"></script>
+<style>
+  .plotwrap { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; }
+  .plotwrap > .graph { width: min(640px, 100%); }
+</style>
+</head>
+<body class="lshell-page">
+<script src="../kit/lesson-shell.js"></script>
+<script src="graph.js"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'graph',
+  steps: [{
+    eyebrow: 'bench',
+    title: 'On the shell',
+    body: 'Same module, same params. The ink, the rules and the paper are the shell\'s.',
+  }],
+});
+
+const wrap = document.createElement('div');
+wrap.className = 'plotwrap';
+shell.stage.appendChild(wrap);
+
+const DATA = [2, 4, 6, 8, 10, 12, 14].map((t, i) => ({
+  time: t, oxygen: +(1.9 * t + 3 + [0.8, -1.1, 0.4, 1.6, -0.9, 0.2, -0.6][i]).toFixed(2),
+}));
+
+Graph.mount(wrap, {
+  kind: 'scatter', data: DATA, fit: 'linear', ci: 0.95,
+  x: { field: 'time', label: 'Time', unit: 'min' },
+  y: { field: 'oxygen', label: 'O2 evolved', unit: 'uL' },
+  caption: 'Elodea in bicarbonate solution under a lamp.',
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>
