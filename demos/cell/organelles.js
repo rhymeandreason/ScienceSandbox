@@ -379,36 +379,54 @@
          pitch so the two combs mesh. */
       const gapIM = th + 0.045 * r;                   // the intermembrane space
       const ri = r - gapIM, Li = L - gapIM * 0.4;
-      const nFold = o.cristae || 7, depth = 1.3;
-      /* A CRISTA IS A NARROW FINGER, not a notch: its two walls run close
-         together and nearly parallel, and it is rounded at the tip and at
-         the mouth. A spline through these controls gives that; listing the
-         corners directly gives a saw blade.
-         `depth` past 1 is what makes the folds INTERDIGITATE — each finger
-         reaches beyond the midline, and the two sides are offset half a
-         pitch so they mesh. That is why a section reads as a squiggle
-         rather than as two facing combs, and it is what packs so much
-         membrane into so little volume. */
-      const comb = (dir, phase, ascending) => {
-        const out = [], pitch = 2 * Li / nFold;
-        for (let k = 0; k < nFold; k++) {
-          const i = ascending ? k : nFold - 1 - k;
-          const xc = -Li + pitch * (i + 0.5 + phase * 0.5), w = pitch * 0.3;
-          const tip = dir * ri * (1 - depth), lip = dir * ri;
-          const sgn = ascending ? 1 : -1;
-          out.push(new V3(xc - sgn * w * 1.5, 0, lip));
-          out.push(new V3(xc - sgn * w * 0.5, 0, dir * ri * 0.35));
-          out.push(new V3(xc, 0, tip));
-          out.push(new V3(xc + sgn * w * 0.5, 0, dir * ri * 0.35));
-          out.push(new V3(xc + sgn * w * 1.5, 0, lip));
+      /* `cristae` is the TOTAL number of folds, alternating sides along the
+         length, not a count per side — seven a side is fourteen folds and
+         reads as corrugation.
+
+         EACH FOLD IS A U, NOT A V. Its two walls run in parallel and the
+         tip is a round arc, so what sits between two folds is a fat lobe of
+         matrix with a narrow membrane finger between — which is the way
+         round a micrograph shows it, the membrane being the thin thing. A
+         spline through a single tip point pulls the walls together into a
+         point instead, and the section reads as a saw.
+
+         Depth past 1 carries the tip beyond the midline, and the sides
+         alternate, so the folds interleave without meeting: two adjacent
+         folds are on opposite sides and their x ranges do not overlap. */
+      const nFold = o.cristae || 5;
+      const pitch = 2 * Li / nFold;
+      const folds = [];
+      for (let k = 0; k < nFold; k++)
+        folds.push({
+          x: -Li + pitch * (k + 0.5) + rr(-0.06, 0.06) * pitch,
+          dir: k % 2 ? -1 : 1,
+          w: pitch * rr(0.19, 0.25),
+          depth: rr(1.12, 1.5),
+        });
+
+      const comb = (dir, ascending) => {
+        const out = [], mine = folds.filter(f => f.dir === dir);
+        if (!ascending) mine.reverse();
+        for (const f of mine) {
+          const sgn = ascending ? 1 : -1, tip = dir * ri * (1 - f.depth), lip = dir * ri;
+          out.push(new V3(f.x - sgn * f.w * 2.1, 0, lip));
+          out.push(new V3(f.x - sgn * f.w * 1.45, 0, dir * ri * 0.86));   // ease off the wall
+          out.push(new V3(f.x - sgn * f.w, 0, dir * ri * 0.42));
+          out.push(new V3(f.x - sgn * f.w * 0.88, 0, tip * 0.66));
+          out.push(new V3(f.x - sgn * f.w * 0.34, 0, tip));
+          out.push(new V3(f.x + sgn * f.w * 0.34, 0, tip));
+          out.push(new V3(f.x + sgn * f.w * 0.88, 0, tip * 0.66));
+          out.push(new V3(f.x + sgn * f.w, 0, dir * ri * 0.42));
+          out.push(new V3(f.x + sgn * f.w * 1.45, 0, dir * ri * 0.86));
+          out.push(new V3(f.x + sgn * f.w * 2.1, 0, lip));
         }
         return out;
       };
       const ctrl = [];
       ctrl.push(new V3(-Li - ri * 0.5, 0, 0.62 * ri));
-      ctrl.push(...comb(1, 0, true));                       // out along +z
+      ctrl.push(...comb(1, true));                          // out along +z
       ctrl.push(new V3(Li + ri * 0.5, 0, 0.62 * ri), new V3(Li + ri * 0.8, 0, 0), new V3(Li + ri * 0.5, 0, -0.62 * ri));
-      ctrl.push(...comb(-1, 1, false));                     // back along -z, meshed
+      ctrl.push(...comb(-1, false));                        // back along -z
       ctrl.push(new V3(-Li - ri * 0.5, 0, -0.62 * ri), new V3(-Li - ri * 0.8, 0, 0));
 
       const curve = new THREE.CatmullRomCurve3(ctrl, true, 'centripetal', 0.5);
