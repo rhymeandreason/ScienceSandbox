@@ -1,10 +1,23 @@
 /* =============================================================================
  *  bloodcell/bloodcell.js — one red cell, discocyte to sickle, cut open
  * =============================================================================
- *  Classic script after scene.js + kit/card-stage.js. Exposes window.BloodCell.
+ *  Classic script after scene.js + kit/card-stage.js (+ lib/annotate.js for
+ *  the notes). Exposes window.BloodCell on the component contract.
  *
  *      const C = BloodCell.mount(el, { viewOffset });
- *      C.set({ sickle: 1, cut: 0.5 });   C.state();   C.destroy();
+ *      C.set({ sickle: 1, cut: 1 });     // glides; {snap:true} for a slider
+ *      C.state(); C.note('rim'); C.show('membrane', false); C.destroy();
+ *
+ *  PARAMS: sickle 0..1 · tonicity -1..1 · spill 0..1 · cut 0..1 · cutTurn
+ *  turns · membrane µm · hb · hbCount · seed · autoRotate. The first four
+ *  glide through the mount's tweens; `membrane` and `seed` rebuild and snap.
+ *  state() is those plus facts() — discR, sphereR, area, volume, swellRatio,
+ *  crenateFraction — every one measured off the profile so a page prints
+ *  rather than types. Event: frame.
+ *
+ *  ANCHORS for note(): rim · dimple · cutFace · haemoglobin · horn · spicule.
+ *  The last three answer null on a cell that has no such part, so a callout
+ *  waits instead of pointing at water. LAYERS for show(): membrane · hb.
  *
  *  ONE SURFACE, BUILT ONCE, MOVED EVERY FRAME. Every behaviour here —
  *  sickling, the creases, the cut — is a deformation or a re-index of a grid
@@ -47,6 +60,10 @@
  *  boat with drawn-out horns, and the beads become those bundles. It is drawn
  *  from `seed`, and no two seeds give the same cell — see `makeShape`.
  *
+ *  A ZOOM INTO THE SHELL IS A HANDOFF TO Membrane, not a camera move, and it
+ *  skips the organelle rung deliberately: a red cell has no organelles to
+ *  stop at. SCALE.down says so, and check-scale warns rather than fails.
+ *
  *  BUDGET: ~6 ms a frame while SICKLING (19k vertices warped, their normals,
  *  2000 instanced beads, the cut ribbon, and the render), 2 ms on the tonicity
  *  axis, and a render alone once either settles — nothing recomputes unless a
@@ -85,6 +102,12 @@
     hbCount: 2000,
     autoRotate: false,
     seed: 7,
+  };
+
+  /* Poses for lookAt: the dimple is the one part the default camera sees
+     edge-on, so pointing at it turns the cell face-up. */
+  const VIEWS = {
+    dimple: { theta: 0.35, phi: 0.30, r: 15 },
   };
 
   const COL = {
@@ -557,7 +580,7 @@
       }
       geoOut.setDrawRange(0, n); geoIn.setDrawRange(0, n);
       geoOut.index.needsUpdate = true; geoIn.index.needsUpdate = true;
-      meshIn.visible = meshEdge.visible = cutN > 0;
+      meshIn.visible = meshEdge.visible = cutN > 0 && vis.membrane;
       dirty = true;
     }
 
@@ -724,10 +747,107 @@
       matEdge.opacity = matOut.opacity; matEdge.transparent = matOut.transparent;
     }
 
+
+    /* ---- what a page can point at, and what may be hidden ------------------
+       Anchors are functions because everything moves: the grid is rewritten
+       every frame a morph runs, and a baked point drifts off the surface
+       inside one tween. A part this shape does not HAVE — a dimple on a
+       swollen sphere, a horn on a disc — answers null, so a note waits
+       instead of pointing at empty water. */
+    const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _m4 = new THREE.Matrix4();
+    const wrapJ = j => ((j % J) + J) % J;
+    const vert = (buf, k, j, out) => {
+      const o = (k * J + wrapJ(j)) * 3;
+      return grp.localToWorld(out.set(buf[o], buf[o + 1], buf[o + 2]));
+    };
+    const cutAway = j => cutN > 0 && ((wrapJ(j) - cutA + J) % J) < cutN;
+    // The middle of the half still standing, so a rim note never lands in the
+    // wedge that was taken away.
+    const openSpoke = () => cutA + cutN + ((J - cutN) >> 1);
+    const showSpoke = j => (cutAway(j) ? j + (J >> 1) : j);
+
+    /* The tallest spicule, found when the field is built rather than scanned
+       per frame: the note goes on the biggest spike, which is the one a reader
+       is looking at. */
+    let spikeIdx = 0;
+    function findSpike() {
+      let best = -Infinity;
+      for (let i = 0; i < spic.length; i++) if (spic[i] > best) { best = spic[i]; spikeIdx = i; }
+    }
+    findSpike();
+
+    const KC = Math.round(K * 0.32);
+
+    const anchors = {
+      rim:     () => vert(posOut, K >> 1, openSpoke(), _a),
+      dimple:  () => (P.sickle > 0.4 || Math.abs(P.tonicity) > 0.4 ? null : vert(posOut, 0, openSpoke(), _a)),
+      /* Partway up the cut, not out at its rim: the rim of a sickled cell is
+         a horn, and a label out there leaves the frame. */
+      cutFace: () => (cutN <= 0 ? null
+                      : vert(posOut, KC, cutA, _a).lerp(vert(posIn, KC, cutA, _c), 0.5)),
+      haemoglobin: () => {
+        if (!P.hb || P.spill > 0.85) return null;
+        hb.getMatrixAt(0, _m4);
+        return grp.localToWorld(_a.setFromMatrixPosition(_m4));
+      },
+      horn:    () => (P.sickle < 0.35 ? null : vert(posOut, K >> 1, showSpoke(0), _a)),
+      spicule: () => (P.tonicity < 0.35 ? null
+                      : vert(posOut, (spikeIdx / J) | 0, showSpoke(spikeIdx % J), _a)),
+    };
+
+    /* A note fades as its part turns away, and only the two FLAT parts want
+       that. A rim, a horn and a spicule sit on a convex silhouette: their
+       outward normal reads as facing away through half of an orbit in which
+       the student can plainly see them, and fading those is worse than never
+       fading them. The cut face looks along the bisector of the wedge that
+       was removed; the dimple looks up. */
+    /* Its own vectors: an anchor and its facing are read in the same tick,
+       and sharing scratch between them hands annotate a corrupted point. */
+    const _d = new THREE.Vector3(), _o = new THREE.Vector3();
+    const dirOf = (x, y, z) => grp.localToWorld(_d.set(x, y, z)).sub(grp.getWorldPosition(_o)).normalize();
+    const facings = {
+      cutFace: () => { const t = 2 * Math.PI * (cutA + cutN / 2) / J; return dirOf(Math.cos(t), 0, Math.sin(t)); },
+      dimple:  () => dirOf(0, 1, 0),
+    };
+
+    /* Two sentences each, in a tutor's voice. Sizes are prose about the real
+       cell, never a measurement of this render. */
+    const library = {
+      rim: { text: 'the rim', card: 'The thick edge of the disc, about 2.4 µm deep, where nearly all the curvature is. A red cell is a disc rather than a ball because that shape carries the most surface for the least volume, which is what lets oxygen in and out fast.' },
+      dimple: { text: 'the dimple', card: 'The disc is pinched to about 0.8 µm in the middle: the biconcave face. The slack it leaves is what lets an 8 µm cell fold through a 3 µm capillary without tearing.' },
+      // Leftward: the cut plane is at the far side of the frame, and the default label offset walks it off the edge.
+      cutFace: { text: 'the membrane, cut', offset: [-38, -26], card: 'The cell is a shell, not a bag, and the cut shows its thickness. Drawn about twenty times too thick: a real bilayer is 5 nm, which at this magnification is a fraction of a pixel.' },
+      haemoglobin: { text: 'haemoglobin', card: 'Around 270 million copies fill the cell, a third of its weight, and each carries four oxygens. There is no nucleus and there are no mitochondria in here; the space went to cargo.' },
+      horn: { text: 'a sickled point', card: 'Deoxygenated HbS polymerises into stiff fibres that push the membrane out into points. A cell this shape is rigid, jams in small vessels, and is destroyed early.' },
+      spicule: { text: 'a spicule', card: 'Water has left, so the volume fell while the membrane area could not. The surplus membrane buckles outward into spikes: a crenated cell, or echinocyte.' },
+    };
+
+    /* Layers, by visibility: hiding the membrane leaves the haemoglobin
+       standing in the shape of the cell it was filling, which is the picture
+       for "what is inside". */
+    const vis = { membrane: true, hb: true };
+    const LAYER_LABEL = { membrane: 'membrane', hb: 'haemoglobin' };
+    function show(name, on) {
+      if (!(name in vis)) return;
+      vis[name] = !!on;
+      if (name === 'hb') P.hb = vis.hb;
+      hb.visible = vis.hb;
+      meshOut.visible = vis.membrane;
+      meshIn.visible = meshEdge.visible = vis.membrane && cutN > 0;
+      dirty = true;
+    }
+    const layersOf = () => Object.keys(vis).map(k => ({ name: k, label: LAYER_LABEL[k], on: vis[k] }));
+    const hex = c => '#' + c.getHexString();
+    const palette = () => [
+      { name: 'membrane', color: hex(matOut.color) },
+      { name: 'cut face', color: hex(matEdge.color) },
+      { name: 'haemoglobin', color: hex(hbMat.color) },
+    ];
+
     reindex(); apply(); paint();
 
     return {
-      group: grp,
+      group: grp, anchors, facings, library, layersOf, show, palette,
       set(next) {
         let re = false, rebuild = false;
         for (const k in next) {
@@ -737,8 +857,8 @@
           if (k === 'seed') rebuild = true;
           P[k] = next[k];
         }
-        if (rebuild) { prof = profile(P.membrane); lut = lumenTable(prof); top = topTable(prof); shape = makeShape(P.seed); spic = spicules(P.seed); bd = beads(P.hbCount, prof, P.seed); sphere(); }
-        hb.visible = !!P.hb;
+        if (rebuild) { prof = profile(P.membrane); lut = lumenTable(prof); top = topTable(prof); shape = makeShape(P.seed); spic = spicules(P.seed); bd = beads(P.hbCount, prof, P.seed); sphere(); findSpike(); }
+        vis.hb = !!P.hb; hb.visible = vis.hb;
         if (re) reindex();
         dirty = true;
       },
@@ -765,7 +885,7 @@
 
   function mount(el, params = {}) {
     if (!global.CardStage) throw new Error('bloodcell.js: load kit/card-stage.js first');
-    let cell = null;
+    let cell = null, nb = null;
     const listeners = {};
     const emit = (ev, ...a) => (listeners[ev] || []).forEach(f => f(...a));
 
@@ -773,7 +893,7 @@
       mount: el,
       cam: params.cam || { theta: 0.35, phi: 0.95, r: 16 },   // square onto the cut face
       stage: Object.assign({ rMin: 7, rMax: 48, phiMin: 0.12, phiMax: 3.02 }, params.stage || {}),
-      step: dt => { if (cell) { cell.step(dt); tw.update(dt); emit('frame', api.state(), dt); } },
+      step: dt => { if (cell) { cell.step(dt); tw.update(dt); if (nb) nb.step(); emit('frame', api.state(), dt); } },
       viewOffset: params.viewOffset,
     });
 
@@ -796,6 +916,9 @@
 
     cell = create(THREE, box.root, params);
     const tw = global.CardStage.tweens();
+    nb = global.Notebook
+      ? global.Notebook.create({ box, anchors: cell.anchors, facings: cell.facings, library: cell.library })
+      : null;
 
     const api = {
       set(next, opts = {}) {
@@ -814,14 +937,39 @@
         cell.set(next);
         return api;
       },
-      state() { return Object.assign({}, cell.params, cell.facts()); },
-      on(ev, fn) { (listeners[ev] || (listeners[ev] = [])).push(fn); return api; },
-      show(name, on) { if (name === 'hb') cell.set({ hb: !!on }); return api; },
-      box,
-      destroy() { cell.dispose(); box.destroy(); },
+      state() { return Object.assign({}, cell.params, cell.facts(), { layersShown: cell.layersOf() }); },
+      on(ev, fn) {
+        const l = listeners[ev] || (listeners[ev] = []);
+        l.push(fn);
+        return () => { const i = l.indexOf(fn); if (i >= 0) l.splice(i, 1); };
+      },
+      /* The camera half of an anchor. Only the dimple needs one: it is on the
+         face the default camera sees edge-on, and every other part is already
+         in frame, so a chip that moved the camera each time would be seasick. */
+      views: () => VIEWS,
+      lookAt(name, dur) { if (VIEWS[name]) box.flyTo(VIEWS[name], dur); return api; },
+      note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
+      anchors: () => (nb ? nb.list() : []),
+      layers: cell.layersOf, palette: cell.palette,
+      show(name, on) { cell.show(name, on); if (!box.running) box.draw(); return api; },
+      sim: cell, box,
+      start: box.start, stop: box.stop, pump: box.pump,
+      destroy() { if (nb) nb.clear(); cell.dispose(); box.destroy(); },
     };
+    box.pump();
     return api;
   }
 
   global.BloodCell = { mount, create, DEFAULTS, R0 };
+
+  /* Scale (kit/scale.js, docs/Scale.md). MEASURED, unlike the cell diagrams:
+     the profile is Evans & Fung's and a scene unit is a micrometre, so a page
+     may print a length off state(). The one exaggeration is the membrane, and
+     it is a parameter rather than a constant — 0.1 µm drawn against 5 nm real.
+     Zooming into that shell is a handoff to Membrane, not a camera move. */
+  global.BloodCell.SCALE = {
+    rung: 'cell', form: 'single', unit: 1e-6,
+    exag: { membrane: DEFAULTS.membrane / 0.005 },
+    down: { membrane: 'Membrane' },
+  };
 })(window);

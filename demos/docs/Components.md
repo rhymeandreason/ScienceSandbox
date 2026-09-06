@@ -136,6 +136,7 @@ molecules · macromolecule · membrane · organelle · cell · tissue · organ �
 | Membrane | membrane | bulk |
 | Leaf | tissue | bulk |
 | Tree | organism | single |
+| BloodCell | cell | single |
 
 Nothing is at the `organelle`, `organ` or `population` rung yet. **A size a page prints must come from `state()`, and most of these components have no scale to print one from.** Where a real size matters, say it as a fact about the real thing ("a red blood cell is about 8 µm across"), never as a measurement of the picture.
 
@@ -376,6 +377,41 @@ Anchors for `note()`: `trunk`, `canopy`, `leaves`, `roots`, `soil`, `sun`, `pers
 Layers for `show()`: the flows `co2`, `o2`, `h2o`, `minerals`, `ambient`, and `piles`, `person`, `sun`.
 
 Good for: where a plant's mass comes from, photosynthesis as traffic, Van Helmont's experiment, scale of carbon stored in a tree. Not for: a leaf's interior (that is Leaf), or any molecule.
+
+## BloodCell — one red blood cell, cut open
+
+**Scale**: cell, single. Measured: a scene unit is one micrometre, so `state()` carries real lengths and a page may print them. The membrane alone is drawn twenty times too thick (`BloodCell.SCALE.exag`), which the page reads from there rather than typing.
+
+```html
+<script src="../bloodcell/bloodcell.js"></script>
+```
+
+```js
+const C = BloodCell.mount(el, {
+  tonicity: 0,       // the SOLUTION, not the cell: -1 pure water · 0 plasma · +1 brine
+  spill: 0,          // 0..1 lysis: the haemoglobin leaves and a pale ghost is left
+  sickle: 0,         // 0 discocyte · 1 sickled
+  cut: 0,            // 0 whole · 1 halved, which is what shows the inside
+  cutTurn: 0,        // turns: which half is taken away
+  hb: true,          // the haemoglobin inside
+  seed: 7,           // a new seed is a different cell; only the sickled shape uses it
+  autoRotate: false,
+});
+```
+
+One cell, and every shape it takes is the same membrane moved: nothing is rebuilt, so a morph is smooth and a page may drive it from a slider. `tonicity` is the whole osmosis story on one axis, and both ends follow from the membrane's area being fixed — toward pure water the cell fills to the sphere that area can enclose and then can hold no more (raise `spill` and it lyses), toward brine the water leaves and the surplus membrane buckles into spikes, a crenated cell.
+
+**Reach for this when the subject is the CELL — its shape, its contents, what a solution does to it, what sickling does to it. A step about what crosses the membrane is Membrane, not this one**: a bilayer is a thousand times smaller, so the two never share a scene. Osmosis has both halves, and they are two boxes or two steps: Membrane counts the water crossing, BloodCell shows the cell it happens to.
+
+**`cut: 1` is the setting most steps want on.** Whole, the cell is a smooth red disc; halved, the shell has visible thickness and the haemoglobin is on show, which is what makes the inside a fact rather than a claim.
+
+Glides: `tonicity`, `spill`, `sickle`, `cut`. Snaps: `seed`, `membrane`, and anything passed with `{snap:true}`, which a slider must.
+
+`state()`: the params, plus `discR` and `sphereR` (µm), `area` (µm²), `volume` (µm³), `swellRatio` — how many times its resting volume the cell holds when it is a sphere — and `crenateFraction`. Print those; do not type them. Events: `frame`.
+
+Anchors for `note()`: `rim`, `dimple`, `cutFace`, `haemoglobin`, `horn` (only when sickled), `spicule` (only in brine). Layers for `show()`: `membrane`, `hb`; hiding the membrane leaves the haemoglobin standing in the shape of the cell.
+
+Good for: the biconcave shape and why it is that shape, osmosis and tonicity on a real cell, lysis and crenation, what a red cell is filled with, and sickle-cell disease. Not for: transport across the membrane, blood as a fluid or a vessel full of cells, or anything with a nucleus — this one has none.
 
 ## The step-through shell
 

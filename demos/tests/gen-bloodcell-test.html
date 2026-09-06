@@ -1,0 +1,226 @@
+<!doctype html>
+<!-- requests
+1. Why is a red blood cell shaped like a dented disc, and what happens to one in pure water?
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Red Blood Cell Osmosis</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 12px 0;
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/annotate.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../bloodcell/bloodcell.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script>
+let cell;
+let unbindFrame = null;
+
+function updateStats(ui) {
+  const s = cell.state();
+  if (!s) return;
+  const volEl = ui.q('#stat-vol');
+  const areaEl = ui.q('#stat-area');
+  const swellEl = ui.q('#stat-swell');
+  if (volEl) volEl.textContent = s.volume.toFixed(1) + ' μm³';
+  if (areaEl) areaEl.textContent = s.area.toFixed(1) + ' μm²';
+  if (swellEl && s.swellRatio) swellEl.textContent = s.swellRatio.toFixed(2) + '×';
+}
+
+const shell = LessonShell.create({
+  brand: 'Cell Biology 101',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: [
+    {
+      eyebrow: 'Biconcave Architecture',
+      title: 'Why a Dented Disc?',
+      body: '<p><strong>A mature red blood cell is a biconcave disc packed with haemoglobin and devoid of a nucleus.</strong></p><p>This geometry provides a high surface-area-to-volume ratio that speeds oxygen uptake and lets the cell deform through narrow capillaries.</p>',
+      nextLabel: 'Dilute the solution',
+      onEnter(ctx) {
+        cell.set({ tonicity: 0, spill: 0, sickle: 0, cut: 1, hb: true });
+        cell.notes(['dimple', 'haemoglobin']);
+        ctx.ui.controls(`
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="stat-label">Membrane Area</div>
+              <div class="stat-value" id="stat-area">--</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Volume</div>
+              <div class="stat-value" id="stat-vol">--</div>
+            </div>
+          </div>
+        `);
+        ctx.ui.showPanel(cell, { notes: ['dimple', 'rim', 'haemoglobin'], layers: ['membrane', 'hb'] });
+        unbindFrame = cell.on('frame', () => updateStats(ctx.ui));
+      },
+      onExit() {
+        if (unbindFrame) { unbindFrame(); unbindFrame = null; }
+      }
+    },
+    {
+      eyebrow: 'Hypotonic Solution',
+      title: 'Swelling Toward a Sphere',
+      body: '<p><strong>In a dilute environment, water rushes in down its concentration gradient by osmosis.</strong></p><p>Because the lipid bilayer cannot stretch, expanding volume forces the dented membrane outward into a sphere, the shape that encloses maximum volume for a fixed surface area.</p>',
+      nextLabel: 'Drop in pure water',
+      onEnter(ctx) {
+        cell.notes(false);
+        cell.set({ tonicity: -0.6, spill: 0, cut: 1 });
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Solution Tonicity</span>
+              <span class="value" id="tonicity-val">Hypotonic</span>
+            </div>
+            <input type="range" id="tonicity" min="-1" max="0" step="0.02" value="-0.6">
+          </div>
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="stat-label">Current Volume</div>
+              <div class="stat-value" id="stat-vol">--</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Swell Capacity</div>
+              <div class="stat-value" id="stat-swell">--</div>
+            </div>
+          </div>
+        `);
+        const slider = ctx.ui.q('#tonicity');
+        const valLabel = ctx.ui.q('#tonicity-val');
+        ctx.ui.range(slider, v => {
+          const t = parseFloat(v);
+          cell.set({ tonicity: t }, { snap: true });
+          if (valLabel) {
+            valLabel.textContent = t === 0 ? 'Isotonic (Plasma)' : (t <= -0.9 ? 'Pure Water' : 'Hypotonic');
+          }
+        });
+        unbindFrame = cell.on('frame', () => updateStats(ctx.ui));
+      },
+      onExit() {
+        if (unbindFrame) { unbindFrame(); unbindFrame = null; }
+      }
+    },
+    {
+      eyebrow: 'Osmotic Lysis',
+      title: 'Lysis in Pure Water',
+      body: '<p><strong>In pure water, osmotic pressure exceeds the mechanical strength of the membrane.</strong></p><p>Once the cell reaches maximum spherical volume, the membrane ruptures, haemoglobin spills into the surrounding fluid, and an empty membrane ghost remains.</p>',
+      nextLabel: 'Compare tonicities',
+      onEnter(ctx) {
+        cell.notes(false);
+        cell.set({ tonicity: -1, spill: 0.85, cut: 0 });
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Lysis & Haemoglobin Spill</span>
+              <span class="value" id="spill-val">Ruptured</span>
+            </div>
+            <input type="range" id="spill" min="0" max="1" step="0.05" value="0.85">
+          </div>
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="stat-label">Membrane Area</div>
+              <div class="stat-value" id="stat-area">--</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">State</div>
+              <div class="stat-value">Ghost Shell</div>
+            </div>
+          </div>
+        `);
+        const slider = ctx.ui.q('#spill');
+        const valLabel = ctx.ui.q('#spill-val');
+        ctx.ui.range(slider, v => {
+          const s = parseFloat(v);
+          cell.set({ spill: s }, { snap: true });
+          if (valLabel) {
+            valLabel.textContent = s === 0 ? 'Intact Sphere' : (s >= 0.8 ? 'Ruptured Ghost' : 'Leaking');
+          }
+        });
+        unbindFrame = cell.on('frame', () => updateStats(ctx.ui));
+      },
+      onExit() {
+        if (unbindFrame) { unbindFrame(); unbindFrame = null; }
+      }
+    },
+    {
+      eyebrow: 'The Full Spectrum',
+      title: 'From Brine to Pure Water',
+      body: '<p><strong>A cell response depends entirely on the relative solute concentration of its bath.</strong></p><p>In hypertonic brine (+1), water leaves and the slack membrane crenates into spicules. In pure water (-1), water invades until the cell lyses.</p>',
+      nextLabel: 'Restart',
+      onEnter(ctx) {
+        cell.set({ tonicity: 0, spill: 0, cut: 1 });
+        cell.notes(['cutFace']);
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Tonicity Range</span>
+              <span class="value" id="full-val">0 (Isotonic)</span>
+            </div>
+            <input type="range" id="full-tonicity" min="-1" max="1" step="0.05" value="0">
+          </div>
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="stat-label">Volume</div>
+              <div class="stat-value" id="stat-vol">--</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Membrane Area</div>
+              <div class="stat-value" id="stat-area">--</div>
+            </div>
+          </div>
+        `);
+        const slider = ctx.ui.q('#full-tonicity');
+        const valLabel = ctx.ui.q('#full-val');
+        ctx.ui.range(slider, v => {
+          const t = parseFloat(v);
+          const spill = t < -0.9 ? (-t - 0.9) * 8 : 0;
+          cell.set({ tonicity: t, spill: Math.min(1, spill) }, { snap: true });
+          if (t > 0.3) cell.note('spicule');
+          else cell.notes(false);
+          if (valLabel) {
+            if (t > 0.2) valLabel.textContent = 'Hypertonic (Crenation)';
+            else if (t < -0.8) valLabel.textContent = 'Pure Water (Lysis)';
+            else if (t < -0.2) valLabel.textContent = 'Hypotonic (Swollen)';
+            else valLabel.textContent = 'Isotonic (Normal)';
+          }
+        });
+        unbindFrame = cell.on('frame', () => updateStats(ctx.ui));
+      },
+      onExit() {
+        if (unbindFrame) { unbindFrame(); unbindFrame = null; }
+      }
+    }
+  ]
+});
+
+cell = BloodCell.mount(shell.stage, {
+  tonicity: 0,
+  spill: 0,
+  sickle: 0,
+  cut: 1,
+  hb: true,
+  viewOffset: shell.viewOffset
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>
