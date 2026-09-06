@@ -587,7 +587,7 @@
         S, uRange: [0, 2 * PI], wRange: u => [0, cut(u)], uSeg: Math.round(120 * q), uPeriodic: true,
         thickness: th, segs: { outer: Math.round(44 * q), rim: Math.max(4, Math.round(8 * q)), inner: Math.round(44 * q) },
         colors: shellOf(colors),
-      }), mat({ vertexColors: true, roughness: 0.44, clearcoat: 0.45 }));
+      }), mat(Object.assign({ vertexColors: true, roughness: 0.44, clearcoat: 0.45 }, o.material)));
       return { mesh, a, b, c, th };
     }
 
@@ -737,9 +737,21 @@
        drawn as rings around a point that is not the middle. */
     function amyloplast(o = {}) {
       const g = new THREE.Group();
-      const { mesh, a, b, c, th } = plastidShell(Object.assign({ a: 2.0, b: 1.35, c: 1.55 }, o), ORG.amyloplast);
+      /* THE ENVELOPE IS GLASS HERE. An amyloplast is a thin double membrane
+         round grains that fill it, so an opaque envelope in envelope colours
+         hides the only thing worth seeing and the organelle reads as a white
+         egg. Translucent, the grains and their rings show through and the
+         membrane is the thin thing it is. depthWrite off and renderOrder 1,
+         the same way the vacuole stacks. */
+      const { mesh, a, b, c, th } = plastidShell(Object.assign({
+        a: 2.0, b: 1.35, c: 1.55,
+        material: { transparent: true, opacity: 0.42, depthWrite: false, roughness: 0.3, clearcoat: 0.55, envMapIntensity: 0.25 },
+      }, o), ORG.amyloplast);
+      mesh.renderOrder = 1;
       g.add(mesh);
-      const grainMat = mat({ color: ORG.amyloplast.starch, roughness: 0.42, clearcoat: 0.35 });
+      // Matte: a glossy grain blows out to white under the lamps, which is
+      // the brightness the envelope was being blamed for.
+      const grainMat = mat({ color: ORG.amyloplast.starch, roughness: 0.72, clearcoat: 0.12 });
       const ringMat = mat({ color: ORG.amyloplast.hilum, roughness: 0.55, clearcoat: 0.1 });
       const n = o.grains || 1;
       for (let i = 0; i < n; i++) {
