@@ -586,14 +586,28 @@
     function chloroplast(o = {}) {
       const G = plastidGeometry(o, ORG.chloroplast, 'chloro');
       const g = new THREE.Group();
-      const envMat = mat({ vertexColors: true, roughness: 0.44, clearcoat: 0.45 });
+      /* A TRANSLUCENT ENVELOPE, unlike every other cut shell here. The cut
+         is normally how an organelle shows its inside, and that is enough
+         when the inside is a wall's own folds — a mitochondrion's cristae
+         read fine through its opening. A chloroplast's contents are a
+         NETWORK spread through the volume, and a network only reads if you
+         can walk round it. Opaque, the grana can be seen from one angle;
+         glass, the connections between them survive an orbit.
+         The grana are opaque, so they draw in the opaque pass and the shell
+         blends over them afterwards. depthWrite off on the shells stops the
+         two envelopes fighting each other for depth. */
+      const glass = c => mat(Object.assign({ vertexColors: true, roughness: 0.25, clearcoat: 0.7,
+        clearcoatRoughness: 0.2, transparent: true, opacity: c, depthWrite: false }));
+      const envMat = glass(0.42);
       const shell = new THREE.Mesh(G.envelope, envMat);
+      shell.renderOrder = 2;
       g.add(shell);
       /* The inner membrane, with the intermembrane space between the two.
          A plastid's envelope is two membranes and that is not decoration:
          it is the leftover of the cyanobacterium's own wall and the vesicle
          that engulfed it, the same double envelope a mitochondrion has. */
-      const envelopeInner = new THREE.Mesh(G.inner, mat({ vertexColors: true, roughness: 0.44, clearcoat: 0.45 }));
+      const envelopeInner = new THREE.Mesh(G.inner, glass(0.34));
+      envelopeInner.renderOrder = 1;
       g.add(envelopeInner);
       const thyMat = mat({ color: ORG.chloroplast.thylakoid, roughness: 0.45, clearcoat: 0.4 });
       const lamMat = mat({ color: ORG.chloroplast.lamella, roughness: 0.5, clearcoat: 0.25 });
