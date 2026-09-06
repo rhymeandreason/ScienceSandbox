@@ -1,4 +1,4 @@
-<!-- KIND: rulebook — the scale ladder every component declares. Load whole when adding a component, changing one's scale, or deciding whether two things go in one box. `kit/scale.js` is the enum, `tools/check-scale.js` the enforcement. -->
+<!-- KIND: rulebook — the scale ladder every component declares. Load whole when building a new component or a hand-drawn scene from scratch, or changing a component's declared scale. `kit/scale.js` is the enum, `tools/check-scale.js` the enforcement. -->
 
 # Scale
 
@@ -14,6 +14,8 @@ X.SCALE = {
   down: { membrane: 'Membrane' },// part name -> the component a zoom hands off to
 };
 ```
+
+**This is an authoring concern, not a page-composition one.** It matters when you're building a new component or a hand-drawn scene from scratch, deciding what one camera holds. A page assembling existing components via `mount()` never reconciles rungs itself — each mount gets its own box (`docs/Components.md`). It bites hardest at the **molecules** and **macromolecules** rung, where two hand-built specs can land in one scene at different bond-length scales; `MolecularGeometry.md` §1.5 is that rule.
 
 ## Rung
 
