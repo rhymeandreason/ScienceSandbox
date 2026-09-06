@@ -21,7 +21,7 @@
  *  changed layout from an unrelated edit means a call moved.
  *
  *  mount adds hover (an organelle brightens) and click (the camera flies to
- *  it; empty space or double-click flies home). flyTo/home are in Stage's
+ *  it; double-click flies home). flyTo/home are in Stage's
  *  own theta/phi/r. The camera never moves on its own — see mount.
  *
  *  PROP TIER, AND NOT A SCALE. Nothing here is measured and the scene unit
@@ -415,7 +415,7 @@
     }
     // A slow turn that yields to the reader for five seconds after any touch.
 
-    /* pointer: hover lights, a still click flies, a drag is Stage's */
+    /* pointer: hover lights, a still click on an organelle flies, a drag is Stage's; background does nothing */
     let ndc = null, down = null;
     const canvas = box.canvas;
     const toNdc = e => {
@@ -428,7 +428,7 @@
     canvas.addEventListener('pointerup', e => {
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
       const hit = sim.pick(toNdc(e));
-      if (hit) focusOn(hit); else goHome();
+      if (hit) focusOn(hit);
     });
     canvas.addEventListener('dblclick', goHome);
 

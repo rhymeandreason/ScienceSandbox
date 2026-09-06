@@ -917,7 +917,7 @@
 
   /* ---- one box -------------------------------------------------------- */
 
-  const HOME = { pos: [1, 14, 26], target: [0, 7.5, 0] };
+  const HOME = { pos: [-14.2, 52, 39.1], target: [0, 7.5, 0] };
 
   function mount(el, params = {}) {
     if (!global.CardStage) throw new Error('cell/plantcell.js: load kit/card-stage.js first');
@@ -1024,7 +1024,7 @@
       if (tw.k >= 1) tw.active = false;
     }
 
-    /* pointer: hover lights, a still click flies, a drag is Stage's */
+    /* pointer: hover lights, a still click on an organelle flies, a drag is Stage's; background does nothing */
     let ndc = null, down = null;
     const canvas = box.canvas;
     const toNdc = e => {
@@ -1037,7 +1037,7 @@
     canvas.addEventListener('pointerup', e => {
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
       const hit = sim.pick(toNdc(e));
-      if (hit) { focusOn(hit); emit('pick', hit.userData.organelle); } else goHome();
+      if (hit) { focusOn(hit); emit('pick', hit.userData.organelle); }
     });
     canvas.addEventListener('dblclick', goHome);
 
