@@ -46,6 +46,13 @@
  *  Both may be called before the surface has loaded; they are remembered and
  *  applied when it lands.
  *
+ *  SWITCHING STRUCTURES IS A SWAP, NOT A REBUILD. `setData(t, {keep:true})`
+ *  and `setSurface(url)` replace the ribbon and the skin in place, each
+ *  holding the old one up until the new one is ready — one WebGL context, one
+ *  camera, the reader's turn kept. Destroying and re-creating a box to change
+ *  molecule is what a flicker is, and on an A/B whose claim is that NOTHING
+ *  MOVED, a flicker is the page contradicting itself.
+ *
  *  THE GATES ARE THE DESIGN. A card is a thumbnail until a reader decides
  *  otherwise, and neither of the big two is ever something the box DOES to
  *  someone who scrolled past it: the bytes are asked for on the click, the
@@ -342,7 +349,32 @@
        lookup through its per-vertex `res`. Held beside the mesh rather than
        inside showSurface's closure so paintSkin/patch can be called before the
        bytes land — both record what was asked for and apply it on arrival. */
-    let surfS = null, skinPaint = null;
+    let surfS = null, skinPaint = null, surfGen = 0, paintGen = 0;
+    /* DECODED SURFACES, BY URL. An A/B between two structures asks for two
+       meshes over and over, and fetching + decoding + re-uploading 60 000
+       vertices on every press is a hitch no amount of ordering hides — which
+       is exactly what hemoglobin/surface-test.html avoids by holding both
+       meshes and toggling visibility. Holding the decoded `S` gets the same
+       result through one code path: the geometry object is already on the GPU,
+       so re-installing it uploads nothing.
+
+       BOUNDED, because this is the memory `sesOwner` rations across boxes and
+       an unbounded map inside one box would walk around it. Two is what an A/B
+       needs; a page cycling more than that pays the fetch. */
+    const decoded = new Map();
+    const DECODED_MAX = 2;
+    /* BUILT RIBBONS, BY STRUCTURE. Same argument as `decoded` one level up:
+       a chain of haemoglobin is 27 ms of spline and tube, so a four-chain
+       switch is 108 ms of geometry the box has already built once. An A/B
+       rebuilds the same two structures forever.
+
+       KEYED ON WHAT THE GEOMETRY DEPENDS ON and nothing else — the bake's own
+       `source`, the chains drawn, and the mesh density. Colour is a material
+       swap and the view is a quaternion on the group, so neither belongs in
+       the key: cache on those and an A/B that also recolours would miss every
+       time and be slower than no cache at all. */
+    const builtRibbons = new Map();
+    const RIBBONS_MAX = 2;
     const patches = new Map();
     /* THE PALETTE IN FORCE, held at box scope rather than inside setData.
        The chain loop builds one chain per frame, so a build is usually still
@@ -386,7 +418,14 @@
        keeps widening the centre and radius with points nobody is drawing —
        a ten-rung stack framing a single chain. The loop checks the token it
        started with and stops when it is no longer the current one. */
-    let generation = 0;
+    /* TWO BUILD TOKENS, NOT ONE. A build aborts when a newer one has started —
+       and a preload is not newer, it is a different queue entirely. Sharing
+       one counter made each cancel the other: the preload killed the ribbon
+       the reader was waiting for, and the next display killed the preload,
+       so both structures ended up half built. Preload tokens are negative, so
+       a generation can never collide with a display's, which matters because
+       `sweepOld` decides visibility by comparing them. */
+    let generation = 0, preGeneration = 0;
 
     /* MESH DENSITY, WHICH A BENCH MAY CHANGE WITHOUT REBUILDING THE BOX.
        `opts.sub` is the page's standing answer; `setData(t, {sub})` overrides
@@ -644,18 +683,82 @@
       box.draw();
     }
 
+    /* HIDE WHAT IS NOT THIS GENERATION, and dispose nothing. A mesh out of
+       sight is one this box may show again in a frame's time; the only thing
+       that frees a ribbon is eviction from `builtRibbons`.
+
+       `keep:true` is what decides WHEN this runs, not whether: with it the old
+       structure stays visible until the new one is whole, without it the swap
+       happens before the first new chain lands. Either way the sweep is the
+       same, which is why it is one function. */
+    function sweepOld(mine) {
+      for (const m of chainGroup.children) {
+        const g = m.userData && m.userData.gen;
+        if (g === undefined || g === mine) continue;   // the pocket, or a page's own
+        m.visible = false;
+      }
+    }
+
+    /* Keep a built structure, oldest out. Two is an A/B's working set; a page
+       cycling more than that pays the build, which is what it paid before. */
+    function remember(key, meshes, raw) {
+      if (!meshes.length) return;
+      builtRibbons.set(key, { meshes, raw: raw.map(v => v.clone()) });
+      while (builtRibbons.size > RIBBONS_MAX) {
+        const [k, old] = builtRibbons.entries().next().value;
+        for (const m of old.meshes) { chainGroup.remove(m); m.geometry.dispose(); }
+        builtRibbons.delete(k);
+      }
+    }
+
     function setData(t, o) {
       o = o || {};
       if (o.sub != null) subNow = o.sub;
-      const mine = ++generation;
-      chainGroup.clear();
+      /* ---- `keep`: LEAVE THE OLD RIBBON UP UNTIL THE NEW ONE IS WHOLE ----
+
+         Chains go in one per frame, so clearing first means the reader watches
+         the molecule reassemble itself — which is fine on a card changing
+         subject and wrong on an A/B, where the entire claim is that NOTHING
+         MOVED. A gap or a reassembly in the middle of that claim is the page
+         contradicting itself.
+
+         So `keep:true` tags the incoming meshes with this generation and
+         sweeps the previous ones only once the queue has drained. Both
+         structures are drawn for those few frames, which is why it is opt-in:
+         superposed structures a residue apart overlap invisibly, two unrelated
+         proteins would flash as a double image. The caller knows which it has.
+
+         The pocket is cleared either way and immediately — it is a handful of
+         atoms drawn INSIDE the ribbon, so a stale heme is not hidden under the
+         new molecule, it is inside it. */
+      const mine = o.preload ? -(++preGeneration) : ++generation;
+      /* A PRELOAD BUILDS AND SHOWS NOTHING. Everything below that touches what
+         is currently on screen — the pocket, the palette, the view, the
+         framing, the sweep — is skipped, so preloading the other half of an
+         A/B cannot be seen or felt from the half being looked at. */
+      const pre = !!o.preload;
+      const keepOld = !pre && !!o.keep && chainGroup.children.length > 1;
+      if (!keepOld && !pre) {
+        /* Hide rather than clear: what is in here may be a cached structure
+           this box will show again, and removing it is what would make the
+           cache re-upload every buffer it just saved. Eviction is the one
+           place a ribbon's geometry is disposed. */
+        for (const m of chainGroup.children) if (m !== pocketGroup) m.visible = false;
+      }
       /* The pocket belongs to the structure that was just replaced, so it goes
          with it — cleared and re-parented empty rather than left holding the
          previous molecule's heme inside the next one's ribbon. */
-      pocketGroup.clear();
-      chainGroup.add(pocketGroup);
+      if (!pre) {
+        pocketGroup.clear();
+        if (!chainGroup.children.includes(pocketGroup)) chainGroup.add(pocketGroup);
+      }
       const ids = (o.chains || opts.chains)
         ? String(o.chains || opts.chains).split(',') : t.order.slice();
+
+      /* Cache hit: everything below this is the build, and none of it has to
+         run. The framing is re-solved from the points that were kept with the
+         meshes, since a view may have changed under them. */
+      const ribKey = (o.key || t.source || '?') + '|' + ids.join(',') + '|' + subNow;
 
       /* Colour. Default is the ss palette, which is the point of drawing every
          protein in the repo the same way. A page that colours by something
@@ -669,7 +772,9 @@
          the default palette draws the braid as one green rope and the thing
          the structure is famous for is invisible. A chain the map does not
          name falls back to the palette beside it. */
-      paint = materialsFor(c);
+      // A preload draws in the palette already in force; assigning here would
+      // repaint the structure the reader is looking at.
+      const mats = pre ? paint : (paint = materialsFor(c));
 
       /* THE PRESENTATION FRAME, applied to the GROUP and not to the camera.
 
@@ -684,6 +789,7 @@
          rotation is an OFFSET and must be ZERO AT REST, or the declared view
          is one nobody ever sees while the file still claims it. */
       const view = o.view || opts.view || t.view;
+      if (!pre) {
       viewDeclared = view || null;
       chainGroup.quaternion.identity();
       /* A FOCUS OUTLIVES A SWITCH, and so does the angle it asked for: a page
@@ -713,8 +819,28 @@
           viewNow[2][0], viewNow[2][1], viewNow[2][2], 0,
           0, 0, 0, 1));
       }
+      }
+
+      const hitRib = builtRibbons.get(ribKey);
+      if (hitRib && pre) return;                 // already built: nothing to do
+      if (hitRib) {
+        for (const m of hitRib.meshes) {
+          m.visible = true;
+          m.userData.gen = mine;
+          m.material = (paint.byChain && paint.byChain[m.userData.chain]) || paint.mats;
+          if (m.parent !== chainGroup) chainGroup.add(m);
+        }
+        // Re-inserted so the map's order is use order, not first-build order.
+        builtRibbons.delete(ribKey); builtRibbons.set(ribKey, hitRib);
+        sweepOld(mine);
+        solveStill(hitRib.raw.map(v => v.clone()));
+        applyGhost(paint);
+        box.draw();
+        return;
+      }
 
       const drawn = [];
+      const madeMeshes = [];
 
       /* THE NUCLEIC CHAINS GO IN ONE STEP, NOT ONE PER FRAME, and the reason
          is that a rung is CROSS-CHAIN: a base pair joins two backbones, so
@@ -736,8 +862,9 @@
          is usually animating something when it arrives. */
       const build = () => {
         const cid = queue.shift();
-        if (cid === undefined || box.dead || mine !== generation) return;
-        if (cid === NA_STEP) drawNucleic(t, naIds, drawn);
+        if (cid === undefined || box.dead
+            || mine !== (pre ? -preGeneration : generation)) return;
+        if (cid === NA_STEP) drawNucleic(t, naIds, drawn, mine, madeMeshes);
         const ch = cid === NA_STEP ? null : t.chains[cid];
         if (ch) {
           for (const seg of runs(ch)) {
@@ -750,7 +877,7 @@
             drawn.push(...pts.map(v => v.clone()));
             const mesh = new THREE.Mesh(
               RibbonLib.build(THREE, pts, seg.ss, { sub: subNow }),
-              (paint.byChain && paint.byChain[cid]) || paint.mats);
+              (mats.byChain && mats.byChain[cid]) || mats.mats);
             /* WHICH CHAIN THIS MESH CAME FROM, and nothing more. A page that
                has to move PART of a structure — one subassembly of a machine,
                against the rest of it — cannot otherwise find its meshes: they
@@ -759,14 +886,17 @@
                records the fact; what a page does with it stays the page's, the
                same refusal this box makes about parsing. */
             mesh.userData.chain = cid;
+            mesh.userData.gen = mine;
+            mesh.visible = !pre;
+            madeMeshes.push(mesh);
             chainGroup.add(mesh);
           }
           /* The trace is centred on every chain it HOLDS, so a box drawing
              one of four would sit off to the side. Re-centre on what is
              actually drawn, and re-solve after each — every chain changes
              both the centre and the radius. */
-          if (drawn.length) solveStill(drawn);
-          box.draw();
+          if (drawn.length && !pre) solveStill(drawn);
+          if (!pre) box.draw();
         }
         /* rAF NEVER FIRES IN A HIDDEN TAB, and a chain-per-frame build then
            stops partway: the box keeps whatever it had drawn, which on a
@@ -779,12 +909,18 @@
           /* The nucleic step re-solves the framing the same way a chain does;
              it is outside the `if (ch)` above because there is no single chain
              to hang it off. */
-          solveStill(drawn);
-          box.draw();
+          if (!pre) { solveStill(drawn); box.draw(); }
         }
         if (queue.length) {
           if (typeof document !== 'undefined' && document.hidden) setTimeout(build, 0);
           else requestAnimationFrame(build);
+        } else {
+          /* The queue has drained: the new structure is whole. Keep it, and
+             put the old one out of sight. */
+          remember(ribKey, madeMeshes, drawn);
+          if (pre) { warmGeo(madeMeshes.map(m => m.geometry)); return; }
+          sweepOld(mine);
+          box.draw();
         }
       };
       build();
@@ -811,7 +947,7 @@
      *  the backbones, because "which strand" is the one thing a caller might
      *  legitimately need to override — collagen's reason, one polymer over.
      */
-    function drawNucleic(t, ids, drawn) {
+    function drawNucleic(t, ids, drawn, gen, made) {
       if (typeof NucleicLib === 'undefined') {
         console.warn('Proteinbox: this trace has nucleic chains and '
           + 'kit/nucleic.js is not loaded — load it after kit/ribbon.js');
@@ -835,14 +971,21 @@
         const mesh = new THREE.Mesh(sd.geo, over ? over[0]
           : naMat('strand:' + i, MolPalette.strands[i % 2 ? 'b' : 'a']));
         mesh.userData.chain = sd.id;
+        mesh.userData.gen = gen;
+        made.push(mesh);
         chainGroup.add(mesh);
         keep(sd.geo);
       });
       for (const bag of [parts.rungs, parts.stubs])
         for (const b of Object.keys(bag)) {
-          chainGroup.add(new THREE.Mesh(bag[b], naMat('base:' + b,
+          const m = new THREE.Mesh(bag[b], naMat('base:' + b,
             MolPalette.bases[b] === undefined ? MolPalette.bases.X
-                                              : MolPalette.bases[b])));
+                                              : MolPalette.bases[b]));
+          /* Tagged like a ribbon chain: `keep` sweeps by generation, and an
+             untagged mesh is one it will never remove. */
+          m.userData.gen = gen;
+          made.push(m);
+          chainGroup.add(m);
           keep(bag[b]);
         }
     }
@@ -1041,20 +1184,39 @@
       for (const P of patches.values()) {
         if (!P.mesh) continue;
         skinGroup.remove(P.mesh);
-        /* The geometry SHARES position and normal with the surface, so only
-           its own index is this mesh's to release; disposing the shared
-           attributes here would take the skin's with them. */
-        P.mesh.geometry.dispose();
+        /* Geometry left alone twice over: it shares position and normal with
+           the skin, and the index is the memo's on the decoded surface.
+           `releaseSurfaces` is the one place any of it is freed. */
         P.mesh.material.dispose();
         P.mesh = null;
       }
       skinGroup.remove(surf);
-      surf.geometry.dispose();
+      /* The geometry belongs to the CACHE, not to the mesh — disposing it here
+         is what would make a cached surface come back as an empty box on its
+         second showing. `release` is the one place buffers actually go. */
+      surf.material.dispose();
       surf = null; surfS = null;
       if (sesOwner === box) sesOwner = null;
     }
 
-    const syncSkin = () => skinGroup.quaternion.copy(chainGroup.quaternion);
+    /* THE BUFFERS, FOR REAL. `drop` is the LRU's eviction path — a box told to
+       give its surface back has to give the memory back, not just the mesh. */
+    function releaseSurfaces() {
+      for (const S of decoded.values()) {
+        S.geo.dispose();
+        if (S.patches) for (const b of S.patches.values()) b.geo.dispose();
+      }
+      decoded.clear();
+    }
+
+    /* A DECLARATION, NOT A `const` ARROW, and the difference is a regression
+       this shipped once. `solveStill` calls it, and a page passing `data:`
+       instead of `trace:` runs setData SYNCHRONOUSLY inside create() — before
+       a const on a later line exists. The throw landed inside the chain build,
+       after the meshes went in and before the framing was solved, so every
+       card in proteins/index.html drew its protein correctly at a radius
+       nothing had set. A hoisted declaration cannot be reached too early. */
+    function syncSkin() { skinGroup.quaternion.copy(chainGroup.quaternion); }
 
     /* TWO WAYS TO DRAW ONE MESH, and the flags are the whole difference
        between them. Opaque and alone, the surface IS the molecule. Over a
@@ -1088,6 +1250,7 @@
        saying so. Called before the bytes land, it is remembered and applied
        on arrival. */
     function paintSkin(fn) {
+      if (fn !== skinPaint) paintGen++;
       skinPaint = fn || null;
       if (!surfS) return box;
       const mat = surf.material;
@@ -1096,14 +1259,7 @@
         mat.vertexColors = false;
         mat.color.set(opts.surfaceColour || SES_COLOUR);
       } else {
-        const c = new THREE.Color();
-        const col = SurfLib.colors(surfS, (ch, n, nm, i) => {
-          const v = skinPaint(ch, n, nm, i);
-          if (v == null) return null;
-          c.set(v);
-          return [c.r, c.g, c.b];
-        }, [1, 1, 1]);
-        surfS.geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        surfS.geo.setAttribute('color', new THREE.BufferAttribute(colorsFor(surfS), 3));
         mat.vertexColors = true;
         mat.color.set(0xffffff);
       }
@@ -1133,11 +1289,48 @@
                          && (!names || names.has(nm));
     }
 
+    /* THE COLOUR ARRAY, memoised the same way the cut is and for the same
+       reason: it is 64 000 lookups and a 768 KB upload, and an A/B asks for
+       the identical paint on the identical surface every time it comes back.
+       Keyed on `paintGen`, which paintSkin bumps when the function changes —
+       a page passing a fresh closure that computes the same thing pays for a
+       recompute it did not need, which is the honest way round. */
+    function colorsFor(S) {
+      if (S.paint && S.paint.gen === paintGen) return S.paint.col;
+      const c = new THREE.Color();
+      const col = SurfLib.colors(S, (ch, n, nm, i) => {
+        const v = skinPaint(ch, n, nm, i);
+        if (v == null) return null;
+        c.set(v);
+        return [c.r, c.g, c.b];
+      }, [1, 1, 1]);
+      S.paint = { gen: paintGen, col };
+      return col;
+    }
+
+    /* The cut, memoised on the surface it was cut from. Separate from
+       buildPatch so a preload can pay it against a surface that is not the one
+       showing — see warmSurface. */
+    function cutPatch(P, S) {
+      const memo = S.patches || (S.patches = new Map());
+      const hit = memo.get(P.name);
+      if (hit && hit.gen === P.gen) return hit;
+      const built = Object.assign(SurfLib.patchGeo(THREE, S, P.pred), { gen: P.gen });
+      memo.set(P.name, built);
+      return built;
+    }
+
     function buildPatch(P) {
       if (!surfS) return;
-      if (P.mesh) { skinGroup.remove(P.mesh); P.mesh.geometry.dispose();
-                    P.mesh.material.dispose(); P.mesh = null; }
-      const built = SurfLib.patchGeo(THREE, surfS, P.pred);
+
+      /* THE CUT IS MEMOISED ON THE SURFACE IT WAS CUT FROM. Selecting a patch
+         walks the whole index — 128 000 triangles at the lesson tier — and an
+         A/B re-installs the same two surfaces over and over with the same
+         patch on each. Measured at 35 ms per install before this, which is two
+         dropped frames on the one press that is supposed to prove nothing
+         moved. Keyed by name and by `gen`, which `patch()` bumps whenever the
+         selector changes, so a re-selected patch is genuinely recut. */
+      const built = cutPatch(P, surfS);
       P.tris = built.tris;
       P.residues = built.residues;
       /* AN EMPTY PATCH IS THE INTERESTING FAILURE and it is silent on screen:
@@ -1150,15 +1343,19 @@
           + ' — buried, mis-tagged, or the wrong chain?');
         return;
       }
-      P.mesh = new THREE.Mesh(built.geo, new THREE.MeshStandardMaterial({
-        color: P.colour, roughness: 0.4, metalness: 0, side: THREE.FrontSide,
-        transparent: P.opacity < 1, opacity: P.opacity, depthWrite: false,
-      }));
-      /* Over the skin, which is renderOrder 1. A patch at the same order sorts
-         against it by distance and flickers through it as the model turns. */
-      P.mesh.renderOrder = 2;
+      if (P.mesh) { P.mesh.geometry = built.geo; }
+      else {
+        P.mesh = new THREE.Mesh(built.geo, new THREE.MeshStandardMaterial({
+          color: P.colour, roughness: 0.4, metalness: 0, side: THREE.FrontSide,
+          transparent: P.opacity < 1, opacity: P.opacity, depthWrite: false,
+        }));
+        /* Over the skin, which is renderOrder 1. A patch at the same order
+           sorts against it by distance and flickers through it as the model
+           turns. */
+        P.mesh.renderOrder = 2;
+        skinGroup.add(P.mesh);
+      }
       P.mesh.visible = P.visible;
-      skinGroup.add(P.mesh);
     }
 
     function patch(name, pred, o) {
@@ -1166,11 +1363,16 @@
       o = o || {};
       const prev = patches.get(name);
       const P = { name, pred: predOf(pred), mesh: null, tris: 0, residues: [],
+                  gen: (prev ? prev.gen : 0) + 1,
                   colour: o.colour != null ? o.colour : (prev ? prev.colour : 0xd94f1e),
                   opacity: o.opacity != null ? o.opacity : (prev ? prev.opacity : 1),
                   visible: o.visible != null ? o.visible : (prev ? prev.visible : true) };
-      if (prev && prev.mesh) { skinGroup.remove(prev.mesh); prev.mesh.geometry.dispose();
-                               prev.mesh.material.dispose(); }
+      /* The mesh and its material are carried over from the previous selector:
+         same reason installSurface reuses them, and it keeps a re-selected
+         patch from costing a shader compile. */
+      P.mesh = prev ? prev.mesh : null;
+      if (P.mesh) { P.mesh.material.color.set(P.colour); P.mesh.material.opacity = P.opacity;
+                    P.mesh.material.transparent = P.opacity < 1; }
       patches.set(name, P);
       buildPatch(P);
       box.draw();
@@ -1204,31 +1406,200 @@
       return box;
     }
 
+    /* INSTALLING A DECODED SURFACE, in one tick. Everything the old mesh
+       carried is re-derived onto the new one — the paint, every patch, the
+       skin flags — before the old one is let go, so nothing renders between
+       the two. */
+    function installSurface(S) {
+      surfS = S;
+      /* ONE MESH AND ONE MATERIAL FOR THE LIFE OF THE BOX, and the geometry is
+         what changes. Building a fresh MeshStandardMaterial per switch costs a
+         shader compile, and with the patch that was two of them — 16 ms, a
+         dropped frame on exactly the press that is supposed to show nothing
+         moving. Swapping `.geometry` under a material three.js has already
+         compiled costs nothing, and the buffers are the cache's either way. */
+      if (!surf) {
+        surf = new THREE.Mesh(S.geo, new THREE.MeshStandardMaterial({
+          color: opts.surfaceColour || SES_COLOUR,
+          roughness: 0.45, metalness: 0.0, side: THREE.FrontSide,
+        }));
+        skinGroup.add(surf);
+      } else {
+        surf.geometry = S.geo;
+      }
+      sesOwner = box;
+      syncSkin();
+      applySkin();
+      surf.visible = rep === 'surface' || rep === 'skin';
+      /* Re-applied rather than carried: a colour attribute belongs to the
+         geometry it was computed for, and the geometry just changed. */
+      if (skinPaint) paintSkin(skinPaint);
+      const onSurf = rep === 'skin' || rep === 'surface';
+      for (const P of patches.values()) {
+        buildPatch(P);
+        if (P.mesh) P.mesh.visible = P.visible && onSurf;
+      }
+      box.draw();
+    }
+
     function showSurface() {
       if (surf) { surf.visible = true; applySkin(); syncSkin(); box.draw(); return; }
       busy(true);
-      fetch(opts.surface)
-        .then(r => r.arrayBuffer())
-        .then(buf => {
-          if (box.dead) return;
+      fetchSurface(opts.surface)
+        .then(S => {
+          if (box.dead || !S) return;
           if (sesOwner && sesOwner !== box) sesOwner.drop();
-          const S = SurfLib.decode(THREE, buf);
-          surfS = S;
-          surf = new THREE.Mesh(S.geo, new THREE.MeshStandardMaterial({
-            color: opts.surfaceColour || SES_COLOUR,
-            roughness: 0.45, metalness: 0.0, side: THREE.FrontSide,
-          }));
-          skinGroup.add(surf);
-          sesOwner = box;
-          syncSkin();
-          applySkin();
-          /* Whatever was asked for while the bytes were in flight. */
-          if (skinPaint) paintSkin(skinPaint);
-          for (const P of patches.values()) buildPatch(P);
-          box.draw();
+          installSurface(S);
         })
         .catch(() => setRep('ribbon'))
         .then(() => busy(false));
+    }
+
+    /* ---- setSurface(url) ----
+
+       THE SURFACE HALF OF setData, and it exists for the same reason: a page
+       switching between two structures keeps one box, one context and the
+       reader's viewpoint. Without it a variant switch is a destroy and a
+       create, which is a new WebGL context, a re-fetch of everything, and a
+       visible tear.
+
+       THE OLD MESH STAYS UP UNTIL THE NEW ONE IS DECODED. A few hundred
+       milliseconds of fetch with nothing on screen is the flicker, and there is
+       no honest reason to show a gap: the pages that switch surfaces are
+       comparing two structures fitted into one frame, so the mesh already up is
+       an accurate stand-in for the one arriving. Dropping first would also be
+       the one moment the page is claiming "nothing moved" while the molecule
+       is missing.
+
+       A surface a box is already showing is not re-fetched. */
+    /* RETURNS A PROMISE, and it is the only thing here that does. Everything
+       else about this box is fire-and-forget because it happens in the frame
+       you asked for it; this crosses a network, and a page that prints
+       anything ABOUT the surface — a residue count, which residue a patch
+       landed on — has to know when the numbers are the new molecule's. Without
+       it a panel reads back the surface that is on its way out, and looks
+       exactly like a switch that did not take. */
+    function setSurface(url) {
+      if (!url || url === opts.surface) { opts.surface = url || opts.surface;
+                                          return Promise.resolve(box); }
+      opts.surface = url;
+      if (!surf && rep !== 'skin' && rep !== 'surface') return Promise.resolve(box);
+      /* ALREADY DECODED: the swap is synchronous, one frame, no fetch and no
+         upload. This is the path an A/B takes after the first press each way,
+         and it is what makes a variant toggle feel like a toggle. */
+      if (decoded.has(url)) { installSurface(decoded.get(url)); ++surfGen;
+                              return Promise.resolve(box); }
+      busy(true);
+      const mine = ++surfGen;
+      return fetchSurface(url)
+        .then(S => {
+          /* A second switch while the first is in flight: only the last one
+             asked for may install, or the box lands on whichever fetch
+             happened to finish last. */
+          if (box.dead || mine !== surfGen || !S) return box;
+          if (sesOwner && sesOwner !== box) sesOwner.drop();
+          installSurface(S);
+          return box;
+        })
+        .catch(() => box)
+        .then(b => { if (mine === surfGen) busy(false); return b; });
+    }
+
+    /* ---- preloadSurface(url) ----
+
+       DECODE IT BEFORE IT IS ASKED FOR, and show nothing. An A/B knows both of
+       its molecules at the start, and the first press of each direction is the
+       only one that would ever be slow — so a lesson that preloads its second
+       structure while the reader is still on the first has no slow press at
+       all. Costs the bytes whether or not the reader ever presses, which is
+       why it is a call and not a default: a gallery card must stay a
+       thumbnail until someone asks it not to be. */
+    function preloadSurface(url) {
+      if (!url || decoded.has(url)) return Promise.resolve(box);
+      return fetchSurface(url).then(S => { if (S) warmSurface(S); return box; })
+                              .catch(() => box);
+    }
+
+    /* ---- warmSurface(S) ----
+     *
+     *  DECODED IS NOT THE SAME AS READY, and this is the whole of the
+     *  first-press hitch. Fetching and decoding put 1.5 MB of vertices in
+     *  ordinary memory; three uploads a BufferGeometry to the GPU lazily, on
+     *  the first frame it is actually drawn. So a preload that stops at decode
+     *  moves the network cost off the press and leaves the upload of 64 000
+     *  vertices and 128 000 triangles exactly where it was — which is why the
+     *  first swap each way stuttered and no later one did.
+     *
+     *  There is no API in r128 for "upload this and draw nothing":
+     *  `renderer.compile` compiles programs, not attributes. What forces the
+     *  upload is a draw call, so this issues one and makes it cost no pixels —
+     *  the mesh is scaled to nothing and left unculled, so the buffers bind and
+     *  the rasteriser has nothing to fill. It is on screen for one frame at a
+     *  size below a pixel.
+     *
+     *  THE PATCH IS CUT HERE TOO, for the same reason: selecting one walks the
+     *  whole index, and the point of a preload is that the press does no work.
+     */
+    function warmSurface(S) {
+      if (box.dead || S.warm) return;
+      S.warm = true;
+      for (const P of patches.values()) cutPatch(P, S);
+      if (skinPaint) S.geo.setAttribute('color', new THREE.BufferAttribute(colorsFor(S), 3));
+      warmGeo([S.geo].concat([...(S.patches || new Map()).values()].map(b => b.geo)));
+    }
+
+    /* One draw call per geometry, costing no pixels. See warmSurface for why a
+       draw is what forces the upload and why there is no API for it. */
+    function warmGeo(geos) {
+      if (box.dead || !geos.length) return;
+      const mat = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+      const probes = geos.map(g => {
+        const m = new THREE.Mesh(g, mat);
+        m.scale.setScalar(1e-6);
+        m.frustumCulled = false;
+        box.root.add(m);
+        return m;
+      });
+      box.draw();
+      for (const m of probes) box.root.remove(m);
+      mat.dispose();
+    }
+
+    /* ---- preloadData(t, o) ----
+
+       THE RIBBON HALF OF preloadSurface, and the reason the first press still
+       hitched after that one landed: a surface was ready and the other
+       molecule's ribbon was not, so the press paid a chain of spline and tube
+       before it could draw. This builds the structure into the cache and shows
+       none of it — no reframing, no repaint, no view change, and the pocket
+       and palette of whatever is on screen are left alone. */
+    function preloadData(t, o) {
+      setData(t, Object.assign({}, o, { preload: true }));
+      return box;
+    }
+
+    function fetchSurface(url) {
+      if (decoded.has(url)) return Promise.resolve(decoded.get(url));
+      return fetch(url)
+        .then(r => r.arrayBuffer())
+        .then(buf => {
+          if (box.dead) return null;
+          const S = SurfLib.decode(THREE, buf);
+          /* Oldest out. Map keeps insertion order, and the one on screen is
+             never the oldest by the time a third arrives — a two-entry cache
+             holding the current surface and the one before it is exactly an
+             A/B's working set. */
+          while (decoded.size >= DECODED_MAX) {
+            const [k, old] = decoded.entries().next().value;
+            if (old !== surfS) {
+              old.geo.dispose();
+              if (old.patches) for (const b of old.patches.values()) b.geo.dispose();
+            }
+            decoded.delete(k);
+          }
+          decoded.set(url, S);
+          return S;
+        });
     }
 
     /* ---- the fold ---- */
@@ -1347,8 +1718,13 @@
     }
     setRep('ribbon');
 
-    box.drop = () => { setRep('ribbon'); dropSurface(); };
+    box.drop = () => { setRep('ribbon'); dropSurface(); releaseSurfaces(); };
     box.setRep = setRep;
+    /* The one call on this box that returns a promise — it crosses a network.
+       See its own comment. */
+    box.setSurface = setSurface;
+    box.preloadSurface = preloadSurface;
+    box.preloadData = preloadData;
     box.paintSkin = paintSkin;
     box.patch = patch;
     box.setPatch = setPatch;

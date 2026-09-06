@@ -52,6 +52,17 @@
       <div class="hd">read back</div>
       <div id="rd"></div>
     </div>
+    <div class="grp">
+      <div class="hd">the view, for proteins.js</div>
+      <p class="note">Turn the molecule. This is <code>box.pickView()</code> — the basis this
+        structure would need to open facing the way it faces now, which is not the inverse of
+        the camera once a view is already on the group. Paste it over
+        <code>hemoglobin</code>'s <code>view.basis</code>; one basis aims all three variants,
+        because they are fitted into one frame.</p>
+      <button id="copy">copy</button> <span id="copied" style="font-size:12px;opacity:.7"></span>
+      <pre id="view" style="font-size:11.5px;line-height:1.5;margin:6px 0 0;
+        font-family:ui-monospace,Menlo,monospace;white-space:pre"></pre>
+    </div>
   </div>
 </div>
 
@@ -63,6 +74,7 @@
 <script src="../kit/ribbon.js"></script>
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/surface.js"></script>
+<script src="../proteins/proteins.js"></script>
 <script src="../kit/proteinbox.js"></script>
 <script src="../sickle/sickle.js"></script>
 <script>
@@ -83,19 +95,34 @@
  * ===================================================================== */
 
 /* THE SURFACE HAS TO BE IN THE TRACE'S FRAME, and there are two frames on
-   disk. `2HHB.card.surf.bin` is baked BY bake-card-surface.js from the trace
-   itself — crystal coordinates less that file's `centre` — so it and the
+   disk. A `.card.surf.bin` is baked BY tools/bake-card-surface.js from the
+   trace itself — crystal coordinates less that file's `centre` — so it and the
    ribbon are the same frame by construction. `hemoglobin/data/2HHB.surf.bin`
    is the lesson-tier mesh in FoldLib.orient()'s frame, solved from chain B for
    hemoglobin-lab's fold, and dropping it on this ribbon draws the right shape
    in the wrong place. That is what this bench found first.
 
-   2HBS HAS NO CARD SURFACE, which is why there is one variant here and not
-   two: the A/B the sickle lesson needs is a bake, not a path. */
+   2HBS IS SUPERPOSED ONTO 2HHB, and both halves of it are: the trace carries
+   the fit in its coordinates and declares it as `align`, and the surface baker
+   reads that field and applies it to the raw atoms. Which is what makes the
+   toggle below mean anything — press it and the silhouette does not move,
+   because the two molecules are in one frame and one residue apart.
+
+   LESSON TIER, 0.7 A, NOT THE CARD'S 1.4. The subject here is one residue,
+   and at 1.4 A the beta6 patch is 177 triangles where at 0.7 it is 840 — a
+   card asking a shape question can afford the coarse mesh and a page asking a
+   RESIDUE question cannot. 1.5 MB each, fetched on the click and then held.
+
+   THE PATHS ARE EXPLICIT, not registry roles. proteins.js deliberately does
+   not name haemoglobin's surfaces: they are the lesson's artefacts and not
+   facts about the collection. The box's header blesses this case. */
 const VARIANTS = [
   { id:'2HHB', label:'HbA (2HHB)',
-    trace:'../hemoglobin/data/2HHB.trace.json',
-    surface:'../hemoglobin/data/2HHB.card.surf.bin' },
+    trace:'../proteins/hemoglobin/data/hb-2HHB.json',
+    surface:'../hemoglobin/data/2HHB.lesson.surf.bin' },
+  { id:'2HBS', label:'HbS (2HBS)',
+    trace:'../proteins/hemoglobin/data/hb-2HBS.json',
+    surface:'../hemoglobin/data/2HBS.lesson.surf.bin' },
 ];
 
 const PAINTS = [
@@ -113,6 +140,28 @@ const PAINTS = [
 const stage = document.getElementById('stage');
 let box = null, vi = 0, paint = 0, rep = 'skin';
 
+/* ONE BOX FOR BOTH MOLECULES. Switching used to destroy and re-create, which
+   is a new WebGL context, a re-fetch of everything and a visible tear — and on
+   an A/B whose whole claim is that nothing moved, a tear is the one thing that
+   must not happen. `setData` swaps the ribbon and `setSurface` the skin, both
+   in place, and the camera, the paint and the patch are the reader's
+   throughout. */
+const TRACE = {};                      // parsed once, per variant
+function show(i) {
+  vi = i;
+  const v = VARIANTS[vi];
+  (TRACE[v.id] ? Promise.resolve(TRACE[v.id])
+               : fetch(v.trace).then(r => r.json()).then(t => (TRACE[v.id] = t))).then(t => {
+    // keep:true — the two are superposed, so the old ribbon is an accurate
+    // stand-in for the few frames the new one takes to build.
+    box.setData(t, { chains:'A,B,C,D', keep:true });
+    /* readback AFTER the surface lands, not beside it: the panel prints the
+       patch's residues, and printing them off the mesh on its way out is a
+       switch that looks like it did not take. */
+    box.setSurface(v.surface).then(() => { readback(); showView(); });
+  });
+}
+
 function build() {
   if (box) box.destroy();
   stage.innerHTML = '';
@@ -120,11 +169,30 @@ function build() {
   box = Proteinbox.create({
     mount: stage, trace: v.trace, surface: v.surface, chains: 'A,B,C,D',
     skin: true,
+    /* orbit is off by default — on a map a drag on the canvas is the map's.
+       A bench for picking a rotation is the case that wants it. */
+    orbit: true,
+    /* NAMED AS WELL AS PATHED, so the registry answers for the view while the
+       explicit paths still win for the files it does not carry. Turning starts
+       from the basis a human already chose rather than from the crystal. */
+    protein: 'hemoglobin', variant: v.id,
   });
   applyPaint();
   box.patch('b6', { chains:'B,D', num:6 }, { colour: 0xd94f1e, opacity: +pop.value / 100 });
   box.setRep(rep);
+  /* THE OTHER MOLECULE, BUILT WHILE THE READER LOOKS AT THIS ONE — the ribbon
+     as well as the skin, since either one left cold is a press that stalls.
+     An A/B knows both structures at the start, so the only press that would
+     ever be slow is the first, and there is no reason for it to be. */
+  // The one on screen is parsed too, so a switch back never re-fetches.
+  fetch(VARIANTS[vi].trace).then(r => r.json()).then(t => { TRACE[VARIANTS[vi].id] = t; });
+  VARIANTS.filter((_, i) => i !== vi).forEach(o => {
+    box.preloadSurface(o.surface);
+    fetch(o.trace).then(r => r.json()).then(t => { TRACE[o.id] = t;
+      box.preloadData(t, { chains:'A,B,C,D' }); });
+  });
   readback();
+  requestAnimationFrame(() => requestAnimationFrame(showView));
 }
 
 function applyPaint() {
@@ -160,11 +228,27 @@ const seg = (host, items, get, set) => {
   });
 };
 
-seg('vars', VARIANTS, () => vi, i => { vi = i; build(); });
+seg('vars', VARIANTS, () => vi, i => show(i));
 seg('paints', PAINTS, () => paint, i => { paint = i; applyPaint(); });
 seg('reps', [{label:'ribbon'},{label:'skin'},{label:'surface'}],
     () => ['ribbon','skin','surface'].indexOf(rep),
     i => { rep = ['ribbon','skin','surface'][i]; box.setRep(rep); readback(); });
+
+/* THE BASIS, LIVE. Updated when the drag ends rather than per frame: it is
+   four significant figures of a number nobody reads mid-turn, and a readout
+   that changes 60 times a second is one you cannot pick a value off. */
+const viewEl = document.getElementById('view');
+const fmt = b => 'basis: [[' + b.map(r => r.map(v => v.toFixed(4)).join(', ')).join('],\n        [') + ']]';
+const showView = () => { viewEl.textContent = fmt(box.pickView()); };
+stage.addEventListener('pointerup', showView);
+stage.addEventListener('wheel', showView, { passive: true });
+document.getElementById('copy').onclick = () => {
+  showView();
+  navigator.clipboard.writeText(viewEl.textContent).then(() => {
+    document.getElementById('copied').textContent = 'copied';
+    setTimeout(() => { document.getElementById('copied').textContent = ''; }, 1400);
+  });
+};
 
 const pop = document.getElementById('pop');
 pop.oninput = () => box.setPatch('b6', { opacity: +pop.value / 100 });

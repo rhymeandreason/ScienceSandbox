@@ -336,7 +336,16 @@ function bake(v, ref) {
     const { P, Q } = matchCA(traced, v, ref.ca, ref.variant);
     if (P.length >= 3) {
       const k = kabsch(P, Q);
-      fit = { rmsd: k.rmsd, n: P.length };
+      /* R AND t ARE WRITTEN OUT, not just the rmsd they scored. The trace's
+         coordinates carry the fit already, but anything else baked from the
+         same PDB has to be able to land in the same frame — a surface, most of
+         all, since a skin over this ribbon is the whole point of superposing
+         in the first place. tools/bake-card-surface.js reads this field and
+         applies it to the raw atoms before centring, which is the order used
+         here. A transform nothing downstream can see is a fact about the bake
+         and not about the molecule; bake-hbs.js makes the same argument for
+         its own `align`. */
+      fit = { rmsd: k.rmsd, n: P.length, R: k.R, t: k.t, onto: ref.variant.id };
       const put = p => mul(k.R, p).map((x, i) => x + k.t[i]);
       for (const res of traced.values())
         for (const r of res) { const p = put([r.x, r.y, r.z]); r.x = p[0]; r.y = p[1]; r.z = p[2]; }
@@ -439,6 +448,15 @@ function bake(v, ref) {
     fitAtoms: fit ? fit.n : null,
     fitRmsd: fit ? +fit.rmsd.toFixed(3) : null,
   };
+
+  /* THE FIT ITSELF, beside the trace it was applied to, so a second bake off
+     the same PDB can land in this frame. Crystal coordinates in, this frame
+     out: p -> R·p + t, and THEN less `centre`. Absent on the reference, which
+     is already in its own frame and must not be handed an identity to apply —
+     an identity that exists is one somebody eventually multiplies by the
+     wrong thing. */
+  if (fit && fit.R) out.align = { R: fit.R, t: fit.t, onto: fit.onto,
+                                  rmsd: +fit.rmsd.toFixed(3), n: fit.n };
 
   out.read = {
     method: Bake.method(text),

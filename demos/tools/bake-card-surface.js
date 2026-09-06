@@ -25,6 +25,14 @@
  *  re-derived here — it is READ from the trace, which makes them the
  *  same by construction and not by two files agreeing today.
  *
+ *  A TRACE MAY CARRY A SUPERPOSITION, and then so must this. A variant
+ *  fitted onto a reference — 2HBS onto 2HHB — has trace coordinates its own
+ *  PDB does not, so meshing the file raw builds the right protein in the wrong
+ *  crystal. `trace.align` is {R, t} and is applied before the centring, which
+ *  is the order the fit was made in. Written by the trace's own baker, because
+ *  a transform nothing downstream can read is a fact about the bake rather
+ *  than about the molecule.
+ *
  *  Same encoder as bake-surface.js (required, not copied): one writer,
  *  one reader, and SurfLib decodes this exactly as it decodes the other.
  * ===================================================================== */
@@ -42,18 +50,38 @@ const { readAtoms, tagResidues, encode } = require('../hemoglobin/tools/bake-sur
    bytes saved are ~170 KB once, on a click. */
 const SPACING = 1.4;
 
-const [, , src, want, sp] = process.argv;
+const args = process.argv.slice(2);
+/* --trace= for a bake whose trace is not the sibling of its PDB. The pairing
+   convention holds for a protein on the shared pipeline; a protein with a
+   baker of its own writes its trace where its own registry looks, and 2HBS is
+   one — the PDB is hemoglobin/data/'s and the trace is proteins/hemoglobin/'s.
+   --out= for the same reason on the other end. */
+const flag = n => { const a = args.find(x => x.startsWith('--' + n + '=')); return a ? a.slice(n.length + 3) : null; };
+const [src, want, sp] = args.filter(a => !a.startsWith('--'));
 if (!src) {
-  console.error('usage: node tools/bake-card-surface.js <file.pdb> [chains] [spacing]');
+  console.error('usage: node tools/bake-card-surface.js <file.pdb> [chains] [spacing]'
+    + ' [--trace=path] [--out=path]');
   process.exit(1);
 }
 const spacing = sp ? +sp : SPACING;
-const tracePath = src.replace(/\.pdb$/i, '') + '.trace.json';
+const tracePath = flag('trace') || (src.replace(/\.pdb$/i, '') + '.trace.json');
 if (!fs.existsSync(tracePath)) {
   console.error('no ' + tracePath + ' — run bake-trace.js first, it owns the frame');
   process.exit(1);
 }
 const trace = JSON.parse(fs.readFileSync(tracePath, 'utf8'));
+
+/* THE SUPERPOSITION, WHERE THE TRACE CARRIES ONE. A variant fitted onto a
+   reference has coordinates its own PDB does not: the trace was moved and this
+   file's atoms were not, so meshing them raw builds the right protein in the
+   wrong crystal — and, laid under that ribbon as a skin, it reads as the
+   mutation having moved the fold, which is the one claim the lesson exists to
+   deny. Same order the fit was made in (proteins/hemoglobin/tools/prep.js):
+   rotate about the reference's origin FIRST, centre after. */
+const A = trace.align || null;
+const put = A
+  ? p => [0, 1, 2].map(i => A.R[i][0] * p[0] + A.R[i][1] * p[1] + A.R[i][2] * p[2] + A.t[i])
+  : p => p;
 const only = want ? new Set(want.split(',')) : new Set(trace.order);
 
 const I = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
@@ -66,8 +94,9 @@ const keep = [];
 for (const a of all.atoms) {
   const r = all.residues[a.res];
   if (!only.has(r.chain)) continue;
-  keep.push({ p: [a.p[0] - trace.centre[0], a.p[1] - trace.centre[1],
-                  a.p[2] - trace.centre[2]], r: a.r, res: a.res });
+  const q = put(a.p);
+  keep.push({ p: [q[0] - trace.centre[0], q[1] - trace.centre[1],
+                  q[2] - trace.centre[2]], r: a.r, res: a.res });
 }
 if (!keep.length) { console.error('no atoms on those chains'); process.exit(1); }
 
@@ -79,13 +108,16 @@ if (!wt.ok) throw new Error('mesh is not closed: ' + wt.bad + ' unpaired edges')
 if (volume <= 0) throw new Error('mesh is inside out');
 
 const buf = encode(mesh, tagResidues(mesh, keep), all.residues, {
-  source: path.basename(src, '.pdb') + ' (card tier)',
+  source: path.basename(src, '.pdb') + ' (' + (spacing <= 0.8 ? 'lesson' :
+          spacing <= 1.2 ? 'mid' : 'card') + ' tier, ' + spacing + ' A)',
   spacing, probe: SES.PROBE, chains: [...only].join(''),
   atoms: keep.length, area: +area.toFixed(1), volume: +volume.toFixed(1),
-  note: 'frame read from ' + path.basename(tracePath) +
-        ': crystal coordinates less that file\'s `centre`. Coarse on purpose.',
+  note: 'frame read from ' + path.basename(tracePath) + ': crystal coordinates'
+      + (A ? ' superposed onto ' + A.onto + ' (rmsd ' + A.rmsd + ' A over ' + A.n + ' Ca),' : '')
+      + ' less that file\'s `centre`.'
+      + (spacing > 1.2 ? ' Coarse on purpose.' : ''),
 });
-const dst = src.replace(/\.pdb$/i, '') + '.card.surf.bin';
+const dst = flag('out') || (src.replace(/\.pdb$/i, '') + '.card.surf.bin');
 fs.writeFileSync(dst, buf);
 console.log(dst + '  ' + mesh.nVert + ' verts, ' + mesh.nTri + ' tris at ' +
             spacing + ' A in ' + ((Date.now() - t0) / 1000).toFixed(1) + 's, ' +
