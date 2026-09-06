@@ -405,11 +405,33 @@ const L = Lesson.create(canvas, {
   // NO ORBIT — the pointer is projected onto the z = 0 plane the monomers are
   // dragged on, which only means anything face-on.
   orbit:false,
-  boxes:()=>[card.box],
+  /* THE CARD'S BOX FRAMES THE DEAL, THE MOLECULE FRAMES ITSELF. The box is
+   * where the monomers are laid out, which is the right frame while they are
+   * still separate pieces. A chain is bigger than the deal — four sugars run
+   * off the bottom of it — and the round molecule is a different size again, so
+   * as soon as anything has joined the stage frames what is actually on it. */
+  boxes:()=>{
+    if(dim !== '3d' && !sticks.length) return [card.box];
+    /* IN WORLD SPACE, atom by atom, because that is what the camera sees: the
+     * root carries both the turn and the shift that keeps the molecule centred
+     * under it, and a box measured before those puts the fit an offset away
+     * from the thing it is framing. Fit is called when something lands, not
+     * every frame, so a box that grows with the turn costs nothing. */
+    const b = new THREE.Box3(), w = new THREE.Vector3();
+    for(const p of P.pieces)
+      for(let i = 0; i < p.spec.atoms.length; i++)
+        b.expandByPoint(L.root.localToWorld(w.copy(P.atomAt(p, i))));
+    if(b.isEmpty()) return [card.box];
+    const c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3());
+    // Margin, because a box is measured to atom CENTRES and an atom is drawn
+    // with a radius — and a tail that ends exactly at the frame edge reads as
+    // cut off rather than as finished.
+    return [{ x:c.x, y:c.y, rxz:Math.max(sz.x, sz.z)/2 + 7, hy:sz.y/2 + 7 }];
+  },
   // A slow turn once it is round, because a still three-quarter view of a
   // molecule reads as another drawing. Only there: the flat build is a plane
   // the pointer is projected onto, and turning it would put the two out of step.
-  afterFrame:()=>{ if(dim === '3d' && !morphing) L.root.rotation.y += 0.0022;
+  afterFrame:()=>{ if(dim === '3d' && !morphing && !turning){ L.root.rotation.y += 0.0022; repivot(); }
                    P.placeTags(); placeSticks(); stepWaters();
                    stepHalos(performance.now() / 1000); },
 });
@@ -449,7 +471,7 @@ const P = MacroPlane.create({
     stick(host, guest, donor, acceptor);
     if(L.fx) L.fx.condense(at.bondAt, at.waterAt, { size:1.1 });
     water(at.waterAt, 'out');
-    say();
+    say(); L.fit();
   },
 
   /* HYDROLYSIS, and it is the condensation run backwards rather than an undo.
@@ -468,6 +490,7 @@ const P = MacroPlane.create({
     const mid = P.centreOf(a).lerp(P.centreOf(b), 0.5);
     if(L.fx) L.fx.spawnRing(mid, MolLib.PALETTE.bonds.condense, null, 0.6);
     water(mid, 'in');
+    L.fit();
   },
 
   onMove: say,
@@ -668,7 +691,7 @@ function chain(){
 
 function say(){
   const c = chain();
-  showReveal();
+  showReveal(); showTags();
   for(const p of P.pieces) p.tag.classList.toggle('joined', c.includes(p));
   if(c.length < 2){
     seqEl.style.display = 'none';
@@ -718,6 +741,30 @@ function say(){
 const dimBtn = document.getElementById('dim3d');
 const SPIN = 0.55;                 // radians the stage turns as it lands
 let morphing = false;
+
+/* TURN IT ABOUT ITSELF. The root's origin is where the monomers were dealt,
+ * not where the molecule ended up, so turning the root swings the molecule
+ * across the stage and out of frame. The pivot is the assembly's own centre,
+ * and the root is shifted each frame by however far the turn moved that point —
+ * which pins it while everything rotates around it. Nothing has to move: the
+ * pieces keep the coordinates the poses put them at. */
+const pivot = new THREE.Vector3();
+const _pv = new THREE.Vector3();
+function repivot(){
+  // The molecule's own centre goes to the stage's origin, and the turn happens
+  // about it. Two things at once, and the second is why: the tabletop's origin
+  // is where the monomers were DEALT, so a chain that grew up and to the left
+  // is centred nowhere near it — framed by its box it still sits high, because
+  // a box's y is not what the fit centres on.
+  _pv.copy(pivot).applyEuler(L.root.rotation);
+  L.root.position.copy(_pv).multiplyScalar(-1);
+}
+function setPivot(){
+  const b = new THREE.Box3();
+  for(const p of P.pieces)
+    for(let i = 0; i < p.spec.atoms.length; i++) b.expandByPoint(P.atomAt(p, i));
+  if(!b.isEmpty()) b.getCenter(pivot);
+}
 
 /* WALK THE JOINS, DON'T ASSUME A SHAPE. A fat is a hub — one glycerol, three
  * tails — and a protein is a chain, so a reveal written for either one is
@@ -773,7 +820,10 @@ function walk(round){
  * tabletop, and there is no tabletop once the thing has turned.
  */
 function reveal(to){
-  if(morphing || !sticks.length) return;
+  // The same test the button's visibility uses, asserted here too: everything
+  // on the stage is one molecule. A reveal of a half-built one morphs what is
+  // joined and leaves the rest lying in a layout the molecule has left.
+  if(morphing || sticks.length !== P.pieces.length - 1) return;
   const round = to === '3d';
   const at = walk(round);
 
@@ -792,6 +842,10 @@ function reveal(to){
     };
   });
 
+  // Set before the turn starts, from where the pieces are now: a tween that
+  // rotates around the old origin swings the molecule across the stage on its
+  // way in, which is the same fault as turning it by hand did.
+  if(round) setPivot(); else pivot.set(0,0,0);
   const spin0 = L.root.rotation.y, spin1 = round ? SPIN : 0;
   morphing = true;
   const put = u => {
@@ -809,6 +863,7 @@ function reveal(to){
       THREE.Quaternion.slerp(m.fromQuat, m.toQuat, m.p.mol.quaternion, u);
     }
     L.root.rotation.y = spin0 + (spin1 - spin0) * u;
+    repivot();
   };
   const land = () => {
     dim = round ? '3d' : 'flat';
@@ -822,6 +877,8 @@ function reveal(to){
     // Set, not left where the tween's last frame happened to stop: the idle
     // turn is still running underneath it and would keep whatever it added.
     L.root.rotation.y = spin1;
+    if(round) setPivot(); else { L.root.rotation.x = 0; pivot.set(0,0,0); }
+    repivot();
     morphing = false;
     say(); L.fit();
   };
@@ -833,6 +890,14 @@ dimBtn.addEventListener('click', () => reveal(dim === 'flat' ? '3d' : 'flat'));
 /* The reveal is offered when there is something to reveal: glycerol out of
  * hydroxyls, or the stage already turned. Asked before that, it would morph a
  * half-built fat into a pose two of its slots have not taken. */
+/* THE NAMES BELONG TO THE BUILD. Flat, a tag says which monomer is which while
+ * the student is choosing what to drag. Round, the molecule turns and a flat
+ * label pinned near it reads as a caption on nothing — and by then the naming
+ * is done, because the thing on the stage is one molecule. */
+function showTags(){
+  for(const p of P.pieces) p.tag.style.display = dim === 'flat' ? '' : 'none';
+}
+
 function showReveal(){
   // EVERYTHING ON THE STAGE IS ONE MOLECULE — a chain of four, or a glycerol
   // with all three tails on. Offered before that, the reveal would morph a
@@ -844,9 +909,34 @@ function showReveal(){
 }
 
 /* ---- pointer -------------------------------------------------------------- */
-canvas.addEventListener('pointerdown', e => { if(dim === 'flat') P.down(e); });
-canvas.addEventListener('pointermove', e => P.move(e));
-canvas.addEventListener('pointerup',   e => { P.up(e); say(); });
+/* TWO GESTURES, ONE POINTER, AND WHICH ONE IT IS DEPENDS ON THE VIEW. Flat, a
+ * drag moves a molecule on the tabletop. Round, there is nothing left to build
+ * and nothing to drag on, so the same drag turns the model — which is the only
+ * way to see that the tails leave the page in three directions, or that one
+ * chain is a ribbon and the other a helix. Turning the ROOT rather than the
+ * camera keeps the flat build's projection untouched underneath. */
+let turning = null;
+canvas.addEventListener('pointerdown', e => {
+  if(dim === 'flat'){ P.down(e); return; }
+  turning = { x:e.clientX, y:e.clientY };
+  try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+});
+canvas.addEventListener('pointermove', e => {
+  if(dim === 'flat'){ P.move(e); return; }
+  if(!turning) return;
+  L.root.rotation.y += (e.clientX - turning.x) * 0.008;
+  // Clamped: past a quarter turn the model is being looked at edge-on from
+  // above, which reads as a different molecule rather than as the same one.
+  L.root.rotation.x = Math.max(-1.2, Math.min(1.2,
+    L.root.rotation.x + (e.clientY - turning.y) * 0.008));
+  repivot();
+  turning = { x:e.clientX, y:e.clientY };
+});
+canvas.addEventListener('pointerup', e => {
+  turning = null;
+  if(dim === 'flat'){ P.up(e); say(); }
+  try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
+});
 // Double-click to hydrolyse: a drag is how a chain gets MOVED, so breaking a
 // bond needs its own gesture rather than happening by accident.
 canvas.addEventListener('dblclick', e => {
@@ -876,7 +966,8 @@ function layOut(){
   // Whatever the stage was turned to, a new set of molecules starts flat: the
   // pieces are dragged on a tabletop and there is not one in the round view.
   if(L.motion) L.motion.cancel('reveal');
-  morphing = false; dim = 'flat'; L.root.rotation.y = 0;
+  morphing = false; dim = 'flat';
+  L.root.rotation.set(0, 0, 0); L.root.position.set(0, 0, 0);
   clearStage();
   // The chooser's pick fills every slot named for it; anything else on the
   // stage is itself. Glycerol is not a fatty acid and does not become one.

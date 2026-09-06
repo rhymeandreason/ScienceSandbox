@@ -143,12 +143,16 @@
     const centreOf = p => p.centre.clone().applyQuaternion(p.mol.quaternion).add(p.mol.position);
     /* Read off the MESH, not the spec. The two agree except while a page is
      * morphing a molecule between two layouts — and that is exactly when a bond
-     * drawn from spec coordinates detaches from the spheres it joins. */
+     * drawn from spec coordinates detaches from the spheres it joins.
+     *
+     * IN THE ROOT'S FRAME, like everything else this module hands back. The
+     * mesh's WORLD position is a different number as soon as the page turns the
+     * root, and a stick placed at one — while parented to that same root — has
+     * the rotation applied to it twice and drifts off across the stage. */
     const atomAt = (p, i) => {
       const m = p.mol.userData.atomMeshes && p.mol.userData.atomMeshes[i];
-      return m ? m.getWorldPosition(new THREE.Vector3())
-               : new THREE.Vector3(...p.spec.atoms[i].pos)
-                   .applyQuaternion(p.mol.quaternion).add(p.mol.position);
+      return (m ? m.position.clone() : new THREE.Vector3(...p.spec.atoms[i].pos))
+        .applyQuaternion(p.mol.quaternion).add(p.mol.position);
     };
 
     /* Every piece reachable from `p` through joins — the thing that moves when
@@ -397,9 +401,26 @@
       const r = canvas.getBoundingClientRect();
       for(const p of pieces){
         if(p.tag.style.display === 'none') continue;
-        _v.copy(centreOf(p)).project(camera);
-        p.tag.style.left = ((_v.x*0.5+0.5) * r.width) + 'px';
-        p.tag.style.top  = ((-_v.y*0.5+0.5) * r.height + (o.tagDrop||0)) + 'px';
+        /* UNDER THE MOLECULE, NOT OVER IT. A tag pinned to the centre sits on
+         * top of the atoms it names and hides the group the student is aiming
+         * at. Which screen row is "under" depends on the molecule and on the
+         * camera, so it is measured: every heavy atom is projected and the tag
+         * goes below the lowest one.
+         *
+         * Projected in WORLD space — the piece's coordinates are the root's,
+         * and the root may be turned. */
+        let cx = 0, low = -Infinity, n = 0;
+        for(let i = 0; i < p.spec.atoms.length; i++){
+          if(p.spec.atoms[i].el === 'H') continue;
+          _v.copy(atomAt(p, i)); root.localToWorld(_v); _v.project(camera);
+          const x = (_v.x*0.5+0.5) * r.width, y = (-_v.y*0.5+0.5) * r.height;
+          cx += x; n++;
+          if(y > low) low = y;
+        }
+        if(!n){ _v.copy(centreOf(p)); root.localToWorld(_v); _v.project(camera);
+                cx = (_v.x*0.5+0.5) * r.width; low = (-_v.y*0.5+0.5) * r.height; n = 1; }
+        p.tag.style.left = (cx / n) + 'px';
+        p.tag.style.top  = (low + (o.tagDrop || 0)) + 'px';
       }
     }
 
