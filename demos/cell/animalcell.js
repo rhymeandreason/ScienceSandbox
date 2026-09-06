@@ -51,7 +51,7 @@
        the lysosomes — and where everything sits. */
     const K = global.CellOrganelles.kit(THREE, { seed: P.seed });
     const { buildShell, displace } = global.CellOrganelles;
-    const { rand, rr, noise, col, mat, shellOf, ORG } = K;
+    const { rand, rr, noise, col, mat, bilayerOf, ORG } = K;
     const V3 = THREE.Vector3;
     const organelles = [], occupied = [];      // occupied: spheres the speckles avoid
     const register = (obj, name) => { obj.userData.organelle = name; organelles.push(obj); return obj; };
@@ -72,8 +72,11 @@
     {
       const g = buildShell(THREE, {
         S: cellS, uRange: [0, 2 * PI], wRange: u => [0, cellCut(u)], uSeg: 200, uPeriodic: true,
-        thickness: TH, segs: { outer: 70, rim: 12, inner: 70 },
-        colors: shellOf(ORG.plasma),
+        thickness: TH, segs: { outer: 70, rim: 24, inner: 70 },
+        // The lip is a bilayer: two head bands over a paler tail core. 24 rim
+        // rows because the bands are a seventh of the lip each and 12 rows
+        // draws them as one step.
+        colors: bilayerOf(ORG.plasma),
       });
       const mesh = new THREE.Mesh(g, mat({ vertexColors: true, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.25, emissive: '#3a0008', emissiveIntensity: 0.3 }));
       cell.add(mesh);

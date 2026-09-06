@@ -367,9 +367,15 @@
     /* The membrane is the tissue's green, not the house salmon — see
        palette.js's `plantTissue` for why that exception is made here and
        nowhere else. */
+    /* 2 and 3 are the cut lip, painted as a bilayer: a head band at each
+       face with the paler, warmer tail core between. The animal cell gets
+       the same two bands out of buildShell's vertex colours; this membrane
+       is panels, so the bands are their own strips. */
     const protoMats = [
       mat({ color: TIS.leaf.membrane, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
       mat({ color: TIS.leaf.cytosol, roughness: 0.4, clearcoat: 0.35 }),
+      mat({ color: TIS.leaf.head, roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.25 }),
+      mat({ color: TIS.leaf.tail, roughness: 0.5, clearcoat: 0.4 }),
     ];
     const pTop = (x, z) => topY(x, z) - PROTO_DROP;
     const RIMW = 0.02 * A;
@@ -390,7 +396,14 @@
     for (let k = 0; k < 6; k++) {
       const th0 = k * PI / 3, dth = PI / 3;
       protoPG.add(SEG, M, (u, v, o) => { const th = th0 + u * dth, r = protoR(th, v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, lerp(0, pTop(x, z), v), z); }, { mi: 0 });
-      protoPG.add(SEG, 1, (u, v, o) => { const th = th0 + u * dth, r = protoR(th, 1) - RIMW * (1 - v), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th); o.set(x, pTop(x, z), z); }, { flip: true, mi: 0, normal: (u, v, o) => o.copy(planeN) });
+      /* The lip, in three bands across its width: head (outer leaflet),
+         tail, head (inner leaflet). a0/a1 are the fractions of RIMW. */
+      for (const [a0, a1, mi] of [[0, 0.22, 2], [0.22, 0.78, 3], [0.78, 1, 2]])
+        protoPG.add(SEG, 1, (u, v, o) => {
+          const th = th0 + u * dth, f = a0 + v * (a1 - a0);
+          const r = protoR(th, 1) - RIMW * (1 - f), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th);
+          o.set(x, pTop(x, z), z);
+        }, { flip: true, mi, normal: (u, v, o) => o.copy(planeN) });
       /* THE CYTOPLASM IS A BOWL, NOT A LID. A flat cut face turns every
          organelle into an object resting on a plate, and since each one
          carries its own local cut, they read as separately hollowed shells
@@ -828,8 +841,9 @@
       tissue = name;
       C.ex = T.ex; C.wall = T.wall * A;
       const P4 = TIS[name];
-      const want = [col(P4.wall), col(P4.wallRim).multiplyScalar(0.95), col(P4.wallRim), col(P4.membrane), col(P4.cytosol)];
-      const have = [wallMats[0], wallMats[1], wallMats[2], protoMats[0], protoMats[1]];
+      const want = [col(P4.wall), col(P4.wallRim).multiplyScalar(0.95), col(P4.wallRim),
+                    col(P4.membrane), col(P4.cytosol), col(P4.head), col(P4.tail)];
+      const have = [wallMats[0], wallMats[1], wallMats[2], protoMats[0], protoMats[1], protoMats[2], protoMats[3]];
       tint = { k: instant ? 1 : 0, from: have.map(m => m && m.color.clone()), to: want, m: have };
       if (instant) applyTint();
       if (layer) { layer.userData.t0 = 0; dying.push(layer); }

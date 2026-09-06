@@ -134,6 +134,13 @@
     const center = o.center || new THREE.Vector3();
     const rimStart = !!o.rimStart, segs = o.segs || { outer: 40, rim: 8, inner: 40 };
     const cOuter = colors.outer, cInner = colors.inner, cRim = colors.rim;
+    /* A BILAYER ON THE CUT LIP. Given head/tail, the lip is painted as two
+       head bands with a paler tail core between, and the faces run into the
+       head colour at the cut so the outer band is continuous around the
+       edge. Without them cHead is the rim and the lip is flat, which is
+       every organelle whose thickness is an envelope rather than one
+       membrane. */
+    const cHead = colors.head || cRim, cTail = colors.tail || null;
     const tPeriodic = rimStart;
 
     const rows = [];
@@ -155,14 +162,14 @@
         if (kind === 'outer') {
           P = S(u, ws + s * (we - ws));
           c.copy(cOuter);
-          if (s > 0.85) c.lerp(cRim, (s - 0.85) / 0.15);
-          if (rimStart && s < 0.15) c.lerp(cRim, 1 - s / 0.15);
+          if (s > 0.85) c.lerp(cHead, (s - 0.85) / 0.15);
+          if (rimStart && s < 0.15) c.lerp(cHead, 1 - s / 0.15);
         } else if (kind === 'inner') {
           const w = we - s * (we - ws);
           P = S(u, w).addScaledVector(surfaceNormal(THREE, S, center, u, w, eps), -thickness);
           c.copy(cInner);
-          if (s < 0.15) c.lerp(cRim, 1 - s / 0.15);
-          if (rimStart && s > 0.85) c.lerp(cRim, (s - 0.85) / 0.15);
+          if (s < 0.15) c.lerp(cHead, 1 - s / 0.15);
+          if (rimStart && s > 0.85) c.lerp(cHead, (s - 0.85) / 0.15);
         } else {
           const w = kind === 'rimEnd' ? we : ws;
           const O = S(u, w), N = surfaceNormal(THREE, S, center, u, w, eps);
@@ -170,7 +177,8 @@
           const T = S(u, w + eps).sub(S(u, w - eps)).normalize();
           const bulge = thickness * 0.5 * Math.sin(PI * s);
           P = kind === 'rimEnd' ? O.lerp(I, s).addScaledVector(T, bulge) : I.lerp(O, s).addScaledVector(T, -bulge);
-          c.copy(cRim);
+          if (cTail) { const t = kind === 'rimEnd' ? s : 1 - s, m = Math.min(t, 1 - t); c.copy(cHead).lerp(cTail, clamp((m - 0.13) / 0.15, 0, 1)); }
+          else c.copy(cRim);
         }
         const k = (r * cols + i) * 3;
         pos[k] = P.x; pos[k + 1] = P.y; pos[k + 2] = P.z;
@@ -274,6 +282,9 @@
     const col = hex => new THREE.Color(hex).convertSRGBToLinear();
     const ORG = global.MolLib.PALETTE.organelles;
     const shellOf = o => ({ outer: col(o.outer), inner: col(o.inner), rim: col(o.rim) });
+    // Same shell, with the lip painted as a bilayer from the organelle's own
+    // head/tail. For the one membrane that IS a single bilayer: the plasma.
+    const bilayerOf = o => Object.assign(shellOf(o), { head: col(o.head), tail: col(o.tail) });
     /* envMapIntensity DEFAULTS LOW. A host that sets scene.environment (the
        plant cell does, for the vacuole) otherwise adds a whole extra bounce
        to every material at once and the cell goes white. The environment is
@@ -807,7 +818,7 @@
       return g;
     }
 
-    return { rand, rr, noise, col, mat, shellOf, dirUW, ORG,
+    return { rand, rr, noise, col, mat, shellOf, bilayerOf, dirUW, ORG,
              nucleus, mitochondrion, golgi, roughER, chloroplast, amyloplast, vacuole };
   }
 
