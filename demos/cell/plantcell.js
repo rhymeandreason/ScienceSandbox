@@ -582,7 +582,14 @@
          reader is looking at a whole cell. A bench that zooms one builds
          it at 1. */
       chloroplast: s => wrap(K.chloroplast({ a: 2.3, b: 1.05, c: 1.5, grana: 6, detail: DETAIL }), s),
-      mitochondrion: s => wrap(K.mitochondrion({ r: 0.55, L: 0.95, cristae: 7 }), s),
+      /* DRAWN ABOUT TWICE ITS SIZE relative to the chloroplast, and that is
+         on purpose. A chloroplast is around 5um long and a mitochondrion 1
+         to 2, so the honest length ratio is near 2.5 against the 1.5 here
+         — but at 2.5 the mitochondria are too small in a whole-cell view to
+         make out as anything, and an illustration that cannot be read has
+         not gained accuracy. The factor is declared in SCALE at the foot of
+         this file rather than left for someone to measure off the picture. */
+      mitochondrion: s => wrap(K.mitochondrion({ r: 0.55, L: 0.95 }), s),
       /* The kit stacks a Golgi's cisternae along +y. On the cut plane +y
          points at the reader, so an unrotated stack is seen end-on and reads
          as a lump. Tip it onto its side inside a wrapper, so the layer's own
@@ -1064,6 +1071,10 @@
      animal cell: unit is null, so nothing may print a length off this render.
      The apothem is 11 against the animal cell's radius of 10 because a plant
      cell IS the larger of the two, but that ratio is the only measured thing
-     here and it is a ratio, not a size. */
-  global.PlantCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: { ribosome: 30 }, down: {} };
+     here and it is a ratio, not a size.
+     `exag` names the two things drawn out of proportion to the rest on
+     purpose: a ribosome would be sub-pixel at its own size, and a
+     mitochondrion beside a chloroplast would be too small to read as an
+     organelle at all. Everything else is in proportion to its neighbours. */
+  global.PlantCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: { ribosome: 30, mitochondrion: 2 }, down: {} };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

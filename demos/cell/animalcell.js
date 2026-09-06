@@ -104,7 +104,11 @@
       { x: -3.0, z: 4.6, ry: 0.35, rx: 0.25 }, { x: 2.4, z: 5.2, ry: -0.6, rx: 0.3 }, { x: 6.2, z: 2.4, ry: 1.25, rx: 0.2 },
       { x: -6.3, z: -3.6, ry: 0.95, rx: 0.15 }, { x: 6.8, z: -3.2, ry: -1.1, rx: 0.1 },
     ]) {
-      const m = register(K.mitochondrion({ r: 0.55, L: 0.95, thickness: 0.09, cristae: 7 }), 'mitochondrion');
+      /* Drawn about twice its size against this nucleus, deliberately: a
+         mitochondrion is 1 to 2 microns long to a nucleus's six, and at
+         that ratio it is too small here to read as anything. Declared in
+         SCALE at the foot of the file. */
+      const m = register(K.mitochondrion({ r: 0.55, L: 0.95, thickness: 0.09 }), 'mitochondrion');
       m.position.set(t.x, Math.max(floorY(t.x, t.z) + 0.8, -4.2 + rr(-0.6, 0.6)), t.z);
       m.rotation.set(t.rx, t.ry, 0);
       cell.add(m);
@@ -443,5 +447,5 @@
      How big a cell really is belongs on the library card as prose. Ribosomes
      cannot be drawn beside a nucleus at their own size; that factor is the
      declared exaggeration. */
-  global.AnimalCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: { ribosome: 30 }, down: {} };
+  global.AnimalCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: { ribosome: 30, mitochondrion: 2 }, down: {} };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
