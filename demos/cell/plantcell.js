@@ -192,7 +192,7 @@
   const STREAM = 0.07;
 
   const STATES = { turgid: 0, flaccid: 1, plasmolysis: 2 };
-  const DEFAULTS = { seed: 1234, tissue: 'leaf', t: 0, A: 11, tilt: 0, stream: 1 };
+  const DEFAULTS = { seed: 1234, tissue: 'leaf', t: 0, A: 11, tilt: 0, stream: 1, detail: 0.5 };
 
   /* Every moving quantity as a function of the state axis. Two segments:
      0→1 the cell goes limp (it loses pressure, the wall stops bulging, the
@@ -547,10 +547,13 @@
        them generously and the sum exceeds the cell, the solve cannot
        succeed, and organelles settle overlapping no matter how stiff the
        repulsion is. Check the sum against 2*sqrt(3)*A^2 before adding one. */
+    const DETAIL = O.detail === undefined ? 0.5 : O.detail;
     const FOOT = { nucleus: 3.4, chloroplast: 2.6, mitochondrion: 1.8, dictyosome: 2.0, amyloplast: 2.4, amyloplast2: 3.0, vesicle: 0.7, vacuole: 5.6 };
     const BUILD = {
       nucleus: s => K.nucleus({ R: 3.0 * s, thickness: 0.2, chromatin: 3, pores: 55 }),
-      chloroplast: s => K.chloroplast({ a: 2.3 * s, b: 1.05 * s, c: 1.5 * s, grana: 7 }),
+      /* `detail` at half: a leaf cell holds five of these and the reader is
+         looking at a whole cell. A bench that zooms one builds it at 1. */
+      chloroplast: s => K.chloroplast({ a: 2.3 * s, b: 1.05 * s, c: 1.5 * s, grana: 6, detail: DETAIL }),
       mitochondrion: s => K.mitochondrion({ r: 0.55 * s, L: 0.95 * s, cristae: 7 }),
       /* The kit stacks a Golgi's cisternae along +y. On the cut plane +y
          points at the reader, so an unrotated stack is seen end-on and reads
@@ -575,8 +578,8 @@
         w.scale.setScalar(0.55 * s);
         return w;
       },
-      amyloplast: s => K.amyloplast({ a: 2.0 * s, b: 1.35 * s, c: 1.55 * s, grains: 1 }),
-      amyloplast2: s => K.amyloplast({ a: 2.6 * s, b: 1.35 * s, c: 1.55 * s, grains: 2 }),
+      amyloplast: s => K.amyloplast({ a: 2.0 * s, b: 1.35 * s, c: 1.55 * s, grains: 1, detail: DETAIL }),
+      amyloplast2: s => K.amyloplast({ a: 2.6 * s, b: 1.35 * s, c: 1.55 * s, grains: 2, detail: DETAIL }),
       vesicle: s => {
         const m = new THREE.Mesh(new THREE.SphereGeometry(0.42 * s, 20, 14), mat({ color: ORG.golgi.vesicle, roughness: 0.35, clearcoat: 0.7 }));
         return new THREE.Group().add(m);

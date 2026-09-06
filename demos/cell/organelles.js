@@ -465,69 +465,129 @@
        thylakoid stacks, or starch. They are one organelle in two states, and
        the shared construction is what says so. */
 
-    function plastidShell(o, colors) {
-      const a = o.a || 2.3, b = o.b || 1.05, c = o.c || 1.5, th = o.thickness || 0.075;
+    function plastidShell(o, colors, k = 1, thk = 1) {
+      const a = (o.a || 2.3) * k, b = (o.b || 1.05) * k, c = (o.c || 1.5) * k;
+      const th = (o.thickness || 0.075) * thk;
+      const q = o.detail === undefined ? 1 : o.detail;
       const radius = d => 1 + 0.035 * noise.fbm(d.x * 2.2 + 5, d.y * 2.2 + 2, d.z * 2.2, 2);
-      const S = (u, w) => { const d = dirUW(u, w); const k = radius(d); return new V3(d.x * a * k, d.y * b * k, d.z * c * k); };
+      const S = (u, w) => { const d = dirUW(u, w); const r = radius(d); return new V3(d.x * a * r, d.y * b * r, d.z * c * r); };
       const cut = u => PI * 0.58 + 0.03 * Math.sin(2 * u + 1.1) + 0.02 * Math.sin(5 * u);
       const mesh = new THREE.Mesh(buildShell(THREE, {
-        S, uRange: [0, 2 * PI], wRange: u => [0, cut(u)], uSeg: 120, uPeriodic: true,
-        thickness: th, segs: { outer: 44, rim: 8, inner: 44 },
+        S, uRange: [0, 2 * PI], wRange: u => [0, cut(u)], uSeg: Math.round(120 * q), uPeriodic: true,
+        thickness: th, segs: { outer: Math.round(44 * q), rim: Math.max(4, Math.round(8 * q)), inner: Math.round(44 * q) },
         colors: shellOf(colors),
       }), mat({ vertexColors: true, roughness: 0.44, clearcoat: 0.45 }));
       return { mesh, a, b, c, th };
     }
 
-    /* chloroplast: grana are STACKS of thylakoid discs, joined by lamellae.
-       Drawn as stacks and not as a green fill because the stacking is the
-       surface area, and the surface area is where the light reactions run. */
+    /* A THYLAKOID IS A FLATTENED SAC, not a coin. Lathe a rounded-rim
+       profile rather than using a cylinder: a stack of cylinders reads as a
+       roll of coins the moment anyone zooms in, and these are meant to be
+       zoomed into. */
+    function thylakoidDisc(r, h, seg = 28) {
+      const round = Math.min(h * 0.5, r * 0.3), pts = [];
+      pts.push(new THREE.Vector2(0, h / 2));
+      pts.push(new THREE.Vector2(r - round, h / 2));
+      for (let i = 1; i <= 5; i++) { const A = (i / 5) * PI / 2; pts.push(new THREE.Vector2(r - round + Math.sin(A) * round, h / 2 - round + Math.cos(A) * round)); }
+      for (let i = 0; i <= 5; i++) { const A = (i / 5) * PI / 2; pts.push(new THREE.Vector2(r - round + Math.cos(A) * round, -h / 2 + round - Math.sin(A) * round)); }
+      pts.push(new THREE.Vector2(0, -h / 2));
+      return new THREE.LatheGeometry(pts, seg);
+    }
+
+    /* chloroplast: an envelope of TWO membranes with a space between them,
+       and inside it grana — stacks of thylakoid discs — JOINED to each other
+       by stroma lamellae. The joining is the part worth getting right: the
+       thylakoid membrane is one continuous surface and one enclosed space
+       through the whole plastid, which is why a proton gradient built
+       anywhere in it drives ATP synthase everywhere in it. Grana drawn as
+       separate piles of coins say the opposite. */
     function chloroplast(o = {}) {
       const g = new THREE.Group();
+      const q = o.detail === undefined ? 1 : o.detail;
       const { mesh, a, b, c, th } = plastidShell(o, ORG.chloroplast);
       g.add(mesh);
-      const thyMat = mat({ color: ORG.chloroplast.thylakoid, roughness: 0.5, clearcoat: 0.3 });
-      const lamMat = mat({ color: ORG.chloroplast.stroma, roughness: 0.6, clearcoat: 0.1 });
-      const disc = new THREE.CylinderGeometry(1, 1, 1, 20);
-      const grana = o.grana || 7;
-      const slots = [];
-      for (let i = 0; i < grana; i++) {
-        const t = grana === 1 ? 0.5 : i / (grana - 1);
-        slots.push([(-0.55 + 1.1 * t) * (a - th) + rr(-0.06, 0.06), rr(-0.36, 0.36) * (c - th)]);
-      }
-      for (const [x, z] of slots) {
-        const stack = new THREE.Group();
-        /* A GRANUM HAS TO FIT WHERE IT SITS. The envelope is an ellipsoid,
-           so the room left at a slot shrinks toward the ends; a radius
-           picked as a fraction of the whole plastid puts the outermost
-           stacks through the wall, and once the plastid is small enough
-           they come out through the cut rim as well. Take the ellipse's own
-           half-width at this slot and stay inside it. */
-        const room = Math.min(
-          (c - th) * Math.sqrt(Math.max(0.05, 1 - (x / (a - th)) * (x / (a - th)))) - Math.abs(z),
-          (a - th) - Math.abs(x));
-        const n = 4 + (rand() < 0.5 ? 1 : 0);
-        const rad = Math.min((0.24 + rr(0, 0.06)) * a, room * 0.82);
-        for (let i = 0; i < n; i++) {
-          const d = new THREE.Mesh(disc, thyMat);
-          d.scale.set(rad, 0.075 * b, rad);
-          d.position.y = (i - (n - 1) / 2) * 0.115 * b;
-          stack.add(d);
+      /* The inner membrane, with the intermembrane space between the two.
+         A plastid's envelope is two membranes and that is not decoration:
+         it is the leftover of the cyanobacterium's own wall and the vesicle
+         that engulfed it, the same double envelope a mitochondrion has. */
+      const innerEnv = plastidShell(o, {
+        outer: ORG.chloroplast.envelopeInner, inner: ORG.chloroplast.inner, rim: ORG.chloroplast.rim,
+      }, 0.88, 0.55);
+      g.add(innerEnv.mesh);
+
+      const ai = innerEnv.a - innerEnv.th, bi = innerEnv.b - innerEnv.th, ci = innerEnv.c - innerEnv.th;
+      const thyMat = mat({ color: ORG.chloroplast.thylakoid, roughness: 0.45, clearcoat: 0.4 });
+      const lamMat = mat({ color: ORG.chloroplast.lamella, roughness: 0.5, clearcoat: 0.25 });
+
+      /* Grana on a loose two-row lattice rather than a line, so the lamellae
+         between them run in more than one direction, as they do. */
+      const want = o.grana || 9, slots = [], discs = [];
+      for (let i = 0; i < want; i++) {
+        const row = i % 2 ? 1 : -1, t = Math.floor(i / 2) / Math.max(1, Math.ceil(want / 2) - 1);
+        const x = (-0.62 + 1.24 * (isFinite(t) ? t : 0.5)) * ai + rr(-0.06, 0.06) * ai;
+        const z = row * rr(0.18, 0.46) * ci;
+        // the ellipsoid narrows toward the ends, so ask how much room is here
+        const room = Math.min(ci * Math.sqrt(Math.max(0.04, 1 - (x / ai) * (x / ai))) - Math.abs(z), ai - Math.abs(x));
+        /* A GRANUM IS ABOUT AS TALL AS IT IS WIDE — ten to a hundred
+           thylakoids in a stack half a micron across. Drawn wider than tall
+           it reads as a pancake and the stacking, which is the whole point
+           of a granum, disappears. */
+        const rad = Math.min((0.14 + rr(0, 0.04)) * a, room * 0.7);
+        if (rad < 0.05 * a) continue;
+        const n = 6 + Math.floor(rand() * 5);
+        const gap = 0.075 * b, hDisc = 0.045 * b;
+        const y = -0.16 * b + rr(-0.06, 0.06) * b;
+        const st = new THREE.Object3D();
+        st.position.set(x, y, z);
+        st.rotation.set(rr(-0.18, 0.18), rand() * PI, rr(-0.18, 0.18));
+        st.updateMatrix();
+        for (let k = 0; k < n; k++) {
+          const d = new THREE.Object3D();
+          d.position.y = (k - (n - 1) / 2) * gap;
+          // a granum's discs are not perfectly stacked coins
+          d.scale.set(rad * (1 + rr(-0.05, 0.05)), hDisc, rad * (1 + rr(-0.05, 0.05)));
+          d.rotation.y = rand() * PI;
+          d.updateMatrix();
+          discs.push(st.matrix.clone().multiply(d.matrix));
         }
-        stack.position.set(x, -0.34 * b + rr(-0.06, 0.06) * b, z);
-        stack.rotation.set(rr(-0.25, 0.25), rand() * PI, rr(-0.25, 0.25));
-        g.add(stack);
+        slots.push({ x, y, z, rad, half: (n - 1) / 2 * gap });
       }
-      // stroma lamellae: flat sheets running between the grana
-      // Lamellae stay well inside the envelope: a sheet sized off the outer
-      // ellipsoid pokes through the cut wall and reads as a bright shard.
-      for (let i = 0; i < (o.lamellae === undefined ? 3 : o.lamellae); i++) {
-        const sheet = new THREE.Mesh(disc, lamMat);
-        sheet.scale.set((a - th) * 0.42, 0.02 * b, (a - th) * 0.42);
-        sheet.position.set(rr(-0.18, 0.18) * a, -0.5 * b + i * 0.16 * b, rr(-0.14, 0.14) * c);
-        sheet.rotation.set(rr(-0.1, 0.1), rand() * PI, rr(-0.1, 0.1));
-        g.add(sheet);
+
+      /* ONE INSTANCED MESH FOR EVERY DISC IN THE PLASTID. A granum is a
+         stack of the same object at different scales, and a leaf cell holds
+         several plastids of several grana each: as separate meshes that is
+         a few hundred draw calls for the thing a reader looks at least
+         closely until they zoom. A unit disc scaled per instance costs one. */
+      if (discs.length) {
+        const inst = new THREE.InstancedMesh(thylakoidDisc(1, 1, Math.max(10, Math.round(28 * q))), thyMat, discs.length);
+        discs.forEach((m, i) => inst.setMatrixAt(i, m));
+        g.add(inst);
       }
-      g.userData.parts = { shell: mesh };
+
+      /* Stroma lamellae: flattened tubes from the rim of one granum to the
+         rim of the next, so the stacks are one connected compartment. Each
+         leaves and arrives on the side facing its partner, and sags a little
+         between, which is what stops them reading as struts. */
+      const lamR = 0.045 * a;
+      for (let i = 0; i < slots.length; i++)
+        for (let j = i + 1; j < slots.length; j++) {
+          const A1 = slots[i], B1 = slots[j];
+          const dx = B1.x - A1.x, dz = B1.z - A1.z, d = Math.hypot(dx, dz);
+          if (d > (A1.rad + B1.rad) * 3.4 || d < 1e-3) continue;   // only near neighbours
+          const ux = dx / d, uz = dz / d;
+          const yA = A1.y + rr(-A1.half, A1.half), yB = B1.y + rr(-B1.half, B1.half);
+          const p0 = new V3(A1.x + ux * A1.rad * 0.92, yA, A1.z + uz * A1.rad * 0.92);
+          const p2 = new V3(B1.x - ux * B1.rad * 0.92, yB, B1.z - uz * B1.rad * 0.92);
+          const p1 = p0.clone().add(p2).multiplyScalar(0.5);
+          p1.y -= rr(0.01, 0.06) * b;
+          p1.addScaledVector(new V3(-uz, 0, ux), rr(-0.12, 0.12) * d);
+          const tube = new THREE.Mesh(
+            new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p0, p1, p2), Math.max(8, Math.round(20 * q)), lamR, Math.max(5, Math.round(8 * q)), false), lamMat);
+          tube.scale.y = 0.42;                 // a lamella is a sheet, not a pipe
+          g.add(tube);
+        }
+
+      g.userData.parts = { shell: mesh, envelopeInner: innerEnv.mesh };
       return g;
     }
 

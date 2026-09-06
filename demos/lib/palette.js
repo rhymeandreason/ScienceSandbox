@@ -228,8 +228,13 @@
          is in the colour.
          `head`/`tail` tint a bilayer set inside one (membrane/membrane.js's
          `context`, which chemiosmosis.js uses for the thylakoid). */
+      /* `thylakoid` is a granum's stacked discs, `lamella` the sheets that
+         run between grana — the same membrane, unstacked, so it is the same
+         green a shade lighter and not a colour of its own. `stroma` is the
+         FLUID they sit in, which is why it is the pale one. */
       chloroplast:   { outer:0x4fc22e, inner:0x2f8f22, rim:0x8fe25a, head:0x4fc22e, tail:0xc4e79a,
-                       thylakoid:0x178a2a, stroma:0x0f6b1e },
+                       thylakoid:0x178a2a, lamella:0x2f9c3e, stroma:0xa9d383,
+                       envelopeInner:0x3ba828 },
       amyloplast:    { outer:0xeef0e0, inner:0xd6d8c4, rim:0xf6f7ef,
                        starch:0xf3ead0, hilum:0xd8cba0 },
       nucleus:       { outer:0x3f6cb5, inner:0x4a78c0, rim:0x9cb9e6, head:0x4a78c0, tail:0xb9c9e8,
