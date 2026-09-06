@@ -610,7 +610,14 @@
       };
       // the nucleus is pinned: everything else arranges around it
       const nuc = add(register(BUILD.nucleus(T.nucleus.s), 'nucleus'), 'nucleus', T.nucleus.x, T.nucleus.z, 0, FOOT.nucleus * T.nucleus.s, 0);
-      const vac = add(register(K.vacuole({ R: 4.2 * T.vacuole.s }), 'vacuole'), 'vacuole', T.vacuole.x, T.vacuole.z, 0.35, FOOT.vacuole * T.vacuole.s, 0.35, { rx: 1.25, rz: 0.98 });
+      /* HELD, like the nucleus, and it has to be. It used to give a little
+         (weight 0.35), which read well while everything only jostled — but
+         streaming pushes one way, and a spring cannot hold against a
+         sustained push: the vacuole drifted to the far wall and jammed
+         there. It is the thing the cytoplasm streams around, so it does not
+         get carried by it. Being immovable also strengthens the squeeze,
+         since a pinned body pushes 1.6x in `solve`. */
+      const vac = add(register(K.vacuole({ R: 4.2 * T.vacuole.s }), 'vacuole'), 'vacuole', T.vacuole.x, T.vacuole.z, 0.35, FOOT.vacuole * T.vacuole.s, 0, { rx: 1.25, rz: 0.98 });
       const er = K.roughER({
         Rn: 3.0 * T.nucleus.s, center: new V3(0, 0, 0), y0: 0.6,
         arcs: [{ a0: -0.3 * PI, a1: 0.62 * PI, count: 3 }, { a0: 0.86 * PI, a1: 1.3 * PI, count: 2 }],
@@ -713,8 +720,13 @@
            tethered to the cortex and the vacuole is what everything else is
            streaming around. */
         if (!held) it.seedA += STREAM * P.stream * stream * dt;
-        // and a slow brownian drift on top, so a stopped cell is not a still one
-        const ph = it.seed * 7.1, dr = held ? 0 : 0.025 * A;
+        /* The held pair still DRIFT, just less, and they do not orbit. A
+           nucleus is slung in a cytoplasmic strand rather than bolted to
+           anything: it is not carried round with the flow, but a nucleus
+           pinned to a fixed point reads as glued while everything streams
+           past it. The vacuole is the same case and even less mobile. */
+        const ph = it.seed * 7.1;
+        const dr = held ? (it.type === 'nucleus' ? 0.009 : 0.005) * A * P.stream : 0.025 * A;
         const base = it.type === 'vacuole' ? P.vac : P.org;
         const R0 = it.seedR * P.shrink;
         it.tx = Math.cos(it.seedA) * R0 * C.ex + dr * Math.sin(time * 0.23 + ph);
@@ -746,7 +758,13 @@
         }
         it.g.position.set(it.x, y, it.z);
         it.g.scale.setScalar(s);
-        if (it.type !== 'nucleus' && it.type !== 'vacuole') {
+        if (it.type === 'nucleus') {
+          // the ER is parented to it, so this is what makes the ER sway
+          const k = P.stream;
+          it.g.rotation.set(0.03 * k * Math.sin(time * 0.13 + it.seed),
+                            it.rot + 0.05 * k * Math.sin(time * 0.09 + 1.4),
+                            0.03 * k * Math.cos(time * 0.11 + it.seed));
+        } else if (it.type !== 'vacuole') {
           // carried round by the flow, so it keeps its bearing to the stream
           const base = it.rot + (it.seedA - it.seedA0);
           const y = base + (it.vx * Math.cos(base) - it.vz * Math.sin(base)) * 0.4 / A
@@ -869,15 +887,19 @@
       return { r, phi: Math.acos(clamp(v.y / r, -1, 1)), theta: Math.atan2(v.x, v.z) };
     };
     const home = { pos: params.pos || HOME.pos, target: params.target || HOME.target };
-    let sim = null, lastTouch = 0;
-    const touched = () => { lastTouch = performance.now(); };
+    /* NO IDLE TURNTABLE. The cell has its own motion now — the cytoplasm
+       streams — and a scene that also rotates on its own fights it: the
+       reader cannot tell which of the two they are watching, and a slow
+       drift they did not ask for makes a still organelle look like it is
+       moving. The camera moves when the reader moves it, or on a flight. */
+    let sim = null;
     const listeners = {};
     const emit = (name, v) => { (listeners[name] || []).forEach(f => f(v)); };
     const box = global.CardStage.create({
       mount: el,
       cam: orbitOf(home.pos, home.target),
-      stage: Object.assign({ phiMin: 0.15, phiMax: 1.5, rMin: 8, rMax: 90, onDrag: touched, onZoom: touched }, params.stage || {}),
-      step: dt => { if (!sim) return; flyStep(dt); tweenStep(dt); sim.step(dt); sim.hover(ndc); turn(dt); },
+      stage: Object.assign({ phiMin: 0.15, phiMax: 1.5, rMin: 8, rMax: 90 }, params.stage || {}),
+      step: dt => { if (!sim) return; flyStep(dt); tweenStep(dt); sim.step(dt); sim.hover(ndc); },
       viewOffset: params.viewOffset,
     });
     box.cam.target.fromArray(home.target);
@@ -951,10 +973,6 @@
       const dir = box.camera.position.clone().sub(s.center).normalize();
       flyTo(s.center.clone().addScaledVector(dir, dist).toArray(), s.center.toArray());
     }
-    function turn(dt) {
-      if (fly.active || params.autoRotate === false || performance.now() - lastTouch < 5000) return;
-      box.cam.theta += dt * 0.09;
-    }
 
     /* the state axis, glided: set({t}) animates, set({t, now:true}) jumps */
     const tw = { active: false, from: 0, to: 0, k: 0, dur: 1 };
@@ -975,7 +993,7 @@
     };
     canvas.addEventListener('pointermove', e => { ndc = toNdc(e); canvas.style.cursor = sim && sim.pick(ndc) ? 'pointer' : 'grab'; });
     canvas.addEventListener('pointerleave', () => { ndc = null; });
-    canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; fly.active = false; touched(); });
+    canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; fly.active = false; });
     canvas.addEventListener('pointerup', e => {
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
       const hit = sim.pick(toNdc(e));
