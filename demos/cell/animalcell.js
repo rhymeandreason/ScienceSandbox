@@ -20,9 +20,9 @@
  *  inserting a call in the middle reshuffles every organelle after it. A
  *  changed layout from an unrelated edit means a call moved.
  *
- *  mount adds hover (an organelle brightens), click (the camera flies to
- *  it; empty space or double-click flies home) and a slow turn that pauses
- *  while the reader drags. flyTo/home are in Stage's own theta/phi/r.
+ *  mount adds hover (an organelle brightens) and click (the camera flies to
+ *  it; empty space or double-click flies home). flyTo/home are in Stage's
+ *  own theta/phi/r. The camera never moves on its own — see mount.
  *
  *  PROP TIER, AND NOT A SCALE. Nothing here is measured and the scene unit
  *  is not a micrometre: organelle sizes are a diagram's, chosen so every
@@ -240,12 +240,52 @@
       if (hovered) setHighlight(hovered, true);
       return hovered;
     }
-    const bob = organelles.filter(o => o.userData.organelle !== 'nucleus' && o.userData.organelle !== 'er')
-      .map(o => ({ o, base: o.position.y, phase: rr(0, 2 * PI), amp: rr(0.03, 0.07), speed: rr(0.5, 0.9) }));
+    /* ---- ambient motion ----
+       NOT THE PLANT CELL'S. cell/plantcell.js circulates its whole cytoplasm,
+       because cyclosis is actin and myosin hauling the cytosol round a
+       central vacuole, and this cell has neither. What an animal cell's
+       organelles actually do is jiggle in place and get carried along
+       microtubules, which radiate from the centrosome — so the motion here
+       is a slow wander for everything, and for the vesicles a run in and out
+       along the line to the MTOC. Copying the orbit across would have looked
+       the same and claimed something false.
+
+       AMPLITUDES ARE SMALL BECAUSE NOTHING HERE RESOLVES A COLLISION. The
+       plant cell can afford a wander because a solver pushes organelles
+       apart; this one is placed once, by hand, and a drift is just added on
+       top. The static layout already runs some pairs close, so the budget is
+       roughly a tenth of a unit each and the vesicles, which move furthest,
+       run along a line that was clear when they were placed.
+       The nucleus and the ER are left alone — one is huge, the other wraps
+       it. */
+    const MTOC = new V3(-3.3, -2.2, -4.6);        // the centrosome, from above
+    const drift = organelles
+      .filter(o => o.userData.organelle !== 'nucleus' && o.userData.organelle !== 'er')
+      .map(o => {
+        const run = o.userData.organelle === 'vesicle'
+          ? o.position.clone().sub(MTOC).normalize().multiplyScalar(rr(0.5, 1.0))
+          : null;
+        return {
+          o, base: o.position.clone(), run,
+          ph: [rr(0, 2 * PI), rr(0, 2 * PI), rr(0, 2 * PI)],
+          sp: [rr(0.11, 0.19), rr(0.5, 0.9), rr(0.13, 0.21)],
+          amp: rr(0.06, 0.13), bob: rr(0.03, 0.06),
+          runSp: rr(0.05, 0.11), runPh: rr(0, 2 * PI),
+          spin: rr(-0.05, 0.05), spinBase: o.rotation.y,
+        };
+      });
     let t = 0;
     function step(dt) {
       t += dt;
-      for (const b of bob) b.o.position.y = b.base + Math.sin(t * b.speed + b.phase) * b.amp;
+      for (const b of drift) {
+        const p = b.o.position.copy(b.base);
+        p.x += Math.sin(t * b.sp[0] + b.ph[0]) * b.amp;
+        p.y += Math.sin(t * b.sp[1] + b.ph[1]) * b.bob;
+        p.z += Math.sin(t * b.sp[2] + b.ph[2]) * b.amp;
+        // a vesicle rides its track out and back rather than only wandering
+        if (b.run) p.addScaledVector(b.run, Math.sin(t * b.runSp + b.runPh));
+        b.o.rotation.y = b.spinBase + b.spin * Math.sin(t * 0.07 + b.ph[0]);
+      }
       nucleolus.material.emissiveIntensity = 0.4 + 0.12 * Math.sin(t * 1.3);
     }
     // World-space bounding sphere of an organelle, for a camera flight.
@@ -269,13 +309,16 @@
       return { r, phi: Math.acos(clamp(v.y / r, -1, 1)), theta: Math.atan2(v.x, v.z) };
     };
     const home = { pos: params.pos || HOME.pos, target: params.target || HOME.target };
-    let sim = null, lastTouch = 0;
-    const touched = () => { lastTouch = performance.now(); };
+    /* NO IDLE TURNTABLE. The cell has its own motion, and a scene that also
+       rotates on its own fights it: the reader cannot tell which of the two
+       they are watching, and a drift they did not ask for makes a still
+       organelle look like it is moving. Same call as cell/plantcell.js. */
+    let sim = null;
     const box = global.CardStage.create({
       mount: el,
       cam: orbitOf(home.pos, home.target),
-      stage: Object.assign({ phiMin: 0.15, phiMax: 2.9, rMin: 3, rMax: 70, onDrag: touched, onZoom: touched }, params.stage || {}),
-      step: dt => { if (!sim) return; flyStep(dt); sim.step(dt); sim.hover(ndc); turn(dt); },
+      stage: Object.assign({ phiMin: 0.15, phiMax: 2.9, rMin: 3, rMax: 70 }, params.stage || {}),
+      step: dt => { if (!sim) return; flyStep(dt); sim.step(dt); sim.hover(ndc); },
       viewOffset: params.viewOffset,
     });
     box.cam.target.fromArray(home.target);
@@ -335,10 +378,6 @@
       flyTo(s.center.clone().addScaledVector(dir, dist).toArray(), s.center.toArray());
     }
     // A slow turn that yields to the reader for five seconds after any touch.
-    function turn(dt) {
-      if (fly.active || params.autoRotate === false || performance.now() - lastTouch < 5000) return;
-      box.cam.theta += dt * 0.09;
-    }
 
     /* pointer: hover lights, a still click flies, a drag is Stage's */
     let ndc = null, down = null;
@@ -349,7 +388,7 @@
     };
     canvas.addEventListener('pointermove', e => { ndc = toNdc(e); canvas.style.cursor = sim && sim.pick(ndc) ? 'pointer' : 'grab'; });
     canvas.addEventListener('pointerleave', () => { ndc = null; });
-    canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; fly.active = false; touched(); });
+    canvas.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY }; fly.active = false; });
     canvas.addEventListener('pointerup', e => {
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
       const hit = sim.pick(toNdc(e));
