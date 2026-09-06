@@ -216,7 +216,13 @@
          white top there leaves a white bar in a thin orange ring instead of
          an organelle. */
       mitochondrion: { outer:0xe0552f, inner:0xe2775b, rim:0xf4b8a4, head:0xd9612f, tail:0xeeba7e,
-                       cristaSide:0xf2a3ae, cristaTop:0xfbcdc7 },
+                       cristaSide:0xf2a3ae, cristaTop:0xfbcdc7,
+                       /* `matrix` is the fluid the cristae fold into, paler
+                          than the membranes around it as it is in every
+                          micrograph. `dna` is the organelle's own circular
+                          genome — the plainest evidence it was once a free
+                          bacterium, so it is drawn, not just asserted. */
+                       matrix:0xf7c9ad, dna:0x8f2f3c },
       /* ---- plant only: PLASTIDS ----
          A chloroplast and an amyloplast are one organelle in two states —
          a tuber's amyloplast greens on a windowsill — but they are drawn

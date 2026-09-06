@@ -338,12 +338,22 @@
       return g;
     }
 
-    /* mitochondrion: a half capsule with cristae ribbons under the cut. The
-       cristae are swept folds of the INNER membrane, not discs laid inside a
-       bag — the fold is the surface area, and the surface area is the point. */
+    /* mitochondrion: an outer membrane, and INSIDE IT ONE CONTINUOUS INNER
+       MEMBRANE that folds back and forth — every crista is a fold of it,
+       not a plate standing in the matrix. That is the whole architecture:
+       one surface, one enclosed space, so the protons a crista pumps out
+       land in the same intermembrane space everywhere and drive every ATP
+       synthase in the organelle. Drawn as separate shelves it says the
+       opposite, which is what this used to do.
+
+       The folds alternate from the two long sides and interdigitate, so the
+       matrix between them is a single connected space with lobes — the
+       shape a micrograph shows and the reason the section looks like a
+       squiggle rather than a comb. */
     function mitochondrion(o = {}) {
       const g = new THREE.Group();
       const r = o.r || 0.55, L = o.L || 0.95, th = o.thickness || 0.09;
+      const q = o.detail === undefined ? 1 : o.detail;
       const cap = PI * r / 2, total = PI * r + 2 * L;
       const prof = u => {
         const s = u * total;
@@ -357,27 +367,99 @@
         return new V3(x, -rho * bump * Math.sin(w), rho * bump * Math.cos(w));
       };
       const shell = new THREE.Mesh(buildShell(THREE, {
-        S, uRange: [0, 1], wRange: () => [0, PI], uSeg: 72, uPeriodic: false, rimStart: true,
-        thickness: th, segs: { outer: 40, rim: 7, inner: 40 },
+        S, uRange: [0, 1], wRange: () => [0, PI], uSeg: Math.round(72 * q), uPeriodic: false, rimStart: true,
+        thickness: th, segs: { outer: Math.round(40 * q), rim: Math.max(4, Math.round(7 * q)), inner: Math.round(40 * q) },
         colors: shellOf(ORG.mitochondrion),
       }), mat({ vertexColors: true, roughness: 0.42, clearcoat: 0.5 }));
       g.add(shell);
-      const profile = roundedRectProfile(THREE, 0.1, 0.5, 0.045, col(ORG.mitochondrion.cristaSide), col(ORG.mitochondrion.cristaTop));
-      const cristaMat = mat({ vertexColors: true, roughness: 0.5, clearcoat: 0.3, side: THREE.DoubleSide });
-      const n = o.cristae || 7, h = 0.5;
-      for (let i = 0; i < n; i++) {
-        const xi = -L * 0.9 + (i / (n - 1)) * 1.8 * L + rr(-0.05, 0.05), ax = Math.abs(xi);
-        const rho = ax <= L ? r : Math.sqrt(Math.max(0, r * r - (ax - L) * (ax - L)));
-        const ri = rho - th - 0.05, pts = [], scales = [];
-        for (let k = 0; k <= 16; k++) {
-          const z = (-0.9 + 1.8 * k / 16) * ri;
-          const depth = Math.sqrt(Math.max(0, ri * ri - z * z));
-          const sy = clamp((depth - 0.04) / h, 0.15, 1);      // shorter where the wall is nearer
-          pts.push(new V3(xi + 0.09 * Math.sin(z * 7 + i * 1.3), -0.05 - h * sy / 2, z));
-          scales.push([1, sy]);
+
+      /* The inner membrane's path, traced in the plane of the cut: along one
+         long side, diving to the far side and back at each crista, round the
+         end cap, then back along the other side with the folds offset half a
+         pitch so the two combs mesh. */
+      const gapIM = th + 0.045 * r;                   // the intermembrane space
+      const ri = r - gapIM, Li = L - gapIM * 0.4;
+      const nFold = o.cristae || 7, depth = 1.3;
+      /* A CRISTA IS A NARROW FINGER, not a notch: its two walls run close
+         together and nearly parallel, and it is rounded at the tip and at
+         the mouth. A spline through these controls gives that; listing the
+         corners directly gives a saw blade.
+         `depth` past 1 is what makes the folds INTERDIGITATE — each finger
+         reaches beyond the midline, and the two sides are offset half a
+         pitch so they mesh. That is why a section reads as a squiggle
+         rather than as two facing combs, and it is what packs so much
+         membrane into so little volume. */
+      const comb = (dir, phase, ascending) => {
+        const out = [], pitch = 2 * Li / nFold;
+        for (let k = 0; k < nFold; k++) {
+          const i = ascending ? k : nFold - 1 - k;
+          const xc = -Li + pitch * (i + 0.5 + phase * 0.5), w = pitch * 0.3;
+          const tip = dir * ri * (1 - depth), lip = dir * ri;
+          const sgn = ascending ? 1 : -1;
+          out.push(new V3(xc - sgn * w * 1.5, 0, lip));
+          out.push(new V3(xc - sgn * w * 0.5, 0, dir * ri * 0.35));
+          out.push(new V3(xc, 0, tip));
+          out.push(new V3(xc + sgn * w * 0.5, 0, dir * ri * 0.35));
+          out.push(new V3(xc + sgn * w * 1.5, 0, lip));
         }
-        g.add(new THREE.Mesh(sweepProfile(THREE, pts, profile, { scales }), cristaMat));
+        return out;
+      };
+      const ctrl = [];
+      ctrl.push(new V3(-Li - ri * 0.5, 0, 0.62 * ri));
+      ctrl.push(...comb(1, 0, true));                       // out along +z
+      ctrl.push(new V3(Li + ri * 0.5, 0, 0.62 * ri), new V3(Li + ri * 0.8, 0, 0), new V3(Li + ri * 0.5, 0, -0.62 * ri));
+      ctrl.push(...comb(-1, 1, false));                     // back along -z, meshed
+      ctrl.push(new V3(-Li - ri * 0.5, 0, -0.62 * ri), new V3(-Li - ri * 0.8, 0, 0));
+
+      const curve = new THREE.CatmullRomCurve3(ctrl, true, 'centripetal', 0.5);
+      const pathXZ = curve.getPoints(Math.round(260 * q)).map(p2 => [p2.x, p2.z]);
+
+      // rho of the outer surface at x, so the wall can follow the floor
+      const rhoAt = x => (Math.abs(x) <= L ? r : Math.sqrt(Math.max(0, r * r - (Math.abs(x) - L) * (Math.abs(x) - L))));
+      const BASE = 0.5, pts = [], scales = [];
+      for (const [x, z] of pathXZ) {
+        const rho = Math.max(1e-3, rhoAt(x) - th - 0.02);
+        const zz = clamp(z, -rho * 0.98, rho * 0.98);
+        const floor = -Math.sqrt(Math.max(0.0001, rho * rho - zz * zz));
+        const h = Math.max(0.06, -floor - 0.04);
+        pts.push(new V3(x, floor + h / 2, zz));
+        scales.push([1, h / BASE]);
       }
+      const imProfile = roundedRectProfile(THREE, 0.085 * r, BASE, 0.028, col(ORG.mitochondrion.cristaSide), col(ORG.mitochondrion.cristaTop));
+      g.add(new THREE.Mesh(sweepProfile(THREE, pts, imProfile, { scales }),
+        mat({ vertexColors: true, roughness: 0.5, clearcoat: 0.3, side: THREE.DoubleSide })));
+
+      /* The matrix, and in it the organelle's own circular DNA. A
+         mitochondrion carrying its own genome is the plainest evidence it
+         was once a free-living bacterium, so it is drawn rather than
+         asserted in a caption. */
+      const matMat = mat({ color: ORG.mitochondrion.matrix, roughness: 0.6, clearcoat: 0.1 });
+      const dnaMat = mat({ color: ORG.mitochondrion.dna, roughness: 0.55, clearcoat: 0.1 });
+      for (let i = 0; i < (o.dna === undefined ? 2 : o.dna); i++) {
+        const cx = rr(-L * 0.6, L * 0.6), cz = rr(-0.18, 0.18) * ri;
+        const cy = -Math.sqrt(Math.max(0.01, r * r - cz * cz)) * 0.45;
+        const loop = [];
+        for (let k = 0; k <= 24; k++) {
+          const A = (k / 24) * 2 * PI, wob = 1 + 0.34 * Math.sin(A * 3 + i) + 0.2 * Math.sin(A * 5 + i * 2);
+          loop.push(new V3(cx + Math.cos(A) * 0.17 * r * wob, cy + 0.05 * r * Math.sin(A * 2 + i), cz + Math.sin(A) * 0.17 * r * wob));
+        }
+        g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(loop, true), Math.round(48 * q), 0.016 * r, 5, true), dnaMat));
+      }
+      // matrix ribosomes, which are a bacterium's, not this cell's
+      const ribo = new THREE.InstancedMesh(new THREE.SphereGeometry(0.035 * r, 5, 4), matMat, 26);
+      const m4 = new THREE.Matrix4();
+      let n = 0;
+      for (let tries = 0; n < 26 && tries < 400; tries++) {
+        const x = rr(-L, L), z = rr(-0.55, 0.55) * ri;
+        const rho = rhoAt(x) - th - 0.06;
+        if (Math.abs(z) > rho) continue;
+        const y = -Math.sqrt(Math.max(0.01, rho * rho - z * z)) * rr(0.25, 0.85);
+        m4.makeTranslation(x, y, z);
+        ribo.setMatrixAt(n++, m4);
+      }
+      ribo.count = n;
+      g.add(ribo);
+
       g.userData.parts = { shell };
       return g;
     }
