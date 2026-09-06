@@ -318,6 +318,7 @@
     let axialLen = 0, drawn = 0, capWarned = false;
     let molR = 0;                          // tetramer radius, measured off the bake
     const bounds = new THREE.Box3();
+    const placedAt = [];    // instance centres, for the bounding sphere
     const ALPHA_CHAINS = new Set();
     const hidden = { marks: false, idle: false };
     let last = null;
@@ -453,9 +454,12 @@
 
       let n = 0;
       bounds.makeEmpty();
+      placedAt.length = 0;
       const at = new THREE.Vector3();
       const put = (m4, colourIdx, partner) => {
-        bounds.expandByPoint(at.setFromMatrixPosition(m4));
+        at.setFromMatrixPosition(m4);
+        bounds.expandByPoint(at);
+        placedAt.push(at.clone());
         /* The surface gets the SAME per-instance shade as the tube: its vertex
            colours carry chain and site, the instance colour multiplies over
            them. Fully opaque either way — a translucent skin reads as glass at
@@ -708,13 +712,25 @@
        Centres from the instance matrices, plus one tetramer radius, so it is
        right for any preset and any seating the modelled parameters produce. */
     const extent = () => {
-      if (bounds.isEmpty()) return { halfH: 60, halfW: 60, centreY: 0 };
+      if (bounds.isEmpty()) return { radius: 60, halfH: 60, halfW: 60, centre: new THREE.Vector3() };
       const size = bounds.getSize(new THREE.Vector3());
       const mid = bounds.getCenter(new THREE.Vector3());
+      /* A RADIUS, because the reader can orbit. Half-extents describe the
+         assembly in the pose it happens to be in; a bounding sphere describes
+         it in every pose, which is what a camera distance has to survive. */
+      let radius = 0;
+      for (const p of placedAt) radius = Math.max(radius, p.distanceTo(mid));
       return {
+        radius: radius + molR,
         halfH: size.y / 2 + molR,
         halfW: Math.max(size.x, size.z) / 2 + molR,
-        centreY: mid.y,
+        /* ALL THREE AXES, because this is what the camera ORBITS about and not
+           only what it is aimed at. Forcing x and z to zero targets the fibre
+           axis, which is right for a rope and wrong for the two molecules the
+           lesson turns on: the lateral partner sits off that axis, so the pair
+           span it rather than surround it, and a drag swung them around a point
+           beside themselves. */
+        centre: bounds.getCenter(new THREE.Vector3()),
       };
     };
 
@@ -765,14 +781,33 @@
        380 A of a 760 A assembly off the top and bottom. A distance that has to
        hold across three presets, five sliders and a lesson panel taking half
        the width cannot be a constant. */
+    /* FIT THE BOUNDING SPHERE, not the bounding box. Fitting the box put its
+       CENTRE at the camera distance, so the near face sat at r minus the
+       object's own depth and blew up in perspective — a four-repeat fibre came
+       out at 1.8 of NDC when the fit said it was inside 1.0. A sphere has no
+       near face to get wrong and no pose to be wrong in, which matters here
+       because the reader can orbit whatever the step chose. */
     const frame = () => {
       const e = fib.extent();
       const cam = box.camera;
       const half = THREE.MathUtils.degToRad(cam.fov) / 2;
-      const fitH = e.halfH / Math.tan(half);
-      const fitW = e.halfW / (Math.tan(half) * Math.max(cam.aspect, 0.1));
-      box.cam.target.set(0, e.centreY, 0);
-      box.cam.r = Math.max(fitH, fitW, 220) * 1.12;   // a little air
+      /* THE PANEL TAKES ROOM THE FRUSTUM DOES NOT KNOW ABOUT. `viewOffset`
+         SHIFTS the projection so the scene sits beside the glass; it does not
+         narrow it, so the canvas is still W wide while the room a reader can
+         see is W minus the panel. Fitting to the full width put a 7-strand
+         fibre half under the panel and half off the right edge. The offset is
+         half the hidden extent, so twice it is what to take off. */
+      const W = box.canvas.clientWidth || 1, H = box.canvas.clientHeight || 1;
+      const fn = params.viewOffset || el.viewOffset;
+      const off = fn ? fn(W, H) : null;
+      const fx = off ? Math.max(0.25, (W - Math.abs(off.x || 0) * 2) / W) : 1;
+      const fy = off ? Math.max(0.25, (H - Math.abs(off.y || 0) * 2) / H) : 1;
+      // The half-angles the panel actually leaves, vertical and horizontal.
+      const av = Math.atan(Math.tan(half) * fy);
+      const ah = Math.atan(Math.tan(half) * Math.max(cam.aspect, 0.1) * fx);
+      const fit = a => e.radius / Math.max(Math.sin(a), 0.05);
+      box.cam.target.copy(e.centre);
+      box.cam.r = Math.max(fit(av), fit(ah), 220) * 1.06;   // a little air
       box.applyCam();
     };
     fib.on('build', frame);

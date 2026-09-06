@@ -178,7 +178,11 @@
       ctx.ui.qa('#shape button').forEach(b => {
         b.onclick = () => {
           ctx.ui.qa('#shape button').forEach(o => o.classList.toggle('is-on', o === b));
-          F.set({ preset: b.dataset.p, rep: 'tube' });
+          /* The preset carries its own repeat count, and here the slider is the
+             one that means anything: switching shape must change how many
+             STRANDS there are, not silently move a number the reader set. */
+          F.set({ preset: b.dataset.p, rep: 'tube',
+                  repeats: +ctx.ui.q('#rep').value });
         };
       });
       const write = () => {
