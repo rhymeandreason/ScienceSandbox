@@ -494,30 +494,25 @@
       return new THREE.LatheGeometry(pts, seg);
     }
 
-    /* chloroplast: an envelope of TWO membranes with a space between them,
-       and inside it grana — stacks of thylakoid discs — JOINED to each other
-       by stroma lamellae. The joining is the part worth getting right: the
-       thylakoid membrane is one continuous surface and one enclosed space
-       through the whole plastid, which is why a proton gradient built
-       anywhere in it drives ATP synthase everywhere in it. Grana drawn as
-       separate piles of coins say the opposite. */
-    function chloroplast(o = {}) {
-      const g = new THREE.Group();
+    /* GEOMETRY IS SHARED BETWEEN PLASTIDS, MATERIALS ARE NOT.
+       A cell holds several chloroplasts and they do not need to differ:
+       nothing legible is lost by giving them one shape and varying the
+       transform, and building each from scratch cost most of a tissue
+       switch. So the geometry is cut once per distinct parameter set and
+       cached. Materials stay per-plastid because hover writes emissive on
+       the material — share those and lighting one lights them all. */
+    const plastidCache = new Map();
+    function plastidGeometry(o, colors, tag) {
+      const key = tag + '|' + [o.a, o.b, o.c, o.thickness, o.grana, o.detail].join(',');
+      let G = plastidCache.get(key);
+      if (G) return G;
       const q = o.detail === undefined ? 1 : o.detail;
-      const { mesh, a, b, c, th } = plastidShell(o, ORG.chloroplast);
-      g.add(mesh);
-      /* The inner membrane, with the intermembrane space between the two.
-         A plastid's envelope is two membranes and that is not decoration:
-         it is the leftover of the cyanobacterium's own wall and the vesicle
-         that engulfed it, the same double envelope a mitochondrion has. */
-      const innerEnv = plastidShell(o, {
-        outer: ORG.chloroplast.envelopeInner, inner: ORG.chloroplast.inner, rim: ORG.chloroplast.rim,
+      const env = plastidShell(o, colors);
+      const inner = plastidShell(o, {
+        outer: colors.envelopeInner || colors.outer, inner: colors.inner, rim: colors.rim,
       }, 0.88, 0.55);
-      g.add(innerEnv.mesh);
-
-      const ai = innerEnv.a - innerEnv.th, bi = innerEnv.b - innerEnv.th, ci = innerEnv.c - innerEnv.th;
-      const thyMat = mat({ color: ORG.chloroplast.thylakoid, roughness: 0.45, clearcoat: 0.4 });
-      const lamMat = mat({ color: ORG.chloroplast.lamella, roughness: 0.5, clearcoat: 0.25 });
+      const a = env.a, b = env.b, c = env.c, th = env.th;
+      const ai = inner.a - inner.th, bi = inner.b - inner.th, ci = inner.c - inner.th;
 
       /* Grana on a loose two-row lattice rather than a line, so the lamellae
          between them run in more than one direction, as they do. */
@@ -553,22 +548,14 @@
         slots.push({ x, y, z, rad, half: (n - 1) / 2 * gap });
       }
 
-      /* ONE INSTANCED MESH FOR EVERY DISC IN THE PLASTID. A granum is a
-         stack of the same object at different scales, and a leaf cell holds
-         several plastids of several grana each: as separate meshes that is
-         a few hundred draw calls for the thing a reader looks at least
-         closely until they zoom. A unit disc scaled per instance costs one. */
-      if (discs.length) {
-        const inst = new THREE.InstancedMesh(thylakoidDisc(1, 1, Math.max(10, Math.round(28 * q))), thyMat, discs.length);
-        discs.forEach((m, i) => inst.setMatrixAt(i, m));
-        g.add(inst);
-      }
-
       /* Stroma lamellae: flattened tubes from the rim of one granum to the
-         rim of the next, so the stacks are one connected compartment. Each
-         leaves and arrives on the side facing its partner, and sags a little
-         between, which is what stops them reading as struts. */
-      const lamR = 0.045 * a;
+         rim of the next, so the stacks are one connected compartment. The
+         thylakoid membrane is ONE surface enclosing ONE space through the
+         whole plastid, which is why a proton gradient built anywhere in it
+         drives ATP synthase everywhere in it. Separate piles of coins say
+         the opposite. Each leaves and arrives on the side facing its
+         partner and sags a little, which stops them reading as struts. */
+      const tubes = [], lamR = 0.045 * a;
       for (let i = 0; i < slots.length; i++)
         for (let j = i + 1; j < slots.length; j++) {
           const A1 = slots[i], B1 = slots[j];
@@ -581,13 +568,42 @@
           const p1 = p0.clone().add(p2).multiplyScalar(0.5);
           p1.y -= rr(0.01, 0.06) * b;
           p1.addScaledVector(new V3(-uz, 0, ux), rr(-0.12, 0.12) * d);
-          const tube = new THREE.Mesh(
-            new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p0, p1, p2), Math.max(8, Math.round(20 * q)), lamR, Math.max(5, Math.round(8 * q)), false), lamMat);
-          tube.scale.y = 0.42;                 // a lamella is a sheet, not a pipe
-          g.add(tube);
+          const geo = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p0, p1, p2),
+            Math.max(8, Math.round(20 * q)), lamR, Math.max(5, Math.round(8 * q)), false);
+          geo.scale(1, 0.42, 1);            // a lamella is a sheet, not a pipe
+          tubes.push(geo);
         }
 
-      g.userData.parts = { shell: mesh, envelopeInner: innerEnv.mesh };
+      G = {
+        envelope: env.mesh.geometry, inner: inner.mesh.geometry,
+        disc: discs.length ? thylakoidDisc(1, 1, Math.max(10, Math.round(28 * q))) : null,
+        discs, tubes, a, b, c, th,
+      };
+      plastidCache.set(key, G);
+      return G;
+    }
+
+    function chloroplast(o = {}) {
+      const G = plastidGeometry(o, ORG.chloroplast, 'chloro');
+      const g = new THREE.Group();
+      const envMat = mat({ vertexColors: true, roughness: 0.44, clearcoat: 0.45 });
+      const shell = new THREE.Mesh(G.envelope, envMat);
+      g.add(shell);
+      /* The inner membrane, with the intermembrane space between the two.
+         A plastid's envelope is two membranes and that is not decoration:
+         it is the leftover of the cyanobacterium's own wall and the vesicle
+         that engulfed it, the same double envelope a mitochondrion has. */
+      const envelopeInner = new THREE.Mesh(G.inner, mat({ vertexColors: true, roughness: 0.44, clearcoat: 0.45 }));
+      g.add(envelopeInner);
+      const thyMat = mat({ color: ORG.chloroplast.thylakoid, roughness: 0.45, clearcoat: 0.4 });
+      const lamMat = mat({ color: ORG.chloroplast.lamella, roughness: 0.5, clearcoat: 0.25 });
+      if (G.disc) {
+        const inst = new THREE.InstancedMesh(G.disc, thyMat, G.discs.length);
+        G.discs.forEach((m, i) => inst.setMatrixAt(i, m));
+        g.add(inst);
+      }
+      for (const t of G.tubes) g.add(new THREE.Mesh(t, lamMat));
+      g.userData.parts = { shell, envelopeInner };
       return g;
     }
 

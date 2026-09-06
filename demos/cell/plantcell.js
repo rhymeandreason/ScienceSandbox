@@ -227,7 +227,26 @@
     const A = O.A;
 
     const organelles = [];
-    const register = (obj, name) => { obj.userData.organelle = name; organelles.push(obj); return obj; };
+    /* `owned` is the layer currently being built, if any. A tissue switch
+       throws its layer away, and anything registered by that layer has to
+       leave `organelles` with it — otherwise every switch adds another
+       cell's worth of dead objects for the raycaster to test on every
+       pointer move, and their materials are never freed. */
+    let owned = null;
+    const register = (obj, name) => {
+      obj.userData.organelle = name;
+      organelles.push(obj);
+      if (owned) owned.push(obj);
+      return obj;
+    };
+    function retire(L) {
+      for (const o of L.userData.owned || []) {
+        const i = organelles.indexOf(o);
+        if (i >= 0) organelles.splice(i, 1);
+        // geometry is cached and shared between plastids; materials are not
+        o.traverse(x => { if (x.isMesh && x.material) x.material.dispose(); });
+      }
+    }
 
     const cell = new THREE.Group();
     cell.rotation.x = O.tilt;
@@ -548,13 +567,22 @@
        succeed, and organelles settle overlapping no matter how stiff the
        repulsion is. Check the sum against 2*sqrt(3)*A^2 before adding one. */
     const DETAIL = O.detail === undefined ? 0.5 : O.detail;
+    /* layoutStep writes scale on the item's own group every frame, so a
+       build-time size has to sit one level down. */
+    const wrap = (g, s) => { g.scale.setScalar(s); const w = new THREE.Group(); w.add(g); return w; };
     const FOOT = { nucleus: 3.4, chloroplast: 2.6, mitochondrion: 1.8, dictyosome: 2.0, amyloplast: 2.4, amyloplast2: 3.0, vesicle: 0.7, vacuole: 5.6 };
     const BUILD = {
       nucleus: s => K.nucleus({ R: 3.0 * s, thickness: 0.2, chromatin: 3, pores: 55 }),
-      /* `detail` at half: a leaf cell holds five of these and the reader is
-         looking at a whole cell. A bench that zooms one builds it at 1. */
-      chloroplast: s => K.chloroplast({ a: 2.3 * s, b: 1.05 * s, c: 1.5 * s, grana: 6, detail: DETAIL }),
-      mitochondrion: s => K.mitochondrion({ r: 0.55 * s, L: 0.95 * s, cristae: 7 }),
+      /* ONE SIZE, VARIED BY TRANSFORM. Passing the per-instance size into
+         the builder gave every chloroplast its own geometry, and five of
+         them was most of a tissue switch. They do not need to differ:
+         built once and scaled in a wrapper, the cache hands out the same
+         shape and the reader cannot tell.
+         `detail` at half, because a leaf cell holds five of these and the
+         reader is looking at a whole cell. A bench that zooms one builds
+         it at 1. */
+      chloroplast: s => wrap(K.chloroplast({ a: 2.3, b: 1.05, c: 1.5, grana: 6, detail: DETAIL }), s),
+      mitochondrion: s => wrap(K.mitochondrion({ r: 0.55, L: 0.95, cristae: 7 }), s),
       /* The kit stacks a Golgi's cisternae along +y. On the cut plane +y
          points at the reader, so an unrotated stack is seen end-on and reads
          as a lump. Tip it onto its side inside a wrapper, so the layer's own
@@ -578,8 +606,8 @@
         w.scale.setScalar(0.55 * s);
         return w;
       },
-      amyloplast: s => K.amyloplast({ a: 2.0 * s, b: 1.35 * s, c: 1.55 * s, grains: 1, detail: DETAIL }),
-      amyloplast2: s => K.amyloplast({ a: 2.6 * s, b: 1.35 * s, c: 1.55 * s, grains: 2, detail: DETAIL }),
+      amyloplast: s => wrap(K.amyloplast({ a: 2.0, b: 1.35, c: 1.55, grains: 1, detail: DETAIL }), s),
+      amyloplast2: s => wrap(K.amyloplast({ a: 2.6, b: 1.35, c: 1.55, grains: 2, detail: DETAIL }), s),
       vesicle: s => {
         const m = new THREE.Mesh(new THREE.SphereGeometry(0.42 * s, 20, 14), mat({ color: ORG.golgi.vesicle, roughness: 0.35, clearcoat: 0.7 }));
         return new THREE.Group().add(m);
@@ -593,6 +621,7 @@
     function buildLayer(T) {
       const L = new THREE.Group();
       L.userData.items = [];
+      L.userData.owned = owned = [];
       const add = (g, type, x, z, rot, foot, weight, shape) => {
         L.add(g);
         /* A small tilt off the cut plane. Everything lying perfectly flat is
@@ -646,6 +675,7 @@
         add(g, type, x, z, rot, FOOT[type] * s, 1);
       }
       L.userData.vac = vac;
+      owned = null;
       return L;
     }
 
@@ -859,7 +889,7 @@
         L.userData.t0 += dt;
         const k = clamp(L.userData.t0 / 0.45, 0, 1);
         layoutStep(L, 1 - easeInOut(k), dt, clock);
-        if (k >= 1) { cutFrame.remove(L); dying.splice(i, 1); }
+        if (k >= 1) { cutFrame.remove(L); retire(L); dying.splice(i, 1); }
       }
     }
     function setT(t) { const v = clamp(t, 0, 2); if (v !== St.t) { St.t = v; dirty = true; } }
