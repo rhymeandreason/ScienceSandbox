@@ -241,8 +241,11 @@
       chloroplast:   { outer:0x4fc22e, inner:0x2f8f22, rim:0x8fe25a, head:0x4fc22e, tail:0xc4e79a,
                        thylakoid:0x178a2a, lamella:0x2f9c3e, stroma:0xa9d383,
                        envelopeInner:0x3ba828 },
-      amyloplast:    { outer:0xeef0e0, inner:0xd6d8c4, rim:0xf6f7ef,
-                       starch:0xf3ead0, hilum:0xd8cba0 },
+      /* Deeper than it looks it should be: the envelope is drawn TRANSLUCENT
+         (organelles.js's amyloplast), so a near-white here washes out to
+         nothing over the pale grains and the organelle loses its edge. */
+      amyloplast:    { outer:0xd3d6b4, inner:0xb6b995, rim:0xe4e6cf,
+                       starch:0xe3d7b4, hilum:0xc2b184 },
       nucleus:       { outer:0x3f6cb5, inner:0x4a78c0, rim:0x9cb9e6, head:0x4a78c0, tail:0xb9c9e8,
                        nucleolus:0xf6b64a, chromatin:0x3d64a8, pore:0x274a8f },
       er:            { side:0xd9426d, top:0xf6c0ce, ribosome:0x7c1030, head:0xd9426d, tail:0xf6c0ce },
@@ -297,12 +300,18 @@
        link back to the animal cell's membrane is carried by the plasmodesmata
        instead. Do not copy this exception to another organelle.
 
+       `head` / `tail` PAINT THE CUT LIP AS A BILAYER, the same two bands the
+       animal cell's lip carries and the same relationship — a saturated head
+       over a paler, warmer tail — in this tissue's green. `head` is a shade
+       under `membrane` so the leaflet reads as a line against the flank it
+       is continuous with.
+
        Everything else in the cell takes the house colour from `organelles`. */
     plantTissue: {
-      leaf:   { wall:0xa3e64e, wallRim:0xd9f7a8, cytosol:0x8fdcb8, membrane:0x3fa080 },
-      root:   { wall:0xb8e07a, wallRim:0xe2f3bb, cytosol:0xa3dfc6, membrane:0x4ea88c },
-      potato: { wall:0xc7e58b, wallRim:0xe9f5c9, cytosol:0xabe0cc, membrane:0x55ab92 },
-      cactus: { wall:0xbfe08a, wallRim:0xeaf6cf, cytosol:0x93dbbd, membrane:0x46a385 },
+      leaf:   { wall:0xa3e64e, wallRim:0xd9f7a8, cytosol:0x8fdcb8, membrane:0x3fa080, head:0x2f7d63, tail:0xa8dcb4 },
+      root:   { wall:0xb8e07a, wallRim:0xe2f3bb, cytosol:0xa3dfc6, membrane:0x4ea88c, head:0x3c866f, tail:0xb2e0bd },
+      potato: { wall:0xc7e58b, wallRim:0xe9f5c9, cytosol:0xabe0cc, membrane:0x55ab92, head:0x428874, tail:0xb8e3c3 },
+      cactus: { wall:0xbfe08a, wallRim:0xeaf6cf, cytosol:0x93dbbd, membrane:0x46a385, head:0x357f68, tail:0xacdcb8 },
     },
     // ---- default display radii (scene units, stylised — enlarged for
     // legibility). NOT van der Waals radii, and check-molecules.js checks
