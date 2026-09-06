@@ -21,11 +21,11 @@ X.SCALE = {
 molecules · macromolecule · membrane · organelle · cell · tissue · organ · organism · population
 ```
 
-Ordered small to large. It governs exactly one thing: **components at the same rung may share a scene; components at different rungs may not.** Crossing a rung is a handoff between two boxes, never a camera move — a cell is \~20 µm and a bilayer \~5 nm, and no camera survives that.
+Ordered small to large. It exists for two things: picking the component that fits a lesson's scale, and the zoom handoff between two boxes (`down`, below) — never a camera move; a cell is \~20 µm and a bilayer \~5 nm, and no camera spans both. A box holds exactly one component — `kit/card-stage.js` gives every `mount()` its own camera — so two mounted components never share a scene and their rungs never need reconciling. A generated page composing normally never has to think about this at all.
 
 ## Form
 
-`single` or `bulk` — how many, independent of rung. `bulk` recurs at every rung: `WaterSim` is bulk molecules, `Leaf`'s mesophyll is bulk cells. **Bulk and single at the same rung, in one scene, is normal** — a solute in water, a chloroplast in mesophyll, a red cell in a vessel.
+`single` or `bulk` — how many, independent of rung. `bulk` recurs at every rung: `WaterSim` is bulk molecules, `Leaf`'s mesophyll is bulk cells. **Bulk and single mixed in one component's own render is normal** — a solute in water, a chloroplast in mesophyll, a red cell in a vessel: one component drawing more than one actor, not two components in one box.
 
 ## Measurement: molecules and macromolecules only
 

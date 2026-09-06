@@ -117,17 +117,17 @@ CardStage.showPanel(container, c, { layers: ['water'] });     // into any elemen
 
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 
-## Scale: which components may share a scene
+## Scale: what rung each component sits at
 
-Every component declares a **rung** (how big) and a **form** (how many). `kit/scale.js` holds the ladder and `docs/Scale.md` is the argument; `tools/check-scale.js` fails a commit where a section here and the code disagree.
+Every component declares a **rung** (how big) and a **form** (how many, orthogonal to rung). `kit/scale.js` holds the ladder and `docs/Scale.md` is the argument; `tools/check-scale.js` fails a commit where a section here and the code disagree.
 
 ```
 molecules · macromolecule · membrane · organelle · cell · tissue · organ · organism · population
 ```
 
-**Same rung may share a scene. Different rungs may not.** Two components at one rung go in one box; crossing a rung is a handoff between two boxes, never a camera move. A cell is about 20 µm and a bilayer about 5 nm, so a page that mounts both in one scene is wrong however good it looks.
+**A page composing normally can't get this wrong**: each `mount()` gets its own box and its own camera, so components at different rungs just live in different boxes — pick whichever the lesson needs. 
 
-**Form is orthogonal, and bulk plus single at the same rung is the normal scene.** A solute molecule in bulk water. A chloroplast in bulk mesophyll. Reach for that pattern rather than a second box.
+**Bulk plus single at one rung is normal inside one component's own render.** A solute molecule in bulk water. A chloroplast in bulk mesophyll. A red cell in a vessel — one component drawing more than one actor, not two components in one box.
 
 | Component | rung | form |
 | --- | --- | --- |
