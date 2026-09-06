@@ -270,7 +270,11 @@ const CARDS = [
     choose:{ slot:'sugar', key:'glucose',
              opts:[['glucose','\u03b2-glucose'], ['alphaGlucose','\u03b1-glucose']] },
     home:[[-24, 10], [-9, -11], [7, 10], [23, -11]],
-    box:{ x:0, y:0, rxz:38, hy:24 },
+    // Sized for the FINISHED chain, not for the four sugars as dealt: four of
+    // them joined run about 41 units down the page, and a box that only covers
+    // the deal would have to refit halfway through the build — moving the
+    // tabletop out from under the hand still working on it.
+    box:{ x:0, y:-4, rxz:42, hy:30 },
     poseIn:(h, g, slot, round) => round ? Glycosidic.pose(h, g, DISACC)
                                         : MacroFlat.glycosidic(h, g),
     flat:true,
@@ -411,7 +415,13 @@ const L = Lesson.create(canvas, {
    * off the bottom of it — and the round molecule is a different size again, so
    * as soon as anything has joined the stage frames what is actually on it. */
   boxes:()=>{
-    if(dim !== '3d' && !sticks.length) return [card.box];
+    /* THE CARD'S BOX IS THE WHOLE FLAT BUILD, not just the deal — it is sized
+     * for the finished molecule, so the camera never moves while the student is
+     * working. A stage that reframes on every join moves the tabletop out from
+     * under the hand that is still on it. Only the round view is framed to its
+     * content, because the molecule that arrives there is a different size and
+     * nobody is holding it. */
+    if(dim !== '3d') return [card.box];
     /* IN WORLD SPACE, atom by atom, because that is what the camera sees: the
      * root carries both the turn and the shift that keeps the molecule centred
      * under it, and a box measured before those puts the fit an offset away
@@ -471,7 +481,7 @@ const P = MacroPlane.create({
     stick(host, guest, donor, acceptor);
     if(L.fx) L.fx.condense(at.bondAt, at.waterAt, { size:1.1 });
     water(at.waterAt, 'out');
-    say(); L.fit();
+    say();
   },
 
   /* HYDROLYSIS, and it is the condensation run backwards rather than an undo.
@@ -490,7 +500,6 @@ const P = MacroPlane.create({
     const mid = P.centreOf(a).lerp(P.centreOf(b), 0.5);
     if(L.fx) L.fx.spawnRing(mid, MolLib.PALETTE.bonds.condense, null, 0.6);
     water(mid, 'in');
-    L.fit();
   },
 
   onMove: say,
