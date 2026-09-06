@@ -474,6 +474,75 @@ head('hbond.js — matching order');
   near(pair.r,3,1e-9,'…and the radius reaches the far side of each');
 }
 
+/* =====================================================================
+ *  surface.js — the two things a page does to a decoded SES
+ *
+ *  Neither is visible when it is wrong. A colour table that indexes by vertex
+ *  where it should index by residue paints a plausible molecule in the wrong
+ *  places; a patch selected on ANY vertex rather than ALL THREE draws a mark a
+ *  triangle too big in every direction, which on a residue-sized patch is most
+ *  of its apparent size. Both look like renders.
+ *
+ *  THE FIXTURE HAS TO BE ABLE TO TELL THEM APART, which is the vacuity trap
+ *  here: a mesh whose triangles each sit wholly inside one residue gives the
+ *  same answer under both selection rules, and a two-residue fixture where
+ *  every vertex belongs to the patch gives the same answer under any rule at
+ *  all. So the fixture is built with a straddling triangle on purpose, and the
+ *  difference between the two rules is asserted before the rule is.
+ * ===================================================================== */
+head('surface.js — painting and patching');
+{
+  const SurfLib = require(path.join(__dirname, 'surface.js'));
+
+  /* Four vertices on three residues, three triangles:
+       t0  v0 v1 v2   all on the patch  (B6)
+       t1  v1 v2 v3   straddles         (B6, B6, B7)
+       t2  v3 v3 v3   wholly off it     (B7)
+     `geo` is absent, so `triangles` reads S.index — the Node path. */
+  const S = {
+    nVert: 4,
+    res: [0, 0, 1, 2],                     // v3 is residue 2, v2 is residue 1
+    index: [0, 1, 2,  1, 2, 3,  3, 3, 3],
+    head: { residues: [['B', 6, 'GLU'], ['B', 6, 'GLU'], ['B', 7, 'GLU']] },
+  };
+  const isB6 = (ch, n) => ch === 'B' && n === 6;
+
+  const keep = SurfLib.triangles(S, isB6);
+  ok(keep.length === 3, `all-three keeps one triangle, got ${keep.length / 3}`);
+  ok(keep[0] === 0 && keep[1] === 1 && keep[2] === 2, 'and it is the one wholly on B6');
+
+  // The precondition that makes the line above mean anything.
+  const anyVertex = (() => {
+    let n = 0;
+    for (let t = 0; t < S.index.length; t += 3)
+      if ([0,1,2].some(j => isB6(...S.head.residues[S.res[S.index[t+j]]]))) n++;
+    return n;
+  })();
+  ok(anyVertex === 2, 'and the fixture HAS a straddling triangle');
+  console.log(`        · any-vertex would keep ${anyVertex}, all-three keeps `
+    + `${keep.length/3} — equal here would make the rule untested`);
+
+  // An empty patch comes back empty rather than throwing: a page switching
+  // structures legitimately asks for a residue one of them does not have.
+  ok(SurfLib.triangles(S, (ch, n) => n === 99).length === 0, 'a patch that matches nothing is empty');
+  ok(SurfLib.residues(S, isB6).length === 2, 'residues() reports what matched, not what was asked');
+
+  /* colors() indexes by RESIDUE and splats by VERTEX. The fixture's residues
+     0 and 1 are the same chain and number, so a table keyed on chain+number
+     would collapse them — they are separate entries and must stay separate. */
+  const col = SurfLib.colors(S, (ch, n, nm, i) => [i / 10, 0, 0], [0, 0, 0]);
+  ok(col.length === S.nVert * 3, 'one colour per vertex');
+  ok(Math.abs(col[0] - 0) < 1e-9 && Math.abs(col[3] - 0) < 1e-9,
+     'v0 and v1 take residue 0');
+  near(col[6], 0.1, 1e-6, 'v2 takes residue 1');   // Float32Array: float32 tolerance
+  near(col[9], 0.2, 1e-6, 'v3 takes residue 2');
+  ok(col[6] !== col[9], 'and two residues the caller coloured differently ARE different');
+  // fn returning null falls back rather than writing NaN, which renders black.
+  const back = SurfLib.colors(S, () => null, [0.5, 0.25, 0.125]);
+  near(back[0], 0.5, 1e-6, 'a null colour falls back');
+  ok([...back].every(Number.isFinite), 'and nothing in the array is NaN');
+}
+
 Promise.all(pending).then(()=>{
   console.log(`\n${checks-fails}/${checks} checks passed`);
   if(fails){ console.log(`${fails} FAILED`); process.exit(1); }

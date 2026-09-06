@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>proteinbox-skin-test — the skin, a paint and a patch</title>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/sandbox.css">
+<link rel="stylesheet" href="../kit/proteinbox.css">
+<style>
+  #side{overflow-y:auto}
+  .grp{margin-bottom:16px}
+  .hd{font-weight:600;margin-bottom:6px;font-size:13px}
+  button{margin:0 6px 6px 0}
+  button[aria-pressed=true]{outline:2px solid currentColor}
+  p.note{font-size:13px;opacity:.85;line-height:1.5}
+  code{font-size:12px}
+  #rd{font-size:12.5px;line-height:1.7;font-family:ui-monospace,Menlo,monospace}
+  #rd b{font-weight:600}
+  label{display:block;font-size:12.5px;margin:6px 0}
+</style>
+</head>
+<body>
+<div id="app-sidebar">
+  <div id="stage"></div>
+  <div id="side">
+    <h1 style="font-size:17px">skin, paint, patch</h1>
+    <p class="note">The three things <code>kit/proteinbox.js</code> learned so a lesson can
+      say <em>where on the fold</em>. <b>skin</b> is the same SES drawn over the ribbon
+      instead of instead of it; <b>paintSkin</b> recolours it in place; <b>patch</b> is a
+      residue-sized mark with its own opacity, because a skin and a marker want opposite
+      numbers out of one material.</p>
+
+    <div class="grp">
+      <div class="hd">molecule</div>
+      <div id="vars"></div>
+    </div>
+    <div class="grp">
+      <div class="hd">shown as</div>
+      <div id="reps"></div>
+    </div>
+    <div class="grp">
+      <div class="hd">paint the skin by</div>
+      <div id="paints"></div>
+    </div>
+    <div class="grp">
+      <div class="hd">the &beta;6 patch</div>
+      <div id="patchbtns"></div>
+      <label>opacity <input id="pop" type="range" min="0" max="100" value="100"></label>
+    </div>
+    <div class="grp">
+      <div class="hd">read back</div>
+      <div id="rd"></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../kit/ribbon.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/surface.js"></script>
+<script src="../kit/proteinbox.js"></script>
+<script src="../sickle/sickle.js"></script>
+<script>
+'use strict';
+/* =====================================================================
+ *  proteinbox-skin-test.html — does the skin read, and does the mark?
+ *
+ *  Not a lesson: the prose describes the render, not the molecule. The
+ *  question this bench settles is the one hemoglobin/surface-test.html
+ *  settled for a hand-built scene, now that the same three mechanisms are
+ *  in the library — that a translucent SES over a ribbon stays legible,
+ *  that a residue-sized patch is findable at tetramer scale, and that
+ *  switching HbA for HbS changes a patch's colour and MOVES NOTHING.
+ *
+ *  BOTH BETA CHAINS ARE MARKED. The substitution is in the gene, so every
+ *  beta chain in the tetramer carries it; marking one would draw a
+ *  heterozygote, which is a different molecule.
+ * ===================================================================== */
+
+/* THE SURFACE HAS TO BE IN THE TRACE'S FRAME, and there are two frames on
+   disk. `2HHB.card.surf.bin` is baked BY bake-card-surface.js from the trace
+   itself — crystal coordinates less that file's `centre` — so it and the
+   ribbon are the same frame by construction. `hemoglobin/data/2HHB.surf.bin`
+   is the lesson-tier mesh in FoldLib.orient()'s frame, solved from chain B for
+   hemoglobin-lab's fold, and dropping it on this ribbon draws the right shape
+   in the wrong place. That is what this bench found first.
+
+   2HBS HAS NO CARD SURFACE, which is why there is one variant here and not
+   two: the A/B the sickle lesson needs is a bake, not a path. */
+const VARIANTS = [
+  { id:'2HHB', label:'HbA (2HHB)',
+    trace:'../hemoglobin/data/2HHB.trace.json',
+    surface:'../hemoglobin/data/2HHB.card.surf.bin' },
+];
+
+const PAINTS = [
+  { key:'none',  label:'nothing' },
+  { key:'chain', label:'chain',
+    fn:(ch) => (ch === 'A' || ch === 'C') ? 0xb07a24 : 0x8a5a9e },
+  /* Kyte-Doolittle off SickleLib, the same scale the fibre bench colours
+     with. HEM is NOT on it: SickleLib.hydro answers 0 for anything it does
+     not know, which would paint the four hemes "averagely greasy" — a number
+     the scale never made. Membership of KD is the test. */
+  { key:'grease', label:'hydrophobicity',
+    fn:(ch, n, name) => (name in SickleLib.KD) ? SickleLib.colour(name) : 0x9e9ea8 },
+];
+
+const stage = document.getElementById('stage');
+let box = null, vi = 0, paint = 0, rep = 'skin';
+
+function build() {
+  if (box) box.destroy();
+  stage.innerHTML = '';
+  const v = VARIANTS[vi];
+  box = Proteinbox.create({
+    mount: stage, trace: v.trace, surface: v.surface, chains: 'A,B,C,D',
+    skin: true,
+  });
+  applyPaint();
+  box.patch('b6', { chains:'B,D', num:6 }, { colour: 0xd94f1e, opacity: +pop.value / 100 });
+  box.setRep(rep);
+  readback();
+}
+
+function applyPaint() {
+  const p = PAINTS[paint];
+  box.paintSkin(p.fn ? ((ch, n, name) => p.fn(ch, n, name)) : null);
+}
+
+/* Polled rather than timed: the surface arrives when the fetch does, and a
+   bench that reads back on a fixed delay reports "not loaded" on a slow
+   machine and looks like the box failed. */
+function readback() {
+  const S = box.surface(), info = box.patchInfo('b6');
+  if (!S && rep !== 'ribbon') { setTimeout(readback, 120); }
+  document.getElementById('rd').innerHTML = !S
+    ? 'surface not loaded yet — press <b>skin</b>'
+    : `vertices <b>${S.nVert.toLocaleString()}</b><br>`
+    + `triangles <b>${S.nTri.toLocaleString()}</b><br>`
+    + `residues <b>${S.head.residues.length}</b><br>`
+    + `patch triangles <b>${info.tris}</b><br>`
+    + `patch residues <b>${info.residues.map(r => r[0] + r[1] + ' ' + r[2]).join(', ')}</b>`;
+}
+
+const seg = (host, items, get, set) => {
+  const el = document.getElementById(host);
+  el.innerHTML = '';
+  items.forEach((it, i) => {
+    const b = document.createElement('button');
+    b.textContent = it.label;
+    b.setAttribute('aria-pressed', String(get() === i));
+    b.onclick = () => { set(i); [...el.children].forEach((c, j) =>
+      c.setAttribute('aria-pressed', String(j === i))); };
+    el.appendChild(b);
+  });
+};
+
+seg('vars', VARIANTS, () => vi, i => { vi = i; build(); });
+seg('paints', PAINTS, () => paint, i => { paint = i; applyPaint(); });
+seg('reps', [{label:'ribbon'},{label:'skin'},{label:'surface'}],
+    () => ['ribbon','skin','surface'].indexOf(rep),
+    i => { rep = ['ribbon','skin','surface'][i]; box.setRep(rep); readback(); });
+
+const pop = document.getElementById('pop');
+pop.oninput = () => box.setPatch('b6', { opacity: +pop.value / 100 });
+
+build();
+</script>

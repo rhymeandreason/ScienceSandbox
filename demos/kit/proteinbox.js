@@ -14,11 +14,37 @@
  *  alongside kit/ribbon.js when a page has any, and the box says so if it is
  *  missing rather than drawing half a structure.
  *
- *  Three things it can show, and only the first is free:
+ *  Four things it can show, and only the first is free:
  *
  *    ribbon   12 KB trace, tools/bake-trace.js       drawn on create
  *    surface  ~360 KB SES, tools/bake-card-surface.js  fetched on the click
+ *    skin     the SAME surface, translucent, OVER the ribbon    `skin:true`
  *    fold     ~830 KB trajectory, HbFold + FoldPlay    fetched on the click
+ *
+ *  SKIN IS NOT A FOURTH FILE, it is the surface drawn the other way, and the
+ *  difference between the two is a claim rather than a look. `surface` REPLACES
+ *  the ribbon: the molecule is its outside, and what is under the skin is not
+ *  the question. `skin` covers a ribbon that is still there, which is what a
+ *  page asks for when the question is WHERE ON the fold something is — a
+ *  binding site, a mutated residue, a patch of exposed grease. Opt in with
+ *  `skin:true`; a gallery card asking for `surface` still means what it always
+ *  did, and does not grow a third button.
+ *
+ *  ON THE SKIN, two ways to say something, and they are not interchangeable:
+ *
+ *    box.paintSkin((chain, num, name) => colour)   per-residue, one array
+ *    box.patch('b6', {chains:'B,D', num:6}, {colour, opacity})
+ *
+ *  A paint recolours the skin in place — no rebuild, no refetch, and NOTHING
+ *  MOVES, which is the point: a lesson claiming a substitution leaves the fold
+ *  alone should be unable to move it while saying so. A patch is its own mesh
+ *  over the same buffers, and it exists because one mesh has one opacity: a
+ *  skin wants to be faint enough to see the ribbon through and a residue-sized
+ *  marker wants to be solid, and per-vertex alpha only ever multiplies the
+ *  material's. kit/surface.js carries the rest of that argument, and the rule
+ *  that a triangle needs all three vertices on a residue to belong to it.
+ *  Both may be called before the surface has loaded; they are remembered and
+ *  applied when it lands.
  *
  *  THE GATES ARE THE DESIGN. A card is a thumbnail until a reader decides
  *  otherwise, and neither of the big two is ever something the box DOES to
@@ -171,6 +197,13 @@
   const NA_STEP = '\u0000na';
   const SES_COLOUR = 0xdfe4ee;
 
+  /* THE SKIN: the same SES, over the ribbon instead of instead of it.
+     0.28 is hemoglobin/surface-test.html's answer to the only question the
+     bench existed to settle — how faint a skin has to be for the ribbon to
+     stay legible through it. Read the trap list in that page's header before
+     changing any of the four material flags `applySkin` sets. */
+  const SKIN_OPACITY = 0.28;
+
   /* ---- BALL-AND-STICK, FOR THE FEW ATOMS THAT EARN IT ----
 
      A ribbon is what a protein is drawn as; these are the proportions for the
@@ -305,6 +338,12 @@
 
     const mount = opts.mount;
     let radius = 0, player = null, surf = null, rep = 'ribbon', seeded = false;
+    /* The decoded surface, kept because everything painted onto the skin is a
+       lookup through its per-vertex `res`. Held beside the mesh rather than
+       inside showSurface's closure so paintSkin/patch can be called before the
+       bytes land — both record what was asked for and apply it on arrival. */
+    let surfS = null, skinPaint = null;
+    const patches = new Map();
     /* THE PALETTE IN FORCE, held at box scope rather than inside setData.
        The chain loop builds one chain per frame, so a build is usually still
        running when anything else happens; if it closed over the materials it
@@ -489,12 +528,21 @@
        which is what makes drawing them from two frames legal. */
     const chainGroup = new THREE.Group();
     const foldGroup = new THREE.Group();
+    /* THE SKIN TURNS WITH THE RIBBON OR IT IS NOT A SKIN. `view` puts a basis
+       on the chain group, and the surface used to hang off box.root — which
+       never showed, because ribbon and surface were mutually exclusive reps
+       and nobody ever saw both at once. Draw them together and a structure
+       with a declared view wears its own surface rotated off it. Its own group
+       rather than parenting into chainGroup, because setData clears that one
+       and the surface outlives a rebuild. `syncSkin` is the copy, and it is
+       called from wherever that quaternion is written. */
+    const skinGroup = new THREE.Group();
     /* Inside the chain group, not beside it: a pocket is measured in the same
        ångströms as the trace and has to wear the same presentation `view`, or
        a heme keeps the crystal's orientation while the protein turns. */
     const pocketGroup = new THREE.Group();
     chainGroup.add(pocketGroup);
-    box.root.add(chainGroup, foldGroup);
+    box.root.add(chainGroup, foldGroup, skinGroup);
 
     /* ---- the ribbon ----
 
@@ -853,7 +901,8 @@
         stillHX = Math.max(stillHX, Math.abs(p.x - stillMid.x));
         stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
       }
-      if (rep === 'ribbon') reframeStill();
+      syncSkin();
+      if (rep === 'ribbon' || rep === 'skin') reframeStill();
     }
 
     /* A BASIS ONTO THE CHAIN GROUP, and the framing re-solved after it. Null
@@ -989,14 +1038,174 @@
     /* ---- the surface ---- */
     function dropSurface() {
       if (!surf) return;
-      box.root.remove(surf);
+      for (const P of patches.values()) {
+        if (!P.mesh) continue;
+        skinGroup.remove(P.mesh);
+        /* The geometry SHARES position and normal with the surface, so only
+           its own index is this mesh's to release; disposing the shared
+           attributes here would take the skin's with them. */
+        P.mesh.geometry.dispose();
+        P.mesh.material.dispose();
+        P.mesh = null;
+      }
+      skinGroup.remove(surf);
       surf.geometry.dispose();
-      surf = null;
+      surf = null; surfS = null;
       if (sesOwner === box) sesOwner = null;
     }
 
+    const syncSkin = () => skinGroup.quaternion.copy(chainGroup.quaternion);
+
+    /* TWO WAYS TO DRAW ONE MESH, and the flags are the whole difference
+       between them. Opaque and alone, the surface IS the molecule. Over a
+       ribbon it is a skin, and a closed transparent mesh containing an opaque
+       one is the awkward case in a z-buffered renderer: with depthWrite on,
+       the near wall writes depth and CULLS THE RIBBON BEHIND IT — everywhere,
+       so the molecule reads as an empty shell. depthWrite off plus renderOrder
+       1 lays the opaque geometry's depth down first and composites the skin
+       over it. The cost is that the skin does not self-sort, so it is
+       FrontSide: you see the near wall only, which is also the honest picture
+       and what the reference figures do. hemoglobin/surface-test.html's header
+       is the long version. */
+    function applySkin() {
+      if (!surf) return;
+      const skin = rep === 'skin';
+      const m = surf.material;
+      m.transparent = skin;
+      m.opacity = skin ? (opts.skinOpacity == null ? SKIN_OPACITY : opts.skinOpacity) : 1;
+      m.depthWrite = !skin;
+      m.needsUpdate = true;
+      surf.renderOrder = skin ? 1 : 0;
+    }
+
+    /* ---- paintSkin(fn) ----
+
+       fn(chain, num, name, i) -> a colour, or null for the material's own.
+       One Float32Array written into the geometry that is already uploaded: no
+       rebuild, nothing re-fetched, and NOTHING MOVES. That last part is the
+       reason this exists rather than a second bake — a lesson claiming one
+       substitution leaves the fold alone has to be unable to move it while
+       saying so. Called before the bytes land, it is remembered and applied
+       on arrival. */
+    function paintSkin(fn) {
+      skinPaint = fn || null;
+      if (!surfS) return box;
+      const mat = surf.material;
+      if (!skinPaint) {
+        surfS.geo.deleteAttribute('color');
+        mat.vertexColors = false;
+        mat.color.set(opts.surfaceColour || SES_COLOUR);
+      } else {
+        const c = new THREE.Color();
+        const col = SurfLib.colors(surfS, (ch, n, nm, i) => {
+          const v = skinPaint(ch, n, nm, i);
+          if (v == null) return null;
+          c.set(v);
+          return [c.r, c.g, c.b];
+        }, [1, 1, 1]);
+        surfS.geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+        mat.vertexColors = true;
+        mat.color.set(0xffffff);
+      }
+      mat.needsUpdate = true;
+      box.draw();
+      return box;
+    }
+
+    /* ---- patch(name, pred, o) ----
+
+       A residue-sized mark, as its OWN mesh over the skin: `o.colour` and
+       `o.opacity` are independent of the skin's, which is the entire reason it
+       is not a paint. See kit/surface.js for why, and for why a triangle needs
+       all three of its vertices on the patch to count.
+
+       `pred` may be a function, or a plain {chain, num} / {chains:'B,D',
+       nums:[6]} — a page marking one residue should not have to write a
+       closure. Passing a null `pred` removes the patch. */
+    function predOf(p) {
+      if (typeof p === 'function') return p;
+      const chains = p.chains ? new Set(String(p.chains).split(',')) : null;
+      const nums = p.nums ? new Set(p.nums.map(Number))
+                 : p.num != null ? new Set([Number(p.num)]) : null;
+      const names = p.names ? new Set(p.names) : null;
+      return (ch, n, nm) => (!chains || chains.has(ch))
+                         && (!nums || nums.has(Number(n)))
+                         && (!names || names.has(nm));
+    }
+
+    function buildPatch(P) {
+      if (!surfS) return;
+      if (P.mesh) { skinGroup.remove(P.mesh); P.mesh.geometry.dispose();
+                    P.mesh.material.dispose(); P.mesh = null; }
+      const built = SurfLib.patchGeo(THREE, surfS, P.pred);
+      P.tris = built.tris;
+      P.residues = built.residues;
+      /* AN EMPTY PATCH IS THE INTERESTING FAILURE and it is silent on screen:
+         a buried residue, a mis-tagged one, or the wrong chain letters all
+         draw exactly nothing and look like a mark that has not been reached
+         yet. Warned, not thrown, because a page switching between structures
+         will legitimately ask for a residue one of them does not have. */
+      if (!P.tris) {
+        console.warn(`Proteinbox: patch '${P.name}' matched no triangles`
+          + ' — buried, mis-tagged, or the wrong chain?');
+        return;
+      }
+      P.mesh = new THREE.Mesh(built.geo, new THREE.MeshStandardMaterial({
+        color: P.colour, roughness: 0.4, metalness: 0, side: THREE.FrontSide,
+        transparent: P.opacity < 1, opacity: P.opacity, depthWrite: false,
+      }));
+      /* Over the skin, which is renderOrder 1. A patch at the same order sorts
+         against it by distance and flickers through it as the model turns. */
+      P.mesh.renderOrder = 2;
+      P.mesh.visible = P.visible;
+      skinGroup.add(P.mesh);
+    }
+
+    function patch(name, pred, o) {
+      if (pred == null) return unpatch(name);
+      o = o || {};
+      const prev = patches.get(name);
+      const P = { name, pred: predOf(pred), mesh: null, tris: 0, residues: [],
+                  colour: o.colour != null ? o.colour : (prev ? prev.colour : 0xd94f1e),
+                  opacity: o.opacity != null ? o.opacity : (prev ? prev.opacity : 1),
+                  visible: o.visible != null ? o.visible : (prev ? prev.visible : true) };
+      if (prev && prev.mesh) { skinGroup.remove(prev.mesh); prev.mesh.geometry.dispose();
+                               prev.mesh.material.dispose(); }
+      patches.set(name, P);
+      buildPatch(P);
+      box.draw();
+      return box;
+    }
+
+    /* Colour, opacity and visibility WITHOUT reselecting: a lesson fading a
+       mark in must not rebuild its index every frame. */
+    function setPatch(name, o) {
+      const P = patches.get(name);
+      if (!P) return box;
+      if (o.colour != null) P.colour = o.colour;
+      if (o.opacity != null) P.opacity = o.opacity;
+      if (o.visible != null) P.visible = o.visible;
+      if (P.mesh) {
+        P.mesh.material.color.set(P.colour);
+        P.mesh.material.opacity = P.opacity;
+        P.mesh.material.transparent = P.opacity < 1;
+        P.mesh.visible = P.visible;
+      }
+      box.draw();
+      return box;
+    }
+
+    function unpatch(name) {
+      const P = patches.get(name);
+      if (P && P.mesh) { skinGroup.remove(P.mesh); P.mesh.geometry.dispose();
+                         P.mesh.material.dispose(); }
+      patches.delete(name);
+      box.draw();
+      return box;
+    }
+
     function showSurface() {
-      if (surf) { surf.visible = true; box.draw(); return; }
+      if (surf) { surf.visible = true; applySkin(); syncSkin(); box.draw(); return; }
       busy(true);
       fetch(opts.surface)
         .then(r => r.arrayBuffer())
@@ -1004,12 +1213,18 @@
           if (box.dead) return;
           if (sesOwner && sesOwner !== box) sesOwner.drop();
           const S = SurfLib.decode(THREE, buf);
+          surfS = S;
           surf = new THREE.Mesh(S.geo, new THREE.MeshStandardMaterial({
             color: opts.surfaceColour || SES_COLOUR,
             roughness: 0.45, metalness: 0.0, side: THREE.FrontSide,
           }));
-          box.root.add(surf);
+          skinGroup.add(surf);
           sesOwner = box;
+          syncSkin();
+          applySkin();
+          /* Whatever was asked for while the bytes were in flight. */
+          if (skinPaint) paintSkin(skinPaint);
+          for (const P of patches.values()) buildPatch(P);
           box.draw();
         })
         .catch(() => setRep('ribbon'))
@@ -1070,7 +1285,11 @@
     const bar = document.createElement('div');
     bar.className = 'pbox-rep';
     const reps = ['ribbon'];
-    if (opts.surface) reps.push('surface');
+    /* `skin` is opt-in and `surface` is not. A gallery card asking for a
+       surface means the opaque one it has always meant, and growing a third
+       button under every card in the shelf is not a thing a page asked for. */
+    if (opts.surface && opts.skin) reps.push('skin');
+    if (opts.surface && opts.skinOnly !== true) reps.push('surface');
     const btns = reps.map(name => {
       const b = document.createElement('button');
       b.type = 'button'; b.dataset.rep = name; b.textContent = name;
@@ -1103,8 +1322,13 @@
     function setRep(next) {
       rep = next;
       btns.forEach(b => b.classList.toggle('on', b.dataset.rep === rep));
-      chainGroup.visible = rep === 'ribbon';
-      if (surf) surf.visible = rep === 'surface';
+      // The skin is the one rep that draws two things: the ribbon is what it
+      // is a skin ON.
+      chainGroup.visible = rep === 'ribbon' || rep === 'skin';
+      if (surf) { surf.visible = rep === 'surface' || rep === 'skin'; applySkin(); }
+      // A patch marks the surface, so it shows wherever the surface does.
+      const onSurf = rep === 'skin' || rep === 'surface';
+      for (const P of patches.values()) if (P.mesh) P.mesh.visible = P.visible && onSurf;
       if (player) player.mesh.visible = rep === 'fold';
       if (rep !== 'fold') box.stop();
       if (play) {
@@ -1113,6 +1337,10 @@
         play.classList.toggle('on', rep === 'fold');
       }
       if (rep === 'ribbon') { reframeStill(); box.draw(); }
+      // A skin is framed on the ribbon it covers: the surface is the same
+      // molecule half an angstrom out, and reframing on it would nudge the
+      // camera every time the button is pressed.
+      else if (rep === 'skin') { reframeStill(); showSurface(); }
       else if (rep === 'surface') showSurface();
       else showFold();
       if (opts.onRep) opts.onRep(rep);
@@ -1121,6 +1349,17 @@
 
     box.drop = () => { setRep('ribbon'); dropSurface(); };
     box.setRep = setRep;
+    box.paintSkin = paintSkin;
+    box.patch = patch;
+    box.setPatch = setPatch;
+    box.unpatch = unpatch;
+    /* The decoded surface, for a page that wants to ask it something this box
+       has no opinion about — which residues a chain has, where a patch's
+       centre is. Null until the bytes land. */
+    box.surface = () => surfS;
+    box.patchInfo = name => { const P = patches.get(name);
+      return P ? { tris: P.tris, residues: P.residues, colour: P.colour,
+                   opacity: P.opacity, visible: P.visible } : null; };
 
     /* Replace what is drawn without replacing the box. A page that switches
        between structures keeps one WebGL context, one camera and one turn,
@@ -1288,7 +1527,9 @@
     const has = () => { const o = fromRegistry(Object.assign({}, P)); return { surface: !!o.surface, fold: !!o.fold }; };
     function applyRep() {
       const h = has();
-      const want = P.rep === 'surface' && !h.surface ? 'ribbon' : P.rep === 'fold' && !h.fold ? 'ribbon' : P.rep;
+      const needsSurf = P.rep === 'surface' || P.rep === 'skin';
+      const want = needsSurf && !h.surface ? 'ribbon'
+                 : P.rep === 'fold' && !h.fold ? 'ribbon' : P.rep;
       if (want !== box.rep) box.setRep(want);
     }
     function state() {
