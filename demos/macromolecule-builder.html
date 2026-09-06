@@ -532,12 +532,12 @@ function dressHalos(p){
     const m = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({
       color: MolLib.PALETTE.bonds.condense,
       transparent:true, opacity:0.16, depthWrite:false }));
-    // Scaled off the atom's own radius, and deliberately just inside it: what
-    // shows is a rim where the sphere curves away, not a disc over the
-    // molecule. Glycerol's three hydroxyls sit close enough that a halo much
-    // larger than its atom merges them into one blob and buries the –OH each
-    // one is there to point at.
-    m.scale.setScalar((MolLib.PALETTE.radii[a.el] || 0.7) * S * .9);
+    // A MULTIPLE OF THE ATOM'S OWN DRAWN RADIUS, and NOT scaled by SCALE:
+    // buildMolecule draws a sphere at the palette radius as it stands (O is
+    // 0.95), while atom POSITIONS are the ones SCALE multiplies. Applying it
+    // here too made the halo 1.9x bigger than the number said, which is not
+    // visible from the number and was tuned against for two rounds.
+    m.scale.setScalar((MolLib.PALETTE.radii[a.el] || 0.7) * 1.7);
     m.position.set(...a.pos);
     m.userData.halo = true;
     p.mol.add(m);
