@@ -240,54 +240,86 @@
       if (hovered) setHighlight(hovered, true);
       return hovered;
     }
-    /* ---- ambient motion ----
-       NOT THE PLANT CELL'S. cell/plantcell.js circulates its whole cytoplasm,
-       because cyclosis is actin and myosin hauling the cytosol round a
-       central vacuole, and this cell has neither. What an animal cell's
-       organelles actually do is jiggle in place and get carried along
-       microtubules, which radiate from the centrosome — so the motion here
-       is a slow wander for everything, and for the vesicles a run in and out
-       along the line to the MTOC. Copying the orbit across would have looked
-       the same and claimed something false.
+    const MTOC = new V3(-3.3, -2.2, -4.6);        // the centrosome, from its placement above
 
-       AMPLITUDES ARE SMALL BECAUSE NOTHING HERE RESOLVES A COLLISION. The
-       plant cell can afford a wander because a solver pushes organelles
-       apart; this one is placed once, by hand, and a drift is just added on
-       top. The static layout already runs some pairs close, so the budget is
-       roughly a tenth of a unit each and the vesicles, which move furthest,
-       run along a line that was clear when they were placed.
-       The nucleus and the ER are left alone — one is huge, the other wraps
-       it. */
-    const MTOC = new V3(-3.3, -2.2, -4.6);        // the centrosome, from above
-    const drift = organelles
+    /* ---- ambient motion, with a solve ----
+       NOT THE PLANT CELL'S MOTION. cell/plantcell.js circulates its whole
+       cytoplasm, because cyclosis is actin and myosin hauling the cytosol
+       round a central vacuole, and this cell has neither. What an animal
+       cell's organelles do is jiggle in place and get carried along
+       microtubules, which radiate from the centrosome — so this is a wander
+       for everything and, for the vesicles, a run in and out along the line
+       to the MTOC. Copying the orbit across would have looked the same and
+       claimed something false.
+
+       THE SOLVE IS WHAT MAKES THE MOTION VISIBLE. Without one the amplitude
+       has to stay under a tenth of a unit or organelles pass through each
+       other, and a tenth of a unit in a cell ten across is nothing to look
+       at. With it they push apart, so the wander can be big enough to see.
+       Same three terms as the plant cell's — a spring to a drifting seed,
+       repulsion, a wall — but in THREE dimensions, because this cell is a
+       bowl with organelles at many depths rather than a plane. That is also
+       why it can be this loose: spheres in a volume pack far more easily
+       than discs on a plane, and this cell is about a quarter full. */
+    const BODY = { mitochondrion: 1.6, golgi: 2.2, centrosome: 1.4, vesicle: 0.6 };
+    const bodies = organelles
       .filter(o => o.userData.organelle !== 'nucleus' && o.userData.organelle !== 'er')
-      .map(o => {
-        const run = o.userData.organelle === 'vesicle'
-          ? o.position.clone().sub(MTOC).normalize().multiplyScalar(rr(0.5, 1.0))
-          : null;
-        return {
-          o, base: o.position.clone(), run,
-          ph: [rr(0, 2 * PI), rr(0, 2 * PI), rr(0, 2 * PI)],
-          sp: [rr(0.11, 0.19), rr(0.5, 0.9), rr(0.13, 0.21)],
-          amp: rr(0.06, 0.13), bob: rr(0.03, 0.06),
-          runSp: rr(0.05, 0.11), runPh: rr(0, 2 * PI),
-          spin: rr(-0.05, 0.05), spinBase: o.rotation.y,
-        };
-      });
+      .map(o => ({
+        o, seed: o.position.clone(), p: o.position.clone(), v: new V3(), f: new V3(),
+        r: BODY[o.userData.organelle] || 1.2, w: 1,
+        run: o.userData.organelle === 'vesicle'
+          ? o.position.clone().sub(MTOC).normalize().multiplyScalar(rr(1.4, 2.6)) : null,
+        ph: [rr(0, 2 * PI), rr(0, 2 * PI), rr(0, 2 * PI)],
+        sp: [rr(0.10, 0.18), rr(0.13, 0.22), rr(0.11, 0.20)],
+        amp: rr(0.45, 0.85), runSp: rr(0.05, 0.10), runPh: rr(0, 2 * PI),
+        spin: rr(-0.09, 0.09), spinBase: o.rotation.y,
+      }));
+    // The nucleus takes part as an immovable body: everything else has to
+    // get out of its way, and it is far too big to be shoved by a vesicle.
+    bodies.push({ o: null, p: nucPos.clone(), seed: nucPos.clone(), v: new V3(), f: new V3(), r: Rn + 0.4, w: 0, run: null });
+
+    const target = new V3(), d3 = new V3();
+    function solve(dt) {
+      const KS = 14, KR = 260, DAMP = 6, CEIL = -0.4;
+      for (const b of bodies) {
+        if (b.w === 0) continue;
+        target.copy(b.seed);
+        target.x += Math.sin(t * b.sp[0] + b.ph[0]) * b.amp;
+        target.y += Math.sin(t * b.sp[1] + b.ph[1]) * b.amp * 0.6;
+        target.z += Math.sin(t * b.sp[2] + b.ph[2]) * b.amp;
+        if (b.run) target.addScaledVector(b.run, Math.sin(t * b.runSp + b.runPh));
+        b.f.subVectors(target, b.p).multiplyScalar(KS);
+      }
+      for (const A of bodies) {
+        if (A.w === 0) continue;
+        for (const B of bodies) {
+          if (A === B) continue;
+          d3.subVectors(A.p, B.p);
+          const dist = d3.length() || 1e-4, ov = A.r + B.r - dist;
+          if (ov <= 0) continue;
+          A.f.addScaledVector(d3.divideScalar(dist), KR * ov * (B.w === 0 ? 1.6 : 1));
+        }
+      }
+      const damp = Math.max(0, 1 - DAMP * dt);
+      for (const b of bodies) {
+        if (b.w === 0) continue;
+        b.v.addScaledVector(b.f, b.w * dt).multiplyScalar(damp);
+        b.p.addScaledVector(b.v, dt);
+        // the shell, and the cut: nothing may rise above the opening
+        clampToCell(b.p, b.r);
+        if (b.p.y > CEIL - b.r * 0.5) { b.p.y = CEIL - b.r * 0.5; if (b.v.y > 0) b.v.y = 0; }
+        b.o.position.copy(b.p);
+        b.o.rotation.y = b.spinBase + b.spin * Math.sin(t * 0.07 + b.ph[0]);
+      }
+    }
+
     let t = 0;
     function step(dt) {
       t += dt;
-      for (const b of drift) {
-        const p = b.o.position.copy(b.base);
-        p.x += Math.sin(t * b.sp[0] + b.ph[0]) * b.amp;
-        p.y += Math.sin(t * b.sp[1] + b.ph[1]) * b.bob;
-        p.z += Math.sin(t * b.sp[2] + b.ph[2]) * b.amp;
-        // a vesicle rides its track out and back rather than only wandering
-        if (b.run) p.addScaledVector(b.run, Math.sin(t * b.runSp + b.runPh));
-        b.o.rotation.y = b.spinBase + b.spin * Math.sin(t * 0.07 + b.ph[0]);
-      }
+      solve(dt);
       nucleolus.material.emissiveIntensity = 0.4 + 0.12 * Math.sin(t * 1.3);
     }
+
     // World-space bounding sphere of an organelle, for a camera flight.
     function bounds(org) {
       root.updateMatrixWorld(true);
