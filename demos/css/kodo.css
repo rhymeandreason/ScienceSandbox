@@ -479,7 +479,7 @@ a.crumb:hover { color: var(--accent) }
    page's own name stops here". A reading page, where the deck runs straight
    into the first section, sets `.pagehead.open` and has none. */
 .pagehead {
-  display: flex; flex-wrap: wrap; align-items: baseline;
+  display: flex; flex-wrap: wrap; align-items: flex-end;
   gap: 0 clamp(1rem, 2.2vw, 1.5rem);
   padding: clamp(1.25rem, 3.5vw, 2rem) 0 1.5rem;
   border-bottom: 2px solid var(--border-strong);
