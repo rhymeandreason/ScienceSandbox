@@ -173,7 +173,7 @@
         </div>
         <p class="stats" id="len"></p>`);
       const F = ctx.use('fibre');
-      F.set({ preset: 'strand', rep: 'tube', marks: true, repeats: 4 });
+      F.set({ preset: 'strand', rep: 'surface', marks: true, repeats: 4 });
       ctx.ui.range(ctx.ui.q('#rep'), v => F.set({ repeats: +v }, { snap: true }));
       ctx.ui.qa('#shape button').forEach(b => {
         b.onclick = () => {
@@ -181,7 +181,7 @@
           /* The preset carries its own repeat count, and here the slider is the
              one that means anything: switching shape must change how many
              STRANDS there are, not silently move a number the reader set. */
-          F.set({ preset: b.dataset.p, rep: 'tube',
+          F.set({ preset: b.dataset.p, rep: 'surface',
                   repeats: +ctx.ui.q('#rep').value });
         };
       });

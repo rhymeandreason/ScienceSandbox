@@ -60,6 +60,7 @@
  *    core      A   radius of the two core strands       glides
  *    sheath    A   radius of the sheath ring            glides
  *    pitch     A   helical pitch of the whole fibre     glides
+ *    skinColour  the skin's own colour where no mark claims it
  *    base      path prefix to sickle/ from the page
  *
  *  The three that glide are placements: every instance is re-seated, nothing is
@@ -79,7 +80,7 @@
   const DEFAULTS = {
     preset: 'fibre', repeats: 12, strands: 7,
     rep: 'tube', colour: 'strand', marks: true,
-    core: 34, sheath: 82, pitch: 3000,
+    core: 34, sheath: 82, pitch: 3000, skinColour: null,
     base: '',
   };
 
@@ -159,7 +160,17 @@
      fibre uses that spare beta6 in contacts BETWEEN double strands is exactly
      the part 2HBS does not contain. */
   const IDLE_SCALE = 0.55, IDLE_LIGHT = 0.55;
-  const SURF_PLAIN = 0xc9c2b6;
+  /* THE SKIN'S OWN COLOUR, when nothing else is claiming it. A warm gold: a
+     protein surface has to read as a material rather than as a highlight, and
+     the near-neutral stone it replaced went grey against the paper the moment
+     several molecules overlapped — which is most of what beat 3 is.
+
+     IT MUST LOSE TO BOTH MARKS. The patch is a bright orange and the pocket a
+     deep brown, and a skin in the beta chain's own amber (0xd9a520) put all
+     three in one family and buried the very thing they mark. This is lighter
+     and duller than that on purpose: same warmth, no competition. `skinColour`
+     overrides it for a page that needs another. */
+  const SURF_PLAIN = 0xe0cd97;
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -381,7 +392,7 @@
         const key = r[0] + ':' + r[1];
         if (showMarks && site.has(key)) mark.copy(site.get(key));
         else if (byChain) mark.set(ALPHA_CHAINS.has(r[0]) ? ALPHA_COLOR : BETA_COLOR);
-        else mark.set(SURF_PLAIN);
+        else mark.set(P.skinColour == null ? SURF_PLAIN : P.skinColour);
         col[v * 3] = mark.r; col[v * 3 + 1] = mark.g; col[v * 3 + 2] = mark.b;
       }
       attr.needsUpdate = true;
