@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sickle cell — one letter, and what follows</title>
+<link rel="stylesheet" href="css/kodo.css">
+<link rel="stylesheet" href="css/lesson-shell.css">
+<link rel="stylesheet" href="dna/codon.css">
+<style>
+  /* The page's own, and only what the shell's sheet has no opinion about. */
+  .lshell-panel .cverdict{margin-top:8px}
+  .lshell-panel .ccard{max-width:100%}
+  .lshell-panel .warn{color:var(--spark, #d4671f)}
+  .lshell-panel .stats{line-height:1.5}
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="lib/palette.js"></script>
+<script src="lib/tokens-from-palette.js"></script>
+<script src="lib/molecules.js"></script>
+<script src="lib/scene.js"></script>
+<script src="lib/geo.js"></script>
+<script src="lib/annotate.js"></script>
+<script src="kit/card-stage.js"></script>
+<script src="kit/lesson-shell.js"></script>
+<script src="kit/ribbon.js"></script>
+<script src="kit/tube.js"></script>
+<script src="kit/surface.js"></script>
+<script src="kit/proteinbox.js"></script>
+<script src="proteins/proteins.js"></script>
+<script src="sickle/sickle-fibre.js"></script>
+<script src="bloodcell/bloodcell.js"></script>
+<script src="dna/codon.js"></script>
+<script src="sickle/sickle-steps.js"></script>
+<script>
+'use strict';
+/* =============================================================================
+ *  sickle-lab.html — the wiring. Content is sickle/sickle-steps.js.
+ * =============================================================================
+ *  FOUR COMPONENTS SHARE ONE STAGE, one at a time, and that is the lesson's
+ *  structure rather than a limitation. A gene, two molecules, a fibre and a
+ *  cell sit at different rungs of the scale ladder, and components at different
+ *  rungs may not share a camera (docs/Scale.md) — so moving between them is a
+ *  HANDOFF and never a camera move. `use(name)` is that handoff.
+ *
+ *  ONE MOUNT PER COMPONENT, KEPT. Destroying and re-creating on every step
+ *  would throw away the reader's turn, re-fetch a 1.5 MB surface and give the
+ *  WebGL context back only to ask for it again. So a component that has been
+ *  built is hidden rather than dropped, and only the one on stage is running.
+ *
+ *  THE BUDGET THAT MAKES THAT SAFE: three contexts at most, and kit/card-stage
+ *  rations them across the page anyway. If this ever grows a fifth scene, the
+ *  answer is to drop the least recently used one here, not to raise the cap.
+ * ========================================================================== */
+
+const shell = LessonShell.create({
+  brand: 'Sickle cell',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: SickleSteps.steps,
+  ctx: { state: {} },
+  onStep(step, i) { document.body.dataset.beat = i + 1; },
+});
+
+/* Each component gets its own host inside the stage, so hiding one is a class
+   and not a teardown. */
+const hosts = {};
+const built = {};
+function host(name) {
+  if (hosts[name]) return hosts[name];
+  const d = document.createElement('div');
+  d.className = 'lshell-scene';
+  d.style.cssText = 'position:absolute;inset:0';
+  /* The panel's room, the same function every component's mount takes. */
+  d.viewOffset = shell.stage.viewOffset;
+  shell.stage.appendChild(d);
+  return (hosts[name] = d);
+}
+
+const MAKE = {
+  /* ONE TETRAMER, SKINNED. `skin:true` puts the SES over the ribbon instead of
+     instead of it, which is what lets the beta6 patch be somewhere ON a fold
+     rather than a picture of a fold. The lesson-tier surface, not the card's:
+     at 1.4 A the patch is 177 triangles and at 0.7 it is 840, and this beat is
+     a residue question. */
+  gene: () => {
+    const P = Proteinbox.create({
+      mount: host('gene'),
+      protein: 'hemoglobin', variant: SickleSteps.HBA.id,
+      trace: SickleSteps.HBA.trace, surface: SickleSteps.HBA.surface,
+      chains: 'A,B,C,D', skin: true, orbit: true,
+      viewOffset: shell.stage.viewOffset,
+    });
+    P.setRep('skin');
+    P.patch('b6', { chains: 'B,D', num: 6 }, { colour: 0xd4671f });
+    /* The other molecule, decoded and uploaded while the reader is still on
+       this one, so the first press of the toggle is not the slow one. */
+    P.preloadSurface(SickleSteps.HBS.surface);
+    fetch(SickleSteps.HBS.trace).then(r => r.json())
+      .then(t => { TRACE[SickleSteps.HBS.id] = t; P.preloadData(t, { chains: 'A,B,C,D' }); });
+    return P;
+  },
+  fibre: () => SickleFibre.mount(host('fibre'), {
+    base: 'sickle/', preset: 'contact', rep: 'surface',
+    viewOffset: shell.stage.viewOffset,
+  }),
+  cell: () => BloodCell.mount(host('cell'), {
+    sickle: 0, viewOffset: shell.stage.viewOffset,
+  }),
+};
+
+/* Traces are parsed once and handed back by id, so a switch inside beat 1 is
+   never a re-fetch. */
+const TRACE = {};
+shell.ctx.trace = v => TRACE[v.id];
+for (const v of [SickleSteps.HBA, SickleSteps.HBS])
+  fetch(v.trace).then(r => r.json()).then(t => { TRACE[v.id] = t; });
+
+let onStage = null;
+shell.ctx.use = function use(name) {
+  if (!built[name]) built[name] = MAKE[name]();
+  if (onStage !== name) {
+    for (const [k, c] of Object.entries(built)) {
+      const on = k === name;
+      hosts[k].style.display = on ? '' : 'none';
+      /* Only the scene on stage runs a loop. A hidden component keeps its
+         context and its geometry and costs nothing per frame. */
+      if (on) { c.start && c.start(); c.draw && c.draw(); }
+      else if (c.stop) c.stop();
+    }
+    onStage = name;
+  }
+  return built[name];
+};
+
+shell.goTo((() => {
+  const m = /[?&]step=(\d+)/.exec(location.search);
+  return m ? Math.max(1, Math.min(SickleSteps.steps.length, +m[1])) - 1 : 0;
+})());
+</script>
+</body>
+</html>

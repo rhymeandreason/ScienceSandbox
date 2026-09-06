@@ -692,7 +692,7 @@
         } else if (P.rep === 'surface') {
           P.rep = 'tube';
         }
-        set({ preset: P.preset });
+        rebuild();
         emit('load', state());
         return api;
       });
