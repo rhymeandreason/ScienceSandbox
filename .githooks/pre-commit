@@ -390,6 +390,26 @@ else
   echo "pre-commit: skipping check-codon.js — no codon file staged"
 fi
 
+# sickle/ gates the fibre component. The bake is not in the pattern on purpose:
+# check-fibre.js reads fibre.json but asserts the ASSEMBLY, and a re-bake is
+# already covered by the baker's own refusals. What this catches is the module
+# drifting from the arithmetic it prints — a strain measured against the wrong
+# baseline, or a placement that has stopped being a screw, neither of which
+# looks wrong on screen.
+if git diff --cached --name-only | grep -qE '^demos/sickle/(sickle-fibre\.js|tools/check-fibre\.js)$'; then
+  if ! node sickle/tools/check-fibre.js > /tmp/cfb.$$ 2>&1; then
+    tail -25 /tmp/cfb.$$; rm -f /tmp/cfb.$$
+    echo ""
+    echo "pre-commit FAILED: check-fibre.js — the fibre no longer assembles the way"
+    echo "  it says it does. A screw failure means the strand tears along its length;"
+    echo "  a strain failure means the number the readout prints is not what it means."
+    exit 1
+  fi
+  rm -f /tmp/cfb.$$
+else
+  echo "pre-commit: skipping check-fibre.js — no fibre module staged"
+fi
+
 # macromolecule/ gates itself, plus every spec and module its answers are built
 # out of. peptide.js reads `condense:`, which molecules.js DERIVES from each
 # spec's `pep` indices — so a renumbered residue, or a change to that

@@ -55,6 +55,7 @@ const COMPONENTS = {
   PlantCell:  'cell/plantcell.js',
   Graph:      'graph/graph.js',
   BloodCell:  'bloodcell/bloodcell.js',
+  SickleFibre: 'sickle/sickle-fibre.js',
 };
 
 /* NOT IN THE WORLD. A graph has no size, so it sits on no rung and shares a

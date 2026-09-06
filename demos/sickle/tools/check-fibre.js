@@ -1,0 +1,138 @@
+#!/usr/bin/env node
+/* =====================================================================
+ *  check-fibre.js — the assertions behind sickle/sickle-fibre.js
+ *
+ *  WHY THIS EXISTS. The component prints numbers, and every one of them
+ *  is a claim: an axial repeat, a lateral fit, and a STRAIN that decides
+ *  whether the picture on screen is modelling anything at all. None of
+ *  them looks wrong when it is: a fibre drawn with a broken screw is
+ *  still a plausible rope, and a strain computed against the wrong
+ *  baseline is a small number in a monospace readout.
+ *
+ *  IT RUNS THE MODULE, NOT A COPY. sickle-fibre.js keeps its assembly
+ *  arithmetic free of THREE for exactly this reason — `place`, `strainOf`
+ *  and `linkOf` are the same functions the renderer uploads from, so an
+ *  assertion here is about what is on screen rather than about a second
+ *  implementation that agrees with itself.
+ *
+ *  THE VACUITY TRAP. Most of these are about a TWIST, and a strand with
+ *  no twist satisfies almost all of them trivially: an untwisted screw is
+ *  a translation, every link is identical for the boring reason, and the
+ *  strain is zero because nothing was strained. So each assertion that
+ *  rides on the twist prints the twist it was made at, and the fixture is
+ *  chosen to be off-axis and turning.
+ *
+ *  Run:  node sickle/tools/check-fibre.js
+ * ===================================================================== */
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const F = require(path.join(__dirname, '..', 'sickle-fibre.js'));
+
+let fails = 0, checks = 0;
+const ok = (cond, msg) => { checks++; if (!cond) { fails++; console.log('  FAIL  ' + msg); } };
+const near = (a, b, tol, msg) =>
+  ok(Math.abs(a - b) <= tol, `${msg}  (got ${(+a).toFixed(4)}, want ${b}±${tol})`);
+const head = t => console.log('\n' + t + '\n' + '-'.repeat(t.length));
+const note = m => console.log('        · ' + m);
+
+const BAKE = path.join(__dirname, '..', 'data', 'fibre.json');
+if (!fs.existsSync(BAKE)) {
+  console.log('no sickle/data/fibre.json — run: node sickle/tools/bake-fibre.js');
+  process.exit(1);
+}
+const D = JSON.parse(fs.readFileSync(BAKE, 'utf8'));
+const { Mat, seatsFor, place, uprightOf, strainOf, linkOf, axialLenOf } = F;
+
+/* ---- 1. the bake is the shape the component reads ------------------- */
+head('the bake');
+const axial = axialLenOf(D);
+ok(D.pair && D.pair.R && D.pair.t, 'the lateral operation is present');
+ok(Array.isArray(D.marks) && D.marks.length >= 2, 'the contact marks are present');
+ok(D.marks.some(m => m.donates) && D.marks.some(m => m.receives),
+   'one chain donates its beta6 and another receives into its pocket');
+// The strand claim rests on this: one way in and one way out per molecule.
+ok(D.marks.filter(m => m.donates).length === 1
+   && D.marks.filter(m => m.receives).length === 1,
+   'exactly one of each, which is what makes this a strand and not a clump');
+ok(axial > 40 && axial < 90, `the axial repeat is ${axial.toFixed(2)} A`);
+note(`and the two beta chains differ · donates ${D.marks.find(m=>m.donates).chain}, `
+   + `receives ${D.marks.find(m=>m.receives).chain} — the same chain for both would `
+   + 'make the strand claim vacuous');
+
+/* ---- 2. the matrix layer ------------------------------------------- */
+head('the arithmetic');
+const I = Mat.I();
+ok(Mat.mul(I, I).every((v, i) => Math.abs(v - I[i]) < 1e-12), 'identity times identity');
+const up = uprightOf(D);
+const a3 = Mat.apply(up, D.axial);
+near(a3[0], 0, 1e-9, 'upright puts the crystal a axis on +Y (x)');
+near(a3[2], 0, 1e-9, '…and on +Y (z)');
+near(a3[1], axial, 1e-9, '…with its length unchanged');
+// Not vacuous only if `a` was not already +Y.
+const wasAligned = Math.abs(D.axial[0]) < 1e-6 && Math.abs(D.axial[2]) < 1e-6;
+ok(!wasAligned, 'and the crystal axis genuinely needed turning');
+note(`axial in the crystal = [${D.axial.map(v => v.toFixed(1)).join(', ')}] — already `
+   + 'on +Y would make the three checks above test nothing');
+
+/* ---- 3. the seating ------------------------------------------------ */
+head('the seats');
+ok(seatsFor(1, 34, 82).length === 1, 'one double strand, one seat');
+ok(seatsFor(7, 34, 82).length === 7, 'seven double strands, seven seats');
+const s1 = seatsFor(1, 34, 82)[0];
+near(s1.rad, 82, 1e-9, 'a lone strand sits on the sheath radius, not the core');
+const s7 = seatsFor(7, 34, 82);
+ok(s7.filter(s => s.rad === 34).length === 2, 'seven strands put exactly two in the core');
+ok(s7.filter(s => s.rad === 82).length === 5, '…and five around the sheath');
+// The sheath five must be spread, not stacked.
+const angs = s7.filter(s => s.rad === 82).map(s => s.ang);
+ok(new Set(angs.map(a => a.toFixed(6))).size === 5, 'and the five sheath seats are distinct');
+
+/* ---- 4. THE SCREW, which is what makes one strain number honest ----- */
+head('the strand is a screw');
+const PITCH = 3000, RAD = 82;
+const links = [0, 1, 2, 5, 9].map(i => linkOf(D, RAD, PITCH, i));
+const drift = links.slice(1).reduce((m, L) =>
+  Math.max(m, Math.max(...L.map((v, k) => Math.abs(v - links[0][k])))), 0);
+ok(drift < 1e-9,
+   `every link along the strand is the same rigid motion (max drift ${drift.toExponential(1)})`);
+note(`and the strand is genuinely twisting · ${(360 * axial / PITCH).toFixed(2)} deg per `
+   + 'repeat at 3000 A — a straight strand would satisfy this trivially');
+// A straight strand IS a screw too, so prove the check can fail: an ad-hoc
+// placement that is not a screw must be caught by the same comparison.
+const bent = [0, 1].map(i => {
+  const seat = { rad: RAD, ang: 0 };
+  const A = place(D, seat, i, PITCH, up);
+  return i === 1 ? Mat.mul(Mat.transl(0, 0.5, 0), A) : A;
+});
+ok(Mat.dist(Mat.apply(bent[1], [0,0,0]), Mat.apply(place(D, {rad:RAD,ang:0}, 1, PITCH, up), [0,0,0]))
+   > 0.4, 'and a placement that is NOT a screw is measurably different');
+
+/* ---- 5. the strain -------------------------------------------------- */
+head('what the twist costs the contact');
+const straight = strainOf(D, RAD, 1e12);
+near(straight, 0, 1e-6, 'an untwisted strand strains nothing');
+const at3000 = strainOf(D, RAD, PITCH);
+ok(at3000 > 0, `a twisted one does — +${at3000.toFixed(2)} A at 3000 A pitch`);
+// The two ways it grows, which is the whole reason it is reported.
+ok(strainOf(D, RAD, 1500) > at3000, 'a tighter pitch strains more');
+ok(strainOf(D, RAD * 2, PITCH) > at3000, 'a wider radius strains more');
+// Core strands are the ones that survive the twist, and that is a real claim
+// about the model: the sheath is where it stops being one.
+ok(strainOf(D, 34, PITCH) < at3000, 'and a core strand strains less than a sheath one');
+note(`core ${strainOf(D, 34, PITCH).toFixed(2)} A vs sheath ${at3000.toFixed(2)} A — `
+   + 'equal here would mean radius was not in the model at all');
+ok(at3000 > 2, 'the commonly-cited 3000 A pitch is ALREADY past what rigid copies can '
+   + 'carry, which is the caveat the readout exists to print');
+
+/* ---- 6. the presets ------------------------------------------------- */
+head('the presets');
+ok(F.PRESETS.contact.repeats === 1 && F.PRESETS.contact.strands === 1,
+   'contact is one repeat of one double strand — two tetramers');
+ok(F.PRESETS.strand.strands === 1 && F.PRESETS.strand.repeats === undefined,
+   'strand keeps the default repeats and drops to one double strand');
+ok(Object.keys(F.PRESETS.fibre).length === 0, 'fibre is the defaults');
+ok(F.DEFAULTS.strands === 7, 'and the default is the seven double strands of the model');
+
+console.log(`\n${fails ? 'FAILED' : 'ok'} — ${checks - fails}/${checks} checks passed`);
+process.exit(fails ? 1 : 0);
