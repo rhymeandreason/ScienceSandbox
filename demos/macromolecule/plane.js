@@ -88,6 +88,13 @@
     const THREE = global.THREE;
     const o = Object.assign({
       latchR: 3.4,        // how close the solved pose has to be, in the plane
+      /* THE LAST STRETCH IS NOT THE POINTER'S. Inside this radius the piece
+       * stops tracking the cursor exactly and leans toward the pose, harder as
+       * it closes, so the two molecules are felt to pull together before
+       * anything snaps — covalent-drag.js's LEAN, at this page's scale. Longer
+       * than the latch, because here it is what carries you INTO the latch. */
+      leanR: 11,
+      lean: 0.28,         // share of the remaining gap taken per frame
       pickR: 4,           // grab radius about any of a piece's heavy atoms
       snap: 0.28,         // seconds
       tagClass: 'tag',
@@ -190,11 +197,18 @@
 
     /* ---- drag ------------------------------------------------------------- */
     let held = null, dragging = [];
+    /* THE PULL, kept between frames. A lean recomputed from the pointer every
+     * frame is wiped by the next move() and can only ever bend the last unit;
+     * held here, it closes the gap while the student holds still, which is what
+     * "they pull together" is supposed to feel like. It decays as fast as it
+     * builds, so pulling back out of range hands the piece back rather than
+     * dragging it along. */
+    const pull = { x:0, y:0 };
 
     function down(e){
       const n = nearest(toWorld(e));
       if(!n) return false;
-      held = n.p;
+      held = n.p; pull.x = 0; pull.y = 0;
       dragging = group(held).map(p => ({ p, off:p.mol.position.clone().sub(hit) }));
       try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
       return true;
@@ -202,7 +216,11 @@
     function move(e){
       if(!held) return false;
       const w = toWorld(e);
-      for(const d of dragging){ d.p.mol.position.copy(w).add(d.off); d.p.mol.position.z = 0; }
+      for(const d of dragging){
+        d.p.mol.position.copy(w).add(d.off);
+        d.p.mol.position.x += pull.x; d.p.mol.position.y += pull.y;
+        d.p.mol.position.z = 0;
+      }
       tryLatch();
       if(o.onMove) o.onMove();
       return true;
@@ -212,13 +230,40 @@
       try{ canvas.releasePointerCapture(e.pointerId); }catch(_){}
     }
 
+    /* THE PULL, and then the latch. */
+    function tryLatch(){
+      if(!held) return;
+      // Scan, lean, scan again — once each, never a loop: the gap is closed
+      // over frames, so a hand that stops short still arrives and a hand that
+      // leaves takes the piece with it.
+      const near = scan();
+      if(!near){                       // out of range: give the piece back
+        pull.x *= 0.7; pull.y *= 0.7;
+        return;
+      }
+      const k = 1 - near.gap / o.leanR;               // 0 at the edge, 1 at the pose
+      const f = k * k * o.lean;
+      const dx = near.dx * f, dy = near.dy * f;
+      pull.x += dx; pull.y += dy;
+      for(const d of dragging){ d.p.mol.position.x += dx; d.p.mol.position.y += dy; }
+      // The lean has to be TESTED, and it moves the piece after the scan that
+      // measured it — so this second pass is what turns "pulled toward the pose"
+      // into "arrived at it".
+      scan();
+    }
+
     /* THE LATCH. Near the solved pose against any other piece and it snaps in,
      * but only if `solve` returned one. Both orderings are tried: which of two
      * molecules a solver happens to frame its answer "from" is an accident of
-     * the solver, and the student has no idea which. */
-    function tryLatch(){
-      if(!held) return;
+     * the solver, and the student has no idea which.
+     *
+     * Latches if it can, and otherwise reports the nearest pose it could not
+     * reach — because a pose that is close but not close enough is not a
+     * failure, it is the one to lean toward. */
+    function scan(){
+      if(!held) return null;
       const heldGroup = new Set(group(held));
+      let near = null;
       for(const other of pieces){
         if(heldGroup.has(other)) continue;
         for(const [host, guest] of [[other, held], [held, other]]){
@@ -227,7 +272,7 @@
           const t = placeGuest(host, s);
           // MEASURED AT THE ATOM THAT WOULD BOND, when the solver says which one
           // (`at`, in the guest's own frame). The origin is not the reaction: a
-          // palmitate's sits eight ångströms down its own chain, so a tail held
+          // palmitate's sits eight angstroms down its own chain, so a tail held
           // exactly on the hydroxyl reads as far away as soon as it is turned,
           // while a palmitoleate — whose origin IS its carboxyl carbon — snaps
           // from the same gesture. That asymmetry is invisible and looks like
@@ -240,15 +285,21 @@
           // the tabletop and a 3D test can never be satisfied by a gesture that
           // cannot leave it. What the student aims is x and y; z is where the
           // chemistry then takes the molecule, and the snap carries it there.
-          if(Math.hypot(now.x - want.x, now.y - want.y) > o.latchR) continue;
+          const gap = Math.hypot(now.x - want.x, now.y - want.y);
+          if(gap > o.latchR){
+            if(gap < o.leanR && (!near || gap < near.gap))
+              near = { gap, dx:want.x - now.x, dy:want.y - now.y };
+            continue;
+          }
           // The pose is no longer the pointer's to set. Dropping the drag here
           // lets the tween land exactly on the solved pose instead of fighting
           // a cursor that is still moving.
           held = null; dragging = [];
           latch(host, guest, s, heldGroup);
-          return;
+          return null;
         }
       }
+      return near;
     }
 
     /* A point of the guest, in world space, given where the guest is. `at` is

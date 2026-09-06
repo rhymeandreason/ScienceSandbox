@@ -388,7 +388,8 @@ const L = Lesson.create(canvas, {
   // molecule reads as another drawing. Only there: the flat build is a plane
   // the pointer is projected onto, and turning it would put the two out of step.
   afterFrame:()=>{ if(dim === '3d' && !morphing) L.root.rotation.y += 0.0022;
-                   P.placeTags(); placeSticks(); stepWaters(); },
+                   P.placeTags(); placeSticks(); stepWaters();
+                   stepHalos(performance.now() / 1000); },
 });
 
 /* ---- the sandbox ---------------------------------------------------------- */
@@ -396,6 +397,9 @@ const P = MacroPlane.create({
   canvas, camera:L.camera, root:L.root, motion:L.motion, stageEl,
   tagDrop: 10,
   build: spec => Stage.buildMolecule(flat(spec), { center:false }),
+  // Every rebuild — a join, a hydrolysis, the reveal — redraws the mesh, so the
+  // halos are put back by the same hand rather than being restored by callers.
+  onRebuild: p => dressHalos(p),
 
   solve: (host, guest) => {
     const r = card.solve(host, guest);
@@ -493,6 +497,79 @@ function placeSticks(){
     s.m.position.copy(from).addScaledVector(d, 0.5);
     s.m.quaternion.setFromUnitVectors(_up, d.clone().normalize());
     s.m.scale.set(1, len, 1);
+  }
+}
+
+/* ---- the ends that can still react ----------------------------------------
+ * A HALO ON EVERY FREE ROLE, which is where covalent-drag.js's ghost slots
+ * came from and does the same job: the reactive end is a fact about the
+ * molecule, so it is drawn on the molecule rather than explained in the
+ * caption. Nothing is greyed out and nothing refuses a drag — the halo says
+ * where the chemistry is, and pushing the wrong ends together still does
+ * nothing.
+ *
+ * READ OFF `condense:`, so a spec that gains a role gains a halo and the page
+ * is not a second list of which atoms react. A spent role has no halo, which
+ * is how glycerol visibly runs out: three, then two, then one, then none, and
+ * the molecule is finished without a sentence saying so.
+ *
+ * The halo is a child of the piece's own group, so it rides every drag and
+ * every rebuild without a line of per-frame placement.
+ */
+const haloGeo = new THREE.SphereGeometry(1, 20, 16);
+function dressHalos(p){
+  for(const r of (p.spec.condense && p.spec.condense.roles) || []){
+    // FREE, not merely declared. A spent role keeps its entry — the atom it
+    // kept is still there — and haloing it would leave glycerol claiming three
+    // open hydroxyls while holding three tails, which is the one thing this
+    // card exists to disprove.
+    if(!MacroSpec.free(p.spec, r.key)) continue;
+    const a = p.spec.atoms[r.keep];
+    // The CONDENSATION colour, not the atom's. Every halo on the stage is the
+    // same colour as the bond it would make and as the ring the join throws, so
+    // the two ends of one reaction read as one thing — and a carbon's halo does
+    // not come out as a grey smudge on a grey chain.
+    const m = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({
+      color: MolLib.PALETTE.bonds.condense,
+      transparent:true, opacity:0.16, depthWrite:false }));
+    // Scaled off the atom's own radius, and deliberately just inside it: what
+    // shows is a rim where the sphere curves away, not a disc over the
+    // molecule. Glycerol's three hydroxyls sit close enough that a halo much
+    // larger than its atom merges them into one blob and buries the –OH each
+    // one is there to point at.
+    m.scale.setScalar((MolLib.PALETTE.radii[a.el] || 0.7) * S * .9);
+    m.position.set(...a.pos);
+    m.userData.halo = true;
+    p.mol.add(m);
+  }
+}
+
+/* The halos breathe, and brighten when the partner they would bond to is close
+ * enough to be caught — the last thing that happens before a snap, so a student
+ * who is nearly there can see that they are nearly there. Gone in the round
+ * view: there is nothing left to react, and a glowing shell over a finished
+ * molecule is a promise the page cannot keep. */
+const _h = new THREE.Vector3(), _o = new THREE.Vector3();
+const NEAR = 12;
+function stepHalos(t){
+  for(const p of P.pieces){
+    for(const m of p.mol.children){
+      if(!m.userData.halo) continue;
+      if(dim !== 'flat'){ m.visible = false; continue; }
+      m.visible = true;
+      m.getWorldPosition(_h);
+      let near = false;
+      for(const q of P.pieces){
+        if(q === p) continue;
+        for(const r of (q.spec.condense && q.spec.condense.roles) || []){
+          if(!MacroSpec.free(q.spec, r.key)) continue;
+          _o.set(...q.spec.atoms[r.keep].pos)
+            .applyQuaternion(q.mol.quaternion).add(q.mol.position);
+          if(_h.distanceTo(_o) < NEAR) near = true;
+        }
+      }
+      m.material.opacity = (near ? 0.3 : 0.15) + 0.04 * Math.sin(t * 2.2);
+    }
   }
 }
 
