@@ -316,9 +316,63 @@ console.log('\n== 11. the flat build, and what it keeps');
     ok(E.slots(host).length === 0, `${acid}: the flat build stops at three too`);
   }
 
+  /* THE OTHER TWO BONDS, FLAT. Same three things asked of each: the bond lands
+   * at the length its round counterpart uses, nothing leaves the plane, and a
+   * chain of four still grows only at the end that has its leaving group. */
+  {
+    const Pep = require('./peptide.js'), Gly = require('./glycosidic.js');
+    // Keyed, because glycosidic.js looks its linkage up by monomer name and
+    // the flat build refuses a mixed pair on the same test.
+    const flat = k => F.spec({ ...un(M[k]), key:k });
+    const chain = (keys, poseFn, reactFn, len, label) => {
+      let host = flat(keys[0]), bad = [];
+      const units = [host];
+      for(let i = 1; i < keys.length; i++){
+        const guest = flat(keys[i]);
+        const r = poseFn(host, guest);
+        if(!r){ bad.push(`step ${i}: no pose`); break; }
+        const placed = guest.atoms.map((a,k) => place(guest, r, k));
+        const off = Math.max(...placed.map(p => Math.abs(p[2])));
+        if(off > 1e-6) bad.push(`step ${i} leaves the plane by ${off.toFixed(3)}`);
+        const A = host.atoms[Spec.free(host, r.slot).keep].pos;
+        const B = placed[Spec.free(guest, poseFn.acceptor).keep];
+        if(Math.abs(d(A, B) - len(host, guest)) > 1e-3)
+          bad.push(`step ${i} bond ${d(A,B).toFixed(3)}`);
+        const out = reactFn(host, guest);
+        host = F.spec(out.guest) || out.guest;     // the chain grows at the guest
+        units.push(host);
+      }
+      ok(!bad.length, `${label}: three flat bonds, none of it off the plane`
+                      + (bad.length ? ' — ' + bad.join(', ') : ''));
+      return units;
+    };
+
+    const pep = (h,g) => F.peptide(h,g); pep.acceptor = 'amino';
+    chain(['glycine','alanine','serine','cysteine'], pep,
+          (h,g) => Pep.react(h,g), () => Pep.CN, 'peptide');
+    // A chain that has spent its carboxyl cannot grow at that end, flat or not.
+    const spent = Pep.react(flat('glycine'), flat('alanine')).host;
+    ok(F.peptide(spent, flat('alanine')) === null,
+       'a residue that has spent its carboxyl takes no second neighbour');
+
+    const gly = (h,g) => F.glycosidic(h,g); gly.acceptor = 'c4';
+    chain(['glucose','glucose','glucose','glucose'], gly,
+          (h,g) => Gly.react(h,g),
+          (h,g) => d(g.atoms[Spec.free(g,'c4').keep].pos,
+                     g.atoms[Spec.free(g,'c4').leaves[0]].pos), 'beta-glucose');
+    chain(['alphaGlucose','alphaGlucose','alphaGlucose','alphaGlucose'], gly,
+          (h,g) => Gly.react(h,g),
+          (h,g) => d(g.atoms[Spec.free(g,'c4').keep].pos,
+                     g.atoms[Spec.free(g,'c4').leaves[0]].pos), 'alpha-glucose');
+    // Mixing anomers is a linkage nothing measures; glycosidic.js refuses it
+    // and the flat build has to refuse it too, or the reveal has no pose.
+    ok(F.glycosidic(flat('glucose'), flat('alphaGlucose')) === null,
+       'two different anomers are refused flat, as they are round');
+  }
+
   // A molecule with no layout must REFUSE. Zeroing z instead would fold the
   // hydroxyls that point out of the page onto the backbone and still render.
-  ok(F.spec(un(M.glucose)) === null || !M.glucose.flat2d,
+  ok(F.spec(un(M.galactose)) === null,
      'a spec with no layout is refused rather than flattened by force');
 }
 

@@ -66,6 +66,10 @@
     // is tagged [i,j,2] without anyone having to notice it by hand.
     // Re-generate rather than hand-editing these numbers.
     glycine: {
+      // Laid out flat for macromolecule-builder.html's build stage:
+      // the chain is assembled in the diagram and revealed in 3D.
+      flat:true,
+      flat2d:[[-1.799,-0.346],[-0.6,-1.039],[0.6,-0.346],[0.6,1.039],[1.799,-1.039]],
       name:'Glycine', formula:'C₂H₅NO₂', class:'aminoacid', res:'Gly', side:'–H',
       // Re-verified 2026-07-30 against the committed sdf/glycine.sdf: 0.000
       // coordinate delta, bonds identical. `query` is kept because it records how
@@ -107,6 +111,10 @@
            + 'both.' },
     },
     alanine: {
+      // Laid out flat for macromolecule-builder.html's build stage:
+      // the chain is assembled in the diagram and revealed in 3D.
+      flat:true,
+      flat2d:[[-0.613,1.77],[-0.613,0.354],[0.613,-0.354],[0.613,-1.77],[1.839,0.354],[-1.839,-0.354]],
       name:'Alanine', formula:'C₃H₇NO₂', class:'aminoacid', res:'Ala', side:'–CH₃',
       // The name 'alanine' resolves to CID 5950, which is L-alanine — the right
       // one, but by PubChem's choice rather than ours. Now pinned to the CID, and
@@ -170,6 +178,10 @@
       ],
     },
     serine: {
+      // Laid out flat for macromolecule-builder.html's build stage:
+      // the chain is assembled in the diagram and revealed in 3D.
+      flat:true,
+      flat2d:[[0,1.773],[0,0.355],[1.228,-0.355],[1.228,-1.773],[2.457,0.355],[-1.228,-0.355],[-2.457,0.355]],
       name:'Serine', formula:'C₃H₇NO₃', class:'aminoacid', res:'Ser', side:'–CH₂OH',
       units:'angstrom',
       src:{path:'pubchem', cid:5951, query:'serine', record:'3d',
@@ -196,6 +208,10 @@
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
     },
     cysteine: {
+      // Laid out flat for macromolecule-builder.html's build stage:
+      // the chain is assembled in the diagram and revealed in 3D.
+      flat:true,
+      flat2d:[[0,1.858],[0,0.372],[1.287,-0.372],[1.287,-1.858],[2.574,0.372],[-1.287,-0.372],[-2.574,0.372]],
       name:'Cysteine', formula:'C₃H₇NO₂S', class:'aminoacid', res:'Cys', side:'–CH₂SH',
       units:'angstrom',
       src:{path:'pubchem', cid:5862, query:'cysteine', record:'3d',

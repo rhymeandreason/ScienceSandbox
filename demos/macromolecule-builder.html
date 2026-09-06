@@ -239,14 +239,23 @@ const CARDS = [
     monomers:['glycine', 'alanine', 'serine', 'cysteine'],
     home:{ glycine:[-21, 9], alanine:[-7, -10], serine:[9, 9], cysteine:[22, -10] },
     box:{ x:0, y:0, rxz:32, hy:22 },
+    // The bond, in whichever layout the stage is in. The reveal asks for the
+    // round one against the same two residues, so the pair lives on the card
+    // rather than inside `solve`.
+    poseIn:(h, g, slot, round) => round ? Peptide.pose(h, g) : MacroFlat.peptide(h, g),
+    flat:true,
     solve:(host, guest) => {
-      const r = Peptide.pose(un(host), un(guest));
+      const r = card.poseIn(un(host), un(guest), null, dim === '3d');
       return (!r || r.clash) ? null : r;
     },
     label:p => p.spec.name,
     unit:'residue', bond:'peptide bond',
     lead:'Push two of them together. Only one pairing of ends does anything &mdash; '
        + 'find which, and watch what comes off.',
+    round:'The build was a diagram, flat and square-cornered. Every alpha carbon '
+        + 'is sp3, and the peptide bond itself is the flat part &mdash; the unit '
+        + 'that cannot twist, which is what leaves the chain only two angles per '
+        + 'residue to fold with.',
     done:c => `<b>${c.length} residues</b>, joined N to C. Four different monomers, so this `
             + 'chain has a <b>sequence</b> &mdash; and the sequence is the whole of what it does.',
     more:'The chain can only grow at the end that still has its &ndash;COOH.',
@@ -262,10 +271,16 @@ const CARDS = [
              opts:[['glucose','\u03b2-glucose'], ['alphaGlucose','\u03b1-glucose']] },
     home:[[-24, 10], [-9, -11], [7, 10], [23, -11]],
     box:{ x:0, y:0, rxz:38, hy:24 },
-    solve:(host, guest) => Glycosidic.pose(un(host), un(guest), DISACC),
+    poseIn:(h, g, slot, round) => round ? Glycosidic.pose(h, g, DISACC)
+                                        : MacroFlat.glycosidic(h, g),
+    flat:true,
+    solve:(host, guest) => card.poseIn(un(host), un(guest), null, dim === '3d'),
     // Every sugar is turned so the chain's OWN plane is the tabletop. Nothing
     // is flattened: alpha-1,4 gets the same treatment and still climbs out.
-    start:(spec, key) => new THREE.Quaternion(...Glycosidic.startQuat(unSpec(spec, key), DISACC)),
+    // Turns each sugar so the CHAIN's own plane is the tabletop — a 3D framing,
+    // and meaningless against a layout that is already in the plane.
+    start:(spec, key) => dim === 'flat' ? new THREE.Quaternion()
+      : new THREE.Quaternion(...Glycosidic.startQuat(unSpec(spec, key), DISACC)),
     label:p => p.spec.name,
     unit:'sugar', bond:'glycosidic bond',
     lead:'All four are the same sugar. Push two together &mdash; only one of the five '
@@ -276,6 +291,10 @@ const CARDS = [
         + 'No sequence at all &mdash; the only thing this chain has is a <b>shape</b>, '
         + `and it is <b>${L.polymer}</b>'s.`;
     },
+    round:'Now the linkage decides. Beta-1,4 is a half turn per sugar, so the '
+        + 'chain lies flat and keeps going &mdash; cellulose. Alpha-1,4 is a '
+        + 'sixth of a turn, and the chain climbs off the page into a helix. The '
+        + 'diagram could not tell you that: it drew both the same.',
     more:(c, card) => Glycosidic.LINKAGE[card.monomerKey].config === 'beta'
       ? 'A half turn per sugar, so the chain is a flat ribbon and stays on the table.'
       : 'A sixth of a turn per sugar. Watch the fourth one leave the plane.',
@@ -322,9 +341,9 @@ const CARDS = [
      * a question about where the student dragged it, so the card tries every
      * role glycerol still has and takes the closest — rather than filling them
      * in a fixed order, which would move a tail somewhere nobody pointed. */
+    poseIn:(h, g, slot, round) => round ? Ester.pose(h, g, slot) : MacroFlat.pose(h, g, slot),
     solve:(host, guest) => {
       const h = un(host), g = un(guest);
-      const how = dim === 'flat' ? MacroFlat : Ester;   // same shape, one fewer dimension
       // Where the tail's carboxyl carbon IS. Every slot is ranked by how far
       // that atom would have to travel, for plane.js's reason: the acid's
       // origin is eight angstroms down its own chain and ranking by it hands
@@ -336,7 +355,7 @@ const CARDS = [
       const now = P.atomAt(guest, head.keep);
       let best = null;
       for(const slot of Ester.slots(h)){
-        const r = how.pose(h, g, slot);
+        const r = card.poseIn(h, g, slot, dim === '3d');
         if(!r) continue;
         const where = v3(r.at).applyQuaternion(new THREE.Quaternion(...r.quat))
           .add(v3(r.pos)).applyQuaternion(host.mol.quaternion).add(host.mol.position);
@@ -352,6 +371,9 @@ const CARDS = [
 
     label:p => p.spec.name,
     unit:'tail', bond:'ester bond',
+    round:'The build was a diagram: flat backbone, 120&deg; corners. Glycerol is '
+        + 'sp3 at every carbon, so the three tails leave the page in three '
+        + 'directions &mdash; which is why a fat packs the way it does.',
     lead:'One glycerol, three fatty acids. Only the &ndash;COOH end reacts, and glycerol '
        + 'has exactly three places to put one. Fill them.',
     done:(c, card) => {
@@ -466,8 +488,14 @@ function respec(p){
 function spent3d(p){
   const base = un({ spec:p.base, key:p.key });
   const drop = [...p.spent].flatMap(k => MacroSpec.role(base, k).leaves);
-  const real = MacroSpec.strip(base, drop);
-  return { real, flat: (card.flat && MacroFlat.spec(real)) || real };
+  // FLATTEN FIRST, THEN STRIP. A peptide bond takes a whole hydroxyl and a
+  // glycosidic bond a whole –OH, so a spent residue has FEWER HEAVY ATOMS than
+  // its layout has positions, and flat.js rightly refuses it. Laying the base
+  // out and then removing the same atoms gives the same answer and always has
+  // one: strip works off the base's own indices either way round.
+  const flat = card.flat ? MacroFlat.spec(base) : null;
+  return { real: MacroSpec.strip(base, drop),
+           flat: flat ? MacroSpec.strip(flat, drop) : MacroSpec.strip(base, drop) };
 }
 
 /* ---- the bonds, drawn between two meshes ----------------------------------
@@ -660,10 +688,10 @@ function say(){
   }
   const n = c.length - 1;
   if(dim === '3d'){
+    // Each card's own sentence: what the diagram could not show is a different
+    // fact for a fat, a chain with a sequence, and a chain with a shape.
     noteEl.innerHTML = '<b>The same molecule, where its atoms really are.</b> '
-      + 'The build was a diagram: flat backbone, 120&deg; corners. Glycerol is '
-      + 'sp3 at every carbon, so the three tails leave the page in three '
-      + 'directions &mdash; which is why a fat packs the way it does.';
+      + (card.round || '');
     return;
   }
   const tail = P.pieces.length > c.length
@@ -691,68 +719,111 @@ const dimBtn = document.getElementById('dim3d');
 const SPIN = 0.55;                 // radians the stage turns as it lands
 let morphing = false;
 
+/* WALK THE JOINS, DON'T ASSUME A SHAPE. A fat is a hub — one glycerol, three
+ * tails — and a protein is a chain, so a reveal written for either one is
+ * wrong for the other. Starting from a piece nothing bonded TO, each join is
+ * re-solved against the layout being arrived at and composed onto where its
+ * host lands: a chain therefore rebuilds itself residue by residue, and the
+ * fat falls out as the one-level case of the same walk. */
+function walk(round){
+  // In the layout being ARRIVED at, and unspent. A flat pose refuses a spec
+  // that is not in the plane, so handing it the model would silently drop the
+  // join and leave that piece behind in the reveal.
+  const asked = p => {
+    const b = un({ spec:p.base, key:p.key });
+    return round ? b : (MacroFlat.spec(b) || b);
+  };
+  const guests = new Set(sticks.map(k => k.guest));
+  const roots = P.pieces.filter(p => !guests.has(p));
+  const at = new Map(), order = [];
+  for(const r of roots)
+    at.set(r, { pos:r.mol.position.toArray(), quat:r.mol.quaternion.toArray() });
+  let left = sticks.slice(), moved = true;
+  while(left.length && moved){
+    moved = false;
+    left = left.filter(k => {
+      if(!at.has(k.host)) return true;
+      /* SOLVED AGAINST THE UNSPENT PAIR. A pose is built out of the atoms the
+       * condensation consumed, so neither end can answer once it has spent
+       * them. Legitimate because strip() moves no atom: the survivors sit at
+       * the same coordinates in both, so base and residue share a frame. */
+      const r = card.poseIn(asked(k.host), asked(k.guest), k.donor, round);
+      if(!r) return false;
+      at.set(k.guest, MacroPlane.compose(at.get(k.host),
+        { pos:v3(r.pos).toArray(), quat:r.quat }));
+      order.push(k.guest); moved = true;
+      return false;
+    });
+  }
+  return at;
+}
+
+/* ---- the reveal -----------------------------------------------------------
+ * THE SAME SPHERES, MOVED — molecule-viewer.html's transition, on an assembly
+ * instead of one molecule. Nothing is swapped and nothing fades: every atom
+ * slides from the layout it was built in to where it really is, which is the
+ * only thing that can honestly say the diagram and the model are one molecule.
+ *
+ * Both halves move. A piece changes SHAPE — glycerol's backbone goes sp3, a
+ * residue's alpha hydrogen unfolds from the carbon a diagram hid it in — and
+ * it changes PLACE, because the pose it sits at is the round one. The first is
+ * a per-atom morph, the second a rigid tween, and they run on one clock.
+ *
+ * Building is off while the molecule is round: the pointer means a place on the
+ * tabletop, and there is no tabletop once the thing has turned.
+ */
 function reveal(to){
-  const gly = P.pieces.find(p => p.key === 'glycerol');
-  if(!gly || morphing) return;
+  if(morphing || !sticks.length) return;
   const round = to === '3d';
-  const specs = spent3d(gly);
-  const dest  = rescale(round ? specs.real : specs.flat);
-  const how   = round ? Ester : MacroFlat;
-  /* THE POSE IS SOLVED AGAINST THE UNSPENT BACKBONE, which is the only one that
-   * can answer: a slot's pose is built out of its hydroxyl's O and H, and the
-   * H is exactly what this glycerol gave up three times over. Legitimate
-   * because strip() moves no atom — the surviving atoms sit at the same
-   * coordinates in both, so the two specs share a frame. */
-  const base  = un({ spec:gly.base, key:gly.key });
-  const host  = round ? base : (MacroFlat.spec(base) || base);
+  const at = walk(round);
 
-  // Where every atom of the backbone ends up, in the piece's own frame.
-  const meshes = gly.mol.userData.atomMeshes;
-  const from = meshes.map(m => m && m.position.clone());
-  const to3  = dest.atoms.map(a => new THREE.Vector3(...a.pos));
-
-  // ...and where each tail ends up, solved against the backbone it is arriving
-  // at rather than the one it left.
-  const at = { pos:gly.mol.position.toArray(), quat:gly.mol.quaternion.toArray() };
-  const riders = sticks.filter(k => k.host === gly).map(k => {
-    // Both ends unspent, for the same reason and with the same licence: a pose
-    // is built out of the atoms a condensation consumed, and it answers where
-    // the acid's ORIGIN goes — which strip() does not move either.
-    const r = how.pose(host, un({ spec:k.guest.base, key:k.guest.key }), k.donor);
-    const w = MacroPlane.compose(at, { pos:v3(r.pos).toArray(), quat:r.quat });
-    return { p:k.guest, fromPos:k.guest.mol.position.clone(),
-             fromQuat:k.guest.mol.quaternion.clone(),
-             toPos:new THREE.Vector3(...w.pos), toQuat:new THREE.Quaternion(...w.quat) };
+  const movers = P.pieces.map(p => {
+    const dest = rescale(spent3d(p)[round ? 'real' : 'flat']);
+    const meshes = p.mol.userData.atomMeshes;
+    const target = at.get(p) ||
+      { pos:p.mol.position.toArray(), quat:p.mol.quaternion.toArray() };
+    return {
+      p, dest, meshes,
+      from: meshes.map(m => m && m.position.clone()),
+      to:   dest.atoms.map(a => new THREE.Vector3(...a.pos)),
+      fromPos:p.mol.position.clone(), fromQuat:p.mol.quaternion.clone(),
+      toPos:new THREE.Vector3(...target.pos),
+      toQuat:new THREE.Quaternion(...target.quat),
+    };
   });
 
   const spin0 = L.root.rotation.y, spin1 = round ? SPIN : 0;
   morphing = true;
   const put = u => {
-    meshes.forEach((m,i) => { if(m) m.position.lerpVectors(from[i], to3[i], u); });
-    // Every bond inside the backbone is a single stick, so it can be re-placed
-    // rather than rebuilt. Glycerol has no double bond; scene.js's placeBond
-    // refuses one, and that refusal is the check.
-    gly.mol.userData.bondMeshes.forEach(b => {
-      const [i,j] = b.userData.pair;
-      if(meshes[i] && meshes[j]) Stage.placeBond(b, meshes[i].position, meshes[j].position);
-    });
-    for(const r of riders){
-      r.p.mol.position.lerpVectors(r.fromPos, r.toPos, u);
-      THREE.Quaternion.slerp(r.fromQuat, r.toQuat, r.p.mol.quaternion, u);
+    for(const m of movers){
+      m.meshes.forEach((x,i) => { if(x) x.position.lerpVectors(m.from[i], m.to[i], u); });
+      // Every bond inside a monomer is a single stick, so it can be re-placed
+      // rather than rebuilt. scene.js's placeBond refuses a double bond's
+      // group, and that refusal is the check — nothing here has one.
+      m.p.mol.userData.bondMeshes.forEach(b => {
+        const [i,j] = b.userData.pair;
+        if(m.meshes[i] && m.meshes[j])
+          Stage.placeBond(b, m.meshes[i].position, m.meshes[j].position);
+      });
+      m.p.mol.position.lerpVectors(m.fromPos, m.toPos, u);
+      THREE.Quaternion.slerp(m.fromQuat, m.toQuat, m.p.mol.quaternion, u);
     }
     L.root.rotation.y = spin0 + (spin1 - spin0) * u;
   };
   const land = () => {
     dim = round ? '3d' : 'flat';
-    // Rebuilt from the spec it landed on, so the pieces stop being a molecule
-    // held together by a tween: everything downstream reads spec coordinates.
-    P.rebuild(gly, dest);
-    for(const r of riders){ r.p.mol.position.copy(r.toPos); r.p.mol.quaternion.copy(r.toQuat); }
+    for(const m of movers){
+      // Rebuilt from the spec it landed on, so the assembly stops being a
+      // molecule held together by a tween: everything downstream reads spec
+      // coordinates.
+      P.rebuild(m.p, m.dest);
+      m.p.mol.position.copy(m.toPos); m.p.mol.quaternion.copy(m.toQuat);
+    }
     // Set, not left where the tween's last frame happened to stop: the idle
     // turn is still running underneath it and would keep whatever it added.
     L.root.rotation.y = spin1;
     morphing = false;
-    say();
+    say(); L.fit();
   };
   L.motion.seq([{ dur:1.1, ease:'inOutCubic', onUpdate:put }, { call:land }], { tag:'reveal' });
 }
@@ -763,9 +834,12 @@ dimBtn.addEventListener('click', () => reveal(dim === 'flat' ? '3d' : 'flat'));
  * hydroxyls, or the stage already turned. Asked before that, it would morph a
  * half-built fat into a pose two of its slots have not taken. */
 function showReveal(){
-  const gly = card.flat && P.pieces.find(p => p.key === 'glycerol');
-  const full = gly && Ester.slots(un(gly)).length === 0;
-  dimBtn.classList.toggle('on', !!(full || dim === '3d'));
+  // EVERYTHING ON THE STAGE IS ONE MOLECULE — a chain of four, or a glycerol
+  // with all three tails on. Offered before that, the reveal would morph a
+  // half-built molecule and leave the loose pieces lying in a layout the rest
+  // of the stage has left. Same test either shape: n pieces, n-1 joins.
+  const whole = card.flat && sticks.length === P.pieces.length - 1;
+  dimBtn.classList.toggle('on', !!(whole || dim === '3d'));
   dimBtn.textContent = dim === '3d' ? 'Back to the diagram' : 'See it in 3D';
 }
 
