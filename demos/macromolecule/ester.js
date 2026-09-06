@@ -140,6 +140,11 @@
     const pos = sub(Cat, qrot(q, C));            // where the acid's ORIGIN goes
     return {
       pos, quat:q, slot,
+      // The bonding atom in the ACID'S OWN frame. A latch that measures the
+      // origin instead measures a point that is nowhere near the reaction —
+      // palmitate's is eight ångströms down its own chain — so a tail held
+      // exactly on the hydroxyl reads as far away the moment it is turned.
+      at: C,
       bondAt: mul(add(O, Cat), 0.5),
       // The water assembles between the two groups that gave it up: the
       // alcohol's H and the acid's whole hydroxyl.

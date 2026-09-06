@@ -266,12 +266,69 @@ console.log('\n== 10. hydrolysis puts back exactly what condensation took');
      'a round trip through strip() leaves the bond list identical');
 }
 
+console.log('\n== 11. the flat build, and what it keeps');
+{
+  const E = require('./ester.js');
+  const F = require('./flat.js');
+  const gly = un(M.glycerol), flat = F.spec(gly);
+
+  ok(flat && F.isFlat(flat), 'glycerol has a layout and it is in the plane');
+  ok(flat.atoms.length === gly.atoms.length,
+     'the layout carries every atom, hydroxyl hydrogens included');
+  // The H are what LEAVES. A layout that drops them draws a glycerol that
+  // cannot react, and the page would build nothing while rendering perfectly.
+  ok(['sn1','sn2','sn3'].every(k => Spec.free(flat, k)),
+     'all three slots survive the flattening, leaving atoms and all');
+  // The layout is scaled to the molecule's own MEAN bond (bake-flat2d.js), so
+  // individual bonds move by a few hundredths while the scale does not. That is
+  // what stops the reveal reading as a zoom rather than as a rearrangement.
+  const bl = s => (s.bonds || []).map(([i,j]) => d(s.atoms[i].pos, s.atoms[j].pos));
+  const mean = a => a.reduce((x,y) => x+y, 0) / a.length;
+  const real = mean(bl(gly)), drawn = mean(bl(flat));
+  ok(Math.abs(real - drawn) / real < 0.02,
+     `the layout is at the molecule's own scale (${real.toFixed(3)} vs ${drawn.toFixed(3)} A mean bond)`);
+  // Both acids are already flat, so nothing lays them out: the same object
+  // comes back. A copy here would mean the library grew a second geometry.
+  ok(['palmitate','palmitoleate'].every(k => { const a = un(M[k]);
+       return F.isFlat(a) && F.spec(a) === a; }),
+     'both fatty acids are already flat, and are handed back untouched');
+
+  for(const acid of ['palmitate','palmitoleate']){
+    let host = flat, bad = [];
+    for(const slot of ['sn1','sn2','sn3']){
+      const g = un(M[acid]);
+      const r = F.pose(host, g, slot);
+      if(!r){ bad.push(slot + ': no pose'); continue; }
+      const placed = g.atoms.map((a,i) => place(g, r, i));
+      // THE WHOLE POINT: the acid arrives without leaving the tabletop, which
+      // is the one thing the 3D pose cannot do and the reason this file exists.
+      const outOfPlane = Math.max(...placed.map(p => Math.abs(p[2])));
+      if(outOfPlane > 1e-6) bad.push(`${slot} leaves the plane by ${outOfPlane.toFixed(3)}`);
+      // ...and everything ester.js measures still holds.
+      const O = host.atoms[Spec.role(host, slot).keep].pos;
+      const C = place(g, r, Spec.role(g, 'carboxyl').keep);
+      if(Math.abs(d(O, C) - E.CO) > 1e-6) bad.push(`${slot} C-O ${d(O,C).toFixed(4)}`);
+      if(Math.abs(r.twist - E.ZTOR) > 1e-6) bad.push(`${slot} twist ${(r.twist*180/Math.PI).toFixed(2)}`);
+      host = F.spec(E.react(host, g, slot).host) || host;
+    }
+    ok(!bad.length, `${acid}: three flat esters at C-O ${E.CO} A, Z, none off the plane`
+                    + (bad.length ? ' — ' + bad.join(', ') : ''));
+    ok(E.slots(host).length === 0, `${acid}: the flat build stops at three too`);
+  }
+
+  // A molecule with no layout must REFUSE. Zeroing z instead would fold the
+  // hydroxyls that point out of the page onto the backbone and still render.
+  ok(F.spec(un(M.glucose)) === null || !M.glucose.flat2d,
+     'a spec with no layout is refused rather than flattened by force');
+}
+
 console.log(fails
   ? `\nFAIL: ${fails} of ${checks} checks`
   : `\nPASS: ${checks} checks — every peptide pose lands at ${Peptide.CN} A and omega 180; `
     + `every glycosidic pose repeats into the polymer it names, at the helix `
     + `mol-glycans.js solved its torsions against; every ester lands at 1.34 A and Z, `
     + `and stops at three because glycerol runs out of hydroxyls; a chain grows only `
-    + `at the end that still has its leaving group; and a residue makes no claim it `
-    + `stopped being true of`);
+    + `at the end that still has its leaving group; a residue makes no claim it `
+    + `stopped being true of; and the flat build keeps every one of those numbers `
+    + `without any of it leaving the tabletop`);
 process.exit(fails ? 1 : 0);

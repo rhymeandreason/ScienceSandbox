@@ -217,6 +217,14 @@
       const r = v => v.map(x => +x.toFixed(4));
       return {
         name:'Glycerol', formula:'C₃H₈O₃', charge:0, class:'lipid',
+        // THE BACKBONE IS THE ONLY 3D PIECE OF A FAT. Both fatty acids are
+        // already idealised all-anti zigzags at z = 0, so a flat build needs a
+        // flat glycerol and nothing else. Heavy atoms only, per the baker; the
+        // three hydroxyl H are placed in the plane by macromolecule/flat.js,
+        // because they are what leaves and a layout without them cannot react.
+        flat:true,
+        // 6 heavy atoms (C1 C2 C3 O1 O2 O3), in spec order — tools/bake-flat2d.js
+        flat2d:[[-1.277,-1.106],[0,-0.369],[1.277,-1.106],[-2.553,-0.369],[0,1.106],[2.553,-0.369]],
         // United-atom on the CARBONS, like palmitate: a CH₂ is one carbon
         // sphere, and the formula states the hydrogens (MolecularGeometry.md
         // §1.3b — H is a drawing decision, the formula's count is a chemical

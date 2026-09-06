@@ -134,8 +134,15 @@
               .multiplyScalar(1/(h.length || 1));
     }
     const centreOf = p => p.centre.clone().applyQuaternion(p.mol.quaternion).add(p.mol.position);
-    const atomAt = (p, i) => new THREE.Vector3(...p.spec.atoms[i].pos)
-      .applyQuaternion(p.mol.quaternion).add(p.mol.position);
+    /* Read off the MESH, not the spec. The two agree except while a page is
+     * morphing a molecule between two layouts — and that is exactly when a bond
+     * drawn from spec coordinates detaches from the spheres it joins. */
+    const atomAt = (p, i) => {
+      const m = p.mol.userData.atomMeshes && p.mol.userData.atomMeshes[i];
+      return m ? m.getWorldPosition(new THREE.Vector3())
+               : new THREE.Vector3(...p.spec.atoms[i].pos)
+                   .applyQuaternion(p.mol.quaternion).add(p.mol.position);
+    };
 
     /* Every piece reachable from `p` through joins — the thing that moves when
      * the student drags one end of a chain. */
@@ -218,17 +225,22 @@
           const s = o.solve(host, guest);
           if(!s) continue;
           const t = placeGuest(host, s);
-          // Where the guest would have to be, against where it is. The test is
-          // symmetric: dragging the host moves the target instead of the piece,
-          // and the same distance closes either way.
+          // MEASURED AT THE ATOM THAT WOULD BOND, when the solver says which one
+          // (`at`, in the guest's own frame). The origin is not the reaction: a
+          // palmitate's sits eight ångströms down its own chain, so a tail held
+          // exactly on the hydroxyl reads as far away as soon as it is turned,
+          // while a palmitoleate — whose origin IS its carboxyl carbon — snaps
+          // from the same gesture. That asymmetry is invisible and looks like
+          // one of the two molecules being broken.
+          const now  = at(guest.mol.quaternion, guest.mol.position, s.at);
+          const want = at(t.quat, t.pos, s.at);
           // IN THE PLANE ONLY. The drag pins z = 0 and a solved pose does not
           // sit there: glycerol's three hydroxyls point into three different
           // directions, so two of a fat's esters want the tail 15 units out of
           // the tabletop and a 3D test can never be satisfied by a gesture that
           // cannot leave it. What the student aims is x and y; z is where the
           // chemistry then takes the molecule, and the snap carries it there.
-          if(Math.hypot(guest.mol.position.x - t.pos.x,
-                        guest.mol.position.y - t.pos.y) > o.latchR) continue;
+          if(Math.hypot(now.x - want.x, now.y - want.y) > o.latchR) continue;
           // The pose is no longer the pointer's to set. Dropping the drag here
           // lets the tween land exactly on the solved pose instead of fighting
           // a cursor that is still moving.
@@ -237,6 +249,18 @@
           return;
         }
       }
+    }
+
+    /* A point of the guest, in world space, given where the guest is. `at` is
+     * optional in the pose contract: a solver that does not name its bonding
+     * atom falls back to the guest's origin, which is the old test and is fine
+     * for a molecule whose origin is near its reacting end. */
+    const _at = [new THREE.Vector3(), new THREE.Vector3()];
+    let _atN = 0;
+    function at(quat, pos, local){
+      const v = _at[_atN++ % _at.length];      // two, because the test compares two
+      return local ? v.set(local.x, local.y, local.z).applyQuaternion(quat).add(pos)
+                   : v.copy(pos);
     }
 
     /* `solve` answers with the host at the origin unrotated, because a join is
