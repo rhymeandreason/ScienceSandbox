@@ -98,11 +98,13 @@
     onExit(ctx) { leave(ctx); ctx.state.protein = null; },
     /* THE HANDOFF STARTS HERE. Beat 3 opens on one molecule as a bare skin,
        so this one ends as one: the ribbon goes under an opaque surface before
-       the swap, and the reader crosses on a shape that did not change. Only
-       going forward — backing out of the beat should not perform anything. */
+       the swap, and the reader crosses on a shape AND a colour that did not
+       change — the crowd's own, read off the component rather than typed, so
+       the two cannot drift apart. Only going forward; backing out of the beat
+       should not perform anything. */
     onLeave(ctx, to) {
       if (to <= 1 || !ctx.state.protein) return 0;
-      ctx.state.protein.box.setSkin(1, 0.85);
+      ctx.state.protein.box.setSkin(1, 0.85, { colour: HbCrowd.skinOf() });
       return 1.05;
     },
     onEnter(ctx) {

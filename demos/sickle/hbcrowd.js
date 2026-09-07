@@ -83,6 +83,9 @@
  *    drift    rms speed of a lone molecule's walk, scene units per second
  *    base     path prefix to demos/ from the page ('' at the top level)
  *
+ *  `markOf(variant)` and `skinOf()` are what this crowd paints, exported so a
+ *  page arriving from one molecule can land on the same two colours.
+ *
  *  THE β6 MARK IS THE ONLY COLOUR THAT CHANGES BETWEEN VARIANTS. HbS paints it
  *  the fibre's patch orange (SickleFibre.COLOURS.patch); HbA paints it the
  *  site's charge blue, read from the `--cold` token so the caption that calls
@@ -213,6 +216,10 @@
   const markOf = v => (v === 'HbS'
     ? global.SickleFibre.COLOURS.patch
     : tokenHex('--cold', 0x2f6fb5));
+  /* And the rest of the molecule, exported for the same reason: a page handing
+     off to this crowd from one protein has to arrive at the colour the crowd
+     is, or the cut shows however well the shapes match. */
+  const skinOf = () => global.SickleFibre.COLOURS.skin;
 
   function create(THREE, root, camera, opts) {
     const F = global.SickleFibre;
@@ -1103,7 +1110,7 @@
     return api;
   }
 
-  global.HbCrowd = { create, mount, markOf, DEFAULTS, MAX, RUN, SURF };
+  global.HbCrowd = { create, mount, markOf, skinOf, DEFAULTS, MAX, RUN, SURF };
   /* Scale (kit/scale.js). One scene unit is one ångström: the
      tetramer is a lab's and the bond between any two is the crystal's, so a
      page may print an assembly's length off state(). The motion is

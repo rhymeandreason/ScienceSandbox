@@ -23,7 +23,15 @@ body {
 }
 body.work .bar { border-bottom-color: var(--border-hair); }
 .bar .mark { --mark-size: 1.35rem; }
-.bar .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font-family: var(--font-editorial); }
+.bar .crumb { margin-right: auto; }
+/* Centred on the bar, not on what is left between the mark and the tools, so
+   folding the rail's button away cannot shift it. */
+.bar .title {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: 0; bottom: 0; display: flex; align-items: center;
+  max-width: min(34ch, 38%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-dim); font-family: var(--font-editorial);
+}
 .bar .tools { display: flex; gap: 6px; flex-wrap: wrap; align-self: center; }
 .bar .tools[hidden] { display: none; }
 .bar .tools .btn { padding: 4px 10px; font-size: 12px; }

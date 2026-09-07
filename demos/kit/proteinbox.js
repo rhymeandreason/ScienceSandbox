@@ -34,8 +34,10 @@
  *
  *    box.paintSkin((chain, num, name) => colour)   per-residue, one array
  *    box.patch('b6', {chains:'B,D', num:6}, {colour, opacity})
- *    box.setSkin(opacity, seconds)   fade the skin — 1 is the outside alone,
- *                                    null is back to reading the ribbon through
+ *    box.setSkin(opacity, seconds, {colour})
+ *                                    fade the skin — 1 is the outside alone,
+ *                                    null is back to reading the ribbon
+ *                                    through, in this box's own colour
  *
  *  A paint recolours the skin in place — no rebuild, no refetch, and NOTHING
  *  MOVES, which is the point: a lesson claiming a substitution leaves the fold
@@ -1245,26 +1247,53 @@
       surf.renderOrder = skin ? 1 : 0;
     }
 
-    /* ---- setSkin(opacity, seconds) ----
+    /* ---- setSkin(opacity, seconds, {colour}) ----
 
-       The skin's own opacity, and optionally a fade to it. The default 0.28 is
-       a skin you read the ribbon through; taken to 1 it is the molecule's
-       outside and nothing else — which is what the same protein looks like in
-       a crowd, so a lesson handing off from one molecule to many can close the
-       gap on screen instead of cutting across it.
+       The skin's own opacity and colour, and optionally a fade to them. The
+       default 0.28 is a skin you read the ribbon through; taken to 1 it is the
+       molecule's outside and nothing else — which is what the same protein
+       looks like in a crowd, so a lesson handing off from one molecule to many
+       can close the gap on screen instead of cutting across it.
 
-       It moves nothing and rebuilds nothing: one material property, per frame.
-       Only meaningful while the rep is `skin` — applySkin owns the rest. */
+       COLOUR IS PART OF THE SAME GESTURE, and leaving it out is what makes the
+       cut visible anyway: this module's skin is a cool grey and a component
+       drawing the same protein by the hundred will have its own. Arriving at
+       the destination's colour is the difference between a handoff and two
+       pictures of one molecule that do not look like each other. Pass `null`
+       as the opacity to go back to a readable skin AND to this box's own
+       colour.
+
+       It moves nothing and rebuilds nothing: two material properties, per
+       frame. Only meaningful while the rep is `skin` — applySkin owns the
+       rest, and a skin under paintSkin carries vertex colours, which are the
+       page's statement and not this call's to overrule. */
+    const SKIN_C0 = opts.surfaceColour == null ? SES_COLOUR : opts.surfaceColour;
+    const _cf = new THREE.Color(), _ct = new THREE.Color(), _cn = new THREE.Color();
     let skinFade = 0;
-    box.setSkin = function setSkin(to, seconds) {
-      if (to == null) to = SKIN_OPACITY;          // back to a skin you read through
+    function skinColour(c) {
+      opts.surfaceColour = c.getHex();
+      if (surf && !skinPaint) surf.material.color.copy(c);
+    }
+    box.setSkin = function setSkin(to, seconds, o) {
+      const home = to == null;                    // back to a skin you read through
+      if (home) to = SKIN_OPACITY;
       const from = opts.skinOpacity == null ? SKIN_OPACITY : opts.skinOpacity;
+      const want = (o && o.colour != null) ? o.colour : (home ? SKIN_C0 : null);
+      _cf.set(opts.surfaceColour == null ? SES_COLOUR : opts.surfaceColour);
+      if (want != null) _ct.set(want);
       if (skinFade) { cancelAnimationFrame(skinFade); skinFade = 0; }
-      if (!seconds) { opts.skinOpacity = to; applySkin(); box.draw(); return box; }
+      if (!seconds) {
+        opts.skinOpacity = to;
+        if (want != null) skinColour(_ct);
+        applySkin(); box.draw();
+        return box;
+      }
       const t0 = performance.now();
       const tick = () => {
         const u = Math.min(1, (performance.now() - t0) / (seconds * 1000));
-        opts.skinOpacity = from + (to - from) * u * u * (3 - 2 * u);
+        const e = u * u * (3 - 2 * u);
+        opts.skinOpacity = from + (to - from) * e;
+        if (want != null) skinColour(_cn.copy(_cf).lerp(_ct, e));
         applySkin();
         box.draw();
         skinFade = u < 1 ? requestAnimationFrame(tick) : 0;
