@@ -589,9 +589,17 @@
 
     /* Fit the focus sphere in the room the panel leaves — sickle-fibre.js's
        rule, and the same arithmetic. Tweened, because it is called after
-       every docking and a camera that jumps twelve times is not a zoom. */
+       every docking and a camera that jumps twelve times is not a zoom.
+
+       AND IT ONLY EVER PULLS BACK. focus()'s radius is the larger of what the
+       strand needs and what is left of the crowd's claim, and those two cross
+       over: the crowd's shrinks as the strand's grows, so a camera that obeyed
+       the number would breathe in and out a dozen times while the reader is
+       trying to watch one contact. `held` is the widest it has had to be, and
+       a refit under it plus a margin is not worth a move at all. */
     const tgtFrom = new THREE.Vector3(), tgtTo = new THREE.Vector3();
-    function frame(dur = 0.9) {
+    let held = 0;
+    function frame(dur = 0.9, relax) {
       /* CardStage.create lays out once, synchronously, before `sim` exists. */
       if (!sim) return;
       const f = sim.focus();
@@ -605,7 +613,15 @@
       const av = Math.atan(Math.tan(half) * fy);
       const ah = Math.atan(Math.tan(half) * Math.max(cam.aspect, 0.1) * fx);
       const fit = a => f.radius / Math.max(Math.sin(a), 0.05);
-      const r = Math.max(fit(av), fit(ah)) * 1.08;
+      let r = Math.max(fit(av), fit(ah)) * 1.08;
+      if (relax) held = 0;
+      if (r < held * 1.06) {
+        /* Close enough. Follow the centre if the strand has drifted off it,
+           and leave the distance where it is. */
+        if (box.cam.target.distanceTo(f.centre) < sim.molR * 0.4) return;
+        r = box.cam.r;
+      }
+      held = Math.max(held, r);
       tgtFrom.copy(box.cam.target); tgtTo.copy(f.centre);
       const r0 = box.cam.r;
       camTw.to(0, 1, dur, u => {
@@ -635,7 +651,7 @@
       set(next, o) { sim.set(next, o); return api; },
       state: () => sim.state(),
       play() { sim.play(); return api; },
-      reset() { sim.reset(); frame(0.6); return api; },
+      reset() { sim.reset(); frame(0.6, true); return api; },
       zoom(f, dur) { zoom(f, dur); return api; },
       on(ev, fn) {
         if (ev === 'frame') { (listeners.frame || (listeners.frame = [])).push(fn);
