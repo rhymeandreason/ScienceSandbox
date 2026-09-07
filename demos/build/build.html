@@ -21,7 +21,7 @@
 
 <header class="bar">
   <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
-  <span class="crumb">builder</span>
+  <span class="crumb"></span>
   <span class="title" id="title"></span>
   <span class="tools" id="tools" hidden>
     <a class="btn" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
@@ -70,7 +70,7 @@
         <div class="row">
           <p class="hint" id="hint">Great questions make great apps. </p>
           <span class="spacer"></span>
-          <button class="cta" id="send" type="submit">Build</button>
+          <button class="cta" id="send" type="submit">Let's Go</button>
         </div>
       </form>
     </div>
@@ -173,8 +173,8 @@
     $('tools').hidden = !app;
     if (app) $('viewLink').href = Apps.link('view', app.id);
     $('railFoot').hidden = !editing;
-    $('send').textContent = app ? (editing ? 'Ask for a change' : 'Remix to edit') : 'Build';
-    $('request').placeholder = app ? (editing ? 'What should change?' : 'Remix this app to ask for changes') : TRIES[tryIndex];
+    $('send').textContent = app ? (editing ? 'Change It' : 'Remix to edit') : "Let's Go";
+    $('request').placeholder = app ? (editing ? 'How should it be better?' : 'Remix this app to ask for changes') : TRIES[tryIndex];
     $('request').disabled = !!app && !editing;
     $('ver').textContent = app ? `v${app.n}` : '';
   }
