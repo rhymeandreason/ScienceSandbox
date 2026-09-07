@@ -47,6 +47,12 @@ const vm   = require('vm');
 const providers = require('./_providers/index.js');
 
 const REFERENCE = path.join(__dirname, '..', 'demos', 'docs', 'Components.md');
+const LOADER    = path.join(__dirname, '..', 'demos', 'kit', 'app.js');
+
+/* Required fresh for the same reason the reference is read fresh: the dev
+ * server drops the cache per request, so a component added to the table
+ * reaches the next build. */
+function loader() { delete require.cache[LOADER]; return require(LOADER); }
 const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
 
 const MAX_DRAFT = 16000;   // output tokens; a page is 2,000 to 4,500
@@ -66,22 +72,11 @@ function components(ref) {
   return names;
 }
 
-/* What each component's section says to load: the script srcs in its first
- * html block. A page that mounts the component without one of them throws at
- * mount, on a line the model never sees, so the check is made here from the
- * same text the model read. */
-function needs(ref) {
-  const src = ref || reference();
-  const out = {};
-  const parts = src.split(/^## /m);
-  for (const part of parts) {
-    const m = /^([A-Z][A-Za-z]+) —/.exec(part);
-    if (!m) continue;
-    const block = /```html\n([\s\S]*?)```/.exec(part);
-    out[m[1]] = block ? [...block[1].matchAll(/<script[^>]*\ssrc=["']([^"']+)["']/g)].map(x => x[1]) : [];
-  }
-  return out;
-}
+/* The library's own dependency table, read from the loader that enforces it.
+ * A generated page names the components it mounts and `kit/app.js` writes the
+ * script tags, so what a component needs is a fact in code, not a list in the
+ * reference that the model copies and the reference can get wrong. */
+function needs() { return loader().USES; }
 
 const PREAMBLE = `You write and edit single-page science apps for college Bio 101 students from a component library. Your only reference is the document below; it is complete. Use nothing it does not describe. The page is saved one folder below demos/, so the reference's relative paths apply as written. Reply only in the JSON shape each request asks for.`;
 
@@ -186,20 +181,6 @@ function inLibrary(u, ext) {
 /* What the source has to satisfy before anyone is handed it. Strings, one per
  * problem; empty means it passed. Reads the source only: it cannot run the
  * page, so a runtime error is the browser's to report on the next turn. */
-/* The absolute script URLs a page may load: three.js, plus every https src a
- * component section declares. Derived from the reference rather than listed
- * here, so a component whose section names a CDN dependency is usable the
- * moment the doc says so. Listed by hand, the two halves drift and the result
- * is unreachable: the deps check below DEMANDS a component's scripts while
- * this check REFUSES them, and every draft that mounts it is rejected and
- * silently retried without it — which reads from outside as a model that
- * ignored the section, and sends the next person to rewrite the prose. */
-function externals() {
-  const out = new Set([CDN]);
-  for (const list of Object.values(needs()))
-    for (const u of list) if (/^https:\/\//.test(u)) out.add(u);
-  return out;
-}
 
 /* Every inline script has to parse. `new Function` compiles without running,
  * which is the whole point: a bad splice in an edit is a page that renders and
@@ -230,48 +211,60 @@ function syntax(src) {
 function validate(html, names) {
   const problems = [];
   const src = String(html || '');
-  const allowed = externals();
   if (!/<html[\s>]/i.test(src) || !/<\/html>/i.test(src)) problems.push('not a whole HTML file');
   if (!/<script[\s>]/i.test(src)) problems.push('no script: the page mounts nothing');
-  // The shell is the page. The sidebar layout over sandbox.css was the first
-  // eval's shape and is retired; the reference no longer describes it.
-  if (!/<script[^>]*\ssrc=["']\.\.\/kit\/lesson-shell\.js["']/i.test(src)) problems.push('does not load ../kit/lesson-shell.js: every app runs on the step-through shell');
   if (/sandbox\.css/i.test(src)) problems.push('loads sandbox.css, which no app may use');
 
-  for (const m of src.matchAll(/<script[^>]*\ssrc=["']([^"']+)["']/gi)) {
-    const u = m[1];
-    if (allowed.has(u)) continue;
-    if (inLibrary(u, '.js')) continue;
+  /* The library arrives through one tag. Everything a page used to get wrong
+   * about its script list — the order, the missing module, both molecule
+   * families — is now the loader's to decide, so the only questions left are
+   * whether the tag is there and whether what it names matches what the page
+   * mounts. Nothing else may load from the library: a second copy of a module
+   * redefines its globals under the first one's feet. */
+  const tags = [...src.matchAll(/<script\b([^>]*\ssrc=["']([^"']+)["'][^>]*)>/gi)];
+  const app = tags.filter(m => /(^|\/)kit\/app\.js$/.test(m[2]));
+  if (!tags.some(m => m[2] === CDN)) problems.push(`does not load three.js from ${CDN}: the page writes that one tag itself, above kit/app.js`);
+  if (!app.length) {
+    problems.push('does not load ../kit/app.js: one tag loads the library, and it names the components in data-use');
+  } else if (app.length > 1) {
+    problems.push('loads ../kit/app.js more than once');
+  }
+
+  for (const m of tags) {
+    const u = m[2];
+    if (app.includes(m)) continue;
+    if (u === CDN) continue;
+    if (inLibrary(u, '.js')) { problems.push(`loads ${u} directly: kit/app.js loads the library, and a second copy of a module overwrites the first`); continue; }
     problems.push(`script from outside the library: ${u}`);
   }
   for (const m of src.matchAll(/<link[^>]*\shref=["']([^"']+)["']/gi)) {
     const u = m[1];
     if (/^https:\/\/fonts\.(googleapis|gstatic)\.com\//.test(u)) continue;
-    if (inLibrary(u, '.css')) continue;
+    if (inLibrary(u, '.css')) { problems.push(`links ${u} directly: kit/app.js loads the stylesheets its components need`); continue; }
     problems.push(`stylesheet from outside the library: ${u}`);
   }
 
-  /* The one pair of library files that must never load together: they define
-   * the same small molecules at different scales, and molecules.js throws on
-   * the second registration. The skeleton in the reference used to list both
-   * lines in a row, so every page copied both; the doc is fixed, and this is
-   * what keeps a page that reintroduces them from being handed over. */
-  if (/\/mol-small\.js["']/.test(src) && /\/mol-solvation\.js["']/.test(src))
-    problems.push('loads both mol-small.js and mol-solvation.js: they define the same molecules at different scales and molecules.js throws. Load mol-solvation.js only when WaterSim is mounted, in place of mol-small.js');
-
   const known = new Set(names || components());
-  const loads = new Set([...src.matchAll(/<script[^>]*\ssrc=["']([^"']+)["']/gi)].map(m => m[1]));
-  const deps = needs();
-  const seen = new Set();
-  for (const m of src.matchAll(/\b([A-Z][A-Za-z]+)\.mount\(/g)) {
-    const name = m[1];
-    if (seen.has(name)) continue;
-    seen.add(name);
-    if (!known.has(name)) { problems.push(`mounts ${name}, which the reference does not describe`); continue; }
-    for (const dep of deps[name] || []) {
-      if (!loads.has(dep)) problems.push(`mounts ${name} without <script src="${dep}">, which its section says to load`);
-    }
+  const declared = app.length ? (/\sdata-use=["']([^"']*)["']/i.exec(app[0][1]) || [, ''])[1]
+                                 .split(',').map(x => x.trim()).filter(Boolean) : [];
+  for (const n of declared) if (!known.has(n)) problems.push(`data-use names ${n}, which the reference does not describe`);
+
+  const mounted = new Set();
+  for (const m of src.matchAll(/\b([A-Z][A-Za-z]+)\.mount\(/g)) mounted.add(m[1]);
+  for (const n of mounted) {
+    if (!known.has(n)) { problems.push(`mounts ${n}, which the reference does not describe`); continue; }
+    if (app.length && !declared.includes(n)) problems.push(`mounts ${n} but data-use does not name it, so its scripts never load`);
   }
+  for (const n of declared) if (known.has(n) && !mounted.has(n)) problems.push(`data-use names ${n} but the page never mounts it`);
+
+  /* The loader refuses some combinations outright — WaterSim beside anything
+   * drawing the small molecules to scale. Ask it here rather than restating
+   * the rule: the page would throw on load otherwise. */
+  if (app.length && declared.length && !problems.length) {
+    try { loader().plan(declared); }
+    catch (e) { problems.push(e.message.replace(/^kit\/app\.js: /, '')); }
+  }
+
   problems.push(...syntax(src));
   return problems;
 }

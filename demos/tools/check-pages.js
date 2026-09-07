@@ -110,6 +110,8 @@ console.log('== 0. every exemption still names a page');
 
 
 
+const APP = require(path.join(ROOT, 'kit', 'app.js'));
+
 console.log('== 1. every page loads the molecules it names');
 for (const page of PAGES) {
   const src = fs.readFileSync(path.join(ROOT, page), 'utf8');
@@ -117,11 +119,17 @@ for (const page of PAGES) {
   // matched on its BASENAME and resolved against the page's own directory, so
   // a bench in tests/ loading ../molecules.js counts the same as a lesson
   // loading molecules.js.
-  const libs = [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1])
+  // A generated app names components, not files: kit/app.js writes its script
+  // tags at parse time, so ask the loader what this page actually loads.
+  const use = /<script[^>]*\bsrc="[^"]*kit\/app\.js"[^>]*\sdata-use="([^"]*)"/.exec(src);
+  const tags = use
+    ? APP.plan(use[1].split(',')).scripts.map(f => path.join(ROOT, f))
+    : [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1]);
+  const libs = tags
     .filter(s => !/^https?:/.test(s))
     .filter(s => { const b = path.basename(s);
       return b === 'palette.js' || b === 'molecules.js' || b === 'skel.js' || /^mol-/.test(b); });
-  const dir = path.dirname(path.join(ROOT, page));
+  const dir = use ? ROOT : path.dirname(path.join(ROOT, page));
 
   // A fresh window per page — exactly what the browser hands it.
   const sandbox = { console, Math, JSON, Object, Array, String, Number, Error, Boolean };

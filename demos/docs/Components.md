@@ -15,30 +15,12 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>short name</title>
-<link rel="stylesheet" href="../css/kodo.css">
-<link rel="stylesheet" href="../css/lesson-shell.css">
 <style> /* page-specific rules only, and as few as possible */ </style>
 </head>
 <body>
 
-<!-- the core, every page, in this order -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="../lib/palette.js"></script>
-<script src="../lib/tokens-from-palette.js"></script>
-<script src="../lib/molecules.js"></script>
-<script src="../lib/scene.js"></script>
-<script src="../lib/annotate.js"></script>
-<script src="../kit/card-stage.js"></script>
-
-<!-- then, for each component you mount, exactly the scripts its own section
-     lists, in the order it lists them. Nothing else. A page that mounts
-     nothing needing them must not load lib/mol-small.js, lib/mol-solvation.js,
-     lib/atomkit.js or lib/geo.js, and mol-small.js and mol-solvation.js define
-     the same molecules at different scales, so loading both throws at
-     startup: a page carries at most one of the two, whichever its section
-     named. -->
-
-<script src="../kit/lesson-shell.js"></script>   <!-- last: the shell reads the rest -->
+<script src="../kit/app.js" data-use="Membrane,Graph"></script>
 <script>
   // the shell, the mount(s), shell.goTo(0): see "The step-through shell"
 </script>
@@ -46,20 +28,15 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 </html>
 ```
 
-Paths are relative to the file, which lives one folder below `demos/`. Load a component's scripts in the order its section gives. Everything is a global; there are no modules and no build. The shell owns the DOM: no markup goes in the body, the panel is filled per step, and the scene is whatever is mounted in `shell.stage`.
+**`data-use` names the components this page mounts, and that one tag loads the library**: the modules those components are built from, their stylesheets and the shell, in the only order they load in. Name every component you mount and nothing you do not. Never write a `<script>` or `<link>` for a library file yourself; a second copy of a module overwrites the first. Some pairs are refused: the loader says which, and why, on the page.
+
+Paths are relative to the file, which lives one folder below `demos/`. Everything is a global; there are no modules and no build. The shell owns the DOM: no markup goes in the body, the panel is filled per step, and the scene is whatever is mounted in `shell.stage`.
 
 Never type an atom or bond colour; the palette publishes them as CSS custom properties `--atom-O`, `--atom-H`, `--atom-Na`, `--bond-covalent`, `--bond-hbond`, and a caption naming an atom uses its token.
 
 ## The step-through shell
 
 The shell is the page. Every app is a sequence of steps, even one step: the scene fills the window, the panel carries the copy and the controls, and the student moves with Back and Next.
-
-```html
-<link rel="stylesheet" href="../css/kodo.css">
-<link rel="stylesheet" href="../css/lesson-shell.css">
-...
-<script src="../kit/lesson-shell.js"></script>
-```
 
 ```js
 const shell = LessonShell.create({
@@ -206,11 +183,6 @@ Nothing is at the `organelle`, `organ` or `population` rung yet. **A size a page
 
 **Scale**: molecules, bulk. The liquid and any solute spec are the same rung, which is why a solute goes in this box rather than beside it. The render is not measurable: no page prints a distance off it.
 
-```html
-<script src="../lib/mol-solvation.js"></script>   <!-- this component's water and salts; replaces mol-small.js, never beside it -->
-<script src="../water/watersim.js"></script>
-<script src="../water/watersim-mount.js"></script>
-```
 
 ```js
 const w = WaterSim.mount(el, {
@@ -248,14 +220,6 @@ Good for: temperature, phase change, why ice floats, salt dissolving, colligativ
 
 **Scale**: membrane, bulk. One scene unit is about an angstrom. Everything crossing is drawn 5x oversize against the sheet, so a size read off a travelling ion is that exaggeration, not a measurement.
 
-```html
-<script src="../lib/mol-small.js"></script>       <!-- water, O2, CO2, the small gases that cross -->
-<script src="../lib/atomkit.js"></script>
-<script src="../membrane/parts.js"></script>
-<script src="../membrane/pump.js"></script>
-<script src="../membrane/chemiosmosis.js"></script>
-<script src="../membrane/membrane.js"></script>
-```
 
 ```js
 const m = Membrane.mount(el, {
@@ -350,17 +314,6 @@ Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, a
 
 **Scale**: macromolecule, single. One scene unit is one angstrom, from a lab's own coordinates, and nothing is exaggerated. This is the one component a page may print a real distance off.
 
-```html
-<link rel="stylesheet" href="../kit/proteinbox.css">
-...
-<script src="../folding/folding.js"></script>
-<script src="../kit/ribbon.js"></script>
-<script src="../kit/nucleic.js"></script>
-<script src="../kit/surface.js"></script>
-<script src="../kit/card-stage.js"></script>
-<script src="../kit/proteinbox.js"></script>
-<script src="../proteins/proteins.js"></script>
-```
 
 ```js
 const P = Proteinbox.mount(el, {
@@ -381,10 +334,6 @@ Good for: what a protein looks like, primary to quaternary structure, comparing 
 
 **Scale**: tissue, bulk. Layer heights and `width` / `depth` are scene units, not micrometres. Proportions are a diagram's: no page prints a thickness off it.
 
-```html
-<script src="../lib/geo.js"></script>          <!-- before card-stage.js -->
-<script src="../leaf/leaf.js"></script>
-```
 
 ```js
 const L = Leaf.mount(el, {
@@ -418,10 +367,6 @@ Good for: leaf anatomy, gas exchange, transpiration, what a vein carries, struct
 
 **Scale**: organism, single. The person beside it is how this scene answers size, by comparison rather than by a number. The mass shares in `Tree.PILES` are the numbers it owns.
 
-```html
-<script src="../lib/geo.js"></script>          <!-- before card-stage.js -->
-<script src="../tree/tree.js"></script>
-```
 
 ```js
 const T = Tree.mount(el, {
@@ -449,9 +394,6 @@ Good for: where a plant's mass comes from, photosynthesis as traffic, Van Helmon
 
 **Scale**: cell, single. Measured: a scene unit is one micrometre, so `state()` carries real lengths and a page may print them. The membrane alone is drawn twenty times too thick (`BloodCell.SCALE.exag`), which the page reads from there rather than typing.
 
-```html
-<script src="../bloodcell/bloodcell.js"></script>
-```
 
 ```js
 const C = BloodCell.mount(el, {
@@ -484,14 +426,6 @@ Good for: the biconcave shape and why it is that shape, osmosis and tonicity on 
 
 **Scale**: macromolecule, bulk. One scene unit is one ångström: the tetramer is a deposited structure's surface and every seat in the strand is the fibre bake's, so a page may print the strand's length off `state()`. The tumbling is choreography, not a diffusion rate, and `state()` reports no speed.
 
-```html
-<script src="../kit/ribbon.js"></script>
-<script src="../kit/tube.js"></script>
-<script src="../kit/surface.js"></script>
-<script src="../kit/card-stage.js"></script>
-<script src="../sickle/sickle-fibre.js"></script>   <!-- the seats and the patch colour come from here -->
-<script src="../sickle/hbcrowd.js"></script>
-```
 
 ```js
 const C = HbCrowd.mount(el, {
@@ -520,10 +454,6 @@ Good for: why one amino acid makes a polymer, HbA against HbS side by side, the 
 
 **Scale**: organ, bulk. One scene unit is one micrometre: the disc is BloodCell's measured profile, the vessel radii are capillary numbers and the crescent's length is in the measured range, so a page may print those off `state()`. The flow speed is choreography and is not reported.
 
-```html
-<script src="../bloodcell/bloodcell.js"></script>   <!-- first: the disc profile and the red -->
-<script src="../bloodcell/bloodflow.js"></script>
-```
 
 ```js
 const F = BloodFlow.mount(el, {
@@ -550,10 +480,6 @@ Good for: vaso-occlusion, why a stiff cell is a problem and a flexible one is no
 
 **Scale**: cell, single. A diagram's proportions, nothing deposited: `unit` is null, so **no page may print a length off it**. Ribosomes are drawn 30x and mitochondria 2x (`AnimalCell.SCALE.exag`) because at true size neither reads beside a nucleus.
 
-```html
-<script src="../cell/organelles.js"></script>   <!-- first: the shared organelles -->
-<script src="../cell/animalcell.js"></script>
-```
 
 ```js
 const C = AnimalCell.mount(el, {
@@ -578,10 +504,6 @@ Good for: naming the parts of a cell, animal against plant, where proteins are m
 
 **Scale**: cell, single. Same rung and the same rules as AnimalCell: `unit` is null and nothing prints a length. It shares `cell/organelles.js` with it, so a nucleus is the same object in both.
 
-```html
-<script src="../cell/organelles.js"></script>   <!-- first: the shared organelles -->
-<script src="../cell/plantcell.js"></script>
-```
 
 ```js
 const C = PlantCell.mount(el, {
@@ -609,12 +531,6 @@ Good for: the parts of a plant cell, plant against animal, turgor and wilting, p
 
 **Scale**: none. A graph is not in the world; its axes carry their own units.
 
-```html
-<link rel="stylesheet" href="../graph/graph.css">
-<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js"></script>
-<script src="../graph/graph.js"></script>
-```
 
 Never draw a chart by hand. A graph goes in the panel, not on the stage: mount it
 in `onEnter` from `ctx.ui.q()`, destroy it in `onExit`.
@@ -664,9 +580,8 @@ A tutor for a college Bio 101 student. Concise, no repetition, one claim per par
 Read the page you wrote against this list. Every line is a failure that renders
 correctly and then breaks, or breaks nothing and is wrong anyway.
 
-- The scripts are the core, plus exactly what each mounted component's section
-  lists, and nothing else. Never `mol-small.js` and `mol-solvation.js` together.
-- `lesson-shell.js` loads last, and the page's own script is after it.
+- The Three r128 tag, then one `../kit/app.js` tag, and no other `<script>` or
+  `<link>` for a library file. Its `data-use` names every component the page mounts, and no other.
 - Every `mount()` passes `viewOffset: shell.viewOffset`.
 - The last line of the page's script is `shell.goTo(0)`.
 - No markup in the body: the shell builds the panel, steps fill it.

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>loader test</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-use="Membrane"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Loader test',
+  steps: [{
+    eyebrow: 'One tag', title: 'The library arrived',
+    body: '<p>Membrane and Graph both loaded from a single script tag.</p>',
+    onEnter(ctx) {
+      ctx.controls('<div class="stats"><div class="stat"><div class="stat-label">K⁺ inside</div><div class="stat-value" id="k">—</div></div></div>');
+      const el = ctx.q('#k');
+      m.on('frame', s => { el.textContent = Math.round(s.inside && s.inside.K || 0); });
+    },
+  }],
+});
+const m = Membrane.mount(shell.stage, { viewOffset: shell.viewOffset, proteins: { K: { x: -36 }, pump: { x: 36 } } });
+shell.goTo(0);
+</script>
+</body>
+</html>
