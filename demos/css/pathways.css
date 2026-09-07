@@ -594,20 +594,26 @@ font-size: 20px;
   .rnum{width:30px;height:30px;padding:0;border-radius:50%;
     border:2px solid var(--hair);background:var(--panel);color:var(--muted);
     font-family:var(--font-slab);font-weight:700;font-size:14px;line-height:1;
-    display:flex;align-items:center;justify-content:center;cursor:pointer}
+    display:flex;align-items:center;justify-content:center;cursor:pointer;
+    transition:opacity .12s, border-color .12s, color .12s, box-shadow .12s}
+  /* hover everywhere the click goes somewhere — every number is reachable,
+     forward included. cur and run are where you already are. */
+  .rnum:not(.cur):not(.run):hover{opacity:1;border-color:var(--ink);
+    color:var(--ink);background:rgba(43,39,35,.07);
+    box-shadow:0 0 0 3px rgba(43,39,35,.09)}
   /* a step already run is filled — the trail you can count and click back into */
   .rnum.past{background:var(--ink);border-color:var(--ink);color:var(--panel);
     opacity:.45}
-  .rnum.past:hover{opacity:1}
+  .rnum.past:hover{color:var(--panel)}
   .rnum.cur{background:var(--ink);border-color:var(--ink);color:var(--panel);
     box-shadow:0 3px 10px -3px rgba(0,0,0,.5);cursor:default}
   /* THE STEP YOU ARE ON: awake but empty, from yours-to-run until it lands.
      Neither dim nor filled — happening, not yet made. */
   .rnum.run{opacity:1;border-color:var(--ink);color:var(--ink);border-width:2.5px;
     box-shadow:0 0 0 3px rgba(43,39,35,.1);cursor:default}
-  /* not run yet: keeps its number so the ten are always ten, but not a place
-     you can go — skipping ahead hands over a molecule you never made. */
-  .rnum.future{opacity:.4;cursor:default}
+  /* not run yet: dim, but still clickable — jumping ahead hands over a
+     molecule you never made, which the page allows. */
+  .rnum.future{opacity:.4}
   /* END: the eleventh stop, and the only one that isn't a number — the screen
      after step 10, where the pathway is done and the closing question waits.
      A word, so it never reads as "step 11". */
