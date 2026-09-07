@@ -77,13 +77,12 @@
   </section>
 
   <aside class="rail">
-    <div class="railhead"><span class="cap" id="railCap">Ask for a change</span><span class="ver" id="ver"></span></div>
-    <div class="railform" id="railForm"></div>
-    <div class="scroll">
-      <h3 id="historyHead" hidden>History</h3>
+    <div class="card railform" id="railForm"></div>
+    <div class="card scroll" id="historyCard" hidden>
+      <h3 id="historyHead">History <span class="ver" id="ver"></span></h3>
       <ol class="history" id="history"></ol>
     </div>
-    <div class="railfoot" id="railFoot" hidden>
+    <div class="card railfoot" id="railFoot" hidden>
       <p class="hint">Keep your edit link; this browser may forget it.</p>
       <button class="btn" id="settings" type="button"><i class="ph-bold ph-link"></i>Edit link</button>
     </div>
@@ -143,7 +142,6 @@
     $('request').placeholder = app ? (editing ? 'What should change?' : 'Remix this app to ask for changes') : 'a red blood cell in three solutions';
     $('request').disabled = !!app && !editing;
     $('ver').textContent = app ? `v${app.n}` : '';
-    $('railCap').textContent = editing ? 'Ask for a change' : 'Viewing';
   }
 
   // One list: every version is a turn. A row opens to the turn's details;
@@ -178,7 +176,7 @@
       row(String(v.n), { n: v.n, what: `${route(v)} · ${what}`, request: v.request, summary: v.summary, meta,
                          bad: !!v.error, current: v.n === app.n, restorable: v.n !== app.n && !v.error });
     }
-    $('historyHead').hidden = !ol.children.length;
+    $('historyCard').hidden = !ol.children.length;
   }
 
   $('history').addEventListener('click', async e => {
