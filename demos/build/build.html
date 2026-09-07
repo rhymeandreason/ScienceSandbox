@@ -88,6 +88,7 @@
       <p class="hint">Keep your edit link; this browser may forget it.</p>
       <button class="btn" id="settings" type="button"><i class="ph-bold ph-link"></i>Edit link</button>
       <button class="btn" id="export" type="button"><i class="ph-bold ph-download-simple"></i>Export</button>
+      <button class="btn" id="snap" type="button" title="Take the shelf thumbnail from the app as it is now"><i class="ph-bold ph-camera"></i></button>
     </div>
   </aside>
 </main>
@@ -128,11 +129,19 @@
   }
 
   // The relay's snapshot of the running app, kept on the app row for the shelf.
+  let snapAsked = false;
   async function saveThumb(data) {
     if (!app || !token || !data) return;
-    try { await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'thumb', id: app.id, thumb: data } }); }
-    catch { /* the shelf just shows paper */ }
+    try {
+      await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'thumb', id: app.id, thumb: data } });
+      if (snapAsked) notice('Thumbnail taken.');
+    } catch (err) { if (snapAsked) notice(err.message, true); }
+    snapAsked = false;
   }
+  $('snap').addEventListener('click', () => {
+    snapAsked = true;
+    frame.contentWindow.postMessage({ type: 'app-snap' }, '*');
+  });
 
   function paintErrors() {
     const e = $('errs');

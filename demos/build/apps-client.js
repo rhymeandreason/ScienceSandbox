@@ -107,9 +107,10 @@ window.addEventListener('unhandledrejection',function(e){send('unhandled: '+(e.r
 /* The thumb. A WebGL canvas reads back blank once the frame is composited, so
    the snapshot is taken inside the app's own rAF callback, right after it drew.
    Armed three seconds in, so the scene has settled; taken once. */
-var armed=false,done=false;setTimeout(function(){armed=true},3000);
+var armed=false,done=false,asked=false;setTimeout(function(){armed=true},3000);
+window.addEventListener('message',function(e){if(e.data&&e.data.type==='app-snap')asked=true});
 var raf=window.requestAnimationFrame.bind(window);
-window.requestAnimationFrame=function(cb){return raf(function(t){cb(t);if(armed&&!done){done=true;snap()}})};
+window.requestAnimationFrame=function(cb){return raf(function(t){cb(t);if((armed&&!done)||asked){done=true;asked=false;snap()}})};
 function snap(){try{var cs=[].slice.call(document.querySelectorAll('canvas')).filter(function(c){return c.width>50&&c.height>50});
 if(!cs.length)return;var src=cs.sort(function(a,b){return b.width*b.height-a.width*a.height})[0];
 var w=320,h=Math.round(w*src.height/src.width),c=document.createElement('canvas');c.width=w;c.height=h;var g=c.getContext('2d');
