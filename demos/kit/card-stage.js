@@ -457,7 +457,7 @@
       group(opts.layersLabel || 'show', pick(c.layers(), opts.layers), it => it.on, toggle);
     }
     if (want.includes('legend') && c.palette) {
-      const h = document.createElement('div'); h.className = 'show-hd'; h.textContent = opts.legendLabel || 'colours'; el.appendChild(h);
+      const h = document.createElement('div'); h.className = 'show-hd'; h.textContent = opts.legendLabel || 'legend'; el.appendChild(h);
       const lg = document.createElement('div'); lg.className = 'show-legend'; el.appendChild(lg);
       /* THE LEGEND IS BUILT ONCE AND THE SCENE IS NOT. A page that populates
          after mount — a bench switching environment, a step that stages its

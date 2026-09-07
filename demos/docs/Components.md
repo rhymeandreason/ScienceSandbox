@@ -111,16 +111,16 @@ c.palette();                // [{name, color}] what the colours mean, for a lege
 
 ### The show panel
 
-The chips for point at, zoom to and show, plus the colour legend, in one call. **Use this instead of writing your own buttons for notes or layers.**
+The colour legend, plus optional chips for point at, zoom to and show, in one call. **When a step wants any of those, use this instead of writing your own buttons** — but wanting them is the exception.
 
 ```js
 ctx.ui.showPanel(c, { notes: ['pump'], zoom: ['pump'], layers: ['water'] });  // on the step: into the step's controls
 CardStage.showPanel(container, c, { layers: ['water'] });                    // into any element
 ```
 
-**Name what the step offers, or you get no chips.** There is no default set: `showPanel(c)` with no `notes` and no `layers` draws the legend and nothing else. A step about the pump offers the pump; two or three chips is a step, seven is a menu. A part not on stage never appears.
+**`showPanel(c)` with nothing named draws the legend and nothing else, and that is the right call for most steps.** The legend is a reading aid: the student sees a purple sphere and wants to know what it is. The other three rows are inspection tools, and they were built for a bench. **Do not add them to a step by reflex.** Name `notes`, `zoom` or `layers` only when the step's own question is what that chip answers — a step whose point is that the water is in the way earns `layers: ['water']`, a step that asks the student to find the pump earns `notes: ['pump']`. A step that is a paragraph and a scene earns neither, and three rows of chips under every paragraph reads as a debug panel someone forgot to remove. When a step does earn them: two or three chips is a step, seven is a menu, and a part not on stage never appears.
 
-`only` picks any of `'notes'`, `'zoom'`, `'layers'`, `'legend'` when a step wants fewer rows than it named. A `zoom` chip is not a switch: it flies when pressed and comes home when pressed again, and only one is ever lit. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
+`only` picks any of `'notes'`, `'zoom'`, `'layers'`, `'legend'` when a step wants fewer rows than it named; `only: ['legend']` is the legend on its own. `legendLabel` renames its heading, which reads `legend` by default. A `zoom` chip is not a switch: it flies when pressed and comes home when pressed again, and only one is ever lit. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
 
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 

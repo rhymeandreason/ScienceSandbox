@@ -95,7 +95,7 @@
       show(e) { if (!e) return; e.classList.remove('is-hidden'); e.classList.add('rise'); },
       hide(e) { if (e) e.classList.add('is-hidden'); },
       setNext(label, visible = true) { els.next.textContent = label; els.next.classList.toggle('is-hidden', !visible); },
-      /* The component's own "point at / show / colours" chips, appended to
+      /* The component's own "point at / show / legend" chips, appended to
          the controls slot. kit/card-stage.js draws it; this only places it. */
       showPanel(c, opts) { return global.CardStage.showPanel(els.controls, c, opts); },
       /* Returns `sync(v)`: write a value into the slider FROM CODE and repaint
