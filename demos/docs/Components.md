@@ -21,22 +21,24 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 </head>
 <body>
 
+<!-- the core, every page, in this order -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
-<script src="../lib/mol-small.js"></script>        <!-- water, O2, CO2, small gases -->
-<!-- ONE of the two lines above and below, never both: they define the same
-     molecules at different scales and loading both throws at startup.
-     mol-solvation.js REPLACES mol-small.js, and only when WaterSim is mounted.
-<script src="../lib/mol-solvation.js"></script>    WaterSim only: its water and salts -->
 <script src="../lib/scene.js"></script>
-<script src="../lib/atomkit.js"></script>          <!-- Membrane only -->
-<!-- Leaf and Tree need only three.min.js, palette.js, tokens-from-palette.js, molecules.js, scene.js, lib/geo.js and card-stage.js -->
 <script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
-<!-- then the component(s), in the order their sections give -->
-<script src="../kit/lesson-shell.js"></script>
+
+<!-- then, for each component you mount, exactly the scripts its own section
+     lists, in the order it lists them. Nothing else. A page that mounts
+     nothing needing them must not load lib/mol-small.js, lib/mol-solvation.js,
+     lib/atomkit.js or lib/geo.js, and mol-small.js and mol-solvation.js define
+     the same molecules at different scales, so loading both throws at
+     startup: a page carries at most one of the two, whichever its section
+     named. -->
+
+<script src="../kit/lesson-shell.js"></script>   <!-- last: the shell reads the rest -->
 <script>
   // the shell, the mount(s), shell.goTo(0): see "The step-through shell"
 </script>
@@ -47,6 +49,53 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 Paths are relative to the file, which lives one folder below `demos/`. Load a component's scripts in the order its section gives. Everything is a global; there are no modules and no build. The shell owns the DOM: no markup goes in the body, the panel is filled per step, and the scene is whatever is mounted in `shell.stage`.
 
 Never type an atom or bond colour; the palette publishes them as CSS custom properties `--atom-O`, `--atom-H`, `--atom-Na`, `--bond-covalent`, `--bond-hbond`, and a caption naming an atom uses its token.
+
+## The step-through shell
+
+The shell is the page. Every app is a sequence of steps, even one step: the scene fills the window, the panel carries the copy and the controls, and the student moves with Back and Next.
+
+```html
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+...
+<script src="../kit/lesson-shell.js"></script>
+```
+
+```js
+const shell = LessonShell.create({
+  brand: 'The Mass of a Tree',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { state: {} },                        // handed to every step; the shell adds ui and goTo
+  steps: [{
+    eyebrow: 'Start here', title: 'Where does a tree’s mass come from?',
+    body: '<p>...</p>',                       // or a function of ctx
+    nextLabel: 'Test it',
+    camera: { pos: [21, 9.5, 28], target: [0, 6.5, 0] },
+    onEnter(ctx) { ctx.ui.controls('<button class="btn secondary" id="go">Go</button>'); ctx.ui.q('#go').onclick = ...; },
+    onExit(ctx) {},
+  }],
+  onStep(step) { if (step.camera) T.flyTo(step.camera.pos, step.camera.target); },
+});
+const T = Tree.mount(shell.stage, { viewOffset: shell.viewOffset });
+T.on('night', on => shell.theme('is-night', on));
+shell.goTo(0);
+```
+
+Inside a step, on `ctx` (and on `ctx.ui`, which is the same set of functions: `ctx.q` and `ctx.ui.q` are one call):
+
+| call | what it does |
+| --- | --- |
+| `controls(html)` | fills the step's control slot; call it before looking anything up |
+| `q(sel)`, `qa(sel)` | find one / all, inside that slot only |
+| `show(el)`, `hide(el)` | reveal with a rise, or hide |
+| `setNext(label, visible)` | rename or hide the Next button |
+| `range(input, onChange)` | paints a slider's track, fires once with its value, returns `sync(v)` to write it from code |
+| `showPanel(c, opts)` | the component's own chips, into the slot: see "The show panel" |
+| `goTo(i)` | jump to a step |
+
+The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`.
+
+`shell.viewOffset` is what every mount takes to centre its scene beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.
 
 ## Contract every component shares
 
@@ -158,6 +207,7 @@ Nothing is at the `organelle`, `organ` or `population` rung yet. **A size a page
 **Scale**: molecules, bulk. The liquid and any solute spec are the same rung, which is why a solute goes in this box rather than beside it. The render is not measurable: no page prints a distance off it.
 
 ```html
+<script src="../lib/mol-solvation.js"></script>   <!-- this component's water and salts; replaces mol-small.js, never beside it -->
 <script src="../water/watersim.js"></script>
 <script src="../water/watersim-mount.js"></script>
 ```
@@ -199,6 +249,8 @@ Good for: temperature, phase change, why ice floats, salt dissolving, colligativ
 **Scale**: membrane, bulk. One scene unit is about an angstrom. Everything crossing is drawn 5x oversize against the sheet, so a size read off a travelling ion is that exaggeration, not a measurement.
 
 ```html
+<script src="../lib/mol-small.js"></script>       <!-- water, O2, CO2, the small gases that cross -->
+<script src="../lib/atomkit.js"></script>
 <script src="../membrane/parts.js"></script>
 <script src="../membrane/pump.js"></script>
 <script src="../membrane/chemiosmosis.js"></script>
@@ -553,39 +605,6 @@ One list of parts serves `note()`, `lookAt()` and `show()`: `wall`, `membrane`, 
 
 Good for: the parts of a plant cell, plant against animal, turgor and wilting, plasmolysis, where starch is stored, why a plant needs a wall. Not for: photosynthesis itself (that is Leaf, a rung up, or a pathway lesson), anything inside a chloroplast, or a number in micrometres.
 
-## The step-through shell
-
-The shell is the page. Every app is a sequence of steps, even one step: the scene fills the window, the panel carries the copy and the controls, and the student moves with Back and Next.
-
-```html
-<link rel="stylesheet" href="../css/kodo.css">
-<link rel="stylesheet" href="../css/lesson-shell.css">
-...
-<script src="../kit/lesson-shell.js"></script>
-```
-
-```js
-const shell = LessonShell.create({
-  brand: 'The Mass of a Tree',
-  hint: 'Drag to orbit · Scroll to zoom',
-  ctx: { state: {} },                        // handed to every step; the shell adds ui and goTo
-  steps: [{
-    eyebrow: 'Start here', title: 'Where does a tree’s mass come from?',
-    body: '<p>...</p>',                       // or a function of ctx
-    nextLabel: 'Test it',
-    camera: { pos: [21, 9.5, 28], target: [0, 6.5, 0] },
-    onEnter(ctx) { ctx.ui.controls('<button class="btn secondary" id="go">Go</button>'); ctx.ui.q('#go').onclick = ...; },
-    onExit(ctx) {},
-  }],
-  onStep(step) { if (step.camera) T.flyTo(step.camera.pos, step.camera.target); },
-});
-const T = Tree.mount(shell.stage, { viewOffset: shell.viewOffset });
-T.on('night', on => shell.theme('is-night', on));
-shell.goTo(0);
-```
-
-`ctx.ui` inside a step, and every one of these is on `ctx` itself too, so `ctx.q('#go')` and `ctx.ui.q('#go')` are the same call: `controls(html)` fills the slot, `q(sel)` and `qa(sel)` find inside it, `show(el)` and `hide(el)`, `setNext(label, visible)`, and `range(input, onChange)`, which paints a slider's track and fires once with its value. The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`. `shell.viewOffset` is what every mount takes to centre its scene beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.
-
 ## Graph — a chart of measurements, or of a running sim
 
 **Scale**: none. A graph is not in the world; its axes carry their own units.
@@ -639,3 +658,22 @@ y-axis.
 A tutor for a college Bio 101 student. Concise, no repetition, one claim per paragraph, in bold, that the picture is showing right now. Prefer a question the student can answer by touching a control. No em dashes.
 
 **Show, do not tell.** When a student asks what something is, put a note on it, in the step where they asked. When they ask what happens if, add a control that does it, or a step that shows it. When they ask to see or hide something, it is a layer. A note names the part it is on, not the whole scene. Add a paragraph only when none of those is possible. A panel body stays under two short paragraphs, and an edit that would push it past that replaces text rather than adding it. When something asked for is beyond the components, say so in one sentence in the page rather than faking it.
+
+## Before you answer
+
+Read the page you wrote against this list. Every line is a failure that renders
+correctly and then breaks, or breaks nothing and is wrong anyway.
+
+- The scripts are the core, plus exactly what each mounted component's section
+  lists, and nothing else. Never `mol-small.js` and `mol-solvation.js` together.
+- `lesson-shell.js` loads last, and the page's own script is after it.
+- Every `mount()` passes `viewOffset: shell.viewOffset`.
+- The last line of the page's script is `shell.goTo(0)`.
+- No markup in the body: the shell builds the panel, steps fill it.
+- No `setTimeout`, no `setInterval`, no animation loop. A step sets a
+  destination and `set()` glides there; a readout lives in `on('frame')`.
+- Every number the student reads came from `state()`. None is typed.
+- No colour is typed: the palette publishes `--atom-O`, `--bond-hbond` and the
+  rest, and a caption naming an atom uses its token.
+- Nothing is mounted, set or called that this document does not describe. If
+  the request needed something more, the page says so in one sentence.
