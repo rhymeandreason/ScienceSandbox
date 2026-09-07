@@ -9,7 +9,9 @@
  *      const shell = LessonShell.create({
  *        brand: 'The Mass of a Tree',
  *        hint:  'Drag to orbit · Scroll to zoom',
- *        steps: [{ eyebrow, title, body, nextLabel, camera, onEnter(ctx), onExit(ctx) }, ...],
+ *        steps: [{ eyebrow, title, body, nextLabel, camera,
+ *                  onEnter(ctx), onExit(ctx),
+ *                  onLeave(ctx, to) -> seconds to hold before the swap }, ...],
  *        ctx:   {},                       // handed to every step; the shell adds `ui` and `goTo`
  *        onStep: (step, i) => {},         // after the panel is filled, before onEnter
  *      });
@@ -123,8 +125,32 @@
       els.progress.appendChild(b);
     });
 
+    /* A STEP MAY HOLD THE DOOR. `onLeave(ctx, to)` returns seconds, and the
+       shell waits that long before swapping — for a step whose last gesture
+       has to finish on screen before the next one starts from it, which is
+       otherwise impossible: onExit runs and the scene is gone in the same
+       frame. Everything is locked out while it runs, including the keys and
+       the progress dots, so a second press cannot land mid-transition. Returns
+       nothing and the shell behaves exactly as it always did. */
+    let holding = false;
     function goTo(i) {
+      if (holding) return;
       if (i < 0 || i >= steps.length || i === current) return;
+      const hold = current >= 0 && steps[current].onLeave ? steps[current].onLeave(ctx, i) : 0;
+      if (hold > 0) {
+        holding = true;
+        els.next.disabled = els.back.disabled = true;
+        setTimeout(() => {
+          holding = false;
+          els.next.disabled = false;
+          swap(i);
+        }, hold * 1000);
+        return;
+      }
+      swap(i);
+    }
+
+    function swap(i) {
       if (current >= 0 && steps[current].onExit) steps[current].onExit(ctx);
       current = i;
       const step = steps[i];

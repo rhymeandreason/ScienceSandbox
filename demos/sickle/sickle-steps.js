@@ -95,11 +95,24 @@
     body: `Same fold, same four chains. Only position 6 of each β chain is different.
       Glutamate carries a charge and sits happily in water. Valine is greasy, and on
       the outside of a protein it wants somewhere to hide.`,
-    onExit: leave,
+    onExit(ctx) { leave(ctx); ctx.state.protein = null; },
+    /* THE HANDOFF STARTS HERE. Beat 3 opens on one molecule as a bare skin,
+       so this one ends as one: the ribbon goes under an opaque surface before
+       the swap, and the reader crosses on a shape that did not change. Only
+       going forward — backing out of the beat should not perform anything. */
+    onLeave(ctx, to) {
+      if (to <= 1 || !ctx.state.protein) return 0;
+      ctx.state.protein.box.setSkin(1, 0.85);
+      return 1.05;
+    },
     onEnter(ctx) {
       ctx.split(false);
       ctx.toggle(true);
       const { protein } = ctx.use({ show: ['protein'], keep: ['cell'] });
+      ctx.state.protein = protein;
+      /* Back into this beat from the handoff: the skin is opaque and has to
+         be a skin again. */
+      protein.box.setSkin(null);
       protein.show(ctx.variant);
       ctx.onToggle = v => protein.show(v);
       ctx.ui.controls(`<p class="hint-text">Drag to turn it. Flip the switch:

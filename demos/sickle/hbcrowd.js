@@ -1030,11 +1030,13 @@
       frame(2.6);
     });
     /* ---- the way in ---------------------------------------------------------
-       The beat before this one is ONE molecule, filling the frame. So this one
-       starts there too — the same skin, faded up, at the same size — and then
-       widens until the crowd it was always in is visible. The molecules are
-       already there and already moving the whole time; what changes is how
-       much of the room the camera admits to.
+       The beat before this one ends on ONE molecule as a bare opaque skin,
+       filling the frame. So this one opens on exactly that — one molecule, the
+       same size, no fade — and widens until the crowd it was always in is
+       visible. Crossing on a shape that does not change is the whole point;
+       fading in here as well would put a dissolve between two identical
+       frames. The molecules are already there and already moving the whole
+       time; what changes is how much of the room the camera admits to.
 
        The argument the lesson is making is arithmetic: one patch is nothing,
        and a hundred thousand of them is a cell that cannot get through a
@@ -1053,13 +1055,12 @@
     }
     function begin(seconds) {
       camTw.cancel();
-      sim.set({ opacity: 0, reveal: 0 }, { snap: true });
+      sim.set({ reveal: 0 }, { snap: true });
       const one = sim.first();
       if (one) box.cam.target.copy(one); else box.cam.target.set(0, 0, 0);
       box.cam.r = fitR(sim.molR * 1.75);
       box.applyCam();
       held = 0;
-      sim.set({ opacity: 1 }, { seconds: Math.min(1, seconds * 0.35) });
       sim.set({ reveal: 1 }, { seconds });
       frame(seconds, true);
     }

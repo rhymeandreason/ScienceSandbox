@@ -34,6 +34,8 @@
  *
  *    box.paintSkin((chain, num, name) => colour)   per-residue, one array
  *    box.patch('b6', {chains:'B,D', num:6}, {colour, opacity})
+ *    box.setSkin(opacity, seconds)   fade the skin — 1 is the outside alone,
+ *                                    null is back to reading the ribbon through
  *
  *  A paint recolours the skin in place — no rebuild, no refetch, and NOTHING
  *  MOVES, which is the point: a lesson claiming a substitution leaves the fold
@@ -1242,6 +1244,34 @@
       m.needsUpdate = true;
       surf.renderOrder = skin ? 1 : 0;
     }
+
+    /* ---- setSkin(opacity, seconds) ----
+
+       The skin's own opacity, and optionally a fade to it. The default 0.28 is
+       a skin you read the ribbon through; taken to 1 it is the molecule's
+       outside and nothing else — which is what the same protein looks like in
+       a crowd, so a lesson handing off from one molecule to many can close the
+       gap on screen instead of cutting across it.
+
+       It moves nothing and rebuilds nothing: one material property, per frame.
+       Only meaningful while the rep is `skin` — applySkin owns the rest. */
+    let skinFade = 0;
+    box.setSkin = function setSkin(to, seconds) {
+      if (to == null) to = SKIN_OPACITY;          // back to a skin you read through
+      const from = opts.skinOpacity == null ? SKIN_OPACITY : opts.skinOpacity;
+      if (skinFade) { cancelAnimationFrame(skinFade); skinFade = 0; }
+      if (!seconds) { opts.skinOpacity = to; applySkin(); box.draw(); return box; }
+      const t0 = performance.now();
+      const tick = () => {
+        const u = Math.min(1, (performance.now() - t0) / (seconds * 1000));
+        opts.skinOpacity = from + (to - from) * u * u * (3 - 2 * u);
+        applySkin();
+        box.draw();
+        skinFade = u < 1 ? requestAnimationFrame(tick) : 0;
+      };
+      tick();
+      return box;
+    };
 
     /* ---- paintSkin(fn) ----
 
