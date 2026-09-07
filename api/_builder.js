@@ -251,6 +251,14 @@ function validate(html, names) {
     problems.push(`stylesheet from outside the library: ${u}`);
   }
 
+  /* The one pair of library files that must never load together: they define
+   * the same small molecules at different scales, and molecules.js throws on
+   * the second registration. The skeleton in the reference used to list both
+   * lines in a row, so every page copied both; the doc is fixed, and this is
+   * what keeps a page that reintroduces them from being handed over. */
+  if (/\/mol-small\.js["']/.test(src) && /\/mol-solvation\.js["']/.test(src))
+    problems.push('loads both mol-small.js and mol-solvation.js: they define the same molecules at different scales and molecules.js throws. Load mol-solvation.js only when WaterSim is mounted, in place of mol-small.js');
+
   const known = new Set(names || components());
   const loads = new Set([...src.matchAll(/<script[^>]*\ssrc=["']([^"']+)["']/gi)].map(m => m[1]));
   const deps = needs();

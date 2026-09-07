@@ -26,7 +26,10 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/mol-small.js"></script>        <!-- water, O2, CO2, small gases -->
-<script src="../lib/mol-solvation.js"></script>    <!-- WaterSim only: its water and salts -->
+<!-- ONE of the two lines above and below, never both: they define the same
+     molecules at different scales and loading both throws at startup.
+     mol-solvation.js REPLACES mol-small.js, and only when WaterSim is mounted.
+<script src="../lib/mol-solvation.js"></script>    WaterSim only: its water and salts -->
 <script src="../lib/scene.js"></script>
 <script src="../lib/atomkit.js"></script>          <!-- Membrane only -->
 <!-- Leaf and Tree need only three.min.js, palette.js, tokens-from-palette.js, molecules.js, scene.js, lib/geo.js and card-stage.js -->
