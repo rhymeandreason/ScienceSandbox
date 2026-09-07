@@ -79,7 +79,6 @@
   .tag{position:absolute;z-index:5;pointer-events:none;transform:translate(-50%,0);
     font-family:var(--font-slab);font-size:13px;letter-spacing:.4px;color:var(--ink);
     background:rgba(255,255,255,.66);border-radius:7px;padding:2px 9px;white-space:nowrap}
-  .tag.joined{background:#5a4fbf;color:#fff}
 
   /* Names the water a condensation releases. Pinned above the molecule and
      fading with it, so the name and the thing it names go together. */
@@ -701,7 +700,6 @@ function chain(){
 function say(){
   const c = chain();
   showReveal(); showTags();
-  for(const p of P.pieces) p.tag.classList.toggle('joined', c.includes(p));
   if(c.length < 2){
     seqEl.style.display = 'none';
     noteEl.innerHTML = card.lead;
@@ -899,12 +897,26 @@ dimBtn.addEventListener('click', () => reveal(dim === 'flat' ? '3d' : 'flat'));
 /* The reveal is offered when there is something to reveal: glycerol out of
  * hydroxyls, or the stage already turned. Asked before that, it would morph a
  * half-built fat into a pose two of its slots have not taken. */
-/* THE NAMES BELONG TO THE BUILD. Flat, a tag says which monomer is which while
- * the student is choosing what to drag. Round, the molecule turns and a flat
- * label pinned near it reads as a caption on nothing — and by then the naming
- * is done, because the thing on the stage is one molecule. */
+/* THE NAMES BELONG TO THE BUILD, and one rule owns them because two would
+ * drift.
+ *
+ * Round: no labels at all. The molecule turns and a flat label pinned near it
+ * reads as a caption on nothing — and by then the naming is done, because the
+ * thing on the stage is one molecule.
+ *
+ * Flat: only what is still LOOSE. A tag says which monomer is which while the
+ * student is choosing what to drag; once a unit has reacted its name is the
+ * one thing on screen they no longer need, and the tag sits squarely over the
+ * bond that just formed, which is what they were looking at. What the finished
+ * molecule IS gets said once, in the readout.
+ *
+ * Joined is read off the LINKS, not off `chain()`: a second, separate chain is
+ * just as joined, and its units would keep their labels if this asked the one
+ * chain the readout happens to be describing. */
 function showTags(){
-  for(const p of P.pieces) p.tag.style.display = dim === 'flat' ? '' : 'none';
+  const joined = new Set(P.links.flatMap(l => [l.a, l.b]));
+  for(const p of P.pieces)
+    p.tag.style.display = (dim === 'flat' && !joined.has(p)) ? '' : 'none';
 }
 
 function showReveal(){
