@@ -120,9 +120,9 @@
 
   // fresh → work: the hero fades, the rail slides in, and the one form goes with it.
   function enterWork() {
-    if (document.body.classList.contains('work')) return;
     document.body.classList.remove('fresh');
     document.body.classList.add('work');
+    if ($('ask').parentElement === $('railForm')) return;
     $('railForm').appendChild($('ask'));
     $('send').className = 'cta cta--sm';
   }
