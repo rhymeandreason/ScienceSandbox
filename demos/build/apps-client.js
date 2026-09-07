@@ -129,11 +129,18 @@ g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,sx,sy,cw,ch,0,0,w,h);parent.p
 }catch(e){}}
 })();</script>`;
 
-  function framed(html) {
+  function framed(html, relay = RELAY) {
     const base = `<base href="${location.origin}/demos/build/">`;
     const head = /<head[^>]*>/i.exec(html);
-    return head ? html.slice(0, head.index + head[0].length) + '\n' + base + RELAY + html.slice(head.index + head[0].length)
-                : base + RELAY + html;
+    return head ? html.slice(0, head.index + head[0].length) + '\n' + base + relay + html.slice(head.index + head[0].length)
+                : base + relay + html;
+  }
+
+  /* A live but inert copy for the shelf: no relay, so it neither reports
+   * errors nor takes a thumb. The page is expected to have pointer-events off. */
+  function preview(iframe, html) {
+    iframe.setAttribute('sandbox', LOOPBACK ? 'allow-scripts allow-same-origin' : 'allow-scripts');
+    iframe.srcdoc = framed(html, '');
   }
 
   /* Puts the page in the iframe and returns the errors it relays, as a live
@@ -181,5 +188,5 @@ g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,sx,sy,cw,ch,0,0,w,h);parent.p
     d.showModal();
   }
 
-  return { KEY, VISITOR, ID, api, link, mount, exportFile, remember, forget, tokenFor, mine, beta };
+  return { KEY, VISITOR, ID, api, link, mount, preview, exportFile, remember, forget, tokenFor, mine, beta };
 })();
