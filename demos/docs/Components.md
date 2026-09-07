@@ -147,6 +147,10 @@ molecules · macromolecule · membrane · organelle · cell · tissue · organ �
 | AnimalCell | cell | single |
 | PlantCell | cell | single |
 
+**At the cell rung, AnimalCell and PlantCell are the defaults.** They are what a reader pictures when they hear "a cell", and between them they carry a nucleus, organelles, a wall and a vacuole. BloodCell is a specialist — it has none of that — so it comes out when the subject really is blood or a red cell, or as a second example after a general cell has made the point.
+
+**Two rungs are often the lesson, not a choice between them.** *Why does osmosis matter* is two boxes or two steps: Membrane for the mechanism (water crossing, counted) and BloodCell or PlantCell for the consequence (a cell bursting, a leaf wilting). Neither half answers it alone — the mechanism without a consequence is a headcount nobody asked for, and the consequence without the mechanism is a shape changing for no stated reason. The same holds for a pump and the cell it keeps alive, or a chloroplast and the tree it feeds. **When a question asks why something MATTERS, reach for the pair.**
+
 Nothing is at the `organelle`, `organ` or `population` rung yet. **A size a page prints must come from `state()`, and most of these components have no scale to print one from.** Where a real size matters, say it as a fact about the real thing ("a red blood cell is about 8 µm across"), never as a measurement of the picture.
 
 ## WaterSim — liquid water and what follows from hydrogen bonds
@@ -256,6 +260,8 @@ m.spend();                       // one ATP, one pump turn; false if a turn is r
 Or in millimolar, which is how a page should say it: `units: 'mM'` in the mount params, then `contents: { inside: { K:140, NA:12 }, outside: { NA:470, CL:550 } }` and the module turns it into counts, one particle per 20 mM, with water filling each side. Leave water out; the module fills it. `state().concentration[kind].inside / .outside` reads back in mM, so print that rather than typing a molarity. Blood is about 150 mM Na⁺, seawater 470, a river under 1.
 
 Changing `contents` adds and removes only the difference, by current side, so a water that already crossed stays crossed. **The budget is 220 particles on stage, of which at most 110 ions**; past it nothing more is added. Keep the same particle count per side and fewer free waters where the solute is; that is what makes osmosis a headcount rather than a pull. About 78 particles a side reads well: 78 water on the fresh side, and on a salty side 26 water with 26 Na⁺ and 26 Cl⁻.
+
+**Osmosis is the whole of this component too, and it is the mechanism half.** Put more solute on one side and there are fewer free waters there; water crosses both ways and simply arrives more often on the crowded side, until the headcounts match. `state().net` reads that count off the stage every frame and prints `'entering'`, `'leaving'` or `'balanced'`, so the verdict is measured rather than typed, and `crossings.up / .down` is what actually happened each way. Nothing pulls; there is no osmotic force in the sim, because there is none in the cell.
 
 For one molecule placed by hand there is `m.add(kind, opts)` with `opts.x, .y, .z`, and `m.scatter(kind, n, side, opts)` with side 1 outside, −1 inside.
 
@@ -410,7 +416,7 @@ const C = BloodCell.mount(el, {
 
 One cell, and every shape it takes is the same membrane moved: nothing is rebuilt, so a morph is smooth and a page may drive it from a slider. `tonicity` is the whole osmosis story on one axis, and both ends follow from the membrane's area being fixed — toward pure water the cell fills to the sphere that area can enclose and then can hold no more (raise `spill` and it lyses), toward brine the water leaves and the surplus membrane buckles into spikes, a crenated cell.
 
-**Reach for this when the subject is the CELL — its shape, its contents, what a solution does to it, what sickling does to it. A step about what crosses the membrane is Membrane, not this one**: a bilayer is a thousand times smaller, so the two never share a scene. Osmosis has both halves, and they are two boxes or two steps: Membrane counts the water crossing, BloodCell shows the cell it happens to.
+**A red cell is a specialist, not a stand-in for "a cell".** It has no nucleus and no organelles, so a step that means a generic cell — what is in one, what one does, what happens to one — gets AnimalCell or PlantCell, and a reader shown a red cell instead comes away thinking cells have no nucleus. **Reach for this one when the subject is genuinely blood or genuinely this cell** — the biconcave shape and why it is that shape, haemoglobin and what a red cell is filled with, sickle-cell disease, lysis and crenation on a real measured cell — or as the second example when one cell has already made the general point and a contrasting case would sharpen it. **A step about what crosses the membrane is Membrane, not this one**: a bilayer is a thousand times smaller, so the two never share a scene. Osmosis has both halves, and they are two boxes or two steps: Membrane counts the water crossing, BloodCell shows the cell it happens to. For a plant the consequence half is PlantCell, and a lesson with room for both cells gets the wall's argument for free.
 
 **`cut: 1` is the setting most steps want on.** Whole, the cell is a smooth red disc; halved, the shell has visible thickness and the haemoglobin is on show, which is what makes the inside a fact rather than a claim.
 
@@ -420,7 +426,7 @@ Glides: `tonicity`, `spill`, `sickle`, `cut`. Snaps: `seed`, `membrane`, and any
 
 Anchors for `note()`: `rim`, `dimple`, `cutFace`, `haemoglobin`, `horn` (only when sickled), `spicule` (only in brine). Layers for `show()`: `membrane`, `hb`; hiding the membrane leaves the haemoglobin standing in the shape of the cell.
 
-Good for: the biconcave shape and why it is that shape, osmosis and tonicity on a real cell, lysis and crenation, what a red cell is filled with, and sickle-cell disease. Not for: transport across the membrane, blood as a fluid or a vessel full of cells, or anything with a nucleus — this one has none.
+Good for: the biconcave shape and why it is that shape, osmosis and tonicity on a real cell, lysis and crenation, what a red cell is filled with, and sickle-cell disease. Not for: transport across the membrane, blood as a fluid or a vessel full of cells, anything with a nucleus — this one has none — or standing in for a typical cell, which is AnimalCell's job.
 
 ## HbCrowd — a crowd of haemoglobins, and the moment HbS starts a fibre
 
@@ -506,7 +512,7 @@ const C = AnimalCell.mount(el, {
 
 A bowl of cytoplasm cut on a wavy line, with a nucleus, five mitochondria, a Golgi ribbon, rough ER wrapped round the nucleus, a centrosome, vesicles and 1500 ribosomes. Everything jiggles in place and the vesicles run in and out along the line to the centrosome, which is what an animal cell's organelles actually do.
 
-**Reach for this when the step asks WHAT IS IN A CELL, or what an animal cell has that a plant cell does not.** Hover brightens an organelle, a click flies to it, a double-click comes home, so "find the Golgi" is a thing the student does rather than reads. A step about one organelle's own machinery is not this component: a mitochondrion's cristae doing chemiosmosis is Membrane, and it is a different rung, so it is a different box.
+**This is the default animal cell.** Reach for it when the step asks WHAT IS IN A CELL, what an animal cell has that a plant cell does not, or whenever a lesson needs one cell to point at and the subject is not some particular cell's speciality. PlantCell is the same default on the plant side. Hover brightens an organelle, a click flies to it, a double-click comes home, so "find the Golgi" is a thing the student does rather than reads. A step about one organelle's own machinery is not this component: a mitochondrion's cristae doing chemiosmosis is Membrane, and it is a different rung, so it is a different box.
 
 Snaps: everything. `motion` is the only live param; geometry rebuilds, and nothing glides across a rebuild.
 
@@ -537,7 +543,7 @@ C.set({ t: 1.4, now: true });       // now:true snaps, for a slider the student 
 
 A hexagonal cell with a cellulose wall, a plasma membrane just inside it, and one vacuole taking most of the room. **The tissue is the argument**: a leaf cell is full of chloroplasts, a root cell has amyloplasts and no chloroplast, a potato cell is mostly starch, a cactus cell has a thick wall and an enormous vacuole. Switching tissue rebuilds the contents and tints the wall and the membrane; the old organelles shrink away as the new ones grow.
 
-**Reach for this whenever water and a plant are in the same step.** `t` is the whole turgor story on one axis: the vacuole empties, the protoplast shrinks off the wall, and threads of membrane stay stuck to it. A step about osmosis in an animal cell is BloodCell instead, and the pair is the lesson: the plant cell has a wall to press against and the red cell does not.
+**Reach for this whenever water and a plant are in the same step.** `t` is the whole turgor story on one axis: the vacuole empties, the protoplast shrinks off the wall, and threads of membrane stay stuck to it. **For a reader asking why osmosis matters, this is usually the nearer answer**: a wilting plant is osmosis they have already watched happen, where a lysing red cell is not. An animal cell under the same question is BloodCell, and running the two side by side is itself the lesson: the plant cell has a wall to press against and the red cell does not, so the same water movement ends in turgor on one side and in bursting on the other.
 
 Glides: `t` (pass `now: true` to snap). Snaps: `tissue`, `stream`.
 
