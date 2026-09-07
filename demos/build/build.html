@@ -81,10 +81,8 @@
     <div class="railhead"><span class="cap" id="railCap">Ask for a change</span><span class="ver" id="ver"></span></div>
     <div class="railform" id="railForm"></div>
     <div class="scroll">
-      <h3 id="turnsHead" hidden>Turns</h3>
-      <ol class="turns" id="turns"></ol>
-      <h3 id="versionsHead" hidden>Versions</h3>
-      <ol class="versions" id="versions"></ol>
+      <h3 id="historyHead" hidden>History</h3>
+      <ol class="history" id="history"></ol>
     </div>
   </aside>
 </main>
@@ -142,46 +140,70 @@
     $('send').textContent = app ? (editing ? 'Ask for a change' : 'Remix to edit') : 'Build';
     $('request').placeholder = app ? (editing ? 'What should change?' : 'Remix this app to ask for changes') : 'a red blood cell in three solutions';
     $('request').disabled = !!app && !editing;
-    $('turnsHead').hidden = !$('turns').children.length;
     $('ver').textContent = app ? `v${app.n}` : '';
     $('railCap').textContent = editing ? 'Ask for a change' : 'Viewing';
   }
 
-  function addTurn({ request, summary, meta, bad }) {
-    const li = document.createElement('li');
-    li.innerHTML = `<div class="q">${esc(request)}</div>`
-      + (summary ? `<div class="a">${esc(summary)}</div>` : '')
-      + (meta ? `<div class="meta${bad ? ' bad' : ''}">${esc(meta)}</div>` : '');
-    $('turns').prepend(li);
-    $('turnsHead').hidden = false;
+  // One list: every version is a turn. A row opens to the turn's details;
+  // a failed request made no version, so it sits at the top with no number.
+  let extra = {};     // n → detail only the live response knew (route, problems)
+  let failed = [];    // { request, meta }
+  let open = null;    // n of the open row, or 'f<i>'
+  let versions = [];
+
+  function route(v) {
+    return v.kind === 'build' ? 'draft' : v.kind === 'restore' ? 'restore' : v.kind;
   }
+  function paintHistory() {
+    const ol = $('history'); ol.innerHTML = '';
+    const row = (key, { n, what, request, summary, meta, bad, current, restorable }) => {
+      const li = document.createElement('li');
+      li.className = (current ? 'current ' : '') + (open === key ? 'open ' : '') + (bad ? 'bad' : '');
+      li.dataset.key = key;
+      li.innerHTML = `<div class="head"><span class="n">${n == null ? '' : 'v' + n}</span><span class="what">${esc(what)}</span></div>`
+        + `<div class="body"><div class="q">${esc(request || '')}</div>`
+        + (summary ? `<div class="a">${esc(summary)}</div>` : '')
+        + `<div class="meta">${esc(meta)}</div>`
+        + (restorable ? `<button class="btn" type="button" data-n="${n}"><i class="ph-bold ph-arrow-counter-clockwise"></i>Restore</button>` : '')
+        + `</div>`;
+      ol.appendChild(li);
+    };
+    failed.forEach((f, i) => row('f' + i, { what: 'failed · ' + f.request, request: f.request, meta: f.meta, bad: true }));
+    for (const v of versions.slice().reverse()) {
+      const what = v.error ? `failed: ${v.error}` : (v.request || v.summary || v.kind);
+      const meta = [extra[v.n] || route(v), v.ms != null ? `${(v.ms / 1000).toFixed(1)} s` : '', usd(v.usage)].filter(Boolean).join(' · ')
+                 + (v.error ? ` · ${v.error}` : '');
+      row(String(v.n), { n: v.n, what: `${route(v)} · ${what}`, request: v.request, summary: v.summary, meta,
+                         bad: !!v.error, current: v.n === app.n, restorable: v.n !== app.n && !v.error });
+    }
+    $('historyHead').hidden = !ol.children.length;
+  }
+
+  $('history').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-n]');
+    if (b) {
+      if (busy) return;
+      try {
+        const r = await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'restore', id: app.id, n: Number(b.dataset.n) } });
+        app.n = r.n; app.html = r.html; show(r.html);
+        open = String(r.n);
+        paintApp(); loadVersions();
+      } catch (err) { notice(err.message, true); }
+      return;
+    }
+    const li = e.target.closest('li[data-key]'); if (!li) return;
+    open = open === li.dataset.key ? null : li.dataset.key;
+    paintHistory();
+  });
 
   async function loadVersions() {
     if (!app || !token) return;
     try {
       const r = await Apps.api(`../../api/app?id=${app.id}&versions=1`, { token });
-      const ol = $('versions'); ol.innerHTML = '';
-      for (const v of r.versions.slice().reverse()) {
-        const li = document.createElement('li');
-        li.className = v.n === app.n ? 'current' : '';
-        const what = v.error ? `failed: ${v.error}` : (v.request || v.summary || v.kind);
-        li.innerHTML = `<span class="n">v${v.n}</span><span class="what" title="${esc(what)}">${esc(v.kind)} · ${esc(what)}</span>`
-          + (v.n !== app.n && !v.error ? `<button class="btn" type="button" data-n="${v.n}"><i class="ph-bold ph-arrow-counter-clockwise"></i>Restore</button>` : '');
-        ol.appendChild(li);
-      }
-      $('versionsHead').hidden = !r.versions.length;
+      versions = r.versions;
+      paintHistory();
     } catch (e) { /* history is optional */ }
   }
-
-  $('versions').addEventListener('click', async e => {
-    const b = e.target.closest('button[data-n]'); if (!b || busy) return;
-    try {
-      const r = await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'restore', id: app.id, n: Number(b.dataset.n) } });
-      app.n = r.n; app.html = r.html; show(r.html);
-      addTurn({ request: `restored v${b.dataset.n}`, meta: `now v${r.n}` });
-      loadVersions();
-    } catch (err) { notice(err.message, true); }
-  });
 
   let clockTimer = null;
   function setBusy(on) {
@@ -228,16 +250,14 @@
       const route = r.mode === 'draft' ? (r.retried ? 'draft, one retry' : 'draft')
                   : r.mode === 'edits' ? `${r.edits} edit${r.edits === 1 ? '' : 's'}`
                   : `whole file (${r.fallback})`;
-      const bad = !r.changed || (r.problems && r.problems.length);
-      addTurn({ request, summary: r.summary,
-                meta: `${route} · ${(r.ms / 1000).toFixed(1)} s · ${usd(r.usage)}`
-                      + (r.problems && r.problems.length ? ` · ${r.problems.join('; ')}` : '')
-                      + (!r.changed ? ' · the page did not change' : ''),
-                bad });
+      extra[r.n] = route + (r.problems && r.problems.length ? ` · ${r.problems.join('; ')}` : '')
+                         + (!r.changed ? ' · the page did not change' : '');
+      open = String(r.n);
       if (r.changed) show(r.html);
       paintApp(); loadVersions();
     } catch (err) {
-      addTurn({ request, meta: err.message, bad: true });
+      failed.unshift({ request, meta: err.message });
+      paintHistory();
       notice(err.message, true);
     } finally { setBusy(false); }
   });

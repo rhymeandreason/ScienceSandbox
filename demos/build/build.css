@@ -189,20 +189,24 @@ body.work .rail { transform: none; opacity: 1; }
   font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight);
   text-transform: uppercase; letter-spacing: .18em; color: var(--text-muted); margin: 18px 0 8px;
 }
-/* The thread. A request in the editorial face, what came back in the ui face,
-   and the cost line as a micro-cap: three voices, same as the rest of the site. */
-.turns { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.turns li { background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: var(--radius-lg); padding: 10px 12px; font-size: 13px; }
-.turns .q { color: var(--text-strong); font-family: var(--font-editorial); font-size: 14px; line-height: 1.35; }
-.turns .a { color: var(--text-dim); margin-top: 5px; line-height: 1.4; }
-.turns .meta { color: var(--text-muted); font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; margin-top: 7px; font-variant-numeric: tabular-nums; }
-.turns .bad { color: var(--accent-hot); }
-.versions { list-style: none; margin: 0; padding: 0; font-size: 12px; }
-.versions li { display: flex; gap: 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border-hair); min-height: 28px; }
-.versions .n { color: var(--text-muted); min-width: 2.2em; font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
-.versions .what { flex: 1; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.versions .btn { padding: 2px 10px; font-size: 11px; line-height: 16px; }
-.versions li.current .n, .versions li.current .what { color: var(--text-strong); }
+/* The history. One row per version; open, it is the turn: the request in
+   the editorial face, the reply in the ui face, the cost line as a micro-cap. */
+.history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.history li { background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: var(--radius-lg); font-size: 13px; overflow: hidden; }
+.history .head { display: flex; gap: 10px; align-items: center; padding: 8px 12px; cursor: pointer; min-height: 20px; }
+.history .head:hover { background: color-mix(in srgb, var(--text-strong) 5%, transparent); }
+.history .n { color: var(--text-muted); min-width: 2.2em; font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+.history .what { flex: 1; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history li.current { border-color: var(--text-strong); }
+.history li.current .n, .history li.current .what { color: var(--text-strong); }
+.history li.bad .what { color: var(--accent-hot); }
+.history .body { display: none; padding: 4px 12px 12px; border-top: 1px solid var(--border-hair); }
+.history li.open .body { display: block; }
+.history .q { color: var(--text-strong); font-family: var(--font-editorial); font-size: 14px; line-height: 1.35; margin-top: 6px; }
+.history .a { color: var(--text-dim); margin-top: 5px; line-height: 1.4; }
+.history .meta { color: var(--text-muted); font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; margin-top: 7px; font-variant-numeric: tabular-nums; }
+.history li.bad .meta { color: var(--accent-hot); }
+.history .body .btn { margin-top: 10px; padding: 2px 10px; font-size: 11px; line-height: 16px; }
 
 .mine { margin-top: 2.5rem; font-size: .85rem; color: var(--text-muted); }
 .mine b { font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .18em; text-transform: uppercase; }
