@@ -8,10 +8,11 @@
 <link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="build.css">
 </head>
-<body>
+<body class="fresh">
 
 <header class="bar">
-  <span class="brand">Builder</span>
+  <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+  <span class="crumb">builder</span>
   <span class="title" id="title"></span>
   <span class="tools" id="tools" hidden>
     <a class="btn" id="viewLink" target="_blank" rel="noopener">View</a>
@@ -34,29 +35,49 @@
 
 <div class="notice" id="notice" hidden></div>
 
+<!-- The first screen. The form inside it is the only form on the page: when the
+     app exists it is moved into the rail, so the request box, its errors and
+     its progress strip are one element in two homes. -->
+<section class="hero" id="hero">
+  <div class="hero-in">
+    <p class="kick">an app, from the parts</p>
+    <h1>what should it <em>show</em>?</h1>
+    <form id="ask">
+      <textarea id="request" placeholder="a red blood cell in three solutions" maxlength="600" rows="2" autofocus></textarea>
+      <div class="progress" id="progress" hidden>
+        <div class="track"><i></i></div>
+        <ul class="phases" id="phases">
+          <li>reading the component library</li>
+          <li>choosing the parts</li>
+          <li>writing the page</li>
+          <li>checking it runs</li>
+          <li>almost there</li>
+        </ul>
+        <span class="clock" id="clock"></span>
+      </div>
+      <p class="errs" id="errs" hidden></p>
+      <div class="row">
+        <p class="hint" id="hint">Built from a membrane, liquid water, a protein, a leaf, a tree. Then ask for changes, one at a time.</p>
+        <span class="spacer"></span>
+        <button class="cta" id="send" type="submit">Build</button>
+      </div>
+    </form>
+    <p class="tries">Try
+      <button type="button" class="try">a red blood cell in three solutions</button>
+      <button type="button" class="try">how do salmon go from the ocean to a river?</button>
+      <button type="button" class="try">why does a leaf wilt on a hot day</button>
+    </p>
+    <div class="mine" id="mine" hidden></div>
+  </div>
+</section>
+
 <main class="split">
   <section class="preview">
     <iframe id="frame" title="the app" sandbox="allow-scripts"></iframe>
-    <div class="empty" id="empty">
-      <div>
-        <p><b>Describe an app</b>, and it is built from the component library: a membrane, liquid water, a protein, a leaf, a tree. Then ask for changes, one at a time.</p>
-        <p>Try: <i>a red blood cell in three solutions</i>, or <i>how do salmon go from the ocean to a river?</i></p>
-      </div>
-    </div>
-    <div class="busy" id="busy" hidden></div>
   </section>
 
   <aside class="rail">
-    <form id="ask">
-      <textarea id="request" placeholder="What should the app show?" maxlength="600"></textarea>
-      <p class="errs" id="errs" hidden></p>
-      <div class="row">
-        <p class="hint" id="hint">Keep the edit link from your email; this browser may forget it.</p>
-        <span class="spacer"></span>
-        <button class="btn btn--tint" id="send" type="submit">Build</button>
-      </div>
-    </form>
-    <div class="mine" id="mine" hidden></div>
+    <div class="railform" id="railForm"></div>
     <div class="scroll">
       <h3 id="turnsHead" hidden>Turns</h3>
       <ol class="turns" id="turns"></ol>
@@ -86,8 +107,18 @@
     n.hidden = !text; n.textContent = text || ''; n.classList.toggle('bad', !!bad);
   }
 
+  // fresh → work: the hero fades, the rail slides in, and the one form goes with it.
+  function enterWork() {
+    if (document.body.classList.contains('work')) return;
+    document.body.classList.remove('fresh');
+    document.body.classList.add('work');
+    $('railForm').appendChild($('ask'));
+    $('send').className = 'btn btn--tint';
+    $('hint').textContent = 'Keep the edit link from your email; this browser may forget it.';
+  }
+
   function show(html) {
-    $('empty').hidden = true;
+    enterWork();
     errors = Apps.mount(frame, html, () => paintErrors());
     paintErrors();
   }
@@ -107,7 +138,7 @@
     if (app) $('viewLink').href = Apps.link('view', app.id);
     $('settings').hidden = !editing;
     $('send').textContent = app ? (editing ? 'Ask for a change' : 'Remix to edit') : 'Build';
-    $('request').placeholder = app ? (editing ? 'What should change?' : 'Remix this app to ask for changes') : 'What should the app show?';
+    $('request').placeholder = app ? (editing ? 'What should change?' : 'Remix this app to ask for changes') : 'a red blood cell in three solutions';
     $('request').disabled = !!app && !editing;
     $('turnsHead').hidden = !$('turns').children.length;
   }
@@ -148,11 +179,25 @@
     } catch (err) { notice(err.message, true); }
   });
 
-  function setBusy(text) {
-    busy = !!text;
-    $('busy').hidden = !text; $('busy').textContent = text || '';
+  let clockTimer = null;
+  function setBusy(on) {
+    busy = !!on;
+    document.body.classList.toggle('busy', busy);
+    $('progress').hidden = !busy;
     $('send').disabled = busy; $('request').disabled = busy || (!!app && !token);
+    clearInterval(clockTimer); $('clock').textContent = '';
+    if (busy) {
+      const t0 = Date.now();
+      clockTimer = setInterval(() => { $('clock').textContent = `${Math.round((Date.now() - t0) / 1000)} s`; }, 1000);
+    }
   }
+
+  document.querySelectorAll('.try').forEach(b => b.addEventListener('click', () => {
+    $('request').value = b.textContent; $('request').focus();
+  }));
+  $('request').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('ask').requestSubmit(); }
+  });
 
   $('ask').addEventListener('submit', async e => {
     e.preventDefault();
@@ -160,7 +205,7 @@
     if (app && !token) return remix();
     const request = $('request').value.trim();
     if (!request) return;
-    setBusy(app ? 'Asking for the change…' : 'Building… about twenty seconds');
+    setBusy(true);
     notice('');
     const carried = errors.slice();
     try {
@@ -190,16 +235,16 @@
     } catch (err) {
       addTurn({ request, meta: err.message, bad: true });
       notice(err.message, true);
-    } finally { setBusy(''); }
+    } finally { setBusy(false); }
   });
 
   async function remix() {
-    setBusy('Remixing…');
+    setBusy(true);
     try {
       const r = await Apps.api('../../api/app', { method: 'POST', body: { action: 'remix', id: app.id, visitorId: Apps.VISITOR } });
       Apps.remember(r.id, r.token, app.title);
       location.href = `${location.pathname}?id=${r.id}`;
-    } catch (err) { if (err.status === 401) Apps.beta(); else notice(err.message, true); setBusy(''); }
+    } catch (err) { if (err.status === 401) Apps.beta(); else notice(err.message, true); setBusy(false); }
   }
 
   function paintSettings() { $('editLink').value = Apps.link('edit', app.id, token); $('copied').hidden = true; }

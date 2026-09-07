@@ -1,36 +1,137 @@
-/* build/build.css — the builder and the viewer. Tokens from kodo.css. */
-html, body { height: 100%; margin: 0; }
-body { background: var(--surface-page); color: var(--text-body); display: flex; flex-direction: column; }
+/* build/build.css — the builder and the viewer. Tokens from kodo.css; the shell
+   is its own, because this is a full-window app and neither document shell
+   nor lesson shell fits a page whose first screen is a single question.
 
-.bar {
-  display: flex; align-items: center; gap: 12px; padding: 8px 14px;
-  border-bottom: 1px solid var(--border-hair); background: var(--surface-raised);
-  flex: none; min-height: 44px;
+   Two states on <body>. `fresh`: no app yet, the hero fills the window and the
+   form lives inside it. `work`: an app exists, the preview takes the stage and
+   the rail slides in from the right, carrying the same form. `busy` overlays
+   either while a request is out. */
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--surface-page); color: var(--text-body);
+  display: flex; flex-direction: column; overflow: hidden;
+  font-family: var(--font-ui);
 }
-.bar .brand { font-weight: 600; color: var(--text-strong); white-space: nowrap; }
-.bar .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
-.bar .tools { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---- bar -------------------------------------------------------------- */
+.bar {
+  display: flex; align-items: baseline; gap: 14px; padding: 14px 22px 10px;
+  flex: none; min-height: 44px; box-sizing: border-box;
+  border-bottom: 1px solid transparent;
+  transition: border-color .5s;
+  position: relative; z-index: 3;
+}
+body.work .bar { border-bottom-color: var(--border-hair); }
+.bar .mark { --mark-size: 1.35rem; }
+.bar .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font-family: var(--font-editorial); }
+.bar .tools { display: flex; gap: 6px; flex-wrap: wrap; align-self: center; }
 .bar .tools .btn { padding: 4px 10px; font-size: 12px; }
 
-.split { flex: 1; display: flex; min-height: 0; }
-.preview { flex: 1; position: relative; background: var(--surface-stage); min-width: 0; }
+.notice { padding: 10px 22px; font-size: 13px; background: var(--surface-card); border-bottom: 1px solid var(--border-hair); color: var(--text-dim); flex: none; }
+.notice.bad { color: var(--accent-hot); }
+
+/* ---- hero: the first screen ------------------------------------------ */
+.hero {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  padding: 0 var(--page-gutter, 4rem); z-index: 2;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 110%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
+    var(--surface-page);
+  transition: opacity .55s ease, transform .55s ease, visibility 0s linear .55s;
+}
+body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointer-events: none; }
+.hero-in { width: min(46rem, 100%); }
+
+.hero .kick {
+  font-family: var(--font-display); font-size: var(--cap-lg); font-weight: var(--cap-weight);
+  letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin: 0 0 1rem;
+}
+.hero h1 {
+  font-family: var(--font-display); font-weight: 500;
+  font-size: clamp(2.6rem, 7vw, 5rem); letter-spacing: -.045em; line-height: .92;
+  text-transform: lowercase; color: var(--text-strong); margin: 0 0 2.2rem;
+}
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero form { display: flex; flex-direction: column; gap: 0; }
+.hero textarea {
+  width: 100%; box-sizing: border-box; resize: none; padding: 0 0 .7rem;
+  border: 0; border-bottom: 2px solid var(--border-strong); border-radius: 0;
+  background: transparent; color: var(--text-strong);
+  font-family: var(--font-editorial); font-size: clamp(1.35rem, 2.6vw, 1.9rem); line-height: 1.3;
+  transition: border-color var(--dur-base);
+}
+.hero textarea::placeholder { color: var(--text-muted); font-style: italic; }
+.hero textarea:focus-visible { outline: 0; border-bottom-color: var(--accent); }
+.hero form .row { display: flex; align-items: center; gap: 1.5rem; margin-top: 1.4rem; }
+.hero form .row .spacer { flex: 1; }
+.hero .hint { font-family: var(--font-editorial); font-size: .95rem; color: var(--text-muted); margin: 0; max-width: 30em; line-height: 1.4; }
+.hero .cta { flex: none; }
+
+.hero .tries { margin: 2.4rem 0 0; font-size: .85rem; color: var(--text-muted); line-height: 2; }
+.try {
+  font: inherit; font-family: var(--font-editorial); font-style: italic; font-size: .95rem;
+  background: none; border: 0; padding: 0 .1em; margin: 0 .4em; cursor: pointer;
+  color: var(--text-dim); border-bottom: 1px dotted var(--border-hair);
+}
+.try:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Waiting: the textarea dims, the rule under it becomes the track. */
+body.busy .hero textarea { color: var(--text-muted); border-bottom-color: transparent; }
+body.busy .hero .row, body.busy .hero .tries { opacity: .35; transition: opacity .3s; }
+
+/* ---- progress ---------------------------------------------------------
+   Pure CSS. The track sweeps; the phase words dissolve one into the next on a
+   loop, since the request has no stages the page can see. */
+.progress { position: relative; }
+.progress[hidden] { display: none; }
+.progress .track { position: relative; height: 2px; background: var(--border-hair); overflow: hidden; }
+.progress .track i {
+  position: absolute; top: 0; bottom: 0; width: 38%; left: -40%;
+  background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--spark) 70%, transparent);
+  animation: sweep 1.6s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+@keyframes sweep { to { left: 102%; } }
+.progress .phases {
+  list-style: none; margin: .9rem 0 0; padding: 0; position: relative; height: 1.6em;
+  font-family: var(--font-editorial); font-style: italic; font-size: 1.05rem; color: var(--text-dim);
+}
+.progress .phases li {
+  position: absolute; left: 0; top: 0; opacity: 0; transform: translateY(6px);
+  animation: phase 20s ease-in-out infinite;
+}
+.progress .phases li:nth-child(2) { animation-delay: 4s; }
+.progress .phases li:nth-child(3) { animation-delay: 8s; }
+.progress .phases li:nth-child(4) { animation-delay: 12s; }
+.progress .phases li:nth-child(5) { animation-delay: 16s; }
+@keyframes phase {
+  0%   { opacity: 0; transform: translateY(6px); }
+  4%   { opacity: 1; transform: translateY(0); }
+  18%  { opacity: 1; transform: translateY(0); }
+  22%  { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+.progress .clock {
+  position: absolute; right: 0; top: .9rem;
+  font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .12em;
+  color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.hero .progress { margin-top: -2px; }
+
+/* ---- work: preview + rail -------------------------------------------- */
+.split { flex: 1; display: flex; min-height: 0; position: relative; }
+.preview { flex: 1; position: relative; background: var(--surface-stage); min-width: 0; opacity: 0; transition: opacity .6s .2s; }
+body.work .preview { opacity: 1; }
 .preview iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--surface-stage); }
-.preview .empty {
-  position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
-  color: var(--text-dim); padding: 24px; pointer-events: none;
-}
-.preview .empty p { max-width: 36em; }
-.preview .empty[hidden], .preview .busy[hidden] { display: none; }
-.preview .busy {
-  position: absolute; left: 0; right: 0; top: 0; padding: 6px 12px; font-size: 12px;
-  background: var(--surface-card); border-bottom: 1px solid var(--border-hair); color: var(--text-dim);
-}
 
 .rail {
   width: 380px; flex: none; display: flex; flex-direction: column; min-height: 0;
   border-left: 1px solid var(--border-hair); background: var(--surface-raised);
+  transform: translateX(100%); opacity: 0;
+  transition: transform .55s cubic-bezier(.2, .8, .2, 1) .15s, opacity .4s .15s;
 }
-.rail form { padding: 12px; border-bottom: 1px solid var(--border-hair); display: flex; flex-direction: column; gap: 8px; }
+body.work .rail { transform: none; opacity: 1; }
+.rail .railform:not(:empty) { padding: 12px; border-bottom: 1px solid var(--border-hair); }
+.rail form { display: flex; flex-direction: column; gap: 8px; }
 .rail textarea {
   width: 100%; box-sizing: border-box; min-height: 74px; resize: vertical; padding: 8px 10px;
   border: 1px solid var(--border-hair); border-radius: 8px; background: var(--surface-card);
@@ -40,35 +141,46 @@ body { background: var(--surface-page); color: var(--text-body); display: flex; 
 .rail form .row { display: flex; align-items: center; gap: 8px; }
 .rail form .row .spacer { flex: 1; }
 .rail .hint { font-size: 12px; color: var(--text-muted); margin: 0; }
-.rail .errs { font-size: 12px; color: var(--accent-hot); margin: 0; }
-.rail .errs code { font-size: 11px; display: block; white-space: pre-wrap; color: var(--text-dim); }
+.rail .progress .phases { font-size: .9rem; margin-top: .5rem; }
+.rail .progress .clock { top: .5rem; }
+.errs { font-size: 12px; color: var(--accent-hot); margin: 0; }
+.errs code { font-size: 11px; display: block; white-space: pre-wrap; color: var(--text-dim); }
 
 .rail .scroll { flex: 1; overflow: auto; padding: 8px 12px 16px; }
-.rail h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); margin: 12px 0 6px; }
+.rail h3 {
+  font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight);
+  text-transform: uppercase; letter-spacing: .18em; color: var(--text-muted); margin: 12px 0 6px;
+}
 .turns { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .turns li { background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-.turns .q { color: var(--text-strong); }
+.turns .q { color: var(--text-strong); font-family: var(--font-editorial); }
 .turns .a { color: var(--text-dim); margin-top: 3px; }
 .turns .meta { color: var(--text-muted); font-size: 11px; margin-top: 4px; }
 .turns .bad { color: var(--accent-hot); }
 .versions { list-style: none; margin: 0; padding: 0; font-size: 12px; }
 .versions li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; border-bottom: 1px dashed var(--border-hair); }
-.versions .n { color: var(--text-muted); min-width: 2.2em; }
+.versions .n { color: var(--text-muted); min-width: 2.2em; font-variant-numeric: tabular-nums; }
 .versions .what { flex: 1; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .versions .btn { padding: 1px 8px; font-size: 11px; }
 .versions li.current .what { color: var(--text-strong); }
 
-.notice { padding: 10px 12px; font-size: 13px; background: var(--surface-card); border-bottom: 1px solid var(--border-hair); color: var(--text-dim); }
-.notice.bad { color: var(--accent-hot); }
-
-.mine { padding: 12px; }
-.mine ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.mine { margin-top: 2.5rem; font-size: .85rem; color: var(--text-muted); }
+.mine b { font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .18em; text-transform: uppercase; }
+.mine ul { margin: .4rem 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .2rem 1.2rem; }
+.mine a { color: var(--text-dim); font-family: var(--font-editorial); text-decoration: none; border-bottom: 1px dotted var(--border-hair); }
+.mine a:hover { color: var(--accent); border-bottom-color: var(--accent); }
 
 @media (max-width: 860px) {
   .split { flex-direction: column; }
-  .rail { width: auto; border-left: 0; border-top: 1px solid var(--border-hair); max-height: 45vh; }
+  .rail { width: auto; border-left: 0; border-top: 1px solid var(--border-hair); max-height: 45vh; transform: translateY(100%); }
+  .hero form .row { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero, .rail, .preview, .bar { transition: none; }
+  .progress .phases li { animation-duration: 20s; }
 }
 
+/* ---- dialogs ---------------------------------------------------------- */
 dialog.beta { border: 1px solid var(--border-hair); border-radius: 12px; padding: 20px 24px; max-width: 26em; background: var(--surface-card); color: var(--text-body); }
 dialog.beta::backdrop { background: rgba(43, 39, 35, .45); }
 dialog.beta h2 { margin: 0 0 8px; font-size: 18px; color: var(--text-strong); }
