@@ -190,6 +190,30 @@ console.log('\n== 5b. a built chain is straight, and nothing in it intersects');
   ok(span > 10, `the chain is extended: CA1..CA4 spans ${span.toFixed(2)} A (a bent chain came to 8.84)`);
 }
 
+console.log('\n== 5a. every solver names the atom that bonds');
+{
+  /* plane.js measures the latch AT that atom and falls back to the molecule's
+   * origin when a solver does not name one. The fallback is silent and it is
+   * not a small error: a residue's origin is its Cα, 1.5 Å from the nitrogen
+   * that reacts, against a 1.8 Å tolerance — so a solver that forgets `at`
+   * spends most of the student's slop before they touch anything, and the
+   * drag works or does not depending on which way the offset points. That is
+   * exactly the bug this asserts against, and nothing about it is visible. */
+  const Gly = require('./glycosidic.js'), Est = require('./ester.js');
+  const keyed = k => ({ ...un(M[k]), key:k });
+  const lib = { cellobiose:keyed('cellobiose'), maltose:keyed('maltose') };
+  const cases = [
+    ['peptide',    Peptide.pose(un(M.glycine), un(M.alanine)),          un(M.alanine),   'amino'],
+    ['glycosidic', Gly.pose(keyed('glucose'), keyed('glucose'), lib),   keyed('glucose'), 'c4'],
+    ['ester',      Est.pose(un(M.glycerol), un(M.palmitate), 'sn1'),    un(M.palmitate), 'carboxyl'],
+  ];
+  for(const [name, r, guest, role] of cases){
+    const want = guest.atoms[Spec.role(guest, role).keep].pos;
+    ok(r && r.at && d(r.at, want) < 1e-9,
+       `${name}: names its bonding atom (${role}), ${r && r.at ? 'at the right one' : 'MISSING'}`);
+  }
+}
+
 console.log('\n== 5c. the two named peptides');
 {
   // GLUTATHIONE. Glutamate offers two carboxyls and both make a real molecule;

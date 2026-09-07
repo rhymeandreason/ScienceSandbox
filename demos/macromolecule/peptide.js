@@ -283,6 +283,11 @@
 
     return {
       pos, quat:q, amideH,
+      // The atom that bonds, in the GUEST's own frame — plane.js measures the
+      // latch there rather than at the origin. An amino acid's origin is its
+      // Cα, about 1.5 Å off, so the origin test nearly works and the gap only
+      // shows up as a latch that is fussier than it looks.
+      at: P(guest, ga.keep),
       // Measured with the amide hydrogen already where the bond puts it.
       // Against the free amino acid's sp3 position it reports a clash on most
       // pairs — correctly, but about a molecule that does not exist once the

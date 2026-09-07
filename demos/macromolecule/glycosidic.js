@@ -108,6 +108,9 @@
     const C4 = place(at(guest, 'C4'));
     return {
       pos, quat:q,
+      // The atom that bonds, in the guest's own frame; plane.js measures the
+      // latch there. A pyranose origin is nowhere near its C4.
+      at: at(guest, 'C4'),
       config:L.config, link:L.link, polymer:L.polymer,
       bondAt: Frame.scale(Frame.add(bridge, C4), 0.5),
       // The water assembles between the two groups that gave it up: the host's

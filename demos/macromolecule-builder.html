@@ -245,6 +245,37 @@ const DISACC = { cellobiose:unSpec(M.cellobiose, 'cellobiose'),
  * its specs are already the model's. */
 let dim = 'flat';
 
+/* WHICH SITE, WHEN THE HOST HAS MORE THAN ONE. Glutamate offers two carboxyls
+ * and glycerol three hydroxyls, and the answer has to be the one the student is
+ * aiming at. Ranked EXACTLY as plane.js measures the latch — in the plane, at
+ * the atom that bonds — because ranking on any other quantity picks a site the
+ * gesture can then never satisfy, and the drag simply stops working.
+ *
+ * Ranking on the molecule's ORIGIN did exactly that. A residue's origin is its
+ * Cα, 1.5 Å from the nitrogen that reacts, against a latch tolerance of 1.8 Å —
+ * so most of the slop was spent before the student touched anything, and which
+ * way the offset happened to point decided whether a join was possible at all.
+ * A palmitate is worse: its origin sits eight ångströms down its own chain.
+ *
+ * IN THE PLANE ONLY, for plane.js's reason. The drag pins z = 0 and a solved
+ * pose does not sit there — two of glycerol's three slots want the tail well
+ * out of the tabletop — so a 3D distance would rank sites by how far they
+ * escape the plane rather than by where the student pointed. */
+function nearestSite(host, guest, poses){
+  let best = null;
+  for(const r of poses){
+    if(!r || r.clash) continue;
+    const quat = host.mol.quaternion.clone().multiply(new THREE.Quaternion(...r.quat));
+    const pos  = v3(r.pos).applyQuaternion(host.mol.quaternion).add(host.mol.position);
+    const local = r.at ? v3(r.at) : new THREE.Vector3();
+    const now  = local.clone().applyQuaternion(guest.mol.quaternion).add(guest.mol.position);
+    const want = local.clone().applyQuaternion(quat).add(pos);
+    const gap = Math.hypot(now.x - want.x, now.y - want.y);
+    if(!best || gap < best.gap) best = { gap, r };
+  }
+  return best && best.r;
+}
+
 const CARDS = [
   {
     key:'protein', n:1, title:'Protein', sub:'a chain, and two real ones',
@@ -368,17 +399,10 @@ const CARDS = [
      * drags — not by a fixed order, which would put the bond somewhere nobody
      * pointed. The same rule glycerol's three hydroxyls use. */
     solve:(host, guest) => {
-      const h = un(host);
-      let best = null;
-      for(const donor of ['carboxyl', 'gamma']){
-        if(!MacroSpec.free(h, donor)) continue;
-        const r = card.poseIn(h, un(guest), donor);
-        if(!r || r.clash) continue;
-        const where = v3(r.pos).applyQuaternion(host.mol.quaternion).add(host.mol.position);
-        const d = guest.mol.position.distanceTo(where);
-        if(!best || d < best.d) best = { r, d };
-      }
-      return best && best.r;
+      const h = un(host), g = un(guest);
+      return nearestSite(host, guest, ['carboxyl', 'gamma']
+        .filter(donor => MacroSpec.free(h, donor))
+        .map(donor => card.poseIn(h, g, donor)));
     },
     label:p => p.spec.name,
     unit:'residue', bond:'peptide bond',
@@ -480,29 +504,12 @@ const CARDS = [
     poseIn:(h, g, slot, round) => round ? Ester.pose(h, g, slot) : MacroFlat.pose(h, g, slot),
     solve:(host, guest) => {
       const h = un(host), g = un(guest);
-      // Where the tail's carboxyl carbon IS. Every slot is ranked by how far
-      // that atom would have to travel, for plane.js's reason: the acid's
-      // origin is eight angstroms down its own chain and ranking by it hands
-      // back a pose for a hydroxyl nobody pointed at.
-      // No free carboxyl, no reaction — and asking where one is would throw.
-      // Both orderings reach here, so `guest` is routinely glycerol itself.
-      const head = MacroSpec.free(g, 'carboxyl');
-      if(!head) return null;
-      const now = P.atomAt(guest, head.keep);
-      let best = null;
-      for(const slot of Ester.slots(h)){
-        const r = card.poseIn(h, g, slot, dim === '3d');
-        if(!r) continue;
-        const where = v3(r.at).applyQuaternion(new THREE.Quaternion(...r.quat))
-          .add(v3(r.pos)).applyQuaternion(host.mol.quaternion).add(host.mol.position);
-        // Compared in the plane, for plane.js's reason: the tail is dragged on
-        // the tabletop and two of the three slots sit well off it, so a 3D
-        // distance would rank the slots by how far out of the plane they are
-        // rather than by where the student pointed.
-        const d = Math.hypot(now.x - where.x, now.y - where.y);
-        if(!best || d < best.d) best = { r, d };
-      }
-      return best && best.r;
+      // No free carboxyl, no reaction — and Ester.slots would be answering
+      // about the wrong molecule. Both orderings reach here, so `guest` is
+      // routinely glycerol itself.
+      if(!MacroSpec.free(g, 'carboxyl')) return null;
+      return nearestSite(host, guest,
+        Ester.slots(h).map(slot => card.poseIn(h, g, slot, dim === '3d')));
     },
 
     label:p => p.spec.name,
