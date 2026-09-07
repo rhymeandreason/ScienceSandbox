@@ -172,6 +172,11 @@ body.busy .device iframe { opacity: .6; transition: opacity .3s; }
   transition: transform .55s cubic-bezier(.2, .8, .2, 1) .15s, opacity .4s .15s;
 }
 body.work .rail { transform: none; opacity: 1; }
+/* Folded: the rail slides back out and gives up its width, so the app widens. */
+body.work.norail .rail { transform: translateX(100%); opacity: 0; width: 0; padding: 0; overflow: hidden; pointer-events: none; }
+.rail { transition: transform .55s cubic-bezier(.2, .8, .2, 1) .15s, opacity .4s .15s, width .45s cubic-bezier(.2, .8, .2, 1), padding .45s; }
+.bar .iconbtn { width: 32px; height: 32px; font-size: 18px; }
+.bar .iconbtn[aria-pressed="true"] { color: var(--accent); }
 /* Each block of the rail is a card on the same paper the app's card lies on. */
 .rail .card {
   flex: none; background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 14px;
@@ -275,6 +280,7 @@ body.work .rail { transform: none; opacity: 1; }
 @media (max-width: 860px) {
   .split { flex-direction: column; }
   .rail { width: auto; max-height: 45vh; transform: translateY(100%); padding: 0 10px 10px; }
+  body.work.norail .rail { transform: translateY(100%); max-height: 0; width: auto; }
   .preview { padding: 10px; }
   .hero form .row { flex-wrap: wrap; }
 }

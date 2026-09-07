@@ -26,6 +26,7 @@
   <span class="tools" id="tools" hidden>
     <a class="btn" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
     <a class="btn" id="newApp" href="build.html"><i class="ph-bold ph-plus"></i>New app</a>
+    <button class="iconbtn" id="railToggle" type="button" title="Hide the panel" aria-pressed="false"><i class="ph-bold ph-sidebar-simple"></i></button>
   </span>
 </header>
 
@@ -143,6 +144,16 @@
     } catch (err) { if (snapAsked) notice(err.message, true); }
     snapAsked = false;
   }
+  // The rail folds away so the app can have the window; the choice sticks per browser.
+  function setRail(hidden) {
+    document.body.classList.toggle('norail', hidden);
+    $('railToggle').setAttribute('aria-pressed', String(hidden));
+    $('railToggle').title = hidden ? 'Show the panel' : 'Hide the panel';
+    try { localStorage.setItem('ss.build.norail', hidden ? '1' : ''); } catch { /* this page load only */ }
+  }
+  $('railToggle').addEventListener('click', () => setRail(!document.body.classList.contains('norail')));
+  try { if (localStorage.getItem('ss.build.norail')) setRail(true); } catch { /* fine */ }
+
   $('snap').addEventListener('click', () => {
     snapAsked = true;
     frame.contentWindow.postMessage({ type: 'app-snap' }, '*');
@@ -275,15 +286,7 @@
       setTimeout(() => { box.placeholder = TRIES[tryIndex]; box.classList.remove('swap'); }, 300);
     }, 4200);
   })();
-  // The placeholder is the suggestion of the moment: it walks the "try" list
-  // while the box is empty, and Tab on an empty box takes it.
-  const tries = [...document.querySelectorAll('.try')].map(b => b.textContent);
-  let tryAt = 0;
-  setInterval(() => {
-    if (app || $('request').value || busy) return;
-    tryAt = (tryAt + 1) % tries.length;
-    $('request').placeholder = tries[tryAt];
-  }, 4000);
+  // Tab on an empty box takes the suggestion the placeholder is showing.
   $('request').addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('ask').requestSubmit(); }
     if (e.key === 'Tab' && !e.shiftKey && !app && !$('request').value) { e.preventDefault(); $('request').value = $('request').placeholder; }
