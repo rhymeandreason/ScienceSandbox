@@ -630,8 +630,14 @@ function openModal(p) {
    `meta` OR THE TRACE ITSELF. A protein bake nests its header under `meta`; a
    nucleic one writes the same fields at the top level. Reading through one
    alias is what keeps the nucleic entries from silently printing blanks. */
+/* A COUNT, OR NOTHING. The two indexes disagree about shape \u2014 a protein bake
+   writes `chainsInFile: 4`, a nucleic one writes `chains` as the chains
+   themselves and `pairs` as the list of them \u2014 so a field is taken as a number
+   only if it is one, and as a length if it is a list. */
+const num = v => typeof v === 'number' ? v : Array.isArray(v) ? v.length : null;
+
 function fillMeasure(p, t) {
-  const v = defaultOf(p), m = t.meta || t;
+  const v = defaultOf(p), r = v.read || {}, m = t.meta || t;
   const tiles = [];
 
   tiles.push([v.species || m.organism || '\u2014', 'species']);
@@ -641,25 +647,31 @@ function fillMeasure(p, t) {
      things that are not the same measurement. The percentage is the part that
      compares across files. */
   const counts = m.counts || [];
-  const modelled = counts.reduce((n, c) => n + (c.modelled || 0), 0) || (v.read || {}).residues;
-  const declared = counts.reduce((n, c) => n + (c.declared || 0), 0) || (v.read || {}).declared;
+  const modelled = counts.reduce((n, c) => n + (c.modelled || 0), 0) || r.residues;
+  const declared = counts.reduce((n, c) => n + (c.declared || 0), 0) || r.declared;
   if (modelled) tiles.push([
     declared ? `${modelled} of ${declared}` : modelled,
     declared ? `amino acids, ${Math.round(100 * modelled / declared)}%`
-             : 'amino acids; no SEQRES to compare against']);
+             : 'amino acids']);
+  if (num(r.nucleotides)) tiles.push([r.nucleotides, 'nucleotides']);
 
   /* HOW GOOD THE CLAIM IS, beside what KIND of claim it is. A predicted
      structure has no resolution and must not borrow the look of one, so the
      em dash stands where the number would be. */
-  const method = m.method || (v.read || {}).method;
+  const method = m.method || r.method;
   tiles.push([m.resolution ? m.resolution.toFixed(2) + ' \u00c5' : '\u2014', method]);
 
-  /* HOW MANY PIECES, or — for a single chain, where "1 chain" says nothing the
-     picture does not — what the fold is made of. */
-  const chains = m.chainsInFile || m.chains || (v.read || {}).chainsInFile;
+  /* HOW MANY PIECES, or \u2014 for a single chain, where "1 chain" says nothing
+     the picture does not \u2014 what the fold is made of. */
+  const chains = num(m.chainsInFile) || num(r.chainsInFile) || num(r.chains);
   if (chains > 1) tiles.push([chains, 'chains']);
   else if (m.helices) tiles.push([m.helices, m.strands ? 'helices' : 'helices, no sheet']);
-  if (m.pairs) tiles.push([m.pairs, 'base pairs']);
+  /* A NUCLEIC BAKE COUNTS ITS PAIRS BY LISTING THEM, so `pairs` is the list and
+     not the number. Everything read out of a bake goes through `num()` for that
+     reason: a field that is a count in one index and an array in the other
+     prints as [object Object] and looks like a typography bug. */
+  const pairs = num(m.pairs) || num(r.pairs);
+  if (pairs) tiles.push([pairs, 'base pairs']);
 
   /* HOW BIG IT IS, which is the one figure a ribbon cannot give a reader and
      the reason the extents are baked at all. */
