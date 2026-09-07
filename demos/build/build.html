@@ -74,7 +74,7 @@
         </div>
       </form>
     </div>
-    <a class="down" id="down" href="#mine" hidden><span>My apps</span><i class="ph-bold ph-caret-down"></i></a>
+    <button class="down" id="down" type="button" hidden><span>My apps</span><i class="ph-bold ph-caret-down"></i></button>
   </div>
   <section class="shelf"><div class="mine" id="mine" hidden></div></section>
 </section>
@@ -287,6 +287,11 @@
     }, 4200);
   })();
   // Tab on an empty box takes the suggestion the placeholder is showing.
+  // A fragment link would resolve against <base> and lose the filename, so the
+  // cue scrolls the hero itself.
+  $('down').addEventListener('click', () => {
+    $('mine').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   $('request').addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('ask').requestSubmit(); }
     if (e.key === 'Tab' && !e.shiftKey && !app && !$('request').value) { e.preventDefault(); $('request').value = $('request').placeholder; }
