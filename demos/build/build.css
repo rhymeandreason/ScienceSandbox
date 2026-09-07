@@ -25,6 +25,7 @@ body.work .bar { border-bottom-color: var(--border-hair); }
 .bar .mark { --mark-size: 1.35rem; }
 .bar .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font-family: var(--font-editorial); }
 .bar .tools { display: flex; gap: 6px; flex-wrap: wrap; align-self: center; }
+.bar .tools[hidden] { display: none; }
 .bar .tools .btn { padding: 4px 10px; font-size: 12px; }
 
 .notice { padding: 10px 22px; font-size: 13px; background: var(--surface-card); border-bottom: 1px solid var(--border-hair); color: var(--text-dim); flex: none; }
@@ -233,11 +234,24 @@ body.work .rail { transform: none; opacity: 1; }
 .history li.bad .meta { color: var(--accent-hot); }
 .history .body .btn { margin-top: 10px; padding: 2px 10px; font-size: 11px; line-height: 16px; }
 
-.mine { margin-top: 2.5rem; font-size: .85rem; color: var(--text-muted); }
-.mine b { font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .18em; text-transform: uppercase; }
-.mine ul { margin: .4rem 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: .2rem 1.2rem; }
-.mine a { color: var(--text-dim); font-family: var(--font-editorial); text-decoration: none; border-bottom: 1px dotted var(--border-hair); }
-.mine a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+/* My apps: a shelf of cards under the hero. The thumb is a slot for an image
+   the app row may carry; without one it is the stage paper. */
+.mine { margin-top: 3rem; font-size: .85rem; color: var(--text-muted); }
+.mine b { font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .18em; text-transform: uppercase; color: var(--text-strong); }
+.mine .sub { font-family: var(--font-editorial); font-style: italic; margin-left: .8em; }
+.mine ul { margin: .8rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .8rem; }
+.mine a { display: block; text-decoration: none; color: var(--text-dim); }
+.mine .thumb {
+  display: block; aspect-ratio: 16 / 10; border-radius: 10px; border: 1px solid var(--border-hair);
+  background: var(--surface-stage) center / cover no-repeat;
+  background-image: radial-gradient(var(--surface-rule) 1px, transparent 1.2px); background-size: 12px 12px;
+  box-shadow: 0 10px 20px -16px rgba(43, 39, 35, .5);
+  transition: transform var(--dur-base), border-color var(--dur-base);
+}
+.mine .thumb[style] { background-size: cover; }
+.mine .name { display: block; margin-top: .45rem; font-family: var(--font-editorial); font-size: .95rem; line-height: 1.3; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mine a:hover .thumb { transform: translateY(-2px); border-color: var(--accent); }
+.mine a:hover .name { color: var(--accent); }
 
 @media (max-width: 860px) {
   .split { flex-direction: column; }

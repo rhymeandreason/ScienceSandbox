@@ -298,8 +298,8 @@
     const box = $('mine');
     if (!list.length) { box.hidden = true; return; }
     box.hidden = false;
-    box.innerHTML = `<b>Apps this browser can edit</b><ul>${list.slice(0, 12).map(m =>
-      `<li><a href="${location.pathname}?id=${esc(m.id)}">${esc(m.title || m.id)}</a></li>`).join('')}</ul>`;
+    box.innerHTML = `<b>My apps</b><span class="sub">continue building</span><ul>${list.slice(0, 12).map(m =>
+      `<li><a href="${location.pathname}?id=${esc(m.id)}"><span class="thumb"${m.thumb ? ` style="background-image:url(${esc(m.thumb)})"` : ''}></span><span class="name">${esc(m.title || 'untitled')}</span></a></li>`).join('')}</ul>`;
   }
 
   (async () => {
