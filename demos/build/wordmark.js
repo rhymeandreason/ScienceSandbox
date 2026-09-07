@@ -61,9 +61,14 @@
     const COLORS = [1, 2, 3, 4, 5].map(i => cs.getPropertyValue(`--wm-disc-${i}`).trim()).filter(Boolean);
 
     const svg = el('svg', { viewBox: `-30 -24 ${width + 60} 176`, 'aria-hidden': 'true' }, host);
+    // `build` and `ing…` are each one group. The slide left is a single
+    // animation on the head group, so every part of the word moves on exactly
+    // one curve: ten separate slides is ten chances for one to fall out of step.
+    const headG = el('g', { class: 'head' }, svg);
+    const tailG = el('g', { class: 'tail' }, svg);
     const prims = []; let ri = 0;
     letters.forEach((L, li) => {
-      const g = el('g', {}, svg);
+      const g = el('g', {}, li < 5 ? headG : tailG);
       L.prims.forEach(p => {
         const ax = L.x + p.cx, ay = p.cy;
         const home = el('g', { transform: `translate(${ax} ${ay})` }, g);
@@ -89,17 +94,28 @@
     const rings = prims.filter(p => p.kind === 'ring');
     const shift = (width - compose('build').width) / 2;
     const pre = T(shift, 0);
+    headG.style.transform = pre;   // `build` alone sits centred; the slide takes this off
 
     let anims = [], state = 'idle';
     const track = a => { anims.push(a); return a; };
     const stop = () => { anims.forEach(a => { try { a.cancel(); } catch { /* already gone */ } }); anims = []; };
+    const PROPS = ['transform', 'opacity', 'fill'];
     const timeline = (elm, D, frames, delay = 0, extra = {}) => {
       const kf = frames.map(f => {
         const o = { offset: Math.min(1, Math.max(0, f.t / D)) };
-        for (const k of ['transform', 'opacity', 'fill']) if (f[k] !== undefined) o[k] = f[k];
+        for (const k of PROPS) if (f[k] !== undefined) o[k] = f[k];
         if (f.easing) o.easing = f.easing;
         return o;
       });
+      // A property is only animated between its own first and last keyframe:
+      // past that offset the element falls back to the stylesheet, where every
+      // part is opacity 0. So whatever a property last said is restated on the
+      // final keyframe, and the value holds for as long as the fill does.
+      const last = kf[kf.length - 1];
+      for (const k of PROPS) {
+        if (last[k] !== undefined) continue;
+        for (let i = kf.length - 2; i >= 0; i--) if (kf[i][k] !== undefined) { last[k] = kf[i][k]; break; }
+      }
       return track(elm.animate(kf, Object.assign({ duration: D, delay, fill: 'both', easing: 'linear' }, extra)));
     };
     // A ring lands shut and is punched open once it has settled.
@@ -162,7 +178,8 @@
     // Reduced motion: the word is simply there, in its two forms.
     const still = full => {
       stop();
-      head.forEach(p => timeline(p.el, 10, [{ t: 0, transform: full ? 'none' : pre, opacity: 1 }, { t: 10, transform: full ? 'none' : pre, opacity: 1 }]));
+      headG.style.transform = full ? 'none' : pre;
+      head.forEach(p => timeline(p.el, 10, [{ t: 0, opacity: 1 }, { t: 10, opacity: 1 }]));
       full ? tail.forEach(p => timeline(p.el, 10, [{ t: 0, opacity: 1 }, { t: 10, opacity: 1 }])) : hide(tail);
     };
 
@@ -172,16 +189,20 @@
         state = 'build';
         if (reduce) return still(false);
         stop(); hide(tail);
-        stackIn(head, 200, () => pre);
+        headG.style.transform = pre;
+        stackIn(head, 200);
       },
       // A request went out: the word slides left, "ing…" stacks on, then loops.
       building() {
         if (state === 'building') return;
         state = 'building';
         if (reduce) return still(true);
-        stop();
-        head.forEach(p => timeline(p.el, 900, [{ t: 0, transform: pre, easing: SOFT }, { t: 900, transform: 'none' }], 0));
-        rings.filter(r => r.li < 5).forEach(r => timeline(r.hole, 10, [{ t: 0, transform: 'scale(1)' }, { t: 10, transform: 'scale(1)' }]));
+        // Nothing is cancelled here. The intro's animations are what hold the
+        // word in place, and cancelling them drops every part back to the
+        // stylesheet — hidden, and unshifted — for the frame before these
+        // start. Later animations already win for the properties they set, so
+        // the slide simply lands on top of the held intro.
+        timeline(headG, 900, [{ t: 0, transform: pre, easing: SOFT }, { t: 900, transform: 'none' }], 0, { fill: 'forwards' });
         const end = stackIn(tail, 700, () => '', 150);
         loop(end + 200);
       },

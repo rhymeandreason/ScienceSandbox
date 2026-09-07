@@ -89,8 +89,13 @@ body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointe
    line in both states, and the slide left is exactly the room `ing…` needs. */
 .wordmark svg { display: block; width: min(30rem, 100%); height: auto; margin-inline: auto; overflow: visible; }
 /* Every part animates about its own centre, so it can be dropped and settled
-   without the transform reaching for the SVG's origin. */
-.wordmark .prim { transform-box: fill-box; transform-origin: center; }
+   without the transform reaching for the SVG's origin.
+
+   They start invisible. The word is composed whole as `building…` and the play
+   only starts once the page has laid out, so anything visible by default is a
+   flash of the finished word before the first part has dropped. Every state the
+   module plays raises the opacity of what it is showing. */
+.wordmark .prim { transform-box: fill-box; transform-origin: center; opacity: 0; }
 .wordmark .hole { fill: var(--wm-paper); transform-box: fill-box; transform-origin: center; }
 .wordmark .stem, .wordmark .dot { fill: var(--wm-ink); }
 .wordmark .arc { fill: none; stroke: var(--wm-ink); stroke-width: 14; }
