@@ -106,11 +106,15 @@
      A card opens here rather than navigating: the bigger view is the same
      box under a bigger frame, taken out of the SAME pool, so the modal costs
      one context and the card it evicted keeps its last frame. Its own page is
-     a link inside, not the click. */
-  .modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;
+     a link inside, not the click.
+
+     `.pmodal`, NOT `.modal`: kodo.css §10.3 already owns `.modal`, and its
+     `:root .modal h2` outranks anything a page states about its own heading.
+     A title that quietly comes back as 17px semibold is the symptom. */
+  .pmodal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;
     justify-content:center;padding:clamp(1rem,4vw,3rem);
     background:rgba(20,22,26,.55);backdrop-filter:blur(3px)}
-  .modal[hidden]{display:none}
+  .pmodal[hidden]{display:none}
   /* THE SHEET IS BOUNDED AND THE DETAILS SCROLL INSIDE IT, which is a framing
      rule and not a taste: let the sheet grow to its content and the stage grows
      with the grid row, so a protein with seven depositions hands the box a
@@ -124,8 +128,9 @@
     display:grid;grid-template-columns:1.05fr 1fr}
   /* `min-height:0` on both: a grid item's default `auto` minimum refuses to
      shrink below its content, which is how a bounded sheet still overflows. */
-  .mstage{background:var(--paper);border-right:1px solid var(--border-hair);
-    min-height:0}
+  .mstage{position:relative;background:var(--paper);
+    border-right:1px solid var(--border-hair);min-height:0}
+  .mbox{position:absolute;inset:0}
   .mbody{padding:clamp(1.4rem,3vw,2.2rem);display:flex;flex-direction:column;
     min-height:0;overflow-y:auto}
   /* Stacked, the sheet scrolls as one and the stage takes a fixed slice of it:
@@ -135,21 +140,48 @@
     .mstage{height:320px;border-right:0;border-bottom:1px solid var(--border-hair)}
     .mbody{overflow:visible}
   }
-  .mbody .name{font-size:1.9rem}
-  .mblurb{font-size:0.95rem;color:var(--muted);line-height:1.6;margin:0.8rem 0 1.2rem}
+  /* The kicker sits ABOVE the name here, the way a lesson section does: the
+     reader wants what kind of thing this is before its name. */
+  .mbody .does{margin:0 0 0.5rem}
+  /* dna-structure.html's reading typography, which is the site's: the display
+     face for the name, an italic editorial gloss under it, and editorial serif
+     for the prose. A card is a shelf label in the UI face; this is the page's
+     one paragraph and it is set to be read. */
+  .mbody .name{font-family:var(--font-display);font-weight:400;
+    font-size:clamp(28px,3vw,40px);line-height:1.12;letter-spacing:-.2px;
+    color:var(--text-strong)}
+  /* THE CLASS NAME, GLOSSED. On a card "hydrolase" is a word a reader
+     recognizes or does not, and the definition hides in a title attribute
+     where a touch screen never reaches it. Here it is the gloss under the
+     name, which is where this site already puts the short form of a term. */
+  .def{margin:6px 0 0;font-family:var(--font-editorial);font-style:italic;
+    font-size:15px;color:var(--text-muted)}
+  .mblurb{margin:20px 0 1.4rem;font-family:var(--font-editorial);font-size:17px;
+    line-height:1.6;color:var(--text-body)}
 
-  /* One row per structure we hold. Every field is the baker's except the
-     purpose, so this table is the registry printed, not a description of it. */
-  .vars{display:flex;flex-direction:column;gap:0.7rem;margin:0 0 1.4rem}
-  .var{border-top:1px solid var(--border-hair);padding-top:0.7rem}
-  .var .id{font-family:var(--font-mono,ui-monospace,monospace);font-size:0.82rem;
-    font-weight:600;letter-spacing:0.04em;text-decoration:none;color:var(--accent)}
-  .var .id:hover{color:var(--spark)}
-  .var .purpose{font-size:0.88rem;color:var(--ink);margin:2px 0 0}
-  .var .read{font-size:0.72rem;letter-spacing:0.06em;text-transform:uppercase;
-    color:var(--muted);margin:4px 0 0}
-  .var .badge{margin-left:0.5rem;font-size:0.66rem;letter-spacing:0.1em;
-    text-transform:uppercase;font-weight:600;color:var(--spark)}
+  /* WHAT IS UNDER THE PICTURE IS ABOUT THE PICTURE. One line: which
+     deposition is on screen, what it was chosen for, and the way out to it.
+     The rest of the collection's files are the bench's subject, not this
+     modal's: a reader here is meeting the protein, and a table of seven
+     depositions is the answer to a question they have not asked yet. */
+  .cap{position:absolute;left:0;right:0;bottom:0;margin:0;
+    display:flex;flex-wrap:wrap;align-items:baseline;gap:0.55rem;
+    padding:0.7rem 1rem;font-size:0.78rem;color:var(--muted);
+    background:linear-gradient(to top,var(--paper),rgba(0,0,0,0))}
+  .cap .pdb{font-family:var(--font-mono,ui-monospace,monospace);font-weight:600;
+    letter-spacing:0.04em;color:var(--ink)}
+  .cap a{color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor}
+  .cap a:hover{color:var(--spark)}
+
+  /* WHAT WAS MEASURED OFF THE FILE ON SCREEN. Every figure is read from the
+     bake at render, never typed: a typed number is a claim nothing checks and
+     a re-bake silently falsifies. */
+  .measure{display:flex;gap:1.1rem 1.9rem;flex-wrap:wrap;margin:0 0 1.4rem;
+    padding:1.1rem 0 0;border-top:1px solid var(--border-hair)}
+  .measure div{min-width:7rem}
+  .measure b{display:block;font-family:var(--font-display);font-weight:500;
+    font-size:1.35rem;line-height:1.1;letter-spacing:-0.02em;color:var(--ink)}
+  .measure span{display:block;margin-top:0.3rem;font-size:0.76rem;color:var(--muted)}
 
   /* The close is the only chrome the sheet has; escape and the backdrop do
      the same thing. */
@@ -185,15 +217,19 @@
   <main class="grid" id="grid"></main>
 </div>
 
-<div class="modal" id="modal" hidden>
+<div class="pmodal" id="modal" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="m-name">
     <button class="x" id="m-close" aria-label="Close">&times;</button>
-    <div class="mstage" id="m-stage"></div>
+    <div class="mstage">
+      <div class="mbox" id="m-stage"></div>
+      <p class="cap" id="m-cap"></p>
+    </div>
     <div class="mbody">
-      <h2 class="name" id="m-name"></h2>
       <p class="does" id="m-does"></p>
+      <h2 class="name" id="m-name"></h2>
+      <p class="def" id="m-def" hidden></p>
       <p class="mblurb" id="m-blurb"></p>
-      <div class="vars" id="m-vars"></div>
+      <div class="measure" id="m-measure"></div>
       <div class="links" id="m-links"></div>
     </div>
   </div>
@@ -302,6 +338,13 @@ function load(p) {
    `unknown` draws nothing: it would read as a missing field rather than as the
    answer it is, and the protein it belongs to spends three views on its bench
    saying what is known instead. */
+/* An EC number is a protein-registry fact; a nucleic entry has none and asking
+   for one would be reaching into the wrong index. */
+function ecClass(p) {
+  const ec = isNA(p) ? null : ProteinLib.ecOf(p);
+  return ec ? ProteinLib.EC_CLASS[+ec[0]] : null;
+}
+
 function fillDoes(el, p) {
   if (!el) return;
   if (!p.does || p.does === 'unknown') { el.remove(); return; }
@@ -309,10 +352,7 @@ function fillDoes(el, p) {
      and the class name (hydrolase, transferase) is the thing a reader
      recognizes without a lookup. The description goes in the title where a
      hover reaches it. */
-  /* An EC number is a protein-registry fact; a nucleic entry has none and
-     asking for one would be reaching into the wrong index. */
-  const ec = isNA(p) ? null : ProteinLib.ecOf(p);
-  const cls = ec && ProteinLib.EC_CLASS[+ec[0]];
+  const cls = ecClass(p);
   el.textContent = p.does + (cls ? ` \u00b7 ${cls[0]}` : '');
   el.title = cls ? cls[1] : '';
   el.className = 'does ' + (p.does === 'enzyme' ? 'enzyme' : 'carrier');
@@ -532,39 +572,37 @@ function openModal(p) {
   openKey = p.key;
   $('m-name').textContent = p.name;
   fillDoes($('m-does'), p);
+  /* THE CLASS, DEFINED. The chip says "enzyme \u00b7 hydrolase"; this says what a
+     hydrolase does, which is the half a reader who does not already know the
+     word needs. Read from EC_CLASS, so the word and its definition cannot
+     drift apart. */
+  const cls = ecClass(p);
+  const defEl = $('m-def');
+  defEl.hidden = !cls;
+  if (cls) defEl.textContent = `${cls[0]}: ${cls[1]}`;
   /* THE WHOLE BLURB HERE, where the card takes its first sentence. The clamp on
      a shelf is what a reader has to get past to reach the next protein; in a
      modal they have already chosen this one. */
   $('m-blurb').textContent = p.blurb;
 
-  /* EVERY STRUCTURE WE HOLD, one row each, and not one number typed. `purpose`
-     and `label` are the human's, everything under `read` is the baker's, and
-     the counts are printed as modelled-of-declared because "fragment" is true
-     of prion's half a protein and misleading of a chain short one residue that
-     rides on a HETATM line. */
-  const vars = $('m-vars');
-  vars.innerHTML = '';
+  /* WHICH FILE IS ON SCREEN, under the file on screen: its id, what it was
+     chosen for, and the way out to the deposition. Derived from `source`
+     rather than stored, the same as every bench builds it. */
   const def = defaultOf(p);
-  for (const v of p.variants) {
-    const r = v.read || {};
-    const bits = [r.method, v.species].filter(Boolean);
-    if (r.residues) bits.push(`${r.residues}${r.declared ? ' of ' + r.declared : ''} residues`);
-    if (r.pairs) bits.push(`${r.pairs} base pairs`);
-    const chains = r.chainsInFile || r.chains;
-    if (chains) bits.push(`${chains} chain${chains > 1 ? 's' : ''}`);
+  const cap = $('m-cap');
+  cap.innerHTML = `<span class="pdb"></span><span class="what"></span>
+    <a target="_blank" rel="noopener">at the PDB \u2192</a>`;
+  cap.querySelector('.pdb').textContent = def.id;
+  cap.querySelector('.what').textContent = def.purpose || def.label || '';
+  cap.querySelector('a').href =
+    isNA(p) ? NucleicAcids.urls(def.id).rcsb : ProteinLib.urls(def).entry;
 
-    const row = document.createElement('div');
-    row.className = 'var';
-    const url = isNA(p) ? NucleicAcids.urls(v.id).rcsb : ProteinLib.urls(v).entry;
-    row.innerHTML = `
-      <a class="id" href="${url}" target="_blank" rel="noopener">${v.id}</a>
-      ${v === def ? '<span class="badge">shown</span>' : ''}
-      <p class="purpose"></p>
-      <p class="read"></p>`;
-    row.querySelector('.purpose').textContent = v.purpose || v.label || '';
-    row.querySelector('.read').textContent = bits.join(' \u00b7 ');
-    vars.appendChild(row);
-  }
+  /* THE MEASURES ARE READ OFF THE BAKE, not off the index, and they wait for
+     it: every one of them except the species is a number the file answers and
+     the registry does not, and a page that typed any of them would be a claim
+     nothing checks and a re-bake silently falsifies. Filled by fillMeasure()
+     when the trace lands, which is the same moment the box appears. */
+  $('m-measure').innerHTML = '';
 
   const links = $('m-links');
   links.innerHTML = '';
@@ -584,6 +622,62 @@ function openModal(p) {
   requestAnimationFrame(() => { if (openKey === p.key) openBox(p, mount); });
 }
 
+/* WHAT WAS MEASURED OFF THE FILE ON SCREEN. The same tiles the myoglobin page
+   prints under its viewer, in the same order, because a reader who arrives here
+   from that page should not have to re-learn the layout: what the file is, how
+   much of the protein it holds, how sharp it is, then what shape it came out.
+
+   `meta` OR THE TRACE ITSELF. A protein bake nests its header under `meta`; a
+   nucleic one writes the same fields at the top level. Reading through one
+   alias is what keeps the nucleic entries from silently printing blanks. */
+function fillMeasure(p, t) {
+  const v = defaultOf(p), m = t.meta || t;
+  const tiles = [];
+
+  tiles.push([v.species || m.organism || '\u2014', 'species']);
+
+  /* ALWAYS "x of y", NEVER THE BARE COUNT. Files of one protein declare
+     different lengths, and a single number invites a reader to compare two
+     things that are not the same measurement. The percentage is the part that
+     compares across files. */
+  const counts = m.counts || [];
+  const modelled = counts.reduce((n, c) => n + (c.modelled || 0), 0) || (v.read || {}).residues;
+  const declared = counts.reduce((n, c) => n + (c.declared || 0), 0) || (v.read || {}).declared;
+  if (modelled) tiles.push([
+    declared ? `${modelled} of ${declared}` : modelled,
+    declared ? `amino acids, ${Math.round(100 * modelled / declared)}%`
+             : 'amino acids; no SEQRES to compare against']);
+
+  /* HOW GOOD THE CLAIM IS, beside what KIND of claim it is. A predicted
+     structure has no resolution and must not borrow the look of one, so the
+     em dash stands where the number would be. */
+  const method = m.method || (v.read || {}).method;
+  tiles.push([m.resolution ? m.resolution.toFixed(2) + ' \u00c5' : '\u2014', method]);
+
+  /* HOW MANY PIECES, or — for a single chain, where "1 chain" says nothing the
+     picture does not — what the fold is made of. */
+  const chains = m.chainsInFile || m.chains || (v.read || {}).chainsInFile;
+  if (chains > 1) tiles.push([chains, 'chains']);
+  else if (m.helices) tiles.push([m.helices, m.strands ? 'helices' : 'helices, no sheet']);
+  if (m.pairs) tiles.push([m.pairs, 'base pairs']);
+
+  /* HOW BIG IT IS, which is the one figure a ribbon cannot give a reader and
+     the reason the extents are baked at all. */
+  if (t.extents) tiles.push([t.extents.map(x => x.toFixed(0)).join(' \u00d7 '),
+                             'the whole molecule, \u00c5']);
+
+  const measure = $('m-measure');
+  measure.innerHTML = '';
+  for (const [n, label] of tiles) {
+    if (n == null || label == null) continue;
+    const d = document.createElement('div');
+    d.innerHTML = '<b></b><span></span>';
+    d.querySelector('b').textContent = n;
+    d.querySelector('span').textContent = label;
+    measure.appendChild(d);
+  }
+}
+
 /* The modal's box, on the pool's own terms. Zoom is ON here where a card
    refuses it: the sheet is the whole stage, so the wheel is the reader's zoom
    rather than how they get down a grid. */
@@ -599,6 +693,7 @@ function openBox(p, mount) {
       data: t,
     }));
     if (box && box.setPocket && t.pocket) box.setPocket(t.pocket);
+    fillMeasure(p, t);
   };
   if (traces[p.key]) draw(traces[p.key]);
   else load(p).then(t => { traces[p.key] = t; draw(t); })
