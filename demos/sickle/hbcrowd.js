@@ -812,7 +812,7 @@
   }
 
   global.HbCrowd = { create, mount, markOf, DEFAULTS, MAX, RUN, SURF };
-  /* Scale (kit/scale.js, docs/Scale.md). One scene unit is one ångström: the
+  /* Scale (kit/scale.js). One scene unit is one ångström: the
      tetramer is a lab's and the bond between any two is the crystal's, so a
      page may print an assembly's length off state(). The motion is
      choreography, not a diffusion rate, and state() reports no speed for that

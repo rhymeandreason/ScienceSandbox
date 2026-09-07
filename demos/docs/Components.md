@@ -123,7 +123,7 @@ A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in t
 
 ## Scale: what rung each component sits at
 
-Every component declares a **rung** (how big) and a **form** (how many, orthogonal to rung). `kit/scale.js` holds the ladder and `docs/Scale.md` is the argument; `tools/check-scale.js` fails a commit where a section here and the code disagree.
+Every component declares a **rung** (how big) and a **form** (how many, orthogonal to rung). `kit/scale.js` holds the ladder as an enum. Each component is built and tested on its own, so nothing enforces this beyond that.
 
 ```
 molecules · macromolecule · membrane · organelle · cell · tissue · organ · organism · population

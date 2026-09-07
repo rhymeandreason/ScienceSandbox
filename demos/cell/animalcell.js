@@ -566,7 +566,7 @@
   }
 
   global.AnimalCell = { create, mount, DEFAULTS, HOME };
-  /* Scale (kit/scale.js, docs/Scale.md). PROP TIER AND NOT A SCALE, as the
+  /* Scale (kit/scale.js). PROP TIER AND NOT A SCALE, as the
      header says: unit is null, so nothing may print a length off this render.
      How big a cell really is belongs on the library card as prose. Ribosomes
      cannot be drawn beside a nucleus at their own size; that factor is the

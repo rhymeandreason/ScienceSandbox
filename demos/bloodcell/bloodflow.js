@@ -373,7 +373,7 @@
   }
 
   global.BloodFlow = { create, mount, DEFAULTS, R0, HALF, CRESCENT };
-  /* Scale (kit/scale.js, docs/Scale.md). A scene unit is a micrometre: the
+  /* Scale (kit/scale.js). A scene unit is a micrometre: the
      disc is bloodcell.js's measured profile, the vessel radii are real
      capillary numbers, and the crescent's length is in the measured range, so
      a page may print those off state(). The flow speed is choreography and is

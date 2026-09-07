@@ -55,7 +55,7 @@ Events: `frame` always. Add named events for things a page wants to react to (`c
 
 ## 3. Scale and science
 
-* **Declare a `SCALE` block, and declare it first.** `kit/scale.js` holds the ladder, `docs/Scale.md` is the rulebook, `tools/check-scale.js` fails the commit. It goes beside the `global.X = {...}` export:
+* **Declare a `SCALE` block, and declare it first.** `kit/scale.js` holds the ladder as an enum. It goes beside the `global.X = {...}` export:
 
 ```js
 X.SCALE = {
@@ -70,7 +70,7 @@ X.SCALE = {
 
 * **One scale family per scene, and rung is now what says so.** Components at the same rung may share a scene; components at different rungs may not. Two things are "in the same scene" if they are rendered with the same camera, so a page can host *multiple* scenes (via kit/card-stage.js, one canvas per card or an inset module) with no conflict. tests/cards-cluster.html is the cited example: an ångström phospholipid in one card, display-scale water in another, on the same page, fine, because they never share a camera. 
 * **`form` is how many, and bulk plus single at one rung is the normal scene.** A solute inside bulk water, a chloroplast inside bulk mesophyll. Reach for that before reaching for a second box.
-* **Say what is measured and what is drawn, in `unit`.** A render of a plant cell is a textbook diagram, prop tier: proportions plausible, nothing deposited, so `unit: null`. That is a claim rather than a gap, and the checker enforces it: nothing may print a length off a component with no unit. Where a number is real (a bilayer's thickness from OPM, a tree's allometry) keep it beside its citation, and if the whole render is measurable give `unit` its metres per scene unit. **How big the real thing IS survives the render not being to scale**, so a real size still belongs on the library card as prose: "a red blood cell is about 8 µm across" is a fact about cells, not a measurement of the picture.
+* **Say what is measured and what is drawn, in `unit`.** A render of a plant cell is a textbook diagram, prop tier: proportions plausible, nothing deposited, so `unit: null`. That is a claim rather than a gap: nothing may print a length off a component with no unit. Where a number is real (a bilayer's thickness from OPM, a tree's allometry) keep it beside its citation, and if the whole render is measurable give `unit` its metres per scene unit. **How big the real thing IS survives the render not being to scale**, so a real size still belongs on the library card as prose: "a red blood cell is about 8 µm across" is a fact about cells, not a measurement of the picture.
 * **Invariants live in the component, not in the prompt.** A student remixing parameters must not be able to make the science false: clamp ranges, refuse impossible counts, keep the same particle budget per side if that is what the claim rests on. Membrane's contents reconcile and its budgets refuse; the reference only describes the rule.
 * Pedagogical exaggeration is allowed and goes in `exag` as drawn/true per part, applied uniformly so relative sizes stay true. A page then prints the factor rather than typing it. Membrane's long-standing `EXAG` is `exag:{crossing:5}`.
 
@@ -92,13 +92,13 @@ Measure the fixed cost too, with nothing on stage. Membrane's was 3 ms a frame f
 
 3. A checker if the component makes a checkable claim, `<name>/check-<name>.js`, Node-loadable and dependency-free, and its gate line in `.githooks/pre-commit` once the component is past test status.
 
-4. `docs/Components.md`: a section in the shape of the others. Load order, a **`**Scale**: <rung>, <form>`** line, the `mount` call with every param commented, what it models in two sentences, the `state()` table, events, then **Good for / Not for**. Add the component to `COMPONENTS` in `tools/check-scale.js` and to the ladder table, or the checker fails on a section it does not know. The model reads nothing else, so if the section does not say it, the model does not know it. Keep it tight; the whole file is the cached prompt and every section costs every request.
+4. `docs/Components.md`: a section in the shape of the others. Load order, a **`**Scale**: <rung>, <form>`** line, the `mount` call with every param commented, what it models in two sentences, the `state()` table, events, then **Good for / Not for**. Add the component to the ladder table too. The model reads nothing else, so if the section does not say it, the model does not know it. Keep it tight; the whole file is the cached prompt and every section costs every request.
 
    **The section is not documentation. It is the model's decision procedure**, and the two want opposite things. The API half can be terse: one `mount` call with commented params is enough, and prose restating what a param does is never consulted. Spend the sentences on WHEN TO REACH FOR IT, which is the one thing that cannot be inferred from an example — and name the thing the model would otherwise do instead, because it already has an answer and you are beating it, not describing yourself. "A step that asks how something CHANGES gets a trace; a step that asks what something IS gets a `.stat`" is what made the model draw a graph. "Good for showing change over time" did not. Say where it mounts if that is not `shell.stage`; the reference says the stage is the only layout, so a component that belongs in the panel has nowhere to go until the section says so.
 
    **If the section names anything outside `demos/` — a CDN script, a new path — check `api/_builder.js` accepts it.** `validate()` refuses scripts from outside the library while the deps check demands the ones a section declares, and when those two disagree every page mounting the component is unpassable. It fails silently: the draft is rejected and retried without the component, which reads exactly like a model that ignored the section.
 
-5. `docs/Modules.md`: one bullet under the water/membrane/leaf/tree ones. `admin.html`: one card for the bench. `node tools/check-docs.js` and `node tools/check-scale.js` pass.
+5. `docs/Modules.md`: one bullet under the water/membrane/leaf/tree ones. `admin.html`: one card for the bench. `node tools/check-docs.js` passes.
 
 6. Run `node tools/gen-app.js "<a request a teacher would type that needs your component>" tests/gen-<name>-test.html`, open the page, drive it, and fix the component or the reference until it works first try. **Twice, and read the `retried` flag in the printed JSON**: `retried:true` means the draft failed `validate()` and the second try dropped whatever caused it, so a page missing your component is a block, not a preference. Add the page to `admin.html` under Generated apps with the `UGC` badge. That page is the eval; keep it.
 

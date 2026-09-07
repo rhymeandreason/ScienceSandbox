@@ -1221,7 +1221,7 @@
   }
 
   global.PlantCell = { create, mount, DEFAULTS, HOME, TISSUES, STATES, stateParams };
-  /* Scale (kit/scale.js, docs/Scale.md). PROP TIER AND NOT A SCALE, like the
+  /* Scale (kit/scale.js). PROP TIER AND NOT A SCALE, like the
      animal cell: unit is null, so nothing may print a length off this render.
      The apothem is 11 against the animal cell's radius of 10 because a plant
      cell IS the larger of the two, but that ratio is the only measured thing

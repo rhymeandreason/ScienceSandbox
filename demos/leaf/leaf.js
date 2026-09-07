@@ -111,7 +111,7 @@
      molecule lesson meets the same shapes here. It also makes the exchange
      legible as chemistry rather than as two colours of traffic.
 
-     THE SIZE IS A LIE, AND A DECLARED ONE (docs/Scale.md). An epidermal cell
+     THE SIZE IS A LIE, AND A DECLARED ONE. An epidermal cell
      is drawn 0.85 units and is really about 30 um, so a unit is roughly 35 um
      here; a CO2 molecule is about 0.33 nm across and is drawn 0.5 units, or
      about 18 um. That is some 53,000x, which is in SCALE.exag so a page reads
@@ -877,7 +877,7 @@
   }
 
   global.Leaf = { create, mount, DEFAULTS, ORDER, VIEWS };
-  /* Scale (kit/scale.js, docs/Scale.md). Bulk cells in tissue layers, at a
+  /* Scale (kit/scale.js). Bulk cells in tissue layers, at a
      diagram's proportions rather than a measured section: unit is null and no
      page prints a thickness off it. Layer heights in DEFAULTS are scene units. */
   global.Leaf.SCALE = {

@@ -1533,7 +1533,7 @@
   const sides = c => ({ inside: (c && c.inside) || 0, outside: (c && c.outside) || 0 });
 
   global.Membrane = { create, mount, DEFAULTS, SIGNALS };
-  /* Scale (kit/scale.js, docs/Scale.md). The sheet is angstroms at MolLib.SCALE
+  /* Scale (kit/scale.js). The sheet is angstroms at MolLib.SCALE
      display units each. Everything CROSSING is then enlarged by DEFAULTS.exag,
      so only the comparison against the membrane is exaggerated; that is the one
      entry in exag, and it is the number the header has always declared. */

@@ -851,7 +851,7 @@
                          /* Read by sickle/hbcrowd.js, so the patch is one orange
                             on every page that draws it. */
                          COLOURS: { patch: PATCH_COLOR, pocket: POCKET_COLOR, skin: SURF_PLAIN } };
-  /* Scale (kit/scale.js, docs/Scale.md). One scene unit is one angstrom: the
+  /* Scale (kit/scale.js). One scene unit is one angstrom: the
      tetramer and both strand-forming operations are a crystal's, so a page may
      print a length off this. The three MODELLED numbers are parameters and
      `state()` reports them in their own block — they are not exaggerations of
@@ -860,10 +860,8 @@
      `down` IS EMPTY, and the interesting handoff is why. A fibre is
      macromolecule rung and a red cell is cell rung, so they may not share a
      camera and the lesson steps from one to the other — but that step is a
-     zoom OUT, and `down` is for zooming in. check-scale.js fails a `down`
-     naming a higher rung, which is what caught this being written the wrong
-     way round. What the fibre does to the cell is bloodcell/'s to draw, and
-     nothing here reaches for it. */
+     zoom OUT, and `down` is for zooming in. What the fibre does to the cell
+     is bloodcell/'s to draw, and nothing here reaches for it. */
   global.SickleFibre.SCALE = {
     rung: 'macromolecule', form: 'single', unit: 1e-10,
     sceneUnits: [], exag: {}, down: {},

@@ -1,4 +1,4 @@
-<!-- KIND: recipe, scoped — the brief for the cell components. Load whole when building one. It assumes demos/docs/AddingAComponent.md, which is the contract every component shares, and demos/docs/Scale.md, which is the rung ladder they declare against. This says only what is specific to a cell. -->
+<!-- KIND: recipe, scoped — the brief for the cell components. Load whole when building one. It assumes demos/docs/AddingAComponent.md, which is the contract every component shares, and demos/kit/scale.js, which is the rung ladder they declare against. This says only what is specific to a cell. -->
 
 # The cell components
 
@@ -14,7 +14,7 @@ The test of done is unchanged: `tools/gen-app.js` writes a working page from `Co
 
 **The test is animation.** Two states that must tween continuously between them belong in one component. Two that never morph may be two components, and usually should be. The test is asymmetric: continuous animation forces unity, its absence merely permits a split.
 
-It agrees with the rung rule from `demos/docs/Scale.md` wherever both apply, which is a good sign. A cell and a bilayer are 4000:1 apart, so nothing can animate between them, so it is a handoff and they are different rungs. Same answer from two directions.
+It agrees with the rung rule from `demos/kit/scale.js` wherever both apply, which is a good sign. A cell and a bilayer are 4000:1 apart, so nothing can animate between them, so it is a handoff and they are different rungs. Same answer from two directions.
 
 | | morphs? | |
 | --- | --- | --- |
@@ -65,7 +65,7 @@ Per component, the shapes:
 - **`RedBloodCell`**: a biconcave profile revolved, cut, with nothing inside but a haemoglobin tint and a spectrin mesh. The shape change is the subject.
 - **`EpithelialCell`**: a column with a tight junction to each neighbour's stub, and the animal organelle set with many mitochondria.
 
-**Prop tier, and not a scale** (`MolecularGeometry.md` §1.4). Every one of these declares `rung: 'cell'` and `unit: null` against the ladder in `demos/docs/Scale.md`; `cell/animalcell.js` already carries the block. A null unit is a claim, not a gap: the render is not measurable, no page prints a length off it, and `tools/check-scale.js` fails a commit where one advertises a length anyway.
+**Prop tier, and not a scale** (`MolecularGeometry.md` §1.4). Every one of these declares `rung: 'cell'` and `unit: null` against the ladder in `demos/kit/scale.js`; `cell/animalcell.js` already carries the block. A null unit is a claim, not a gap: the render is not measurable, no page prints a length off it.
 
 Sizes that ARE claimed, such as a red blood cell's 8 µm across, belong in the library card as prose, where they read as a fact about real cells rather than a measurement of the render. How big a cell IS survives the picture not being to scale.
 
@@ -148,7 +148,7 @@ The event carries the params describing the patch the camera reached, so the nex
 
 - `zoomTo('membrane')` → `Membrane` with `units:'mM'` and `contents` from the cell's tonicity, proteins by component: a red blood cell gets `AQP` and a chloride channel as the anion exchanger stand-in, a root cell its pumps, an animal cell `NA`, `K`, `pump`. Outside is up.
 - `zoomTo('apical')` and `zoomTo('basolateral')`, `EpithelialCell` only → `Membrane` with that face's proteins for the `tissue` and that face's bath as the outside. Same Membrane, two layouts, and the student sees why one cell needs two different membranes.
-- `zoomTo('mitochondrion')` → `Membrane` with `context:'mitochondrion'`, `fuel:'NADH'`. This skips the `organelle` rung deliberately, because the lesson there is chemiosmosis and not mitochondrial shape; `check-scale.js` warns on the skip so it stays a decision.
+- `zoomTo('mitochondrion')` → `Membrane` with `context:'mitochondrion'`, `fuel:'NADH'`. This skips the `organelle` rung deliberately, because the lesson there is chemiosmosis and not mitochondrial shape.
 - `zoomTo('chloroplast')` → `Membrane` with `context:'thylakoid'`, `fuel:'light'`. Both are in `Membrane-Chemiosmosis.md`.
 - Any other part → a flight and `state().zoom` naming it, no handoff. The reference says so and a page does not fake one.
 
@@ -182,7 +182,7 @@ Add a triangle budget per component when the first is measured; `animalcell.js` 
 
 ## 12. Files, and the order to build them
 
-Each component is the file set in `demos/docs/AddingAComponent.md` §5: the module with its header as the contract and its `SCALE` block, a bench on the sidebar shell, a checker if it makes a checkable claim, a `Components.md` section with the `**Scale**:` line, an entry in `COMPONENTS` in `tools/check-scale.js`, a `Modules.md` bullet, an admin card, then the generation run.
+Each component is the file set in `demos/docs/AddingAComponent.md` §5: the module with its header as the contract and its `SCALE` block, a bench on the sidebar shell, a checker if it makes a checkable claim, a `Components.md` section with the `**Scale**:` line, a `Modules.md` bullet, an admin card, then the generation run.
 
 1. **`RedBloodCell`** first. It is self-contained, it is the request that keeps arriving, and it exercises the deformation machinery on the simplest geometry. It builds its own shapes and does not wait for anything.
 2. **`AnimalCellAnatomy`**, which is `animalcell.js` wrapped in the contract with `er` split. Retire `animalcell.js` into it rather than keeping both.

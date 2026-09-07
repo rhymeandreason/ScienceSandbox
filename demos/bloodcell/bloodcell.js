@@ -62,7 +62,7 @@
  *
  *  A ZOOM INTO THE SHELL IS A HANDOFF TO Membrane, not a camera move, and it
  *  skips the organelle rung deliberately: a red cell has no organelles to
- *  stop at. SCALE.down says so, and check-scale warns rather than fails.
+ *  stop at. SCALE.down says so.
  *
  *  BUDGET: ~6 ms a frame while SICKLING (19k vertices warped, their normals,
  *  2000 instanced beads, the cut ribbon, and the render), 2 ms on the tonicity
@@ -965,7 +965,7 @@
      same shape rather than two opinions about a red cell. */
   global.BloodCell = { mount, create, DEFAULTS, R0, AMP, COL, profileY: g };
 
-  /* Scale (kit/scale.js, docs/Scale.md). MEASURED, unlike the cell diagrams:
+  /* Scale (kit/scale.js). MEASURED, unlike the cell diagrams:
      the profile is Evans & Fung's and a scene unit is a micrometre, so a page
      may print a length off state(). The one exaggeration is the membrane, and
      it is a parameter rather than a constant — 0.1 µm drawn against 5 nm real.
