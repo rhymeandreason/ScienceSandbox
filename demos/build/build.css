@@ -71,12 +71,29 @@ body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointe
 
 .hero .shelf { padding: 4.5rem var(--page-gutter, 4rem) 6rem; border-top: 1px solid var(--border-hair); }
 .hero .shelf .mine { width: min(64rem, 100%); margin: 0 auto; }
-.hero h1 {
-  font-family: var(--font-display); font-weight: 500;
-  font-size: clamp(2.6rem, 7vw, 5rem); letter-spacing: -.045em; line-height: .92;
-  text-transform: lowercase; color: var(--text-strong); margin: 0 0 2.2rem;
+/* The word is drawn, so the heading itself is for screen readers only. */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* The wordmark stands where the headline was. Its ink is the page's; the five
+   disc colours are its own, and wordmark.js reads them from here so the word
+   has one source of colour. */
+.wordmark {
+  --wm-ink: var(--text-strong);
+  --wm-paper: var(--surface-page);
+  --wm-disc-1: #4ADE80; --wm-disc-2: #F26B4E; --wm-disc-3: #5AA9FF;
+  --wm-disc-4: #F7B733; --wm-disc-5: #C084FC;
+  margin: 0 0 2.2rem;
 }
-.hero h1 em { font-style: normal; color: var(--accent); }
+/* The box is centred on the column, and `build` rests centred inside a box
+   sized for the whole of `building…` — so the word is on the page's centre
+   line in both states, and the slide left is exactly the room `ing…` needs. */
+.wordmark svg { display: block; width: min(30rem, 100%); height: auto; margin-inline: auto; overflow: visible; }
+/* Every part animates about its own centre, so it can be dropped and settled
+   without the transform reaching for the SVG's origin. */
+.wordmark .prim { transform-box: fill-box; transform-origin: center; }
+.wordmark .hole { fill: var(--wm-paper); transform-box: fill-box; transform-origin: center; }
+.wordmark .stem, .wordmark .dot { fill: var(--wm-ink); }
+.wordmark .arc { fill: none; stroke: var(--wm-ink); stroke-width: 14; }
 .hero form { display: flex; flex-direction: column; gap: 0; }
 .hero textarea {
   width: 100%; box-sizing: border-box; resize: none; padding: 1.1rem 1.3rem; min-height: 6.2rem;

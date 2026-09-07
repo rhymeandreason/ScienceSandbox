@@ -52,7 +52,8 @@
 <section class="hero" id="hero">
   <div class="first">
     <div class="hero-in">
-      <h1>what should it <em>show</em>?</h1>
+      <h1 class="sr-only">Build</h1>
+      <div class="wordmark" id="wordmark"></div>
       <form id="ask">
         <textarea id="request" maxlength="600" rows="2" autofocus></textarea>
         <div class="progress" id="progress" hidden>
@@ -99,6 +100,7 @@
   </aside>
 </main>
 
+<script src="wordmark.js"></script>
 <script src="apps-client.js"></script>
 <script>
 (() => {
@@ -240,6 +242,15 @@
     } catch (e) { /* history is optional */ }
   }
 
+  // The wordmark on the first screen: it plays `build` once on load and grows
+  // into `building…` for as long as a request is out. It lives in the hero, so
+  // it is only worth mounting while the hero is the page.
+  const mark = document.body.classList.contains('fresh') ? Wordmark.mount($('wordmark')) : null;
+  // Off the load path, so the intro is not competing with the page's first
+  // layout. A timer and not rAF: rAF never fires in a backgrounded tab, and the
+  // word would sit unplayed until the tab came forward.
+  if (mark) setTimeout(() => mark.build(), 60);
+
   let clockTimer = null;
   function setBusy(on) {
     busy = !!on;
@@ -251,6 +262,9 @@
       const t0 = Date.now();
       clockTimer = setInterval(() => { $('clock').textContent = `${Math.round((Date.now() - t0) / 1000)} s`; }, 1000);
     }
+    // An app arrived and the hero is going: the word settles. Nothing arrived:
+    // it goes back to holding, since the first screen stays.
+    if (mark) busy ? mark.building() : (app ? mark.resolve() : mark.reset());
   }
 
   // The suggestions cycle through the field's own placeholder: one example at a
@@ -387,9 +401,35 @@
     } catch { /* titles from the browser's own store are enough */ }
     const fit = () => { for (const t of box.querySelectorAll('.thumb')) t.style.setProperty('--k', (t.clientWidth / 960).toFixed(4)); };
     fit(); if (!box._ro) { box._ro = new ResizeObserver(fit); box._ro.observe(box); }
-    for (const f of box.querySelectorAll('iframe.live')) {
-      Apps.api(`../../api/app?id=${f.dataset.id}`).then(r => Apps.preview(f, r.html)).catch(() => {});
+    // A live card is a WebGL app, and the shelf sits below the fold: mounting six
+    // of them at load fought the intro animation for the main thread. Nothing
+    // loads until a card is actually scrolled to, and then one at a time.
+    //
+    // The margin is zero on purpose. The first screen is exactly the height of
+    // the scroller, so the shelf's top edge rests on the fold: any positive
+    // rootMargin is satisfied without scrolling, which is the whole bug.
+    const queue = [];
+    let pumping = false;
+    async function pump() {
+      if (pumping) return;
+      pumping = true;
+      while (queue.length) {
+        const f = queue.shift();
+        try { const r = await Apps.api(`../../api/app?id=${f.dataset.id}`); Apps.preview(f, r.html); }
+        catch { /* a card that will not load stays paper */ }
+        await new Promise(done => setTimeout(done, 120));
+      }
+      pumping = false;
     }
+    const io = new IntersectionObserver((entries, obs) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        obs.unobserve(e.target);
+        queue.push(e.target);
+      }
+      pump();
+    }, { root: $('hero'), rootMargin: '0px', threshold: 0.2 });
+    for (const f of box.querySelectorAll('iframe.live')) io.observe(f);
   }
 
   (async () => {
