@@ -267,8 +267,18 @@
       setTimeout(() => { box.placeholder = TRIES[tryIndex]; box.classList.remove('swap'); }, 300);
     }, 4200);
   })();
+  // The placeholder is the suggestion of the moment: it walks the "try" list
+  // while the box is empty, and Tab on an empty box takes it.
+  const tries = [...document.querySelectorAll('.try')].map(b => b.textContent);
+  let tryAt = 0;
+  setInterval(() => {
+    if (app || $('request').value || busy) return;
+    tryAt = (tryAt + 1) % tries.length;
+    $('request').placeholder = tries[tryAt];
+  }, 4000);
   $('request').addEventListener('keydown', e => {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('ask').requestSubmit(); }
+    if (e.key === 'Tab' && !e.shiftKey && !app && !$('request').value) { e.preventDefault(); $('request').value = $('request').placeholder; }
   });
 
   $('ask').addEventListener('submit', async e => {
