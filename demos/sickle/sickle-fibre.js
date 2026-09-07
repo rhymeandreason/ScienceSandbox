@@ -847,7 +847,10 @@
   }
 
   global.SickleFibre = { create, mount, DEFAULTS, PRESETS, TUBE,
-                         Mat, seatsFor, place, uprightOf, strainOf, linkOf, axialLenOf };
+                         Mat, seatsFor, place, uprightOf, strainOf, linkOf, axialLenOf,
+                         /* Read by sickle/hbcrowd.js, so the patch is one orange
+                            on every page that draws it. */
+                         COLOURS: { patch: PATCH_COLOR, pocket: POCKET_COLOR, skin: SURF_PLAIN } };
   /* Scale (kit/scale.js, docs/Scale.md). One scene unit is one angstrom: the
      tetramer and both strand-forming operations are a crystal's, so a page may
      print a length off this. The three MODELLED numbers are parameters and

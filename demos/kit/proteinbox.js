@@ -1045,7 +1045,10 @@
         stillHY = Math.max(stillHY, Math.abs(p.y - stillMid.y));
       }
       syncSkin();
-      if (rep === 'ribbon' || rep === 'skin') reframeStill();
+      /* The surface too: it is the ribbon's molecule half an ångström out, and
+         a box switched to it before its chains landed was otherwise left at
+         the default distance, inside the protein. */
+      if (rep === 'ribbon' || rep === 'skin' || rep === 'surface') reframeStill();
     }
 
     /* A BASIS ONTO THE CHAIN GROUP, and the framing re-solved after it. Null

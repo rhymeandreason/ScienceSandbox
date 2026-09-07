@@ -419,6 +419,72 @@ Anchors for `note()`: `rim`, `dimple`, `cutFace`, `haemoglobin`, `horn` (only wh
 
 Good for: the biconcave shape and why it is that shape, osmosis and tonicity on a real cell, lysis and crenation, what a red cell is filled with, and sickle-cell disease. Not for: transport across the membrane, blood as a fluid or a vessel full of cells, or anything with a nucleus — this one has none.
 
+## HbCrowd — a crowd of haemoglobins, and the moment HbS starts a fibre
+
+**Scale**: macromolecule, bulk. One scene unit is one ångström: the tetramer is a deposited structure's surface and every seat in the strand is the fibre bake's, so a page may print the strand's length off `state()`. The tumbling is choreography, not a diffusion rate, and `state()` reports no speed.
+
+```html
+<script src="../kit/ribbon.js"></script>
+<script src="../kit/tube.js"></script>
+<script src="../kit/surface.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../sickle/sickle-fibre.js"></script>   <!-- the seats and the patch colour come from here -->
+<script src="../sickle/hbcrowd.js"></script>
+```
+
+```js
+const C = HbCrowd.mount(el, {
+  variant: 'HbS',    // 'HbA' | 'HbS': which molecule, and which colour the β6 spot takes
+  n: 12,             // molecules on stage (rebuild); up to 48
+  stick: true,       // whether play() docks them; HbA should say false
+  lay: 0,            // 0 standing .. 1 lying; glides, and turns only the docked strand
+  base: '../',       // path to demos/ from the page
+});
+C.play();            // one by one, each free molecule docks onto the end of the strand
+C.set({ lay: 1 });   // the strand turns over to lie across the frame
+C.reset();
+```
+
+A dozen haemoglobin molecules tumble in the frame. Both β6 spots are marked on every one: charge blue on HbA, the fibre's greasy orange on HbS. With `stick: true`, `play()` docks them one at a time into the measured double strand, the camera pulling back as it grows; `lay` then turns the finished strand from standing to lying. **Reach for this for the step between "one residue changed" and "a fibre": two boxes, HbA on the left tumbling and HbS on the right docking, is the comparison.** The finished fibre, its twist and its strain are SickleFibre's.
+
+Glides: `lay`. Snaps: `n`, `variant`, `drift`, `stick`. `play()` and `reset()` are the animation; a page times `lay` after `done`.
+
+`state()`: `variant`, `n`, `free`, `seated`, `repeats`, `lengthA` / `lengthNm` (the axial repeat times the repeats on stage), `lay`, `playing`, `done`, and `measured.axialA`. Events: `frame` · `dock` (seated count, after each docking) · `done` (every molecule seated).
+
+Anchors for `note()`: `patch` (β6 on the first molecule), `chain` (the strand's middle, once anything has docked). No layers.
+
+Good for: why one amino acid makes a polymer, HbA against HbS side by side, the start of a sickle fibre. Not for: the whole fibre (SickleFibre), the cell it deforms (BloodCell), or any other protein.
+
+## BloodFlow — a vessel of red cells, narrowing
+
+**Scale**: organ, bulk. One scene unit is one micrometre: the disc is BloodCell's measured profile, the vessel radii are capillary numbers and the crescent's length is in the measured range, so a page may print those off `state()`. The flow speed is choreography and is not reported.
+
+```html
+<script src="../bloodcell/bloodcell.js"></script>   <!-- first: the disc profile and the red -->
+<script src="../bloodcell/bloodflow.js"></script>
+```
+
+```js
+const F = BloodFlow.mount(el, {
+  sickle: 0,         // 0..1 fraction of the cells that are crescents (rebuild)
+  n: 40,             // cells in the vessel (rebuild)
+  speed: 1,          // choreography; 1 is watchable
+  throat: 0.47,      // throat radius over vessel radius (rebuild)
+  seed: 3,
+});
+F.reset();
+```
+
+Cells stream along a vessel that narrows to a capillary. Discs turn face-on and go through in single file. Crescents are stiff and longer than the throat is wide: one catches unless it arrives end-on, every crescent that touches a caught one sticks to it, and the jam grows upstream until nothing moves. **Reach for this when the step is what a sickled cell does in a vessel: two boxes, `sickle: 0` beside `sickle: 1`, same vessel.** One cell's shape or contents is BloodCell.
+
+Snaps: everything; a param that rebuilds respawns the crowd. `reset()` starts the flow over.
+
+`state()`: `n`, `crescents`, `moving`, `stuck`, `passed` (cells through the throat), `jammed`, `blocked` (nothing left moving), `vesselR`, `throatR`, `crescentLen`, `discR` (µm). Events: `frame` · `jam` (the first cell caught) · `blocked`.
+
+Anchors for `note()`: `throat`, `jam` (only once a cell is caught), `cell`. No layers.
+
+Good for: vaso-occlusion, why a stiff cell is a problem and a flexible one is not, capillaries being narrower than the cells in them. Not for: a single cell (BloodCell), transport across a wall (Membrane), the heart or a named organ.
+
 ## AnimalCell — an animal cell cut open, with its organelles
 
 **Scale**: cell, single. A diagram's proportions, nothing deposited: `unit` is null, so **no page may print a length off it**. Ribosomes are drawn 30x and mitochondria 2x (`AnimalCell.SCALE.exag`) because at true size neither reads beside a nucleus.

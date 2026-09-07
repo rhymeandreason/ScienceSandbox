@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>blood flow bench — discs slip through, crescents jam</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+  .bench-group { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .bench-group:first-child { padding-top: 0; border-top: 0; }
+  .bench-hd { font-family: var(--display); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .lshell-nav, .lshell-progress { display: none; }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/annotate.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script src="bloodcell.js"></script>
+<script src="bloodflow.js"></script>
+<script>
+/* The bench for bloodcell/bloodflow.js: one vessel, every parameter live. */
+const shell = LessonShell.create({
+  brand: 'Blood flow · component bench',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: [{ eyebrow: 'bloodcell/bloodflow.js', title: 'A vessel that narrows', onEnter: bench }],
+});
+const F = BloodFlow.mount(shell.stage, { sickle: 1, viewOffset: shell.viewOffset });
+window.flow = F;
+
+function bench(ctx) {
+  const ui = ctx.ui;
+  ui.controls(`
+    <div class="bench-group">
+      <div class="bench-hd">the cells</div>
+      <div class="slider"><div class="slider-head"><span class="label">crescents</span><span class="value" id="sv"></span></div>
+        <input type="range" id="sickle" min="0" max="1" step="0.05" value="1"></div>
+      <div class="slider"><div class="slider-head"><span class="label">cells</span><span class="value" id="nv"></span></div>
+        <input type="range" id="n" min="6" max="80" step="1" value="40"></div>
+      <div class="slider"><div class="slider-head"><span class="label">speed</span><span class="value" id="spv"></span></div>
+        <input type="range" id="speed" min="0.2" max="3" step="0.1" value="1"></div>
+    </div>
+    <div class="bench-group">
+      <div class="bench-hd">the vessel</div>
+      <div class="slider"><div class="slider-head"><span class="label">throat</span><span class="value" id="tv"></span></div>
+        <input type="range" id="throat" min="0.3" max="1" step="0.01" value="0.47"></div>
+      <div class="row">
+        <button class="btn ghost" type="button" id="reset">Reset</button>
+        <button class="btn ghost" type="button" id="seed">New seed</button>
+      </div>
+      <p class="foot" id="facts"></p>
+    </div>
+    <div class="bench-group">
+      <div class="bench-hd">point at</div>
+      <div id="panel"></div>
+    </div>`);
+
+  ui.range(ui.q('#sickle'), v => { ui.q('#sv').textContent = Math.round(v * 100) + '%'; if (F.state().sickle !== v) F.set({ sickle: v }); });
+  ui.range(ui.q('#n'), v => { ui.q('#nv').textContent = v; if (F.state().n !== v) F.set({ n: v }); });
+  ui.range(ui.q('#speed'), v => { ui.q('#spv').textContent = v.toFixed(1) + '×'; F.set({ speed: v }); });
+  ui.range(ui.q('#throat'), v => { ui.q('#tv').textContent = v.toFixed(2); if (F.sim.params.throat !== v) F.set({ throat: v }); });
+  ui.q('#reset').onclick = () => F.reset();
+  ui.q('#seed').onclick = () => F.set({ seed: (Math.random() * 1e9) >>> 0 });
+  CardStage.showPanel(ui.q('#panel'), F, { notes: ['throat', 'jam', 'cell'] });
+
+  /* Every number is the component's: radii off the geometry, counts off the sim. */
+  F.on('frame', s => {
+    ui.q('#facts').textContent =
+      `Vessel ${(2 * s.vesselR).toFixed(0)} µm across, throat ${(2 * s.throatR).toFixed(1)} µm. `
+      + `Disc ${(2 * s.discR).toFixed(1)} µm, crescent ${s.crescentLen.toFixed(0)} µm long. `
+      + `${s.moving} moving, ${s.stuck} stuck, ${s.passed} through${s.blocked ? ' — blocked.' : '.'}`;
+  });
+}
+shell.goTo(0);
+</script>
+</body>
+</html>

@@ -8,11 +8,68 @@
 <link rel="stylesheet" href="css/lesson-shell.css">
 <link rel="stylesheet" href="dna/codon.css">
 <style>
-  /* The page's own, and only what the shell's sheet has no opinion about. */
-  .lshell-panel .cverdict{margin-top:8px}
+  /* The page's own, and only what the shell's sheet has no opinion about:
+     a switch on the stage, two halves with a caption, and a card in the panel. */
   .lshell-panel .ccard{max-width:100%}
-  .lshell-panel .warn{color:var(--spark, #d4671f)}
-  .lshell-panel .stats{line-height:1.5}
+  .lshell-panel .hint-text{margin-top:6px}
+
+  /* The switch lives on the stage, centred in the room the panel leaves, and
+     is placed by script because that room is the panel's width. Its look is
+     the shell's segmented control — pills in a tray — so the page has one
+     button vocabulary. */
+  .sk-toggle{position:fixed;bottom:28px;transform:translateX(-50%);z-index:4;
+    display:inline-flex;gap:2px;padding:4px;border:1px solid var(--line);border-radius:999px;
+    background:var(--panel);backdrop-filter:blur(20px) saturate(1.3);-webkit-backdrop-filter:blur(20px) saturate(1.3);
+    box-shadow:0 18px 40px -28px rgba(20,30,20,.45)}
+  .sk-toggle button{border:0;padding:8px 18px;border-radius:999px;background:transparent;color:var(--ink-2);
+    font-family:var(--display);font-size:14px;font-weight:500;line-height:18px;letter-spacing:.02em;
+    text-transform:none;white-space:nowrap;cursor:pointer;transition:background .2s,color .2s}
+  .sk-toggle button:hover:not(.is-on){color:var(--ink)}
+  .sk-toggle button.is-on{background:var(--accent);color:#fff}
+  .sk-toggle[hidden]{display:none}
+
+  /* Proteinbox draws ribbon / skin / surface segments in its mount; the switch
+     on this page is HbA / HbS, and two controls in one room is one too many. */
+  .sk-protein .pbox-rep{display:none}
+
+  /* Two halves. The shell's panel goes, and a caption takes its foot. */
+  body.sk-split .lshell-panel,body.sk-split .lshell-hint{display:none}
+  .sk-half{position:absolute;top:0;bottom:0;width:50%}
+  .sk-half.left{left:0}
+  .sk-half.right{left:50%}
+  .sk-fade{transition:opacity 1.2s ease}
+  .sk-divider{position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--line);pointer-events:none}
+  .sk-label{position:absolute;top:74px;font-family:var(--display);font-weight:500;font-size:12px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);pointer-events:none;
+    animation:lshell-fadein .8s both}
+  .sk-label.left{left:28px}
+  .sk-label.right{left:calc(50% + 28px)}
+  .sk-cap{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:4;
+    display:flex;align-items:center;gap:16px;max-width:min(820px,calc(100vw - 48px));
+    padding:10px 10px 10px 24px;border-radius:999px;background:var(--panel);
+    backdrop-filter:blur(20px) saturate(1.3);-webkit-backdrop-filter:blur(20px) saturate(1.3);
+    border:1px solid rgba(255,255,255,.7);box-shadow:0 30px 70px -40px rgba(20,30,20,.45)}
+  .sk-cap p{margin:0;font-family:var(--serif);font-size:16px;line-height:1.45;color:#2a2c30}
+  .sk-cap nav{display:flex;gap:6px;flex:none}
+  .sk-btn{font-family:var(--display);font-weight:500;font-size:14px;letter-spacing:.02em;
+    border-radius:999px;padding:9px 18px;border:1px solid transparent;cursor:pointer;
+    transition:transform .15s,background .2s,border-color .2s}
+  .sk-btn.primary{background:var(--ink);color:#fff}
+  .sk-btn.primary:hover{background:#000;transform:translateY(-1px)}
+  .sk-btn.ghost{background:transparent;color:var(--ink-2);border-color:var(--line)}
+  .sk-btn.ghost:hover{border-color:var(--ink-3)}
+  .sk-btn[hidden]{display:none}
+  .sk-btn:disabled{opacity:.3;cursor:default;transform:none}
+  .sk-split-only{display:none}
+  body.sk-split .sk-split-only{display:flex}
+  @media (max-width:760px){
+    .sk-cap{flex-direction:column;align-items:stretch;border-radius:22px;padding:16px 18px 12px;bottom:0;left:0;right:0;transform:none;max-width:none}
+    .sk-cap nav{justify-content:space-between}
+    .sk-half{width:auto;left:0;right:0;height:50%}
+    .sk-half.right{top:50%;bottom:0}
+    .sk-divider{left:0;right:0;top:50%;width:auto;height:1px}
+    .sk-label.right{left:28px;top:calc(50% + 12px)}
+  }
 </style>
 </head>
 <body>
@@ -31,7 +88,9 @@
 <script src="kit/proteinbox.js"></script>
 <script src="proteins/proteins.js"></script>
 <script src="sickle/sickle-fibre.js"></script>
+<script src="sickle/hbcrowd.js"></script>
 <script src="bloodcell/bloodcell.js"></script>
+<script src="bloodcell/bloodflow.js"></script>
 <script src="dna/codon.js"></script>
 <script src="sickle/sickle-steps.js"></script>
 <script>
@@ -39,101 +98,235 @@
 /* =============================================================================
  *  sickle-lab.html — the wiring. Content is sickle/sickle-steps.js.
  * =============================================================================
- *  FOUR COMPONENTS SHARE ONE STAGE, one at a time, and that is the lesson's
- *  structure rather than a limitation. A gene, two molecules, a fibre and a
- *  cell sit at different rungs of the scale ladder, and components at different
- *  rungs may not share a camera (docs/Scale.md) — so moving between them is a
- *  HANDOFF and never a camera move. `use(name)` is that handoff.
+ *  SEVERAL COMPONENTS SHARE ONE STAGE, and a step says which are on it. A
+ *  cell, a protein, a crowd of proteins and a vessel sit at different rungs of
+ *  the scale ladder, and components at different rungs may not share a camera
+ *  (docs/Scale.md) — so moving between them is a HANDOFF, never a camera move,
+ *  and a split screen is two boxes with a line between them, never one scene.
  *
- *  ONE MOUNT PER COMPONENT, KEPT. Destroying and re-creating on every step
- *  would throw away the reader's turn, re-fetch a 1.5 MB surface and give the
- *  WebGL context back only to ask for it again. So a component that has been
- *  built is hidden rather than dropped, and only the one on stage is running.
+ *  BUILT WHEN A STEP ASKS, DESTROYED WHEN NONE DOES. Beat 3 needs four live
+ *  boxes at once (two crowds, and two cut cells fading in over them), and a
+ *  browser's cap on WebGL contexts is a small number that drops the OLDEST
+ *  one silently (kit/card-stage.js). So `use({show, keep})` is the whole
+ *  policy: the scenes a step shows, plus the ones it says to keep warm, and
+ *  everything else gives its context back. Beats 1 and 2 keep each other, so
+ *  the switch swaps instantly between them; beat 3 keeps nothing.
  *
- *  THE BUDGET THAT MAKES THAT SAFE: three contexts at most, and kit/card-stage
- *  rations them across the page anyway. If this ever grows a fifth scene, the
- *  answer is to drop the least recently used one here, not to raise the cap.
+ *  What ctx carries for the steps: `variant` and `onToggle` (the switch),
+ *  `use`, `split`, `caption`, `replay`, `fade`, `after` / `clearTimers`.
  * ========================================================================== */
+
+const V = { HbA: SickleSteps.HBA, HbS: SickleSteps.HBS };
 
 const shell = LessonShell.create({
   brand: 'Sickle cell',
   hint: 'Drag to orbit · Scroll to zoom',
   steps: SickleSteps.steps,
-  ctx: { state: {} },
-  onStep(step, i) { document.body.dataset.beat = i + 1; },
+  ctx: { state: {}, variant: 'HbA', onToggle: null },
+  onStep(step, i) {
+    document.body.dataset.beat = i + 1;
+    capNext.hidden = i >= SickleSteps.steps.length - 1;
+    capBack.disabled = i === 0;
+    placeToggle();
+  },
 });
+const ctx = shell.ctx;
 
-/* Each component gets its own host inside the stage, so hiding one is a class
-   and not a teardown. */
-const hosts = {};
-const built = {};
-function host(name) {
-  if (hosts[name]) return hosts[name];
+/* ---- the chrome this page adds: a switch, two labels, a caption -------------- */
+
+const toggle = document.createElement('div');
+toggle.className = 'sk-toggle';
+toggle.innerHTML = `<button type="button" data-v="HbA">Normal · ${V.HbA.label}</button>
+  <button type="button" data-v="HbS">Sickle · ${V.HbS.label}</button>`;
+shell.el.appendChild(toggle);
+toggle.querySelectorAll('button').forEach(b => {
+  b.onclick = () => setVariant(b.dataset.v);
+});
+function setVariant(v) {
+  ctx.variant = v;
+  toggle.querySelectorAll('button').forEach(o => o.classList.toggle('is-on', o.dataset.v === v));
+  if (ctx.onToggle) ctx.onToggle(v);
+}
+/* Centred in the room beside the panel on a laptop, above it when the panel
+   docks to the bottom. The panel's width is the shell's, so this is read. */
+function placeToggle() {
+  const r = shell.panelRect();
+  if (shell.narrow()) { toggle.style.left = '50%'; toggle.style.bottom = (r.height + 14) + 'px'; }
+  else { toggle.style.left = ((r.right + window.innerWidth) / 2) + 'px'; toggle.style.bottom = '28px'; }
+}
+window.addEventListener('resize', placeToggle);
+ctx.toggle = on => { toggle.hidden = !on; if (on) placeToggle(); };
+
+const divider = document.createElement('div'); divider.className = 'sk-divider sk-split-only';
+const labelL = document.createElement('div'); labelL.className = 'sk-label left sk-split-only';
+const labelR = document.createElement('div'); labelR.className = 'sk-label right sk-split-only';
+shell.stage.append(divider, labelL, labelR);
+
+const cap = document.createElement('div');
+cap.className = 'sk-cap sk-split-only';
+cap.innerHTML = `<p></p><nav>
+  <button class="sk-btn ghost" type="button" data-k="back">Back</button>
+  <button class="sk-btn ghost" type="button" data-k="replay">Replay</button>
+  <button class="sk-btn primary" type="button" data-k="next">Next</button></nav>`;
+shell.el.appendChild(cap);
+const capText = cap.querySelector('p');
+const capBack = cap.querySelector('[data-k=back]');
+const capReplay = cap.querySelector('[data-k=replay]');
+const capNext = cap.querySelector('[data-k=next]');
+capBack.onclick = () => shell.goTo(shell.current - 1);
+capNext.onclick = () => shell.goTo(shell.current + 1);
+let replayFn = null;
+capReplay.onclick = () => replayFn && replayFn();
+
+ctx.split = (on, labels = {}) => {
+  document.body.classList.toggle('sk-split', !!on);
+  labelL.textContent = labels.left || '';
+  labelR.textContent = labels.right || '';
+  if (!on) { replayFn = null; capText.textContent = ''; }
+  /* Every live box re-fits: the panel's room changed under it. */
+  for (const s of Object.values(live)) if (s.api.box && s.api.box.layout) s.api.box.layout();
+};
+ctx.caption = text => { capText.textContent = text.replace(/\s+/g, ' ').trim(); };
+ctx.replay = fn => { replayFn = fn; capReplay.hidden = !fn; };
+
+/* Timers a step sets die with the step, the same way its subscriptions do. */
+let timers = [];
+ctx.after = (sec, fn) => { timers.push(setTimeout(fn, sec * 1000)); };
+ctx.clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+/* ---- the scenes ------------------------------------------------------------------ */
+
+/* Traces are parsed once and handed back by id; a switch inside beat 2 is
+   never a re-fetch, and beat 2 opens on whichever variant beat 1 left. */
+const TRACE = {};
+const traces = Promise.all(Object.entries(V).map(([k, v]) =>
+  fetch(v.trace).then(r => r.json()).then(t => { TRACE[k] = t; })));
+
+const SIDE = { full: null, left: 'sk-half left', right: 'sk-half right' };
+function host(side, cls) {
   const d = document.createElement('div');
-  d.className = 'lshell-scene';
-  d.style.cssText = 'position:absolute;inset:0';
-  /* The panel's room, the same function every component's mount takes. */
-  d.viewOffset = shell.stage.viewOffset;
-  shell.stage.appendChild(d);
-  return (hosts[name] = d);
+  d.className = 'lshell-scene ' + (SIDE[side] || '') + (cls ? ' ' + cls : '');
+  d.style.cssText = side === 'full' ? 'position:absolute;inset:0' : '';
+  /* An overlay that will fade in starts out, or the step opens on it fading. */
+  if (cls === 'sk-fade') { d.style.opacity = 0; d.style.pointerEvents = 'none'; }
+  /* The panel's room, the same function every component's mount takes. In a
+     split there is no panel, and the shell's function says so on its own. */
+  if (side === 'full') d.viewOffset = shell.stage.viewOffset;
+  shell.stage.insertBefore(d, divider);
+  return d;
+}
+
+/* ONE PROTEIN BOX, SWAPPED. `setData` and `setSurface` replace the ribbon and
+   the skin in place, holding the old one up until the new one lands — on an
+   A/B whose claim is that NOTHING MOVED, a flicker would be the page
+   contradicting itself. The β6 mark is coloured by variant, the same colour
+   HbCrowd paints on its molecules in beat 3, and two callouts name the spot. */
+function makeProtein(h) {
+  h.classList.add('sk-protein');
+  let notes = null;
+  const P = Proteinbox.create({
+    mount: h, protein: 'hemoglobin', variant: V.HbA.id,
+    trace: V.HbA.trace, surface: V.HbA.surface,
+    chains: 'A,B,C,D', skin: true, orbit: true,
+    viewOffset: shell.stage.viewOffset,
+    afterFrame: () => { if (notes) notes.step(); },
+  });
+  /* The translucent SES over the ribbon: the patch is somewhere ON a fold,
+     not a picture of one. */
+  P.setRep('skin');
+  P.patch('b6', { chains: 'B,D', num: 6 }, { colour: HbCrowd.markOf('HbA') });
+  /* The other molecule, decoded and uploaded while the reader is still on
+     this one, so the first press of the switch is not the slow one. */
+  P.preloadSurface(V.HbS.surface);
+  traces.then(() => P.preloadData(TRACE.HbS, { chains: 'A,B,C,D' }));
+
+  let cur = 'HbA';
+  const _v = new THREE.Vector3(), _far = new THREE.Vector3(0, 1e6, 0);
+  /* The Cα of residue 6, read off the trace that is showing and carried
+     through the chain group, so the label follows a drag and a swap alike. */
+  const ca6 = chain => () => {
+    const t = TRACE[cur];
+    if (!t) return _far;
+    const ch = t.chains[chain], i = ch.nums.indexOf(6);
+    return P.group.localToWorld(_v.fromArray(ch.CA[i]));
+  };
+  /* What the label says is read off the codon: the residue at position 6 is
+     the wild-type or the mutant amino acid, and its class, both derived by
+     dna/codon.js rather than typed here. */
+  const c = Codon.read({ dna: SickleSteps.HBB, first: 0, at: SickleSteps.AT, to: SickleSteps.TO }).change;
+  const LABEL = {
+    HbA: `β${c.n} · ${Codon.AA[c.aaWas].name}, charged`,
+    HbS: `β${c.n} · ${Codon.AA[c.aaNow].name}, greasy`,
+  };
+  const CARD = {
+    HbA: 'A charged side chain. It sits happily in water, and nothing sticks to it.',
+    HbS: 'A greasy side chain on the outside of the protein. It wants somewhere dry to hide, and the next molecule has a dent that fits.',
+  };
+  notes = Annot.create(THREE, h, P.camera, { mode: 'on' });
+  const marks = [
+    notes.add({ text: LABEL.HbA, card: CARD.HbA, at: ca6('B'), offset: [36, -26] }),
+    notes.add({ text: LABEL.HbA, card: CARD.HbA, at: ca6('D'), offset: [-36, 28] }),
+  ];
+  function show(v) {
+    cur = v;
+    traces.then(() => {
+      P.setData(TRACE[v], { chains: 'A,B,C,D', keep: true });
+      P.setSurface(V[v].surface);
+      P.setPatch('b6', { colour: HbCrowd.markOf(v) });
+      for (const m of marks) { m.set(LABEL[v]); m.card = CARD[v]; }
+    });
+  }
+  return { show, box: P, start: P.start, stop: P.stop, destroy() { notes.clear(); P.destroy(); } };
 }
 
 const MAKE = {
-  /* ONE TETRAMER, SKINNED. `skin:true` puts the SES over the ribbon instead of
-     instead of it, which is what lets the beta6 patch be somewhere ON a fold
-     rather than a picture of a fold. The lesson-tier surface, not the card's:
-     at 1.4 A the patch is 177 triangles and at 0.7 it is 840, and this beat is
-     a residue question. */
-  gene: () => {
-    const P = Proteinbox.create({
-      mount: host('gene'),
-      protein: 'hemoglobin', variant: SickleSteps.HBA.id,
-      trace: SickleSteps.HBA.trace, surface: SickleSteps.HBA.surface,
-      chains: 'A,B,C,D', skin: true, orbit: true,
-      viewOffset: shell.stage.viewOffset,
-    });
-    P.setRep('skin');
-    P.patch('b6', { chains: 'B,D', num: 6 }, { colour: 0xd4671f });
-    /* The other molecule, decoded and uploaded while the reader is still on
-       this one, so the first press of the toggle is not the slow one. */
-    P.preloadSurface(SickleSteps.HBS.surface);
-    fetch(SickleSteps.HBS.trace).then(r => r.json())
-      .then(t => { TRACE[SickleSteps.HBS.id] = t; P.preloadData(t, { chains: 'A,B,C,D' }); });
-    return P;
-  },
-  fibre: () => SickleFibre.mount(host('fibre'), {
-    base: 'sickle/', preset: 'contact', rep: 'surface',
-    viewOffset: shell.stage.viewOffset,
-  }),
-  cell: () => BloodCell.mount(host('cell'), {
-    sickle: 0, viewOffset: shell.stage.viewOffset,
-  }),
+  cell:    () => BloodCell.mount(host('full'), { sickle: ctx.variant === 'HbS' ? 1 : 0, viewOffset: shell.stage.viewOffset }),
+  protein: () => makeProtein(host('full')),
+  crowdA:  () => HbCrowd.mount(host('left'),  { variant: 'HbA', n: 22, stick: false }),
+  crowdS:  () => HbCrowd.mount(host('right'), { variant: 'HbS', n: 34, stick: true, lay: 1 }),
+  /* Cut along the length, so a sickled cell shows its fibres end-on to end-on
+     (bloodcell/bloodcell.js on `cutTurn`), and the same cut on the disc for the pair. */
+  cellA:   () => BloodCell.mount(host('left',  'sk-fade'), { sickle: 0, cut: 1 }),
+  cellS:   () => BloodCell.mount(host('right', 'sk-fade'), { sickle: 1, cut: 1 }),
+  flowA:   () => BloodFlow.mount(host('left'),  { sickle: 0 }),
+  flowS:   () => BloodFlow.mount(host('right'), { sickle: 1 }),
 };
 
-/* Traces are parsed once and handed back by id, so a switch inside beat 1 is
-   never a re-fetch. */
-const TRACE = {};
-shell.ctx.trace = v => TRACE[v.id];
-for (const v of [SickleSteps.HBA, SickleSteps.HBS])
-  fetch(v.trace).then(r => r.json()).then(t => { TRACE[v.id] = t; });
-
-let onStage = null;
-shell.ctx.use = function use(name) {
-  if (!built[name]) built[name] = MAKE[name]();
-  if (onStage !== name) {
-    for (const [k, c] of Object.entries(built)) {
-      const on = k === name;
-      hosts[k].style.display = on ? '' : 'none';
-      /* Only the scene on stage runs a loop. A hidden component keeps its
-         context and its geometry and costs nothing per frame. */
-      if (on) { c.start && c.start(); c.draw && c.draw(); }
-      else if (c.stop) c.stop();
-    }
-    onStage = name;
+const live = {};
+ctx.use = function use({ show = [], keep = [] }) {
+  const want = new Set([...show, ...keep]);
+  for (const k of Object.keys(live)) {
+    if (want.has(k)) continue;
+    live[k].api.destroy();
+    live[k].host.remove();
+    delete live[k];
   }
-  return built[name];
+  for (const k of want) {
+    if (live[k]) continue;
+    const api = MAKE[k]();
+    const h = api.box ? api.box.canvas.parentElement : shell.stage.lastElementChild;
+    live[k] = { api, host: h };
+  }
+  const out = {};
+  for (const k of Object.keys(live)) {
+    const on = show.includes(k);
+    live[k].host.style.display = on ? '' : 'none';
+    /* Only a scene on stage runs a loop; a kept one holds its context and its
+       geometry and costs nothing per frame. */
+    if (on) { live[k].api.start(); if (live[k].api.box) live[k].api.box.layout(); }
+    else live[k].api.stop();
+    out[k] = live[k].api;
+  }
+  return out;
+};
+/* A faded-out overlay must not take the drag meant for the box under it. */
+ctx.fade = (name, on) => {
+  if (!live[name]) return;
+  live[name].host.style.opacity = on ? 1 : 0;
+  live[name].host.style.pointerEvents = on ? '' : 'none';
 };
 
+setVariant('HbA');
 shell.goTo((() => {
   const m = /[?&]step=(\d+)/.exec(location.search);
   return m ? Math.max(1, Math.min(SickleSteps.steps.length, +m[1])) - 1 : 0;
