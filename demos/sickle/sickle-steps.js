@@ -132,9 +132,11 @@
       bind(ctx, S.crowdS.on('nucleate', () =>
         ctx.caption(`Pairs kept forming and falling apart. One has held long enough
           to grow, and now it only grows.`)));
+      /* Chains, plural. One long strand would be the tidier picture and it is
+         not what the simulation makes, or what a sickling cell makes. */
       bind(ctx, S.crowdS.on('done', () =>
-        ctx.caption(`One contact, repeated, is a stiff rod. Seven of these twist
-          together into a fibre.`)));
+        ctx.caption(`Most of the crowd is now in chains, every one of them the same
+          contact repeated. Seven twist together into a fibre.`)));
       ctx.replay(run);
       run();
     },

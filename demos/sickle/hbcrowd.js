@@ -70,8 +70,10 @@
  *    n        a CAP on the crowd (rebuild, snaps). The room is sized to the
  *             frame and filled at a fixed density, so leaving this alone is
  *             normal; lowering it thins the crowd out for a bench
- *    grow     how big the biggest assembly must get before `done` fires. The
- *             simulation does not stop there; the page usually moves on
+ *    grow     the chain length the FRAME is built to hold — it sets how much
+ *             of the room the camera shows, and so how big a molecule looks.
+ *             It is not an endpoint: `done` is when most of the crowd has
+ *             bonded to something, and the simulation does not stop there
  *    stick    whether the attraction is on at all. play() turns it on
  *    drift    rms speed of a lone molecule's walk, scene units per second
  *    base     path prefix to demos/ from the page ('' at the top level)
@@ -94,9 +96,14 @@
 
   /* ---- THE ROOM ------------------------------------------------------------
      A molecule must not cross the frame to reach a chain. So the room is sized
-     to the FRAME, runs half again past every edge of it — the crowd has no
-     visible boundary, because cytoplasm has none — and is then filled at a
-     fixed area fraction. `n` is a cap on the result, not a target.
+     to the FRAME, runs well past every edge of it — the crowd has no visible
+     boundary, because cytoplasm has none — and is then filled at a fixed area
+     fraction. `n` is a cap on the result, not a target.
+
+     OVER IS NOT JUST MARGIN. The crowd off screen is what feeds the chains on
+     it, and how fast anything nucleates is how often two molecules meet, which
+     is the crowd's size. Shrinking the room to the frame makes the wait long
+     and wildly variable without changing what a reader can see.
 
      It is a SLAB one molecule deep. Real cytoplasm is crowded in all three,
      and in all three you would see nothing: the chain would form behind a wall
@@ -105,7 +112,7 @@
      chain in the plane the reader is looking at. */
   const R_MOL = 37;                   // the tetramer's radius, near enough
   const PACK = 0.34;                  // of the slab's area the crowd covers
-  const OVER = 1.55;                  // how far the room runs past the frame
+  const OVER = 2.0;                   // how far the room runs past the frame
   const SLAB = 30;                    // half-depth: about one molecule
   const ASPECT = 1.45;
 
@@ -174,6 +181,13 @@
      nucleation barrier, and the delay the page waits through is its shadow. */
   const KOFF = 0.5, KFALL = 0.85, NCAP = 12;
   const NUC = 6;                      // past here a body has effectively stopped coming apart
+  /* WHEN THE BEAT IS OVER, and it is not "one chain reached a length". A
+     sickling cell grows many fibres at once and no single one is the story;
+     what a reader watches happen is the crowd turning into chains. So `done`
+     is the fraction of the crowd that is bonded to something, which is also
+     the only endpoint that arrives reliably — waiting on one body to reach a
+     size can wait for ever while the molecules it needed join its neighbours. */
+  const DONE_F = 0.68;
   const REBIND_S = 0.6;               // a molecule that let go does not re-bind at once
 
   const SURF = {
@@ -498,7 +512,7 @@
       }
       emit('bond', biggest());
       if (!nucleated && A.n >= NUC) { nucleated = true; emit('nucleate', state()); }
-      if (!done && A.n >= P.grow) { done = true; emit('done', state()); }
+      if (!done && bondedCount() >= mols.length * DONE_F) { done = true; emit('done', state()); }
     }
 
     /* The furthest any of a body's molecules would move, if the merged body
@@ -765,6 +779,7 @@
     }
     const biggestCl = () => cls.reduce((a, c) => (c.n > a.n ? c : a), cls[0] || { n: 0 });
     const biggest = () => biggestCl().n;
+    const bondedCount = () => cls.reduce((k, c) => k + (c.n > 1 ? c.n : 0), 0);
 
     function play() {
       if (!P.stick || !D) return api;
@@ -821,8 +836,9 @@
          two sides of the double strand, so a body of `big` spans big/2 of the
          axial repeat the crystal measured. */
       const repeats = Math.ceil(big / 2);
-      let bonded = 0, bodies = 0;
-      for (const c of cls) if (c.n > 1) { bonded += c.n; bodies++; }
+      const bonded = bondedCount();
+      let bodies = 0;
+      for (const c of cls) if (c.n > 1) bodies++;
       return {
         variant: P.variant, n: mols.length, grow: P.grow,
         biggest: big, bonded, bodies, free: mols.length - bonded,
