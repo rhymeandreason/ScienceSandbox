@@ -29,8 +29,10 @@
 #     an .html page, or fx.js cannot make a claim check-molecules.js audits.
 #   · does not run check-pages.js unless the commit touches a *.html page, a
 #     file that supplies the registry it reads (lib/molecules.js, lib/skel.js, a
-#     lib/mol-*.js domain file, lib/lib-node.js), or the pair its third audit
-#     reads: the root index.html and vercel.json. A prose-only or scene.js commit
+#     lib/mol-*.js domain file, lib/lib-node.js), the loader whose table decides
+#     what a generated page loads (kit/app.js — a page names components, not
+#     files, so its molecule domains are that table's answer), or the pair its
+#     third audit reads: the root index.html and vercel.json. A prose-only or scene.js commit
 #     cannot change which molecule a page loads or names.
 #   · does not check staged content in isolation. It runs against the working
 #     tree, so a partially-staged commit is checked as what is on disk, not as
@@ -76,7 +78,7 @@ fi
 # the front page's links are short URLs, which vercel.json routes rather than the
 # filesystem, so renaming a rewrite can strip a lesson off the front page without
 # touching anything under demos/.
-if git diff --cached --name-only | grep -qE '^(demos/(.*\.html|lib/(molecules|skel|mol-[^/]+|lib-node)\.js)|index\.html|vercel\.json)$'; then
+if git diff --cached --name-only | grep -qE '^(demos/(.*\.html|lib/(molecules|skel|mol-[^/]+|lib-node)\.js|kit/app\.js)|index\.html|vercel\.json)$'; then
   if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
     tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
     echo ""
