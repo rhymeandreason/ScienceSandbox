@@ -40,10 +40,12 @@
  *               seat in the strand: SickleFibre.place() with the axial repeat
  *               and lateral pair read from sickle/data/fibre.json. One code
  *               path with the fibre, so the two cannot disagree.
- *    NOT        the tumbling. Real haemoglobin at 5 mM is packed shoulder to
- *               shoulder and turns in nanoseconds; this is a dozen molecules at
- *               a walking pace so a reader can follow one. `drift` is a
- *               choreography number and state() does not dress it as a rate.
+ *    NOT        the tumbling. It is Brownian in SHAPE — a persistent random
+ *               walk with no net current, which is what motion at this scale
+ *               actually is — but not in rate: real haemoglobin at 5 mM is
+ *               packed shoulder to shoulder and reorients in nanoseconds, and
+ *               this is a dozen molecules at a walking pace so a reader can
+ *               follow one. state() reports no speed for that reason.
  *
  *  The strand here is STRAIGHT (pitch → ∞), which is the reference
  *  SickleFibre.strainOf measures against: a lesson about the first contacts has
@@ -56,7 +58,8 @@
  *    stick    whether play() has anything to do
  *    lay      0 standing .. 1 lying — glides; rotates the seated strand only.
              Set at mount to build along the horizontal from the first molecule
- *    drift    scene units per second the free molecules travel (choreography)
+ *    drift    rms speed of the free molecules' Brownian walk, scene units per
+ *             second — a choreography number, not a diffusion coefficient
  *    base     path prefix to demos/ from the page ('' at the top level)
  *
  *  THE β6 MARK IS THE ONLY COLOUR THAT CHANGES BETWEEN VARIANTS. HbS paints it
@@ -89,6 +92,11 @@
   const ABORT_P = 0.4;                // approaches that let go at the nucleus
   const GAP0 = 0.5, GAP1 = 0.12;      // seconds between approaches, first to last
   const CONC = 3;                     // approaches in flight at once
+  /* The Brownian walk. TAU is how long a free molecule keeps a heading, RTAU
+     the same for its tumble; both are choreography, chosen so a reader can
+     follow one molecule, and state() reports no speed because of it. */
+  const TAU = 0.55, RTAU = 0.9, RKICK = 1.4;
+  const AXES = ['x', 'y', 'z'];
   const SURF = {
     HbA: 'hemoglobin/data/2HHB.card.surf.bin',
     HbS: 'sickle/data/2HBS-T1.surf.bin',
@@ -136,6 +144,14 @@
       R_FREE = R_FREE12 * k;
     }
 
+    /* Sum of three uniforms: near enough to normal for a kick, and it costs
+       nothing. Box-Muller would buy accuracy nothing here can see. */
+    const gauss = () => (rng() + rng() + rng() - 1.5) * 2;
+    /* Per-axis kick that holds the crowd at `drift` rms speed: an OU walk
+       settles at sigma*sqrt(TAU/2) per axis. */
+    let SIGMA = 0;
+    function sizeWalk() { SIGMA = (P.drift / Math.sqrt(3)) / Math.sqrt(TAU / 2); }
+
     function seeded(seed) { let s = seed >>> 0 || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
 
     /* ---- the molecules ---------------------------------------------------- */
@@ -150,7 +166,7 @@
 
     function spawn() {
       rng = seeded(11 + P.n);
-      sizeRoom();
+      sizeRoom(); sizeWalk();
       mols = [];
       /* Spread across the room on a jittered grid, so twelve molecules never
          start inside one another; the wander takes it from there. */
@@ -164,8 +180,7 @@
                                  (rng() - .5) * ROOM.z),
           q: new THREE.Quaternion().setFromAxisAngle(axis, rng() * 6.283),
           spin: axis.clone().multiplyScalar(0.25 + rng() * 0.35),
-          vel: new THREE.Vector3(0, 0, 0),
-          wander: new THREE.Vector3(),
+          vel: new THREE.Vector3(gauss(), gauss(), gauss() * 0.45).multiplyScalar(P.drift / Math.sqrt(3)),
           state: 'free', seat: -1, t: 0, dur: 0, a: null, b: null, bow: null,
           /* Its own phase, so a seated strand breathes rather than pulsing. */
           ph: rng() * 6.283, wob: new THREE.Vector3(rng() - .5, rng() - .5, rng() - .5).normalize(),
@@ -279,13 +294,25 @@
       T += dt;
       const free = mols.filter(m => m.state === 'free');
       for (const m of free) {
-        /* A slow drift with a wander on top, and the room's walls as a soft
-           spring rather than a bounce: nothing here is a collision. */
-        m.wander.x += (rng() - .5) * 40 * dt; m.wander.y += (rng() - .5) * 40 * dt; m.wander.z += (rng() - .5) * 20 * dt;
-        m.wander.multiplyScalar(Math.max(0, 1 - 0.8 * dt));
-        m.vel.set(P.drift, 0, 0).add(m.wander);
-        if (Math.abs(m.pos.y) > ROOM.y) m.vel.y -= Math.sign(m.pos.y) * 30;
-        if (Math.abs(m.pos.z) > ROOM.z) m.vel.z -= Math.sign(m.pos.z) * 30;
+        /* BROWNIAN, NOT A CURRENT. Velocity is an Ornstein-Uhlenbeck walk: it
+           is dragged toward zero over TAU and kicked at random, so a molecule
+           holds a heading for about a body length and then loses it. No shared
+           direction, no wrap-around, and the crowd goes nowhere on average —
+           which is the honest picture of cytoplasm, where the only transport
+           at this scale IS diffusion.
+
+           A plain per-frame jitter is the other wrong answer: it is white
+           noise, it reads as a bad frame rate, and it is frame-rate dependent
+           besides. The persistence is what makes it look like a molecule. */
+        const kick = SIGMA * Math.sqrt(dt);
+        m.vel.multiplyScalar(Math.max(0, 1 - dt / TAU));
+        m.vel.x += gauss() * kick; m.vel.y += gauss() * kick; m.vel.z += gauss() * kick * 0.45;
+        /* The room's walls as a soft spring rather than a bounce: nothing here
+           is a collision, and a molecule pushed back in keeps its history. */
+        for (const ax of AXES) {
+          const over = Math.abs(m.pos[ax]) - ROOM[ax];
+          if (over > 0) m.vel[ax] -= Math.sign(m.pos[ax]) * (25 + over * 6) * dt;
+        }
         // Crowding: two free molecules do not pass through each other.
         for (const o of free) {
           if (o === m) continue;
@@ -294,9 +321,14 @@
           if (d > 0 && d < min) m.vel.addScaledVector(_d.multiplyScalar(1 / d), (min - d) * 1.5);
         }
         m.pos.addScaledVector(m.vel, dt);
-        if (m.pos.x > ROOM.x + molR) m.pos.x -= 2 * (ROOM.x + molR);
-        _q.setFromAxisAngle(_e.copy(m.spin).normalize(), m.spin.length() * dt);
-        m.q.premultiply(_q);
+        /* Rotational diffusion: the axis itself wanders, so a molecule tumbles
+           instead of spinning like a top about one axis for the whole beat. */
+        m.spin.x += gauss() * RKICK * Math.sqrt(dt);
+        m.spin.y += gauss() * RKICK * Math.sqrt(dt);
+        m.spin.z += gauss() * RKICK * Math.sqrt(dt);
+        m.spin.multiplyScalar(Math.max(0, 1 - dt / RTAU));
+        const w = m.spin.length();
+        if (w > 1e-6) { _q.setFromAxisAngle(_e.copy(m.spin).multiplyScalar(1 / w), w * dt); m.q.premultiply(_q); }
       }
       for (const m of mols) {
         if (m.state === 'docking' || m.state === 'leaving') {
@@ -448,7 +480,7 @@
         if (snap) { P.lay = to; applyLay(); }
         else tw.to(P.lay, to, o && o.seconds || 1.4, v => { P.lay = v; applyLay(); }, { key: 'lay', ease: 'smooth' });
       }
-      if (nextP.drift !== undefined) P.drift = nextP.drift;
+      if (nextP.drift !== undefined) { P.drift = nextP.drift; sizeWalk(); }
       if (nextP.stick !== undefined) P.stick = !!nextP.stick;
       if (nextP.n !== undefined && Math.round(nextP.n) !== P.n) {
         P.n = Math.max(2, Math.min(MAX, Math.round(nextP.n)));
