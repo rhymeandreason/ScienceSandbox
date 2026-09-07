@@ -285,6 +285,8 @@
     e.preventDefault();
     if (busy) return;
     if (app && !token) return remix();
+    // An empty box builds the suggestion it is showing; an empty edit is nothing to ask.
+    if (!app && !$('request').value.trim()) $('request').value = $('request').placeholder;
     const request = $('request').value.trim();
     if (!request) return;
     setBusy(true);
