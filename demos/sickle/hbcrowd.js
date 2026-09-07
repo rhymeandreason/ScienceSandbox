@@ -6,6 +6,7 @@
  *
  *      const A = HbCrowd.mount(elL, { variant: 'HbA' });               // tumble
  *      const S = HbCrowd.mount(elR, { variant: 'HbS', stick: true });  // assemble
+ *      S.intro(3.2);        // one molecule, then the crowd, as the camera widens
  *      S.play();            // switch the attraction on and let go
  *
  *  ONE QUESTION: why does the mutant molecule make a fibre and the normal one
@@ -75,6 +76,10 @@
  *             It is not an endpoint: `done` is when most of the crowd has
  *             bonded to something, and the simulation does not stop there
  *    stick    whether the attraction is on at all. play() turns it on
+ *    opacity  0..1, the crowd's own fade — tweens through set()
+ *    reveal   0..1, how much of the crowd is drawn, from the middle outward.
+ *             The hidden ones are still simulated, so they arrive already
+ *             jostling rather than in rows. `intro()` drives both
  *    drift    rms speed of a lone molecule's walk, scene units per second
  *    base     path prefix to demos/ from the page ('' at the top level)
  *
@@ -92,7 +97,8 @@
 
   const MAX = 240;                    // molecules the instanced mesh can hold
   const RUN = 48;                     // longest run of bond powers a chain may reach
-  const DEFAULTS = { variant: 'HbS', n: MAX, grow: 22, stick: false, drift: 22, base: '' };
+  const DEFAULTS = { variant: 'HbS', n: MAX, grow: 22, stick: false, drift: 22, base: '',
+                     opacity: 1, reveal: 1 };
 
   /* ---- THE ROOM ------------------------------------------------------------
      A molecule must not cross the frame to reach a chain. So the room is sized
@@ -336,6 +342,16 @@
       refreshPoses();
     }
 
+    /* THE CROWD IS ORDERED FROM THE MIDDLE OUTWARD, and `reveal` then draws a
+       prefix of it. So a page can open on one molecule and let the rest arrive
+       as the camera pulls back, which is the only way to show that the whole
+       argument is a small difference multiplied by a large number: state the
+       difference on one, then widen until the reader can count. */
+    function order() {
+      mols.sort((a, b) => a.pos.lengthSq() - b.pos.lengthSq());
+      for (let i = 0; i < mols.length; i++) mols[i].id = i;
+    }
+
     /* A lattice is never seen: walking the crowd forward a couple of seconds
        before the first frame costs one hitch at entry and buys a crowd that
        was never in rows. Attraction is off here whatever `stick` says — this
@@ -344,6 +360,7 @@
       const was = running; running = false;
       for (let i = 0; i < 90; i++) step(1 / 30);
       running = was;
+      order();
     }
 
     /* ---- forces ------------------------------------------------------------- */
@@ -693,7 +710,8 @@
        to anything comparing frames. */
     function upload() {
       if (!mesh) return;
-      for (let i = 0; i < mols.length; i++) {
+      const shown = Math.max(1, Math.round(P.reveal * mols.length));
+      for (let i = 0; i < shown; i++) {
         const m = mols[i];
         poseOf(m, _m);
         /* A lone molecule breathes; a bonded one is held, and the wobble is
@@ -705,8 +723,13 @@
         }
         mesh.setMatrixAt(i, _m.multiply(offM));
       }
-      mesh.count = mols.length;
+      mesh.count = shown;
       mesh.instanceMatrix.needsUpdate = true;
+      /* depthWrite stays on through the fade: these are solid bodies arriving,
+         not glass, and turning it off lets a molecule's own far side show
+         through its near one. */
+      mesh.material.transparent = P.opacity < 1;
+      mesh.material.opacity = P.opacity;
     }
 
     /* ---- the surface -------------------------------------------------------- */
@@ -735,6 +758,8 @@
       paint();
       const mat = global.Stage.bondMat(0xffffff);
       mat.vertexColors = true;
+      mat.transparent = P.opacity < 1;
+      mat.opacity = P.opacity;
       mesh = new THREE.InstancedMesh(S.geo, mat, MAX);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.frustumCulled = false;
@@ -789,6 +814,9 @@
     function reset() {
       running = false; done = false; nucleated = false; T = 0; subject = null;
       if (tw) tw.cancel();
+      /* A reset shows the crowd. A page that wants the way in asks for it
+         after, and intro() takes both of these back to nothing. */
+      P.opacity = 1; P.reveal = 1;
       spawn(); warm(); upload();
       emit('bond', 1);
       return api;
@@ -815,6 +843,14 @@
 
     function set(nextP, o) {
       if (!nextP) return api;
+      const snap = (o && o.snap) || !tw;
+      const secs = (o && o.seconds) || 1;
+      for (const key of ['opacity', 'reveal']) {
+        if (nextP[key] === undefined) continue;
+        const to = Math.max(0, Math.min(1, nextP[key]));
+        if (snap) { P[key] = to; upload(); }
+        else tw.to(P[key], to, secs, v => { P[key] = v; upload(); }, { key, ease: 'smooth' });
+      }
       if (nextP.drift !== undefined) P.drift = nextP.drift;
       if (nextP.stick !== undefined) { P.stick = !!nextP.stick; if (!P.stick) running = false; }
       if (nextP.grow !== undefined) P.grow = Math.max(2, Math.min(RUN, Math.round(nextP.grow)));
@@ -897,6 +933,9 @@
 
     const api = {
       step, state, set, play, reset, focus, load, anchors, library, params: P,
+      /* The molecule `reveal` shows first, so a page opening on one can put
+         the camera on that one rather than near it. */
+      first: () => (mols[0] ? mols[0].pos : null),
       get molR() { return molR; },
       on(ev, fn) { (listeners[ev] || (listeners[ev] = [])).push(fn);
         return () => { const i = listeners[ev].indexOf(fn); if (i >= 0) listeners[ev].splice(i, 1); }; },
@@ -940,10 +979,10 @@
        two halves of a split end up at different zooms. */
     const tgtFrom = new THREE.Vector3(), tgtTo = new THREE.Vector3();
     let held = 0;
-    function frame(dur = 0.9, relax) {
-      /* CardStage.create lays out once, synchronously, before `sim` exists. */
-      if (!sim) return;
-      const f = sim.focus();
+    /* What camera distance holds a sphere of `radius` in the room the panel
+       leaves. Shared by the fit and by the intro, so the close-up the intro
+       opens on is framed by the same arithmetic as everything after it. */
+    function fitR(radius) {
       const cam = box.camera;
       const half = THREE.MathUtils.degToRad(cam.fov) / 2;
       const W = box.canvas.clientWidth || 1, H = box.canvas.clientHeight || 1;
@@ -953,8 +992,16 @@
       const fy = off ? Math.max(0.25, (H - Math.abs(off.y || 0) * 2) / H) : 1;
       const av = Math.atan(Math.tan(half) * fy);
       const ah = Math.atan(Math.tan(half) * Math.max(cam.aspect, 0.1) * fx);
-      const fit = a => f.radius / Math.max(Math.sin(a), 0.05);
-      let r = Math.max(fit(av), fit(ah)) * 1.08;
+      const fit = a => radius / Math.max(Math.sin(a), 0.05);
+      return Math.max(fit(av), fit(ah)) * 1.08;
+    }
+
+    function frame(dur = 0.9, relax) {
+      /* CardStage.create lays out once, synchronously, before `sim` exists. */
+      if (!sim) return;
+      const f = sim.focus();
+      const cam = box.camera;
+      let r = fitR(f.radius);
       if (relax) held = 0;
       if (r < held * 1.06) {
         /* A body this size drifts a few ångströms a second and never stops.
@@ -982,6 +1029,31 @@
       last = performance.now() / 1000;
       frame(2.6);
     });
+    /* ---- the way in ---------------------------------------------------------
+       The beat before this one is ONE molecule, filling the frame. So this one
+       starts there too — the same skin, faded up, at the same size — and then
+       widens until the crowd it was always in is visible. The molecules are
+       already there and already moving the whole time; what changes is how
+       much of the room the camera admits to.
+
+       The argument the lesson is making is arithmetic: one patch is nothing,
+       and a hundred thousand of them is a cell that cannot get through a
+       capillary. A cut from a close-up to a wide shot asserts that. Widening
+       through it lets the reader watch it happen. */
+    function intro(seconds = 3.2) {
+      camTw.cancel();
+      sim.set({ opacity: 0, reveal: 0 }, { snap: true });
+      const one = sim.first();
+      if (one) box.cam.target.copy(one); else box.cam.target.set(0, 0, 0);
+      box.cam.r = fitR(sim.molR * 1.75);
+      box.applyCam();
+      held = 0;
+      sim.set({ opacity: 1 }, { seconds: Math.min(1, seconds * 0.35) });
+      sim.set({ reveal: 1 }, { seconds });
+      frame(seconds, true);
+      return api;
+    }
+
     /* Pull back by a factor, for a page that wants room before it hands off. */
     function zoom(factor, dur = 2) {
       const r0 = box.cam.r, r1 = Math.min(r0 * factor, 7800);
@@ -1003,6 +1075,7 @@
       play() { sim.play(); return api; },
       reset() { sim.reset(); frame(0.6, true); return api; },
       zoom(f, dur) { zoom(f, dur); return api; },
+      intro(seconds) { return intro(seconds); },
       on(ev, fn) {
         if (ev === 'frame') { (listeners.frame || (listeners.frame = [])).push(fn);
           return () => { const i = listeners.frame.indexOf(fn); if (i >= 0) listeners.frame.splice(i, 1); }; }

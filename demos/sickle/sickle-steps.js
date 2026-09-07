@@ -9,8 +9,9 @@
  *
  *      1  cell      BloodCell, whole — the toggle sickles it; the codon card
  *      2  protein   Proteinbox, skin — the two β6 spots, the toggle swaps HbA/HbS
- *      3  split     HbCrowd ×2 — both crowds jostle; on the HbS side the
- *                   attraction is switched on and chains assemble themselves
+ *      3  split     HbCrowd ×2 — opens on one molecule and widens into the
+ *                   crowd; then the HbS side's attraction goes on and chains
+ *                   assemble themselves
  *      4  split     BloodCell ×2, cut open — the same fibres, a scale up
  *      5  split     BloodFlow ×2 — discs slip through, crescents catch and jam
  *
@@ -121,13 +122,23 @@
       ctx.split(true, { left: `Normal · ${HBA.label}`, right: `Sickle · ${HBS.label}` });
       const S = ctx.use({ show: ['crowdA', 'crowdS'] });
 
+      /* THE BEAT OPENS WHERE THE LAST ONE ENDED — one molecule, that size —
+         and widens. The whole argument is arithmetic: one patch is nothing,
+         and a cell full of them cannot get through a capillary. Cutting
+         straight to a crowd asserts that; widening into one shows it. */
+      const IN = 3.4;
       const run = () => {
         ctx.clearTimers();
-        S.crowdA.reset().start();
-        S.crowdS.reset().start();
-        ctx.caption(`Two crowds of haemoglobin, jostling. The sickle side has one
-          greasy spot per molecule, and it pulls.`);
-        ctx.after(1.4, () => S.crowdS.play());
+        S.crowdA.reset(); S.crowdS.reset();
+        S.crowdA.start(); S.crowdS.start();
+        S.crowdA.intro(IN); S.crowdS.intro(IN);
+        ctx.caption(`The same molecule, the same size. Nothing about it has changed.`);
+        ctx.after(IN * 0.75, () => ctx.caption(`Now the crowd it was always in
+          — ${S.crowdS.state().n} here, and a red cell holds millions.`));
+        ctx.after(IN + 0.8, () => {
+          S.crowdS.play();
+          ctx.caption(`One greasy spot per molecule, and it pulls. Watch the sickle side.`);
+        });
       };
       bind(ctx, S.crowdS.on('nucleate', () =>
         ctx.caption(`Pairs kept forming and falling apart. One has held long enough

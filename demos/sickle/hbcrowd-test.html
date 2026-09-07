@@ -56,6 +56,7 @@ function bench(ctx) {
       <div class="bench-hd">the attraction</div>
       <div class="row">
         <button class="btn secondary" type="button" id="play">Switch it on</button>
+        <button class="btn ghost" type="button" id="intro">Way in</button>
         <button class="btn ghost" type="button" id="reset">Reset</button>
       </div>
       <p class="foot" id="facts"></p>
@@ -71,6 +72,7 @@ function bench(ctx) {
   };
   ui.range(ui.q('#n'), v => { ui.q('#nv').textContent = v; if (C.state().n !== v) C.set({ n: v }); });
   ui.q('#play').onclick = () => C.play();
+  ui.q('#intro').onclick = () => { C.reset(); C.intro(3.4); };
   ui.q('#reset').onclick = () => C.reset();
   CardStage.showPanel(ui.q('#panel'), C, { notes: ['patch', 'chain'] });
 
