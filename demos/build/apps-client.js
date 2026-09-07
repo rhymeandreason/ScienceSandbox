@@ -104,19 +104,29 @@ const Apps = (() => {
   const RELAY = `<script>(function(){function send(m){try{parent.postMessage({type:'app-error',message:String(m).slice(0,300)},'*')}catch(e){}}
 window.addEventListener('error',function(e){send((e.message||'error')+(e.filename?' @ '+String(e.filename).split('/').pop()+':'+e.lineno:''))});
 window.addEventListener('unhandledrejection',function(e){send('unhandled: '+(e.reason&&e.reason.message||e.reason))});
-/* The thumb. A WebGL canvas reads back blank once the frame is composited, so
-   the snapshot is taken inside the app's own rAF callback, right after it drew.
-   Armed three seconds in, so the scene has settled; taken once. */
-var armed=false,done=false,asked=false;setTimeout(function(){armed=true},3000);
+/* The thumb: a real capture of the page, panel and all, by html2canvas-pro (the fork that parses color-mix and oklab; plain html2canvas throws on the shell's tokens) loaded
+   on demand. A WebGL canvas reads back blank once the frame is composited, so
+   inside the app's own rAF callback, right after it drew, every large canvas
+   is copied to an image first, and the clone html2canvas rasterises gets those
+   images in place of its (empty) canvases. Armed three seconds in, so the
+   scene has settled; taken once, and again whenever the builder asks. */
+var armed=false,done=false,asked=false,lib=null;setTimeout(function(){armed=true},3000);
 window.addEventListener('message',function(e){if(e.data&&e.data.type==='app-snap')asked=true});
 var raf=window.requestAnimationFrame.bind(window);
 window.requestAnimationFrame=function(cb){return raf(function(t){cb(t);if((armed&&!done)||asked){done=true;asked=false;snap()}})};
-function snap(){try{var cs=[].slice.call(document.querySelectorAll('canvas')).filter(function(c){return c.width>50&&c.height>50});
-if(!cs.length)return;var src=cs.sort(function(a,b){return b.width*b.height-a.width*a.height})[0];
-var w=320,h=Math.round(w*src.height/src.width),c=document.createElement('canvas');c.width=w;c.height=h;var g=c.getContext('2d');
-/* A WebGL canvas clears to transparent and lets the page's CSS show through; a JPEG has no alpha and paints that black. Lay the nearest painted background under it first. No regex here: this is a template literal, and it eats a backslash. */
-var bg='#fff',el=src;while(el){var b=getComputedStyle(el).backgroundColor;if(b&&b!=='transparent'&&b.split(' ').join('')!=='rgba(0,0,0,0)'){bg=b;break}el=el.parentElement}
-g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,0,0,w,h);parent.postMessage({type:'app-thumb',data:c.toDataURL('image/jpeg',.7)},'*')}catch(e){}}
+function loadLib(){return lib||(lib=new Promise(function(ok,bad){if(window.html2canvas)return ok();var s=document.createElement('script');
+s.src='https://cdn.jsdelivr.net/npm/html2canvas-pro@2.4.2/dist/html2canvas-pro.min.js';s.onload=function(){ok()};s.onerror=function(){lib=null;bad()};document.head.appendChild(s)}))}
+function snap(){try{
+var cs=[].slice.call(document.querySelectorAll('canvas')),copies=cs.map(function(c){if(c.width<50||c.height<50)return null;try{return c.toDataURL('image/png')}catch(e){return null}});
+var W=innerWidth,H=innerHeight,bg=getComputedStyle(document.body).backgroundColor;if(W<50||H<50)return;
+loadLib().then(function(){return html2canvas(document.body,{scale:Math.min(1,640/W),backgroundColor:bg,logging:false,useCORS:true,width:W,height:H,windowWidth:W,windowHeight:H,
+onclone:function(doc){var cl=doc.querySelectorAll('canvas');for(var i=0;i<cl.length&&i<copies.length;i++){if(!copies[i])continue;var im=doc.createElement('img');im.src=copies[i];im.style.cssText=cl[i].style.cssText;im.className=cl[i].className;im.width=cl[i].clientWidth;im.height=cl[i].clientHeight;im.style.width=cl[i].clientWidth+'px';im.style.height=cl[i].clientHeight+'px';cl[i].parentNode.replaceChild(im,cl[i])}}})})
+.then(function(src){var w=480,h=300,c=document.createElement('canvas');c.width=w;c.height=h;var g=c.getContext('2d');
+/* cover-crop to the shelf card's 16:10, centred */
+var cw=Math.min(src.width,src.height*1.6),ch=cw/1.6,sx=(src.width-cw)/2,sy=(src.height-ch)/2;
+g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,sx,sy,cw,ch,0,0,w,h);parent.postMessage({type:'app-thumb',data:c.toDataURL('image/jpeg',.72)},'*')})
+.catch(function(){});
+}catch(e){}}
 })();</script>`;
 
   function framed(html) {
