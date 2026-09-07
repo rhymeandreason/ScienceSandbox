@@ -597,11 +597,19 @@ const P = MacroPlane.create({
   solve: (host, guest) => {
     const r = card.solve(host, guest);
     if(!r) return null;
-    // `slot` rides along: it is the only record of WHICH hydroxyl reacted, and
-    // the fat card reads it back off the join to spend that one. Dropped here,
-    // glycerol spends nothing, never loses a hydroxyl, and takes a fourth tail.
+    /* `slot` AND `donor` ride along: between them they are the only record of
+     * WHICH group reacted, and a card reads one back off the join to spend that
+     * one. Dropped, glycerol spends nothing, never loses a hydroxyl and takes a
+     * fourth tail; glutamate spends `undefined`, which is not a role its spec
+     * has, and the next rebuild throws from inside the tween that lands the
+     * bond — where an exception kills the animation loop and the whole page
+     * stops responding, a mile from anything that looks related.
+     *
+     * ANYTHING A CARD'S `donor`/`acceptor` READS HAS TO BE LISTED HERE. This
+     * wrapper is a narrowing, and what it drops is gone silently. */
     return { pos:v3(r.pos), quat:new THREE.Quaternion(...r.quat),
-             bondAt:v3(r.bondAt), waterAt:v3(r.waterAt), slot:r.slot,
+             bondAt:v3(r.bondAt), waterAt:v3(r.waterAt),
+             slot:r.slot, donor:r.donor,
              // Where the bond forms on the guest, so plane.js can measure the
              // latch there instead of at an origin that may be nowhere near it.
              at:r.at && v3(r.at) };
@@ -614,7 +622,8 @@ const P = MacroPlane.create({
     // Which role each end spent. Glycerol has THREE, so the card answers with
     // the pose rather than a constant: which hydroxyl reacted is a fact about
     // the join, not about the class.
-    const donor = roleOf(card.donor, at), acceptor = roleOf(card.acceptor, at);
+    const donor = roleOf(card.donor, at, un(host)),
+          acceptor = roleOf(card.acceptor, at, un(guest));
     host.spent.add(donor); guest.spent.add(acceptor);
     // A bond can change an atom that does NOT leave: an amide nitrogen goes
     // from sp3 to sp2 and its surviving H moves into the peptide plane. The
@@ -703,7 +712,18 @@ function spent3d(p){
  * specs the moment the bond formed. */
 const stickGeo = new THREE.CylinderGeometry(0.13*S, 0.13*S, 1, 10);
 const sticks = [];
-const roleOf = (r, at) => (typeof r === 'function' ? r(at) : r);
+/* A card names the role each end spent, either outright or as a question about
+ * the pose. Checked here because the alternative is a null two calls further
+ * down, inside the tween that lands the bond, where the stack says nothing
+ * about which card asked for what. */
+function roleOf(r, at, spec){
+  const key = (typeof r === 'function' ? r(at) : r);
+  if(!key || !MacroSpec.role(spec, key)) throw new Error(
+    `macromolecule-builder: card '${card.key}' says a bond spent the role `
+    + `'${key}', which ${spec.name} does not declare. If the card reads it off `
+    + `the pose, check that the solve wrapper forwards it.`);
+  return key;
+}
 function stick(host, guest, donor, acceptor){
   const m = new THREE.Mesh(stickGeo, new THREE.MeshStandardMaterial(
     { color:MolLib.PALETTE.bonds.condense, roughness:.5 }));
