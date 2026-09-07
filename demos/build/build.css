@@ -278,6 +278,7 @@ body.work .rail { transform: none; opacity: 1; }
   .preview { padding: 10px; }
   .hero form .row { flex-wrap: wrap; }
 }
+body.nofx .hero, body.nofx .rail, body.nofx .preview, body.nofx .bar { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .hero, .rail, .preview, .bar { transition: none; }
   .progress .phases li { animation-duration: 20s; }

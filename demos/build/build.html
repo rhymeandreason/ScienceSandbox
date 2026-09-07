@@ -10,6 +10,14 @@
 <link rel="stylesheet" href="build.css">
 </head>
 <body class="fresh">
+<script>
+  // Opened on an app: start in the work state before first paint, with the
+  // transitions off, so the first screen never flashes under the app.
+  if (/[?&]id=/.test(location.search) || /^\/build\/[A-Za-z0-9_-]+/.test(location.pathname)) {
+    document.body.className = 'work nofx';
+    addEventListener('load', () => setTimeout(() => document.body.classList.remove('nofx'), 100));
+  }
+</script>
 
 <header class="bar">
   <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
@@ -393,7 +401,7 @@
         show(r.html);
         if (!token) notice('You are viewing this app. Remix it to make your own copy and ask for changes.');
         loadVersions();
-      } catch (err) { notice(err.message, true); }
+      } catch (err) { notice(err.message, true); document.body.classList.replace('work', 'fresh'); }
     }
     $('newApp').href = location.pathname;
     paintApp(); paintMine();
