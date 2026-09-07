@@ -63,14 +63,21 @@ for(const a of AA) for(const b of AA){
   // The bond length is the module's one constant; a pose that does not land on
   // it is a pose built from something other than the construction it claims.
   if(Math.abs(d(C,N) - Peptide.CN) > 1e-6) bad.push(`C-N ${d(C,N).toFixed(4)}`);
-  // Trans, and EXACTLY: omega is solved for, not nudged toward.
+  // ALL THREE TORSIONS, EXACTLY. omega alone used to be checked, and phi and
+  // psi were silently whatever conformer each spec was fetched as — which put
+  // one residue's phi at +60 (left-handed) and the next at -64 (alpha), bent
+  // the chain, and drove two atoms to 1.88 A. A torsion nobody sets is a
+  // torsion the record chose.
   if(Math.abs(Math.abs(r.omega) - Math.PI) > 1e-6)
     bad.push(`omega ${(r.omega*180/Math.PI).toFixed(3)}`);
+  if(Math.abs(r.phi - Peptide.PHI) > 1e-6) bad.push(`phi ${(r.phi*180/Math.PI).toFixed(3)}`);
+  if(Math.abs(r.psi - Peptide.PSI) > 1e-6) bad.push(`psi ${(r.psi*180/Math.PI).toFixed(3)}`);
   if(bad.length){ fails++; checks++; console.log(`  FAIL  ${a}+${b}: ${bad.join(', ')}`); }
   if(r.clash) clashes.push(`${a}+${b} ${r.clash.dist.toFixed(2)}A`);
 }
 checks++;
-console.log(`  ok    ${posed} ordered pairs, every one at C-N ${Peptide.CN} A and omega 180 exactly`);
+console.log(`  ok    ${posed} ordered pairs, every one at C-N ${Peptide.CN} A with omega 180, `
+  + `phi ${(Peptide.PHI*180/Math.PI).toFixed(0)} and psi ${(Peptide.PSI*180/Math.PI).toFixed(0)} exactly`);
 
 // A clash is reported, not failed: it is two RIGID conformers overlapping, and
 // a real chain relieves it by turning phi and psi. What would be a bug is a
@@ -102,6 +109,48 @@ console.log('\n== 5. a chain can only grow one way, and only because of the chem
   const stale = (out.host.bonds || []).some(b =>
     b[0] >= out.host.atoms.length || b[1] >= out.host.atoms.length);
   ok(!stale, 'no bond survives pointing at an atom that left');
+}
+
+console.log('\n== 5b. a built chain is straight, and nothing in it intersects');
+{
+  // The pairwise `clash` only ever compares the two residues being joined.
+  // Residue 1 against residue 3 is invisible to it, and so is the surviving
+  // amide hydrogen, which was the worst contact in a real chain.
+  const qm = (a,b) => [a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
+                       a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
+                       a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
+                       a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]];
+  const vadd = (a,b) => a.map((v,i) => v + b[i]);
+  const KEYS = ['glycine','alanine','serine','cysteine'];
+  const res = [{ spec:un(M[KEYS[0]]), q:[0,0,0,1], p:[0,0,0] }];
+  for(let i = 1; i < KEYS.length; i++){
+    const prev = res[i-1], guest = un(M[KEYS[i]]);
+    const r = Peptide.pose(prev.spec, guest);
+    const out = Peptide.react(prev.spec, guest, r);
+    prev.spec = out.host;
+    res.push({ spec:out.guest, q:qm(prev.q, r.quat), p:vadd(qrot(prev.q, r.pos), prev.p) });
+  }
+  const W = (k,i) => vadd(qrot(res[k].q, res[k].spec.atoms[i].pos), res[k].p);
+  const A = k => ({ N:Spec.role(res[k].spec,'amino').keep,
+                    C:Spec.role(res[k].spec,'carboxyl').keep,
+                    CA:Peptide.alphaOf(res[k].spec) });
+
+  // Every pair that is not the new bond and not geminal across it.
+  let min = Infinity, at = '';
+  for(let i = 0; i < res.length; i++) for(let j = i+1; j < res.length; j++)
+    for(let a = 0; a < res[i].spec.atoms.length; a++)
+      for(let b = 0; b < res[j].spec.atoms.length; b++){
+        if(j === i+1 && (a === A(i).C || b === A(j).N)) continue;   // 1-2 and 1-3
+        const q = d(W(i,a), W(j,b));
+        if(q < min){ min = q; at = `${res[i].spec.names[a]}/${res[j].spec.names[b]}`; }
+      }
+  // Below the tightest real contact but above where spheres would touch on
+  // screen: PALETTE's C+H radii come to 0.74 A of separation at this scale.
+  ok(min > 1.9, `four residues joined: closest non-bonded ${min.toFixed(2)} A (${at})`);
+
+  const ca = [0,1,2,3].map(k => W(k, A(k).CA));
+  const span = d(ca[0], ca[3]);
+  ok(span > 10, `the chain is extended: CA1..CA4 spans ${span.toFixed(2)} A (a bent chain came to 8.84)`);
 }
 
 console.log('\n== 6. the glycosidic pose repeats into the polymer it names');

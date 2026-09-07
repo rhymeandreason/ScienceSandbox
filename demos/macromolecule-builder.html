@@ -476,6 +476,15 @@ const P = MacroPlane.create({
     // the join, not about the class.
     const donor = roleOf(card.donor, at), acceptor = roleOf(card.acceptor, at);
     host.spent.add(donor); guest.spent.add(acceptor);
+    // A bond can change an atom that does NOT leave: an amide nitrogen goes
+    // from sp3 to sp2 and its surviving H moves into the peptide plane. The
+    // solver says so, and the move is carried on the piece rather than applied
+    // here, because respec() rebuilds from `base` on every reveal and would
+    // otherwise put the free amino acid's hydrogen back.
+    if(at.pose && at.pose.amideH){
+      const n = un(guest).names;
+      guest.moved = { name:n[at.pose.amideH.index], pos:at.pose.amideH.pos };
+    }
     respec(host); respec(guest);
     stick(host, guest, donor, acceptor);
     if(L.fx) L.fx.condense(at.bondAt, at.waterAt, { size:1.1 });
@@ -495,6 +504,10 @@ const P = MacroPlane.create({
       a.spent.delete(sticks[i].donor); b.spent.delete(sticks[i].acceptor);
       L.root.remove(sticks[i].m); sticks.splice(i, 1);
     }
+    // Hydrolysis un-flattens the nitrogen too: it is sp3 again, and its H goes
+    // back where the free amino acid has it. Dropping the override is all that
+    // takes, because respec() derives from `base`.
+    b.moved = null;
     respec(a); respec(b);
     const mid = P.centreOf(a).lerp(P.centreOf(b), 0.5);
     if(L.fx) L.fx.spawnRing(mid, MolLib.PALETTE.bonds.condense, null, 0.6);
@@ -525,8 +538,19 @@ function spent3d(p){
   // out and then removing the same atoms gives the same answer and always has
   // one: strip works off the base's own indices either way round.
   const flat = card.flat ? MacroFlat.spec(base) : null;
-  return { real: MacroSpec.strip(base, drop),
-           flat: flat ? MacroSpec.strip(flat, drop) : MacroSpec.strip(base, drop) };
+  // An atom the reaction MOVED rather than removed. Applied to the real
+  // geometry only: the flat layout is a diagram, and its nitrogen is drawn
+  // where the diagram wants it rather than where the amide plane is.
+  const move = t => {
+    if(!p.moved) return t;
+    const i = (t.names || []).indexOf(p.moved.name);
+    if(i < 0) return t;
+    const atoms = t.atoms.slice();
+    atoms[i] = { el:atoms[i].el, pos:p.moved.pos.slice() };
+    return { ...t, atoms };
+  };
+  return { real: move(MacroSpec.strip(base, drop)),
+           flat: flat ? MacroSpec.strip(flat, drop) : move(MacroSpec.strip(base, drop)) };
 }
 
 /* ---- the bonds, drawn between two meshes ----------------------------------
@@ -1004,7 +1028,7 @@ function layOut(){
     const c = P.centroid(shown).applyQuaternion(quat);
     const at = Array.isArray(card.home) ? card.home[i] : card.home[name];
     const p = P.add(shown, new THREE.Vector3(at[0] - c.x, at[1] - c.y, -c.z), quat,
-                    { key, base:spec, spent:new Set() });
+                    { key, base:spec, spent:new Set(), moved:null });
     p.tag.textContent = card.label(p);
   });
   chooseEl.style.display = card.choose ? 'flex' : 'none';

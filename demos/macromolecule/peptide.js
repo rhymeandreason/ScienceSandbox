@@ -7,22 +7,32 @@
  *  — given a residue on stage, WHERE does the next one go — and it answers in
  *  a rigid transform, placing nothing.
  *
- *  SIX NUMBERS, AND WHERE EACH ONE COMES FROM. Typing a rotation puts ω
- *  wherever it landed, and ω is the difference between a real backbone and a
- *  shape no ribosome makes. So none of the six is typed:
+ *  SIX NUMBERS, AND EVERY ONE OF THEM IS SET. The backbone is built from
+ *  internal coordinates (`nerf` below), not by aiming one group at another:
  *
- *    · three — the N's position. The amide nitrogen goes exactly where the
- *      departing hydroxyl oxygen was: on the ray out of the carboxyl carbon
- *      through that oxygen, at the peptide bond's own length. The direction is
- *      read off the host's atoms; only the length is a constant (CN below).
- *    · two — the N's facing. The bond being made replaces the N–H that leaves,
- *      so the guest turns until its departing H points back at the carboxyl
- *      carbon. Read off the guest's own atoms.
- *    · one — ω, the turn about the new bond, which nothing above constrains.
- *      This is the one fact that has to be asserted rather than derived, and it
- *      is asserted trans (OMEGA): the two α-carbons end up on opposite sides.
- *      Trans is what essentially every peptide bond in a protein is, because
- *      cis puts the two side chains into each other.
+ *    · bond, angle, ψ — the amide N, placed off the host's own N, Cα and C.
+ *    · angle, ω — where the guest's Cα has to point from there.
+ *    · φ — the spin about N–Cα, measured off where the guest landed and
+ *      corrected, since nothing above constrains it.
+ *
+ *  THE THREE TORSIONS ARE ASSERTED, and this is the correction the file exists
+ *  in its current form because of. An earlier version placed the N where the
+ *  departing hydroxyl O had been and then turned the guest until its leaving
+ *  N–H pointed back down the bond. That looks like it derives everything from
+ *  the molecules' own atoms, and it does — but the atoms it derives from are a
+ *  free amino acid's CONFORMER, so φ and ψ came out at whatever PubChem had
+ *  fetched. In a four-residue chain that gave φ of −179°, +60° and −64°: the
+ *  left-handed region and the α-helical one, chosen by nobody. The chain bent,
+ *  and two atoms landed 1.88 Å apart.
+ *
+ *  A torsion nobody sets is a torsion the record chose. So ω is trans, and φ/ψ
+ *  are an extended β-strand — a real secondary structure rather than an
+ *  invented straightening, and what a chain does when nothing folds it.
+ *
+ *  WHAT IS STILL THE CONFORMER'S: the side chain, and everything internal to a
+ *  rigid residue. That is the right answer for a side chain and the wrong one
+ *  for the surviving amide N–H, which is why `pose` also returns `amideH` —
+ *  see the note at the end of it.
  *
  *  WHICH ATOMS ARE INVOLVED IS READ FROM `condense:`, never counted off the
  *  formula. A spec that renumbers cannot quietly start bonding the wrong atoms:
@@ -31,8 +41,8 @@
  *
  *  THE α-CARBON IS FOUND, NOT INDEXED. It is the one heavy atom bonded to both
  *  the amino N and the carboxyl C. The library's fixed backbone order does put
- *  it at 3, but ω is measured against it and a spec built some other way would
- *  read a silently wrong torsion.
+ *  it at 3, but all three torsions are measured against it and a spec built
+ *  some other way would read three silently wrong angles.
  *
  *  ÅNGSTRÖMS IN, ÅNGSTRÖMS OUT. No THREE, no scene, no page state, so
  *  check-macromolecule.js runs the whole file in Node.
@@ -40,11 +50,31 @@
 (function(global){
   'use strict';
 
-  // The amide C–N. Shorter than a single C–N (1.47 Å) because the bond has
-  // partial double character, which is also why the unit is planar and why ω
-  // is a constant here instead of a free rotor.
-  const CN = 1.33;
-  const OMEGA = Math.PI;              // trans
+  /* ---- the backbone, as internal coordinates -------------------------------
+   * Bond lengths and angles are Engh & Huber's, the values every structure
+   * refinement program restrains a protein to. The amide C–N is shorter than a
+   * single C–N (1.47 Å) because the bond has partial double character, which is
+   * also why the unit is planar and why ω is a constant rather than a rotor. */
+  const CN  = 1.329, NCA = 1.458, CAC = 1.525, NH = 1.01;
+  const ANG_CA_C_N = 116.2 * Math.PI/180,
+        ANG_C_N_CA = 121.7 * Math.PI/180;
+
+  /* THE THREE TORSIONS, AND WHY ALL THREE ARE ASSERTED. Nothing about placing a
+   * rigid residue determines φ and ψ: they are turns about the N–Cα and Cα–C
+   * bonds, and a construction that does not pick them inherits whatever the
+   * conformer this spec was fetched as happened to have. That is what this file
+   * used to do, and it produced a chain with φ at +60° on one residue and −64°
+   * on the next — the left-handed region and the α-helical one, chosen by
+   * nobody — which bent the chain and drove two atoms to 1.88 Å.
+   *
+   * So the backbone is built from internal coordinates and all three are set.
+   * The values are an extended β-strand, which is a real secondary structure
+   * rather than an invented straightening: it is what a chain does when nothing
+   * folds it, it is very nearly straight, and it is the shape the reader should
+   * carry away from "a protein is a chain". */
+  const OMEGA = Math.PI;                        // trans
+  const PHI   = -139 * Math.PI/180;             // β-strand
+  const PSI   =  135 * Math.PI/180;
 
   const sub = (a,b) => [a[0]-b[0], a[1]-b[1], a[2]-b[2]];
   const add = (a,b) => [a[0]+b[0], a[1]+b[1], a[2]+b[2]];
@@ -68,6 +98,7 @@
     a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0],
     a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3],
     a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
+  const qconj = q => [-q[0], -q[1], -q[2], q[3]];
   const qAxis = (axis, ang) => {
     const u = unit(axis), s = Math.sin(ang/2);
     return [u[0]*s, u[1]*s, u[2]*s, Math.cos(ang/2)];
@@ -132,39 +163,111 @@
    * the flare on the bond and the water where the leaving atoms met, rather
    * than at a transform origin that is in the middle of nothing.
    */
+  /* Place a fourth atom from three, by bond length, bond angle and torsion —
+   * the standard chain-building step (NeRF). Exact by construction: the atom
+   * comes out at that length, that angle and that torsion, so nothing here can
+   * be off by a little in a way that only shows up four residues later. */
+  function nerf(a, b, c, bond, ang, tor){
+    const bc = unit(sub(c, b));
+    const n  = unit(cross(sub(b, a), bc));
+    const m  = cross(n, bc);
+    // In the bc/m/n frame: along the bond, opened to `ang`, twisted to `tor`.
+    const d2 = [-bond*Math.cos(ang),
+                 bond*Math.sin(ang)*Math.cos(tor),
+                 bond*Math.sin(ang)*Math.sin(tor)];
+    return add(c, add(mul(bc, d2[0]), add(mul(m, d2[1]), mul(n, d2[2]))));
+  }
+
+  /* Where `guest` must sit for its amino N to bond to `host`'s carboxyl C, with
+   * the host at the origin unrotated. A page composes the answer with the
+   * host's live transform: a peptide bond is a relationship between two
+   * molecules, not a place on stage.
+   *
+   * ALL SIX NUMBERS COME FROM SOMEWHERE. Three place the N — a bond length, a
+   * bond angle and ψ, built off the host's own N, Cα and C. Two aim the guest's
+   * N→Cα, from the C–N–Cα angle and ω. The last is φ, the spin about N–Cα,
+   * which is measured off where the guest landed and corrected. None is
+   * inherited from the conformer, which is the bug this replaced.
+   *
+   * WHAT IS STILL THE CONFORMER'S is everything that is not backbone: the side
+   * chain's own torsions, and where the remaining N–H sits. Those are internal
+   * to a rigid residue and cannot be set by placing it.
+   *
+   * Returns { pos, quat, clash, bondAt, waterAt, omega, phi, psi } — the two
+   * `At` points so a page can put the flare on the bond and the water where the
+   * leaving atoms met, rather than at a transform origin that is in the middle
+   * of nothing.
+   */
   function pose(host, guest){
     const hc = free(host,'carboxyl'), ga = free(guest,'amino');
     if(!hc || !ga) return null;
     const P = (s,i) => s.atoms[i].pos;
 
-    const C  = P(host, hc.keep);
-    const O  = P(host, hc.leaves[0]);          // the hydroxyl O that departs
-    const dir = unit(sub(O, C));               // C → where the N is going
-    const Nat = add(C, mul(dir, CN));
+    const hCA = alphaOf(host), gCA = alphaOf(guest);
+    if(hCA < 0 || gCA < 0) return null;
+    const hN = P(host, role(host,'amino').keep),
+          hA = P(host, hCA),
+          hC = P(host, hc.keep);
 
-    // Turn the guest so its departing N–H points back down the new bond.
-    const N  = P(guest, ga.keep);
-    const H  = P(guest, ga.leaves[0]);
-    let q = qnorm(qFromTo(unit(sub(H, N)), mul(dir, -1)));
+    // 1-3. The amide N: off the host's carboxyl C, opened to the Cα–C–N angle,
+    //      twisted to ψ. This is the host's OWN ψ, which is why the leaving
+    //      hydroxyl's position no longer decides anything.
+    const Nat = nerf(hN, hA, hC, CN, ANG_CA_C_N, PSI);
+    // 4-5. Where the guest's Cα has to point: the C–N–Cα angle, twisted to ω.
+    const CAt = nerf(hA, hC, Nat, NCA, ANG_C_N_CA, OMEGA);
 
-    // Place it, then read ω off where that landed and spin about the C–N axis
-    // until it is trans. Measured, not assumed: qFromTo picks the shortest
-    // rotation, and which ω that happens to give depends on the conformer.
-    const put = (qq, p) => add(qrot(qq, sub(p, N)), Nat);
-    const CAh = P(host, alphaOf(host));
-    const CAg = i => put(q, P(guest, i));
-    const w = torsion(CAh, C, Nat, CAg(alphaOf(guest)));
-    q = qnorm(qmul(qAxis(dir, OMEGA - w), q));
+    const gN = P(guest, ga.keep), gA = P(guest, gCA),
+          gC = P(guest, role(guest,'carboxyl').keep);
+    let q = qnorm(qFromTo(unit(sub(gA, gN)), unit(sub(CAt, Nat))));
 
-    const pos = sub(Nat, qrot(q, N));          // where the guest's ORIGIN goes
+    // 6. φ, the spin about N–Cα. Measured off where that landed and corrected,
+    //    the same way ω used to be: qFromTo takes the shortest rotation and
+    //    which φ that happens to give depends on the conformer.
+    const put = (qq, p) => add(qrot(qq, sub(p, gN)), Nat);
+    const cur = torsion(hC, Nat, put(q, gA), put(q, gC));
+    q = qnorm(qmul(qAxis(sub(CAt, Nat), PHI - cur), q));
+
+    const pos = sub(Nat, qrot(q, gN));          // where the guest's ORIGIN goes
+    const at = i => add(qrot(q, sub(P(guest, i), gN)), Nat);
+
+    /* THE AMIDE NITROGEN IS FLAT, and that is a fact about the bond rather
+     * than about the drawing. A free amino acid's N is sp3: pyramidal, two
+     * hydrogens, and their positions are whatever conformer the record was
+     * fetched as. Making the bond costs one of those hydrogens AND rehybridises
+     * the nitrogen to sp2 — the same partial double character that keeps ω at
+     * 180 pulls all three of its neighbours into one plane.
+     *
+     * So the surviving H is not left where the free amino acid had it. It is
+     * placed opposite the two heavy neighbours, in their plane, which is the
+     * only place an sp2 N with two substituents can put it. Leaving it alone
+     * was the largest clash in a built chain — 0.83 A into the previous
+     * residue's carbonyl carbon — and it was also simply the wrong molecule. */
+    const amideH = (() => {
+      if(!ga.leaves.length) return null;
+      const keptH = (spec => {
+        const hs = bondedTo(spec, ga.keep).filter(i => spec.atoms[i].el === 'H');
+        return hs.find(i => !ga.leaves.includes(i));
+      })(guest);
+      if(keptH === undefined) return null;
+      const w = add(mul(unit(add(unit(sub(hC, Nat)), unit(sub(at(gCA), Nat)))), -NH), Nat);
+      // back into the guest's own frame, so it survives the rigid transform
+      return { index:keptH, pos: add(qrot(qconj(q), sub(w, Nat)), gN) };
+    })();
+
     return {
-      pos, quat:q,
-      clash: clashOf(host, guest, q, pos),
-      bondAt: mul(add(C, Nat), 0.5),
+      pos, quat:q, amideH,
+      // Measured with the amide hydrogen already where the bond puts it.
+      // Against the free amino acid's sp3 position it reports a clash on most
+      // pairs — correctly, but about a molecule that does not exist once the
+      // bond has formed.
+      clash: clashOf(host, guest, q, pos, amideH),
+      bondAt: mul(add(hC, Nat), 0.5),
       // The water assembles between the two groups that gave it up: the host's
       // –OH and the guest's H, which is where a student is looking.
-      waterAt: mul(add(O, add(qrot(q, sub(H, N)), Nat)), 0.5),
-      omega: torsion(CAh, C, Nat, add(qrot(q, sub(P(guest, alphaOf(guest)), N)), Nat)),
+      waterAt: mul(add(P(host, hc.leaves[0]), at(ga.leaves[0])), 0.5),
+      omega: torsion(hA, hC, Nat, at(gCA)),
+      phi:   torsion(hC, Nat, at(gCA), at(role(guest,'carboxyl').keep)),
+      psi:   torsion(hN, hA, hC, Nat),
     };
   }
 
@@ -184,7 +287,7 @@
    * ~1.5 Å the correct poses come out at, so it separates a drawing problem
    * from a snug fit rather than flagging every join. */
   const CLASH = 1.6;
-  function clashOf(host, guest, q, pos){
+  function clashOf(host, guest, q, pos, moved){
     const hc = role(host,'carboxyl'), ga = role(guest,'amino');
     const gone = { h:new Set(hc.leaves), g:new Set(ga.leaves) };
     let min = Infinity, at = null;
@@ -192,7 +295,8 @@
       if(gone.h.has(i)) continue;
       for(let j = 0; j < guest.atoms.length; j++){
         if(gone.g.has(j) || (i === hc.keep && j === ga.keep)) continue;
-        const g2 = add(qrot(q, guest.atoms[j].pos), pos);
+        const local = (moved && moved.index === j) ? moved.pos : guest.atoms[j].pos;
+        const g2 = add(qrot(q, local), pos);
         const d = len(sub(host.atoms[i].pos, g2));
         if(d < min){ min = d; at = [i, j]; }
       }
@@ -201,11 +305,26 @@
   }
 
   /* What the two residues become, in the peptide bond's own roles. The C-N
-   * bond is BETWEEN them and belongs to whatever draws the chain. */
-  const react = (host, guest) => Spec.react(host, guest, 'carboxyl', 'amino');
+   * bond is BETWEEN them and belongs to whatever draws the chain.
+   *
+   * Pass the pose and the guest's surviving N-H is moved to where an amide
+   * puts it. Optional only so that a caller asking "what does this reaction
+   * remove" does not have to solve a geometry first; a page drawing the result
+   * always has one. */
+  function react(host, guest, p){
+    const out = Spec.react(host, guest, 'carboxyl', 'amino');
+    if(p && p.amideH){
+      const i = p.amideH.index;
+      // strip() renumbered, so find the atom by what it was next to.
+      const n = out.guest.names && guest.names
+        ? out.guest.names.indexOf(guest.names[i]) : -1;
+      if(n >= 0) out.guest.atoms[n] = { el:'H', pos:p.amideH.pos.slice() };
+    }
+    return out;
+  }
 
-  const API = { pose, isResidue, free, role, alphaOf, torsion, clashOf,
-                strip, react, CN, OMEGA, CLASH };
+  const API = { pose, isResidue, free, role, alphaOf, torsion, clashOf, nerf,
+                strip, react, CN, NCA, CAC, NH, OMEGA, PHI, PSI, CLASH };
   if(typeof module === 'object' && module.exports) module.exports = API;
   global.Peptide = API;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
