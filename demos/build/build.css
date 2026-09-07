@@ -267,5 +267,6 @@ dialog.settings .row form { text-align: right; }
 
 /* ---- the viewer (app.html) ------------------------------------------
    The student's page, so the app fills the window: no stage paper, no card. */
+body.viewer.bare .bar { display: none; }
 body.viewer .preview { padding: 0; background: var(--surface-stage); }
 body.viewer .preview > iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--surface-card); }

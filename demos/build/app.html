@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="build.css">
 </head>
-<body class="work viewer">
+<body class="work viewer bare">
 <header class="bar">
   <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
   <span class="title" id="title"></span>
@@ -29,6 +29,8 @@
   const notice = (t, bad) => { const n = $('notice'); n.hidden = !t; n.textContent = t || ''; n.classList.toggle('bad', !!bad); };
   let app = null;
   (async () => {
+    // The public page has no bar. `?preview=1` (from the builder's edit-link modal) shows it.
+    if (new URLSearchParams(location.search).get('preview')) document.body.classList.remove('bare');
     if (!Apps.ID) return notice('No app named. A link looks like /app/<id>.', true);
     try {
       const r = await Apps.api(`../../api/app?id=${Apps.ID}`);

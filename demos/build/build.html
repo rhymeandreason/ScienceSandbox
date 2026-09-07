@@ -26,6 +26,9 @@
   <p>Anyone holding this link can change the app. Keep it in your email or a bookmark; this browser may forget it.</p>
   <div class="linkrow"><input id="editLink" type="text" readonly><button class="btn" id="copyEdit" type="button">Copy</button></div>
   <p class="small" id="copied" hidden>Copied.</p>
+  <h3>Preview</h3>
+  <p>The public page with an Edit and a Remix button on it, for checking how it lands.</p>
+  <p><a class="btn" id="previewLink" target="_blank" rel="noopener"><i class="ph-bold ph-eye"></i>Preview</a></p>
   <h3>Revoke</h3>
   <p>If the link has reached someone it should not have, revoke it. A new one is made for you and the old one stops working.</p>
   <div class="row"><button class="btn" id="rotate" type="button">Revoke edit link</button><span class="spacer"></span>
@@ -271,7 +274,7 @@
     } catch (err) { if (err.status === 401) Apps.beta(); else notice(err.message, true); setBusy(false); }
   }
 
-  function paintSettings() { $('editLink').value = Apps.link('edit', app.id, token); $('copied').hidden = true; }
+  function paintSettings() { $('editLink').value = Apps.link('edit', app.id, token); $('previewLink').href = Apps.link('preview', app.id); $('copied').hidden = true; }
   $('settings').addEventListener('click', () => { paintSettings(); $('settingsModal').showModal(); });
   $('copyEdit').addEventListener('click', async () => {
     const link = $('editLink').value;

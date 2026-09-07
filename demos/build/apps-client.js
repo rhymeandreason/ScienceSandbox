@@ -92,7 +92,10 @@ const Apps = (() => {
   const LOOPBACK = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   function link(kind, id, token) {
     const o = location.origin;
-    if (kind === 'view') return fileForm ? `${o}/demos/build/app.html?id=${id}` : `${o}/app/${id}`;
+    const view = fileForm ? `${o}/demos/build/app.html?id=${id}` : `${o}/app/${id}`;
+    if (kind === 'view') return view;
+    // The same page with the Edit / Remix bar: the tester's preview, not the public one.
+    if (kind === 'preview') return view + (fileForm ? '&' : '?') + 'preview=1';
     const base = fileForm ? `${o}/demos/build/build.html?id=${id}` : `${o}/build?id=${id}`;
     return kind === 'edit' && token ? `${base}&e=${token}` : base;
   }
