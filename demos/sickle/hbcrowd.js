@@ -6,12 +6,12 @@
  *
  *      const A = HbCrowd.mount(elL, { variant: 'HbA' });               // tumble
  *      const S = HbCrowd.mount(elR, { variant: 'HbS', stick: true });  // then dock
- *      S.play();            // molecules dock one by one into the measured strand
+ *      S.play();            // a lag of failed contacts, then a strand grows
  *      S.zoom(1.8);         // pull back, before a page hands off to the cell
  *
  *  ONE QUESTION: why does the mutant molecule make a fibre and the normal one
  *  not. sickle-fibre.js draws the fibre as a finished object; this draws the
- *  MOMENT — a dozen molecules tumbling, and on the HbS side one pair holding
+ *  MOMENT — a crowded field of them, and on the HbS side one pair holding
  *  long enough to become a strand. Same tetramer, same measured seats, so what
  *  the student watches assemble is the strand that component draws whole.
  *
@@ -44,8 +44,8 @@
  *               walk with no net current, which is what motion at this scale
  *               actually is — but not in rate: real haemoglobin at 5 mM is
  *               packed shoulder to shoulder and reorients in nanoseconds, and
- *               this is a dozen molecules at a walking pace so a reader can
- *               follow one. state() reports no speed for that reason.
+ *               this is a crowd at a walking pace so a reader can follow one.
+ *               state() reports no speed for that reason.
  *
  *  The strand here is STRAIGHT (pitch → ∞), which is the reference
  *  SickleFibre.strainOf measures against: a lesson about the first contacts has
@@ -54,7 +54,10 @@
  *  ---- PARAMS ------------------------------------------------------------------
  *
  *    variant  'HbA' | 'HbS'   which surface, and which colour the β6 mark takes
- *    n        molecules on stage (rebuild, snaps; capped at MAX)
+ *    n        a CAP on the crowd (rebuild, snaps). The room is sized to the
+ *             frame and filled at a fixed density, so leaving this alone is
+ *             normal; lowering it thins the crowd out for a bench
+ *    grow     seats the strand fills before it calls itself done (of SEATS)
  *    stick    whether play() has anything to do
  *    lay      0 standing .. 1 lying — glides; rotates the seated strand only.
              Set at mount to build along the horizontal from the first molecule
@@ -74,14 +77,27 @@
 (function (global) {
   'use strict';
 
-  const MAX = 48;
-  const DEFAULTS = { variant: 'HbS', n: 12, stick: false, lay: 0, drift: 22, base: '' };
+  const MAX = 240;                    // molecules the instanced mesh can hold
+  const SEATS = 48;                    // seats the strand has, whatever the crowd is
+  const DEFAULTS = { variant: 'HbS', n: MAX, grow: 22, stick: false, lay: 0, drift: 22, base: '' };
 
-  /* The room the free molecules wander in, in ångströms, for a dozen 65 Å
-     tetramers; it grows with the square root of the count so a crowd of
-     thirty is as dense as a crowd of twelve. Nothing about it is a cytoplasm. */
-  const ROOM12 = { x: 150, y: 105, z: 45 };
-  const R_FREE12 = 135;               // what the camera frames before anything docks
+  /* ---- THE ROOM, AND WHY IT IS CROWDED ------------------------------------
+     A molecule must not cross the frame to reach the strand. It did, when the
+     crowd was a dozen: the nearest free tetramer to a new seat was three body
+     lengths away and flew there, which is the one thing that reads as staged.
+     So the room is sized to hold `n` molecules at a fixed AREA FRACTION —
+     about a third of a diameter between neighbours — and a molecule joining
+     the strand is one that was already touching it.
+
+     It is a SLAB one molecule deep, not a box. Real cytoplasm is crowded in
+     all three, and in all three you would see nothing: the strand would form
+     behind a wall of haemoglobin. A monolayer is the honest compromise, and
+     it is the same one every textbook diagram of this makes silently. */
+  const R_MOL = 37;                   // the tetramer's radius, near enough
+  const PACK = 0.34;                  // of the slab's area the crowd covers
+  const OVER = 1.55;                  // how far the room runs past the frame
+  const SLAB = 30;                    // half-depth: about one molecule
+  const ASPECT = 1.45;
   const DOCK_S = 0.5;                 // one approach, seconds
   /* Choreography, all of it — the real delay is seconds and the real growth is
      microns a second. What is preserved is the SHAPE: a lag of failures, then
@@ -121,6 +137,7 @@
     if (!F) throw new Error('hbcrowd.js: load sickle/sickle-fibre.js first');
     const P = Object.assign({}, DEFAULTS, opts);
     P.n = Math.max(2, Math.min(MAX, Math.round(P.n)));
+    P.grow = Math.max(2, Math.min(SEATS, Math.round(P.grow)));
     const listeners = {};
     const emit = (ev, a) => (listeners[ev] || []).forEach(f => f(a));
     const tw = global.CardStage ? global.CardStage.tweens() : null;
@@ -133,15 +150,33 @@
     let seats = [];                     // Matrix4 per docking slot, strand-local
     let mols = [];
     let playing = false, done = false, clock = 0, nextAt = 0, T = 0;
-    const taken = new Array(MAX).fill(false);
+    const taken = new Array(SEATS).fill(false);
     let ORDER = [];
     let rng = seeded(11);
     const ROOM = { x: 0, y: 0, z: 0 };
-    let R_FREE = R_FREE12;
+    let R_FREE = 135;                   // what the camera frames before anything docks
+    /* THE FRAME COMES FIRST AND THE CROWD FILLS IT. The room runs half again
+       past every edge of what the camera holds, so the crowd has no visible
+       boundary, and `n` is then whatever fills that room at PACK — a count,
+       not a composition. The `n` param is a CAP on it, for a bench that wants
+       to see the thing thin out; it cannot make the crowd denser than PACK. */
+    let nWant = 0;
     function sizeRoom() {
-      const k = Math.sqrt(P.n / 12);
-      ROOM.x = ROOM12.x * k; ROOM.y = ROOM12.y * k; ROOM.z = ROOM12.z * Math.sqrt(k);
-      R_FREE = R_FREE12 * k;
+      R_FREE = ((P.grow / 2 - 1) / 2) * axial + R_MOL * 1.6;
+      ROOM.y = R_FREE * OVER;
+      ROOM.x = ROOM.y * ASPECT;
+      ROOM.z = SLAB;
+      nWant = Math.min(MAX, P.n,
+        Math.round(4 * ROOM.x * ROOM.y * PACK / (Math.PI * R_MOL * R_MOL)));
+      /* THE CAMERA FRAMES THE FINISHED STRAND —
+         from the first frame, before there is one. Two reasons. The crowd runs
+         off every edge, which is what looking into cytoplasm is, and framing
+         the room instead puts a visible boundary around a thing that has none.
+         And sizing the frame to the END of the beat means the camera does not
+         move during it: growth is what should be moving, not the view.
+
+         Seats fill outward from repeat 0, so `grow` seats reach ±(grow/4)
+         repeats. */
     }
 
     /* Sum of three uniforms: near enough to normal for a kick, and it costs
@@ -151,6 +186,12 @@
        settles at sigma*sqrt(TAU/2) per axis. */
     let SIGMA = 0;
     function sizeWalk() { SIGMA = (P.drift / Math.sqrt(3)) / Math.sqrt(TAU / 2); }
+
+    /* A LATTICE IS NEVER SEEN. spawn() lays the crowd on a jittered grid so
+       nothing starts inside anything, which is a grid, and the beat opens on
+       it. Walking it forward a couple of seconds before the first frame costs
+       one hitch at step entry and buys a crowd that was never in rows. */
+    function warm() { for (let i = 0; i < 90; i++) step(1 / 30); }
 
     function seeded(seed) { let s = seed >>> 0 || 1; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; }
 
@@ -170,13 +211,15 @@
       mols = [];
       /* Spread across the room on a jittered grid, so twelve molecules never
          start inside one another; the wander takes it from there. */
-      const cols = Math.ceil(Math.sqrt(P.n * ROOM.x / ROOM.y)), rows = Math.ceil(P.n / cols);
-      for (let i = 0; i < P.n; i++) {
+      const N = nWant;
+      const cols = Math.ceil(Math.sqrt(N * ROOM.x / ROOM.y)), rows = Math.ceil(N / cols);
+      const jx = ROOM.x / cols * 0.55, jy = ROOM.y / rows * 0.55;
+      for (let i = 0; i < N; i++) {
         const cx = (i % cols + 0.5) / cols * 2 - 1, cy = (Math.floor(i / cols) + 0.5) / rows * 2 - 1;
         const axis = new THREE.Vector3(rng() - .5, rng() - .5, rng() - .5).normalize();
         mols.push({
-          pos: new THREE.Vector3(cx * ROOM.x * 0.85 + (rng() - .5) * 20,
-                                 cy * ROOM.y * 0.8 + (rng() - .5) * 20,
+          pos: new THREE.Vector3(cx * ROOM.x + (rng() - .5) * jx,
+                                 cy * ROOM.y + (rng() - .5) * jy,
                                  (rng() - .5) * ROOM.z),
           q: new THREE.Quaternion().setFromAxisAngle(axis, rng() * 6.283),
           spin: axis.clone().multiplyScalar(0.25 + rng() * 0.35),
@@ -197,12 +240,12 @@
        does not start at one end. ORDER is the seats in the sequence they fill:
        the nucleating pair, then alternately up and down the strand, so both
        ends grow and neither is where it began. */
-    const REP0 = MAX >> 2;              // seat 2*REP0 is repeat 0
+    const REP0 = SEATS >> 2;            // seat 2*REP0 is repeat 0
     function buildSeats() {
       const upright = F.uprightOf(D);
       const pair = F.Mat.fromRT(D.pair.R, D.pair.t);
       seats = [];
-      for (let k = 0; k < MAX; k++) {
+      for (let k = 0; k < SEATS; k++) {
         const i = (k >> 1) - REP0;
         let m = F.place(D, { rad: 0, ang: 0 }, i, 1e12, upright);
         if (k & 1) m = F.Mat.mul(m, pair);
@@ -211,7 +254,7 @@
       ORDER = [2 * REP0, 2 * REP0 + 1];
       for (let d = 1; d <= REP0; d++) {
         for (const i of [REP0 + d, REP0 - d]) {
-          if (i < 0 || 2 * i + 1 >= MAX) continue;
+          if (i < 0 || 2 * i + 1 >= SEATS) continue;
           ORDER.push(2 * i, 2 * i + 1);
         }
       }
@@ -289,10 +332,23 @@
     /* ---- motion ------------------------------------------------------------ */
 
     const _d = new THREE.Vector3(), _e = new THREE.Vector3();
+    /* Seated positions in world space, refreshed each frame from a pool: this
+       runs every frame and a fresh Vector3 per seat per frame is pure churn. */
+    const strandPts = [], strandPool = [];
+    let nStrand = 0;
     function step(dt) {
       if (tw) tw.update(dt);
       T += dt;
       const free = mols.filter(m => m.state === 'free');
+      /* The strand's world positions, once for the whole crowd rather than
+         once per molecule per neighbour. */
+      nStrand = 0;
+      for (const m of mols) {
+        if (m.state !== 'seated') continue;
+        const v = strandPool[nStrand] || (strandPool[nStrand] = new THREE.Vector3());
+        v.setFromMatrixPosition(_m.copy(grp.matrixWorld).multiply(seats[m.seat]));
+        strandPts[nStrand++] = v;
+      }
       for (const m of free) {
         /* BROWNIAN, NOT A CURRENT. Velocity is an Ornstein-Uhlenbeck walk: it
            is dragged toward zero over TAU and kicked at random, so a molecule
@@ -313,12 +369,31 @@
           const over = Math.abs(m.pos[ax]) - ROOM[ax];
           if (over > 0) m.vel[ax] -= Math.sign(m.pos[ax]) * (25 + over * 6) * dt;
         }
-        // Crowding: two free molecules do not pass through each other.
+        /* Crowding. Two free molecules do not pass through each other, and
+           nothing swims through the strand — which only starts to matter at
+           this density, where the strand grows inside the crowd rather than
+           in a clearing. Squared distance first: this is the one O(n²) loop
+           and it runs on every free molecule every frame. */
+        const min = molR * 1.9, min2 = min * min;
         for (const o of free) {
           if (o === m) continue;
           _d.subVectors(m.pos, o.pos);
-          const d = _d.length(), min = molR * 1.9;
-          if (d > 0 && d < min) m.vel.addScaledVector(_d.multiplyScalar(1 / d), (min - d) * 1.5);
+          const d2 = _d.lengthSq();
+          if (d2 > 0 && d2 < min2) {
+            const d = Math.sqrt(d2);
+            m.vel.addScaledVector(_d.multiplyScalar(1 / d), (min - d) * 1.5);
+          }
+        }
+        /* Closer to the strand than to each other: it is a surface to lie
+           against, and a wide exclusion round it reads as a keep-out zone. */
+        const smin = molR * 1.65, smin2 = smin * smin;
+        for (let i = 0; i < nStrand; i++) {
+          _d.subVectors(m.pos, strandPts[i]);
+          const d2 = _d.lengthSq();
+          if (d2 > 0 && d2 < smin2) {
+            const d = Math.sqrt(d2);
+            m.vel.addScaledVector(_d.multiplyScalar(1 / d), (smin - d) * 2.2);
+          }
         }
         m.pos.addScaledVector(m.vel, dt);
         /* Rotational diffusion: the axis itself wanders, so a molecule tumbles
@@ -360,12 +435,13 @@
     /* ---- who approaches what, and when ---------------------------------------- */
 
     const inFlight = () => mols.reduce((k, m) => k + (m.state !== 'free' && m.state !== 'seated' ? 1 : 0), 0);
-    const finished = () => !inFlight() && (frontier(0) < 0 || !mols.some(m => m.state === 'free'));
+    const finished = () => !inFlight() && (seatedCount() >= P.grow || frontier(0) < 0
+      || !mols.some(m => m.state === 'free'));
 
     /* Approaches come faster as the strand lengthens: more tip to hit, and
        more of the crowd already committed. */
     function gap() {
-      const u = seatedCount() / Math.max(1, mols.length);
+      const u = seatedCount() / P.grow;
       return (clock < LAG_S ? 0.55 : GAP0 + (GAP1 - GAP0) * u) * (0.7 + rng() * 0.6);
     }
 
@@ -374,7 +450,7 @@
        touches, so two approaches never share a seat. */
     function frontier(skip) {
       let s = 0;
-      for (const k of ORDER) {
+      for (const k of ORDER.slice(0, P.grow)) {
         if (taken[k]) continue;
         if (s++ === skip) return k;
       }
@@ -386,7 +462,7 @@
       /* Nothing holds during the lag. After it, a short strand still loses
          contacts often; a long one barely does, which is why polymerisation
          runs away once it starts. */
-      const u = seatedCount() / Math.max(1, mols.length);
+      const u = seatedCount() / P.grow;
       const abort = clock < LAG_S || rng() < ABORT_P * (1 - u);
       const k = frontier(abort ? 1 : 0);
       if (k < 0) return;
@@ -447,17 +523,15 @@
       taken.fill(false);
       if (tw) tw.cancel();
       /* lay is a setting, not progress: a strand mounted lying rebuilds lying. */
-      spawn(); applyLay(); upload();
+      spawn(); applyLay(); warm(); upload();
       emit('dock', 0);
       return api;
     }
 
     /* ---- what the camera should hold ------------------------------------------
-       Before anything docks, the room. As molecules leave the crowd for the
-       strand the crowd's claim shrinks and the strand's grows, so the fit
-       moves continuously — and the strand outgrows the room by about its
-       fourth repeat, which is the zoom-out a page asks for. World space, so
-       the lay rotation leaves it alone. */
+       A patch of the crowd until there is a strand, then the strand, which
+       outgrows the patch by about its third repeat. World space, so the lay
+       rotation leaves it alone. */
     function focus() {
       const seated = mols.filter(m => m.state === 'seated');
       const out = { centre: new THREE.Vector3(), radius: R_FREE };
@@ -466,7 +540,7 @@
       out.centre.multiplyScalar(1 / seated.length);
       let r = 0;
       for (const m of seated) r = Math.max(r, out.centre.distanceTo(_v.setFromMatrixPosition(_m.copy(grp.matrixWorld).multiply(seats[m.seat]))));
-      out.radius = Math.max(r + molR, R_FREE * (1 - seated.length / mols.length));
+      out.radius = Math.max(r + molR * 1.2, R_FREE);
       return out;
     }
 
@@ -482,6 +556,7 @@
       }
       if (nextP.drift !== undefined) { P.drift = nextP.drift; sizeWalk(); }
       if (nextP.stick !== undefined) P.stick = !!nextP.stick;
+      if (nextP.grow !== undefined) P.grow = Math.max(2, Math.min(SEATS, Math.round(nextP.grow)));
       if (nextP.n !== undefined && Math.round(nextP.n) !== P.n) {
         P.n = Math.max(2, Math.min(MAX, Math.round(nextP.n)));
         reset();
@@ -498,7 +573,7 @@
       const seated = seatedCount();
       const repeats = Math.ceil(seated / 2);
       return {
-        variant: P.variant, n: P.n, free: P.n - seated, seated, repeats,
+        variant: P.variant, n: mols.length, grow: P.grow, free: mols.length - seated, seated, repeats,
         stick: P.stick, lay: P.lay, playing, done,
         /* Which beat of the assembly this is: nothing holding yet, or growing. */
         phase: !playing && !done ? 'idle' : done ? 'done' : (seated ? 'growing' : 'lag'),
@@ -546,6 +621,9 @@
       }).then(json => {
         D = json;
         axial = F.axialLenOf(D);
+        /* The frame, and so the room and the crowd in it, is an axial repeat's
+           business — and that arrives with the file. */
+        sizeRoom(); spawn(); applyLay(); warm();
         buildSeats();
         return loadSurface();
       }).then(() => api);
@@ -578,7 +656,7 @@
       stage: Object.assign({ rMin: 90, rMax: 8000 }, params.stage || {}),
       step: dt => { if (sim) { sim.step(dt); camTw.update(dt); emit('frame', api.state(), dt); } },
       afterFrame: () => { if (nb) nb.step(); },
-      onResize: () => frame(0),
+      onResize: () => frame(0, true),
       viewOffset: params.viewOffset,
     });
     box.camera.far = 40000;
@@ -666,7 +744,7 @@
     return api;
   }
 
-  global.HbCrowd = { create, mount, markOf, DEFAULTS, MAX, SURF };
+  global.HbCrowd = { create, mount, markOf, DEFAULTS, MAX, SEATS, SURF };
   /* Scale (kit/scale.js, docs/Scale.md). One scene unit is one ångström: the
      tetramer is a lab's and every seat is the fibre bake's, so a page may print
      the strand's length off state(). The crowd's motion is choreography, not a

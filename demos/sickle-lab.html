@@ -282,8 +282,8 @@ function makeProtein(h) {
 const MAKE = {
   cell:    () => BloodCell.mount(host('full'), { sickle: ctx.variant === 'HbS' ? 1 : 0, viewOffset: shell.stage.viewOffset }),
   protein: () => makeProtein(host('full')),
-  crowdA:  () => HbCrowd.mount(host('left'),  { variant: 'HbA', n: 22, stick: false }),
-  crowdS:  () => HbCrowd.mount(host('right'), { variant: 'HbS', n: 34, stick: true, lay: 1 }),
+  crowdA:  () => HbCrowd.mount(host('left'),  { variant: 'HbA', stick: false }),
+  crowdS:  () => HbCrowd.mount(host('right'), { variant: 'HbS', stick: true, lay: 1 }),
   /* Cut along the length, so a sickled cell shows its fibres end-on to end-on
      (bloodcell/bloodcell.js on `cutTurn`), and the same cut on the disc for the pair. */
   cellA:   () => BloodCell.mount(host('left',  'sk-fade'), { sickle: 0, cut: 1 }),

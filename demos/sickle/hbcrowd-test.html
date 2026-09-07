@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>haemoglobin crowd bench — HbA tumbles, HbS docks</title>
+<title>haemoglobin crowd bench — HbA tumbles, HbS nucleates</title>
 <link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="../css/lesson-shell.css">
 <style>
@@ -33,7 +33,7 @@
 const shell = LessonShell.create({
   brand: 'Haemoglobin crowd · component bench',
   hint: 'Drag to orbit · Scroll to zoom',
-  steps: [{ eyebrow: 'sickle/hbcrowd.js', title: 'A dozen molecules, and one that sticks', onEnter: bench }],
+  steps: [{ eyebrow: 'sickle/hbcrowd.js', title: 'A crowded field, and one contact that holds', onEnter: bench }],
 });
 const C = HbCrowd.mount(shell.stage, { variant: 'HbS', stick: true, base: '../', viewOffset: shell.viewOffset });
 /* The console is part of the bench: `crowd.play()`, `crowd.box.pump()` drive
@@ -50,7 +50,7 @@ function bench(ctx) {
         <button type="button" data-v="HbS" class="is-on">HbS</button>
       </div>
       <div class="slider"><div class="slider-head"><span class="label">molecules</span><span class="value" id="nv"></span></div>
-        <input type="range" id="n" min="2" max="${HbCrowd.MAX}" step="1" value="12"></div>
+        <input type="range" id="n" min="8" max="${HbCrowd.MAX}" step="1" value="${HbCrowd.MAX}"></div>
     </div>
     <div class="bench-group">
       <div class="bench-hd">the strand</div>
