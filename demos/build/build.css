@@ -239,7 +239,7 @@ body.work .rail { transform: none; opacity: 1; }
 .mine { margin-top: 3rem; font-size: .85rem; color: var(--text-muted); }
 .mine b { font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .18em; text-transform: uppercase; color: var(--text-strong); }
 .mine .sub { font-family: var(--font-editorial); font-style: italic; margin-left: .8em; }
-.mine ul { margin: .8rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .8rem; }
+.mine ul { margin: .8rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
 .mine a { display: block; text-decoration: none; color: var(--text-dim); }
 .mine .thumb {
   display: block; aspect-ratio: 16 / 10; border-radius: 10px; border: 1px solid var(--border-hair);
