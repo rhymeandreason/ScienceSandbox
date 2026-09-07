@@ -584,7 +584,7 @@ T.on('night', on => shell.theme('is-night', on));
 shell.goTo(0);
 ```
 
-`ctx.ui` inside a step: `controls(html)` fills the slot, `q(sel)` and `qa(sel)` find inside it, `show(el)` and `hide(el)`, `setNext(label, visible)`, and `range(input, onChange)`, which paints a slider's track and fires once with its value. The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`. `shell.viewOffset` is what every mount takes to centre its scene beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.
+`ctx.ui` inside a step, and every one of these is on `ctx` itself too, so `ctx.q('#go')` and `ctx.ui.q('#go')` are the same call: `controls(html)` fills the slot, `q(sel)` and `qa(sel)` find inside it, `show(el)` and `hide(el)`, `setNext(label, visible)`, and `range(input, onChange)`, which paints a slider's track and fires once with its value. The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`. `shell.viewOffset` is what every mount takes to centre its scene beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.
 
 ## Graph — a chart of measurements, or of a running sim
 

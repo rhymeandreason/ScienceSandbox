@@ -26,7 +26,7 @@
  *  `keepOut`, the panel's rect, which lib/annotate.js reads on its own so a
  *  callout behind the glass typesets to the free side.
  *
- *  ctx.ui, for steps:
+ *  ctx.ui, for steps — each is on ctx directly as well, so ctx.q === ctx.ui.q:
  *      controls(html)  fill the slot · q(sel) / qa(sel) inside it · show(el) /
  *      hide(el) · setNext(label, visible) · range(input, onChange) paints the
  *      track, fires once with the current value, and RETURNS sync(v) for
@@ -114,7 +114,13 @@
         return v => { if (v !== undefined) input.value = v; paint(); };
       },
     };
-    const ctx = Object.assign(opts.ctx || {}, { ui, goTo: i => goTo(i) });
+    /* ui's methods sit on ctx as well as on ctx.ui. A step reaching for
+       `ctx.q('#btn')` is the commonest thing written against this shell, and
+       the alternative to answering it is a page that renders and then throws
+       on the first click. The page's own ctx keys win: this only fills gaps. */
+    const ctx = opts.ctx || {};
+    for (const k of Object.keys(ui)) if (!(k in ctx)) ctx[k] = ui[k].bind(ui);
+    Object.assign(ctx, { ui, goTo: i => goTo(i) });
 
     let current = -1;
     steps.forEach((s, i) => {
