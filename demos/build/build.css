@@ -32,21 +32,36 @@ body.work .bar { border-bottom-color: var(--border-hair); }
 .notice.bad { color: var(--accent-hot); }
 
 /* ---- hero: the first screen ------------------------------------------ */
+/* The fresh page scrolls: one quiet screen holding the question, then the
+   shelf of the reader's own apps below the fold. */
 .hero {
-  position: absolute; inset: 0; display: grid; place-items: center;
-  padding: 0 var(--page-gutter, 4rem); z-index: 2;
-  background:
-    radial-gradient(ellipse 70% 50% at 50% 110%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
-    var(--surface-page);
+  position: absolute; inset: 0; z-index: 2; overflow-y: auto; scroll-behavior: smooth;
+  background: var(--surface-page);
   transition: opacity .55s ease, transform .55s ease, visibility 0s linear .55s;
 }
 body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointer-events: none; }
+.hero .first {
+  position: relative; min-height: 100%; box-sizing: border-box;
+  display: grid; place-items: center; padding: 0 var(--page-gutter, 4rem);
+  background: radial-gradient(ellipse 70% 50% at 50% 110%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%);
+}
 .hero-in { width: min(46rem, 100%); }
 
-.hero .kick {
-  font-family: var(--font-display); font-size: var(--cap-lg); font-weight: var(--cap-weight);
-  letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin: 0 0 1rem;
+/* The cue that there is anything below. Only shown once the shelf has apps. */
+.hero .down {
+  position: absolute; left: 50%; bottom: 1.6rem; transform: translateX(-50%);
+  display: flex; align-items: center; gap: .5em; text-decoration: none;
+  font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight);
+  letter-spacing: .18em; text-transform: uppercase; color: var(--text-muted);
+  transition: color var(--dur-base);
 }
+.hero .down[hidden] { display: none; }
+.hero .down:hover { color: var(--accent); }
+.hero .down i { animation: nudge 2.4s ease-in-out infinite; }
+@keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+
+.hero .shelf { padding: 4.5rem var(--page-gutter, 4rem) 6rem; border-top: 1px solid var(--border-hair); }
+.hero .shelf .mine { width: min(64rem, 100%); margin: 0 auto; }
 .hero h1 {
   font-family: var(--font-display); font-weight: 500;
   font-size: clamp(2.6rem, 7vw, 5rem); letter-spacing: -.045em; line-height: .92;
@@ -62,7 +77,7 @@ body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointe
   font-family: var(--font-editorial); font-size: clamp(1.2rem, 2.2vw, 1.6rem); line-height: 1.35;
   transition: border-color var(--dur-base), box-shadow var(--dur-base);
 }
-.hero textarea::placeholder { color: var(--text-muted); font-style: italic; }
+.hero textarea::placeholder { color: var(--text-muted); font-style: italic; transition: opacity .28s; }
 .hero textarea:hover { border-color: var(--text-muted); }
 .hero textarea:focus-visible {
   outline: 0; border-color: var(--accent);
@@ -73,17 +88,12 @@ body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointe
 .hero .hint { font-family: var(--font-editorial); font-size: .95rem; color: var(--text-muted); margin: 0; max-width: 30em; line-height: 1.4; }
 .hero .cta { flex: none; }
 
-.hero .tries { margin: 2.4rem 0 0; font-size: .85rem; color: var(--text-muted); line-height: 2; }
-.try {
-  font: inherit; font-family: var(--font-editorial); font-style: italic; font-size: .95rem;
-  background: none; border: 0; padding: 0 .1em; margin: 0 .4em; cursor: pointer;
-  color: var(--text-dim); border-bottom: 1px dotted var(--border-hair);
-}
-.try:hover { color: var(--accent); border-bottom-color: var(--accent); }
+/* The examples cycle through the placeholder rather than sitting under the box. */
+.hero textarea.swap::placeholder { opacity: 0; }
 
 /* Waiting: the textarea dims, the rule under it becomes the track. */
 body.busy .hero textarea { color: var(--text-muted); }
-body.busy .hero .row, body.busy .hero .tries { opacity: .35; transition: opacity .3s; }
+body.busy .hero .row { opacity: .35; transition: opacity .3s; }
 
 /* ---- progress ---------------------------------------------------------
    Pure CSS. The track sweeps; the phase words dissolve one into the next on a
@@ -234,10 +244,10 @@ body.work .rail { transform: none; opacity: 1; }
 .history li.bad .meta { color: var(--accent-hot); }
 .history .body .btn { margin-top: 10px; padding: 2px 10px; font-size: 11px; line-height: 16px; }
 
-/* My apps: a shelf of cards under the hero. The thumb is a slot for an image
+/* My apps: its own section below the fold on the fresh page. The thumb is a slot for an image
    the app row may carry; without one it is the stage paper. */
-.mine { margin-top: 3rem; font-size: .85rem; color: var(--text-muted); }
-.mine b { font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .18em; text-transform: uppercase; color: var(--text-strong); }
+.mine { margin-top: 0; font-size: .85rem; color: var(--text-muted); }
+.mine b { font-family: var(--font-display); font-size: var(--cap-lg); font-weight: var(--cap-weight); letter-spacing: .18em; text-transform: uppercase; color: var(--text-strong); }
 .mine .sub { font-family: var(--font-editorial); font-style: italic; margin-left: .8em; }
 .mine ul { margin: .8rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
 .mine a { display: block; text-decoration: none; color: var(--text-dim); }
