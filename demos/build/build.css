@@ -139,7 +139,9 @@ body.busy .hero .row { opacity: .35; transition: opacity .3s; }
    The app is a card lying on the stage's dotted paper; the rail is the tool,
    on the plain page colour behind a hairline and a shadow. Two papers, so the
    student's app and the thing editing it never read as one surface. */
-.split { flex: 1; display: flex; min-height: 0; position: relative; }
+/* The stage colour also sits under the rail, so nothing uncovered mid-slide
+   is the white page. */
+.split { flex: 1; display: flex; min-height: 0; position: relative; background-color: var(--surface-stage); }
 .preview {
   flex: 1; position: relative; min-width: 0; padding: 18px; box-sizing: border-box;
   background-color: var(--surface-stage);
@@ -169,13 +171,15 @@ body.busy .device iframe { opacity: .6; transition: opacity .3s; }
   background-color: var(--surface-stage);
   background-image: radial-gradient(var(--surface-rule) 1px, transparent 1.2px);
   background-size: 18px 18px;
-  transform: translateX(100%); opacity: 0;
-  transition: transform .55s cubic-bezier(.2, .8, .2, 1) .15s, opacity .4s .15s;
+  transform: translateX(100%);
+  /* It slides, it never fades: the page behind it is white, and a rail at any
+     opacity below 1 shows that white through its own paper. */
+  transition: transform .55s cubic-bezier(.2, .8, .2, 1) .15s,
+              width .45s cubic-bezier(.2, .8, .2, 1), padding .45s;
 }
-body.work .rail { transform: none; opacity: 1; }
+body.work .rail { transform: none; }
 /* Folded: the rail slides back out and gives up its width, so the app widens. */
-body.work.norail .rail { transform: translateX(100%); opacity: 0; width: 0; padding: 0; overflow: hidden; pointer-events: none; }
-.rail { transition: transform .55s cubic-bezier(.2, .8, .2, 1) .15s, opacity .4s .15s, width .45s cubic-bezier(.2, .8, .2, 1), padding .45s; }
+body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; overflow: hidden; pointer-events: none; }
 .bar .iconbtn { width: 32px; height: 32px; font-size: 18px; }
 .bar .iconbtn[aria-pressed="true"] { color: var(--accent); }
 /* Each block of the rail is a card on the same paper the app's card lies on. */
