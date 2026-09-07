@@ -126,6 +126,7 @@
      a long chain is held far stiller than a monomer, which is also true. */
   const V_MAX = 130, OM_MAX = 2.6;
   const STIFF = 24;                   // excluded volume, per angstrom of overlap
+  const JUMP = 16;                    // the furthest a snap may move any one molecule
 
   /* ---- THE BOND ------------------------------------------------------------
      REACH is how far the patch pulls, and it is generous on purpose: the real
@@ -438,21 +439,47 @@
        demands — the crystal's, to the last decimal — and re-indexed into a's
        run of powers. Momentum is carried across so a join does not inject a
        kick the crowd did not have. */
+    const _jm = new THREE.Matrix4(), _jp = new THREE.Vector3(), _jq = new THREE.Quaternion();
+    const _ap = new THREE.Vector3(), _aq = new THREE.Quaternion(), _dp = new THREE.Vector3();
     function join(a, b) {
       const A = a.cl, B = b.cl;
+      /* B's powers slide by this to land in A's run, and b's own becomes
+         a.k + 1 — the seat the bond puts it in. */
       const shift = (a.k + 1) - b.k;
-      _ta.multiplyMatrices(poseOf(a, _m), BOND);   // the pose the bond demands
-      if (A.lo + Math.min(0, B.lo + shift - A.lo) < -RUN + 2) return;
+      if (Math.min(A.lo, B.lo + shift) < -RUN + 2) return;
       if (Math.max(A.hi, B.hi + shift) > RUN - 2) return;
 
-      _m2.multiplyMatrices(_ta, powOf(-b.k));      // where B's pose must be
-      /* Only a body that is actually being carried needs its destination
-         checked. A single molecule is already within a snap's reach of the
-         pose it is taking, and the wall between it and everything else is
-         what governs the last few ångströms — testing it here as well is how
-         a crowd ends up rejecting almost every bond it makes. */
-      if (B.n > 1 && !clear(A, B, shift)) return;
-      const mA = massOf(A), mB = massOf(B);
+      /* ONE BODY HAS ONE POSE, AND IT IS A'S. Everything B holds is expressed
+         in A's run of powers from here on, so the merged pose must be the one
+         A's own members are already sitting at. Deriving it from where B has
+         to end up instead shifts every molecule ALREADY IN THE CHAIN by
+         `shift` powers of the bond — the chain teleports, whole, and it is the
+         other molecule that looked stationary.
+
+         BOTH MEET, in inverse proportion to size, the way two bodies do. A
+         monomer joining a chain of ten does almost all of the moving; two
+         chains of five split it. Only A's pose is stored: once it is placed,
+         B follows from the powers exactly, so the contact is still the
+         crystal's to the last decimal. */
+      const fA = B.n / (A.n + B.n);
+      _jm.multiplyMatrices(poseOf(b, _m), BONDI).multiply(powOf(-a.k));
+      _jm.decompose(_jp, _jq, _v2);
+      _ap.lerpVectors(A.pos, _jp, fA);
+      _aq.copy(A.q).slerp(_jq, fA);
+      _jm.compose(_ap, _aq, _s);
+
+      /* AND NOBODY TRAVELS FAR. A snap is a discontinuity, and the contacting
+         molecules being close is no promise the rest are: a chain is a lever,
+         and a couple of degrees at the joint is a hundred ångströms at the far
+         end. So the test is the largest jump any molecule would make, and a
+         join that would fling one is simply not made — the pair stays in reach
+         and keeps lining up. Tighter than about a molecule's radius and the
+         crowd stops assembling: every bond is a small discontinuity, and
+         forbidding those forbids the bond. */
+      if (leap(A, _jm, 0) > JUMP || leap(B, _jm, shift) > JUMP) return;
+      if (B.n > 1 && !clear(A, B, _jm, shift)) return;
+
+      const mA = A.n, mB = B.n;
       A.vel.multiplyScalar(mA).addScaledVector(B.vel, mB).multiplyScalar(1 / (mA + mB));
       A.om.multiplyScalar(mA).addScaledVector(B.om, mB).multiplyScalar(1 / (mA + mB));
       if (subject === B) subject = A;
@@ -460,14 +487,29 @@
       A.lo = Math.min(A.lo, B.lo + shift);
       A.hi = Math.max(A.hi, B.hi + shift);
       A.n = A.mem.length;
-      _m2.decompose(A.pos, A.q, _v2);
+      A.pos.copy(_ap); A.q.copy(_aq);
       cls.splice(cls.indexOf(B), 1);
       rebase(A);
       clusterMat(A);
-      for (const m of A.mem) m.pos.setFromMatrixPosition(poseOf(m, _m));
+      for (const m of A.mem) {
+        poseOf(m, _m);
+        m.pos.setFromMatrixPosition(_m);
+        for (let i = 0; i < m.sub.length; i++) m.sub[i].copy(SUB[i]).applyMatrix4(_m);
+      }
       emit('bond', biggest());
       if (!nucleated && A.n >= NUC) { nucleated = true; emit('nucleate', state()); }
       if (!done && A.n >= P.grow) { done = true; emit('done', state()); }
+    }
+
+    /* The furthest any of a body's molecules would move, if the merged body
+       took pose `at` and its powers slid by `shift`. */
+    function leap(c, at, shift) {
+      let far = 0;
+      for (const m of c.mem) {
+        _dp.setFromMatrixPosition(_cm.multiplyMatrices(at, powOf(m.k + shift)));
+        far = Math.max(far, _dp.distanceTo(m.pos));
+      }
+      return far;
     }
 
     /* WOULD B FIT THERE. A join moves a whole body at once, and a chain of
@@ -479,12 +521,12 @@
        tested before it is taken, and a join that would not fit simply does not
        happen this frame. The pair is still in reach and will try again. */
     const _cp = new THREE.Vector3(), _cq = new THREE.Vector3(), _cm = new THREE.Matrix4();
-    function clear(A, B, shift) {
+    function clear(A, B, at, shift) {
       /* Below the crystal's own contact, or this refuses the arrangement the
          crystal is made of. */
       const min = contact * 0.8, min2 = min * min;
       for (const m of B.mem) {
-        _cm.multiplyMatrices(_m2, powOf(m.k + shift));
+        _cm.multiplyMatrices(at, powOf(m.k + shift));
         _cp.setFromMatrixPosition(_cm);
         for (const o of neighbours(_cp, _near2)) {
           if (o.cl === A || o.cl === B) continue;
@@ -631,24 +673,25 @@
 
     /* ---- draw --------------------------------------------------------------- */
 
+    /* ONE INSTANCE PER MOLECULE, IN THE ORDER THE CROWD WAS SPAWNED, which
+       never changes. Walking the bodies instead would reorder every instance
+       the moment two of them merged — harmless to look at, and quietly fatal
+       to anything comparing frames. */
     function upload() {
       if (!mesh) return;
-      let n = 0;
-      for (const c of cls) {
-        clusterMat(c);
-        for (const m of c.mem) {
-          poseOf(m, _m);
-          /* A lone molecule breathes; a bonded one is held, and the wobble is
-             what says which is which without a colour or a label. */
-          if (c.n === 1) {
-            _q2.setFromAxisAngle(_v2.set(0.6, 0.5, 0.6).normalize(), 0.02 * Math.sin(T * 2.1 + m.ph));
-            _m2.compose(_v.set(0, 0, 0), _q2, _s);
-            _m.multiply(_m2);
-          }
-          mesh.setMatrixAt(n++, _m.multiply(offM));
+      for (let i = 0; i < mols.length; i++) {
+        const m = mols[i];
+        poseOf(m, _m);
+        /* A lone molecule breathes; a bonded one is held, and the wobble is
+           what says which is which without a colour or a label. */
+        if (m.cl.n === 1) {
+          _q2.setFromAxisAngle(_v2.set(0.6, 0.5, 0.6).normalize(), 0.02 * Math.sin(T * 2.1 + m.ph));
+          _m2.compose(_v.set(0, 0, 0), _q2, _s);
+          _m.multiply(_m2);
         }
+        mesh.setMatrixAt(i, _m.multiply(offM));
       }
-      mesh.count = n;
+      mesh.count = mols.length;
       mesh.instanceMatrix.needsUpdate = true;
     }
 

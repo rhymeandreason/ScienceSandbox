@@ -2,6 +2,10 @@
 
 Roughly 240 pieces across eleven units, plus reusable modules. Pieces marked **★** are the ones I'd build first — they carry the most explanatory load or demonstrate the graph's value most directly.
 
+great site for cartoon science explainers, okay to reuse:
+
+https://www.scienceme.com/how-does-dna-work
+
 ---
 
 ## Reusable modules
