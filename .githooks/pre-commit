@@ -396,7 +396,12 @@ fi
 # drifting from the arithmetic it prints — a strain measured against the wrong
 # baseline, or a placement that has stopped being a screw, neither of which
 # looks wrong on screen.
-if git diff --cached --name-only | grep -qE '^demos/sickle/(sickle-fibre\.js|tools/check-fibre\.js)$'; then
+#
+# hbcrowd.js is in the pattern because it SIMULATES assembly from `pair` alone,
+# on the identity that pair squared is the axial repeat. That identity is the
+# one thing standing between a self-assembled chain and a chain of contacts no
+# crystal ever measured, and nothing about it is visible from the page.
+if git diff --cached --name-only | grep -qE '^demos/sickle/(sickle-fibre\.js|hbcrowd\.js|tools/check-fibre\.js)$'; then
   if ! node sickle/tools/check-fibre.js > /tmp/cfb.$$ 2>&1; then
     tail -25 /tmp/cfb.$$; rm -f /tmp/cfb.$$
     echo ""

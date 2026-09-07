@@ -4,16 +4,17 @@
  *  Content only: what each step says and what it asks the stage to do through
  *  ctx. sickle-lab.html wires it, and its header says what ctx carries.
  *
- *  FOUR BEATS, ONE ARGUMENT: one base, one amino acid, one contact, one cell.
+ *  FIVE BEATS, ONE ARGUMENT: one base, one amino acid, one contact, one cell,
+ *  one blocked vessel.
  *
  *      1  cell      BloodCell, whole — the toggle sickles it; the codon card
  *      2  protein   Proteinbox, skin — the two β6 spots, the toggle swaps HbA/HbS
- *      3  split     HbCrowd ×2 — HbA tumbles, HbS docks into a strand lying
- *                   across the frame; both pull back, then BloodCell ×2, cut
- *                   open, fade in over them
- *      4  split     BloodFlow ×2 — discs slip through, crescents catch and jam
+ *      3  split     HbCrowd ×2 — both crowds jostle; on the HbS side the
+ *                   attraction is switched on and chains assemble themselves
+ *      4  split     BloodCell ×2, cut open — the same fibres, a scale up
+ *      5  split     BloodFlow ×2 — discs slip through, crescents catch and jam
  *
- *  Beats 3 and 4 have no panel. Two halves, one caption, Next. The toggle that
+ *  Beats 3 to 5 have no panel. Two halves, one caption, Next. The toggle that
  *  drives 1 and 2 sits at the bottom of the room, the same place on both, and
  *  carries one state (ctx.variant) across them.
  *
@@ -107,42 +108,33 @@
 
   /* ---- 3 ------------------------------------------------------------- */
 
+  /* THE ONLY BEAT WITH NO SCRIPT. hbcrowd.js simulates assembly rather than
+     playing it, so nothing here knows when the first contact will hold or how
+     long the chains will take — the captions hang off the component's own
+     `nucleate` and `done`, and a timer would be a lie about what is on screen.
+     Replay genuinely re-runs it, and the wait is a different wait. */
   const step3 = {
     title: 'The greasy spot sticks',
     onExit: leave,
     onEnter(ctx) {
       ctx.toggle(false);
       ctx.split(true, { left: `Normal · ${HBA.label}`, right: `Sickle · ${HBS.label}` });
-      const S = ctx.use({ show: ['crowdA', 'crowdS', 'cellA', 'cellS'] });
+      const S = ctx.use({ show: ['crowdA', 'crowdS'] });
 
       const run = () => {
         ctx.clearTimers();
-        ctx.fade('cellA', false); ctx.fade('cellS', false);
-        S.cellA.stop(); S.cellS.stop();
-        S.crowdA.start();
+        S.crowdA.reset().start();
         S.crowdS.reset().start();
-        ctx.caption(`Both crowds tumble. Watch the sickle side: molecules keep
-          touching and letting go.`);
-        ctx.after(1.6, () => S.crowdS.play());
+        ctx.caption(`Two crowds of haemoglobin, jostling. The sickle side has one
+          greasy spot per molecule, and it pulls.`);
+        ctx.after(1.4, () => S.crowdS.play());
       };
-      /* The delay is the point, so the caption waits for the first contact
-         that holds rather than announcing growth before it starts. */
-      bind(ctx, S.crowdS.on('dock', k => {
-        if (k === 1) ctx.caption(`One contact holds. Now the strand grows from it,
-          at both ends, faster as it lengthens.`);
-      }));
-      bind(ctx, S.crowdS.on('done', () => {
-        ctx.caption(`One contact, repeated, is a stiff rod. Seven rods twist together into a fibre.`);
-        /* Both halves pull back before the handoff, so the cell arrives as
-           the bigger thing the molecules were inside. */
-        ctx.after(0.5, () => { S.crowdA.zoom(1.6, 2.4); S.crowdS.zoom(1.6, 2.4); });
-        ctx.after(3.2, () => {
-          S.cellA.start(); S.cellS.start();
-          ctx.fade('cellA', true); ctx.fade('cellS', true);
-          ctx.caption(`Inside the cell, the fibres push the membrane out into a crescent.`);
-          ctx.after(1.4, () => { S.crowdA.stop(); S.crowdS.stop(); });
-        });
-      }));
+      bind(ctx, S.crowdS.on('nucleate', () =>
+        ctx.caption(`Pairs kept forming and falling apart. One has held long enough
+          to grow, and now it only grows.`)));
+      bind(ctx, S.crowdS.on('done', () =>
+        ctx.caption(`One contact, repeated, is a stiff rod. Seven of these twist
+          together into a fibre.`)));
       ctx.replay(run);
       run();
     },
@@ -150,7 +142,32 @@
 
   /* ---- 4 ------------------------------------------------------------- */
 
+  /* Its own beat, because it is a change of scale and not a caption: the
+     molecules of beat 3 were inside this, and the cut is what makes the rods
+     the reader just watched assemble visible as the thing bending the
+     membrane. */
   const step4 = {
+    title: 'The cell goes stiff',
+    onExit: leave,
+    onEnter(ctx) {
+      ctx.toggle(false);
+      ctx.split(true, { left: 'Normal cell', right: 'Sickle cell' });
+      const S = ctx.use({ show: ['cellA', 'cellS'] });
+      const run = () => {
+        ctx.clearTimers();
+        S.cellA.start(); S.cellS.start();
+        ctx.fade('cellA', true); ctx.fade('cellS', true);
+        ctx.caption(`Both cells, cut open. On the right the fibres run the length of
+          it and push the membrane out into a crescent.`);
+      };
+      ctx.replay(run);
+      run();
+    },
+  };
+
+  /* ---- 5 ------------------------------------------------------------- */
+
+  const step5 = {
     title: 'A stiff cell jams',
     onExit: leave,
     onEnter(ctx) {
@@ -170,5 +187,5 @@
     },
   };
 
-  global.SickleSteps = { steps: [step1, step2, step3, step4], HBB, AT, TO, HBA, HBS };
+  global.SickleSteps = { steps: [step1, step2, step3, step4, step5], HBB, AT, TO, HBA, HBS };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

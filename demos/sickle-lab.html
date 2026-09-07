@@ -104,13 +104,13 @@
  *  (docs/Scale.md) — so moving between them is a HANDOFF, never a camera move,
  *  and a split screen is two boxes with a line between them, never one scene.
  *
- *  BUILT WHEN A STEP ASKS, DESTROYED WHEN NONE DOES. Beat 3 needs four live
- *  boxes at once (two crowds, and two cut cells fading in over them), and a
- *  browser's cap on WebGL contexts is a small number that drops the OLDEST
- *  one silently (kit/card-stage.js). So `use({show, keep})` is the whole
- *  policy: the scenes a step shows, plus the ones it says to keep warm, and
- *  everything else gives its context back. Beats 1 and 2 keep each other, so
- *  the switch swaps instantly between them; beat 3 keeps nothing.
+ *  BUILT WHEN A STEP ASKS, DESTROYED WHEN NONE DOES. A browser's cap on WebGL
+ *  contexts is a small number and it drops the OLDEST one silently
+ *  (kit/card-stage.js), so `use({show, keep})` is the whole policy: the scenes
+ *  a step shows, plus the ones it says to keep warm, and everything else gives
+ *  its context back. Beats 1 and 2 keep each other, so the switch swaps
+ *  instantly between them; every split beat holds two boxes and keeps
+ *  nothing.
  *
  *  What ctx carries for the steps: `variant` and `onToggle` (the switch),
  *  `use`, `split`, `caption`, `replay`, `fade`, `after` / `clearTimers`.
@@ -283,7 +283,7 @@ const MAKE = {
   cell:    () => BloodCell.mount(host('full'), { sickle: ctx.variant === 'HbS' ? 1 : 0, viewOffset: shell.stage.viewOffset }),
   protein: () => makeProtein(host('full')),
   crowdA:  () => HbCrowd.mount(host('left'),  { variant: 'HbA', stick: false }),
-  crowdS:  () => HbCrowd.mount(host('right'), { variant: 'HbS', stick: true, lay: 1 }),
+  crowdS:  () => HbCrowd.mount(host('right'), { variant: 'HbS', stick: true, grow: 16 }),
   /* Cut along the length, so a sickled cell shows its fibres end-on to end-on
      (bloodcell/bloodcell.js on `cutTurn`), and the same cut on the disc for the pair. */
   cellA:   () => BloodCell.mount(host('left',  'sk-fade'), { sickle: 0, cut: 1 }),
