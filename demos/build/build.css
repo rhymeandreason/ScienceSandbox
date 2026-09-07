@@ -178,6 +178,7 @@ body.work .rail { transform: none; opacity: 1; }
 .rail textarea:focus-visible { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
 .rail form .row { display: flex; align-items: center; gap: 12px; }
 .rail form .row .spacer { flex: 1; }
+.rail form .hint { display: none; }
 .rail .hint { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.35; }
 .rail .progress .phases { font-size: .9rem; margin-top: .5rem; }
 .rail .progress .clock { top: .5rem; }
@@ -191,9 +192,16 @@ body.work .rail { transform: none; opacity: 1; }
   flex: none; font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight);
   text-transform: uppercase; letter-spacing: .18em; color: var(--text-muted); margin: 18px 0 8px;
 }
+/* The rail's foot: the one thing about the app the student has to keep. */
+.railfoot { flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 18px 16px; border-top: 1px solid var(--border-hair); }
+.railfoot[hidden] { display: none; }
+.railfoot .hint { flex: 1; }
+.railfoot .btn { flex: none; }
+
 /* The history. One row per version; open, it is the turn: the request in
    the editorial face, the reply in the ui face, the cost line as a micro-cap. */
-.history { list-style: none; margin: 0; padding: 0 0 20px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow: auto; }
+.history { list-style: none; margin: 0; padding: 0 0 20px; display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; }
+.history::-webkit-scrollbar { display: none; }
 .history li { flex: none; }
 .history li { background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: var(--radius-lg); font-size: 13px; overflow: hidden; }
 .history .head { display: flex; gap: 10px; align-items: center; padding: 8px 12px; cursor: pointer; min-height: 20px; }

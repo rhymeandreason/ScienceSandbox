@@ -18,7 +18,6 @@
   <span class="tools" id="tools" hidden>
     <a class="btn" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
     <button class="btn" id="export" type="button"><i class="ph-bold ph-download-simple"></i>Export</button>
-    <button class="btn" id="settings" type="button"><i class="ph-bold ph-link"></i>Edit link</button>
     <a class="btn" id="newApp" href="build.html"><i class="ph-bold ph-plus"></i>New app</a>
   </span>
 </header>
@@ -84,6 +83,10 @@
       <h3 id="historyHead" hidden>History</h3>
       <ol class="history" id="history"></ol>
     </div>
+    <div class="railfoot" id="railFoot" hidden>
+      <p class="hint">Keep your edit link; this browser may forget it.</p>
+      <button class="btn" id="settings" type="button"><i class="ph-bold ph-link"></i>Edit link</button>
+    </div>
   </aside>
 </main>
 
@@ -114,7 +117,6 @@
     document.body.classList.add('work');
     $('railForm').appendChild($('ask'));
     $('send').className = 'cta cta--sm';
-    $('hint').textContent = 'Keep your edit link; this browser may forget it.';
   }
 
   function show(html) {
@@ -136,7 +138,7 @@
     $('title').textContent = app ? (app.title || '(untitled)') : '';
     $('tools').hidden = !app;
     if (app) $('viewLink').href = Apps.link('view', app.id);
-    $('settings').hidden = !editing;
+    $('railFoot').hidden = !editing;
     $('send').textContent = app ? (editing ? 'Ask for a change' : 'Remix to edit') : 'Build';
     $('request').placeholder = app ? (editing ? 'What should change?' : 'Remix this app to ask for changes') : 'a red blood cell in three solutions';
     $('request').disabled = !!app && !editing;
