@@ -121,10 +121,16 @@
         S.cellA.stop(); S.cellS.stop();
         S.crowdA.start();
         S.crowdS.reset().start();
-        ctx.caption(`Normal haemoglobin tumbles past itself. Sickle haemoglobin
-          catches on the next molecule, and the next.`);
+        ctx.caption(`Both crowds tumble. Watch the sickle side: molecules keep
+          touching and letting go.`);
         ctx.after(1.6, () => S.crowdS.play());
       };
+      /* The delay is the point, so the caption waits for the first contact
+         that holds rather than announcing growth before it starts. */
+      bind(ctx, S.crowdS.on('dock', k => {
+        if (k === 1) ctx.caption(`One contact holds. Now the strand grows from it,
+          at both ends, faster as it lengthens.`);
+      }));
       bind(ctx, S.crowdS.on('done', () => {
         ctx.caption(`One contact, repeated, is a stiff rod. Seven rods twist together into a fibre.`);
         /* Both halves pull back before the handoff, so the cell arrives as
