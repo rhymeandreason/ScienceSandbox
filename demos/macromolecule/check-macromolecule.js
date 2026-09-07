@@ -148,6 +148,36 @@ console.log('\n== 5b. a built chain is straight, and nothing in it intersects');
   // screen: PALETTE's C+H radii come to 0.74 A of separation at this scale.
   ok(min > 1.9, `four residues joined: closest non-bonded ${min.toFixed(2)} A (${at})`);
 
+  /* THE SAME FOR EVERY ORDER THE STUDENT MIGHT BUILD. With omega, phi and psi
+   * all set, the backbone is sequence-INDEPENDENT: only the side chains differ
+   * and they point away from it. That is what lets the card leave the ordering
+   * free, and it is the assertion to keep — a torsion that goes back to being
+   * inherited would show up here as one ordering that collides. */
+  const perms = a => a.length <= 1 ? [a]
+    : a.flatMap((x,i) => perms([...a.slice(0,i), ...a.slice(i+1)]).map(p => [x, ...p]));
+  let worst = Infinity, worstAt = '';
+  for(const order of perms(KEYS)){
+    const r2 = [{ spec:un(M[order[0]]), q:[0,0,0,1], p:[0,0,0] }];
+    for(let i = 1; i < order.length; i++){
+      const prev = r2[i-1], g = un(M[order[i]]);
+      const r = Peptide.pose(prev.spec, g), o = Peptide.react(prev.spec, g, r);
+      prev.spec = o.host;
+      r2.push({ spec:o.guest, q:qm(prev.q, r.quat), p:vadd(qrot(prev.q, r.pos), prev.p) });
+    }
+    const V = (k,i) => vadd(qrot(r2[k].q, r2[k].spec.atoms[i].pos), r2[k].p);
+    const B = k => ({ N:Spec.role(r2[k].spec,'amino').keep,
+                      C:Spec.role(r2[k].spec,'carboxyl').keep });
+    for(let i = 0; i < r2.length; i++) for(let j = i+1; j < r2.length; j++)
+      for(let a = 0; a < r2[i].spec.atoms.length; a++)
+        for(let b = 0; b < r2[j].spec.atoms.length; b++){
+          if(j === i+1 && (a === B(i).C || b === B(j).N)) continue;
+          const q = d(V(i,a), V(j,b));
+          if(q < worst){ worst = q; worstAt = order.join('-'); }
+        }
+  }
+  ok(worst > 1.9, `all ${perms(KEYS).length} orderings clear ${worst.toFixed(2)} A `
+                  + `(worst: ${worstAt}) — the backbone does not depend on the sequence`);
+
   const ca = [0,1,2,3].map(k => W(k, A(k).CA));
   const span = d(ca[0], ca[3]);
   ok(span > 10, `the chain is extended: CA1..CA4 spans ${span.toFixed(2)} A (a bent chain came to 8.84)`);

@@ -58,6 +58,17 @@
      makes, and neither pure state is reachable off a stage holding a
      mix. Real fats are mixed, and the note says so.
 
+     WHICH CARDS GET A DIAGRAM, and it is a claim rather than a display
+     setting. Cellulose earns one: repeating beta-1,4 puts every residue
+     centroid in a plane to 0.00 A, so the flat drawing IS the molecule,
+     and the round reveal only adds depth the reader already believes.
+     A peptide does not. An extended strand is pleated — the alpha
+     carbons alternate 0.8 A either side of the backbone plane and the
+     side chains alternate 2.0 A — and flattening it would say the side
+     chains are coplanar with the backbone. They are not, and that a
+     strand has two faces is the thing sheets are built out of. So the
+     protein card is the real geometry throughout.
+
      THE DRAG IS FLAT; THE MOLECULES ARE NOT. A sugar is a chair and an
      amino acid is sp3 at the alpha carbon. The z = 0 plane is the
      tabletop the pointer works on, not a claim about what lies on it —
@@ -238,11 +249,24 @@ const CARDS = [
     monomers:['glycine', 'alanine', 'serine', 'cysteine'],
     home:{ glycine:[-21, 9], alanine:[-7, -10], serine:[9, 9], cysteine:[22, -10] },
     box:{ x:0, y:0, rxz:32, hy:22 },
-    // The bond, in whichever layout the stage is in. The reveal asks for the
-    // round one against the same two residues, so the pair lives on the card
-    // rather than inside `solve`.
-    poseIn:(h, g, slot, round) => round ? Peptide.pose(h, g) : MacroFlat.peptide(h, g),
-    flat:true,
+    /* NO FLAT LAYOUT ON THIS CARD, and it is a claim rather than a setting.
+     *
+     * Cellulose earns the diagram: repeating beta-1,4 puts every residue
+     * centroid in one plane to 0.00 A, so drawing it flat is drawing what it
+     * is. A peptide does not. An extended strand is PLEATED — measured on this
+     * chain, the alpha carbons alternate 0.8 A either side of the backbone
+     * plane and the side chains alternate 2.0 A, a 4 A swing. Flattening that
+     * says the side chains are coplanar with the backbone, which is false and
+     * is exactly the property that matters: a strand has two faces, alternating
+     * residues point at different things, and that is how sheets pack.
+     *
+     * It also happens to be what made an arbitrary sequence collide in 2D. The
+     * round build does not: with omega, phi and psi all set, the backbone is
+     * sequence-INDEPENDENT, and all 24 orderings of these four residues come
+     * out at the same 2.16 A closest contact and the same 10.38 A span. So the
+     * student keeps free rein over the order, which is the point of the card. */
+    poseIn:(h, g) => Peptide.pose(h, g),
+    flat:false,
     solve:(host, guest) => {
       const r = card.poseIn(un(host), un(guest), null, dim === '3d');
       return (!r || r.clash) ? null : r;
@@ -948,6 +972,9 @@ function showReveal(){
   // with all three tails on. Offered before that, the reveal would morph a
   // half-built molecule and leave the loose pieces lying in a layout the rest
   // of the stage has left. Same test either shape: n pieces, n-1 joins.
+  // A card with no diagram has nothing to reveal: it is already showing the
+  // molecule. Leaving the button up would offer a view the page cannot go to.
+  dimBtn.style.display = card.flat ? '' : 'none';
   const whole = card.flat && sticks.length === P.pieces.length - 1;
   dimBtn.classList.toggle('on', !!(whole || dim === '3d'));
   dimBtn.textContent = dim === '3d' ? 'Back to the diagram' : 'See it in 3D';
