@@ -123,52 +123,86 @@ body.busy .hero .row, body.busy .hero .tries { opacity: .35; transition: opacity
 .hero .progress { margin-top: .9rem; }
 .hero .progress .track { border-radius: 2px; }
 
-/* ---- work: preview + rail -------------------------------------------- */
+/* ---- work: preview + rail --------------------------------------------
+   The app is a card lying on the stage's dotted paper; the rail is the tool,
+   on the plain page colour behind a hairline and a shadow. Two papers, so the
+   student's app and the thing editing it never read as one surface. */
 .split { flex: 1; display: flex; min-height: 0; position: relative; }
-.preview { flex: 1; position: relative; background: var(--surface-stage); min-width: 0; opacity: 0; transition: opacity .6s .2s; }
+.preview {
+  flex: 1; position: relative; min-width: 0; padding: 18px; box-sizing: border-box;
+  background-color: var(--surface-stage);
+  background-image: radial-gradient(var(--surface-rule) 1px, transparent 1.2px);
+  background-size: 18px 18px;
+  opacity: 0; transition: opacity .6s .2s;
+}
 body.work .preview { opacity: 1; }
-.preview iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--surface-stage); }
+.device {
+  position: relative; height: 100%; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--border-hair); background: var(--surface-card);
+  box-shadow: 0 1px 0 var(--border-hair), 0 24px 48px -28px rgba(43, 39, 35, .5);
+}
+.device iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--surface-card); }
+/* A request out: the card dims a step and the sweep runs along its top edge. */
+.device::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; z-index: 2;
+  background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--spark) 70%, transparent);
+  width: 38%; left: -40%; opacity: 0;
+}
+body.busy .device::before { opacity: 1; animation: sweep 1.6s cubic-bezier(.4, 0, .2, 1) infinite; }
+body.busy .device iframe { opacity: .6; transition: opacity .3s; }
 
 .rail {
-  width: 380px; flex: none; display: flex; flex-direction: column; min-height: 0;
-  border-left: 1px solid var(--border-hair); background: var(--surface-raised);
+  width: 400px; flex: none; display: flex; flex-direction: column; min-height: 0;
+  border-left: 1px solid var(--border-hair); background: var(--surface-page);
+  box-shadow: -12px 0 32px -24px rgba(43, 39, 35, .35);
   transform: translateX(100%); opacity: 0;
   transition: transform .55s cubic-bezier(.2, .8, .2, 1) .15s, opacity .4s .15s;
 }
 body.work .rail { transform: none; opacity: 1; }
-.rail .railform:not(:empty) { padding: 12px; border-bottom: 1px solid var(--border-hair); }
-.rail form { display: flex; flex-direction: column; gap: 8px; }
-.rail textarea {
-  width: 100%; box-sizing: border-box; min-height: 74px; resize: vertical; padding: 8px 10px;
-  border: 1px solid var(--border-hair); border-radius: 8px; background: var(--surface-card);
-  color: var(--text-body); font: inherit; font-size: 14px;
+.railhead { display: flex; align-items: baseline; padding: 16px 18px 0; }
+.cap {
+  font-family: var(--font-display); font-size: var(--cap-lg); font-weight: var(--cap-weight);
+  letter-spacing: .18em; text-transform: uppercase; color: var(--text-strong);
 }
-.rail textarea:focus-visible { outline: var(--focus-ring); outline-offset: 1px; }
-.rail form .row { display: flex; align-items: center; gap: 8px; }
+.railhead .ver { margin-left: auto; font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .12em; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.rail .railform:not(:empty) { padding: 10px 18px 16px; border-bottom: 1px solid var(--border-hair); }
+.rail form { display: flex; flex-direction: column; gap: 10px; }
+.rail textarea {
+  width: 100%; box-sizing: border-box; min-height: 88px; resize: vertical; padding: 10px 12px;
+  border: 1px solid var(--border-hair); border-radius: var(--radius-lg); background: var(--surface-card);
+  color: var(--text-strong); font-family: var(--font-editorial); font-size: 15px; line-height: 1.4;
+  transition: border-color var(--dur-base), box-shadow var(--dur-base);
+}
+.rail textarea::placeholder { color: var(--text-muted); font-style: italic; }
+.rail textarea:hover { border-color: var(--text-muted); }
+.rail textarea:focus-visible { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.rail form .row { display: flex; align-items: center; gap: 12px; }
 .rail form .row .spacer { flex: 1; }
-.rail .hint { font-size: 12px; color: var(--text-muted); margin: 0; }
+.rail .hint { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.35; }
 .rail .progress .phases { font-size: .9rem; margin-top: .5rem; }
 .rail .progress .clock { top: .5rem; }
 .errs { font-size: 12px; color: var(--accent-hot); margin: 0; }
 .errs code { font-size: 11px; display: block; white-space: pre-wrap; color: var(--text-dim); }
 
-.rail .scroll { flex: 1; overflow: auto; padding: 8px 12px 16px; }
+.rail .scroll { flex: 1; overflow: auto; padding: 4px 18px 20px; }
 .rail h3 {
   font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight);
-  text-transform: uppercase; letter-spacing: .18em; color: var(--text-muted); margin: 12px 0 6px;
+  text-transform: uppercase; letter-spacing: .18em; color: var(--text-muted); margin: 18px 0 8px;
 }
+/* The thread. A request in the editorial face, what came back in the ui face,
+   and the cost line as a micro-cap: three voices, same as the rest of the site. */
 .turns { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.turns li { background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
-.turns .q { color: var(--text-strong); font-family: var(--font-editorial); }
-.turns .a { color: var(--text-dim); margin-top: 3px; }
-.turns .meta { color: var(--text-muted); font-size: 11px; margin-top: 4px; }
+.turns li { background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: var(--radius-lg); padding: 10px 12px; font-size: 13px; }
+.turns .q { color: var(--text-strong); font-family: var(--font-editorial); font-size: 14px; line-height: 1.35; }
+.turns .a { color: var(--text-dim); margin-top: 5px; line-height: 1.4; }
+.turns .meta { color: var(--text-muted); font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; margin-top: 7px; font-variant-numeric: tabular-nums; }
 .turns .bad { color: var(--accent-hot); }
 .versions { list-style: none; margin: 0; padding: 0; font-size: 12px; }
-.versions li { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; border-bottom: 1px dashed var(--border-hair); }
-.versions .n { color: var(--text-muted); min-width: 2.2em; font-variant-numeric: tabular-nums; }
+.versions li { display: flex; gap: 10px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--border-hair); min-height: 28px; }
+.versions .n { color: var(--text-muted); min-width: 2.2em; font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
 .versions .what { flex: 1; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.versions .btn { padding: 1px 8px; font-size: 11px; }
-.versions li.current .what { color: var(--text-strong); }
+.versions .btn { padding: 2px 10px; font-size: 11px; line-height: 16px; }
+.versions li.current .n, .versions li.current .what { color: var(--text-strong); }
 
 .mine { margin-top: 2.5rem; font-size: .85rem; color: var(--text-muted); }
 .mine b { font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .18em; text-transform: uppercase; }
@@ -178,7 +212,8 @@ body.work .rail { transform: none; opacity: 1; }
 
 @media (max-width: 860px) {
   .split { flex-direction: column; }
-  .rail { width: auto; border-left: 0; border-top: 1px solid var(--border-hair); max-height: 45vh; transform: translateY(100%); }
+  .rail { width: auto; border-left: 0; border-top: 1px solid var(--border-hair); max-height: 45vh; transform: translateY(100%); box-shadow: none; }
+  .preview { padding: 10px; }
   .hero form .row { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) {

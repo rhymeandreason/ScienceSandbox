@@ -20,15 +20,17 @@
  *  passage copied from the page, occurring exactly once, and `replace` is what
  *  takes its place. Applied here, in order, and a find that occurs zero or two
  *  times fails the whole list rather than guessing, because a guessed edit is
- *  a change nobody asked for. The fallback is one more call for the whole
- *  file, with the failure quoted, and then it stops: a second failure is a
- *  finding about the reference, not something to paper over.
+ *  a change nobody asked for. A find that lands but splices badly fails the
+ *  same way, one step later, when the page it made does not parse. The
+ *  fallback for either is one more call for the whole file, with the failure
+ *  quoted, and then it stops: a second failure is a finding about the
+ *  reference, not something to paper over.
  *
  *  RETRY ONCE ON A SYNTAX ERROR, NEVER ON A SEMANTIC ONE. `validate` reads the
  *  page's source: scripts only from the library or the one CDN the reference
  *  names, every `mount` on a component the reference has with the scripts its
- *  section lists, and the shell loaded. A page failing that
- *  is worth one more attempt with the problems quoted. A page that passes and
+ *  section lists, the shell loaded, and every inline script parsing. A page
+ *  failing that is worth one more attempt with the problems quoted. A page that passes and
  *  is wrong is a gap in a component or the reference, and the eval exists to
  *  expose exactly that.
  *
@@ -41,6 +43,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const vm   = require('vm');
 const providers = require('./_providers/index.js');
 
 const REFERENCE = path.join(__dirname, '..', 'demos', 'docs', 'Components.md');
@@ -198,6 +201,32 @@ function externals() {
   return out;
 }
 
+/* Every inline script has to parse. `new Function` compiles without running,
+ * which is the whole point: a bad splice in an edit is a page that renders and
+ * then throws on load, and the browser's relay only reaches the NEXT turn, so
+ * without this the student is handed the broken page first. Modules are past
+ * what `new Function` can parse and no component uses one, so they are skipped
+ * rather than reported as broken. */
+function syntax(src) {
+  const problems = [];
+  let i = 0;
+  for (const m of String(src || '').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)) {
+    i++;
+    const attrs = m[1];
+    if (/\ssrc=/i.test(attrs) || /type=["'](?!text\/javascript|application\/javascript)/i.test(attrs)) continue;
+    /* vm.Script over `new Function` for the stack alone: it names the line and
+     * prints it, and quoting the broken line back is what lets the next call
+     * find the splice rather than reread the file hunting for it. */
+    try { new vm.Script(m[2], { filename: `script-${i}.js` }); }
+    catch (e) {
+      const at = /^script-\d+\.js:(\d+)\n(.*)$/m.exec(String(e.stack || ''));
+      problems.push(`script ${i} does not parse: ${e.message}`
+        + (at ? ` — line ${at[1]}: ${at[2].trim().slice(0, 120)}` : ''));
+    }
+  }
+  return problems;
+}
+
 function validate(html, names) {
   const problems = [];
   const src = String(html || '');
@@ -235,6 +264,7 @@ function validate(html, names) {
       if (!loads.has(dep)) problems.push(`mounts ${name} without <script src="${dep}">, which its section says to load`);
     }
   }
+  problems.push(...syntax(src));
   return problems;
 }
 
@@ -337,25 +367,31 @@ async function edit({ html, request, errors, provider, bench }) {
   let summary = out.json.summary;
   let edits = out.json.edits || [];
   let applied = apply(html, edits);
-  let mode = 'edits', fallback = null, problems = [];
+  let mode = 'edits', fallback = null;
   let next = applied.html;
+  let problems = next ? validate(next, names) : [];
 
-  if (applied.failed) {
-    /* The whole file, once, with the misses quoted so the model can see what
-       it copied wrong. Whatever comes back is final. */
+  /* Two ways an edit turn misses, one fallback. A find that matched zero or
+   * two places never became a page; a splice that dropped a brace became one
+   * that does not parse. Both are the model working blind against a passage it
+   * copied, so both get the same second call — the whole file, once, with the
+   * miss quoted. Without this the second kind ends the turn with the student's
+   * request spent and the page untouched. */
+  if (applied.failed || problems.length) {
     mode = 'whole';
-    fallback = applied.failed.map(f => `edit ${f.i + 1} found ${f.count} matches`).join('; ');
+    fallback = applied.failed
+      ? applied.failed.map(f => `edit ${f.i + 1} found ${f.count} matches`).join('; ')
+      : problems.join('; ');
     out = await p.ask({
       system: sys, context, schema: WHOLE_SCHEMA, max: MAX_DRAFT, thinking: 'low',
       messages: [{ role: 'user', content:
-        `${askFor}\n\nA list of edits was tried first and could not be applied (${fallback}). Reply with the whole file instead.` }],
+        `${askFor}\n\nA list of edits was tried first and ${applied.failed ? 'could not be applied' : 'produced a page with problems'} (${fallback}). Reply with the whole file instead.` }],
     });
     usage = sum(usage, priced(p, out.usage)); served = out.served;
     summary = out.json.summary;
     next = clean(out.json.html);
+    problems = validate(next, names);
   }
-
-  if (next) problems = validate(next, names);
 
   return {
     summary: String(summary || '').slice(0, 300),
@@ -366,6 +402,6 @@ async function edit({ html, request, errors, provider, bench }) {
   };
 }
 
-module.exports = { draft, edit, apply, validate, components, needs, reference, system,
+module.exports = { draft, edit, apply, validate, syntax, components, needs, reference, system,
                    history, withHistory, stripHistory,
                    DRAFT_SCHEMA, EDITS_SCHEMA, WHOLE_SCHEMA, MAX_REQUEST };

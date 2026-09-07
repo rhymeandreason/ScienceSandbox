@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Builder</title>
 <base href="/demos/build/">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="build.css">
 </head>
@@ -15,10 +16,10 @@
   <span class="crumb">builder</span>
   <span class="title" id="title"></span>
   <span class="tools" id="tools" hidden>
-    <a class="btn" id="viewLink" target="_blank" rel="noopener">View</a>
-    <button class="btn" id="export" type="button">Export</button>
-    <button class="btn" id="settings" type="button">Settings</button>
-    <a class="btn" id="newApp" href="build.html">New app</a>
+    <a class="btn" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
+    <button class="btn" id="export" type="button"><i class="ph-bold ph-download-simple"></i>Export</button>
+    <button class="btn" id="settings" type="button"><i class="ph-bold ph-link"></i>Edit link</button>
+    <a class="btn" id="newApp" href="build.html"><i class="ph-bold ph-plus"></i>New app</a>
   </span>
 </header>
 
@@ -73,10 +74,11 @@
 
 <main class="split">
   <section class="preview">
-    <iframe id="frame" title="the app" sandbox="allow-scripts"></iframe>
+    <div class="device"><iframe id="frame" title="the app" sandbox="allow-scripts"></iframe></div>
   </section>
 
   <aside class="rail">
+    <div class="railhead"><span class="cap" id="railCap">Ask for a change</span><span class="ver" id="ver"></span></div>
     <div class="railform" id="railForm"></div>
     <div class="scroll">
       <h3 id="turnsHead" hidden>Turns</h3>
@@ -113,8 +115,8 @@
     document.body.classList.remove('fresh');
     document.body.classList.add('work');
     $('railForm').appendChild($('ask'));
-    $('send').className = 'btn btn--tint';
-    $('hint').textContent = 'Keep the edit link from your email; this browser may forget it.';
+    $('send').className = 'cta cta--sm';
+    $('hint').textContent = 'Keep your edit link; this browser may forget it.';
   }
 
   function show(html) {
@@ -141,6 +143,8 @@
     $('request').placeholder = app ? (editing ? 'What should change?' : 'Remix this app to ask for changes') : 'a red blood cell in three solutions';
     $('request').disabled = !!app && !editing;
     $('turnsHead').hidden = !$('turns').children.length;
+    $('ver').textContent = app ? `v${app.n}` : '';
+    $('railCap').textContent = editing ? 'Ask for a change' : 'Viewing';
   }
 
   function addTurn({ request, summary, meta, bad }) {
@@ -162,7 +166,7 @@
         li.className = v.n === app.n ? 'current' : '';
         const what = v.error ? `failed: ${v.error}` : (v.request || v.summary || v.kind);
         li.innerHTML = `<span class="n">v${v.n}</span><span class="what" title="${esc(what)}">${esc(v.kind)} · ${esc(what)}</span>`
-          + (v.n !== app.n && !v.error ? `<button class="btn" type="button" data-n="${v.n}">Restore</button>` : '');
+          + (v.n !== app.n && !v.error ? `<button class="btn" type="button" data-n="${v.n}"><i class="ph-bold ph-arrow-counter-clockwise"></i>Restore</button>` : '');
         ol.appendChild(li);
       }
       $('versionsHead').hidden = !r.versions.length;
