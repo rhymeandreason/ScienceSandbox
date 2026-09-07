@@ -184,6 +184,20 @@ async function setTitle(id, title) {
   await db`UPDATE apps SET title = ${String(title || '').slice(0, 120) || null} WHERE id = ${id}`;
 }
 
+async function setThumb(id, thumb) {
+  const db = log.sql();
+  await db`UPDATE apps SET thumb = ${thumb || null} WHERE id = ${id}`;
+}
+
+/* The shelf: title and thumb for a handful of ids the browser already holds.
+   No token check, since it is the same as reading each app in turn. */
+async function shelf(ids) {
+  const db = log.sql();
+  const list = ids.filter(validId).slice(0, 24);
+  if (!list.length) return [];
+  return db`SELECT id, title, thumb FROM apps WHERE id = ANY(${list})`;
+}
+
 /* The list an owner sees: not exposed publicly, used by tools/db.js. */
 async function recent({ limit = 50, cohort = null } = {}) {
   const db = log.sql();
@@ -210,6 +224,6 @@ async function usage() {
             GROUP BY 1, 2 ORDER BY 1 DESC, 2`;
 }
 
-module.exports = { LIMITS, enabled, exceeded, validId,
+module.exports = { LIMITS, enabled, exceeded, validId, setThumb, shelf,
                    create, addVersion, read, versions, version, requests,
                    mayEdit, rotate, setTitle, recent, usage };

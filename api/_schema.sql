@@ -199,6 +199,11 @@ CREATE TABLE IF NOT EXISTS apps (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- A small JPEG data URL the builder captured from the running app, for the
+-- shelf. Capped at the API, replaced on every edit, never served to anyone but
+-- the browser that holds the ids.
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS thumb text;
+
 CREATE TABLE IF NOT EXISTS app_versions (
   id          bigserial PRIMARY KEY,
   app_id      text NOT NULL REFERENCES apps(id) ON DELETE CASCADE,

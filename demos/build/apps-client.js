@@ -103,7 +103,18 @@ const Apps = (() => {
   /* ---- the sandbox -------------------------------------------------------- */
   const RELAY = `<script>(function(){function send(m){try{parent.postMessage({type:'app-error',message:String(m).slice(0,300)},'*')}catch(e){}}
 window.addEventListener('error',function(e){send((e.message||'error')+(e.filename?' @ '+String(e.filename).split('/').pop()+':'+e.lineno:''))});
-window.addEventListener('unhandledrejection',function(e){send('unhandled: '+(e.reason&&e.reason.message||e.reason))});})();</script>`;
+window.addEventListener('unhandledrejection',function(e){send('unhandled: '+(e.reason&&e.reason.message||e.reason))});
+/* The thumb. A WebGL canvas reads back blank once the frame is composited, so
+   the snapshot is taken inside the app's own rAF callback, right after it drew.
+   Armed three seconds in, so the scene has settled; taken once. */
+var armed=false,done=false;setTimeout(function(){armed=true},3000);
+var raf=window.requestAnimationFrame.bind(window);
+window.requestAnimationFrame=function(cb){return raf(function(t){cb(t);if(armed&&!done){done=true;snap()}})};
+function snap(){try{var cs=[].slice.call(document.querySelectorAll('canvas')).filter(function(c){return c.width>50&&c.height>50});
+if(!cs.length)return;var src=cs.sort(function(a,b){return b.width*b.height-a.width*a.height})[0];
+var w=320,h=Math.round(w*src.height/src.width),c=document.createElement('canvas');c.width=w;c.height=h;
+c.getContext('2d').drawImage(src,0,0,w,h);parent.postMessage({type:'app-thumb',data:c.toDataURL('image/jpeg',.7)},'*')}catch(e){}}
+})();</script>`;
 
   function framed(html) {
     const base = `<base href="${location.origin}/demos/build/">`;
@@ -114,10 +125,12 @@ window.addEventListener('unhandledrejection',function(e){send('unhandled: '+(e.r
 
   /* Puts the page in the iframe and returns the errors it relays, as a live
    * array the caller drains between turns. */
-  function mount(iframe, html, onError) {
+  function mount(iframe, html, onError, onThumb) {
     const errors = [];
     const listener = e => {
-      if (e.source !== iframe.contentWindow || !e.data || e.data.type !== 'app-error') return;
+      if (e.source !== iframe.contentWindow || !e.data) return;
+      if (e.data.type === 'app-thumb') { if (onThumb) onThumb(e.data.data); return; }
+      if (e.data.type !== 'app-error') return;
       errors.push(e.data.message);
       if (onError) onError(e.data.message, errors);
     };

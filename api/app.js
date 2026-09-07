@@ -9,6 +9,8 @@
  *       remix   {visitorId}           → a new app whose parent is this one, with its own token
  *       rotate                        → a fresh token; the old link stops working
  *       title   {title}
+ *       thumb   {thumb}                → a small JPEG data URL for the shelf, token required
+ *  GET  /api/app?ids=a,b,c            → title and thumb for each, for the shelf
  *
  *  Nothing here calls a model, so nothing here is rate limited. Reading is
  *  open: an id is unguessable and a view link is meant to be shared. A REMIX
@@ -23,8 +25,9 @@
  *  `save` that accepted a page was here and was never wired to anything, so it
  *  went: it was the one path by which bytes nobody generated could reach an
  *  app id other people open by link. Direct manipulation wants a patch against
- *  the stored page, applied the way `_builder.js` applies the model's edits,
- *  and an image wants a store of its own; neither is this.
+ *  the stored page, applied the way `_builder.js` applies the model's edits.
+ *  The one image here is the thumb: a data URL under 80 KB, on the app row,
+ *  token-gated, and only ever read back by a browser that holds the id.
  * ========================================================================== */
 'use strict';
 
@@ -41,6 +44,11 @@ module.exports = async function handler(req, res) {
     ? (typeof req.body === 'string' ? safeParse(req.body) : (req.body || {})) : {};
   const id    = String(query.id || body.id || '');
   const token = header(req, 'x-app-token') || body.token || null;
+
+  if (req.method === 'GET' && query.ids) {
+    try { return res.status(200).json({ apps: await apps.shelf(String(query.ids).split(',')) }); }
+    catch (err) { console.error('[app] ' + ((err && err.message) || err)); return res.status(500).json({ error: 'the app store failed' }); }
+  }
   if (!apps.validId(id)) return res.status(400).json({ error: 'id is required' });
 
   try {
@@ -100,7 +108,16 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id, title: String(body.title || '').slice(0, 120) });
     }
 
-    return res.status(400).json({ error: 'action must be restore, remix, rotate or title' });
+    if (action === 'thumb') {
+      const t = String(body.thumb || '');
+      if (t && !(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(t) && t.length <= 80000)) {
+        return res.status(400).json({ error: 'thumb must be a JPEG data URL under 80 KB' });
+      }
+      await apps.setThumb(id, t);
+      return res.status(200).json({ id, thumb: !!t });
+    }
+
+    return res.status(400).json({ error: 'action must be restore, remix, rotate, title or thumb' });
   } catch (err) {
     console.error('[app] ' + ((err && err.message) || err));
     return res.status(500).json({ error: 'the app store failed' });
