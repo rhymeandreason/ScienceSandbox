@@ -11,9 +11,10 @@
  *  PARAMS: sickle 0..1 · tonicity -1..1 · spill 0..1 · cut 0..1 · cutTurn
  *  turns · membrane µm · hb · hbCount · seed · autoRotate. The first four
  *  glide through the mount's tweens; `membrane` and `seed` rebuild and snap.
- *  state() is those plus facts() — discR, sphereR, area, volume, swellRatio,
- *  crenateFraction — every one measured off the profile so a page prints
- *  rather than types. Event: frame.
+ *  state() is those plus facts() — discR, sphereR, area, volume, restVolume,
+ *  swellRatio, crenateFraction — every one measured off the profile so a page
+ *  prints rather than types. `volume` is the cell as it stands, so it tracks
+ *  tonicity; `restVolume` is the disc's, and `area` cannot move. Event: frame.
  *
  *  ANCHORS for note(): rim · dimple · cutFace · haemoglobin · horn · spicule.
  *  The last three answer null on a cell that has no such part, so a callout
@@ -540,6 +541,28 @@
     const sO = new Float64Array((K + 1) * 2), sI = new Float64Array((K + 1) * 2);
     const cO = new Float64Array((K + 1) * 2), cI = new Float64Array((K + 1) * 2);
     let spic = spicules(P.seed);
+
+    /* THE WATER THE CELL IS HOLDING RIGHT NOW, off the same lerp apply()
+       draws: the resting volume cannot answer "what did the solution do to
+       it", and a page printing a number beside a tonicity control needs the
+       one on screen. Area is not measured here on purpose — it is fixed, which
+       is the premise both ends follow from, so `area` stays the profile's.
+       Computed on demand rather than cached from a frame, so state() is right
+       before the first one, and the spikes are left out: a spicule is surplus
+       membrane buckling inward-of-nothing, it moves no water. */
+    function volumeNow() {
+      const t = P.tonicity, w = Math.abs(t), tO = t <= 0 ? sO : cO, { pr, py } = prof;
+      if (!w) return prof.vol;
+      let vol = 0, r0 = pr[0] + (tO[0] - pr[0]) * w, y0 = py[0] + (tO[1] - py[0]) * w;
+      for (let k = 0; k < (K >> 1); k++) {
+        const r1 = pr[k + 1] + (tO[(k + 1) * 2] - pr[k + 1]) * w;
+        const y1 = py[k + 1] + (tO[(k + 1) * 2 + 1] - py[k + 1]) * w;
+        vol += Math.PI * (r0 + r1) * (r1 - r0) * (y0 + y1);
+        r0 = r1; y0 = y1;
+      }
+      return vol;
+    }
+
     function sphere() {
       /* Two targets on the same axis: the sphere this much membrane can just
          enclose, and the smaller one left when 40% of the water has gone. */
@@ -872,7 +895,7 @@
       params: P,
       /* Measured off the profile, never typed: a page printing "half as much
          again" reads it from here. */
-      facts() { return { discR: R0, sphereR: prof.sphereR, crenR: prof.crenR, area: prof.area, volume: prof.vol, swellRatio: prof.swellRatio, crenateFraction: CRENATE }; },
+      facts() { return { discR: R0, sphereR: prof.sphereR, crenR: prof.crenR, area: prof.area, volume: volumeNow(), restVolume: prof.vol, swellRatio: prof.swellRatio, crenateFraction: CRENATE }; },
       dispose() {
         root.remove(grp);
         geoOut.dispose(); geoIn.dispose(); geoEdge.dispose(); hbGeo.dispose();

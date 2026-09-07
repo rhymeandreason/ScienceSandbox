@@ -413,7 +413,7 @@ One cell, and every shape it takes is the same membrane moved: nothing is rebuil
 
 Glides: `tonicity`, `spill`, `sickle`, `cut`. Snaps: `seed`, `membrane`, and anything passed with `{snap:true}`, which a slider must.
 
-`state()`: the params, plus `discR` and `sphereR` (µm), `area` (µm²), `volume` (µm³), `swellRatio` — how many times its resting volume the cell holds when it is a sphere — and `crenateFraction`. Print those; do not type them. Events: `frame`.
+`state()`: the params, plus `discR` and `sphereR` (µm), `area` (µm²), `volume` (µm³) — the volume of the cell as it stands, so it moves with `tonicity` and a printout beside a solution control tracks it; `restVolume` is the resting disc's, and `area` does not move, which is the premise both ends of the axis follow from. Also `swellRatio` (how many times its resting volume the cell holds when it is a sphere) and `crenateFraction`. Print those; do not type them. Events: `frame`.
 
 Anchors for `note()`: `rim`, `dimple`, `cutFace`, `haemoglobin`, `horn` (only when sickled), `spicule` (only in brine). Layers for `show()`: `membrane`, `hb`; hiding the membrane leaves the haemoglobin standing in the shape of the cell.
 
