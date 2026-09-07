@@ -118,6 +118,14 @@
      wrong answer: white noise, reads as a bad frame rate, frame-rate dependent
      besides. */
   const TAU = 0.55, RTAU = 0.9;
+  /* Speed limits, and they are not a safety net — they are the overdamped
+     water this all happens in. Without them the alignment torque wins its
+     argument with the excluded volume by brute force: a molecule spun hard
+     enough sweeps its subunits straight through a neighbour, because a
+     positional force cannot answer a rotation inside one frame. Per body, so
+     a long chain is held far stiller than a monomer, which is also true. */
+  const V_MAX = 130, OM_MAX = 2.6;
+  const STIFF = 24;                   // excluded volume, per angstrom of overlap
 
   /* ---- THE BOND ------------------------------------------------------------
      REACH is how far the patch pulls, and it is generous on purpose: the real
@@ -133,13 +141,37 @@
      free molecules must both pay for, a monomer joining a chain pays once.
      It is why polymerisation is slow to start and then quick — the same
      asymmetry the breaking rate has, from the same cause. */
-  const REACH = 150, PULL = 44, TWIST = 6.5, GRIP = 0.22;
+  const REACH = 150, PULL = 58, TWIST = 13, GRIP = 0.22;
+  /* ---- HOW BIG A MOLECULE IS TO ANOTHER MOLECULE ---------------------------
+     Not one sphere. A tetramer is four subunits and its own bond proves that:
+     at the contact the crystal measured, the two β subunits sit 33 Å apart,
+     closer than any single sphere that would also stop two molecules sliding
+     through each other. So the excluded volume is FOUR spheres on the four
+     subunit centroids, read off the surface bake at load, and SUB_R is what
+     covers the skin without swallowing it.
+
+     And it relaxes, but only for the one pair that is lining up on the bond,
+     and only as they line up. That is what a binding interface IS: proteins
+     interdigitate where they are complementary and nowhere else, so a pair in
+     the right pose may come to the crystal's distance while the same pair
+     turned any other way cannot. It is the lock and the key, and without it
+     the attraction has to fight the repulsion through a wall it can never
+     open — nothing assembles at all.
+
+     WHAT RELAXES IS THE DISTANCE, NOT THE FORCE. Softening the force instead
+     is what let a hard pull drag a pair clean through each other: a weak wall
+     is still a wall you can be pushed past. So the wall stays as stiff as it
+     ever was and only its floor moves, from two subunit radii down to the
+     closest the crystal's own contact puts two subunits — which means an
+     aligned pair can reach the bond and nothing, aligned or not, can go one
+     ångström past it. */
+  const SUB_R = 21;
   const SNAP_D = 26, SNAP_C = 0.86;   // ångströms, and cos of the angle error
   /* How readily a terminal bond lets go, per second, against the size of the
      body that holds it. A dimer is gone in well under a second; by eight the
      rate is a thousandth of that and the chain is committed. This curve IS the
      nucleation barrier, and the delay the page waits through is its shadow. */
-  const KOFF = 1.2, KFALL = 0.7, NCAP = 12;
+  const KOFF = 0.5, KFALL = 0.85, NCAP = 12;
   const NUC = 6;                      // past here a body has effectively stopped coming apart
   const REBIND_S = 0.6;               // a molecule that let go does not re-bind at once
 
@@ -173,14 +205,12 @@
 
     let D = null, S = null, mesh = null;
     let molR = 32, axial = 63;
-    /* HOW CLOSE TWO MOLECULES MAY COME, AND IT IS THE CRYSTAL THAT SAYS.
-       Bonded tetramers sit 56 Å apart, centre to centre — well inside the
-       bounding sphere, because a tetramer is not a sphere and the contact is
-       between two knuckles of it. An excluded volume of the usual 1.9 radii
-       is 71 Å, and it does not merely look wrong: it holds every pair apart
-       at a distance the bond can never close from, so nothing ever assembles.
-       Read it off the bond instead. */
-    let excl = 54;
+    /* How far apart two molecules have to be before their subunits cannot
+       possibly touch: a cheap reject before the sixteen sphere tests. And
+       `contact`, the closest two subunits come in the crystal's own bond —
+       the floor no pair may pass, read off the bond and the bake rather than
+       chosen. */
+    let excl = 92, contact = 33;
     let mols = [], cls = [];
     let running = false, done = false, nucleated = false, T = 0;
     let rng = seeded(11);
@@ -255,6 +285,7 @@
         for (const m of c.mem) {
           poseOf(m, _m);
           m.pos.setFromMatrixPosition(_m);
+          for (let i = 0; i < m.sub.length; i++) m.sub[i].copy(SUB[i]).applyMatrix4(_m);
         }
       }
     }
@@ -276,7 +307,8 @@
       for (let i = 0; i < N; i++) {
         const cx = (i % cols + 0.5) / cols * 2 - 1, cy = (Math.floor(i / cols) + 0.5) / rows * 2 - 1;
         const axis = new THREE.Vector3(rng() - .5, rng() - .5, rng() - .5).normalize();
-        const m = { pos: new THREE.Vector3(), cl: null, k: 0, ph: rng() * 6.283, free: 0 };
+        const m = { id: i, pos: new THREE.Vector3(), sub: SUB.map(() => new THREE.Vector3()),
+                    cl: null, k: 0, ph: rng() * 6.283, free: 0 };
         mols.push(m);
         const c = newCluster(m, 0);
         c.pos.set(cx * ROOM.x + (rng() - .5) * jx,
@@ -323,17 +355,23 @@
       }
     }
 
-    /* Excluded volume, between molecules of DIFFERENT bodies only: two
-       molecules of one chain are at the crystal's spacing and overlap there by
-       design, which is what a contact is. */
-    function crowding(a, b) {
-      _d.subVectors(a.pos, b.pos);
-      const min = excl, d2 = _d.lengthSq();
-      if (d2 <= 0 || d2 >= min * min) return;
-      const d = Math.sqrt(d2);
-      _f.copy(_d).multiplyScalar((min - d) * 2.4 / d);
-      push(a.cl, a.pos, _f);
-      push(b.cl, b.pos, _f.negate());
+    /* Excluded volume, subunit against subunit, between molecules of DIFFERENT
+       bodies only: two molecules of one chain are at the crystal's spacing and
+       overlap there by design, which is what a contact is. `open` is how far
+       this particular pair has already got toward the bonded pose, and it is
+       the only thing that lets them close the last of the distance. */
+    function crowding(a, b, open) {
+      if (!a.sub.length || a.pos.distanceToSquared(b.pos) > excl * excl) return;
+      const min = SUB_R * 2 + (contact - SUB_R * 2) * open, min2 = min * min;
+      for (const p of a.sub) for (const q of b.sub) {
+        _d.subVectors(p, q);
+        const d2 = _d.lengthSq();
+        if (d2 <= 0 || d2 >= min2) continue;
+        const d = Math.sqrt(d2);
+        _f.copy(_d).multiplyScalar((min - d) * STIFF / d);
+        push(a.cl, p, _f);
+        push(b.cl, q, _fn.copy(_f).negate());
+      }
     }
 
     /* ---- the attraction, and the snap ----------------------------------------
@@ -345,18 +383,20 @@
        bonds. */
     const _ta = new THREE.Matrix4(), _tp = new THREE.Vector3(), _tq = new THREE.Quaternion();
     const _bp = new THREE.Vector3(), _bq = new THREE.Quaternion(), _e = new THREE.Quaternion();
+    /* Returns 0..1: how far this ordered pair has got toward the bonded pose,
+       which is also how far the steric wall between them is allowed to open. */
     function attract(a, b) {
-      if (a.cl === b.cl || T < a.free || T < b.free) return;
-      if (a.k !== a.cl.hi || b.k !== b.cl.lo) return;
-      if (a.cl.n + b.cl.n > RUN) return;
+      if (a.cl === b.cl || T < a.free || T < b.free) return 0;
+      if (a.k !== a.cl.hi || b.k !== b.cl.lo) return 0;
+      if (a.cl.n + b.cl.n > RUN) return 0;
       _ta.multiplyMatrices(poseOf(a, _m), BOND);
       _ta.decompose(_tp, _tq, _v2);
       poseOf(b, _m2).decompose(_bp, _bq, _v2);
       const dist = _tp.distanceTo(_bp);
-      if (dist > REACH) return;
+      if (dist > REACH) return 0;
       const cos = Math.abs(_tq.dot(_bq));
 
-      if (dist < SNAP_D && cos > SNAP_C) { join(a, b); return; }
+      if (dist < SNAP_D && cos > SNAP_C) { join(a, b); return 1; }
 
       /* Falls off to nothing at REACH, so a molecule at the edge of range is
          nudged and one at contact is hauled in; and it is stronger the bigger
@@ -376,9 +416,22 @@
          would actually turn. */
       _e.copy(_bq).invert().premultiply(_tq);
       if (_e.w < 0) { _e.x = -_e.x; _e.y = -_e.y; _e.z = -_e.z; _e.w = -_e.w; }
-      _v2.set(_e.x, _e.y, _e.z).multiplyScalar(TWIST * w * molR * molR);
+      /* The turn is NOT boosted by how big the bodies are the way the pull is.
+         A pull that scales is a bigger target; a torque that scales is a
+         molecule flung round its own axis. */
+      _v2.set(_e.x, _e.y, _e.z).multiplyScalar(TWIST * (1 - dist / REACH) * molR * molR);
       b.cl.t.add(_v2);
       a.cl.t.sub(_v2);
+
+      /* The wall opens on BOTH counts or neither: a pair at the right distance
+         in the wrong orientation is two molecules about to collide. And it
+         opens FULLY once they are merely close and merely lined up, rather
+         than only at the exact pose — a floor that is only reached in the
+         limit is a floor that is never reached, and the pair stands off at
+         arm's length for ever, which is what a crowd that will not assemble
+         looks like. */
+      const smooth = u => (u <= 0 ? 0 : u >= 1 ? 1 : u * u * (3 - 2 * u));
+      return smooth((cos - 0.55) / 0.15) * smooth((REACH * 0.7 - dist) / (REACH * 0.2));
     }
 
     /* Two bodies become one. b's body is moved bodily onto the pose the bond
@@ -393,9 +446,16 @@
       if (Math.max(A.hi, B.hi + shift) > RUN - 2) return;
 
       _m2.multiplyMatrices(_ta, powOf(-b.k));      // where B's pose must be
+      /* Only a body that is actually being carried needs its destination
+         checked. A single molecule is already within a snap's reach of the
+         pose it is taking, and the wall between it and everything else is
+         what governs the last few ångströms — testing it here as well is how
+         a crowd ends up rejecting almost every bond it makes. */
+      if (B.n > 1 && !clear(A, B, shift)) return;
       const mA = massOf(A), mB = massOf(B);
       A.vel.multiplyScalar(mA).addScaledVector(B.vel, mB).multiplyScalar(1 / (mA + mB));
       A.om.multiplyScalar(mA).addScaledVector(B.om, mB).multiplyScalar(1 / (mA + mB));
+      if (subject === B) subject = A;
       for (const m of B.mem) { m.k += shift; m.cl = A; A.mem.push(m); }
       A.lo = Math.min(A.lo, B.lo + shift);
       A.hi = Math.max(A.hi, B.hi + shift);
@@ -408,6 +468,34 @@
       emit('bond', biggest());
       if (!nucleated && A.n >= NUC) { nucleated = true; emit('nucleate', state()); }
       if (!done && A.n >= P.grow) { done = true; emit('done', state()); }
+    }
+
+    /* WOULD B FIT THERE. A join moves a whole body at once, and a chain of
+       eight swung onto a new end lands wherever the arithmetic puts it —
+       through anything standing in the way, because the two are one body by
+       then and a body does not collide with itself. The molecules that made
+       the bond are always clear; the far end of a long chain is not, and that
+       is where two chains ended up inside each other. So the destination is
+       tested before it is taken, and a join that would not fit simply does not
+       happen this frame. The pair is still in reach and will try again. */
+    const _cp = new THREE.Vector3(), _cq = new THREE.Vector3(), _cm = new THREE.Matrix4();
+    function clear(A, B, shift) {
+      /* Below the crystal's own contact, or this refuses the arrangement the
+         crystal is made of. */
+      const min = contact * 0.8, min2 = min * min;
+      for (const m of B.mem) {
+        _cm.multiplyMatrices(_m2, powOf(m.k + shift));
+        _cp.setFromMatrixPosition(_cm);
+        for (const o of neighbours(_cp, _near2)) {
+          if (o.cl === A || o.cl === B) continue;
+          if (_cp.distanceToSquared(o.pos) > excl * excl) continue;
+          for (const sv of SUB) {
+            _cq.copy(sv).applyMatrix4(_cm);
+            for (const q of o.sub) if (_cq.distanceToSquared(q) < min2) return false;
+          }
+        }
+      }
+      return true;
     }
 
     /* Keep a body's powers centred on zero, so a chain that grew off one end
@@ -467,16 +555,20 @@
         if (a) a.push(m); else GRID.set(k, [m]);
       }
     }
-    const _near = [];
-    function neighbours(m) {
-      _near.length = 0;
+    /* TWO BUFFERS, NOT ONE. The pair loop is iterating one neighbour list when
+       a join asks for another, and a single shared array would be emptied
+       under the loop that is walking it. */
+    const _near = [], _near2 = [];
+    function neighbours(at, out = _near) {
+      out.length = 0;
       const c = REACH;
-      const gx = Math.floor(m.pos.x / c), gy = Math.floor(m.pos.y / c), gz = Math.floor(m.pos.z / c);
+      const p = at.pos || at;
+      const gx = Math.floor(p.x / c), gy = Math.floor(p.y / c), gz = Math.floor(p.z / c);
       for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) for (let k = -1; k <= 1; k++) {
         const a = GRID.get(key(gx + i, gy + j, gz + k));
-        if (a) for (const o of a) _near.push(o);
+        if (a) for (const o of a) out.push(o);
       }
-      return _near;
+      return out;
     }
 
     const _kick = new THREE.Vector3();
@@ -488,12 +580,20 @@
       bucket();
       for (const a of mols) {
         for (const b of neighbours(a)) {
-          if (b === a) continue;
-          if (a.cl !== b.cl) crowding(a, b);
-          /* Each unordered pair is met twice, once from each side, and the two
-             visits are DIFFERENT TESTS: a's top against b's bottom is not b's
-             top against a's bottom. Both are wanted. */
-          if (running) attract(a, b);
+          /* Each unordered pair is met twice, once from each side. For the
+             attraction those are DIFFERENT TESTS — a's top against b's bottom
+             is not b's top against a's bottom — and both are wanted; for the
+             steric wall the second visit is the same wall seen again, so it is
+             applied once, by whichever of the two is met first. */
+          if (b.id <= a.id || a.cl === b.cl) continue;
+          let open = 0;
+          if (running) {
+            open = attract(a, b);
+            if (a.cl === b.cl) continue;      // that one joined them
+            open = Math.max(open, attract(b, a));
+            if (a.cl === b.cl) continue;
+          }
+          crowding(a, b, open);
         }
       }
       if (running) shed(dt);
@@ -514,6 +614,9 @@
         c.om.multiplyScalar(Math.max(0, 1 - dt / RTAU));
         const rk = 0.9 * scale / c.n * Math.sqrt(dt);
         c.om.x += gauss() * rk; c.om.y += gauss() * rk; c.om.z += gauss() * rk;
+
+        if (c.vel.lengthSq() > (V_MAX * scale) ** 2) c.vel.setLength(V_MAX * scale);
+        if (c.om.lengthSq() > (OM_MAX * scale) ** 2) c.om.setLength(OM_MAX * scale);
 
         c.pos.addScaledVector(c.vel, dt);
         const w = c.om.length();
@@ -569,6 +672,7 @@
          fibre's frame, and only the HbS bake needs to (the bond is in it). */
       S.geo.computeBoundingSphere();
       molR = S.geo.boundingSphere.radius;
+      subOf(S);
       if (P.variant === 'HbS') offV.set(0, 0, 0); else offV.copy(S.geo.boundingSphere.center).negate();
       offM.makeTranslation(offV.x, offV.y, offV.z);
       paint();
@@ -581,8 +685,41 @@
       upload();
     }
 
+    /* The four subunit centroids, in the body's own frame, averaged over the
+       surface's own vertices — so the shape the physics uses is the shape on
+       screen and not a guess about it. */
+    let SUB = [];
+    function subOf(surf) {
+      const pos = surf.geo.attributes.position;
+      const acc = new Map();
+      for (let v = 0; v < surf.nVert; v++) {
+        const ch = global.SurfLib.chainOf(surf, v);
+        let a = acc.get(ch);
+        if (!a) acc.set(ch, a = [0, 0, 0, 0]);
+        a[0] += pos.getX(v); a[1] += pos.getY(v); a[2] += pos.getZ(v); a[3]++;
+      }
+      SUB = [];
+      for (const a of acc.values()) SUB.push(new THREE.Vector3(a[0] / a[3], a[1] / a[3], a[2] / a[3]).add(offV));
+      for (const m of mols) m.sub = SUB.map(() => new THREE.Vector3());
+    }
+
     /* ---- drive -------------------------------------------------------------- */
 
+    /* THE SUBJECT IS ONE BODY AND IT STAYS THE SUBJECT. There are half a dozen
+       chains growing at once, they overtake each other constantly, and a camera
+       that framed whichever was biggest this frame would hop between them —
+       which is most of what read as jitter. So it is chosen once, kept while it
+       lives, followed into whatever absorbs it, and given up only for something
+       half again its size. */
+    let subject = null;
+    function subjectCl() {
+      if (subject && cls.indexOf(subject) < 0) subject = null;   // it was absorbed
+      let best = null;
+      for (const c of cls) if (!best || c.n > best.n) best = c;
+      if (!best) return null;
+      if (!subject || best.n > subject.n * 1.5) subject = best;
+      return subject;
+    }
     const biggestCl = () => cls.reduce((a, c) => (c.n > a.n ? c : a), cls[0] || { n: 0 });
     const biggest = () => biggestCl().n;
 
@@ -592,7 +729,7 @@
       return api;
     }
     function reset() {
-      running = false; done = false; nucleated = false; T = 0;
+      running = false; done = false; nucleated = false; T = 0; subject = null;
       if (tw) tw.cancel();
       spawn(); warm(); upload();
       emit('bond', 1);
@@ -606,7 +743,7 @@
        moving is the assembly. */
     function focus() {
       const out = { centre: new THREE.Vector3(), radius: R_FREE };
-      const c = biggestCl();
+      const c = subjectCl();
       if (!c || c.n < 3) return out;
       for (const m of c.mem) out.centre.add(m.pos);
       out.centre.multiplyScalar(1 / c.n);
@@ -689,7 +826,7 @@
         D = json;
         axial = F.axialLenOf(D);
         buildBond();
-      excl = Math.hypot(D.pair.t[0], D.pair.t[1], D.pair.t[2]) * 0.95;
+      excl = 2 * (20.5 + SUB_R);   // farthest subunit out, twice over
         /* The frame, and so the room and the crowd in it, is the bond's own
            business — and the bond arrives with the file. */
         sizeRoom(); spawn(); warm();
@@ -761,7 +898,10 @@
       let r = Math.max(fit(av), fit(ah)) * 1.08;
       if (relax) held = 0;
       if (r < held * 1.06) {
-        if (box.cam.target.distanceTo(f.centre) < sim.molR * 0.5) return;
+        /* A body this size drifts a few ångströms a second and never stops.
+           Following that is jitter, not tracking: below a molecule's own width
+           the camera should simply not move. */
+        if (box.cam.target.distanceTo(f.centre) < sim.molR * 1.6) return;
         r = box.cam.r;
       }
       held = Math.max(held, r);
@@ -774,9 +914,15 @@
         if (!box.running) box.draw();
       }, { key: 'fit', ease: 'smooth' });
     }
-    /* A body big enough to be the subject has moved the subject. Below that
-       the camera has nothing to follow and should not twitch. */
-    sim.on('bond', n => { if (n >= 3) frame(1.4); });
+    /* Bonds land in bursts once a chain gets going, and refitting on each one
+       is a camera being dragged. One move at a time, slow, and never more than
+       one in flight: the deadband in frame() throws most of these away. */
+    let last = -9;
+    sim.on('bond', n => {
+      if (n < 3 || performance.now() / 1000 - last < 2.2) return;
+      last = performance.now() / 1000;
+      frame(2.6);
+    });
     /* Pull back by a factor, for a page that wants room before it hands off. */
     function zoom(factor, dur = 2) {
       const r0 = box.cam.r, r1 = Math.min(r0 * factor, 7800);
