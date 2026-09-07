@@ -277,6 +277,25 @@
         // only has one anyway.
         { key:'amino',    label:'\u2013NH\u2082', keep:p.nN, leaves:[p.hN[0]] } ],
       makes:[ { product:null, donor:'carboxyl', acceptor:'amino', bond:'peptide' } ] };
+
+    /* A SIDE CHAIN THAT CAN ALSO REACT. Glutamate has a second carboxyl on the
+     * end of its side chain, and it makes exactly the same bond — which is the
+     * whole of what glutathione is: γ-Glu-Cys-Gly, joined through that one
+     * instead of the backbone's, which is why no ordinary peptidase can cut it.
+     *
+     * DECLARED BY ATOM NAME, not index. Everything else in this block comes
+     * from `pep`, whose indices are pinned by the fixed backbone order; a side
+     * chain has no such order, so a number typed here would be a number that
+     * goes stale the next time the spec is regenerated. `names` is the stable
+     * handle and check-molecules.js audits the result either way. */
+    for(const r of spec.pepSide || []){
+      const ix = n => (spec.names || []).indexOf(n);
+      const keep = ix(r.keep), leaves = r.leaves.map(ix);
+      if(keep < 0 || leaves.some(i => i < 0)) throw new Error(
+        `molecules.js: ${key} declares a pepSide role naming an atom it does not have `
+        + `(${[r.keep, ...r.leaves].join(', ')})`);
+      spec.condense.roles.push({ key:r.key, label:r.label, keep, leaves });
+    }
   }
 
   // THE MANIFEST: every domain file, in dependency order. A page loads the

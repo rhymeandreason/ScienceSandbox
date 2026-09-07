@@ -198,21 +198,43 @@
    * leaving atoms met, rather than at a transform origin that is in the middle
    * of nothing.
    */
-  function pose(host, guest){
-    const hc = free(host,'carboxyl'), ga = free(guest,'amino');
+  function pose(host, guest, donor){
+    const hc = free(host, donor || 'carboxyl'), ga = free(guest,'amino');
     if(!hc || !ga) return null;
     const P = (s,i) => s.atoms[i].pos;
 
-    const hCA = alphaOf(host), gCA = alphaOf(guest);
-    if(hCA < 0 || gCA < 0) return null;
-    const hN = P(host, role(host,'amino').keep),
-          hA = P(host, hCA),
+    const gCA = alphaOf(guest);
+    if(gCA < 0) return null;
+    /* THE TWO ATOMS BEHIND THE DONOR CARBON, found rather than assumed. For
+     * the backbone carboxyl they are Cα and N and the torsion below is ψ. For
+     * a SIDE-CHAIN carboxyl — glutamate's γ, which is the bond glutathione is
+     * made of — they are Cγ and Cβ, and reading the backbone's N and Cα
+     * instead builds the bond off atoms three bonds away from where it forms.
+     * That renders: it just renders a molecule with the acyl group pointing
+     * somewhere nothing put it. */
+    const stem = spec => {
+      const c = bondedTo(spec, hc.keep)
+        .find(i => spec.atoms[i].el === 'C');           // Cα, or Cγ
+      if(c === undefined) return null;
+      const back = bondedTo(spec, c).filter(i => i !== hc.keep && spec.atoms[i].el !== 'H');
+      // Prefer the nitrogen, so the backbone role gets its canonical ψ; a side
+      // chain has only its own carbon to offer.
+      const b = back.find(i => spec.atoms[i].el === 'N') ?? back[0];
+      return b === undefined ? null : { a:c, b };
+    };
+    const st = stem(host);
+    if(!st) return null;
+    const hN = P(host, st.b),
+          hA = P(host, st.a),
           hC = P(host, hc.keep);
 
-    // 1-3. The amide N: off the host's carboxyl C, opened to the Cα–C–N angle,
+    // 1-3. The amide N: off the host's donating C, opened to the Cα–C–N angle,
     //      twisted to ψ. This is the host's OWN ψ, which is why the leaving
-    //      hydroxyl's position no longer decides anything.
-    const Nat = nerf(hN, hA, hC, CN, ANG_CA_C_N, PSI);
+    //      hydroxyl's position no longer decides anything. A side-chain donor
+    //      has no ψ — that torsion is a χ, and nothing fixes it — so it takes
+    //      the extended value, which is what an unconstrained chain does.
+    const psi = (hc.key === 'carboxyl' ? PSI : Math.PI);
+    const Nat = nerf(hN, hA, hC, CN, ANG_CA_C_N, psi);
     // 4-5. Where the guest's Cα has to point: the C–N–Cα angle, twisted to ω.
     const CAt = nerf(hA, hC, Nat, NCA, ANG_C_N_CA, OMEGA);
 
@@ -224,8 +246,13 @@
     //    the same way ω used to be: qFromTo takes the shortest rotation and
     //    which φ that happens to give depends on the conformer.
     const put = (qq, p) => add(qrot(qq, sub(p, gN)), Nat);
+    // φ is the GUEST's, where the guest has an opinion. Proline's ring closes
+    // onto its own backbone nitrogen and pins the N–Cα torsion near −65°; the
+    // extended chain's −139° is a shape it cannot take, and forcing it renders
+    // a proline nobody could build. Every other residue takes the default.
+    const phi = (guest.pepPhi != null ? guest.pepPhi * Math.PI/180 : PHI);
     const cur = torsion(hC, Nat, put(q, gA), put(q, gC));
-    q = qnorm(qmul(qAxis(sub(CAt, Nat), PHI - cur), q));
+    q = qnorm(qmul(qAxis(sub(CAt, Nat), phi - cur), q));
 
     const pos = sub(Nat, qrot(q, gN));          // where the guest's ORIGIN goes
     const at = i => add(qrot(q, sub(P(guest, i), gN)), Nat);
@@ -260,7 +287,7 @@
       // Against the free amino acid's sp3 position it reports a clash on most
       // pairs — correctly, but about a molecule that does not exist once the
       // bond has formed.
-      clash: clashOf(host, guest, q, pos, amideH),
+      clash: clashOf(host, guest, q, pos, amideH, hc.key),
       bondAt: mul(add(hC, Nat), 0.5),
       // The water assembles between the two groups that gave it up: the host's
       // –OH and the guest's H, which is where a student is looking.
@@ -268,6 +295,7 @@
       omega: torsion(hA, hC, Nat, at(gCA)),
       phi:   torsion(hC, Nat, at(gCA), at(role(guest,'carboxyl').keep)),
       psi:   torsion(hN, hA, hC, Nat),
+      donor: hc.key,
     };
   }
 
@@ -287,8 +315,11 @@
    * ~1.5 Å the correct poses come out at, so it separates a drawing problem
    * from a snug fit rather than flagging every join. */
   const CLASH = 1.6;
-  function clashOf(host, guest, q, pos, moved){
-    const hc = role(host,'carboxyl'), ga = role(guest,'amino');
+  function clashOf(host, guest, q, pos, moved, donor){
+    // The DONOR role, not always the backbone's: a γ linkage sheds the side
+    // chain's oxygen and hydrogen, and excluding the backbone's instead
+    // reports a clash against two atoms that are no longer there.
+    const hc = role(host, donor || 'carboxyl'), ga = role(guest,'amino');
     const gone = { h:new Set(hc.leaves), g:new Set(ga.leaves) };
     let min = Infinity, at = null;
     for(let i = 0; i < host.atoms.length; i++){

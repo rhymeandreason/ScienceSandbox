@@ -334,6 +334,13 @@
       optH:[4,10,11,13,14,15,16],   // nonpolar C–H, hidden by the lab's H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1] },   // one amino H, not two — see note above
+      /* PROLINE'S φ IS NOT FREE, and the builder must not pretend it is. The
+       * side chain bonds back to the backbone nitrogen, so the N–Cα torsion is
+       * inside a five-membered ring: φ can only be about −65°, and the −139° an
+       * extended chain uses is a shape this residue cannot take. Every other
+       * residue reads peptide.js's default; this one carries its own, because
+       * the constraint is a fact about the molecule and not about the pose. */
+      pepPhi: -65,
       contrast:{ pair:'glycine-proline', partner:'glycine',
         differs:'ring-closed vs free amino N',
         lesson:'why gluten resists digestion',
@@ -497,6 +504,18 @@
       optH:[4,11,12,14,15],   // nonpolar C–H; the hydroxyl H at 18 is a donor, never optional
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
       pep:{ cC:5, oOH:7, hOH:8, nN:0, hN:[1,2] },
+      /* THE SECOND CARBOXYL, and it is a different molecule's worth of
+       * difference. The side chain ends in –COOH too, and it makes the same
+       * bond the backbone one does. Joined through it, Glu-Cys-Gly is
+       * GLUTATHIONE — γ-linked, which is precisely why no ordinary peptidase
+       * cuts it and why the cell can hold 5 mM of it as its main antioxidant.
+       * Joined through the backbone carboxyl instead, the same three residues
+       * give an ordinary tripeptide that any protease takes apart.
+       *
+       * So this role is not a convenience: it is the one choice on the stage
+       * that decides which of two real molecules gets built. Named by atom,
+       * because side-chain indices are not pinned the way the backbone's are. */
+      pepSide:[ { key:'gamma', label:'\u03b3\u2013COOH', keep:'CD', leaves:['OE2','HE2'] } ],
       contrast:{ pair:'glutamine-glutamate', partner:'glutamine',
         differs:'side-chain acid vs amide',
         lesson:'how gluten becomes an antigen',

@@ -21,6 +21,13 @@ const qrot = (q,v) => { const [x,y,z,w] = q;
   const tx = 2*(y*v[2]-z*v[1]), ty = 2*(z*v[0]-x*v[2]), tz = 2*(x*v[1]-y*v[0]);
   return [v[0]+w*tx+y*tz-z*ty, v[1]+w*ty+z*tx-x*tz, v[2]+w*tz+x*ty-y*tx]; };
 const place = (spec, r, i) => qrot(r.quat, spec.atoms[i].pos).map((v,k) => v + r.pos[k]);
+// Composing one pose onto another: what a page does when it puts a third
+// residue on a chain whose first two have already moved.
+const qm = (a,b) => [a[3]*b[0] + a[0]*b[3] + a[1]*b[2] - a[2]*b[1],
+                     a[3]*b[1] - a[0]*b[2] + a[1]*b[3] + a[2]*b[0],
+                     a[3]*b[2] + a[0]*b[1] - a[1]*b[0] + a[2]*b[3],
+                     a[3]*b[3] - a[0]*b[0] - a[1]*b[1] - a[2]*b[2]];
+const vadd = (a,b) => a.map((v,i) => v + b[i]);
 
 let fails = 0, checks = 0;
 const ok = (cond, msg) => { checks++; if(cond) console.log('  ok    ' + msg);
@@ -70,14 +77,19 @@ for(const a of AA) for(const b of AA){
   // torsion the record chose.
   if(Math.abs(Math.abs(r.omega) - Math.PI) > 1e-6)
     bad.push(`omega ${(r.omega*180/Math.PI).toFixed(3)}`);
-  if(Math.abs(r.phi - Peptide.PHI) > 1e-6) bad.push(`phi ${(r.phi*180/Math.PI).toFixed(3)}`);
+  // φ is the residue's own where it declares one — proline's ring pins it —
+  // and the extended default otherwise. Either way it is SET, which is the
+  // property that matters; what must never come back is a φ nobody chose.
+  const wantPhi = M[b] && M[b].pepPhi != null ? M[b].pepPhi * Math.PI/180 : Peptide.PHI;
+  if(Math.abs(r.phi - wantPhi) > 1e-6) bad.push(`phi ${(r.phi*180/Math.PI).toFixed(3)}`);
   if(Math.abs(r.psi - Peptide.PSI) > 1e-6) bad.push(`psi ${(r.psi*180/Math.PI).toFixed(3)}`);
   if(bad.length){ fails++; checks++; console.log(`  FAIL  ${a}+${b}: ${bad.join(', ')}`); }
   if(r.clash) clashes.push(`${a}+${b} ${r.clash.dist.toFixed(2)}A`);
 }
 checks++;
 console.log(`  ok    ${posed} ordered pairs, every one at C-N ${Peptide.CN} A with omega 180, `
-  + `phi ${(Peptide.PHI*180/Math.PI).toFixed(0)} and psi ${(Peptide.PSI*180/Math.PI).toFixed(0)} exactly`);
+  + `psi ${(Peptide.PSI*180/Math.PI).toFixed(0)} and phi at the value its own residue declares `
+  + `(${(Peptide.PHI*180/Math.PI).toFixed(0)} extended, proline ${M.proline.pepPhi})`);
 
 // A clash is reported, not failed: it is two RIGID conformers overlapping, and
 // a real chain relieves it by turning phi and psi. What would be a bug is a
@@ -116,11 +128,6 @@ console.log('\n== 5b. a built chain is straight, and nothing in it intersects');
   // The pairwise `clash` only ever compares the two residues being joined.
   // Residue 1 against residue 3 is invisible to it, and so is the surviving
   // amide hydrogen, which was the worst contact in a real chain.
-  const qm = (a,b) => [a[3]*b[0]+a[0]*b[3]+a[1]*b[2]-a[2]*b[1],
-                       a[3]*b[1]-a[0]*b[2]+a[1]*b[3]+a[2]*b[0],
-                       a[3]*b[2]+a[0]*b[1]-a[1]*b[0]+a[2]*b[3],
-                       a[3]*b[3]-a[0]*b[0]-a[1]*b[1]-a[2]*b[2]];
-  const vadd = (a,b) => a.map((v,i) => v + b[i]);
   const KEYS = ['glycine','alanine','serine','cysteine'];
   const res = [{ spec:un(M[KEYS[0]]), q:[0,0,0,1], p:[0,0,0] }];
   for(let i = 1; i < KEYS.length; i++){
@@ -181,6 +188,57 @@ console.log('\n== 5b. a built chain is straight, and nothing in it intersects');
   const ca = [0,1,2,3].map(k => W(k, A(k).CA));
   const span = d(ca[0], ca[3]);
   ok(span > 10, `the chain is extended: CA1..CA4 spans ${span.toFixed(2)} A (a bent chain came to 8.84)`);
+}
+
+console.log('\n== 5c. the two named peptides');
+{
+  // GLUTATHIONE. Glutamate offers two carboxyls and both make a real molecule;
+  // only the γ one is glutathione. Assert that BOTH work — a build where the
+  // wrong answer is impossible is not a choice — and that they differ.
+  const glu = un(M.glutamate), cys = un(M.cysteine);
+  ok(!!Spec.free(glu,'carboxyl') && !!Spec.free(glu,'gamma'),
+     'glutamate offers two carboxyls, so the linkage is a choice');
+  const g = Peptide.pose(glu, cys, 'gamma'), a2 = Peptide.pose(glu, cys, 'carboxyl');
+  ok(g && !g.clash && a2 && !a2.clash, 'both linkages place without clashing');
+  ok(g && a2 && d(g.pos, a2.pos) > 1,
+     `the two land ${g && a2 ? d(g.pos,a2.pos).toFixed(1) : '?'} A apart — they are different molecules`);
+  ok(g && g.donor === 'gamma' && a2.donor === 'carboxyl',
+     'the pose reports which carboxyl reacted, so the page can say which was built');
+  // The γ bond must spend the SIDE CHAIN and leave the backbone acid free —
+  // that free α-carboxyl is what glycine goes on to.
+  const out = Spec.react(glu, cys, 'gamma', 'amino');
+  ok(!Spec.free(out.host,'gamma') && !!Spec.free(out.host,'carboxyl'),
+     'the γ bond spends the side chain and leaves the backbone –COOH free');
+  ok(out.guest.names.some(n => n.startsWith('S')),
+     'cysteine keeps its thiol — the part glutathione does its job with');
+
+  // COLLAGEN. Proline is the point: its ring pins φ where every other residue
+  // is extended, and that is what bends the chain.
+  const pro = un(M.proline);
+  ok(M.proline.pepPhi === -65, 'proline declares its own φ');
+  const p1 = Peptide.pose(un(M.glycine), pro);
+  const p2 = Peptide.pose(un(M.glycine), un(M.alanine));
+  ok(Math.abs(p1.phi*180/Math.PI - (-65)) < 1e-6, `proline is placed at φ ${(p1.phi*180/Math.PI).toFixed(0)}`);
+  ok(Math.abs(p2.phi - Peptide.PHI) < 1e-6, 'a residue with no opinion takes the extended φ');
+  ok(!p1.clash, 'glycine+proline does not clash once φ is proline\'s own');
+  // The bend, measured: Gly-Pro-Pro against three extended residues.
+  const chainOf = keys => {
+    const r2 = [{ spec:un(M[keys[0]]), q:[0,0,0,1], p:[0,0,0] }];
+    for(let i = 1; i < keys.length; i++){
+      const prev = r2[i-1], gg = un(M[keys[i]]);
+      const r = Peptide.pose(prev.spec, gg), o = Peptide.react(prev.spec, gg, r);
+      prev.spec = o.host;
+      r2.push({ spec:o.guest, q:qm(prev.q, r.quat), p:vadd(qrot(prev.q, r.pos), prev.p) });
+    }
+    const V = (k,i) => vadd(qrot(r2[k].q, r2[k].spec.atoms[i].pos), r2[k].p);
+    return d(V(0, Peptide.alphaOf(r2[0].spec)),
+             V(keys.length-1, Peptide.alphaOf(r2[keys.length-1].spec)));
+  };
+  const bent = chainOf(['glycine','proline','proline']);
+  const straight = chainOf(['glycine','alanine','serine']);
+  ok(bent < straight - 0.3,
+     `Gly-Pro-Pro spans ${bent.toFixed(2)} A against ${straight.toFixed(2)} for three extended `
+     + `residues — proline bends the chain, and that is the build's whole point`);
 }
 
 console.log('\n== 6. the glycosidic pose repeats into the polymer it names');

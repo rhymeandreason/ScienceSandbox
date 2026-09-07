@@ -20,7 +20,15 @@
      determining the polymer; the fat card is the control, and it is
      the one that makes the other two mean something.
 
-     PROTEIN. A residue joins by its carboxyl to the next one's amino
+     PROTEIN, in three builds. Free: any order, four different monomers,
+     and the point is that a chain HAS an order. Then two real molecules
+     whose whole behaviour turns on one bond — glutathione, where
+     glutamate offers TWO carboxyls and only the side chain's one gives
+     the molecule a peptidase cannot cut; and the collagen repeat, where
+     proline's ring pins its own backbone torsion and visibly bends the
+     chain the others run straight.
+
+     A residue joins by its carboxyl to the next one's amino
      group. Push two amino ends together and nothing happens — there is
      no reaction there. Once a residue has spent its carboxyl it cannot
      spend it again, so a chain grows one way, and that direction (N to
@@ -239,16 +247,103 @@ let dim = 'flat';
 
 const CARDS = [
   {
-    key:'protein', n:1, title:'Protein', sub:'four different monomers',
-    donor:'carboxyl', acceptor:'amino', chains:true,
-    /* Proline is deliberately absent: its ring holds the alpha carbon's
-     * neighbours in place, so a RIGID pose against most partners overlaps
-     * (peptide.js's `clash`). That is a cost of drawing residues as fixed
-     * conformers, not chemistry refusing, and meeting it as a refusal would
-     * teach the wrong thing. */
-    monomers:['glycine', 'alanine', 'serine', 'cysteine'],
-    home:{ glycine:[-21, 9], alanine:[-7, -10], serine:[9, 9], cysteine:[22, -10] },
+    key:'protein', n:1, title:'Protein', sub:'a chain, and two real ones',
+    // WHICH carboxyl reacted. Every residue here has one; glutamate has two,
+    // and which of them takes the bond is the whole of the glutathione build.
+    donor:at => at.pose.donor, acceptor:'amino', chains:true,
     box:{ x:0, y:0, rxz:32, hy:22 },
+
+    /* THREE BUILDS ON ONE CARD. The free one is the sandbox: any order, and
+     * the point is that a chain HAS an order. The two named ones are there
+     * because a sequence with no consequence is just a list — each of these is
+     * a molecule whose whole behaviour turns on one bond.
+     *
+     * They are not a guided exercise. The residues are on the table and
+     * nothing refuses a drag; what makes them builds rather than free play is
+     * that only one arrangement is the molecule, and the readout says which
+     * one you have. */
+    builds:[
+      {
+        key:'free', label:'Free build',
+        set:{
+          sub:'four different monomers',
+          /* Proline is absent from the free build on purpose. Its ring pins φ
+           * near −65° where every other residue here sits at −139°, so a chain
+           * with one proline in it bends — which is true, and is the collagen
+           * build's whole point, but as an unexplained kink in a sandbox it
+           * reads as a bug. */
+          monomers:['glycine', 'alanine', 'serine', 'cysteine'],
+          home:{ glycine:[-21, 9], alanine:[-7, -10], serine:[9, 9], cysteine:[22, -10] },
+          lead:'Push two of them together. Only one pairing of ends does anything &mdash; '
+             + 'find which, and watch what comes off.',
+          done:c => `<b>${c.length} residues</b>, joined N to C. Four different monomers, so this `
+                  + 'chain has a <b>sequence</b> &mdash; and the sequence is the whole of what it does.',
+          more:'The chain can only grow at the end that still has its &ndash;COOH.',
+        },
+      },
+      {
+        /* GLUTATHIONE, and the choice that makes it. Glutamate has TWO free
+         * carboxyls: the backbone's and the one on the end of its side chain.
+         * Cysteine will bond to either, and both products are real molecules —
+         * but only the γ one is glutathione, and the γ bond is exactly why no
+         * ordinary peptidase can cut it. Which is why a cell can hold 5 mM of
+         * it and rely on that thiol still being there.
+         *
+         * Nothing on the stage says which carboxyl to use. The nearest free
+         * one wins, so it is decided by where the cysteine is dragged. */
+        key:'glutathione', label:'Glutathione',
+        set:{
+          sub:'γ-Glu-Cys-Gly',
+          monomers:['glutamate', 'cysteine', 'glycine'],
+          home:[[-20, 8], [4, -10], [24, 8]],
+          lead:'Glutamate has <b>two</b> &ndash;COOH: one on the backbone, one on the end of its '
+             + 'side chain. Cysteine will take either. Only one of them makes glutathione.',
+          done:(c, card) => {
+            const g = sticks.find(s => s.donor === 'gamma');
+            const n = sticks.length;
+            if(n < 2) return g
+              ? 'The <b>&gamma;</b> bond &mdash; the side chain\'s. Now put glycine on the far end.'
+              : 'That is the backbone &ndash;COOH: an ordinary dipeptide. Pull it apart '
+                + '(double-click) and try the other one.';
+            return g
+              ? '<b>Glutathione.</b> The first bond is &gamma;, through the side chain, and that is '
+                + 'the whole point: a peptidase reads backbone bonds and cannot see this one. The '
+                + 'cell keeps 5&nbsp;mM of it, and the &ndash;SH in the middle is what does the work.'
+              : 'Three residues, all backbone bonds &mdash; an ordinary tripeptide, and any protease '
+                + 'takes it apart. Glutathione is joined through glutamate&rsquo;s <b>side chain</b>.';
+          },
+          more:(c, card) => card.done(c, card),
+        },
+      },
+      {
+        /* COLLAGEN, and what proline does to a chain. (Gly-Pro-Pro)n is the
+         * standard collagen model peptide. Two things are visible here that
+         * the free build cannot show: proline BENDS the chain, because its ring
+         * pins φ at −65° where an extended residue sits at −139°; and glycine
+         * is the only residue with no side chain at all.
+         *
+         * WHAT IS NOT DRAWN is the triple helix. Collagen is three of these
+         * wound together, and glycine has to be every third residue because
+         * that position faces the axis where there is no room for anything
+         * bigger than a hydrogen. One chain cannot show that, and the note
+         * says so rather than letting the reader think it has. */
+        key:'collagen', label:'Collagen',
+        set:{
+          sub:'Gly-Pro-Pro',
+          monomers:['glycine', 'proline', 'proline'],
+          home:[[-22, 8], [2, -10], [22, 8]],
+          lead:'The collagen repeat: glycine, then two prolines, over and over. '
+             + 'Watch what proline does to the chain.',
+          done:(c, card) => c.length < 3
+            ? `<b>${c.length}</b> of three. Proline\'s ring bends the chain where the others run straight.`
+            : '<b>Gly-Pro-Pro</b>, and the bend is proline: its side chain loops back onto its own '
+              + 'backbone nitrogen, so that bond cannot rotate to the extended angle the others take. '
+              + 'Collagen is <b>three</b> of these wound together, and glycine has to be every third '
+              + 'residue because that position faces the middle, where nothing bigger than an H fits.',
+          more:(c, card) => card.done(c, card),
+        },
+      },
+    ],
     /* NO FLAT LAYOUT ON THIS CARD, and it is a claim rather than a setting.
      *
      * Cellulose earns the diagram: repeating beta-1,4 puts every residue
@@ -265,11 +360,25 @@ const CARDS = [
      * sequence-INDEPENDENT, and all 24 orderings of these four residues come
      * out at the same 2.16 A closest contact and the same 10.38 A span. So the
      * student keeps free rein over the order, which is the point of the card. */
-    poseIn:(h, g) => Peptide.pose(h, g),
+    poseIn:(h, g, donor) => Peptide.pose(h, g, donor),
     flat:false,
+    /* EVERY CARBOXYL THE HOST STILL HAS, and the nearest one wins. Most
+     * residues have one and this is a loop over a single item; glutamate has
+     * two, and which of them takes the bond is decided by where the student
+     * drags — not by a fixed order, which would put the bond somewhere nobody
+     * pointed. The same rule glycerol's three hydroxyls use. */
     solve:(host, guest) => {
-      const r = card.poseIn(un(host), un(guest), null, dim === '3d');
-      return (!r || r.clash) ? null : r;
+      const h = un(host);
+      let best = null;
+      for(const donor of ['carboxyl', 'gamma']){
+        if(!MacroSpec.free(h, donor)) continue;
+        const r = card.poseIn(h, un(guest), donor);
+        if(!r || r.clash) continue;
+        const where = v3(r.pos).applyQuaternion(host.mol.quaternion).add(host.mol.position);
+        const d = guest.mol.position.distanceTo(where);
+        if(!best || d < best.d) best = { r, d };
+      }
+      return best && best.r;
     },
     label:p => p.spec.name,
     unit:'residue', bond:'peptide bond',
@@ -758,7 +867,7 @@ function say(){
   // invent the one property this card exists to say it does not have.
   seqEl.style.display = card.chains ? '' : 'none';
   if(card.chains){
-    seqEl.classList.toggle('low', !!card.choose);
+    seqEl.classList.toggle('low', !!(card.choose || card.builds));
     seqEl.querySelector('.chain').textContent =
       c.map(p => p.spec.res || p.spec.short || p.spec.name).join(' – ');
     seqEl.querySelector('.ends').textContent =
@@ -1034,6 +1143,16 @@ function clearStage(){
   P.pieces.length = 0; P.links.length = 0;
 }
 
+/* A BUILD IS A SET OF FIELDS THE CARD TAKES ON. Copied rather than consulted
+ * through a wrapper, so everything downstream — layOut, say, the readout —
+ * keeps reading `card.monomers` and does not have to know builds exist. */
+function useBuild(c, key){
+  if(!c.builds) return;
+  const b = c.builds.find(x => x.key === key) || c.builds[0];
+  Object.assign(c, b.set);
+  c.buildKey = b.key;
+}
+
 function layOut(){
   // Whatever the stage was turned to, a new set of molecules starts flat: the
   // pieces are dragged on a tabletop and there is not one in the round view.
@@ -1043,6 +1162,7 @@ function layOut(){
   clearStage();
   // The chooser's pick fills every slot named for it; anything else on the
   // stage is itself. Glycerol is not a fatty acid and does not become one.
+  if(card.builds) useBuild(card, card.buildKey || card.builds[0].key);
   if(card.choose) card.monomerKey = card.monomerKey || card.choose.key;
   card.monomers.forEach((name, i) => {
     const key = card.choose && name === card.choose.slot ? card.monomerKey : name;
@@ -1058,15 +1178,26 @@ function layOut(){
                     { key, base:spec, spent:new Set(), moved:null });
     p.tag.textContent = card.label(p);
   });
-  chooseEl.style.display = card.choose ? 'flex' : 'none';
+  // One bar, two jobs: a card either offers named BUILDS (the protein card's
+  // free / glutathione / collagen) or a choice of MONOMER for one slot (α vs β
+  // glucose, saturated vs not). No card wants both, and a second control bar
+  // over the stage would cost more room than either is worth.
+  const opts = card.builds ? card.builds.map(b => [b.key, b.label])
+             : card.choose ? card.choose.opts : [];
+  const active = card.builds ? card.buildKey : card.monomerKey;
+  chooseEl.style.display = opts.length ? 'flex' : 'none';
   chooseEl.innerHTML = '';
-  for(const [key, label] of (card.choose ? card.choose.opts : [])){
+  for(const [key, label] of opts){
     const b = document.createElement('button');
     b.dataset.key = key; b.innerHTML = label;
-    b.setAttribute('aria-pressed', String(key === card.monomerKey));
-    b.addEventListener('click', () => { card.monomerKey = key; layOut(); });
+    b.setAttribute('aria-pressed', String(key === active));
+    b.addEventListener('click', () => {
+      if(card.builds) card.buildKey = key; else card.monomerKey = key;
+      layOut();
+    });
     chooseEl.appendChild(b);
   }
+  syncRail();
   say();
   L.fit();
 }
@@ -1083,8 +1214,15 @@ for(const c of CARDS){
   cardsEl.appendChild(b);
 }
 function syncRail(){
-  for(const b of cardsEl.children)
+  for(const b of cardsEl.children){
     b.setAttribute('aria-current', String(b.dataset.key === card.key));
+    // A card whose builds each say something different keeps its subtitle
+    // current: the rail is rendered once, and `sub` moves when a build is
+    // picked. Read from CARDS, so the rail is never describing another card.
+    const c = CARDS.find(x => x.key === b.dataset.key);
+    const sub = b.querySelector('.sub');
+    if(c && sub) sub.textContent = c.sub;
+  }
 }
 document.getElementById('reset').addEventListener('click', layOut);
 
