@@ -90,7 +90,11 @@ Notes follow their part as it moves and as the camera turns. Show two or three a
 
 **A note on a part facing away fades out.** A component says which way a part faces, and the callout goes with it as the model turns: pointing at a stoma from above would put a label on a surface the student is looking at the back of. It happens on its own, so a step may point at anything and trust the model. The chip stays pressed while the note is faded, because the student asked for it — the view below is how they get back to it.
 
-**Some parts also come with a view.** A callout on something facing away from the camera is a label the student cannot check against the thing, so a component may declare a camera pose per part and `c.lookAt('stoma')` flies to it. The show panel does this on its own when a chip turns a note on; a step that places a note itself should call it too. Only the parts that need one have one — a part already in frame does not move the camera — and `c.views()` says which.
+### Going somewhere: lookAt
+
+`c.lookAt('golgi')` flies the camera to a part. **Pointing at a thing and going to it are two different asks**, and the panel keeps them on two rows: a chip that labels *and* flies takes the student away from whatever they were looking at, and after two of them they are lost. Label with `notes`, travel with `zoom`, and let the student decide which they wanted.
+
+The one exception is a part on the far side. A component may declare a fixed pose per part, and `c.views()` says which have one; a note chip on one of those flies on its own, because a callout on a surface the student is seeing the back of is a label they cannot check. Only the parts that need it have one — a part already in frame never moves the camera.
 
 ### Layers: showing and hiding
 
@@ -104,16 +108,16 @@ c.palette();                // [{name, color}] what the colours mean, for a lege
 
 ### The show panel
 
-The chips for point at and show, plus the colour legend, in one call. **Use this instead of writing your own buttons for notes or layers.**
+The chips for point at, zoom to and show, plus the colour legend, in one call. **Use this instead of writing your own buttons for notes or layers.**
 
 ```js
-ctx.ui.showPanel(c, { notes: ['pump'], layers: ['water'] });  // on the step: into the step's controls
-CardStage.showPanel(container, c, { layers: ['water'] });     // into any element
+ctx.ui.showPanel(c, { notes: ['pump'], zoom: ['pump'], layers: ['water'] });  // on the step: into the step's controls
+CardStage.showPanel(container, c, { layers: ['water'] });                    // into any element
 ```
 
 **Name what the step offers, or you get no chips.** There is no default set: `showPanel(c)` with no `notes` and no `layers` draws the legend and nothing else. A step about the pump offers the pump; two or three chips is a step, seven is a menu. A part not on stage never appears.
 
-`only` picks any of `'notes'`, `'layers'`, `'legend'` when a step wants fewer rows than it named. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
+`only` picks any of `'notes'`, `'zoom'`, `'layers'`, `'legend'` when a step wants fewer rows than it named. A `zoom` chip is not a switch: it flies when pressed and comes home when pressed again, and only one is ever lit. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
 
 A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
 
@@ -137,6 +141,8 @@ molecules · macromolecule · membrane · organelle · cell · tissue · organ �
 | Leaf | tissue | bulk |
 | Tree | organism | single |
 | BloodCell | cell | single |
+| AnimalCell | cell | single |
+| PlantCell | cell | single |
 
 Nothing is at the `organelle`, `organ` or `population` rung yet. **A size a page prints must come from `state()`, and most of these components have no scale to print one from.** Where a real size matters, say it as a fact about the real thing ("a red blood cell is about 8 µm across"), never as a measurement of the picture.
 
@@ -412,6 +418,65 @@ Glides: `tonicity`, `spill`, `sickle`, `cut`. Snaps: `seed`, `membrane`, and any
 Anchors for `note()`: `rim`, `dimple`, `cutFace`, `haemoglobin`, `horn` (only when sickled), `spicule` (only in brine). Layers for `show()`: `membrane`, `hb`; hiding the membrane leaves the haemoglobin standing in the shape of the cell.
 
 Good for: the biconcave shape and why it is that shape, osmosis and tonicity on a real cell, lysis and crenation, what a red cell is filled with, and sickle-cell disease. Not for: transport across the membrane, blood as a fluid or a vessel full of cells, or anything with a nucleus — this one has none.
+
+## AnimalCell — an animal cell cut open, with its organelles
+
+**Scale**: cell, single. A diagram's proportions, nothing deposited: `unit` is null, so **no page may print a length off it**. Ribosomes are drawn 30x and mitochondria 2x (`AnimalCell.SCALE.exag`) because at true size neither reads beside a nucleus.
+
+```html
+<script src="../cell/organelles.js"></script>   <!-- first: the shared organelles -->
+<script src="../cell/animalcell.js"></script>
+```
+
+```js
+const C = AnimalCell.mount(el, {
+  motion: 1,        // 0..3 the jiggle and the vesicle runs; 0 stops the cell dead
+  seed: 1234,       // a different seed is a different arrangement (rebuild)
+});
+```
+
+A bowl of cytoplasm cut on a wavy line, with a nucleus, five mitochondria, a Golgi ribbon, rough ER wrapped round the nucleus, a centrosome, vesicles and 1500 ribosomes. Everything jiggles in place and the vesicles run in and out along the line to the centrosome, which is what an animal cell's organelles actually do.
+
+**Reach for this when the step asks WHAT IS IN A CELL, or what an animal cell has that a plant cell does not.** Hover brightens an organelle, a click flies to it, a double-click comes home, so "find the Golgi" is a thing the student does rather than reads. A step about one organelle's own machinery is not this component: a mitochondrion's cristae doing chemiosmosis is Membrane, and it is a different rung, so it is a different box.
+
+Snaps: everything. `motion` is the only live param; geometry rebuilds, and nothing glides across a rebuild.
+
+`state()`: `motion`, `hovered`, `counts` (how many of each are drawn), `shown`. Events: `frame`, `hover`, `pick`.
+
+One list of parts serves `note()`, `lookAt()` and `show()`: `membrane`, `nucleus`, `er`, `golgi`, `mitochondrion`, `centrosome`, `vesicle`, `ribosome`. Every one carries a card, so `showPanel` gives a working panel with no copy of your own. **No part declares a view**, so a `notes` chip labels and never moves the camera; put the two or three worth travelling to in `zoom` instead.
+
+Good for: naming the parts of a cell, animal against plant, where proteins are made and how they leave, what an organelle is. Not for: cell division, anything inside one organelle, or a number in micrometres.
+
+## PlantCell — a plant cell cut open, and what water does to it
+
+**Scale**: cell, single. Same rung and the same rules as AnimalCell: `unit` is null and nothing prints a length. It shares `cell/organelles.js` with it, so a nucleus is the same object in both.
+
+```html
+<script src="../cell/organelles.js"></script>   <!-- first: the shared organelles -->
+<script src="../cell/plantcell.js"></script>
+```
+
+```js
+const C = PlantCell.mount(el, {
+  tissue: 'leaf',   // leaf · root · potato · cactus — what the cell is full of (rebuild)
+  t: 0,             // 0 turgid · 1 flaccid · 2 plasmolysed, and anywhere between
+  stream: 1,        // 0..3 cyclosis: the cytoplasm circling the vacuole
+});
+C.set({ state: 'plasmolysis' });    // the same axis by name
+C.set({ t: 1.4, now: true });       // now:true snaps, for a slider the student is dragging
+```
+
+A hexagonal cell with a cellulose wall, a plasma membrane just inside it, and one vacuole taking most of the room. **The tissue is the argument**: a leaf cell is full of chloroplasts, a root cell has amyloplasts and no chloroplast, a potato cell is mostly starch, a cactus cell has a thick wall and an enormous vacuole. Switching tissue rebuilds the contents and tints the wall and the membrane; the old organelles shrink away as the new ones grow.
+
+**Reach for this whenever water and a plant are in the same step.** `t` is the whole turgor story on one axis: the vacuole empties, the protoplast shrinks off the wall, and threads of membrane stay stuck to it. A step about osmosis in an animal cell is BloodCell instead, and the pair is the lesson: the plant cell has a wall to press against and the red cell does not.
+
+Glides: `t` (pass `now: true` to snap). Snaps: `tissue`, `stream`.
+
+`state()`: `tissue`, `t`, `state` (the nearest named point on the axis), `stream`, `hovered`, `counts`, `shown`. Events: `frame`, `t`, `tissue`, `hover`, `pick`.
+
+One list of parts serves `note()`, `lookAt()` and `show()`: `wall`, `membrane`, `plasmodesma`, `nucleus`, `vacuole`, `chloroplast`, `amyloplast`, `mitochondrion`, `golgi`, `er`, `ribosome`, `vesicle`. No part declares a view, so a `notes` chip never moves the camera; `zoom` is the row for that, and a plasmodesma is too small to see from the home view without it. **What exists depends on the tissue** — an anchor for a part this tissue did not build returns nothing and its chip does not appear, so a step may name `chloroplast` safely and it simply will not show on a root cell.
+
+Good for: the parts of a plant cell, plant against animal, turgor and wilting, plasmolysis, where starch is stored, why a plant needs a wall. Not for: photosynthesis itself (that is Leaf, a rung up, or a pathway lesson), anything inside a chloroplast, or a number in micrometres.
 
 ## The step-through shell
 

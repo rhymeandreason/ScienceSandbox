@@ -1,0 +1,137 @@
+<!doctype html>
+<!-- requests
+1. show what happens to a plant cell when you put it in salt water, and why a plant wilts
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Turgor Pressure and Plasmolysis</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+.state-tag {
+  display: inline-block;
+  text-transform: capitalize;
+  font-weight: 600;
+}
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/annotate.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../cell/organelles.js"></script>
+<script src="../cell/plantcell.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script>
+let cell;
+
+const shell = LessonShell.create({
+  brand: 'Plant Cell Osmosis',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: [
+    {
+      eyebrow: 'Healthy Plant Cell',
+      title: 'Turgor pressure keeps plants upright',
+      body: '<p>In fresh water, water enters the cell by osmosis and fills the central vacuole. The expanding vacuole pushes the plasma membrane firmly against the rigid cellulose wall.</p><p>This internal hydrostatic force is <strong>turgor pressure</strong>. It provides mechanical support for soft plant tissues like leaves and stems.</p>',
+      nextLabel: 'Add Salt Water',
+      onEnter(ctx) {
+        cell.set({ t: 0 });
+        ctx.ui.showPanel(cell, {
+          notes: ['vacuole', 'wall', 'membrane'],
+          zoom: ['vacuole', 'wall']
+        });
+      },
+      onExit() {
+        cell.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Hypertonic Solution',
+      title: 'Salt water draws out water and causes plasmolysis',
+      body: '<p>When placed in salt water, the external solute concentration is higher than inside the cell. <strong>Water leaves the vacuole by osmosis down its concentration gradient.</strong></p><p>Drag the slider to increase external salt and watch the vacuole shrink until the plasma membrane peels completely away from the cell wall.</p>',
+      nextLabel: 'Why Plants Wilt',
+      onEnter(ctx) {
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">External Salinity / Water Loss</span>
+              <span class="value" id="t-val">0%</span>
+            </div>
+            <input type="range" id="t-slider" min="0" max="2" step="0.02" value="${cell.state() ? cell.state().t : 0}">
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-label">Cellular State</span>
+              <span class="stat-value state-tag" id="state-text">Turgid</span>
+            </div>
+          </div>
+        `);
+
+        const updateStateReadout = (st) => {
+          const stateEl = ctx.ui.q('#state-text');
+          const valEl = ctx.ui.q('#t-val');
+          if (!stateEl || !st) return;
+          stateEl.textContent = st.state;
+          if (valEl) valEl.textContent = `${Math.round((st.t / 2) * 100)}%`;
+        };
+
+        const unbind = cell.on('frame', (st) => updateStateReadout(st));
+
+        ctx.ui.range(ctx.ui.q('#t-slider'), (v) => {
+          cell.set({ t: parseFloat(v), now: true });
+        });
+
+        ctx._unbind = unbind;
+      },
+      onExit(ctx) {
+        if (ctx._unbind) ctx._unbind();
+      }
+    },
+    {
+      eyebrow: 'Whole-Organism Impact',
+      title: 'Why a plant wilts without turgor',
+      body: '<p>Non-woody plants lack skeletons; their structural rigidity comes entirely from the collective turgor pressure of billions of swollen cells pressing wall against wall.</p><p>When drought or soil salinity drains cell vacuoles, <strong>the loss of internal turgor pressure causes stems and leaves to collapse</strong>.</p>',
+      nextLabel: 'Restart',
+      onEnter(ctx) {
+        ctx.ui.controls(`
+          <div class="choices" style="margin-bottom: 12px;">
+            <button class="btn secondary choice" id="btn-turgid">Turgid (Freshwater)</button>
+            <button class="btn secondary choice" id="btn-flaccid">Flaccid (Mild Deficit)</button>
+            <button class="btn secondary choice" id="btn-plasmo">Plasmolysed (High Salt)</button>
+          </div>
+        `);
+
+        ctx.ui.q('#btn-turgid').onclick = () => cell.set({ t: 0 });
+        ctx.ui.q('#btn-flaccid').onclick = () => cell.set({ t: 1 });
+        ctx.ui.q('#btn-plasmo').onclick = () => cell.set({ t: 2 });
+
+        ctx.ui.showPanel(cell, {
+          notes: ['vacuole', 'membrane', 'wall'],
+          layers: ['chloroplast', 'vacuole']
+        });
+      },
+      onExit() {
+        cell.notes(false);
+      }
+    }
+  ]
+});
+
+cell = PlantCell.mount(shell.stage, {
+  tissue: 'leaf',
+  t: 0,
+  stream: 1,
+  viewOffset: shell.viewOffset
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>

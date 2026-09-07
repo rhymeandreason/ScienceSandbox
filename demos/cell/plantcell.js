@@ -38,6 +38,26 @@
  *  THE WALL AND THE PROTOPLAST ARE MORPHABLE GRIDS (PanelGeometry), rebuilt
  *  in place every frame `t` changes rather than regenerated. That is what
  *  makes plasmolysis a continuous motion instead of a cut between two meshes.
+ *
+ *  THE COMPONENT CONTRACT (docs/AddingAComponent.md, docs/Components.md):
+ *
+ *      params   tissue leaf|root|potato|cactus (rebuild) · t 0..2, or
+ *               state by name · stream 0..3 · now:true to snap
+ *      state()  tissue · t · state (nearest named point) · stream ·
+ *               hovered · counts · shown
+ *      events   frame · t · tissue · hover · pick
+ *      parts    wall · membrane · plasmodesma · nucleus · vacuole ·
+ *               chloroplast · amyloplast · mitochondrion · golgi · er ·
+ *               ribosome · vesicle. One list serves anchors for note(),
+ *               names for show(), and lookAt()'s targets, and LIBRARY
+ *               carries the label and card for each.
+ *
+ *  WHAT EXISTS DEPENDS ON THE TISSUE, so a part this tissue did not build
+ *  answers null rather than throwing, and its chip does not appear. A step
+ *  may name `chloroplast` and simply not show it on a root cell.
+ *
+ *  ONLY `t` GLIDES. The tissue rebuilds and nothing can glide across a
+ *  rebuild; the old layer shrinks away while the new one grows instead.
  * ========================================================================== */
 (function (global) {
   'use strict';
@@ -637,7 +657,7 @@
     // What a built type is CALLED to the reader, where the two differ.
     const NAME = { amyloplast2: 'amyloplast', dictyosome: 'golgi' };
 
-    let layer = null;
+    let layer = null, parts = null;
     function buildLayer(T) {
       const L = new THREE.Group();
       L.userData.items = [];
@@ -855,6 +875,8 @@
         it.foot = it.r;
       }
       cutFrame.add(layer);
+      // A rebuilt layer arrives visible whatever the page had hidden.
+      if (parts) parts.reapply();
       born = 0;
       if (instant) born = 1e9;
       dirty = true;
@@ -920,10 +942,90 @@
       return new THREE.Box3().setFromObject(org).getBoundingSphere(new THREE.Sphere());
     }
 
+    /* ---- what a page can point at, hide, and read ----
+       LIBRARY is the component's own teaching text: one label and a
+       two-sentence card per part, so a generated page answers "what is that?"
+       with a callout on the organelle. Real sizes go in as PROSE — the render
+       is prop tier and nothing may print a length off it.
+
+       WHAT IS ON STAGE DEPENDS ON THE TISSUE. A root cell has no chloroplast
+       and a leaf cell no amyloplast, so an anchor returns null rather than a
+       point, and layers() lists only what this tissue actually built. */
+    const LIBRARY = {
+      wall:         { text: 'cell wall', offset: [46, -26], card: 'Cellulose laid down outside the membrane, shared with the neighbouring cell along a pectin seam. It is what stops a turgid cell bursting, and what gives a plant its shape without a skeleton.' },
+      membrane:     { text: 'plasma membrane', offset: [44, -24], card: 'The living boundary, just inside the wall: a bilayer whose two leaflets you can see on the cut edge. The wall is a sieve that lets almost anything through; this is the layer that actually chooses.' },
+      plasmodesma:  { text: 'plasmodesma', offset: [48, 24], card: 'A channel through the wall lined with membrane continuous into the next cell, so cytoplasm is shared. Plant cells are wired together in a way animal cells are not.' },
+      nucleus:      { text: 'nucleus', offset: [-46, -28], card: 'The DNA, behind a double envelope pierced by pores, with the nucleolus bright inside it. Pushed to one side here, because the vacuole has taken the middle.' },
+      vacuole:      { text: 'central vacuole', offset: [40, -30], card: 'One huge bag of water and dissolved salts, often most of the cell\u2019s volume. Filling it presses the cytoplasm against the wall, and that pressure is what holds a leaf up.' },
+      chloroplast:  { text: 'chloroplast', offset: [-48, 26], card: 'Stacks of thylakoid membrane in a green soup, where light is turned into sugar. Two membranes and its own DNA, because it was once a free-living cyanobacterium.' },
+      amyloplast:   { text: 'amyloplast', offset: [-48, 26], card: 'The same plastid with starch grains in it instead of thylakoids, which is how a root or a tuber stores the sugar a leaf made. Leave a potato on a windowsill and these turn green.' },
+      mitochondrion:{ text: 'mitochondrion', offset: [44, -22], card: 'Two membranes, the inner folded into cristae, spending sugar to make ATP. A plant cell has them too: photosynthesis does not replace respiration, it feeds it.' },
+      golgi:        { text: 'dictyosome', offset: [-46, 24], card: 'One Golgi stack. A plant cell keeps dozens scattered through the cytoplasm rather than one ribbon by the nucleus, because most of what they package is wall material heading outward.' },
+      er:           { text: 'rough ER', offset: [-48, -22], card: 'Membrane sheets continuous with the nuclear envelope, studded with ribosomes that push their proteins straight into it.' },
+      ribosome:     { text: 'ribosomes', offset: [46, 26], card: 'The dots through the cytoplasm, each reading mRNA and building the protein it codes for. They are also what makes the ER look rough.' },
+      vesicle:      { text: 'vesicles', offset: [46, 22], card: 'Membrane bubbles carrying cargo between the Golgi, the membrane and the vacuole. Much of the traffic in a plant cell is wall material on its way out.' },
+    };
+    const hex = v => '#' + (typeof v === 'number' ? v : parseInt(String(v).replace('#', ''), 16)).toString(16).padStart(6, '0');
+    /* The legend reads the LIVE tissue colours, not leaf's: the wall and the
+       membrane are tinted per tissue, so a fixed legend would name a green
+       the cactus cell does not have. */
+    const palette = () => {
+      const P4 = TIS[tissue];
+      return [['cell wall', P4.wall], ['plasma membrane', P4.membrane], ['cytoplasm', P4.cytosol],
+        ['nucleus', ORG.nucleus.outer], ['vacuole', ORG.vacuole.outer], ['chloroplast', ORG.chloroplast.outer],
+        ['amyloplast', ORG.amyloplast.starch], ['mitochondrion', ORG.mitochondrion.outer], ['Golgi', ORG.golgi.outer]]
+        .map(([name, c]) => ({ name, color: hex(c) }));
+    };
+
+    parts = K.partsOf(organelles, LIBRARY);
+    const anchors = Object.assign({}, parts.anchors);
+    /* Two the generic centroid gets wrong. The wall is a ring, so its centre
+       is the middle of the cell; the ribosomes are one instanced mesh over
+       the whole cytoplasm, same problem. Both are pointed at on the +x side,
+       where there is room for a label. */
+    const _a = new V3();
+    anchors.wall = () => (wallMesh.visible ? cell.localToWorld(_a.set(A * 0.98 * C.ex, topY(A * 0.98 * C.ex, 0) * 0.5, 0)) : null);
+    /* The membrane is a bowl, so its centre is the cytoplasm. Point at its
+       cut rim, a third of the way round from the wall's own anchor: both on
+       the same bearing and a page that points at the two together stacks one
+       label on the other. */
+    anchors.membrane = () => {
+      if (!protoMesh.visible) return null;
+      const th = 1.25, r = protoR(th, 1), x = r * Math.cos(th) * C.ex, z = r * Math.sin(th);
+      return cell.localToWorld(_a.set(x, pTop(x, z), z));
+    };
+    anchors.ribosome = () => (riboMesh.visible ? cutFrame.localToWorld(_a.set(A * 0.30 * C.ex, 0.2, A * 0.42)) : null);
+    /* ONE plasmodesma, not the centroid of 42. The instanced mesh spans the
+       whole ring, so its bounding sphere is the cell; this walks the seeds
+       for the one nearest the front-left bearing that was not skipped for
+       poking through the cut, and returns its midpoint in the wall. */
+    anchors.plasmodesma = () => {
+      if (!pdMesh.visible) return null;
+      let best = null, bestD = Infinity;
+      for (const { th, v } of pdSeeds) {
+        const ri = wallR(th, v, true) - 0.02 * A, ro = wallR(th, v, false) + 0.015 * A;
+        const r = (ri + ro) / 2, x = r * Math.cos(th) * C.ex, z = r * Math.sin(th);
+        const y = lerp(0, topY(x, z), v);
+        if (y > topY(x, z) - 0.03 * A) continue;
+        const d = Math.abs(Math.atan2(Math.sin(th - 1.3), Math.cos(th - 1.3)));
+        if (d < bestD) { bestD = d; best = [x, y, z]; }
+      }
+      return best ? cell.localToWorld(_a.set(best[0], best[1], best[2])) : null;
+    };
+    /* The cut plane faces the reader, so a note fades as it is turned away.
+       One facing for every part: they are all on or under that plane. */
+    const _f = new V3(), _q = new THREE.Quaternion();
+    const faceUp = () => _f.set(0, 1, 0).applyQuaternion(cell.getWorldQuaternion(_q));
+    const facings = {};
+    for (const n of Object.keys(LIBRARY)) facings[n] = faceUp;
+
     setTissue(O.tissue, true);
     setT(O.t);
     return {
       group: cell, cutFrame, organelles, step, pick, hover, bounds, setTissue, setT, setStream,
+      anchors, facings, library: LIBRARY, palette, layers: parts.layers,
+      show: (n, v) => parts.show(n, v), reapplyShown: parts.reapply,
+      counts: () => Object.fromEntries(parts.order().map(n => [n, parts.of(n).length])),
       get stream() { return stream; },
       get t() { return St.t; }, get tissue() { return tissue; }, get hovered() { return hovered; },
     };
@@ -946,14 +1048,21 @@
        reader cannot tell which of the two they are watching, and a slow
        drift they did not ask for makes a still organelle look like it is
        moving. The camera moves when the reader moves it, or on a flight. */
-    let sim = null;
+    let sim = null, nb = null, lastHover = null;
     const listeners = {};
     const emit = (name, v) => { (listeners[name] || []).forEach(f => f(v)); };
     const box = global.CardStage.create({
       mount: el,
       cam: orbitOf(home.pos, home.target),
       stage: Object.assign({ phiMin: 0.15, phiMax: 1.5, rMin: 8, rMax: 90 }, params.stage || {}),
-      step: dt => { if (!sim) return; flyStep(dt); tweenStep(dt); sim.step(dt); sim.hover(ndc); },
+      step: dt => {
+        if (!sim) return;
+        flyStep(dt); tweenStep(dt); sim.step(dt); sim.hover(ndc);
+        const h = sim.hovered && sim.hovered.userData.organelle || null;
+        if (h !== lastHover) { lastHover = h; emit('hover', h); }
+        emit('frame', stateOf(), dt);
+      },
+      afterFrame: () => { if (nb) nb.step(); },
       viewOffset: params.viewOffset,
     });
     box.cam.target.fromArray(home.target);
@@ -1022,10 +1131,20 @@
       if (fly.t >= 1) fly.active = false;
     }
     const goHome = () => flyTo(home.pos, home.target);
-    function focusOn(org) {
-      const s = sim.bounds(org), dist = Math.max(s.radius * 2.6, 5);
-      const dir = box.camera.position.clone().sub(s.center).normalize();
-      flyTo(s.center.clone().addScaledVector(dir, dist).toArray(), s.center.toArray());
+    /* HOW CLOSE, for the parts whose mesh is not one object. A bounding
+       sphere is the right size for a nucleus and useless for the wall, the
+       membrane, the plasmodesmata or the ribosome sheet: each wraps the
+       whole cell, so 2.6 radii away is further out than home. These say how
+       big ONE of the thing is, and the anchor says where to look. */
+    const ZOOM_R = { wall: 2.4, membrane: 2.0, plasmodesma: 1.8, ribosome: 1.2 };
+    function focusOn(org, name) {
+      const n = name || (org && org.userData.organelle);
+      const at = ZOOM_R[n] && sim.anchors[n] && sim.anchors[n]();
+      const centre = at ? at.clone() : sim.bounds(org).center;
+      const radius = ZOOM_R[n] || sim.bounds(org).radius;
+      const dist = Math.max(radius * 2.6, 5);
+      const dir = box.camera.position.clone().sub(centre).normalize();
+      flyTo(centre.clone().addScaledVector(dir, dist).toArray(), centre.toArray());
     }
 
     /* the state axis, glided: set({t}) animates, set({t, now:true}) jumps */
@@ -1051,7 +1170,7 @@
     canvas.addEventListener('pointerup', e => {
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
       const hit = sim.pick(toNdc(e));
-      if (hit) { focusOn(hit); emit('pick', hit.userData.organelle); }
+      if (hit) { focusOn(hit, hit.userData.organelle); emit('pick', hit.userData.organelle); }
     });
     canvas.addEventListener('dblclick', goHome);
 
@@ -1060,7 +1179,18 @@
 
     /* The component contract: set / state / on / destroy. `state` is a
        plain object a page can read every frame without allocating opinions
-       about the model. */
+       about the model. Declared as a function so `step` can call it on the
+       pump that happens before `api` exists.
+
+       `state` names the nearest of the three named points on the t axis, so
+       a page can print a word without deciding where flaccid ends. */
+    function stateOf() {
+      let name = null, best = Infinity;
+      for (const k in STATES) { const d = Math.abs(STATES[k] - sim.t); if (d < best) { best = d; name = k; } }
+      return { tissue: sim.tissue, t: sim.t, state: name, stream: sim.stream,
+        hovered: sim.hovered && sim.hovered.userData.organelle || null,
+        counts: sim.counts(), shown: sim.layers() };
+    }
     function set(p = {}) {
       if (p.tissue !== undefined && p.tissue !== sim.tissue) { sim.setTissue(p.tissue, !!p.now); emit('tissue', sim.tissue); }
       if (p.stream !== undefined) sim.setStream(p.stream);
@@ -1071,10 +1201,20 @@
       }
       return api;
     }
+    nb = global.Notebook ? global.Notebook.create({ box, anchors: sim.anchors, facings: sim.facings, library: sim.library }) : null;
+
     const api = {
       sim, box, set, flyTo, home: goHome, focusOn,
-      state: () => ({ tissue: sim.tissue, t: sim.t, stream: sim.stream, hovered: sim.hovered && sim.hovered.userData.organelle || null }),
-      on: (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); return api; },
+      /* No fixed pose per part: an organelle is a small thing somewhere on a
+         cut plane, so "where is it?" is the same flight a click on it makes.
+         A part this tissue did not build does not move the camera. */
+      lookAt(name) { const o = sim.organelles.find(x => x.userData.organelle === name && x.parent); if (o) focusOn(o, name); return api; },
+      note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
+      anchors: () => (nb ? nb.list() : []),
+      layers: () => sim.layers(), palette: () => sim.palette(),
+      show(n, on) { sim.show(n, on); if (!box.running) box.draw(); return api; },
+      state: stateOf,
+      on: (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); return () => { listeners[name] = (listeners[name] || []).filter(f => f !== fn); }; },
       start: box.start, stop: box.stop, pump: box.pump, destroy: box.destroy,
     };
     return api;

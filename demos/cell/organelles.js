@@ -830,7 +830,39 @@
       return g;
     }
 
-    return { rand, rr, noise, col, mat, shellOf, bilayerOf, dirUW, ORG,
+    /* ---- parts: anchors, layers and a palette off the registered list ----
+       Both cells register every organelle they build under a reader's name,
+       and both owe a component's four part-facing things off that one list.
+       Live, not cached: the plant cell throws its whole layer away on a
+       tissue switch, so a baked anchor would point at a retired organelle.
+       `parent` is the test for whether one is still on stage.
+
+       A name with several instances anchors on the FIRST. A callout saying
+       "mitochondrion" wants one mitochondrion, not the centroid of five,
+       which lands in the cytosol between them. */
+    function partsOf(organelles, library = {}) {
+      const _b = new THREE.Box3(), _s = new THREE.Sphere();
+      const hidden = {};
+      const order = () => {
+        const seen = [];
+        for (const g of organelles) { const n = g.userData.organelle; if (g.parent && !seen.includes(n)) seen.push(n); }
+        return seen;
+      };
+      const of = n => organelles.filter(g => g.userData.organelle === n && g.parent);
+      const first = n => of(n)[0] || null;
+      const centre = g => { g.updateWorldMatrix(true, true); return _b.setFromObject(g).getBoundingSphere(_s).center; };
+      const anchors = {};
+      for (const n of Object.keys(library)) {
+        anchors[n] = () => { const g = first(n); return g && g.visible ? centre(g) : null; };
+      }
+      const show = (n, on) => { hidden[n] = !on; for (const g of of(n)) g.visible = !!on; };
+      // After a rebuild the new objects are visible whatever was hidden before.
+      const reapply = () => { for (const n in hidden) if (hidden[n]) show(n, false); };
+      const layers = () => order().map(n => ({ name: n, label: (library[n] && library[n].text) || n, on: !hidden[n] }));
+      return { order, of, first, centre, anchors, show, reapply, layers, hidden };
+    }
+
+    return { rand, rr, noise, col, mat, shellOf, bilayerOf, dirUW, partsOf, ORG,
              nucleus, mitochondrion, golgi, roughER, chloroplast, amyloplast, vacuole };
   }
 

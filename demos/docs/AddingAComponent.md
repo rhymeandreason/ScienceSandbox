@@ -39,7 +39,7 @@ Events: `frame` always. Add named events for things a page wants to react to (`c
 
 **A facing for a part on the far side.** Beside `anchors`, return `facings`: name → function giving the WORLD direction that part faces. `lib/annotate.js` fades a note out as its part turns away, so a callout is never left on a surface the student is looking at the back of. A function, not a baked vector, for the reason anchors are functions — the model turns, and the normal turns with it. Only the parts that can face away need one. Leaf declares two, both `(0,-1,0)` through the block's world quaternion; every other anchor is on the cut face the default camera is aimed at.
 
-**A view for a part that faces away.** If an anchor names something the default camera cannot see, declare a pose for it (`{theta, phi, r}`) and expose `lookAt(name)` on the mount, which is `box.flyTo(pose)`. `CardStage.showPanel` calls it when a chip turns that note on, so "where is it?" is answered by turning the model rather than by a label on the far side of it. Declare a view ONLY for the parts that need one: a component that flies on every chip is seasick, and a part already in frame should not move the camera. `box.flyTo` interpolates theta/phi/r rather than the camera's position — a straight line between two poses passes through the middle of the model — and takes theta the short way round.
+**A view for a part that faces away.** If an anchor names something the default camera cannot see, declare a pose for it (`{theta, phi, r}`), expose it on `views()`, and expose `lookAt(name)` on the mount, which is `box.flyTo(pose)`. **Pointing at a part and travelling to it are separate**: the panel's `notes` row labels and the `zoom` row flies, and a note chip moves the camera only for a part `views()` names. A component with no far side declares no views and still exposes `lookAt`, which a step or the `zoom` row calls when travel is what was asked for. Declare a view ONLY for the parts that need one: a component that flies on every chip is seasick, and a part already in frame should not move the camera. `box.flyTo` interpolates theta/phi/r rather than the camera's position — a straight line between two poses passes through the middle of the model — and takes theta the short way round.
 
 **Layers and a palette.** `layers()` lists what can be shown or hidden as `{name, label, on}`, `show(name, on)` does it by visibility (the sim keeps running: a hidden water still crosses), and `palette()` says what the colours mean. `CardStage.showPanel` turns all three into chips, so a component that declares them gets its "point at / show / colours" UI without a page writing a button. List the layer names in the Components.md section too.
 
@@ -51,7 +51,7 @@ Events: `frame` always. Add named events for things a page wants to react to (`c
 * **Shadows are opt-in, and mostly the answer is no.** No featured lesson casts one. A directional light's shadow has no darkness to turn down, so lightening one costs a fill that flattens everything else to pay for it; between parts packed closely it lands as soot. Form comes from normals and colour. Set `castShadow`/`receiveShadow` at build anyway, so a page that does want a map gets every mesh right — but leave `renderer.shadowMap.enabled` alone. Tree is the exception that proves it: its sun IS the subject, it swings through a day, and it dims Stage's lights *because* it replaces them.
 * **Tone mapping off.** These colours are authored, not captured, so there is no dynamic range to compress and ACES only rolls the saturation off. r128 light intensities are not physical units either, so a prototype's numbers do not transfer: tune by eye, against the render, and say so in a comment. A hex that looks right in the file renders paler and greyer than it reads there.
 * **Colours.** Atom and bond colours come from `palette.js`, never typed (CLAUDE.md). A render's own palette (a cytoplasm, a chloroplast) is the component's, declared once at the top of the file.
-* **Materials are per instance of what can be dimmed or highlighted separately.** Leaf's two epidermis layers once shared a material, so isolating one dimmed the other.
+* **Materials are per instance of what can be dimmed or highlighted separately.** 
 
 ## 3. Scale and science
 
@@ -68,7 +68,7 @@ X.SCALE = {
 };
 ```
 
-* **One scale family per scene, and rung is now what says so.** Components at the same rung may share a scene; components at different rungs may not. Two things are "in the same scene" if they are rendered with the same camera, so a page can host *multiple* scenes (via kit/card-stage.js, one canvas per card or an inset module) with no conflict. tests/cards-cluster.html is the cited example: an ångström phospholipid in one card, display-scale water in another, on the same page, fine, because they never share a camera. Crossing a rung inside one camera is the failure; that is a handoff, never a camera move.
+* **One scale family per scene, and rung is now what says so.** Components at the same rung may share a scene; components at different rungs may not. Two things are "in the same scene" if they are rendered with the same camera, so a page can host *multiple* scenes (via kit/card-stage.js, one canvas per card or an inset module) with no conflict. tests/cards-cluster.html is the cited example: an ångström phospholipid in one card, display-scale water in another, on the same page, fine, because they never share a camera. 
 * **`form` is how many, and bulk plus single at one rung is the normal scene.** A solute inside bulk water, a chloroplast inside bulk mesophyll. Reach for that before reaching for a second box.
 * **Say what is measured and what is drawn, in `unit`.** A render of a plant cell is a textbook diagram, prop tier: proportions plausible, nothing deposited, so `unit: null`. That is a claim rather than a gap, and the checker enforces it: nothing may print a length off a component with no unit. Where a number is real (a bilayer's thickness from OPM, a tree's allometry) keep it beside its citation, and if the whole render is measurable give `unit` its metres per scene unit. **How big the real thing IS survives the render not being to scale**, so a real size still belongs on the library card as prose: "a red blood cell is about 8 µm across" is a fact about cells, not a measurement of the picture.
 * **Invariants live in the component, not in the prompt.** A student remixing parameters must not be able to make the science false: clamp ranges, refuse impossible counts, keep the same particle budget per side if that is what the claim rests on. Membrane's contents reconcile and its budgets refuse; the reference only describes the rule.
@@ -87,30 +87,19 @@ Measure the fixed cost too, with nothing on stage. Membrane's was 3 ms a frame f
 ## 5. Files, in this order
 
 1. `<name>/<name>.js`, header first. The header is the contract: what it is, what one unit is, every param with its range and default, what `state()` holds, the events, what is exaggerated, what it refuses to own, and the `SCALE` block beside the export. Comments are present tense and explain the non-obvious (CLAUDE.md).
+
 2. `<name>/<name>-test.html`, the bench: every control a `set`, every readout from `state`, **on the lesson shell** (`css/kodo.css` + `css/lesson-shell.css` + `kit/lesson-shell.js`), which is the chrome a student will actually meet the component in, so the bench and the generated app cannot flatter it differently. One step, and `.lshell-nav` / `.lshell-progress` hidden: a bench is one screen, not a sequence. Copy `leaf/leaf-test.html`. Drive it with `pump` from the console; a backgrounded tab never runs the loop.
+
 3. A checker if the component makes a checkable claim, `<name>/check-<name>.js`, Node-loadable and dependency-free, and its gate line in `.githooks/pre-commit` once the component is past test status.
+
 4. `docs/Components.md`: a section in the shape of the others. Load order, a **`**Scale**: <rung>, <form>`** line, the `mount` call with every param commented, what it models in two sentences, the `state()` table, events, then **Good for / Not for**. Add the component to `COMPONENTS` in `tools/check-scale.js` and to the ladder table, or the checker fails on a section it does not know. The model reads nothing else, so if the section does not say it, the model does not know it. Keep it tight; the whole file is the cached prompt and every section costs every request.
 
-   **The section is not documentation. It is the model's decision procedure**,
-   and the two want opposite things. The API half can be terse: one `mount`
-   call with commented params is enough, and prose restating what a param does
-   is never consulted. Spend the sentences on WHEN TO REACH FOR IT, which is
-   the one thing that cannot be inferred from an example — and name the thing
-   the model would otherwise do instead, because it already has an answer and
-   you are beating it, not describing yourself. "A step that asks how something
-   CHANGES gets a trace; a step that asks what something IS gets a `.stat`" is
-   what made the model draw a graph. "Good for showing change over time" did
-   not. Say where it mounts if that is not `shell.stage`; the reference says
-   the stage is the only layout, so a component that belongs in the panel has
-   nowhere to go until the section says so.
+   **The section is not documentation. It is the model's decision procedure**, and the two want opposite things. The API half can be terse: one `mount` call with commented params is enough, and prose restating what a param does is never consulted. Spend the sentences on WHEN TO REACH FOR IT, which is the one thing that cannot be inferred from an example — and name the thing the model would otherwise do instead, because it already has an answer and you are beating it, not describing yourself. "A step that asks how something CHANGES gets a trace; a step that asks what something IS gets a `.stat`" is what made the model draw a graph. "Good for showing change over time" did not. Say where it mounts if that is not `shell.stage`; the reference says the stage is the only layout, so a component that belongs in the panel has nowhere to go until the section says so.
 
-   **If the section names anything outside `demos/` — a CDN script, a new path
-   — check `api/_builder.js` accepts it.** `validate()` refuses scripts from
-   outside the library while the deps check demands the ones a section
-   declares, and when those two disagree every page mounting the component is
-   unpassable. It fails silently: the draft is rejected and retried without the
-   component, which reads exactly like a model that ignored the section.
+   **If the section names anything outside `demos/` — a CDN script, a new path — check `api/_builder.js` accepts it.** `validate()` refuses scripts from outside the library while the deps check demands the ones a section declares, and when those two disagree every page mounting the component is unpassable. It fails silently: the draft is rejected and retried without the component, which reads exactly like a model that ignored the section.
+
 5. `docs/Modules.md`: one bullet under the water/membrane/leaf/tree ones. `admin.html`: one card for the bench. `node tools/check-docs.js` and `node tools/check-scale.js` pass.
+
 6. Run `node tools/gen-app.js "<a request a teacher would type that needs your component>" tests/gen-<name>-test.html`, open the page, drive it, and fix the component or the reference until it works first try. **Twice, and read the `retried` flag in the printed JSON**: `retried:true` means the draft failed `validate()` and the second try dropped whatever caused it, so a page missing your component is a block, not a preference. Add the page to `admin.html` under Generated apps with the `UGC` badge. That page is the eval; keep it.
 
 ## 6. What the last four taught

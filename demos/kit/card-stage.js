@@ -381,7 +381,7 @@
      hide (its layers), and a legend from its palette. One call on the
      component's handle, so a generated page gets the whole "show me" UI
      without writing a button. Styled here, not in a stylesheet, so there is
-     no second file to forget. `only` limits which of the three appear.
+     no second file to forget. `only` limits which of the four appear.
      THE STEP CHOOSES, OR THERE ARE NO CHIPS: a component has a dozen anchors
      and a page that lists them all is a menu, not a lesson. A row appears
      only for what the step names (`notes: [...]`, `layers: [...]`); there is
@@ -405,7 +405,7 @@
 .show-panel .show-legend i { width:10px; height:10px; border-radius:50%; display:inline-block; }`;
       document.head.appendChild(st);
     }
-    const want = opts.only || ['notes', 'layers', 'legend'];
+    const want = opts.only || ['notes', 'zoom', 'layers', 'legend'];
     const el = document.createElement('div');
     el.className = 'show-panel';
     const group = (hd, items, isOn, toggle) => {
@@ -426,15 +426,31 @@
     };
     if (want.includes('notes') && c.anchors) {
       const open = new Set();
-      /* Turning a note on also flies to it, when the component declares a view
-         for that part: a callout on something facing away from the camera is a
-         label the student cannot check against the thing. Components list only
-         the parts that need it, so most chips still move nothing. */
+      /* POINTING AT A THING IS NOT GOING TO IT. A chip that labels and flies
+         at once takes the camera away from whatever the student was looking
+         at, and after two of them they have no idea where they are; `zoom`
+         below is the chip for going somewhere. The one exception is a part
+         with a declared VIEW — a stoma on the underside — where the label
+         would otherwise sit on a surface the student sees the back of, and
+         a component declares those for the few parts that need it. */
       const toggle = (it, on) => {
-        if (on) { open.add(it.name); c.note(it.name); if (c.lookAt) c.lookAt(it.name); }
-        else { open.delete(it.name); c.notes([...open]); }
+        if (on) {
+          open.add(it.name); c.note(it.name);
+          if (c.lookAt && c.views && c.views()[it.name]) c.lookAt(it.name);
+        } else { open.delete(it.name); c.notes([...open]); }
       };
       group(opts.notesLabel || 'point at', pick(c.anchors(), opts.notes), () => false, toggle);
+    }
+    /* Going somewhere, on its own row. Not a toggle: a flight is a thing that
+       happens, so the pressed chip only says where the camera went last, and
+       pressing it again comes back. */
+    if (want.includes('zoom') && c.lookAt && c.anchors) {
+      let at = null;
+      const row = group(opts.zoomLabel || 'zoom to', pick(c.anchors(), opts.zoom), it => it.name === at, (it, on) => {
+        if (on) { at = it.name; c.lookAt(it.name); }
+        else { at = null; if (c.home) c.home(); }
+        if (row) for (const b of row.children) if (b.textContent !== (it.label || it.text || it.name)) b.setAttribute('aria-pressed', 'false');
+      });
     }
     if (want.includes('layers') && c.layers) {
       const toggle = (it, on) => c.show(it.name, on);

@@ -1,0 +1,115 @@
+<!doctype html>
+<!-- requests
+1. a page that teaches the parts of an animal cell, where students click each organelle to learn what it does
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anatomy of an Animal Cell</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+  .organelle-stat {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/annotate.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../cell/organelles.js"></script>
+<script src="../cell/animalcell.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script>
+let C;
+
+const shell = LessonShell.create({
+  brand: 'Bio 101 · Cellular Structure',
+  hint: 'Click any organelle to inspect · Drag to orbit · Scroll to zoom',
+  steps: [
+    {
+      eyebrow: 'Overview',
+      title: 'The Compartmentalized Cell',
+      body: '<p><strong>An animal cell is a crowded, highly organized fluid system bounded by a plasma membrane.</strong> Internal membranes partition the cytoplasm into specialized membrane-bound organelles with dedicated biochemical tasks.</p><p>Click on any organelle on stage to fly to it, or double-click the background to zoom out.</p>',
+      nextLabel: 'Protein Synthesis',
+      onEnter(ctx) {
+        C.notes(false);
+        ctx.ui.showPanel(C, {
+          notes: ['membrane', 'nucleus'],
+          zoom: ['membrane', 'nucleus']
+        });
+      }
+    },
+    {
+      eyebrow: 'Information & Synthesis',
+      title: 'Nucleus, ER, and Ribosomes',
+      body: '<p><strong>Genetic instructions in the nucleus direct polypeptide assembly at the ribosomes and endoplasmic reticulum.</strong></p><p>Ribosomes studding the rough ER synthesize proteins destined for membranes or secretion, while the smooth ER synthesizes lipids and handles detoxification.</p>',
+      nextLabel: 'Processing & Shipping',
+      onEnter(ctx) {
+        C.notes(false);
+        ctx.ui.showPanel(C, {
+          notes: ['nucleus', 'er', 'ribosome'],
+          zoom: ['nucleus', 'er', 'ribosome']
+        });
+      }
+    },
+    {
+      eyebrow: 'Traffic & Transport',
+      title: 'Golgi Apparatus and Vesicles',
+      body: '<p><strong>The Golgi apparatus modifies, sorts, and packages proteins received from the ER.</strong></p><p>Transport vesicles shuttle along cytoskeletal tracks organized by the centrosome, moving cargo toward the cell membrane or cellular destinations.</p>',
+      nextLabel: 'Cellular Energy',
+      onEnter(ctx) {
+        C.notes(false);
+        ctx.ui.showPanel(C, {
+          notes: ['golgi', 'vesicle', 'centrosome'],
+          zoom: ['golgi', 'vesicle', 'centrosome']
+        });
+      }
+    },
+    {
+      eyebrow: 'Power Generation',
+      title: 'Mitochondria',
+      body: '<p><strong>Mitochondria generate the cell’s ATP supply through oxidative phosphorylation.</strong></p><p>Enclosed by a double membrane, their folded inner cristae house electron transport chains that convert chemical energy from fuel molecules into cellular work.</p>',
+      nextLabel: 'Organelle Explorer',
+      onEnter(ctx) {
+        C.notes(false);
+        ctx.ui.showPanel(C, {
+          notes: ['mitochondrion'],
+          zoom: ['mitochondrion']
+        });
+      }
+    },
+    {
+      eyebrow: 'Interactive Anatomy',
+      title: 'Explore Cell Organelles',
+      body: '<p><strong>Every organelle coordinates with the network to keep the cell alive.</strong></p><p>Use the panel below or click directly on parts in the 3D cutaway to review their functions.</p>',
+      onEnter(ctx) {
+        C.notes(false);
+        ctx.ui.showPanel(C, {
+          notes: ['nucleus', 'er', 'ribosome', 'golgi', 'mitochondrion', 'vesicle', 'centrosome', 'membrane'],
+          zoom: ['nucleus', 'er', 'ribosome', 'golgi', 'mitochondrion', 'vesicle', 'centrosome']
+        });
+      }
+    }
+  ]
+});
+
+C = AnimalCell.mount(shell.stage, {
+  motion: 1,
+  seed: 1234,
+  viewOffset: shell.viewOffset
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>

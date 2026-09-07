@@ -2,74 +2,151 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>plantcell-test — a plant cell cut open, as one box</title>
-<!-- TEST BENCH. Not a lesson, not linked from the index. cell/plantcell.js
-     through PlantCell.mount, full window. Four tissues, and one state axis
-     from turgid to plasmolysed that the slider can stop between. Hover an
-     organelle, click it, double-click to come home. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plant cell bench — the component, on the shell a student meets it in</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #f5f2ef; }
-  #stage { position: absolute; inset: 0; }
-  #ui { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
-        display: flex; flex-direction: column; gap: 8px; align-items: center; user-select: none;
-        font: 13px/1.4 -apple-system, system-ui, sans-serif; }
-  .row { display: flex; gap: 6px; background: rgba(255,255,255,.72); backdrop-filter: blur(8px);
-         padding: 6px; border-radius: 999px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
-  .row button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px;
-                font: inherit; color: #456; cursor: pointer; }
-  .row button.on { background: var(--organelle-chloroplast-outer, #4f8a33); color: #fff; }
-  #t { width: 260px; accent-color: var(--organelle-chloroplast-outer, #4f8a33); opacity: .8; }
+  .bench-group { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .bench-group:first-child { padding-top: 0; border-top: 0; }
+  .bench-hd { font-family: var(--display); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .lshell-panel .show-panel .show-chip { font-family: var(--display); font-weight: 500; }
+  /* A bench is one screen, not a sequence. */
+  .lshell-nav, .lshell-progress { display: none; }
+  .lshell-scroll { padding-bottom: 32px; }
 </style>
 </head>
 <body>
-<div id="stage"></div>
-<div id="ui">
-  <div class="row" id="tissues"></div>
-  <div class="row" id="states"></div>
-  <input id="t" type="range" min="0" max="2" step="0.001" value="0">
-</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/scene.js"></script>
+<script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
 <script src="../cell/organelles.js"></script>
 <script src="../cell/plantcell.js"></script>
 <script>
-const C = PlantCell.mount(document.getElementById('stage'));
+/* The bench for cell/plantcell.js: every control a set(), every readout a
+   state(), on the lesson shell so the component is judged in the chrome a
+   student meets it in. Drive it from the console as `cell`.
 
-// The buttons are built from the module's own tables, so the bench cannot
-// offer a tissue or a state the model does not have.
-const slider = document.getElementById('t');
-const mkRow = (el, names, onPick) => names.map(n => {
-  const b = document.createElement('button');
-  b.textContent = n[0].toUpperCase() + n.slice(1);
-  b.onclick = () => onPick(n);
-  el.appendChild(b);
-  return { n, b };
-});
-const tissueBtns = mkRow(document.getElementById('tissues'), Object.keys(PlantCell.TISSUES), n => C.set({ tissue: n }));
-const stateBtns = mkRow(document.getElementById('states'), Object.keys(PlantCell.STATES), n => C.set({ state: n }));
+   The tissue and state buttons are built from the module's own tables, so
+   the bench cannot offer one the model does not have. */
 
-function sync() {
-  const s = C.state();
-  tissueBtns.forEach(x => x.b.classList.toggle('on', x.n === s.tissue));
-  stateBtns.forEach(x => x.b.classList.toggle('on', Math.abs(PlantCell.STATES[x.n] - s.t) < 0.02));
-  slider.value = s.t;
-}
-C.on('t', sync).on('tissue', sync);
-slider.oninput = () => C.set({ t: parseFloat(slider.value), now: true });
-addEventListener('keydown', e => {
-  const k = e.key.toLowerCase();
-  const tis = Object.keys(PlantCell.TISSUES)[parseInt(k, 10) - 1];
-  if (tis) C.set({ tissue: tis });
-  const st = { t: 'turgid', f: 'flaccid', p: 'plasmolysis' }[k];
-  if (st) C.set({ state: st });
+const CHIPS = { notes: ['vacuole', 'wall', 'chloroplast'], zoom: ['plasmodesma', 'membrane'], layers: ['chloroplast', 'ribosome'] };
+
+const shell = LessonShell.create({
+  brand: 'Plant cell · component bench',
+  hint: 'Drag to orbit · Click an organelle to fly to it · Double-click for home',
+  steps: [{
+    eyebrow: 'cell/plantcell.js',
+    title: 'A plant cell, cut open',
+    body: '<p>A wall, a membrane inside it, and one vacuole taking most of the room. Four tissues, and a water axis from turgid to plasmolysed the slider can stop between. Diagram proportions, not a measured section.</p>',
+    onEnter: bench,
+  }],
 });
-sync();
+
+const C = PlantCell.mount(shell.stage, { viewOffset: shell.viewOffset });
 window.cell = C;
+let allNotes = false, layerChips = null;
+
+function bench(ctx) {
+  const ui = ctx.ui;
+  ui.controls(`
+    <div class="bench-group">
+      <div class="bench-hd">tissue</div>
+      <div class="segmented" id="tissues"></div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">water</div>
+      <div class="segmented" id="states"></div>
+      <div class="slider"><div class="slider-head"><span class="label">turgid → plasmolysed</span><span class="value" data-v="t"></span></div>
+        <input type="range" id="t" min="0" max="2" step="0.001" value="0"></div>
+      <div class="slider"><div class="slider-head"><span class="label">cyclosis</span><span class="value" data-v="stream"></span></div>
+        <input type="range" id="stream" min="0" max="3" step="0.05" value="1"></div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">what is on stage</div>
+      <div class="chips" id="layers"></div>
+      <p class="foot">Rebuilt per tissue: a root cell has no chloroplast, a leaf cell no amyloplast.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">what the module says</div>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">state</span><span class="stat-value" id="rd-state" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">t</span><span class="stat-value" id="rd-t">—</span></div>
+        <div class="stat"><span class="stat-label">hovered</span><span class="stat-value" id="rd-hover" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">organelles drawn</span><span class="stat-value" id="rd-n">—</span></div>
+      </div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">the chips a step would offer</div>
+      <div id="bench-chips"></div>
+      <button class="btn ghost" type="button" id="all-notes" aria-pressed="false">Show every annotation</button>
+      <p class="foot">A step names two or three. The button is the bench's own, for seeing everything the component can label.</p>
+    </div>`);
+
+  const button = (parent, cls, label, fn) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = cls; b.textContent = label;
+    b.onclick = () => fn(b);
+    parent.appendChild(b);
+    return b;
+  };
+
+  /* Tissue and water are each ONE question with n answers, so both are
+     .segmented. What is on stage is a row of independent toggles, so that
+     one stays .chip. */
+  const tis = ui.q('#tissues');
+  for (const name of Object.keys(PlantCell.TISSUES)) button(tis, '', name, () => C.set({ tissue: name }));
+  const sts = ui.q('#states');
+  for (const name of Object.keys(PlantCell.STATES)) button(sts, '', name, () => C.set({ state: name }));
+
+  ui.range(ui.q('#t'), v => C.set({ t: v, now: true }));
+  ui.range(ui.q('#stream'), v => { C.set({ stream: v }); ui.q('[data-v=stream]').textContent = v.toFixed(2); });
+
+  /* Rebuilt on every tissue change, because the tissue decides what exists. */
+  function drawLayers() {
+    const box = ui.q('#layers');
+    box.textContent = '';
+    for (const l of C.layers()) {
+      const b = button(box, 'chip', l.label, () => { const on = !b.classList.contains('is-on'); C.show(l.name, on); b.classList.toggle('is-on', on); });
+      b.classList.toggle('is-on', l.on);
+    }
+  }
+  drawLayers();
+  C.on('tissue', drawLayers);
+
+  CardStage.showPanel(ui.q('#bench-chips'), C, CHIPS);
+
+  const all = ui.q('#all-notes');
+  all.onclick = () => {
+    allNotes = !allNotes;
+    all.setAttribute('aria-pressed', String(allNotes));
+    all.textContent = allNotes ? 'Hide annotations' : 'Show every annotation';
+    C.notes(allNotes ? C.anchors().map(a => a.name) : false);
+  };
+
+  C.on('frame', s => {
+    ui.q('#t').value = s.t;
+    ui.q('[data-v=t]').textContent = s.t.toFixed(2);
+    ui.q('#rd-state').textContent = s.state;
+    ui.q('#rd-t').textContent = s.t.toFixed(2);
+    ui.q('#rd-hover').textContent = s.hovered || '—';
+    ui.q('#rd-n').textContent = Object.values(s.counts).reduce((a, b) => a + b, 0);
+    for (const b of ui.qa('#tissues button')) b.classList.toggle('is-on', b.textContent === s.tissue);
+    for (const b of ui.qa('#states button')) b.classList.toggle('is-on', b.textContent === s.state);
+  });
+  ui.q('[data-v=stream]').textContent = '1.00';
+}
+
+shell.goTo(0);
 </script>
 </body>
 </html>

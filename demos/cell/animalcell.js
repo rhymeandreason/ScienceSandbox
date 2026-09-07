@@ -24,6 +24,22 @@
  *  it; double-click flies home). flyTo/home are in Stage's
  *  own theta/phi/r. The camera never moves on its own — see mount.
  *
+ *  THE COMPONENT CONTRACT (docs/AddingAComponent.md, docs/Components.md):
+ *
+ *      params   motion 0..3 (default 1, live) · seed, tilt (rebuild only)
+ *      state()  motion · hovered · counts (per organelle) · shown
+ *      events   frame · hover · pick
+ *      parts    membrane · nucleus · er · golgi · mitochondrion ·
+ *               centrosome · vesicle · ribosome. One list serves three
+ *               jobs: anchors for note(), names for show(), and the
+ *               targets lookAt() flies to. LIBRARY carries a label and a
+ *               two-sentence card for each, which is the teaching text —
+ *               a generated page has none of its own.
+ *
+ *  NOTHING GLIDES. Every other parameter is geometry, and geometry
+ *  rebuilds; `motion` scales time in step, so a page can stop the cell
+ *  dead without it springing back to the seed layout.
+ *
  *  PROP TIER, AND NOT A SCALE. Nothing here is measured and the scene unit
  *  is not a micrometre: organelle sizes are a diagram's, chosen so every
  *  one reads from the home view. A page must not put a number beside it.
@@ -40,7 +56,7 @@
 
   /* ---- the model ----------------------------------------------------- */
 
-  const DEFAULTS = { seed: 1234, tilt: 0.32 };
+  const DEFAULTS = { seed: 1234, tilt: 0.32, motion: 1 };
 
   function create(THREE, root, camera, opts = {}) {
     const P = Object.assign({}, DEFAULTS, opts);
@@ -67,6 +83,7 @@
       + 0.05 * noise.noise3(d.x * 0.6 + 9, d.y * 0.6, d.z * 0.6));
     const innerR = d => cellRadius(d) - TH;
     const cellS = (u, w) => { const d = dirUW(u, w); const p = d.clone().multiplyScalar(cellRadius(d)); p.y *= YS; return p; };
+    let membraneMesh = null, riboMesh = null, riboSample = null;
     const cellCut = u => PI * 0.56 + 0.06 * Math.sin(2 * u + 1) + 0.035 * Math.sin(5 * u + 2.3)
       + 0.05 * noise.noise3(Math.cos(u) * 1.5, Math.sin(u) * 1.5, 2);
     {
@@ -79,7 +96,13 @@
         colors: bilayerOf(ORG.plasma),
       });
       const mesh = new THREE.Mesh(g, mat({ vertexColors: true, roughness: 0.42, clearcoat: 0.6, clearcoatRoughness: 0.25, emissive: '#3a0008', emissiveIntensity: 0.3 }));
-      cell.add(mesh);
+      /* Registered so it can be pointed at and hidden, `nopick` so it cannot
+         be clicked: the bowl is behind every organelle in the cell, and a
+         raycast that lands on it would take the click off whatever the
+         reader was aiming at. */
+      mesh.userData.nopick = true;
+      membraneMesh = mesh;
+      cell.add(register(mesh, 'membrane'));
     }
     const unsq = p => new V3(p.x, p.y / YS, p.z);
     const insideCell = (p, margin = 0) => { const q = unsq(p); return q.length() < innerR(q.clone().normalize()) - margin; };
@@ -213,12 +236,15 @@
         if (p.y > 0.8 || !insideCell(p, 0.1)) continue;
         if (p.distanceTo(nucPos) < Rn + 0.25) continue;
         if (occupied.some(o => o.p.distanceTo(p) < o.r)) continue;
+        if (!riboSample) riboSample = p.clone();      // one real dot, for the anchor
         dummy.position.copy(p); dummy.scale.setScalar(rr(0.6, 1.4)); dummy.updateMatrix();
         inst.setMatrixAt(i++, dummy.matrix);
       }
       for (const q of riboPositions) { dummy.position.copy(q); dummy.scale.setScalar(1.15); dummy.updateMatrix(); inst.setMatrixAt(i++, dummy.matrix); }
       inst.count = i;
-      cell.add(inst);
+      inst.userData.nopick = true;              // 1500 dots, none of them a target
+      riboMesh = inst;
+      cell.add(register(inst, 'ribosome'));
     }
 
     /* ---- hover, and the per-frame motion ---- */
@@ -236,7 +262,7 @@
     function pick(ndc) {
       if (!ndc) return null;
       raycaster.setFromCamera(ndc, camera);
-      const hits = raycaster.intersectObjects(organelles, true);
+      const hits = raycaster.intersectObjects(organelles.filter(o => !o.userData.nopick), true);
       return hits.length ? rootOf(hits[0].object) : null;
     }
     function hover(ndc) {
@@ -245,6 +271,7 @@
       if (hovered) setHighlight(hovered, false);
       hovered = r;
       if (hovered) setHighlight(hovered, true);
+      emit('hover', hovered && hovered.userData.organelle || null);
       return hovered;
     }
     const MTOC = new V3(-3.3, -2.2, -4.6);        // the centrosome, from its placement above
@@ -269,8 +296,11 @@
        why it can be this loose: spheres in a volume pack far more easily
        than discs on a plane, and this cell is about a quarter full. */
     const BODY = { mitochondrion: 1.6, golgi: 2.2, centrosome: 1.4, vesicle: 0.6 };
+    // What wanders. The nucleus is a fixed body below, the ER is anchored to
+    // it, and the membrane and the ribosome sheet are not organelles that move.
+    const MOBILE = ['mitochondrion', 'golgi', 'centrosome', 'vesicle'];
     const bodies = organelles
-      .filter(o => o.userData.organelle !== 'nucleus' && o.userData.organelle !== 'er')
+      .filter(o => MOBILE.includes(o.userData.organelle))
       .map(o => ({
         o, seed: o.position.clone(), p: o.position.clone(), v: new V3(), f: new V3(),
         r: BODY[o.userData.organelle] || 1.2, w: 1,
@@ -322,9 +352,13 @@
 
     let t = 0;
     function step(dt) {
-      t += dt;
+      /* `motion` scales TIME, not amplitude: at 0 the wander stops where it
+         is instead of springing back to the seed layout, which is what
+         scaling the offsets would do. */
+      t += dt * P.motion;
       solve(dt);
       nucleolus.material.emissiveIntensity = 0.4 + 0.12 * Math.sin(t * 1.3);
+      emit('frame', state(), dt);
     }
 
     // World-space bounding sphere of an organelle, for a camera flight.
@@ -333,7 +367,68 @@
       return new THREE.Box3().setFromObject(org).getBoundingSphere(new THREE.Sphere());
     }
 
-    return { group: cell, organelles, step, pick, hover, bounds, get hovered() { return hovered; } };
+    /* ---- what a page can point at, hide, and read ----
+       LIBRARY is the component's own teaching text: one label and a
+       two-sentence card per part, in a tutor's voice, so a generated page
+       answers "what is that?" with a callout on the organelle instead of a
+       paragraph of its own invention. Real sizes belong here as PROSE — the
+       render is prop tier and nothing may print a length off it. */
+    const LIBRARY = {
+      membrane:     { text: 'plasma membrane', offset: [44, -26], card: 'A double sheet of phospholipids with their oily tails facing each other, cut here so you can see it has two faces. It decides what gets in and out, which is the whole reason a cell can hold a chemistry different from its surroundings.' },
+      nucleus:      { text: 'nucleus', offset: [-46, -28], card: 'The DNA lives here, wound on proteins, behind a double envelope pierced by pores. The bright ball inside is the nucleolus, where ribosomes are assembled.' },
+      er:           { text: 'rough ER', offset: [-48, 24], card: 'Sheets of membrane continuous with the nuclear envelope, studded with ribosomes. Proteins made on those ribosomes are pushed into the sheet and folded there, on their way out of the cell.' },
+      golgi:        { text: 'Golgi apparatus', offset: [-46, 26], card: 'A stack of flattened sacs that finishes proteins arriving from the ER and sorts them into vesicles. An animal cell keeps one ribbon of it beside the nucleus; a plant cell scatters dozens.' },
+      mitochondrion:{ text: 'mitochondrion', offset: [44, -24], card: 'Two membranes, the inner one folded into cristae, where most of the cell\u2019s ATP is made. It carries its own small genome, which is the clue that it was once a free-living bacterium.' },
+      centrosome:   { text: 'centrosome', offset: [-48, -24], card: 'Two centrioles at right angles, each a barrel of nine microtubule triplets. It is where the cell\u2019s microtubules radiate from, and it organises the spindle when the cell divides.' },
+      vesicle:      { text: 'vesicles', offset: [46, 24], card: 'Small membrane bubbles ferrying cargo between the ER, the Golgi and the surface. The orange ones here stand for peroxisomes and lysosomes, which digest things the cell wants broken down.' },
+      ribosome:     { text: 'ribosomes', offset: [46, 26], card: 'The dots throughout the cytoplasm and over the ER. Each one reads a strand of mRNA and builds the protein it codes for, which is why a busy cell has millions.' },
+    };
+    /* The legend, off the same palette the meshes were built from, so it
+       cannot name a colour the cell does not have. */
+    const hex = v => '#' + (typeof v === 'number' ? v : parseInt(String(v).replace('#', ''), 16)).toString(16).padStart(6, '0');
+    const LEGEND = [['plasma membrane', ORG.plasma.outer], ['nucleus', ORG.nucleus.outer], ['rough ER', ORG.er.side],
+      ['Golgi', ORG.golgi.outer], ['mitochondrion', ORG.mitochondrion.outer], ['centrosome', ORG.centrosome.outer],
+      ['lysosome', ORG.lysosome.outer], ['ribosome', ORG.er.ribosome]];
+    const palette = () => LEGEND.map(([name, c]) => ({ name, color: hex(c) }));
+
+    const parts = K.partsOf(organelles, LIBRARY);
+    const anchors = Object.assign({}, parts.anchors);
+    /* Two that the generic centroid gets wrong. The membrane is a bowl, so
+       its centre is the cytoplasm; point at the rim instead. The ribosomes
+       are one instanced mesh over the whole cell, so its centre is the
+       middle of the cell; point at a dot that was actually placed.
+       u = PI/2 is the rim nearest the camera at the home view. */
+    const _a = new V3();
+    anchors.membrane = () => (membraneMesh.visible ? cell.localToWorld(_a.copy(cellS(PI / 2, cellCut(PI / 2)))) : null);
+    anchors.ribosome = () => (riboSample && riboMesh.visible ? cell.localToWorld(_a.copy(riboSample)) : null);
+    /* Everything is in an open bowl the default camera looks into, so a note
+       fades as the reader turns the cut away. One facing serves them all. */
+    const _f = new V3(), _q = new THREE.Quaternion();
+    const faceUp = () => _f.set(0, 1, 0).applyQuaternion(cell.getWorldQuaternion(_q));
+    const facings = {};
+    for (const n of Object.keys(LIBRARY)) facings[n] = faceUp;
+
+    const listeners = {};
+    const emit = (name, ...a) => { for (const fn of listeners[name] || []) fn(...a); };
+    const on = (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); return () => { listeners[name] = (listeners[name] || []).filter(f => f !== fn); }; };
+    const state = () => ({
+      motion: P.motion, hovered: hovered && hovered.userData.organelle || null,
+      counts: Object.fromEntries(parts.order().map(n => [n, parts.of(n).length])),
+      shown: parts.layers(),
+    });
+    /* The only live param. Everything else about this cell is its geometry,
+       and geometry rebuilds, so there is nothing to glide: `motion` scales
+       the wander straight through and a page that wants a still cell sets 0. */
+    function set(next = {}) {
+      if (next.motion != null) P.motion = clamp(next.motion, 0, 3);
+      return api;
+    }
+
+    const api = { group: cell, organelles, step, pick, hover, bounds, set, state, on, emit,
+      anchors, facings, library: LIBRARY, palette, layers: parts.layers,
+      show: (n, v) => { parts.show(n, v); return api; },
+      get hovered() { return hovered; } };
+    return api;
   }
 
   /* ---- one box ------------------------------------------------------- */
@@ -352,12 +447,13 @@
        rotates on its own fights it: the reader cannot tell which of the two
        they are watching, and a drift they did not ask for makes a still
        organelle look like it is moving. Same call as cell/plantcell.js. */
-    let sim = null;
+    let sim = null, nb = null;
     const box = global.CardStage.create({
       mount: el,
       cam: orbitOf(home.pos, home.target),
       stage: Object.assign({ phiMin: 0.15, phiMax: 2.9, rMin: 3, rMax: 70 }, params.stage || {}),
       step: dt => { if (!sim) return; flyStep(dt); sim.step(dt); sim.hover(ndc); },
+      afterFrame: () => { if (nb) nb.step(); },
       viewOffset: params.viewOffset,
     });
     box.cam.target.fromArray(home.target);
@@ -411,10 +507,20 @@
       if (fly.t >= 1) fly.active = false;
     }
     const goHome = () => flyTo(home.pos, home.target);
-    function focusOn(org) {
-      const s = sim.bounds(org), dist = Math.max(s.radius * 2.6, 3.5);
-      const dir = box.camera.position.clone().sub(s.center).normalize();
-      flyTo(s.center.clone().addScaledVector(dir, dist).toArray(), s.center.toArray());
+    /* HOW CLOSE, for the parts whose mesh is not one object. A bounding
+       sphere is the right size for a nucleus and useless for the ribosome
+       sheet or the membrane bowl: both wrap the whole cell, so 2.6 radii
+       away is further out than home. These say how big ONE of the thing is,
+       and the anchor says where to look. Scene units. */
+    const ZOOM_R = { membrane: 2.2, ribosome: 1.2 };
+    function focusOn(org, name) {
+      const n = name || (org && org.userData.organelle);
+      const at = ZOOM_R[n] && sim.anchors[n] && sim.anchors[n]();
+      const centre = at ? at.clone() : sim.bounds(org).center;
+      const radius = ZOOM_R[n] || sim.bounds(org).radius;
+      const dist = Math.max(radius * 2.6, 3.5);
+      const dir = box.camera.position.clone().sub(centre).normalize();
+      flyTo(centre.clone().addScaledVector(dir, dist).toArray(), centre.toArray());
     }
     // A slow turn that yields to the reader for five seconds after any touch.
 
@@ -431,17 +537,32 @@
     canvas.addEventListener('pointerup', e => {
       if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return;
       const hit = sim.pick(toNdc(e));
-      if (hit) focusOn(hit);
+      if (hit) { focusOn(hit); sim.emit('pick', hit.userData.organelle); }
     });
     canvas.addEventListener('dblclick', goHome);
 
     sim = create(THREE, box.root, box.camera, params);
     box.pump();
-    return {
+    nb = global.Notebook ? global.Notebook.create({ box, anchors: sim.anchors, facings: sim.facings, library: sim.library }) : null;
+
+    const api = {
       sim, box, flyTo, home: goHome, focusOn,
+      /* The camera half of an anchor. There is no fixed pose per part here
+         the way a leaf has one: an organelle is a small thing somewhere in a
+         bowl, so "where is it?" is answered by flying to the organelle
+         itself, which is the same flight a click on it makes. */
+      lookAt(name) { const o = sim.organelles.find(x => x.userData.organelle === name && x.parent); if (o) focusOn(o, name); return api; },
+      note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
+      anchors: () => (nb ? nb.list() : []),
+      layers: sim.layers, palette: sim.palette,
+      show(n, on) { sim.show(n, on); if (!box.running) box.draw(); return api; },
+      set(next, opts) { sim.set(next, opts); return api; },
+      state: () => sim.state(),
+      on: sim.on,
       start: box.start, stop: box.stop, pump: box.pump,
       destroy: box.destroy,
     };
+    return api;
   }
 
   global.AnimalCell = { create, mount, DEFAULTS, HOME };

@@ -2,28 +2,114 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>animalcell-test — an animal cell cut open, as one box</title>
-<!-- TEST BENCH. Not a lesson, not linked from the index. cell/animalcell.js
-     through AnimalCell.mount, full window, no copy: the model is the whole
-     subject. Hover an organelle, click it, double-click to come home. -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>animal cell bench — the component, on the shell a student meets it in</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #f5f2ef; }
-  #stage { position: absolute; inset: 0; }
+  .bench-group { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .bench-group:first-child { padding-top: 0; border-top: 0; }
+  .bench-hd { font-family: var(--display); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .lshell-panel .show-panel .show-chip { font-family: var(--display); font-weight: 500; }
+  /* A bench is one screen, not a sequence. */
+  .lshell-nav, .lshell-progress { display: none; }
+  .lshell-scroll { padding-bottom: 32px; }
 </style>
 </head>
 <body>
-<div id="stage"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/scene.js"></script>
+<script src="../lib/annotate.js"></script>
 <script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
 <script src="../cell/organelles.js"></script>
 <script src="../cell/animalcell.js"></script>
 <script>
-const C = AnimalCell.mount(document.getElementById('stage'));
+/* The bench for cell/animalcell.js: every control a set(), every readout a
+   state(), on the lesson shell so the component is judged in the chrome a
+   student meets it in. Drive it from the console as `cell`. */
+
+const CHIPS = { notes: ['nucleus', 'mitochondrion', 'membrane'], zoom: ['golgi', 'centrosome'], layers: ['vesicle', 'ribosome'] };
+
+const shell = LessonShell.create({
+  brand: 'Animal cell · component bench',
+  hint: 'Drag to orbit · Click an organelle to fly to it · Double-click for home',
+  steps: [{
+    eyebrow: 'cell/animalcell.js',
+    title: 'An animal cell, cut open',
+    body: '<p>A bowl of cytoplasm with the organelles standing in it, jiggling and running along microtubules. Diagram proportions, not a measured section: nothing here may be printed as a length.</p>',
+    onEnter: bench,
+  }],
+});
+
+const C = AnimalCell.mount(shell.stage, { viewOffset: shell.viewOffset });
+window.cell = C;
+let allNotes = false;
+
+function bench(ctx) {
+  const ui = ctx.ui;
+  ui.controls(`
+    <div class="bench-group">
+      <div class="bench-hd">the cell</div>
+      <div class="slider"><div class="slider-head"><span class="label">motion</span><span class="value" data-v="motion"></span></div>
+        <input type="range" id="motion" min="0" max="2" step="0.05" value="1"></div>
+      <div class="row"><button class="btn ghost" type="button" id="home">Home view</button></div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">what is on stage</div>
+      <div class="chips" id="layers"></div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">what the module says</div>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">hovered</span><span class="stat-value" id="rd-hover" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">organelles drawn</span><span class="stat-value" id="rd-n">—</span></div>
+      </div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">the chips a step would offer</div>
+      <div id="bench-chips"></div>
+      <button class="btn ghost" type="button" id="all-notes" aria-pressed="false">Show every annotation</button>
+      <p class="foot">A step names two or three. The button is the bench's own, for seeing everything the component can label.</p>
+    </div>`);
+
+  ui.range(ui.q('#motion'), v => { C.set({ motion: v }); ui.q('[data-v=motion]').textContent = v === 0 ? 'still' : v.toFixed(2); });
+  ui.q('#home').onclick = () => C.home();
+
+  /* Read off the component, so an organelle added to animalcell.js appears
+     here without touching this file. */
+  const box = ui.q('#layers');
+  for (const l of C.layers()) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip is-on'; b.textContent = l.label;
+    b.onclick = () => { const on = !b.classList.contains('is-on'); C.show(l.name, on); b.classList.toggle('is-on', on); };
+    box.appendChild(b);
+  }
+
+  CardStage.showPanel(ui.q('#bench-chips'), C, CHIPS);
+
+  const all = ui.q('#all-notes');
+  all.onclick = () => {
+    allNotes = !allNotes;
+    all.setAttribute('aria-pressed', String(allNotes));
+    all.textContent = allNotes ? 'Hide annotations' : 'Show every annotation';
+    C.notes(allNotes ? C.anchors().map(a => a.name) : false);
+  };
+
+  C.on('frame', s => {
+    ui.q('#rd-hover').textContent = s.hovered || '—';
+    ui.q('#rd-n').textContent = Object.values(s.counts).reduce((a, b) => a + b, 0);
+  });
+  ui.q('[data-v=motion]').textContent = '1.00';
+}
+
+shell.goTo(0);
 </script>
 </body>
 </html>
