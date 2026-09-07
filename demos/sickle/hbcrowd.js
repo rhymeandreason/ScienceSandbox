@@ -1040,7 +1040,18 @@
        and a hundred thousand of them is a cell that cannot get through a
        capillary. A cut from a close-up to a wide shot asserts that. Widening
        through it lets the reader watch it happen. */
+    /* IT WAITS FOR THE FILES. A step that swaps scenes mounts this one and
+       drives it in the same breath, and load() is two fetches away: it
+       respawns the crowd when it lands, and the fit that follows it would
+       snap the camera to the wide shot the intro is supposed to travel to.
+       So the ask is queued, and what actually runs, runs after. */
+    let pending = 0;
     function intro(seconds = 3.2) {
+      pending = seconds;
+      ready.then(() => { const sec = pending; pending = 0; if (sec) begin(sec); });
+      return api;
+    }
+    function begin(seconds) {
       camTw.cancel();
       sim.set({ opacity: 0, reveal: 0 }, { snap: true });
       const one = sim.first();
@@ -1051,7 +1062,6 @@
       sim.set({ opacity: 1 }, { seconds: Math.min(1, seconds * 0.35) });
       sim.set({ reveal: 1 }, { seconds });
       frame(seconds, true);
-      return api;
     }
 
     /* Pull back by a factor, for a page that wants room before it hands off. */
@@ -1070,10 +1080,13 @@
 
     const api = {
       sim, box, ready,
+      /* play and reset queue behind the files too, for the same reason: a
+         step that calls play() before the bond has loaded gets silence, and
+         the beat never starts. */
       set(next, o) { sim.set(next, o); return api; },
       state: () => sim.state(),
-      play() { sim.play(); return api; },
-      reset() { sim.reset(); frame(0.6, true); return api; },
+      play() { ready.then(() => sim.play()); return api; },
+      reset() { ready.then(() => { sim.reset(); if (!pending) frame(0.6, true); }); return api; },
       zoom(f, dur) { zoom(f, dur); return api; },
       intro(seconds) { return intro(seconds); },
       on(ev, fn) {
