@@ -114,8 +114,8 @@ window.requestAnimationFrame=function(cb){return raf(function(t){cb(t);if((armed
 function snap(){try{var cs=[].slice.call(document.querySelectorAll('canvas')).filter(function(c){return c.width>50&&c.height>50});
 if(!cs.length)return;var src=cs.sort(function(a,b){return b.width*b.height-a.width*a.height})[0];
 var w=320,h=Math.round(w*src.height/src.width),c=document.createElement('canvas');c.width=w;c.height=h;var g=c.getContext('2d');
-/* A WebGL canvas clears to transparent and lets the page's CSS show through; a JPEG has no alpha and paints that black. Lay the nearest painted background under it first. */
-var bg='#fff',el=src;while(el){var b=getComputedStyle(el).backgroundColor;if(b&&b!=='transparent'&&!/rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*0\s*\)/.test(b)){bg=b;break}el=el.parentElement}
+/* A WebGL canvas clears to transparent and lets the page's CSS show through; a JPEG has no alpha and paints that black. Lay the nearest painted background under it first. No regex here: this is a template literal, and it eats a backslash. */
+var bg='#fff',el=src;while(el){var b=getComputedStyle(el).backgroundColor;if(b&&b!=='transparent'&&b.split(' ').join('')!=='rgba(0,0,0,0)'){bg=b;break}el=el.parentElement}
 g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,0,0,w,h);parent.postMessage({type:'app-thumb',data:c.toDataURL('image/jpeg',.7)},'*')}catch(e){}}
 })();</script>`;
 
