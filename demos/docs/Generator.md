@@ -31,11 +31,29 @@ The rules that have held, learned from runs rather than guessed:
 - Do not add example pages to the prompt. A designed example lives in the repo as the standard and feeds three or four lines into the section; pasted whole it triples the prefix and the model copies its subject.
 - The copy rules are load-bearing. "Show, do not tell" plus the notes and layers API is what turned four edits from paragraphs into callouts.
 
-## 3. The eval set
+## 3. Adding a template
+
+A template is the page's shape: how the panel is paced. There are two, `steps` and `sandbox`, and a page picks one with `data-shell` on the loader tag. Six things, and only two of them are prose the model reads.
+
+1. **`kit/<name>-shell.js`, built on `LessonShell.create`.** Not beside it. The step-through owns the panel, `ctx`, `ui`, `viewOffset`, `theme` and the stage, and a template that reimplements any of those forks the reference: `ctx.q` has to mean one thing or every component section needs a copy per template. `kit/sandbox-shell.js` is the worked case, and it is fifty lines of which forty are the header. Where the base genuinely cannot express the shape, add an option to `lesson-shell.js` whose default is today's behaviour (`chrome:'none'` is one) rather than a second copy of the panel.
+
+2. **A line in `kit/app.js`'s `SHELLS`**: the global a page enters through, and the files to load after `lesson-shell.js`. That is the whole registration — `api/_builder.js` reads this table, so nothing else names the template anywhere in the backend.
+
+3. **A row in Components.md's "Which template" table**, and this row is the one that decides whether the template is ever used. Not what it looks like: **when to reach for it**, in the words a request would arrive in. "A request that says show me why is a step-through; one that says let me try is a sandbox." A row describing the layout produces a template the model never picks.
+
+4. **A short section, with one `create()` block and nothing else.** No example page: §2's rule, and a template is the worst case for it, because an example of a template IS a whole page and the model copies its subject along with its shape. The block shows the call, one control, and the line that wires a readout. Say only what differs from the step-through, then say the rest is the same, by name: `shell.stage`, `shell.viewOffset`, `goTo(0)` last.
+
+5. **A bench in `tests/`, carded in `admin.html`.** This is the designed example §2 means, and it is what the block in step 4 is distilled from. It is also the regression test: it is the only place the template is exercised until a student generates one.
+
+6. **One `gen-app.js` run whose request should land on the template, and one that should not.** A template earns its place by being chosen correctly, and the failure that matters is not a broken page — it is a sandbox request that came back as a step-through, which reads as a fine page and is the wrong answer. `build.js` returns `shell` on every draft for exactly this: the choice is visible without opening the page.
+
+**What does not need doing:** no page on an existing shell changes, and no component changes. A template that cannot be added without touching either is a template that has broken the contract in step 1.
+
+## 4. The eval set
 
 Every generated page that taught something is in `admin.html` under Generated apps with the `UGC` badge, and the request that made it is on its card. Rerun those requests after a change and drive the result: load it, read the console, `pump` the sim by hand, check the numbers and the notes. A page that only "runs" has not been checked; both real defects found so far (a frame cost, a noisy readout) were invisible without driving.
 
-## 4. What the runs measured
+## 5. What the runs measured
 
 First generation, one request, no examples:
 
@@ -68,13 +86,13 @@ The same turn as find/replace pairs, once the format was built (2026-09-03, refe
 
 Output fell about twelve to one and the turn from 10 to 15 seconds to 2 to 3. The draft's 17 uncached input tokens are the request; everything else read back from the cache.
 
-## 5. What is built, and what an edit still cannot do
+## 6. What is built, and what an edit still cannot do
 
 Built, in `_builder.js` and measured above: the pair format with its whole-file fallback, the history comment, one retry on a failed source check, low thinking on edits. Built in the builder page: the runtime error relay, so a page that throws in the browser tells the next turn what it threw. The script cannot run a page, so it never sees a runtime error; that loop only closes through the page.
 
 Still true: the cheapest edit is the one the library makes trivial. Thinking tokens fell from 3,700 to 900 on the same edit once the component had the parameter, and no format change matches that.
 
-## 6. The backend
+## 7. The backend
 
 `api/build.js` is the model turn: a first draft makes an app row and returns the edit token once; an edit needs the token and writes a version. `api/app.js` reads a stored page for anyone with the id, and restores, remixes, rotates the token and retitles for the token's holder; it takes no HTML from a caller. `api/_apps.js` is the two tables and the limit, its own constants counted in `app_versions`: 60 model turns an hour per visitor, 200 an hour and 600 a day per cohort, failing open like the tutor's. The same key as the tutor gates it.
 

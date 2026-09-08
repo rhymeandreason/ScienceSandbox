@@ -85,7 +85,10 @@
   /* A page picks one template with data-shell. The step-through is the base
      and every other template is built on it, so it is in CORE and a template
      adds only its own file. */
-  const SHELLS = { steps: [], sandbox: ['kit/sandbox-shell.js'] };
+  const SHELLS = {
+    steps:   { entry: 'LessonShell', files: [] },
+    sandbox: { entry: 'Sandbox',     files: ['kit/sandbox-shell.js'] },
+  };
 
   const CORE = [
     'lib/palette.js', 'lib/tokens-from-palette.js', 'lib/molecules.js',
@@ -134,7 +137,7 @@
     if (bad.length) throw new Error(`kit/app.js: no component named ${bad.join(', ')}. The reference lists what there is.`);
 
     const files = new Set(CORE);
-    for (const f of SHELLS[tpl]) files.add(f);
+    for (const f of SHELLS[tpl].files) files.add(f);
     for (const n of want) for (const f of USES[n]) files.add(f);
 
     if (files.has('lib/mol-small.js') && files.has('lib/mol-solvation.js')) {

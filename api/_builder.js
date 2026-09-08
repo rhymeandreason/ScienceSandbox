@@ -262,16 +262,15 @@ function validate(html, names) {
    * page that says one and calls the other loads a file it never uses and
    * calls a global that never arrived. */
   const shells = loader().SHELLS;
-  const ENTRY = { steps: 'LessonShell', sandbox: 'Sandbox' };
   if (app.length && !shells[shell]) {
     problems.push(`data-shell names ${shell}, and the templates are ${Object.keys(shells).join(', ')}`);
   } else if (app.length) {
-    const entry = ENTRY[shell];
-    if (entry && !new RegExp(`\\b${entry}\\.create\\(`).test(src))
+    const entry = shells[shell].entry;
+    if (!new RegExp(`\\b${entry}\\.create\\(`).test(src))
       problems.push(`data-shell="${shell}" but the page never calls ${entry}.create()`);
-    for (const [t, g] of Object.entries(ENTRY))
-      if (t !== shell && new RegExp(`\\b${g}\\.create\\(`).test(src))
-        problems.push(`calls ${g}.create(), which is the ${t} template, but data-shell says ${shell}`);
+    for (const [t, sh] of Object.entries(shells))
+      if (t !== shell && new RegExp(`\\b${sh.entry}\\.create\\(`).test(src))
+        problems.push(`calls ${sh.entry}.create(), which is the ${t} template, but data-shell says ${shell}`);
   }
   if (!/\bshell\.goTo\(0\)/.test(src) && !/\.goTo\(0\)/.test(src))
     problems.push('never calls goTo(0), so no step is ever entered and the panel stays empty');
