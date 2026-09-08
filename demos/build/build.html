@@ -197,11 +197,15 @@
       const li = document.createElement('li');
       li.className = (current ? 'current ' : '') + (open === key ? 'open ' : '') + (bad ? 'bad' : '');
       li.dataset.key = key;
-      li.innerHTML = `<div class="head"><span class="n">${n == null ? '' : 'v' + n}</span><span class="what">${esc(what)}</span></div>`
+      // Restore sits on the row itself: going back a version is the one thing
+      // the list is for, and it should not need the turn opened to reach it.
+      // The list's own handler returns before the toggle, so it does not open.
+      li.innerHTML = `<div class="head"><span class="n">${n == null ? '' : 'v' + n}</span><span class="what">${esc(what)}</span>`
+        + (restorable ? `<button class="btn" type="button" data-n="${n}" title="Restore v${n}"><i class="ph-bold ph-arrow-counter-clockwise"></i>Restore</button>` : '')
+        + `</div>`
         + `<div class="body"><div class="q">${esc(request || '')}</div>`
         + (summary ? `<div class="a">${esc(summary)}</div>` : '')
         + `<div class="meta">${esc(meta)}</div>`
-        + (restorable ? `<button class="btn" type="button" data-n="${n}"><i class="ph-bold ph-arrow-counter-clockwise"></i>Restore</button>` : '')
         + `</div>`;
       ol.appendChild(li);
     };
