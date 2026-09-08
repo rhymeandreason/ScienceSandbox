@@ -121,9 +121,11 @@ for (const page of PAGES) {
   // loading molecules.js.
   // A generated app names components, not files: kit/app.js writes its script
   // tags at parse time, so ask the loader what this page actually loads.
-  const use = /<script[^>]*\bsrc="[^"]*kit\/app\.js"[^>]*\sdata-use="([^"]*)"/.exec(src);
+  const app = /<script[^>]*\bsrc="[^"]*kit\/app\.js"([^>]*)>/.exec(src);
+  const use = app && /\sdata-use="([^"]*)"/.exec(app[1]);
+  const tpl = app && /\sdata-shell="([^"]*)"/.exec(app[1]);
   const tags = use
-    ? APP.plan(use[1].split(',')).scripts.map(f => path.join(ROOT, f))
+    ? APP.plan(use[1].split(','), tpl && tpl[1]).scripts.map(f => path.join(ROOT, f))
     : [...src.matchAll(/<script\s+src="([^"]+)"/g)].map(m => m[1]);
   const libs = tags
     .filter(s => !/^https?:/.test(s))

@@ -82,6 +82,10 @@
       hint: $('.lshell-hint'),
     };
     els.brand.textContent = opts.brand || '';
+    /* `chrome: 'none'` takes the Back/Next row and the progress dots away, for
+       a shell with nowhere to go: a sandbox, a bench. Everything else is
+       unchanged, so a one-step lesson and a sandbox differ by this word. */
+    if (opts.chrome === 'none') el.classList.add('lshell-bare');
     /* On the stage element too, so CardStage finds it without being told —
        and the panel's rect with it, so lib/annotate.js keeps its labels out
        from under the glass without any component knowing there is a panel. */

@@ -8,7 +8,11 @@
  *  anywhere. Four rules stated in prose and enforced by nothing. Here they are
  *  a table, and a page that says WHAT IT MOUNTS cannot express any of them:
  *
- *      <script src="../kit/app.js" data-use="Membrane,Graph"></script>
+ *      <script src="../kit/app.js" data-shell="steps" data-use="Membrane,Graph"></script>
+ *
+ *  `data-shell` picks the template the same way: the step-through is the base
+ *  every other one is built on, so it is in CORE and a template adds only its
+ *  own file, after it.
  *
  *  THIS TABLE IS THE ONE COPY. api/_builder.js reads this file for what each
  *  component needs, so the reference handed to the model no longer carries a
@@ -67,7 +71,8 @@
     'sickle/sickle-fibre.js',
     'sickle/hbcrowd.js',
     'graph/graph.js',
-    'kit/lesson-shell.js',   // last: it reads what the rest defined
+    'kit/lesson-shell.js',   // the base every template is built on
+    'kit/sandbox-shell.js',  // last: a template reads what the shell defined
   ];
 
   /* three.js is NOT here: the page writes that tag itself. Chrome refuses a
@@ -77,6 +82,11 @@
      everything below. Graph's d3 and Plot are the remaining exception, taken
      knowingly: they are cross-site, they load only on a page that charts, and
      a missing chart is a visible hole rather than a blank window. */
+  /* A page picks one template with data-shell. The step-through is the base
+     and every other template is built on it, so it is in CORE and a template
+     adds only its own file. */
+  const SHELLS = { steps: [], sandbox: ['kit/sandbox-shell.js'] };
+
   const CORE = [
     'lib/palette.js', 'lib/tokens-from-palette.js', 'lib/molecules.js',
     'lib/scene.js', 'lib/annotate.js', 'kit/card-stage.js', 'kit/lesson-shell.js',
@@ -111,8 +121,10 @@
 
   /* The list a page's data-use resolves to, or an Error naming what is wrong
      with it. Exported so the builder can answer the same question offline. */
-  function plan(names) {
+  function plan(names, shell) {
     const want = [], bad = [];
+    const tpl = String(shell || 'steps').trim() || 'steps';
+    if (!SHELLS[tpl]) throw new Error(`kit/app.js: no template named ${tpl}. There is ${Object.keys(SHELLS).join(', ')}.`);
     for (const raw of names) {
       const n = String(raw).trim();
       if (!n) continue;
@@ -122,6 +134,7 @@
     if (bad.length) throw new Error(`kit/app.js: no component named ${bad.join(', ')}. The reference lists what there is.`);
 
     const files = new Set(CORE);
+    for (const f of SHELLS[tpl]) files.add(f);
     for (const n of want) for (const f of USES[n]) files.add(f);
 
     if (files.has('lib/mol-small.js') && files.has('lib/mol-solvation.js')) {
@@ -137,10 +150,10 @@
     const scripts = ORDER.filter(f => files.has(f));
     const missing = [...files].filter(f => ORDER.indexOf(f) < 0);
     if (missing.length) throw new Error(`kit/app.js: ${missing.join(', ')} is not in ORDER, so it has no load position.`);
-    return { want, scripts, css };
+    return { want, shell: tpl, scripts, css };
   }
 
-  if (typeof module === 'object' && module.exports) { module.exports = { plan, USES, CSS, CORE, CORE_CSS, ORDER }; return; }
+  if (typeof module === 'object' && module.exports) { module.exports = { plan, USES, CSS, CORE, CORE_CSS, ORDER, SHELLS }; return; }
 
   /* The page's own tag says where the library is: this file is at <base>kit/,
      so every path below hangs off the same prefix, and a page one folder down
@@ -150,7 +163,7 @@
   const url = f => (/^https?:/.test(f) ? f : base + f);
 
   let out;
-  try { out = plan((tag.getAttribute('data-use') || '').split(',')); }
+  try { out = plan((tag.getAttribute('data-use') || '').split(','), tag.getAttribute('data-shell')); }
   catch (e) {
     document.write(`<p style="font:14px/1.5 system-ui;padding:2rem;color:#b00">${e.message}</p>`);
     throw e;

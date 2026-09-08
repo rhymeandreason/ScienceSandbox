@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>sandbox test</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="sandbox" data-use="Membrane"></script>
+<script>
+const shell = Sandbox.create({
+  brand: 'The pump, at your pace',
+  hint: 'Drag to orbit · Scroll to zoom',
+  eyebrow: 'Sandbox',
+  title: 'Sodium and potassium, across one patch',
+  body: '<p><b>The pump spends ATP to push sodium out against its gradient.</b> Turn it off and watch the leak win.</p>',
+  controls: `
+    <div class="switch"><span class="label">Pump running</span><input type="checkbox" id="pump" checked></div>
+    <div class="slider"><div class="slider-head"><span class="label">Speed</span><span class="value" id="sv">1x</span></div>
+      <input type="range" id="speed" min="1" max="3" step="1" value="1"></div>
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Sodium crossed</div><div class="stat-value" id="na">0</div></div>
+      <div class="stat"><div class="stat-label">Voltage</div><div class="stat-value" id="mv">0</div></div>
+    </div>`,
+  onReady(ctx) {
+    ctx.q('#pump').addEventListener('change', e => m.set({ pumpOn: e.target.checked }));
+    const sv = ctx.q('#sv');
+    ctx.range(ctx.q('#speed'), v => { sv.textContent = v + 'x'; m.set({ timeScale: v }); });
+    const na = ctx.q('#na'), mv = ctx.q('#mv');
+    m.on('frame', s => {
+      na.textContent = Math.round((s.crossed && s.crossed.NA) || 0);
+      mv.textContent = Math.round(s.mV || 0) + ' mV';
+    });
+    ctx.showPanel(m);
+  },
+});
+const m = Membrane.mount(shell.stage, {
+  viewOffset: shell.viewOffset,
+  units: 'mM',
+  proteins: { K: { x: -36 }, NA: { x: 0 }, pump: { x: 36 } },
+  contents: { inside: { K: 140, NA: 12 }, outside: { K: 4, NA: 145 } },
+});
+shell.goTo(0);
+</script>
+</body>
+</html>

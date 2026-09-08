@@ -84,14 +84,22 @@ function system() { return `${PREAMBLE}\n\n${reference()}`; }
 
 /* ---- the shapes the model replies in ---------------------------------- */
 
+/* `shell` and `uses` come BEFORE `html` on purpose. The fields are generated
+ * in order, so the model states which template and which components it is
+ * building with before it has written a line of the page, which is the choice
+ * we want it to make deliberately rather than discover halfway down. They are
+ * also what the turn is logged under, so the mapping from a request to a
+ * template is visible without reading the page. */
 const DRAFT_SCHEMA = {
   type: 'object',
   properties: {
     title:   { type: 'string' },   // a short name for the app, for the tab and the card
+    shell:   { type: 'string' },   // the template: see "Which template"
+    uses:    { type: 'array', items: { type: 'string' } },   // the components it mounts
     summary: { type: 'string' },   // one line: what the page shows
     html:    { type: 'string' },   // the whole file
   },
-  required: ['title', 'summary', 'html'],
+  required: ['title', 'shell', 'uses', 'summary', 'html'],
   additionalProperties: false,
 };
 
@@ -245,8 +253,28 @@ function validate(html, names) {
   }
 
   const known = new Set(names || components());
-  const declared = app.length ? (/\sdata-use=["']([^"']*)["']/i.exec(app[0][1]) || [, ''])[1]
-                                 .split(',').map(x => x.trim()).filter(Boolean) : [];
+  const attrs = app.length ? app[0][1] : '';
+  const declared = ((/\sdata-use=["']([^"']*)["']/i.exec(attrs) || [, ''])[1])
+                     .split(',').map(x => x.trim()).filter(Boolean);
+  const shell = ((/\sdata-shell=["']([^"']*)["']/i.exec(attrs) || [, 'steps'])[1] || 'steps').trim();
+
+  /* The template is declared on the tag and entered by name in the page. A
+   * page that says one and calls the other loads a file it never uses and
+   * calls a global that never arrived. */
+  const shells = loader().SHELLS;
+  const ENTRY = { steps: 'LessonShell', sandbox: 'Sandbox' };
+  if (app.length && !shells[shell]) {
+    problems.push(`data-shell names ${shell}, and the templates are ${Object.keys(shells).join(', ')}`);
+  } else if (app.length) {
+    const entry = ENTRY[shell];
+    if (entry && !new RegExp(`\\b${entry}\\.create\\(`).test(src))
+      problems.push(`data-shell="${shell}" but the page never calls ${entry}.create()`);
+    for (const [t, g] of Object.entries(ENTRY))
+      if (t !== shell && new RegExp(`\\b${g}\\.create\\(`).test(src))
+        problems.push(`calls ${g}.create(), which is the ${t} template, but data-shell says ${shell}`);
+  }
+  if (!/\bshell\.goTo\(0\)/.test(src) && !/\.goTo\(0\)/.test(src))
+    problems.push('never calls goTo(0), so no step is ever entered and the panel stays empty');
   for (const n of declared) if (!known.has(n)) problems.push(`data-use names ${n}, which the reference does not describe`);
 
   const mounted = new Set();
@@ -261,7 +289,7 @@ function validate(html, names) {
    * drawing the small molecules to scale. Ask it here rather than restating
    * the rule: the page would throw on load otherwise. */
   if (app.length && declared.length && !problems.length) {
-    try { loader().plan(declared); }
+    try { loader().plan(declared, shell); }
     catch (e) { problems.push(e.message.replace(/^kit\/app\.js: /, '')); }
   }
 
@@ -331,6 +359,8 @@ async function draft({ request, provider, bench }) {
 
   return {
     title: String(out.json.title || '').slice(0, 120),
+    shell: String(out.json.shell || 'steps').slice(0, 40),
+    uses: (Array.isArray(out.json.uses) ? out.json.uses : []).map(x => String(x).slice(0, 40)),
     summary: String(out.json.summary || '').slice(0, 300),
     html: withHistory(html, [req]),
     problems, retried,

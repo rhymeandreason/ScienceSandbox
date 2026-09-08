@@ -3,7 +3,8 @@
  * =============================================================================
  *  GET  /api/build → whether this link may build, and what the reference has
  *  POST /api/build {request, visitorId, id?, token?, errors?, provider?}
- *                → {id, token?, n, title, summary, html, mode, usage, ms, problems}
+ *                → {id, token?, n, title, summary, html, mode, usage, ms, problems,
+ *                   shell, uses (a draft only: what the model chose to build with)}
  *
  *  Without `id` it is a first draft: a new app row, its first version, and the
  *  edit token, which this reply is the only place to get. With `id` it is an
@@ -96,6 +97,9 @@ module.exports = async function handler(req, res) {
       id: made.id, token: made.token, n: made.version.n,
       title: out.title, summary: out.summary, html: out.html, changed: true,
       mode: 'draft', retried: out.retried, problems: out.problems,
+      /* What the model chose before it wrote anything, so a turn's route
+         through the library is visible without reading the page. */
+      shell: out.shell, uses: out.uses,
       model: out.model, usage: out.usage, ms: out.ms,
     });
   } catch (err) {

@@ -20,7 +20,7 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 <body>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="../kit/app.js" data-use="Membrane,Graph"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="Membrane,Graph"></script>
 <script>
   // the shell, the mount(s), shell.goTo(0): see "The step-through shell"
 </script>
@@ -28,11 +28,22 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 </html>
 ```
 
-**`data-use` names the components this page mounts, and that one tag loads the library**: the modules those components are built from, their stylesheets and the shell, in the only order they load in. Name every component you mount and nothing you do not. Never write a `<script>` or `<link>` for a library file yourself; a second copy of a module overwrites the first. Some pairs are refused: the loader says which, and why, on the page.
+**`data-shell` names the template and `data-use` names the components this page mounts, and that one tag loads the library**: the modules those components are built from, their stylesheets and the shell, in the only order they load in. Name every component you mount and nothing you do not. Never write a `<script>` or `<link>` for a library file yourself; a second copy of a module overwrites the first. Some pairs are refused: the loader says which, and why, on the page.
 
 Paths are relative to the file, which lives one folder below `demos/`. Everything is a global; there are no modules and no build. The shell owns the DOM: no markup goes in the body, the panel is filled per step, and the scene is whatever is mounted in `shell.stage`.
 
 Never type an atom or bond colour; the palette publishes them as CSS custom properties `--atom-O`, `--atom-H`, `--atom-Na`, `--bond-covalent`, `--bond-hbond`, and a caption naming an atom uses its token.
+
+## Which template
+
+Two, and a page is one of them. Choose before writing anything: the template decides what the panel is for.
+
+| template | `data-shell` | reach for it when |
+| --- | --- | --- |
+| Step-through | `steps` | the answer is an argument with an order. Each step makes one claim, the scene changes under it, and the student moves with Next. Anything explaining WHY or HOW something happens |
+| Sandbox | `sandbox` | the answer is the thing itself. One scene, every control visible at once, no steps and no Next. A student asking to try it, play with it, or see what happens if |
+
+**A request that says "show me why" is a step-through; one that says "let me try" is a sandbox.** When neither is clear, a step-through is the safer default: an argument can hold a sandbox's controls in its last step, and a sandbox cannot hold an argument at all.
 
 ## The step-through shell
 
@@ -527,6 +538,30 @@ One list of parts serves `note()`, `lookAt()` and `show()`: `wall`, `membrane`, 
 
 Good for: the parts of a plant cell, plant against animal, turgor and wilting, plasmolysis, where starch is stored, why a plant needs a wall. Not for: photosynthesis itself (that is Leaf, a rung up, or a pathway lesson), anything inside a chloroplast, or a number in micrometres.
 
+## The sandbox shell
+
+`data-shell="sandbox"`. One scene and one panel, with no Back, no Next and no dots. The copy is one short paragraph saying what the student is looking at, and every control is in the panel at once.
+
+```js
+const shell = Sandbox.create({
+  brand: 'The pump, at your pace',
+  hint: 'Drag to orbit · Scroll to zoom',
+  eyebrow: 'Sandbox', title: 'Sodium and potassium, across one patch',
+  body: '<p><b>One claim, in bold.</b> One sentence after it.</p>',
+  controls: '<div class="switch">...</div>',   // the panel's own classes, as a step's controls
+  onReady(ctx) {                                // ctx is a step's ctx: q, qa, range, showPanel
+    ctx.q('#pump').addEventListener('change', e => m.set({ pumpOn: e.target.checked }));
+    m.on('frame', s => { ctx.q('#mv').textContent = Math.round(s.mV) + ' mV'; });
+  },
+});
+const m = Membrane.mount(shell.stage, { viewOffset: shell.viewOffset });
+shell.goTo(0);
+```
+
+Everything else is the step-through's: `shell.stage`, `shell.viewOffset`, `shell.theme`, and the same `ctx` inside `onReady` that a step gets inside `onEnter`. `goTo(0)` is still the last line, and still after the mount, because `onReady` wires controls to a component that does not exist until then.
+
+**Three or four controls, each one a question.** A sandbox with eight sliders is a control panel nobody reads, and a control whose answer the student cannot see in the scene is a control that should not be there.
+
 ## Graph — a chart of measurements, or of a running sim
 
 **Scale**: none. A graph is not in the world; its axes carry their own units.
@@ -580,7 +615,8 @@ A tutor for a college Bio 101 student. Concise, no repetition, one claim per par
 Read the page you wrote against this list. Every line is a failure that renders
 correctly and then breaks, or breaks nothing and is wrong anyway.
 
-- The Three r128 tag, then one `../kit/app.js` tag, and no other `<script>` or
+- The Three r128 tag, then one `../kit/app.js` tag whose `data-shell` is the
+  template the page actually enters, and no other `<script>` or
   `<link>` for a library file. Its `data-use` names every component the page mounts, and no other.
 - Every `mount()` passes `viewOffset: shell.viewOffset`.
 - The last line of the page's script is `shell.goTo(0)`.

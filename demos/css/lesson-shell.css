@@ -290,3 +290,8 @@ body.is-night .lshell-progress button.is-current { background: #9fd98a; }
   .lshell-hint { display: none; }
   .lshell-topbar { padding: 0 18px; }
 }
+
+/* A shell with nowhere to go: no Back/Next, no dots, and the panel's scroll
+   takes the room they leave. kit/sandbox-shell.js asks for this. */
+.lshell.lshell-bare .lshell-nav,
+.lshell.lshell-bare .lshell-progress { display: none; }
