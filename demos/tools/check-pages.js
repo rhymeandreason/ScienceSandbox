@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /* =====================================================================
- *  check-pages.js — two audits of a page's own source.
+ *  check-pages.js — four audits of a page's own source.
  *
  *  Run:  node tools/check-pages.js       (exits non-zero on failure)
  *
  *    1. does each page load the molecules it actually uses?
  *    2. does every proton hop REMOVE THE ATOM IT MOVES?
  *    3. does every link on the ROOT index resolve to something served?
+ *    4. does every publicly routed page load site.js, so it is counted?
  *
  *  This guards the failure mode that docs/molecule-pipeline.md item 3
  *  introduced. Before the split every page loaded every spec, so a page could
@@ -333,8 +334,58 @@ const REPO = path.join(ROOT, '..');
   }
 }
 
+/* -------------------------------------------------------------------------
+ *  4. is every publicly routed page counted?
+ * -------------------------------------------------------------------------
+ *  Analytics is one line — <script defer src="/demos/lib/site.js"> — and its
+ *  absence is invisible from the page that lacks it: nothing renders wrong,
+ *  no console line appears, the page simply never appears in the numbers. It
+ *  was missing from /build and /app/:id for as long as they existed.
+ *
+ *  site.js does two jobs and only one of them shows. The foot is gated on
+ *  body.kodo; the analytics above that check is not. So a full-window page
+ *  with no footer still needs the script, which is exactly the page someone
+ *  decides does not need "the footer script". That reasoning is the failure
+ *  this audit exists to catch, so the gate is the ROUTE, not the shell.
+ *
+ *  Public = reachable from vercel.json, plus the two pages at the repo root.
+ *  Derived from the route table rather than listed here, so adding a rewrite
+ *  puts its destination under this check without anyone remembering to. */
+console.log('');
+console.log('== 4. every publicly routed page loads site.js');
+{
+  // admin.html is the live index of every page in the repo, for us, not for a
+  // student. Counting our own navigation as traffic is the one way this audit
+  // could make the numbers worse rather than better.
+  const UNCOUNTED = new Set(['demos/admin.html']);
+
+  let dests = null;
+  try {
+    const cfg = JSON.parse(fs.readFileSync(path.join(REPO, 'vercel.json'), 'utf8'));
+    dests = (cfg.rewrites || []).map(r => r.destination.split('?')[0].replace(/^\//, ''));
+  } catch (e) {
+    fail(`vercel.json would not parse, so no routed page can be checked: ${e.message}`);
+  }
+
+  if (dests) {
+    const pages = [...new Set(['index.html', 'contribute.html', ...dests])]
+      .filter(p => p.endsWith('.html') && !UNCOUNTED.has(p));
+    let counted = 0;
+    for (const p of pages) {
+      const abs = path.join(REPO, p);
+      if (!fs.existsSync(abs)) continue;          // audit 3 owns the dead route
+      if (/<script[^>]+src="\/demos\/lib\/site\.js"/.test(fs.readFileSync(abs, 'utf8'))) { counted++; continue; }
+      fail(`${p} is served publicly but does not load /demos/lib/site.js, so it `
+        + `records no pageview. Add the tag; a page with no footer needs it too.`);
+    }
+    if (counted === pages.length) console.log(`  ok    ${counted} public page(s), every one counted`);
+    for (const p of UNCOUNTED) console.log(`  note  ${p} is deliberately uncounted`);
+  }
+}
+
 console.log('');
 if (fails) { console.log(`FAIL: ${fails} page claim(s) no longer true`); process.exit(1); }
 console.log('PASS: every page loads every molecule it names, '
   + 'every proton hop removes its source, '
-  + 'and every link on the root index is served');
+  + 'every link on the root index is served, '
+  + 'and every public page is counted');

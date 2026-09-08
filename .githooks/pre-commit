@@ -74,17 +74,20 @@ else
   echo "pre-commit: skipping check-molecules.js — no spec file staged"
 fi
 
-# The root index.html and vercel.json are in the gate because audit 3 reads them:
-# the front page's links are short URLs, which vercel.json routes rather than the
-# filesystem, so renaming a rewrite can strip a lesson off the front page without
-# touching anything under demos/.
-if git diff --cached --name-only | grep -qE '^(demos/(.*\.html|lib/(molecules|skel|mol-[^/]+|lib-node)\.js|kit/app\.js)|index\.html|vercel\.json)$'; then
+# The root index.html, contribute.html and vercel.json are in the gate because
+# audits 3 and 4 reach outside demos/. The front page's links are short URLs,
+# which vercel.json routes rather than the filesystem, so renaming a rewrite can
+# strip a lesson off the front page without touching anything under demos/. And
+# vercel.json is where audit 4 learns which pages are public at all: adding a
+# rewrite is what puts its destination under the analytics check.
+if git diff --cached --name-only | grep -qE '^(demos/(.*\.html|lib/(molecules|skel|mol-[^/]+|lib-node|site)\.js|kit/app\.js)|index\.html|contribute\.html|vercel\.json)$'; then
   if ! node tools/check-pages.js > /tmp/cp.$$ 2>&1; then
     tail -25 /tmp/cp.$$; rm -f /tmp/cp.$$
     echo ""
     echo "pre-commit FAILED: check-pages.js — a page names a molecule it does not load,"
-    echo "  a proton hop leaves its source atom on the molecule, or the root index"
-    echo "  links a URL that vercel.json no longer routes."
+    echo "  a proton hop leaves its source atom on the molecule, the root index"
+    echo "  links a URL that vercel.json no longer routes, or a public page lost"
+    echo "  its analytics tag and stopped being counted."
     exit 1
   fi
   rm -f /tmp/cp.$$
