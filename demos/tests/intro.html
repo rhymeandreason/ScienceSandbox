@@ -85,14 +85,14 @@
   }
   .field.done .mast { display: flex; animation: mast .6s var(--soft) both; }
   @keyframes mast { from { opacity: 0; translate: 0 -10px; } to { opacity: 1; translate: 0 0; } }
-  .mast .brand { display: flex; align-items: center; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
+  .mast .brand { display: flex; align-items: center; justify-content: space-between; gap: 2rem; flex-wrap: wrap; padding-bottom: 1.4rem; border-bottom: 2px solid var(--ink); }
   .mast .brand img { width: 148px; height: auto; display: block; }
   .mast .brand .tag { font: italic 300 1.05rem/1.4 var(--serif); color: var(--ink-2); margin: 0; text-align: right; }
   .mast .brand .tag b { font-weight: 600; font-style: normal; color: var(--ink); }
-  .mast .sechead { display: flex; align-items: baseline; gap: 1.2rem; margin-top: 3.2rem; padding-bottom: .9rem; border-bottom: 1px solid rgba(20,33,61,.18); }
+  .mast .sechead { display: flex; align-items: baseline; gap: 1.2rem; margin-top: 2.6rem; }
   .mast .sechead h2 { font: 400 1.3rem/1 var(--serif); letter-spacing: -0.01em; }
   .mast .sechead .rule { display: none; }
-  .mast .sechead .count { margin-left: auto; font: 500 12px var(--sans); letter-spacing: .2em; color: var(--coral); }
+  .mast .sechead .count { display: none; }
   .field.done .hero { display: none; }
   .field.done .cards { position: static; transform: none; margin: 0 auto; }
   .cards {
@@ -172,6 +172,10 @@
   .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px rgba(20,33,61,.55); }
   .cta.big { font-size: 16px; padding: 1rem 1.9rem; }
   .cta.hot { background: var(--coral); }
+  .cta.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(20,33,61,.35); }
+  .cta.ghost:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
+  .cta.icon { display: inline-flex; align-items: center; gap: .5em; }
+  .cta.icon svg { width: 1.15em; height: 1.15em; fill: currentColor; flex: none; }
   .ask .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.1rem; }
   .ask .chips button {
     font: 400 13px var(--sans); padding: .4rem .8rem; border-radius: 999px; border: 1.5px solid rgba(20,33,61,.45);
@@ -197,35 +201,24 @@
   .gate .small { font: 400 12px var(--sans); color: rgba(244,241,232,.6); }
   .gate .small a { color: var(--amber); }
   .gate .close { position: absolute; right: 14px; top: 12px; background: none; border: 0; color: rgba(244,241,232,.7); font: 500 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
-  .gen .strip { margin-top: 5rem; }
-  .gen .strip .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
-  .ph {
-    border: 1px dashed rgba(20,33,61,.5); border-radius: 14px; padding: 1rem; min-height: 8rem;
-    display: flex; flex-direction: column; justify-content: center; gap: .3rem;
-    font: 500 12px/1.4 var(--sans); letter-spacing: .06em; color: var(--ink); background: rgba(255,255,255,.35);
-  }
-  .ph b { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--coral); }
-  @media (max-width: 900px) { .gen .wrap { grid-template-columns: 1fr; gap: 2.5rem; } .gen .strip .row { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 900px) { .gen .wrap { grid-template-columns: 1fr; gap: 2.5rem; } }
 
   /* ---- the gallery ----------------------------------------------------- */
-  .gallery { background: var(--ink); color: var(--paper); padding: 6rem 0 6rem; overflow: hidden; }
+  .gallery { background: var(--ink); color: var(--paper); padding: 6rem 0 7.5rem; overflow: hidden; }
   .gallery .wrap { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; margin-bottom: 2.4rem; }
   .gallery h2 { font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.05; color: #fff; }
   .gallery h2 em { font-style: italic; color: var(--violet); }
   .gallery .lede { font-family: var(--serif); font-weight: 300; font-size: 1.05rem; color: rgba(244,241,232,.75); max-width: 30em; margin: .6rem 0 0; }
   .gallery .more { font: 500 12px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--violet); text-decoration: none; white-space: nowrap; padding-bottom: .4rem; border-bottom: 1px solid var(--violet); }
-  .marquee { display: flex; gap: 1.2rem; width: max-content; animation: slide 70s linear infinite; padding-left: 1.2rem; }
+  .marquee { display: flex; align-items: flex-start; gap: 1.2rem; width: max-content; animation: slide 70s linear infinite; padding-left: 1.2rem; }
   .marquee:hover { animation-play-state: paused; }
   @keyframes slide { to { transform: translateX(-50%); } }
   .marquee a { flex: none; width: 240px; text-decoration: none; color: inherit; }
   .marquee .pic { aspect-ratio: 4/3; border-radius: 16px; overflow: hidden; background: #1E2C4F; border: 1px solid rgba(255,255,255,.12); transition: transform .3s var(--elastic), border-color .3s; }
   .marquee .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .marquee a:hover .pic { transform: translateY(-6px) rotate(-1.2deg); border-color: var(--violet); }
-  .marquee .name { display: block; margin-top: .6rem; font-family: var(--serif); font-size: 1.05rem; color: #fff; }
-  .marquee .does { display: block; font: 400 12px var(--sans); letter-spacing: .04em; color: rgba(244,241,232,.6); }
-  .gallery .note { margin-top: 2.4rem; }
-  .gallery .ph { border-color: rgba(244,241,232,.45); color: var(--paper); background: rgba(255,255,255,.04); max-width: 46rem; }
-  .gallery .ph b { color: var(--violet); }
+  .marquee .name { display: block; margin-top: .6rem; font-family: var(--serif); font-size: 1.05rem; line-height: 1.3; color: #fff; }
+  .marquee .does { display: block; margin-top: .15rem; padding-bottom: .5rem; font: 400 12px/1.45 var(--sans); letter-spacing: .04em; color: rgba(244,241,232,.6); }
 
   /* ---- the waitlist band -------------------------------------------- */
   .join { background: var(--coral); color: #FFF7EC; padding: 5.5rem 0; text-align: center; }
@@ -236,17 +229,17 @@
   .join .small { font: 400 13px var(--sans); margin-top: 1.2rem; color: rgba(255,247,236,.75); }
   .join .small a { color: #fff; }
 
-  /* ---- the why, and a film ------------------------------------------- */
+  /* ---- about ---------------------------------------------------------- */
   .why { padding: 7rem 0; }
   .why .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
   .why h2 { font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.05; }
   .why h2 em { font-style: italic; color: var(--blue); }
   .why p { font-family: var(--serif); font-weight: 300; font-size: 1.15rem; max-width: 32em; }
-  .why .film { aspect-ratio: 16/9; border-radius: 16px; box-shadow: 0 20px 50px -18px rgba(20,33,61,.4); background: var(--paper-2); display: grid; place-items: center; text-align: center; padding: 2rem; }
-  .why .film .play { width: 64px; height: 64px; border-radius: 50%; background: var(--ink); display: grid; place-items: center; margin: 0 auto .8rem; }
-  .why .film .play::after { content: ''; border-left: 18px solid var(--paper); border-top: 11px solid transparent; border-bottom: 11px solid transparent; margin-left: 5px; }
-  .why .film b { display: block; font: 500 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--coral); margin-bottom: .3rem; }
-  .why .film span { font: 400 13px/1.4 var(--sans); color: var(--ink-2); }
+  .about-card { background: #fff; border-radius: 16px; padding: 2rem 2.2rem; box-shadow: 0 1px 2px rgba(20,33,61,.05), 0 20px 50px -18px rgba(20,33,61,.3); }
+  .about-card p { margin: 0 0 1.1rem; font-family: var(--serif); font-weight: 300; font-size: 1.02rem; max-width: none; }
+  .about-card p.k { margin: 0 0 .15rem; font: 500 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--coral); }
+  .about-card p:last-child { margin-bottom: 0; }
+  .about-card a { color: var(--ink); text-decoration: underline; text-decoration-color: rgba(20,33,61,.3); text-underline-offset: 3px; }
   @media (max-width: 900px) { .why .wrap { grid-template-columns: 1fr; } }
 
   footer { padding: 2.5rem 0 3rem; border-top: 1px solid rgba(20,33,61,.2); font: 400 13px var(--sans); color: var(--mute); }
@@ -349,15 +342,6 @@
       </div>
     </div>
   </div>
-  <div class="wrap strip">
-    <span class="eyebrow">Built by students this week</span>
-    <div class="row" style="margin-top:1rem">
-      <div class="ph"><b>Placeholder</b>Filmstrip of generated apps: live thumbs from the builder's shelf (build.html's "my apps" row), four across, newest first.</div>
-      <div class="ph"><b>Placeholder</b>One remix story: the request, the first version, the edit that fixed it.</div>
-      <div class="ph"><b>Placeholder</b>Count read from the database at render: apps built, questions asked.</div>
-      <div class="ph"><b>Placeholder</b>A teacher's line about using one in class. Quote only, with permission.</div>
-    </div>
-  </div>
 </section>
 
 <!-- ============ 4. the gallery ============ -->
@@ -371,9 +355,6 @@
     <a class="more" href="/proteins">The whole collection →</a>
   </div>
   <div class="marquee" id="marquee"></div>
-  <div class="wrap note">
-    <div class="ph"><b>Open question</b>Where the proteins belong. Shown here as an interlude between the lessons and the builder's strip. Alternatives: fold them under lesson 03 as "more structures", or make them the builder's raw material ("ask about any of these").</div>
-  </div>
 </section>
 
 <!-- ============ 4b. the waitlist ============ -->
@@ -387,18 +368,29 @@
   </div>
 </section>
 
-<!-- ============ 5. why ============ -->
-<section class="why" id="why">
+<!-- ============ 5. about ============ -->
+<section class="why" id="about">
   <div class="wrap">
     <div>
-      <span class="eyebrow" style="color:var(--blue)">Why</span>
-      <h2>Seeing it <em>beats</em> reading about it.</h2>
-      <p>Students spend their attention reconciling static pictures instead of learning the concept. These pages pull the scattered versions of an idea into one model you can turn, poke, and break.</p>
-      <p>Kodolab is a library of in-depth 3D interactives for <em>threshold concepts</em>, the ideas a student has to cross before the rest of biology makes sense.</p>
-      <a class="cta" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;margin-top:.6rem">I love this</a>
+      <span class="eyebrow" style="color:var(--blue)">About</span>
+      <h2>A work in progress, <em>in the open.</em></h2>
+      <p>Seeing it beats reading about it. Students spend their attention reconciling static pictures instead of learning the concept. These pages pull the scattered versions of an idea into one model you can turn, poke, and break.</p>
+      <p>Kodolab is free and open source. It is built for the <em>threshold concepts</em> of Bio 101, the ideas a student has to cross before the rest of biology makes sense, and it is nowhere near finished.</p>
+      <p>If you are a scientist, a student, or a teacher, I would love to talk: what is wrong, what is missing, what you would use in a class.</p>
+      <p style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.4rem">
+        <a class="cta icon" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z"/></svg>I heart this</a>
+        <a class="cta ghost" href="https://github.com/rhymeandreason/ScienceSandbox" target="_blank" rel="noopener">The source on GitHub</a>
+      </p>
     </div>
-    <div class="film">
-      <div><div class="play"></div><b>Placeholder · film</b><span>45 seconds, no narration: a hand turning haemoglobin, water freezing, a pump spending ATP. Cut from screen recordings of the lessons above.</span></div>
+    <div class="about-card">
+      <p class="k">Made by</p>
+      <p><a href="https://www.linkedin.com/in/maryhuang1/" target="_blank" rel="noopener">Mary Huang</a></p>
+      <p class="k">With support from</p>
+      <p><a href="https://www.assemblycode.org" target="_blank" rel="noopener">Assembly Code</a></p>
+      <p class="k">Built on</p>
+      <p>Three.js and structures from the Protein Data Bank, drawn from the labs' own coordinates.</p>
+      <p class="k">Cost</p>
+      <p>Free. No account, no ads, no tracking beyond a cookieless page count.</p>
     </div>
   </div>
 </section>
