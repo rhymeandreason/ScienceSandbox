@@ -10,7 +10,7 @@
  *       rotate                        → a fresh token; the old link stops working
  *       title   {title}
  *       thumb   {thumb}                → a small JPEG data URL for the shelf, token required
- *  GET  /api/app?ids=a,b,c            → title and thumb for each, for the shelf
+ *  GET  /api/app?ids=a,b,c            → title, thumb and last-edited time, for the shelf
  *
  *  Nothing here calls a model, so nothing here is rate limited. Reading is
  *  open: an id is unguessable and a view link is meant to be shared. A REMIX

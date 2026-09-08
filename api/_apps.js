@@ -189,13 +189,18 @@ async function setThumb(id, thumb) {
   await db`UPDATE apps SET thumb = ${thumb || null} WHERE id = ${id}`;
 }
 
-/* The shelf: title and thumb for a handful of ids the browser already holds.
-   No token check, since it is the same as reading each app in turn. */
+/* The shelf: title, thumb and last-edited for a handful of ids the browser
+   already holds. No token check, since it is the same as reading each app in
+   turn. `edited` is the newest version's time, not the app row's created_at, so
+   a card that was edited from another browser still reads as recent. */
 async function shelf(ids) {
   const db = log.sql();
   const list = ids.filter(validId).slice(0, 24);
   if (!list.length) return [];
-  return db`SELECT id, title, thumb FROM apps WHERE id = ANY(${list})`;
+  return db`SELECT a.id, a.title, a.thumb,
+                   COALESCE((SELECT max(v.created_at) FROM app_versions v WHERE v.app_id = a.id),
+                            a.created_at) AS edited
+            FROM apps a WHERE a.id = ANY(${list})`;
 }
 
 /* The list an owner sees: not exposed publicly, used by tools/db.js. */
