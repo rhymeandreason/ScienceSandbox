@@ -113,10 +113,14 @@
   }
   .card .stage .num i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dot); margin-right: 6px; vertical-align: 0; }
   .card .text {
-    padding: calc(var(--p) * .9rem) 1.1rem calc(var(--p) * 1.05rem); border-top: 1px solid rgba(20,33,61,.08);
-    opacity: clamp(0, calc((var(--p) - .6) * 3), 1);
-    max-height: calc(var(--p) * 11rem); min-height: 0; overflow: hidden;
+    /* unfolds on a trigger (field.told), not on the scroll value: one quick
+       beat per card, staggered with the same --in as the pop-in */
+    padding: 0 1.1rem; border-top: 1px solid rgba(20,33,61,.08);
+    opacity: 0; max-height: 0; min-height: 0; overflow: hidden; transform: translateY(6px);
+    transition: opacity .35s var(--soft), max-height .45s var(--soft), padding .45s var(--soft), transform .4s var(--soft);
+    transition-delay: var(--in, 0s);
   }
+  .field.told .card .text { opacity: 1; max-height: 12rem; padding: .9rem 1.1rem 1.05rem; transform: none; }
   .card .text h3 { font-size: 1.2rem; line-height: 1.15; }
   .card .text p { margin: .25rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: .88rem; line-height: 1.35; color: var(--ink-2); }
   .card .text .go { margin-top: .4rem; font: 500 12px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--coral); }
@@ -557,6 +561,7 @@
     field.style.setProperty("--w", w.toFixed(4));
     field.style.setProperty("--p", p.toFixed(4));
     field.classList.toggle("in", q > 0.035);
+    field.classList.toggle("told", p > 0.55);
     field.classList.toggle("set", p > 0.9);
   };
   addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(update); }, { passive: true });
