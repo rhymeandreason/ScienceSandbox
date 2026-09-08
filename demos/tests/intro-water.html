@@ -27,7 +27,9 @@
 <script>
   WaterSim.mount(document.getElementById('w'), {
     nWater: 14, hbonds: true,
-    cam: { theta: 0.6, phi: 1.1, r: 22 },
+    // warm, so the cluster jostles instead of sitting still
+    temperature: 60,
+    cam: { theta: 0.6, phi: 1.1, r: 17 },
     stage: { zoom: false },
   });
 </script>

@@ -529,8 +529,10 @@
   wf.src = "intro-water.html"; wf.title = "liquid water"; wf.loading = "eager";
   mounts.water.appendChild(wf);
 
-  Molbox.create({ mount: mounts.bonds, spec: MolLib.MOLECULES.methane, spin: 0.35, stage: Object.assign({ orbit: true }, noZoom) });
-  Molbox.create({ mount: mounts.glycolysis, spec: MolLib.MOLECULES.glucose, spin: 0.28, stage: Object.assign({ orbit: true }, noZoom) });
+  // pad over the default: the fit is solved on the opening silhouette, and a
+  // turning molecule sweeps a wider one
+  Molbox.create({ mount: mounts.bonds, spec: MolLib.MOLECULES.methane, spin: 0.35, pad: 1.32, stage: Object.assign({ orbit: true }, noZoom) });
+  Molbox.create({ mount: mounts.glycolysis, spec: MolLib.MOLECULES.glucose, spin: 0.28, pad: 1.28, stage: Object.assign({ orbit: true }, noZoom) });
 
   const hb = ProteinLib.byKey("hemoglobin");
   Proteinbox.create({ mount: mounts.protein, base: "../", protein: "hemoglobin", orbit: true, pad: 1.1, sub: 8,
@@ -613,7 +615,7 @@
     tryIndex = (tryIndex + 1) % TRIES.length;
     box.classList.add("swap");
     setTimeout(() => { box.placeholder = TRIES[tryIndex]; box.classList.remove("swap"); }, 300);
-  }, 4200);
+  }, 1800);
   document.getElementById("askForm").addEventListener("submit", e => {
     e.preventDefault();
     const q = box.value.trim() || box.placeholder;
