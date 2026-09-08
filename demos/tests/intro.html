@@ -9,7 +9,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Kodolab — see it</title>
+<title>Kodolab — interactive 3D biology</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,300;0,7..72,400;0,7..72,600;1,7..72,300;1,7..72,400&family=Jost:wght@300;400;500;600&display=swap">
@@ -131,15 +131,14 @@
   .card .text {
     /* unfolds on a trigger (field.told), not on the scroll value: one quick
        beat per card, staggered with the same --in as the pop-in */
-    padding: 0 1.1rem; border-top: 1px solid rgba(20,33,61,.08);
+    padding: 0 1.15rem; border-top: 1px solid rgba(20,33,61,.08);
     opacity: 0; max-height: 0; min-height: 0; overflow: hidden; transform: translateY(6px);
     transition: opacity .35s var(--soft), max-height .45s var(--soft), padding .45s var(--soft), transform .4s var(--soft);
     transition-delay: var(--in, 0s);
   }
-  .field.told .card .text { opacity: 1; max-height: 12rem; padding: .9rem 1.1rem 1.05rem; transform: none; }
-  .card .text h3 { font-size: 1.2rem; line-height: 1.15; }
-  .card .text p { margin: .25rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: .88rem; line-height: 1.35; color: var(--ink-2); }
-  .card .text .go { margin-top: .4rem; font: 500 12px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--coral); }
+  .field.told .card .text { opacity: 1; max-height: 12rem; padding: 1rem 1.15rem 1.15rem; transform: none; }
+  .card .text h3 { margin: 0; font-size: 1.2rem; line-height: 1.2; }
+  .card .text p { margin: .4rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: .88rem; line-height: 1.35; color: var(--ink-2); }
   @media (max-width: 900px) { .cards { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .cards { grid-template-columns: 1fr; gap: .8rem; } .card .stage { aspect-ratio: 16/9; } }
 
@@ -160,10 +159,10 @@
     font: 300 clamp(1.15rem, 1.9vw, 1.45rem)/1.35 var(--serif);
     transition: box-shadow .2s;
   }
-  .ask textarea::placeholder { font-style: italic; color: rgba(20,33,61,.5); }
+  .ask textarea::placeholder { font-weight: 400; font-style: italic; color: rgba(20,33,61,.55); transition: opacity .28s; }
+  .ask textarea.swap::placeholder { opacity: 0; }
   .ask textarea:focus-visible { outline: 0; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(20,33,61,.12), 0 16px 40px -14px rgba(20,33,61,.3); }
-  .ask .row { display: flex; align-items: center; gap: 1rem; margin-top: 1.2rem; flex-wrap: wrap; }
-  .ask .hint { flex: 1; font: italic 300 .95rem/1.4 var(--serif); margin: 0; color: rgba(20,33,61,.75); }
+  .ask .row { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; margin-top: 1.1rem; flex-wrap: wrap; }
   .cta {
     font: 500 14px var(--sans); letter-spacing: .06em; padding: .8rem 1.4rem; border-radius: 999px;
     border: 0; background: var(--ink); color: #FFF7EC; cursor: pointer; text-decoration: none; display: inline-block;
@@ -176,12 +175,6 @@
   .cta.ghost:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
   .cta.icon { display: inline-flex; align-items: center; gap: .5em; }
   .cta.icon svg { width: 1.15em; height: 1.15em; fill: currentColor; flex: none; }
-  .ask .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.1rem; }
-  .ask .chips button {
-    font: 400 13px var(--sans); padding: .4rem .8rem; border-radius: 999px; border: 1.5px solid rgba(20,33,61,.45);
-    background: rgba(255,255,255,.45); color: var(--ink); cursor: pointer; transition: background .15s, border-color .15s;
-  }
-  .ask .chips button:hover { background: #FFFDF7; border-color: var(--ink); }
   /* the waitlist card slides over the ask box when Let's go is pressed */
   .gate {
     position: absolute; inset: -12px; display: flex; flex-direction: column; justify-content: center; gap: .8rem;
@@ -262,7 +255,7 @@
     <div class="hero" id="hero">
   <div class="motes" id="motes"></div>
   <div class="mark" id="mark" title="play again"></div>
-  <p class="tag"><b>See it.</b> The biology you were told about, turned in your hands.</p>
+  <p class="tag"><b>See it.</b> Learn biology in 3D</p>
   <div class="cue"><span>scroll</span><i></i></div>
 </div>
     <div class="mast">
@@ -273,37 +266,37 @@
       <li class="card" style="--sx:-12vw; --sy:-1vh; --rot:-7deg; --sc:1.06; --dd:8s; --dot:var(--blue); --in:0s">
         <div class="drift"><a href="/water">
           <div class="stage" data-mount="water" style="--stage-bg:#EAF3FF"><span class="num"><i></i>01</span></div>
-          <div class="text"><h3>Structure of Water</h3><p>Hydrogen bonds, ice, and why salt falls apart in it.</p><span class="go">Open the lesson →</span></div>
+          <div class="text"><h3>Structure of Water</h3><p>Hydrogen bonds, ice, and why salt falls apart in it.</p></div>
         </a></div>
       </li>
       <li class="card" style="--sx:5vw; --sy:-4vh; --rot:5deg; --sc:.94; --dd:11s; --ds:-3s; --dot:var(--green); --in:.12s">
         <div class="drift"><a href="/molecular-bonds">
           <div class="stage" data-mount="bonds" style="--stage-bg:#EAFBEF"><span class="num"><i></i>02</span></div>
-          <div class="text"><h3>Covalent &amp; Ionic Bonds</h3><p>Drag atoms together and let valence decide what you get.</p><span class="go">Open the lesson →</span></div>
+          <div class="text"><h3>Covalent &amp; Ionic Bonds</h3><p>Drag atoms together and let valence decide what you get.</p></div>
         </a></div>
       </li>
       <li class="card" style="--sx:13vw; --sy:-2vh; --rot:-4deg; --sc:1.02; --dd:10s; --ds:-5s; --dot:var(--coral); --in:.24s">
         <div class="drift"><a href="/protein">
           <div class="stage" data-mount="protein" style="--stage-bg:#FFF0EC"><span class="num"><i></i>03</span></div>
-          <div class="text"><h3>Levels of Protein Structure</h3><p>Haemoglobin, from a chain of amino acids to four folded chains.</p><span class="go">Open the lesson →</span></div>
+          <div class="text"><h3>Levels of Protein Structure</h3><p>Haemoglobin, from a chain of amino acids to four folded chains.</p></div>
         </a></div>
       </li>
       <li class="card" style="--sx:-14vw; --sy:10vh; --rot:5deg; --sc:.92; --dd:9s; --ds:-2s; --dot:var(--amber); --in:.18s">
         <div class="drift"><a href="/membrane">
           <div class="stage" data-mount="membrane" style="--stage-bg:#FFF7E3"><span class="num"><i></i>04</span></div>
-          <div class="text"><h3>The Membrane</h3><p>What gets through, what does not, and what a pump costs.</p><span class="go">Open the lesson →</span></div>
+          <div class="text"><h3>The Membrane</h3><p>What gets through, what does not, and what a pump costs.</p></div>
         </a></div>
       </li>
       <li class="card" style="--sx:-1vw; --sy:12vh; --rot:-6deg; --sc:1.04; --dd:12s; --ds:-7s; --dot:var(--violet); --in:.3s">
         <div class="drift"><a href="/glycolysis">
           <div class="stage" data-mount="glycolysis" style="--stage-bg:#F5EEFF"><span class="num"><i></i>05</span></div>
-          <div class="text"><h3>Glycolysis</h3><p>Ten steps, every one drawn as the real molecule.</p><span class="go">Open the lesson →</span></div>
+          <div class="text"><h3>Glycolysis</h3><p>Ten steps, every one drawn as the real molecule.</p></div>
         </a></div>
       </li>
       <li class="card" style="--sx:15vw; --sy:8vh; --rot:7deg; --sc:.96; --dd:8.5s; --ds:-4s; --dot:var(--blue); --in:.06s">
         <div class="drift"><a href="/dna">
           <div class="stage" data-mount="dna" style="--stage-bg:#EEF2FA"><span class="num"><i></i>06</span></div>
-          <div class="text"><h3>Structure of DNA</h3><p>A helix from real coordinates, part by part.</p><span class="go">Open the lesson →</span></div>
+          <div class="text"><h3>Structure of DNA</h3><p>A helix from real coordinates, part by part.</p></div>
         </a></div>
       </li>
     </ul>
@@ -314,21 +307,15 @@
 <section class="gen" id="gen">
   <div class="wrap">
     <div>
-      <span class="eyebrow">The generator</span>
+      <span class="eyebrow">Kodolab Build</span>
       <h2>Ask for a lesson<br>that <em>doesn't exist yet.</em></h2>
-      <p class="lede">Type a question. The builder picks from the same 3D components these lessons are made of and writes you a page you can step through, drag, and remix.</p>
+      <p class="lede">Build with our library of 3D components and design templates. Seconds between iterations. Share with a link. Free and extendable.</p>
       <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:1.6rem"><a class="cta big hot" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Join the waitlist →</a><span class="beta" style="margin:0"><i></i>Beta · access by key</span></div>
     </div>
     <div class="ask" id="ask">
       <form id="askForm">
-        <textarea id="request" maxlength="600" rows="3" placeholder="Why does a red blood cell burst in fresh water?"></textarea>
-        <div class="chips" id="chips">
-          <button type="button">How does a pump spend ATP?</button>
-          <button type="button">Where does a tree's mass come from?</button>
-          <button type="button">What does salt do to boiling water?</button>
-        </div>
+        <textarea id="request" maxlength="600" rows="3" placeholder="a red blood cell in three solutions"></textarea>
         <div class="row">
-          <p class="hint">Great questions make great apps.</p>
           <button class="cta" type="submit">Let's go</button>
         </div>
       </form>
@@ -349,8 +336,8 @@
   <div class="wrap">
     <div>
       <span class="eyebrow" style="color:var(--violet)">The gallery</span>
-      <h2>Proteins, to <em>wander</em> through.</h2>
-      <p class="lede">Real structures at real ångströms, drawn from the lab's own coordinates. They are here because they are beautiful. Each has its own page to turn it in.</p>
+      <h2>Explore Proteins</h2>
+      <p class="lede">Real structures at real ångströms, drawn from PDB data. A protein's shape determines their function and unpins so much fundamental biology.</p>
     </div>
     <a class="more" href="/proteins">The whole collection →</a>
   </div>
@@ -361,8 +348,8 @@
 <section class="join" id="join">
   <div class="wrap">
     <span class="eyebrow" style="color:var(--ink)">Beta</span>
-    <h2>Be first to <em>build</em> one.</h2>
-    <p>The generator opens to a waitlist. Join it and you get an access key as seats open, plus every new lesson the week it ships.</p>
+    <h2>Be first to <em>build</em></h2>
+    <p>Join the waitlist to get an access key as seats open.</p>
     <a class="cta big" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Join the waitlist →</a>
     <p class="small">Teaching a class? Say so on the form and you go to the front.</p>
   </div>
@@ -373,13 +360,13 @@
   <div class="wrap">
     <div>
       <span class="eyebrow" style="color:var(--blue)">About</span>
-      <h2>A work in progress, <em>in the open.</em></h2>
-      <p>Seeing it beats reading about it. Students spend their attention reconciling static pictures instead of learning the concept. These pages pull the scattered versions of an idea into one model you can turn, poke, and break.</p>
-      <p>Kodolab is free and open source. It is built for the <em>threshold concepts</em> of Bio 101, the ideas a student has to cross before the rest of biology makes sense, and it is nowhere near finished.</p>
-      <p>If you are a scientist, a student, or a teacher, I would love to talk: what is wrong, what is missing, what you would use in a class.</p>
+      <h2>A work in progress</h2>
+      <p>Biology is a beautiful and fascinating field, but its fundamental principles are often difficult to comprehend. My goal is to bring together the scattered versions of core concepts into tangible interactions.</p>
+      <p>Kodolab is free and open source. </p>
+      <p>If you are a scientist, student, or a teacher, I would love your feedback. What is wrong?  What is missing? What you would like to see?</p>
       <p style="display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.4rem">
         <a class="cta icon" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z"/></svg>I heart this</a>
-        <a class="cta ghost" href="https://github.com/rhymeandreason/ScienceSandbox" target="_blank" rel="noopener">The source on GitHub</a>
+        <a class="cta ghost" href="https://github.com/rhymeandreason/ScienceSandbox" target="_blank" rel="noopener">GitHub</a>
       </p>
     </div>
     <div class="about-card">
@@ -601,7 +588,31 @@
 /* ---- 3. the ask box, gated ------------------------------------------------ */
 (() => {
   const box = document.getElementById("request"), gate = document.getElementById("gate"), echo = document.getElementById("echo");
-  document.getElementById("chips").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { box.value = b.textContent; box.focus(); } });
+  // Same cycle as build.html: one example at a time in the placeholder, stopped
+  // by the first key or pointer in the box.
+  const TRIES = [
+    "a red blood cell in three solutions",
+    "how do salmon go from the ocean to a river?",
+    "why does a leaf wilt on a hot day?",
+    "why do oil and water not mix?",
+    "where does a tree get its mass from?",
+    "what is blood made of?",
+    "why does drinking seawater dehydrate you?",
+    "explain photosynthesis",
+    "how a channel tells potassium from sodium",
+    "how does a cell make energy?",
+  ];
+  let tryIndex = Math.floor(Math.random() * TRIES.length), touched = false;
+  box.placeholder = TRIES[tryIndex];
+  const stopCycle = () => { touched = true; };
+  box.addEventListener("keydown", stopCycle);
+  box.addEventListener("pointerdown", stopCycle);
+  setInterval(() => {
+    if (touched || box.value || gate.classList.contains("on")) return;
+    tryIndex = (tryIndex + 1) % TRIES.length;
+    box.classList.add("swap");
+    setTimeout(() => { box.placeholder = TRIES[tryIndex]; box.classList.remove("swap"); }, 300);
+  }, 4200);
   document.getElementById("askForm").addEventListener("submit", e => {
     e.preventDefault();
     const q = box.value.trim() || box.placeholder;
