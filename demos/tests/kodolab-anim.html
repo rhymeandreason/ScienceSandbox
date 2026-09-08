@@ -1,0 +1,155 @@
+<meta charset="utf-8">
+<title>Kodolab Sweep</title>
+<style>
+  :root { --stage: #F4F1E8; --bars: #14213D; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--stage); overflow: hidden; }
+
+  .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--stage); user-select: none; cursor: pointer; }
+  .stage > svg { width: min(90vw, 1400px); height: auto; max-height: 90vh; overflow: visible; }
+  .prim { transform-box: fill-box; transform-origin: center; will-change: transform, opacity; }
+  .hole { fill: var(--stage); transform-box: fill-box; transform-origin: center; }
+  .stem { fill: var(--bars); }
+  .diag { fill: var(--bars); }
+</style>
+
+<div class="stage" id="sweep"></div>
+
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const S = 14, R = 23, DISC = 30, HOLE = 16;
+  const COLORS = ["#4ADE80", "#F26B4E", "#5AA9FF", "#F7B733", "#C084FC"];
+  const KO = 9;                                                    // k–o tightening
+  // Arms of the k: centreline A→B, cut flat at y = cut (x-height for the upper arm, baseline for the lower).
+  const ARM_UP = { k: "diag", A: [6, 80], B: [50, 40], cut: 40 };
+  const ARM_DN = { k: "diag", A: [18, 70.2], B: [52, 100], cut: 100 };
+  const LETTERS = [
+    { ch: "k", x: 0,        w: 60, prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }, ARM_UP, ARM_DN] },
+    { ch: "o", x: 72 - KO,  w: 60, prims: [{ k: "ring", cx: 30, cy: 70 }] },
+    { ch: "d", x: 144 - KO, w: 60, prims: [{ k: "ring", cx: 30, cy: 70 }, { k: "stem", cx: 53, cy: 50, h: 100 }] },
+    { ch: "o", x: 216 - KO, w: 60, prims: [{ k: "ring", cx: 30, cy: 70 }] },
+    { ch: "l", x: 288 - KO, w: 14, prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }] },
+    { ch: "a", x: 314 - KO, w: 60, prims: [{ k: "ring", cx: 30, cy: 70 }, { k: "stem", cx: 53, cy: 70, h: 60 }] },
+    { ch: "b", x: 386 - KO, w: 60, prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }, { k: "ring", cx: 30, cy: 70 }] },
+  ];
+  const VIEW = `${-30 + KO / 2} -70 506 240`;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const ELASTIC = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+
+  // Parallelogram for an arm: square end at A (hidden inside another stroke), flat horizontal cut at B.
+  function armPoly(a) {
+    const [ax, ay] = a.A, [bx, by] = a.B, L = Math.hypot(bx - ax, by - ay);
+    const d = { x: (bx - ax) / L, y: (by - ay) / L }, n = { x: -d.y, y: d.x }, hw = S / 2;
+    const cut = sign => { const t = -(n.y * hw * sign) / d.y; return [bx + n.x * hw * sign + d.x * t, a.cut]; };
+    const pts = [[ax + n.x * hw, ay + n.y * hw], cut(1), cut(-1), [ax - n.x * hw, ay - n.y * hw]];
+    const cx = pts.reduce((m, q) => m + q[0], 0) / 4, cy = pts.reduce((m, q) => m + q[1], 0) / 4;
+    return { cx, cy, points: pts.map(q => `${q[0] - cx},${q[1] - cy}`).join(" "), right: Math.max(...pts.map(q => q[0])) };
+  }
+  [ARM_UP, ARM_DN].forEach(a => Object.assign(a, armPoly(a)));
+
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  function buildWord(root) {
+    const prims = []; let ri = 0;
+    LETTERS.forEach((L, li) => {
+      const g = el("g", {}, root);
+      L.prims.forEach((p, pi) => {
+        const ax = L.x + p.cx, ay = p.cy;
+        const home = el("g", { transform: `translate(${ax} ${ay})` }, g);
+        let s, disc, hole, color;
+        if (p.k === "ring") {
+          color = COLORS[ri++];
+          s = el("g", { class: "prim" }, home);
+          disc = el("circle", { class: "disc", r: DISC, fill: color }, s);
+          hole = el("circle", { class: "hole", r: HOLE }, s);
+        } else if (p.k === "stem") {
+          s = el("rect", { class: "prim stem", x: -S / 2, y: -p.h / 2, width: S, height: p.h }, home);
+        } else {
+          s = el("polygon", { class: "prim diag", points: p.points }, home);
+        }
+        prims.push({ el: s, disc, hole, color, kind: p.k, li, pi, ax, ay, ch: L.ch, p });
+      });
+    });
+    return prims;
+  }
+  function stage(id) {
+    const st = document.getElementById(id);
+    const svg = el("svg", { viewBox: VIEW }); st.appendChild(svg);
+    const s = { id, svg, prims: buildWord(svg), anims: [] };
+    s.rings = s.prims.filter(p => p.kind === "ring");
+    return s;
+  }
+  const stop = s => { s.anims.forEach(a => a.cancel()); s.anims = []; };
+  function timeline(s, elm, D, frames, delay = 0) {
+    const kf = frames.map(f => { const o = { offset: Math.min(1, Math.max(0, f.t / D)) }; for (const k of ["transform", "opacity", "fill"]) if (f[k] !== undefined) o[k] = f[k]; if (f.easing) o.easing = f.easing; return o; });
+    s.anims.push(elm.animate(kf, { duration: D, delay, fill: "both", easing: "linear" }));
+  }
+  const T = (x, y) => `translate(${x}px, ${y}px)`;
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const punch = (s, r, delay, dur = 650) => timeline(s, r.hole, dur, [{ t: 0, transform: "scale(0)", easing: ELASTIC }, { t: dur, transform: "scale(1)" }], delay);
+  const closed = (s, r) => timeline(s, r.hole, 10, [{ t: 0, transform: "scale(0)" }, { t: 10, transform: "scale(0)" }]);
+
+  /* ── Nucleation, growing from one seed, then a colour sweep ── */
+  function nucleate(s, opts) {
+    stop(s);
+    const D = 5200, SEED_T = 500, STEP = 140;
+    const seeds = s.rings.filter(r => opts.seeds.includes(r.li));
+    const isSeed = p => seeds.includes(p);
+    const seedX = p => Math.min(...seeds.map(sd => Math.abs(sd.ax - p.ax)));
+    const rest = s.prims.filter(p => !isSeed(p));
+
+    // Attachment times: rank separately on each side of the seed so both fronts advance together.
+    const attachAt = new Map();
+    const fronts = {};
+    rest.forEach(p => { const sd = seeds.reduce((b, x) => Math.abs(x.ax - p.ax) < Math.abs(b.ax - p.ax) ? x : b); const key = sd.li + (p.ax < sd.ax ? "L" : "R"); (fronts[key] = fronts[key] || []).push(p); });
+    Object.values(fronts).forEach(list => list.sort((a, b) => Math.abs(a.ax - seedX(a)) - Math.abs(b.ax - seedX(b))).forEach((p, i) => attachAt.set(p, SEED_T + 450 + i * STEP * 2)));
+    const lastAttach = Math.max(...attachAt.values());
+
+    seeds.forEach(sd => {
+      timeline(s, sd.el, D, [{ t: 0, transform: "scale(0)", opacity: 0 }, { t: SEED_T, transform: "scale(0)", opacity: 1, easing: ELASTIC }, { t: SEED_T + 600, transform: "none" }, { t: D, transform: "none" }]);
+      closed(s, sd); punch(s, sd, SEED_T + 500);
+    });
+
+    rest.forEach(p => {
+      const attach = attachAt.get(p);
+      const frames = [];
+      let x = rnd(-60, 506) - p.ax, y = rnd(-50, 150) - p.ay;
+      let rot = rnd(-40, 40);
+      frames.push({ t: 0, transform: `${T(x, y)} rotate(${rot}deg)`, opacity: 0 });
+      frames.push({ t: 150, transform: `${T(x, y)} rotate(${rot}deg)`, opacity: 0.45, easing: "ease-in-out" });
+      let t = 150;
+      while (t + 420 < attach) {
+        t += rnd(300, 420);
+        x += rnd(-40, 40); y += rnd(-30, 30); rot += rnd(-25, 25);
+        frames.push({ t, transform: `${T(x, y)} rotate(${rot}deg)`, opacity: 0.45, easing: "ease-in-out" });
+      }
+      frames.push({ t: attach, transform: `${T(x, y)} rotate(${rot}deg)`, opacity: 0.45, easing: ELASTIC });
+      frames.push({ t: attach + 40, transform: `${T(x * 0.95, y * 0.95)} rotate(${rot * 0.95}deg)`, opacity: 1, easing: ELASTIC });
+      frames.push({ t: attach + 520, transform: "none", opacity: 1 });
+      frames.push({ t: D, transform: "none", opacity: 1 });
+      timeline(s, p.el, D, frames);
+      if (p.kind === "ring") { closed(s, p); punch(s, p, attach + 380); }
+    });
+
+    const sw = opts.sweep, start = lastAttach + 900;
+    s.rings.forEach(r => {
+      const t0 = start + seedX(r) * 3.4;
+      timeline(s, r.disc, D, [{ t: 0, fill: r.color }, { t: t0, fill: r.color }, { t: t0 + 380, fill: sw.color }, { t: D, fill: sw.color }]);
+    });
+  }
+
+  const INK = "#14213D";
+  const s = stage("sweep");
+  const play = () => { if (!reduce) nucleate(s, { seeds: [3], sweep: { color: INK } }); };
+
+  /* ── Wiring ────────────────────────────────────────────── */
+  document.getElementById("sweep").addEventListener("click", play);
+  play();
+})();
+</script>
