@@ -192,6 +192,20 @@
     window.addEventListener('keydown', onKey);
     els.stage.addEventListener('pointerdown', () => els.hint.classList.add('is-faded'));
 
+    /* A stat is written straight into the DOM by whatever drives the step, so
+       a raw division lands as 0.4444444444444444 and blows its grid cell open.
+       Clamp what the panel shows to 3 decimals; the value the code holds is
+       untouched. Rewriting the text re-enters this, but the second pass finds
+       nothing to change and stops. */
+    const clampDigits = t => t.replace(/\d+\.\d{4,}/g, m => String(Math.round(+m * 1000) / 1000));
+    const trimStats = () => {
+      for (const n of els.panel.querySelectorAll('.stat-value, .value, .stat-sub')) {
+        const t = clampDigits(n.textContent);
+        if (t !== n.textContent) n.textContent = t;
+      }
+    };
+    new MutationObserver(trimStats).observe(els.panel, { subtree: true, childList: true, characterData: true });
+
     const shellApi = {
       el, stage: els.stage, panel: els.panel, ui, ctx, steps,
       goTo, get current() { return current; },
