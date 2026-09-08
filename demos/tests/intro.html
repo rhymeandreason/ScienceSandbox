@@ -66,14 +66,14 @@
   @keyframes mote { 0%, 100% { translate: 0 0; } 50% { translate: 18px -26px; } }
 
   /* ---- constellation → grid ------------------------------------------ */
-  .field { position: relative; height: 320vh; }
-  .field .sticky { position: sticky; top: 0; height: 100vh; overflow: hidden; }
+  .field { position: relative; height: 320vh; z-index: 3; }
+  .field .sticky { position: sticky; top: 0; height: 100vh; }
   .field .caption {
     position: absolute; left: 50%; top: 8vh; transform: translateX(-50%);
     text-align: center; width: min(90vw, 820px); pointer-events: none;
     opacity: calc(1 - var(--p) * 2.2); transition: opacity .2s linear;
   }
-  .field .caption h2 { font-size: clamp(2rem, 4.6vw, 3.6rem); line-height: 1.05; }
+  .field .caption h2 { font-size: clamp(1.8rem, 3.4vw, 2.7rem); line-height: 1.08; }
   .field .caption h2 em { font-style: italic; color: var(--coral); }
   .field .caption p { font-family: var(--serif); font-style: italic; font-weight: 300; color: var(--ink-2); font-size: 1.15rem; margin: .8rem 0 0; }
   .field .sechead {
@@ -85,9 +85,9 @@
   .field .sechead .rule { flex: 1; height: 1px; background: var(--ink); opacity: .25; }
   .field .sechead .count { font: 500 12px var(--sans); letter-spacing: .2em; color: var(--coral); }
   .cards {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -46%);
-    width: min(1180px, calc(100% - 4rem));
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.4rem; list-style: none; margin: 0; padding: 0;
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -44%);
+    width: min(920px, calc(100% - 6rem));
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; list-style: none; margin: 0; padding: 0;
   }
   .card {
     /* --sx --sy --rot --sc: where the card floats when scattered. The scroll
@@ -104,11 +104,11 @@
   @keyframes drift { 0%, 100% { translate: 0 0; } 33% { translate: 8px -14px; } 66% { translate: -10px 6px; } }
   .card a {
     display: flex; flex-direction: column; text-decoration: none; overflow: hidden;
-    background: #fff; border-radius: 22px; border: 2px solid var(--ink);
-    box-shadow: 6px 6px 0 var(--ink);
-    transition: transform .25s var(--elastic), box-shadow .25s;
+    background: #fff; border-radius: 16px; border: 1px solid rgba(20,33,61,.08);
+    box-shadow: 0 1px 2px rgba(20,33,61,.06), 0 14px 40px -12px rgba(20,33,61,.28);
+    transition: transform .3s var(--soft), box-shadow .3s var(--soft);
   }
-  .field.set .card a:hover { transform: translate(-2px, -3px); box-shadow: 9px 10px 0 var(--ink); }
+  .field.set .card a:hover { transform: translateY(-4px); box-shadow: 0 2px 4px rgba(20,33,61,.06), 0 24px 50px -14px rgba(20,33,61,.35); }
   .card .stage { position: relative; aspect-ratio: 4 / 3; background: var(--stage-bg, #fff); }
   .card .stage > canvas, .card .stage > iframe { display: block; width: 100%; height: 100%; border: 0; }
   .card .stage .num {
@@ -117,12 +117,12 @@
   }
   .card .stage .num i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--dot); margin-right: 6px; vertical-align: 0; }
   .card .text {
-    padding: calc(var(--p) * 1rem) 1.15rem calc(var(--p) * 1.15rem); border-top: 2px solid var(--ink);
+    padding: calc(var(--p) * .9rem) 1.1rem calc(var(--p) * 1.05rem); border-top: 1px solid rgba(20,33,61,.08);
     opacity: clamp(0, calc((var(--p) - .6) * 3), 1);
     max-height: calc(var(--p) * 11rem); min-height: 0; overflow: hidden;
   }
-  .card .text h3 { font-size: 1.35rem; line-height: 1.15; }
-  .card .text p { margin: .3rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: .98rem; color: var(--ink-2); }
+  .card .text h3 { font-size: 1.2rem; line-height: 1.15; }
+  .card .text p { margin: .25rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: .92rem; color: var(--ink-2); }
   .card .text .go { margin-top: .6rem; font: 500 12px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--coral); }
   @media (max-width: 900px) { .cards { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .cards { grid-template-columns: 1fr; gap: .8rem; } .card .stage { aspect-ratio: 16/9; } }
@@ -133,29 +133,29 @@
   .gen h2 { font-size: clamp(2.2rem, 4.4vw, 3.6rem); line-height: 1.02; }
   .gen h2 em { color: var(--coral); }
   .gen .lede { font-family: var(--serif); font-size: 1.15rem; font-weight: 300; margin: 1.2rem 0 0; max-width: 34em; }
-  .gen .beta { display: inline-flex; align-items: center; gap: .5rem; margin-top: 1.5rem; padding: .45rem .8rem; border: 2px solid var(--ink); border-radius: 999px; font: 500 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
+  .gen .beta { display: inline-flex; align-items: center; gap: .5rem; margin-top: 1.5rem; padding: .45rem .8rem; border: 1px solid rgba(20,33,61,.4); border-radius: 999px; font: 500 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
   .gen .beta i { width: 8px; height: 8px; border-radius: 50%; background: var(--coral); animation: blink 1.6s infinite; }
   @keyframes blink { 50% { opacity: .2; } }
   .ask { position: relative; }
   .ask textarea {
     width: 100%; resize: none; min-height: 7.4rem; padding: 1.1rem 1.3rem;
-    border: 2px solid var(--ink); border-radius: 18px; background: #FFFDF7; color: var(--ink);
-    box-shadow: 5px 5px 0 var(--ink);
+    border: 1px solid rgba(20,33,61,.12); border-radius: 16px; background: #FFFDF7; color: var(--ink);
+    box-shadow: 0 1px 2px rgba(20,33,61,.05), 0 16px 40px -14px rgba(20,33,61,.3);
     font: 300 clamp(1.15rem, 1.9vw, 1.45rem)/1.35 var(--serif);
     transition: box-shadow .2s;
   }
   .ask textarea::placeholder { font-style: italic; color: rgba(20,33,61,.5); }
-  .ask textarea:hover { box-shadow: 7px 7px 0 var(--ink); }
-  .ask textarea:focus-visible { outline: 0; box-shadow: 5px 5px 0 var(--coral); }
+  .ask textarea:focus-visible { outline: 0; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(20,33,61,.12), 0 16px 40px -14px rgba(20,33,61,.3); }
   .ask .row { display: flex; align-items: center; gap: 1rem; margin-top: 1.2rem; flex-wrap: wrap; }
   .ask .hint { flex: 1; font: italic 300 .95rem/1.4 var(--serif); margin: 0; color: rgba(20,33,61,.75); }
   .cta {
     font: 500 14px var(--sans); letter-spacing: .06em; padding: .8rem 1.4rem; border-radius: 999px;
-    border: 2px solid var(--ink); background: var(--coral); color: #FFF7EC; cursor: pointer;
-    box-shadow: 4px 4px 0 var(--ink); transition: transform .12s, box-shadow .12s;
+    border: 0; background: var(--ink); color: #FFF7EC; cursor: pointer; text-decoration: none; display: inline-block;
+    box-shadow: 0 8px 20px -8px rgba(20,33,61,.5); transition: transform .15s var(--soft), box-shadow .15s;
   }
-  .cta:hover { transform: translate(1px, 1px); box-shadow: 3px 3px 0 var(--ink); }
-  .cta.ghost { background: transparent; color: var(--ink); }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px rgba(20,33,61,.55); }
+  .cta.big { font-size: 16px; padding: 1rem 1.9rem; }
+  .cta.hot { background: var(--coral); }
   .ask .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.1rem; }
   .ask .chips button {
     font: 400 13px var(--sans); padding: .4rem .8rem; border-radius: 999px; border: 1.5px solid rgba(20,33,61,.45);
@@ -165,8 +165,8 @@
   /* the waitlist card slides over the ask box when Let's go is pressed */
   .gate {
     position: absolute; inset: -12px; display: flex; flex-direction: column; justify-content: center; gap: .8rem;
-    padding: 1.6rem 1.8rem; background: var(--ink); color: var(--paper); border-radius: 22px;
-    box-shadow: 6px 6px 0 var(--coral);
+    padding: 1.6rem 1.8rem; background: var(--ink); color: var(--paper); border-radius: 18px;
+    box-shadow: 0 24px 60px -16px rgba(20,33,61,.6);
     opacity: 0; transform: translateY(16px) scale(.98); pointer-events: none; transition: opacity .45s var(--soft), transform .45s var(--soft);
   }
   .gate.on { opacity: 1; transform: none; pointer-events: auto; }
@@ -177,17 +177,14 @@
   .gate form { display: flex; gap: .6rem; margin-top: .4rem; }
   .gate input { flex: 1; font: 400 15px var(--sans); padding: .7rem 1rem; border-radius: 999px; border: 2px solid rgba(244,241,232,.4); background: transparent; color: #fff; }
   .gate input::placeholder { color: rgba(244,241,232,.5); }
-  .gate .cta { box-shadow: 3px 3px 0 var(--amber); }
+  .gate .cta { background: var(--coral); color: #fff; }
   .gate .small { font: 400 12px var(--sans); color: rgba(244,241,232,.6); }
   .gate .small a { color: var(--amber); }
   .gate .close { position: absolute; right: 14px; top: 12px; background: none; border: 0; color: rgba(244,241,232,.7); font: 500 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
-  .gate .thanks { display: none; }
-  .gate.sent form, .gate.sent .echo, .gate.sent .small { display: none; }
-  .gate.sent .thanks { display: block; }
   .gen .strip { margin-top: 5rem; }
   .gen .strip .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
   .ph {
-    border: 2px dashed var(--ink); border-radius: 14px; padding: 1rem; min-height: 8rem;
+    border: 1px dashed rgba(20,33,61,.5); border-radius: 14px; padding: 1rem; min-height: 8rem;
     display: flex; flex-direction: column; justify-content: center; gap: .3rem;
     font: 500 12px/1.4 var(--sans); letter-spacing: .06em; color: var(--ink); background: rgba(255,255,255,.35);
   }
@@ -214,13 +211,22 @@
   .gallery .ph { border-color: rgba(244,241,232,.45); color: var(--paper); background: rgba(255,255,255,.04); max-width: 46rem; }
   .gallery .ph b { color: var(--violet); }
 
+  /* ---- the waitlist band -------------------------------------------- */
+  .join { background: var(--coral); color: #FFF7EC; padding: 5.5rem 0; text-align: center; }
+  .join h2 { font-size: clamp(2.2rem, 4.6vw, 3.8rem); line-height: 1.02; color: #fff; }
+  .join h2 em { font-style: italic; color: var(--ink); }
+  .join p { font-family: var(--serif); font-weight: 300; font-size: 1.15rem; max-width: 34em; margin: 1rem auto 1.8rem; color: rgba(255,247,236,.9); }
+  .join .cta { background: var(--ink); color: #fff; }
+  .join .small { font: 400 13px var(--sans); margin-top: 1.2rem; color: rgba(255,247,236,.75); }
+  .join .small a { color: #fff; }
+
   /* ---- the why, and a film ------------------------------------------- */
   .why { padding: 7rem 0; }
   .why .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
   .why h2 { font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.05; }
   .why h2 em { font-style: italic; color: var(--blue); }
   .why p { font-family: var(--serif); font-weight: 300; font-size: 1.15rem; max-width: 32em; }
-  .why .film { aspect-ratio: 16/9; border-radius: 22px; border: 2px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: var(--paper-2); display: grid; place-items: center; text-align: center; padding: 2rem; }
+  .why .film { aspect-ratio: 16/9; border-radius: 16px; box-shadow: 0 20px 50px -18px rgba(20,33,61,.4); background: var(--paper-2); display: grid; place-items: center; text-align: center; padding: 2rem; }
   .why .film .play { width: 64px; height: 64px; border-radius: 50%; background: var(--ink); display: grid; place-items: center; margin: 0 auto .8rem; }
   .why .film .play::after { content: ''; border-left: 18px solid var(--paper); border-top: 11px solid transparent; border-bottom: 11px solid transparent; margin-left: 5px; }
   .why .film b { display: block; font: 500 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--coral); margin-bottom: .3rem; }
@@ -257,37 +263,37 @@
     </div>
     <div class="sechead"><h2>Lessons</h2><span class="rule"></span><span class="count">06</span></div>
     <ul class="cards" id="cards">
-      <li class="card" style="--sx:-18vw; --sy:-6vh; --rot:-9deg; --sc:1.18; --dd:8s; --dot:var(--blue)">
+      <li class="card" style="--sx:-12vw; --sy:-1vh; --rot:-7deg; --sc:1.06; --dd:8s; --dot:var(--blue)">
         <div class="drift"><a href="/water">
           <div class="stage" data-mount="water" style="--stage-bg:#EAF3FF"><span class="num"><i></i>01</span></div>
           <div class="text"><h3>Structure of Water</h3><p>Hydrogen bonds, ice, and why salt falls apart in it.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:6vw; --sy:-22vh; --rot:7deg; --sc:.92; --dd:11s; --ds:-3s; --dot:var(--green)">
+      <li class="card" style="--sx:5vw; --sy:-4vh; --rot:5deg; --sc:.94; --dd:11s; --ds:-3s; --dot:var(--green)">
         <div class="drift"><a href="/molecular-bonds">
           <div class="stage" data-mount="bonds" style="--stage-bg:#EAFBEF"><span class="num"><i></i>02</span></div>
           <div class="text"><h3>Covalent &amp; Ionic Bonds</h3><p>Drag atoms together and let valence decide what you get.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:20vw; --sy:-10vh; --rot:-5deg; --sc:1.06; --dd:10s; --ds:-5s; --dot:var(--coral)">
+      <li class="card" style="--sx:13vw; --sy:-2vh; --rot:-4deg; --sc:1.02; --dd:10s; --ds:-5s; --dot:var(--coral)">
         <div class="drift"><a href="/protein">
           <div class="stage" data-mount="protein" style="--stage-bg:#FFF0EC"><span class="num"><i></i>03</span></div>
           <div class="text"><h3>Levels of Protein Structure</h3><p>Haemoglobin, from a chain of amino acids to four folded chains.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:-22vw; --sy:20vh; --rot:6deg; --sc:.9; --dd:9s; --ds:-2s; --dot:var(--amber)">
+      <li class="card" style="--sx:-14vw; --sy:10vh; --rot:5deg; --sc:.92; --dd:9s; --ds:-2s; --dot:var(--amber)">
         <div class="drift"><a href="/membrane">
           <div class="stage" data-mount="membrane" style="--stage-bg:#FFF7E3"><span class="num"><i></i>04</span></div>
           <div class="text"><h3>The Membrane</h3><p>What gets through, what does not, and what a pump costs.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:-2vw; --sy:24vh; --rot:-8deg; --sc:1.12; --dd:12s; --ds:-7s; --dot:var(--violet)">
+      <li class="card" style="--sx:-1vw; --sy:12vh; --rot:-6deg; --sc:1.04; --dd:12s; --ds:-7s; --dot:var(--violet)">
         <div class="drift"><a href="/glycolysis">
           <div class="stage" data-mount="glycolysis" style="--stage-bg:#F5EEFF"><span class="num"><i></i>05</span></div>
           <div class="text"><h3>Glycolysis</h3><p>Ten steps, every one drawn as the real molecule.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:24vw; --sy:16vh; --rot:10deg; --sc:.96; --dd:8.5s; --ds:-4s; --dot:var(--blue)">
+      <li class="card" style="--sx:15vw; --sy:8vh; --rot:7deg; --sc:.96; --dd:8.5s; --ds:-4s; --dot:var(--blue)">
         <div class="drift"><a href="/dna">
           <div class="stage" data-mount="dna" style="--stage-bg:#EEF2FA"><span class="num"><i></i>06</span></div>
           <div class="text"><h3>Structure of DNA</h3><p>A helix from real coordinates, part by part.</p><span class="go">Open the lesson →</span></div>
@@ -304,7 +310,7 @@
       <span class="eyebrow">The generator</span>
       <h2>Ask for a lesson<br>that <em>doesn't exist yet.</em></h2>
       <p class="lede">Type a question. The builder picks from the same 3D components these lessons are made of and writes you a page you can step through, drag, and remix.</p>
-      <span class="beta"><i></i>Beta · access by key</span>
+      <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:1.6rem"><a class="cta big hot" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Join the waitlist →</a><span class="beta" style="margin:0"><i></i>Beta · access by key</span></div>
     </div>
     <div class="ask" id="ask">
       <form id="askForm">
@@ -323,13 +329,9 @@
         <button class="close" type="button" id="gateClose">back</button>
         <h3>You're early. <em>Good.</em></h3>
         <p class="echo" id="echo"></p>
-        <p>The builder is in beta and opens with an access key. Leave an email and we'll send one as seats open.</p>
-        <form id="waitForm">
-          <input type="email" required placeholder="you@school.edu" autocomplete="email">
-          <button class="cta" type="submit">Join the waitlist</button>
-        </form>
-        <p class="small">Already have a key? <a href="../build/build.html">Open the builder</a>. PLACEHOLDER: this form posts nowhere yet; wire it to the waitlist backend or point it at the feedback form.</p>
-        <p class="thanks">Thanks. Your question is saved with the request, so the first thing you build is the one you asked for.</p>
+        <p>The builder is in beta and opens with an access key. Join the waitlist and this question is the first thing you build.</p>
+        <p style="margin-top:.5rem"><a class="cta big" id="gateGo" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Join the waitlist →</a></p>
+        <p class="small">Already have a key? <a href="../build/build.html">Open the builder</a>.</p>
       </div>
     </div>
   </div>
@@ -350,13 +352,24 @@
     <div>
       <span class="eyebrow" style="color:var(--violet)">The gallery</span>
       <h2>Proteins, to <em>wander</em> through.</h2>
-      <p class="lede">Real structures at real ångströms, each on its own page. No lesson leads here yet, so this row is a walk, not a step.</p>
+      <p class="lede">Real structures at real ångströms, drawn from the lab's own coordinates. They are here because they are beautiful. Each has its own page to turn it in.</p>
     </div>
     <a class="more" href="/proteins">The whole collection →</a>
   </div>
   <div class="marquee" id="marquee"></div>
   <div class="wrap note">
     <div class="ph"><b>Open question</b>Where the proteins belong. Shown here as an interlude between the lessons and the builder's strip. Alternatives: fold them under lesson 03 as "more structures", or make them the builder's raw material ("ask about any of these").</div>
+  </div>
+</section>
+
+<!-- ============ 4b. the waitlist ============ -->
+<section class="join" id="join">
+  <div class="wrap">
+    <span class="eyebrow" style="color:var(--ink)">Beta</span>
+    <h2>Be first to <em>build</em> one.</h2>
+    <p>The generator opens to a waitlist. Join it and you get an access key as seats open, plus every new lesson the week it ships.</p>
+    <a class="cta big" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Join the waitlist →</a>
+    <p class="small">Teaching a class? Say so on the form and you go to the front.</p>
   </div>
 </section>
 
@@ -565,13 +578,11 @@
     e.preventDefault();
     const q = box.value.trim() || box.placeholder;
     echo.textContent = "“" + q + "”";
-    gate.classList.remove("sent"); gate.classList.add("on");
-    gate.querySelector("input").focus();
+    gate.classList.add("on");
+    document.getElementById("gateGo").focus();
   });
   box.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("askForm").requestSubmit(); } });
   document.getElementById("gateClose").addEventListener("click", () => gate.classList.remove("on"));
-  // PLACEHOLDER: nothing is sent. The backend for the waitlist does not exist yet.
-  document.getElementById("waitForm").addEventListener("submit", e => { e.preventDefault(); gate.classList.add("sent"); });
 })();
 
 /* ---- 4. the gallery: stills from proteins/stills, names from the registry -- */
