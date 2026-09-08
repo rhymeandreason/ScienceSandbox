@@ -37,7 +37,10 @@
   .wrap { width: min(1180px, calc(100% - 4rem)); margin-inline: auto; }
 
   /* ---- hero: the wordmark ---------------------------------------------- */
-  .hero { position: relative; height: 100vh; display: grid; place-items: center; overflow: hidden; }
+  .hero { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden;
+    opacity: calc(1 - var(--w)); transform: scale(calc(1 - var(--w) * .45)); transform-origin: 50% 46%;
+    pointer-events: none; }
+  .hero .mark { pointer-events: auto; }
   .hero .mark { width: min(78vw, 1100px); cursor: pointer; user-select: none; }
   .hero .mark svg { width: 100%; height: auto; overflow: visible; display: block; }
   .prim { transform-box: fill-box; transform-origin: center; will-change: transform, opacity; }
@@ -66,16 +69,8 @@
   @keyframes mote { 0%, 100% { translate: 0 0; } 50% { translate: 18px -26px; } }
 
   /* ---- constellation → grid ------------------------------------------ */
-  .field { position: relative; height: 320vh; z-index: 3; }
+  .field { position: relative; height: 420vh; z-index: 3; }
   .field .sticky { position: sticky; top: 0; height: 100vh; }
-  .field .caption {
-    position: absolute; left: 50%; top: 8vh; transform: translateX(-50%);
-    text-align: center; width: min(90vw, 820px); pointer-events: none;
-    opacity: calc(1 - var(--p) * 2.2); transition: opacity .2s linear;
-  }
-  .field .caption h2 { font-size: clamp(1.8rem, 3.4vw, 2.7rem); line-height: 1.08; }
-  .field .caption h2 em { font-style: italic; color: var(--coral); }
-  .field .caption p { font-family: var(--serif); font-style: italic; font-weight: 300; color: var(--ink-2); font-size: 1.15rem; margin: .8rem 0 0; }
   .field .sechead {
     position: absolute; left: 50%; top: 7vh; transform: translateX(-50%);
     width: min(1180px, calc(100% - 4rem)); display: flex; align-items: baseline; gap: 1rem;
@@ -85,7 +80,7 @@
   .field .sechead .rule { flex: 1; height: 1px; background: var(--ink); opacity: .25; }
   .field .sechead .count { font: 500 12px var(--sans); letter-spacing: .2em; color: var(--coral); }
   .cards {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -44%);
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -48%);
     width: min(920px, calc(100% - 6rem));
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; list-style: none; margin: 0; padding: 0;
   }
@@ -95,10 +90,11 @@
     position: relative;
     transform: translate(calc(var(--sx) * (1 - var(--p))), calc(var(--sy) * (1 - var(--p))))
                rotate(calc(var(--rot) * (1 - var(--p)))) scale(calc(1 + (var(--sc) - 1) * (1 - var(--p))));
-    opacity: 0; transition: opacity .7s var(--soft);
-    will-change: transform;
+    opacity: 0; will-change: transform;
   }
+  .card .drift { opacity: 0; scale: .55; transition: opacity .6s var(--soft), scale .9s var(--elastic); transition-delay: var(--in, 0s); }
   .field.in .card { opacity: 1; }
+  .field.in .card .drift { opacity: 1; scale: 1; }
   .card .drift { animation: drift var(--dd, 9s) ease-in-out infinite; animation-delay: var(--ds, 0s); }
   .field.set .card .drift { animation: none; }
   @keyframes drift { 0%, 100% { translate: 0 0; } 33% { translate: 8px -14px; } 66% { translate: -10px 6px; } }
@@ -109,7 +105,7 @@
     transition: transform .3s var(--soft), box-shadow .3s var(--soft);
   }
   .field.set .card a:hover { transform: translateY(-4px); box-shadow: 0 2px 4px rgba(20,33,61,.06), 0 24px 50px -14px rgba(20,33,61,.35); }
-  .card .stage { position: relative; aspect-ratio: 4 / 3; background: var(--stage-bg, #fff); }
+  .card .stage { position: relative; aspect-ratio: 3 / 2; background: var(--stage-bg, #fff); }
   .card .stage > canvas, .card .stage > iframe { display: block; width: 100%; height: 100%; border: 0; }
   .card .stage .num {
     position: absolute; left: 14px; top: 12px; font: 600 11px/1 var(--sans); letter-spacing: .2em;
@@ -122,8 +118,8 @@
     max-height: calc(var(--p) * 11rem); min-height: 0; overflow: hidden;
   }
   .card .text h3 { font-size: 1.2rem; line-height: 1.15; }
-  .card .text p { margin: .25rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: .92rem; color: var(--ink-2); }
-  .card .text .go { margin-top: .6rem; font: 500 12px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--coral); }
+  .card .text p { margin: .25rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: .88rem; line-height: 1.35; color: var(--ink-2); }
+  .card .text .go { margin-top: .4rem; font: 500 12px var(--sans); letter-spacing: .16em; text-transform: uppercase; color: var(--coral); }
   @media (max-width: 900px) { .cards { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .cards { grid-template-columns: 1fr; gap: .8rem; } .card .stage { aspect-ratio: 16/9; } }
 
@@ -247,53 +243,48 @@
 <body>
 
 <!-- ============ 1. the word ============ -->
-<section class="hero" id="hero">
+<!-- ============ 2. the constellation that becomes the shelf ============ -->
+<section class="field" id="field" style="--p:0; --w:0">
+  <div class="sticky">
+    <div class="hero" id="hero">
   <div class="motes" id="motes"></div>
   <div class="mark" id="mark" title="play again"></div>
   <p class="tag"><b>See it.</b> The biology you were told about, turned in your hands.</p>
   <div class="cue"><span>scroll</span><i></i></div>
-</section>
-
-<!-- ============ 2. the constellation that becomes the shelf ============ -->
-<section class="field" id="field" style="--p:0">
-  <div class="sticky">
-    <div class="caption">
-      <h2>Six things worth <em>seeing</em> before the rest of biology makes sense.</h2>
-      <p>Every one is live. Drag any of them.</p>
-    </div>
+</div>
     <div class="sechead"><h2>Lessons</h2><span class="rule"></span><span class="count">06</span></div>
     <ul class="cards" id="cards">
-      <li class="card" style="--sx:-12vw; --sy:-1vh; --rot:-7deg; --sc:1.06; --dd:8s; --dot:var(--blue)">
+      <li class="card" style="--sx:-12vw; --sy:-1vh; --rot:-7deg; --sc:1.06; --dd:8s; --dot:var(--blue); --in:0s">
         <div class="drift"><a href="/water">
           <div class="stage" data-mount="water" style="--stage-bg:#EAF3FF"><span class="num"><i></i>01</span></div>
           <div class="text"><h3>Structure of Water</h3><p>Hydrogen bonds, ice, and why salt falls apart in it.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:5vw; --sy:-4vh; --rot:5deg; --sc:.94; --dd:11s; --ds:-3s; --dot:var(--green)">
+      <li class="card" style="--sx:5vw; --sy:-4vh; --rot:5deg; --sc:.94; --dd:11s; --ds:-3s; --dot:var(--green); --in:.12s">
         <div class="drift"><a href="/molecular-bonds">
           <div class="stage" data-mount="bonds" style="--stage-bg:#EAFBEF"><span class="num"><i></i>02</span></div>
           <div class="text"><h3>Covalent &amp; Ionic Bonds</h3><p>Drag atoms together and let valence decide what you get.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:13vw; --sy:-2vh; --rot:-4deg; --sc:1.02; --dd:10s; --ds:-5s; --dot:var(--coral)">
+      <li class="card" style="--sx:13vw; --sy:-2vh; --rot:-4deg; --sc:1.02; --dd:10s; --ds:-5s; --dot:var(--coral); --in:.24s">
         <div class="drift"><a href="/protein">
           <div class="stage" data-mount="protein" style="--stage-bg:#FFF0EC"><span class="num"><i></i>03</span></div>
           <div class="text"><h3>Levels of Protein Structure</h3><p>Haemoglobin, from a chain of amino acids to four folded chains.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:-14vw; --sy:10vh; --rot:5deg; --sc:.92; --dd:9s; --ds:-2s; --dot:var(--amber)">
+      <li class="card" style="--sx:-14vw; --sy:10vh; --rot:5deg; --sc:.92; --dd:9s; --ds:-2s; --dot:var(--amber); --in:.18s">
         <div class="drift"><a href="/membrane">
           <div class="stage" data-mount="membrane" style="--stage-bg:#FFF7E3"><span class="num"><i></i>04</span></div>
           <div class="text"><h3>The Membrane</h3><p>What gets through, what does not, and what a pump costs.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:-1vw; --sy:12vh; --rot:-6deg; --sc:1.04; --dd:12s; --ds:-7s; --dot:var(--violet)">
+      <li class="card" style="--sx:-1vw; --sy:12vh; --rot:-6deg; --sc:1.04; --dd:12s; --ds:-7s; --dot:var(--violet); --in:.3s">
         <div class="drift"><a href="/glycolysis">
           <div class="stage" data-mount="glycolysis" style="--stage-bg:#F5EEFF"><span class="num"><i></i>05</span></div>
           <div class="text"><h3>Glycolysis</h3><p>Ten steps, every one drawn as the real molecule.</p><span class="go">Open the lesson →</span></div>
         </a></div>
       </li>
-      <li class="card" style="--sx:15vw; --sy:8vh; --rot:7deg; --sc:.96; --dd:8.5s; --ds:-4s; --dot:var(--blue)">
+      <li class="card" style="--sx:15vw; --sy:8vh; --rot:7deg; --sc:.96; --dd:8.5s; --ds:-4s; --dot:var(--blue); --in:.06s">
         <div class="drift"><a href="/dna">
           <div class="stage" data-mount="dna" style="--stage-bg:#EEF2FA"><span class="num"><i></i>06</span></div>
           <div class="text"><h3>Structure of DNA</h3><p>A helix from real coordinates, part by part.</p><span class="go">Open the lesson →</span></div>
@@ -554,20 +545,23 @@
     stage: Object.assign({ orbit: true }, noZoom),
   });
 
-  // progress: 0 when the section's top reaches the viewport, 1 one screen
-  // before its bottom does, so the grid holds still for the last stretch
+  // q runs 0..1 over the section. The first stretch (w) shrinks the word and
+  // pops the cards in over it; the next (p) settles them into the grid; the
+  // rest holds the grid still so the reader can pick one.
   let raf = 0;
+  const clamp01 = v => Math.min(1, Math.max(0, v));
   const update = () => {
     raf = 0;
-    const r = field.getBoundingClientRect(), span = r.height - innerHeight;
-    const p = Math.min(1, Math.max(0, -r.top / (span * 0.72)));
+    const r = field.getBoundingClientRect(), q = clamp01(-r.top / (r.height - innerHeight));
+    const w = clamp01(q / 0.2), p = clamp01((q - 0.24) / 0.5);
+    field.style.setProperty("--w", w.toFixed(4));
     field.style.setProperty("--p", p.toFixed(4));
+    field.classList.toggle("in", q > 0.035);
     field.classList.toggle("set", p > 0.9);
   };
   addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(update); }, { passive: true });
   addEventListener("resize", update);
   update();
-  new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) field.classList.add("in"); }, { threshold: 0.15 }).observe(field);
 })();
 
 /* ---- 3. the ask box, gated ------------------------------------------------ */
