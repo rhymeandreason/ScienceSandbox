@@ -71,14 +71,30 @@
   /* ---- constellation → grid ------------------------------------------ */
   .field { position: relative; height: 420vh; z-index: 3; }
   .field .sticky { position: sticky; top: 0; height: 100vh; }
-  .field .sechead {
-    position: absolute; left: 50%; top: 7vh; transform: translateX(-50%);
-    width: min(1180px, calc(100% - 4rem)); display: flex; align-items: baseline; gap: 1rem;
-    opacity: clamp(0, calc((var(--p) - .72) * 5), 1); pointer-events: none;
+  /* The second layout. Once the grid has formed, the section latches `done`:
+     the scroll no longer scatters the cards or brings the big word back, and
+     the sticky screen becomes a masthead over the grid. */
+  /* The second layout. Once the grid has formed, the section latches `done`
+     and stops being a sticky screen: it becomes a flowing document, masthead
+     over grid, tall as it needs to be, so the page scrolls like any other. */
+  .field.done { height: auto; }
+  .field.done .sticky { position: static; height: auto; padding: 6vh 0 5rem; }
+  .field .mast {
+    width: min(920px, calc(100% - 6rem)); margin: 0 auto 1.8rem;
+    display: none; flex-direction: column;
   }
-  .field .sechead h2 { font-size: 1.8rem; }
-  .field .sechead .rule { flex: 1; height: 1px; background: var(--ink); opacity: .25; }
-  .field .sechead .count { font: 500 12px var(--sans); letter-spacing: .2em; color: var(--coral); }
+  .field.done .mast { display: flex; animation: mast .6s var(--soft) both; }
+  @keyframes mast { from { opacity: 0; translate: 0 -10px; } to { opacity: 1; translate: 0 0; } }
+  .mast .brand { display: flex; align-items: center; justify-content: space-between; gap: 2rem; flex-wrap: wrap; }
+  .mast .brand img { width: 148px; height: auto; display: block; }
+  .mast .brand .tag { font: italic 300 1.05rem/1.4 var(--serif); color: var(--ink-2); margin: 0; text-align: right; }
+  .mast .brand .tag b { font-weight: 600; font-style: normal; color: var(--ink); }
+  .mast .sechead { display: flex; align-items: baseline; gap: 1.2rem; margin-top: 3.2rem; padding-bottom: .9rem; border-bottom: 1px solid rgba(20,33,61,.18); }
+  .mast .sechead h2 { font: 400 1.3rem/1 var(--serif); letter-spacing: -0.01em; }
+  .mast .sechead .rule { display: none; }
+  .mast .sechead .count { margin-left: auto; font: 500 12px var(--sans); letter-spacing: .2em; color: var(--coral); }
+  .field.done .hero { display: none; }
+  .field.done .cards { position: static; transform: none; margin: 0 auto; }
   .cards {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -48%);
     width: min(920px, calc(100% - 6rem));
@@ -256,7 +272,10 @@
   <p class="tag"><b>See it.</b> The biology you were told about, turned in your hands.</p>
   <div class="cue"><span>scroll</span><i></i></div>
 </div>
-    <div class="sechead"><h2>Lessons</h2><span class="rule"></span><span class="count">06</span></div>
+    <div class="mast">
+      <div class="brand"><img src="../../kodolab-wordmark.svg" alt="kodolab"><p class="tag"><b>See it.</b> The biology you were told about, turned in your hands.</p></div>
+      <div class="sechead"><h2>Lessons</h2><span class="rule"></span><span class="count" id="count"></span></div>
+    </div>
     <ul class="cards" id="cards">
       <li class="card" style="--sx:-12vw; --sy:-1vh; --rot:-7deg; --sc:1.06; --dd:8s; --dot:var(--blue); --in:0s">
         <div class="drift"><a href="/water">
@@ -554,8 +573,10 @@
   // rest holds the grid still so the reader can pick one.
   let raf = 0;
   const clamp01 = v => Math.min(1, Math.max(0, v));
+  let done = false;
   const update = () => {
     raf = 0;
+    if (done) return;
     const r = field.getBoundingClientRect(), q = clamp01(-r.top / (r.height - innerHeight));
     const w = clamp01(q / 0.2), p = clamp01((q - 0.24) / 0.5);
     field.style.setProperty("--w", w.toFixed(4));
@@ -563,7 +584,23 @@
     field.classList.toggle("in", q > 0.035);
     field.classList.toggle("told", p > 0.55);
     field.classList.toggle("set", p > 0.9);
+    // past the grid once, the opening is over: from here the cards stay put
+    // and the scroll up lands on the masthead layout instead of the big word
+    if (q > 0.86) {
+      done = true;
+      // The runway goes: the section becomes a flowing document. The grid's
+      // place on screen is measured BEFORE the layout switches and the scroll
+      // is moved to put it back there, so the reader sees no hop.
+      const cards = document.getElementById("cards");
+      const before = cards.getBoundingClientRect().top;
+      field.style.setProperty("--w", 1); field.style.setProperty("--p", 1);
+      field.classList.add("in", "told", "set", "done");
+      field.style.height = "auto";
+      const after = cards.getBoundingClientRect().top + scrollY;
+      scrollTo({ top: Math.max(0, after - before), behavior: "instant" });
+    }
   };
+  document.getElementById("count").textContent = String(document.querySelectorAll(".card").length).padStart(2, "0");
   addEventListener("scroll", () => { if (!raf) raf = requestAnimationFrame(update); }, { passive: true });
   addEventListener("resize", update);
   update();
