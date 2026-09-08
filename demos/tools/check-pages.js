@@ -74,11 +74,10 @@ const PDB_PAGES = new Set();
 // edges, no stage. questions-cms.html edits that graph's data file as text.
 // clip-shelf.html files short animation clips; its only stage is an mp4 in the
 // node map's own thumb. tests/kodolab-anim.html animates the wordmark itself,
-// drawn as SVG primitives — no molecule, no MolLib. tests/contribute.html is
-// prose: how to add to the library, not a page that draws from it.
+// drawn as SVG primitives — no molecule, no MolLib.
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
                           'tests/droplet-test.html', 'tests/adhesion-test.html',
-                          'tests/concept-map.html', 'tests/contribute.html',
+                          'tests/concept-map.html',
                           'questions-cms.html', 'map-cms.html', 'clip-shelf.html',
                           'privacy.html', 'tests/kodolab-anim.html']);
 
@@ -317,14 +316,20 @@ const REPO = path.join(ROOT, '..');
   } else if (routes) {
     const src = fs.readFileSync(index, 'utf8');
     const links = [...new Set([...src.matchAll(/href="(\/[^"#]*)"/g)].map(m => m[1]))];
-    for (const href of links) {
+    // The gallery builds its links at runtime from a literal key list
+    // (`/proteins/${k}`), so a static read cannot resolve them. They are
+    // printed rather than skipped silently: an unresolvable link nobody can
+    // see is how a renamed route survives this check.
+    const built = links.filter(h => h.includes('${'));
+    for (const href of links.filter(h => !h.includes('${'))) {
       const clean = href.split('?')[0];
       if (routes.has(clean)) continue;
       if (fs.existsSync(path.join(REPO, clean === '/' ? 'index.html' : clean))) continue;
       fail(`index.html links ${href}, which is neither a vercel.json route nor a `
         + `file on disk. Renaming a rewrite means renaming the link with it.`);
     }
-    if (!fails) console.log(`  ok    ${links.length} root-relative link(s), every one served`);
+    if (!fails) console.log(`  ok    ${links.length - built.length} root-relative link(s), every one served`);
+    for (const b of built) console.log(`  note  ${b} is built at runtime; check its key list by hand`);
   }
 }
 

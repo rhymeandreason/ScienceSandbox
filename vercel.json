@@ -65,6 +65,7 @@
     { "source": "/nodes",      "destination": "/demos/nodegraph/nodegraph.html" },
     { "source": "/admin",      "destination": "/demos/admin.html" },
     { "source": "/privacy",    "destination": "/demos/privacy.html" },
+    { "source": "/contribute", "destination": "/contribute.html" },
 
     { "source": "/proteins",   "destination": "/demos/proteins/index.html" },
     { "source": "/proteins/reactions", "destination": "/demos/proteins/reaction-map.html" },

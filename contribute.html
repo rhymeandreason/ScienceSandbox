@@ -1,12 +1,14 @@
 <!DOCTYPE html>
-<!-- tests/contribute.html — the open-source door, paired with tests/intro.html.
-     Same palette and type as that page on purpose: the two promote together
-     when intro.html becomes the front door. A document, so it takes neither
-     shell in Design.md — it is a study, like its sibling. -->
+<!-- contribute.html — the open-source door, paired with index.html.
+     Same palette and type as the front door on purpose: the two are one page
+     turn apart. Neither takes a shell from Design.md; both carry their own. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Site-wide chrome: analytics + the foot. Absolute src, so this resolves
+     the same from the root as it does from a page under /demos/. lib/site.js -->
+<script defer src="/demos/lib/site.js"></script>
 <title>Contribute — Kodolab</title>
 <meta name="description" content="How to add a molecule, a component, or a lesson to Kodolab's open library of interactive 3D biology.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -181,7 +183,7 @@
 
 <nav class="sitenav">
   <div class="wrap">
-    <a href="intro.html"><img src="../../kodolab-wordmark.svg" alt="kodolab"></a>
+    <a href="/"><img src="kodolab-wordmark.svg" alt="kodolab"></a>
     <span class="crumb">Contribute</span>
     <span class="sp"></span>
     <a class="lnk" href="#ways">Ways in</a>
@@ -436,7 +438,7 @@ whether it is right. Do not tell me it works. I will look.</pre>
 
 <footer>
   <div class="wrap">
-    <span>Kodolab · <a href="intro.html">Home</a> · <a href="https://github.com/rhymeandreason/ScienceSandbox" target="_blank" rel="noopener">GitHub</a> · <a href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Send feedback</a> · <a href="../privacy.html">Privacy</a></span>
+    <span>Kodolab · <a href="/">Home</a> · <a href="https://github.com/rhymeandreason/ScienceSandbox" target="_blank" rel="noopener">GitHub</a> · <a href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Send feedback</a> · <a href="/privacy">Privacy</a></span>
     <span class="dots"><i style="background:var(--green)"></i><i style="background:var(--coral)"></i><i style="background:var(--blue)"></i><i style="background:var(--amber)"></i><i style="background:var(--violet)"></i></span>
   </div>
 </footer>

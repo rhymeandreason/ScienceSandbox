@@ -37,4 +37,4 @@ Opening a pull request means you are licensing your contribution under both:
 AGPL-3.0 for the code, CC BY-NC 4.0 for the words and pictures. There is no CLA
 and no copyright assignment; you keep your copyright.
 
-How to contribute: [demos/tests/contribute.html](demos/tests/contribute.html).
+How to contribute: [contribute.html](contribute.html).
