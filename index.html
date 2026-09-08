@@ -15,7 +15,7 @@
 <title>Kodolab — interactive 3D biology</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,300;0,7..72,400;0,7..72,600;1,7..72,300;1,7..72,400&family=Jost:wght@300;400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Jost:wght@300;400;500;600&display=swap">
 <link rel="stylesheet" href="demos/kit/proteinbox.css">
 <style>
   :root {
@@ -28,6 +28,8 @@
     --butter: #FFD166;
     --serif: 'Literata', Georgia, serif;
     --sans: 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    /* Futura where the OS has it (macOS does); Jost is its clone elsewhere. */
+    --display: 'Futura', 'Jost', -apple-system, sans-serif;
     --elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
     --soft: cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -35,8 +37,10 @@
   html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
   a { color: inherit; }
-  h1, h2, h3 { font-family: var(--serif); font-weight: 400; letter-spacing: -0.02em; margin: 0; }
-  .eyebrow { font: 500 12px/1 var(--sans); letter-spacing: 0.22em; text-transform: uppercase; color: var(--coral); }
+  h1, h2, h3 { font-family: var(--display); font-weight: 500; letter-spacing: -0.015em; margin: 0; }
+  /* Colour carries the emphasis: Jost has no italic, so an italic em here would be synthesized. */
+  h1 em, h2 em, h3 em { font-style: normal; }
+  .eyebrow { display: block; font: 500 14px/1 var(--sans); letter-spacing: 0.22em; text-transform: uppercase; color: var(--coral); margin-bottom: 1rem; }
   .wrap { width: min(1180px, calc(100% - 4rem)); margin-inline: auto; }
 
   /* ---- hero: the wordmark ---------------------------------------------- */
@@ -51,7 +55,7 @@
   .stem, .diag { fill: var(--ink); }
   .hero .tag {
     position: absolute; left: 50%; bottom: 18vh; transform: translate(-50%, 14px);
-    font: italic 300 clamp(1.25rem, 2.4vw, 1.9rem)/1.3 var(--serif); color: var(--ink-2);
+    font: italic 400 clamp(1.25rem, 2.4vw, 1.9rem)/1.3 var(--serif); color: var(--ink-2);
     text-align: center; opacity: 0; transition: opacity .9s var(--soft), transform .9s var(--soft); white-space: nowrap;
   }
   .hero .tag b { font-weight: 600; font-style: normal; }
@@ -90,10 +94,10 @@
   @keyframes mast { from { opacity: 0; translate: 0 -10px; } to { opacity: 1; translate: 0 0; } }
   .mast .brand { display: flex; align-items: center; justify-content: space-between; gap: 2rem; flex-wrap: wrap; padding-bottom: 1.4rem; border-bottom: 2px solid var(--ink); }
   .mast .brand img { width: 148px; height: auto; display: block; }
-  .mast .brand .tag { font: italic 300 1.05rem/1.4 var(--serif); color: var(--ink-2); margin: 0; text-align: right; }
+  .mast .brand .tag { font: italic 400 1.05rem/1.4 var(--serif); color: var(--ink-2); margin: 0; text-align: right; }
   .mast .brand .tag b { font-weight: 600; font-style: normal; color: var(--ink); }
   .mast .sechead { display: flex; align-items: baseline; gap: 1.2rem; margin-top: 2.6rem; }
-  .mast .sechead h2 { font: 400 1.3rem/1 var(--serif); letter-spacing: -0.01em; }
+  .mast .sechead h2 { font: 500 1.3rem/1 var(--display); letter-spacing: -0.01em; }
   .mast .sechead .rule { display: none; }
   .mast .sechead .count { display: none; }
   .field.done .hero { display: none; }
@@ -141,7 +145,7 @@
   }
   .field.told .card .text { opacity: 1; max-height: 12rem; padding: 1rem 1.15rem 1.15rem; transform: none; }
   .card .text h3 { margin: 0; font-size: 1.2rem; line-height: 1.2; }
-  .card .text p { margin: .4rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 300; font-size: .88rem; line-height: 1.35; color: var(--ink-2); }
+  .card .text p { margin: .4rem 0 0; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: .88rem; line-height: 1.35; color: var(--ink-2); }
   @media (max-width: 900px) { .cards { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 560px) { .cards { grid-template-columns: 1fr; gap: .8rem; } .card .stage { aspect-ratio: 16/9; } }
 
@@ -150,7 +154,7 @@
   .gen .wrap { display: grid; grid-template-columns: 1.05fr .95fr; gap: 4rem; align-items: center; }
   .gen h2 { font-size: clamp(2.2rem, 4.4vw, 3.6rem); line-height: 1.02; }
   .gen h2 em { color: var(--coral); }
-  .gen .lede { font-family: var(--serif); font-size: 1.15rem; font-weight: 300; margin: 1.2rem 0 0; max-width: 34em; }
+  .gen .lede { font-family: var(--serif); font-size: 1.15rem; font-weight: 400; margin: 1.2rem 0 0; max-width: 34em; }
   .gen .beta { display: inline-flex; align-items: center; gap: .5rem; margin-top: 1.5rem; padding: .45rem .8rem; border: 1px solid rgba(20,33,61,.4); border-radius: 999px; font: 500 12px var(--sans); letter-spacing: .14em; text-transform: uppercase; }
   .gen .beta i { width: 8px; height: 8px; border-radius: 50%; background: var(--coral); animation: blink 1.6s infinite; }
   @keyframes blink { 50% { opacity: .2; } }
@@ -159,7 +163,7 @@
     width: 100%; resize: none; min-height: 7.4rem; padding: 1.1rem 1.3rem;
     border: 1px solid rgba(20,33,61,.12); border-radius: 16px; background: #FFFDF7; color: var(--ink);
     box-shadow: 0 1px 2px rgba(20,33,61,.05), 0 16px 40px -14px rgba(20,33,61,.3);
-    font: 300 clamp(1.15rem, 1.9vw, 1.45rem)/1.35 var(--serif);
+    font: 400 clamp(1.15rem, 1.9vw, 1.45rem)/1.35 var(--serif);
     transition: box-shadow .2s;
   }
   .ask textarea::placeholder { font-weight: 400; font-style: italic; color: rgba(20,33,61,.55); transition: opacity .28s; }
@@ -187,8 +191,8 @@
   }
   .gate.on { opacity: 1; transform: none; pointer-events: auto; }
   .gate h3 { font-size: 1.6rem; color: #fff; }
-  .gate h3 em { color: var(--amber); font-style: italic; }
-  .gate p { margin: 0; font-family: var(--serif); font-weight: 300; font-size: 1rem; color: rgba(244,241,232,.85); }
+  .gate h3 em { color: var(--amber); }
+  .gate p { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 1rem; color: rgba(244,241,232,.85); }
   .gate .echo { font-style: italic; color: var(--amber); border-left: 2px solid var(--amber); padding-left: .8rem; }
   .gate form { display: flex; gap: .6rem; margin-top: .4rem; }
   .gate input { flex: 1; font: 400 15px var(--sans); padding: .7rem 1rem; border-radius: 999px; border: 2px solid rgba(244,241,232,.4); background: transparent; color: #fff; }
@@ -203,8 +207,8 @@
   .gallery { background: var(--ink); color: var(--paper); padding: 6rem 0 7.5rem; overflow: hidden; }
   .gallery .wrap { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; margin-bottom: 2.4rem; }
   .gallery h2 { font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.05; color: #fff; }
-  .gallery h2 em { font-style: italic; color: var(--violet); }
-  .gallery .lede { font-family: var(--serif); font-weight: 300; font-size: 1.05rem; color: rgba(244,241,232,.75); max-width: 30em; margin: .6rem 0 0; }
+  .gallery h2 em { color: var(--violet); }
+  .gallery .lede { font-family: var(--serif); font-weight: 400; font-size: 1.05rem; color: rgba(244,241,232,.75); max-width: 30em; margin: .6rem 0 0; }
   .gallery .more { font: 500 12px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--violet); text-decoration: none; white-space: nowrap; padding-bottom: .4rem; border-bottom: 1px solid var(--violet); }
   .marquee { display: flex; align-items: flex-start; gap: 1.2rem; width: max-content; animation: slide 70s linear infinite; padding-left: 1.2rem; }
   .marquee:hover { animation-play-state: paused; }
@@ -219,8 +223,8 @@
   /* ---- the waitlist band -------------------------------------------- */
   .join { background: var(--coral); color: #FFF7EC; padding: 5.5rem 0; text-align: center; }
   .join h2 { font-size: clamp(2.2rem, 4.6vw, 3.8rem); line-height: 1.02; color: #fff; }
-  .join h2 em { font-style: italic; color: var(--ink); }
-  .join p { font-family: var(--serif); font-weight: 300; font-size: 1.15rem; max-width: 34em; margin: 1rem auto 1.8rem; color: rgba(255,247,236,.9); }
+  .join h2 em { color: var(--ink); }
+  .join p { font-family: var(--serif); font-weight: 400; font-size: 1.15rem; max-width: 34em; margin: 1rem auto 1.8rem; color: rgba(255,247,236,.9); }
   .join .cta { background: var(--ink); color: #fff; }
   .join .small { font: 400 13px var(--sans); margin-top: 1.2rem; color: rgba(255,247,236,.75); }
   .join .small a { color: #fff; }
@@ -229,10 +233,10 @@
   .why { padding: 7rem 0; }
   .why .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
   .why h2 { font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.05; }
-  .why h2 em { font-style: italic; color: var(--blue); }
-  .why p { font-family: var(--serif); font-weight: 300; font-size: 1.15rem; max-width: 32em; }
+  .why h2 em { color: var(--blue); }
+  .why p { font-family: var(--serif); font-weight: 400; font-size: 1.15rem; max-width: 32em; }
   .about-card { background: #fff; border-radius: 16px; padding: 2rem 2.2rem; box-shadow: 0 1px 2px rgba(20,33,61,.05), 0 20px 50px -18px rgba(20,33,61,.3); }
-  .about-card p { margin: 0 0 1.1rem; font-family: var(--serif); font-weight: 300; font-size: 1.02rem; max-width: none; }
+  .about-card p { margin: 0 0 1.1rem; font-family: var(--serif); font-weight: 400; font-size: 1.02rem; max-width: none; }
   .about-card p.k { margin: 0 0 .15rem; font: 500 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--coral); }
   .about-card p:last-child { margin-bottom: 0; }
   .about-card a { color: var(--ink); text-decoration: underline; text-decoration-color: rgba(20,33,61,.3); text-underline-offset: 3px; }

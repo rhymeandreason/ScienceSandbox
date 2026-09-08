@@ -13,7 +13,7 @@
 <meta name="description" content="How to add a molecule, a component, or a lesson to Kodolab's open library of interactive 3D biology.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,300;0,7..72,400;0,7..72,600;1,7..72,300;1,7..72,400&family=Jost:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Jost:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
   :root {
     --paper: #F4F1E8;
@@ -25,6 +25,8 @@
     --butter: #FFD166;
     --serif: 'Literata', Georgia, serif;
     --sans: 'Jost', -apple-system, 'Segoe UI', sans-serif;
+    /* Futura where the OS has it (macOS does); Jost is its clone elsewhere. */
+    --display: 'Futura', 'Jost', -apple-system, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
     --soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -33,16 +35,18 @@
   html { scroll-behavior: smooth; }
   body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 17px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
   a { color: inherit; }
-  h1, h2, h3 { font-family: var(--serif); font-weight: 400; letter-spacing: -0.02em; margin: 0; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 500; letter-spacing: -0.015em; margin: 0; }
+  /* Colour carries the emphasis: Jost has no italic, so an italic em here would be synthesized. */
+  h1 em, h2 em, h3 em { font-style: normal; }
   p { margin: 0; }
   .wrap { width: min(1080px, calc(100% - 4rem)); margin-inline: auto; }
   .narrow { width: min(760px, calc(100% - 4rem)); margin-inline: auto; }
-  .eyebrow { display: block; font: 500 12px/1 var(--sans); letter-spacing: 0.22em; text-transform: uppercase; color: var(--coral); margin-bottom: 1rem; }
-  .lede { font-family: var(--serif); font-weight: 300; font-size: 1.18rem; line-height: 1.6; color: var(--ink-2); }
+  .eyebrow { display: block; font: 500 14px/1 var(--sans); letter-spacing: 0.22em; text-transform: uppercase; color: var(--coral); margin-bottom: 1rem; }
+  .lede { font-family: var(--serif); font-weight: 400; font-size: 1.18rem; line-height: 1.6; color: var(--ink-2); }
 
   /* ---- chrome ---------------------------------------------------------- */
   .sitenav {
-    position: sticky; top: 0; z-index: 20; background: rgba(244,241,232,.92); backdrop-filter: blur(10px);
+    background: rgba(244,241,232,.92); backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(20,33,61,.12);
   }
   .sitenav .wrap { display: flex; align-items: center; gap: 1rem; padding: .9rem 0; }
@@ -69,8 +73,8 @@
 
   /* ---- hero ------------------------------------------------------------ */
   .hero { padding: 5.5rem 0 4.5rem; }
-  .hero h1 { font-size: clamp(2.4rem, 5.4vw, 4.2rem); line-height: 1.03; max-width: 15em; }
-  .hero h1 em { font-style: italic; color: var(--coral); }
+  .hero h1 { font-size: clamp(2.4rem, 5.2vw, 4rem); line-height: 1.04; max-width: 15em; }
+  .hero h1 em { color: var(--coral); }
   .hero .lede { margin-top: 1.6rem; max-width: 34em; font-size: 1.25rem; }
   .hero .row { display: flex; gap: .9rem; flex-wrap: wrap; margin-top: 2.2rem; align-items: center; }
   .hero .note { font: 400 13px var(--sans); color: var(--mute); }
@@ -79,8 +83,8 @@
   section.band { padding: 6rem 0; }
   .sechead { max-width: 40em; margin-bottom: 3rem; }
   .sechead h2 { font-size: clamp(1.9rem, 3.6vw, 2.8rem); line-height: 1.08; }
-  .sechead h2 em { font-style: italic; color: var(--blue); }
-  .sechead p { margin-top: .9rem; font-family: var(--serif); font-weight: 300; font-size: 1.08rem; color: var(--ink-2); }
+  .sechead h2 em { color: var(--blue); }
+  .sechead p { margin-top: .9rem; font-family: var(--serif); font-weight: 400; font-size: 1.08rem; color: var(--ink-2); }
 
   /* ---- the four ways --------------------------------------------------- */
   .ways { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.4rem; list-style: none; padding: 0; margin: 0; }
@@ -92,8 +96,8 @@
   .way .top { display: flex; align-items: center; gap: .6rem; font: 600 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--mute); }
   .way .top i { width: 9px; height: 9px; border-radius: 50%; background: var(--dot); }
   .way .top .eff { margin-left: auto; letter-spacing: .1em; color: var(--ink-2); }
-  .way h3 { font-size: 1.5rem; line-height: 1.15; margin: .9rem 0 .6rem; }
-  .way > p { font-family: var(--serif); font-weight: 300; font-size: 1.02rem; line-height: 1.6; color: var(--ink-2); }
+  .way h3 { font-size: 1.4rem; line-height: 1.2; margin: .9rem 0 .6rem; }
+  .way > p { font-family: var(--serif); font-weight: 400; font-size: 1.02rem; line-height: 1.6; color: var(--ink-2); }
   .way .go { margin-top: auto; padding-top: 1.5rem; }
   code.f { font: 500 .86em var(--mono); background: rgba(20,33,61,.06); padding: .12em .4em; border-radius: 5px; white-space: nowrap; }
 
@@ -109,8 +113,8 @@
   .step { display: grid; grid-template-columns: 3rem 1fr; gap: 1.4rem; align-items: start; }
   .step .n { counter-increment: s; width: 3rem; height: 3rem; border-radius: 50%; background: var(--ink); color: var(--butter); display: grid; place-items: center; font: 500 15px var(--sans); }
   .step .n::before { content: counter(s, decimal-leading-zero); }
-  .step h3 { font-size: 1.3rem; line-height: 1.2; }
-  .step p { margin-top: .45rem; font-family: var(--serif); font-weight: 300; font-size: 1rem; color: var(--ink-2); max-width: 44em; }
+  .step h3 { font-size: 1.2rem; line-height: 1.25; }
+  .step p { margin-top: .45rem; font-family: var(--serif); font-weight: 400; font-size: 1rem; color: var(--ink-2); max-width: 44em; }
   .step p a { text-underline-offset: 3px; }
 
   /* ---- code blocks ----------------------------------------------------- */
@@ -128,10 +132,10 @@
   /* ---- the agent prompt ------------------------------------------------ */
   .agent { background: var(--ink); color: var(--paper); }
   .agent .sechead h2 { color: #fff; }
-  .agent .sechead h2 em { font-style: italic; color: var(--amber); }
+  .agent .sechead h2 em { color: var(--amber); }
   .agent .sechead p { color: rgba(244,241,232,.78); }
   .agent .code { background: #0E1930; border: 1px solid rgba(232,237,247,.14); }
-  .agent .after { margin-top: 1.4rem; font-family: var(--serif); font-weight: 300; font-size: 1rem; color: rgba(244,241,232,.75); max-width: 46em; }
+  .agent .after { margin-top: 1.4rem; font-family: var(--serif); font-weight: 400; font-size: 1rem; color: rgba(244,241,232,.75); max-width: 46em; }
   .agent .after code { font: 500 .86em var(--mono); background: rgba(232,237,247,.12); padding: .12em .4em; border-radius: 5px; }
   .tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .9rem; }
   .tabs button {
@@ -150,7 +154,7 @@
   .shelf { position: relative; padding: 4.5rem 0 5rem; background: var(--ink); color: var(--paper); }
   .galhead { display: flex; align-items: baseline; gap: .9rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
   .galhead h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); color: #fff; }
-  .galhead h2 em { font-style: italic; color: var(--amber); }
+  .galhead h2 em { color: var(--amber); }
   .galhead p { font: 400 14px var(--sans); color: rgba(244,241,232,.7); }
   .galhead a { color: #fff; text-underline-offset: 3px; }
 
@@ -194,14 +198,14 @@
   .gallery .stage > * { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; }
   .gallery .text { padding: .85rem 1rem 1rem; display: flex; flex-direction: column; flex: 1; }
   .gallery h4 { font: 500 13.5px var(--mono); margin: 0 0 .35rem; letter-spacing: -.01em; }
-  .gallery p { font-family: var(--serif); font-weight: 300; font-size: .92rem; line-height: 1.5; color: var(--ink-2); }
+  .gallery p { font-family: var(--serif); font-weight: 400; font-size: .92rem; line-height: 1.5; color: var(--ink-2); }
   .gallery .rung { margin-top: auto; padding-top: .7rem; font: 500 10px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); }
 
   /* ---- licence + close ------------------------------------------------- */
   .close { background: var(--coral); color: #FFF7EC; text-align: center; padding: 5.5rem 0; }
   .close h2 { font-size: clamp(2rem, 4.4vw, 3.4rem); line-height: 1.04; color: #fff; }
-  .close h2 em { font-style: italic; color: var(--ink); }
-  .close p { font-family: var(--serif); font-weight: 300; font-size: 1.12rem; max-width: 34em; margin: 1.1rem auto 1.9rem; color: rgba(255,247,236,.92); }
+  .close h2 em { color: var(--ink); }
+  .close p { font-family: var(--serif); font-weight: 400; font-size: 1.12rem; max-width: 34em; margin: 1.1rem auto 1.9rem; color: rgba(255,247,236,.92); }
   .close .cta { background: var(--ink); color: #fff; }
   .close .small { font: 400 13px var(--sans); margin-top: 1.3rem; color: rgba(255,247,236,.8); }
   .close .small a { color: #fff; }
@@ -210,7 +214,7 @@
   .licence .wrap { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2.4rem 3rem; }
   .licence b { font-family: var(--sans); font-weight: 500; color: var(--ink); }
   .licence p.k { font: 500 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--coral); margin-bottom: .5rem; }
-  .licence p { font-family: var(--serif); font-weight: 300; font-size: .98rem; line-height: 1.6; color: var(--ink-2); }
+  .licence p { font-family: var(--serif); font-weight: 400; font-size: .98rem; line-height: 1.6; color: var(--ink-2); }
   .licence a { text-underline-offset: 3px; }
 
   footer { padding: 2.5rem 0 3rem; border-top: 1px solid rgba(20,33,61,.2); font: 400 13px var(--sans); color: var(--mute); }
