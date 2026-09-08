@@ -176,14 +176,14 @@
   .shelf .arrow {
     position: absolute; top: calc(50% + 1.1rem); transform: translateY(-50%); z-index: 3;
     width: 42px; height: 42px; border-radius: 50%; border: 0;
-    background: var(--amber); color: var(--ink); cursor: pointer; display: grid; place-items: center;
+    background: #fff; color: var(--ink); cursor: pointer; display: grid; place-items: center;
     box-shadow: 0 2px 6px rgba(0,0,0,.2), 0 14px 28px -14px rgba(0,0,0,.6);
     transition: opacity .18s, transform .15s var(--soft);
   }
   .shelf .arrow:hover { transform: translateY(-50%) scale(1.06); }
   .shelf .arrow[hidden] { display: none; }
-  .shelf .arrow.prev { left: max(.6rem, calc((100% - 1080px) / 2 - 21px)); }
-  .shelf .arrow.next { right: max(.6rem, calc((100% - 1080px) / 2 - 21px)); }
+  .shelf .arrow.prev { left: .75rem; }
+  .shelf .arrow.next { right: .75rem; }
   .shelf .arrow svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .gallery article {
     flex: 0 0 268px; scroll-snap-align: start; background: #fff; color: var(--ink);
