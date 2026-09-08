@@ -63,6 +63,9 @@
   .cta.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(20,33,61,.35); }
   .cta.ghost:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
   .cta.sm { font-size: 13px; padding: .55rem 1.05rem; box-shadow: none; }
+  .cta:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+  /* A way's button is a real button: it selects a tab under the prompt below,
+     so it must not look like the external link in card 01. */
 
   /* ---- hero ------------------------------------------------------------ */
   .hero { padding: 6rem 0 4.5rem; }
@@ -71,13 +74,6 @@
   .hero .lede { margin-top: 1.6rem; max-width: 34em; font-size: 1.25rem; }
   .hero .row { display: flex; gap: .9rem; flex-wrap: wrap; margin-top: 2.2rem; align-items: center; }
   .hero .note { font: 400 13px var(--sans); color: var(--mute); }
-
-  /* ---- three reasons --------------------------------------------------- */
-  .why { background: var(--paper-2); padding: 5rem 0; border-top: 1px solid rgba(20,33,61,.08); border-bottom: 1px solid rgba(20,33,61,.08); }
-  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.4rem; }
-  .trio h3 { font-size: 1.35rem; line-height: 1.2; margin-bottom: .6rem; }
-  .trio p { font-family: var(--serif); font-weight: 300; font-size: .98rem; line-height: 1.6; color: var(--ink-2); }
-  .trio .bar { width: 34px; height: 4px; border-radius: 2px; margin-bottom: 1.1rem; }
 
   /* ---- section furniture ---------------------------------------------- */
   section.band { padding: 6rem 0; }
@@ -132,19 +128,66 @@
   .agent .code { background: #0E1930; border: 1px solid rgba(232,237,247,.14); }
   .agent .after { margin-top: 1.4rem; font-family: var(--serif); font-weight: 300; font-size: 1rem; color: rgba(244,241,232,.75); max-width: 46em; }
   .agent .after code { font: 500 .86em var(--mono); background: rgba(232,237,247,.12); padding: .12em .4em; border-radius: 5px; }
-  .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.4rem; }
-  .chips span { font: 500 12px var(--sans); letter-spacing: .04em; padding: .35rem .8rem; border-radius: 999px; border: 1px solid rgba(232,237,247,.25); color: rgba(244,241,232,.85); }
+  .tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .9rem; }
+  .tabs button {
+    font: 500 13px var(--sans); letter-spacing: .02em; padding: .5rem 1rem; border-radius: 999px;
+    border: 1px solid rgba(232,237,247,.25); background: transparent; color: rgba(244,241,232,.8);
+    cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+  }
+  .tabs button:hover { background: rgba(232,237,247,.12); color: #fff; }
+  .tabs button[aria-selected="true"] { background: var(--amber); border-color: var(--amber); color: var(--ink); }
+  .tabs button:focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; }
 
-  /* ---- review ---------------------------------------------------------- */
-  .review { background: var(--paper-2); border-top: 1px solid rgba(20,33,61,.08); }
-  .review .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: start; }
-  .review h2 { font-size: clamp(1.9rem, 3.6vw, 2.8rem); line-height: 1.08; }
-  .review h2 em { font-style: italic; color: var(--green); }
-  .review .lede { margin-top: 1rem; }
-  .checklist { background: #fff; border-radius: 18px; padding: 1.9rem 2rem; box-shadow: 0 1px 2px rgba(20,33,61,.05), 0 20px 50px -22px rgba(20,33,61,.3); }
-  .checklist h3 { font: 500 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--coral); margin-bottom: 1.1rem; }
-  .checklist ol { margin: 0; padding-left: 1.2rem; display: grid; gap: .75rem; font-family: var(--serif); font-weight: 300; font-size: 1rem; color: var(--ink-2); }
-  .checklist ol b { font-family: var(--sans); font-weight: 500; color: var(--ink); }
+  /* The shelf mounts the real components, the way index.html mounts the lesson
+     cards: a 3:2 stage per card, lit only when it scrolls into the row. */
+  .shelf { position: relative; padding: 3.4rem 0 3.8rem; }
+  .galhead { display: flex; align-items: baseline; gap: .9rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .galhead h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); }
+  .galhead p { font: 400 14px var(--sans); color: var(--mute); }
+  .galhead a { color: var(--ink); text-underline-offset: 3px; }
+
+  /* One row, scrolled sideways. The padding is the wrap's own gutter, so the
+     first card lines up with the heading and the last can still reach it. */
+  .gallery {
+    display: flex; gap: 1rem; overflow-x: auto; scroll-snap-type: x proximity;
+    padding: 0 max(2rem, calc((100% - 1080px) / 2)) .6rem;
+    /* Snapping aligns a card to the row's edge, not to its padding, so the
+       row would open scrolled past the gutter without this. */
+    scroll-padding-inline: max(2rem, calc((100% - 1080px) / 2));
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .gallery::-webkit-scrollbar { display: none; }
+
+  /* The arrows sit over the row's edges. They are the only way to reach the
+     far cards with a mouse now the bar is hidden, so they hide only when the
+     row has no overflow left in that direction. */
+  .shelf .arrow {
+    position: absolute; top: calc(50% + 1.1rem); transform: translateY(-50%); z-index: 3;
+    width: 42px; height: 42px; border-radius: 50%; border: 1px solid rgba(20,33,61,.14);
+    background: #fff; color: var(--ink); cursor: pointer; display: grid; place-items: center;
+    box-shadow: 0 2px 6px rgba(20,33,61,.08), 0 14px 28px -14px rgba(20,33,61,.45);
+    transition: opacity .18s, transform .15s var(--soft);
+  }
+  .shelf .arrow:hover { transform: translateY(-50%) scale(1.06); }
+  .shelf .arrow[hidden] { display: none; }
+  .shelf .arrow.prev { left: max(.6rem, calc((100% - 1080px) / 2 - 21px)); }
+  .shelf .arrow.next { right: max(.6rem, calc((100% - 1080px) / 2 - 21px)); }
+  .shelf .arrow svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .gallery article {
+    flex: 0 0 268px; scroll-snap-align: start; background: #fff;
+    border: 1px solid rgba(20,33,61,.08); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 1px 2px rgba(20,33,61,.05), 0 16px 38px -22px rgba(20,33,61,.3);
+    display: flex; flex-direction: column;
+  }
+  /* The box is the 3:2 stage and nothing mounted in it may resize it: Graph
+     draws at its own intrinsic height and would otherwise push the card open
+     and spill over the text under it. */
+  .gallery .stage { position: relative; aspect-ratio: 3 / 2; background: var(--stage-bg, #fff); overflow: hidden; }
+  .gallery .stage > * { position: absolute; inset: 0; display: block; width: 100%; height: 100%; border: 0; }
+  .gallery .text { padding: .85rem 1rem 1rem; display: flex; flex-direction: column; flex: 1; }
+  .gallery h4 { font: 500 13.5px var(--mono); margin: 0 0 .35rem; letter-spacing: -.01em; }
+  .gallery p { font-family: var(--serif); font-weight: 300; font-size: .92rem; line-height: 1.5; color: var(--ink-2); }
+  .gallery .rung { margin-top: auto; padding-top: .7rem; font: 500 10px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); }
 
   /* ---- licence + close ------------------------------------------------- */
   .close { background: var(--coral); color: #FFF7EC; text-align: center; padding: 5.5rem 0; }
@@ -168,8 +211,7 @@
   footer .dots i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 4px; }
 
   @media (max-width: 900px) {
-    .trio, .ways, .review .wrap, .licence .wrap { grid-template-columns: 1fr; }
-    .review .wrap { gap: 2.5rem; }
+    .ways, .licence .wrap { grid-template-columns: 1fr; }
     .hero { padding: 4rem 0 3rem; }
     section.band { padding: 4rem 0; }
     .sitenav .crumb { display: none; }
@@ -185,7 +227,6 @@
     <span class="sp"></span>
     <a class="lnk" href="#ways">Ways in</a>
     <a class="lnk" href="#start">Start</a>
-    <a class="lnk" href="#review">Review</a>
     <a class="cta sm ghost" href="https://github.com/rhymeandreason/ScienceSandbox" target="_blank" rel="noopener">GitHub</a>
   </div>
 </nav>
@@ -204,24 +245,28 @@
   </div>
 </header>
 
-<!-- ============ why pool it ============ -->
-<section class="why">
-  <div class="wrap trio">
-    <div>
-      <div class="bar" style="background:var(--green)"></div>
-      <h3>Agents made this cheap</h3>
-      <p>Building in 3D used to mean learning Three.js first. Now you say what you want to teach, and your agent drafts it from the docs already in this repo.</p>
-    </div>
-    <div>
-      <div class="bar" style="background:var(--coral)"></div>
-      <h3>Review is the scarce part</h3>
-      <p>Agents write good graphics and plausible biology. Plausible is the problem: a wrong bond angle renders beautifully. Someone who knows the subject reads every contribution.</p>
-    </div>
-    <div>
-      <div class="bar" style="background:var(--blue)"></div>
-      <h3>One library compounds</h3>
-      <p>Fifty people generating alone gives fifty half-finished cells nobody else can reach. Add to one library and the next person's lesson mounts your cell by name.</p>
-    </div>
+<!-- ============ the component shelf, live ============ -->
+<section class="shelf">
+  <div class="wrap galhead">
+    <h2>Our component library</h2>
+    <p><span id="ncomp"></span> exist already, each one a line of code to use. The next one is <a href="https://github.com/rhymeandreason/ScienceSandbox/blob/main/demos/docs/AddingAComponent.md" target="_blank" rel="noopener">AddingAComponent.md</a>.</p>
+  </div>
+  <!-- One row, scrolled sideways: eleven live scenes down a page is a wall,
+       and across one they read as a shelf you flick through. -->
+  <button class="arrow prev" type="button" aria-label="Previous components" hidden><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <button class="arrow next" type="button" aria-label="More components"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+  <div class="gallery" id="gallery">
+    <article><div class="stage" data-mount="water" style="--stage-bg:#EAF3FF"></div><div class="text"><h4>WaterSim</h4><p>Liquid water, and what follows from hydrogen bonds.</p><div class="rung">molecules · bulk</div></div></article>
+    <article><div class="stage" data-mount="membrane" style="--stage-bg:#FFF7E3"></div><div class="text"><h4>Membrane</h4><p>A bilayer, its proteins, and what crosses.</p><div class="rung">membrane · bulk</div></div></article>
+    <article><div class="stage" data-mount="protein" style="--stage-bg:#FFF0EC"></div><div class="text"><h4>Proteinbox</h4><p>Any protein in the library, in its own ångströms.</p><div class="rung">macromolecule · single</div></div></article>
+    <article><div class="stage" data-mount="hbcrowd" style="--stage-bg:#F5EEFF"></div><div class="text"><h4>HbCrowd</h4><p>A crowd of haemoglobins, and the moment HbS starts a fibre.</p><div class="rung">macromolecule · bulk</div></div></article>
+    <article><div class="stage" data-mount="bloodcell" style="--stage-bg:#FFEFEF"></div><div class="text"><h4>BloodCell</h4><p>One red blood cell, cut open.</p><div class="rung">cell · single</div></div></article>
+    <article><div class="stage" data-mount="animal" style="--stage-bg:#EEF2FA"></div><div class="text"><h4>AnimalCell</h4><p>An animal cell cut open, with its organelles.</p><div class="rung">cell · single</div></div></article>
+    <article><div class="stage" data-mount="plant" style="--stage-bg:#EAFBEF"></div><div class="text"><h4>PlantCell</h4><p>A plant cell cut open, and what water does to it.</p><div class="rung">cell · single</div></div></article>
+    <article><div class="stage" data-mount="leaf" style="--stage-bg:#EAF7EC"></div><div class="text"><h4>Leaf</h4><p>A leaf in cross-section, tissue by tissue.</p><div class="rung">tissue · bulk</div></div></article>
+    <article><div class="stage" data-mount="blood" style="--stage-bg:#FFF0EC"></div><div class="text"><h4>BloodFlow</h4><p>A vessel of red cells, narrowing.</p><div class="rung">organ · bulk</div></div></article>
+    <article><div class="stage" data-mount="tree" style="--stage-bg:#F1F7EA"></div><div class="text"><h4>Tree</h4><p>A tree, the air around it, and where its mass came from.</p><div class="rung">organism · single</div></div></article>
+    <article><div class="stage" data-mount="graph" style="--stage-bg:#FFFDF5"></div><div class="text"><h4>Graph</h4><p>A chart of measurements, or of a running sim.</p><div class="rung">no scale</div></div></article>
   </div>
 </section>
 
@@ -246,21 +291,21 @@
         <div class="top"><i></i>02 · Small<span class="eff">an evening</span></div>
         <h3>Add a molecule or a protein</h3>
         <p>Atoms in real ångströms in a <code class="f">mol-*.js</code> spec, or a structure baked from its Protein Data Bank entry. The narrowest way in, and the checkers do much of the reviewing.</p>
-        <p class="go"><a class="cta sm ghost" href="#start">Start →</a></p>
+        <p class="go"><button class="cta sm ghost taskbtn" type="button" data-task="molecule">Use this prompt →</button></p>
       </li>
 
       <li class="way" style="--dot:var(--coral)">
         <div class="top"><i></i>03 · Medium<span class="eff">a weekend</span></div>
         <h3>Build a component</h3>
         <p>A 3D scene any page can mount by name: an organelle, a tissue, a process. The highest leverage thing you can add, because every lesson and every generated app can then use it.</p>
-        <p class="go"><a class="cta sm ghost" href="#start">Start →</a></p>
+        <p class="go"><button class="cta sm ghost taskbtn" type="button" data-task="component">Use this prompt →</button></p>
       </li>
 
       <li class="way" style="--dot:var(--violet)">
         <div class="top"><i></i>04 · Large<span class="eff">a project</span></div>
         <h3>Build a lesson</h3>
         <p>A step-through that carries one idea from first look to understood. The biggest ask, and the one we edit most, because the teaching is the hard part.</p>
-        <p class="go"><a class="cta sm ghost" href="#start">Start →</a></p>
+        <p class="go"><button class="cta sm ghost taskbtn" type="button" data-task="lesson">Use this prompt →</button></p>
       </li>
 
     </ul>
@@ -282,7 +327,7 @@ demos/CLAUDE.md, then the one doc its "What to read" table names for this
 task. Follow that doc exactly, including the parts that look like they do
 not apply.
 
-TASK: &lt;one sentence: what to add, and what it should teach&gt;
+<span id="task">TASK: &lt;one sentence: what to add, and what it should teach&gt;</span>
 
 Worth repeating from the repo:
   - Three.js r128 as a global script. No build, no bundler, no modules.
@@ -295,34 +340,11 @@ Start the dev server with node demos/tools/dev-server.js, run the checkers,
 then tell me exactly what to click to see whether it is right. Do not tell
 me it works. I will look.</pre>
     </div>
-    <p class="after">Ask for the click, not a verdict. Nothing in the repo can check framing, timing, or whether an animation reads as the thing it claims to show.</p>
-    <div class="chips" id="chips">
-      <span>WaterSim</span><span>Membrane</span><span>Proteinbox</span><span>Leaf</span><span>Tree</span>
-      <span>BloodCell</span><span>HbCrowd</span><span>BloodFlow</span><span>AnimalCell</span><span>PlantCell</span><span>Graph</span>
-    </div>
-    <p class="after" style="margin-top:.8rem"><span id="ncomp"></span> components exist already. Mounting one is a line of code; adding the next is <a href="https://github.com/rhymeandreason/ScienceSandbox/blob/main/demos/docs/AddingAComponent.md" target="_blank" rel="noopener" style="color:var(--amber)">AddingAComponent.md</a>.</p>
-  </div>
-</section>
-
-<!-- ============ review ============ -->
-<section class="band review" id="review">
-  <div class="wrap">
-    <div>
-      <span class="eyebrow">Review</span>
-      <h2>Open a pull request, and expect <em>a real read</em></h2>
-      <p class="lede">Branch off <code class="f">main</code> and open a PR. Say what a student should learn, what you checked, and what you are unsure about. That last one is the most useful sentence in it.</p>
-      <p class="lede" style="margin-top:1rem">Expect edits on the copy and questions on the science. Slow is fine. Confidently wrong and beautifully rendered is the failure this project is organised against.</p>
-      <p style="margin-top:1.8rem"><a class="cta" href="https://github.com/rhymeandreason/ScienceSandbox/issues/new" target="_blank" rel="noopener">Open an issue first →</a></p>
-    </div>
-    <div class="checklist">
-      <h3>What gets checked</h3>
-      <ol>
-        <li><b>Is the science right?</b> Geometry, mechanism, and what a simplification quietly implies.</li>
-        <li><b>Would a student learn it?</b> One idea, carried. A scene that shows everything teaches nothing.</li>
-        <li><b>Does it run?</b> Safari and Chrome, on a laptop-sized window.</li>
-        <li><b>Does it hold the invariants?</b> No build step, r128, tokens for colour, ångströms for coordinates.</li>
-        <li><b>Do the checkers pass?</b> The pre-commit hook runs them, so this usually answers itself.</li>
-      </ol>
+    <div class="tabs" role="tablist" aria-label="Prompt for">
+      <button type="button" role="tab" data-task="any" aria-selected="true">Any task</button>
+      <button type="button" role="tab" data-task="molecule" aria-selected="false">Molecule or protein</button>
+      <button type="button" role="tab" data-task="component" aria-selected="false">Component</button>
+      <button type="button" role="tab" data-task="lesson" aria-selected="false">Lesson</button>
     </div>
   </div>
 </section>
@@ -419,6 +441,47 @@ node tools/check-pages.js      <span class="cm"># every page still loads what it
   </div>
 </footer>
 
+<!-- The component library, in the only order it loads in (kit/app.js's ORDER
+     is the one copy of that order; this page names its files the way a
+     hand-built lesson does, because app.js also drags in the lesson shell's
+     stylesheets and this page has its own). WaterSim is in an iframe: it is
+     the only component on mol-solvation.js, which molecules.js refuses to
+     load beside mol-small.js. -->
+<link rel="stylesheet" href="demos/kit/proteinbox.css">
+<link rel="stylesheet" href="demos/graph/graph.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js"></script>
+<script src="demos/lib/palette.js"></script>
+<script src="demos/lib/tokens-from-palette.js"></script>
+<script src="demos/lib/molecules.js"></script>
+<script src="demos/lib/mol-small.js"></script>
+<script src="demos/lib/scene.js"></script>
+<script src="demos/lib/geo.js"></script>
+<script src="demos/lib/atomkit.js"></script>
+<script src="demos/kit/card-stage.js"></script>
+<script src="demos/kit/ribbon.js"></script>
+<script src="demos/kit/tube.js"></script>
+<script src="demos/kit/nucleic.js"></script>
+<script src="demos/kit/surface.js"></script>
+<script src="demos/folding/folding.js"></script>
+<script src="demos/kit/proteinbox.js"></script>
+<script src="demos/proteins/proteins.js"></script>
+<script src="demos/membrane/parts.js"></script>
+<script src="demos/membrane/pump.js"></script>
+<script src="demos/membrane/chemiosmosis.js"></script>
+<script src="demos/membrane/membrane.js"></script>
+<script src="demos/leaf/leaf.js"></script>
+<script src="demos/tree/tree.js"></script>
+<script src="demos/bloodcell/bloodcell.js"></script>
+<script src="demos/bloodcell/bloodflow.js"></script>
+<script src="demos/cell/organelles.js"></script>
+<script src="demos/cell/animalcell.js"></script>
+<script src="demos/cell/plantcell.js"></script>
+<script src="demos/sickle/sickle-fibre.js"></script>
+<script src="demos/sickle/hbcrowd.js"></script>
+<script src="demos/graph/graph.js"></script>
+
 <script>
 /* Copy buttons. The <pre> is the source of truth, so the block cannot drift
    from what the button hands you. */
@@ -431,10 +494,132 @@ document.querySelectorAll('.code .copy').forEach(btn => {
   });
 });
 
-/* The count is read from the chips, not typed: one list, and the sentence
-   under it cannot claim a number the row does not show. */
+/* A way's button rewrites the TASK block, naming the doc that way's work is
+   governed by. The rest of the prompt is untouched, so the copy button still
+   hands over one block. */
+const TASKS = {
+  molecule: `TASK: add <molecule or protein> — say what it should teach.
+The doc for this is demos/docs/AddingAMolecule.md (a spec built by hand) or
+demos/docs/AddingAProtein.md (a structure baked from a PDB entry). Real
+angstroms, and ship the assertion that checks the chemistry claim.
+Finish with: node demos/check-molecules.js`,
+  component: `TASK: build a <component> — a scene a page mounts by name, and
+say what it should teach. The doc for this is demos/docs/AddingAComponent.md,
+then demos/docs/Components.md, which is the section a model is handed to write
+a student's app. It is not done until tools/gen-app.js writes a working page
+from that section alone.`,
+  lesson: `TASK: build a lesson on <one idea>, carried from first look to
+understood. The doc for this is demos/docs/AddingAPage.md; ask me which
+existing page is closest and copy it. One idea per step, and the copy is
+written for a first-year biology student.`
+};
+TASKS.any = document.getElementById('task').textContent;
+
+function selectTask(key) {
+  document.getElementById('task').textContent = TASKS[key];
+  document.querySelectorAll('.tabs [role=tab]').forEach(t =>
+    t.setAttribute('aria-selected', String(t.dataset.task === key)));
+}
+document.querySelectorAll('.tabs [role=tab]').forEach(tab =>
+  tab.addEventListener('click', () => selectTask(tab.dataset.task)));
+document.querySelectorAll('.taskbtn').forEach(btn =>
+  btn.addEventListener('click', () => {
+    selectTask(btn.dataset.task);
+    document.getElementById('start').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
+
+/* Each card lights when it scrolls in, not at load: eleven WebGL contexts
+   booting at once is a stalled page on a laptop. Orbit is on and the wheel is
+   not, because the wheel is how a reader gets down this page. */
+(() => {
+  const noZoom = { orbit: true, zoom: false };
+  const MOUNT = {
+    water: el => {
+      const f = document.createElement('iframe');
+      f.src = 'demos/tests/intro-water.html'; f.title = 'liquid water'; f.loading = 'lazy';
+      el.appendChild(f);
+    },
+    membrane: el => Membrane.mount(el, {
+      proteins: { K: { x: -34 }, pump: { x: 34 } },
+      contents: { inside: { water: 12, K: 8 }, outside: { water: 9, NA: 8, CL: 6 } },
+      sideLabels: false, pumpAuto: true,
+      cam: { theta: 0.35, phi: Math.PI / 2 - 0.22, r: 250 }, stage: noZoom,
+    }),
+    protein: el => {
+      const hb = ProteinLib.byKey('hemoglobin');
+      Proteinbox.create({ mount: el, base: 'demos/', protein: 'hemoglobin', orbit: true, pad: 1.1, sub: 8,
+        stage: { ortho: false, turn: 'trackball', zoom: false },
+        colors: ProteinLib.colorsOf(hb, ProteinLib.defaultOf(hb)) });
+    },
+    hbcrowd:   el => HbCrowd.mount(el, { variant: 'HbS', stick: true, base: 'demos/', stage: noZoom }),
+    bloodcell: el => BloodCell.mount(el, { stage: noZoom }),
+    animal:    el => AnimalCell.mount(el, { stage: noZoom }),
+    plant:     el => PlantCell.mount(el, { stage: noZoom }),
+    leaf:      el => Leaf.mount(el, { stage: noZoom }),
+    blood:     el => BloodFlow.mount(el, { sickle: 0, stage: noZoom }),
+    tree:      el => Tree.mount(el, { stage: noZoom }),
+    /* height is Graph's only length: left to itself it draws at least 240px,
+       which is taller than the stage. */
+    graph:     el => Graph.mount(el, {
+      kind: 'scatter', fit: 'linear', height: el.clientHeight, legend: false, tip: false,
+      data: [ { light: 0, rate: 0.4 }, { light: 200, rate: 3.1 }, { light: 400, rate: 5.9 },
+              { light: 600, rate: 8.4 }, { light: 800, rate: 10.9 }, { light: 1000, rate: 13.2 } ],
+      x: { field: 'light', label: 'Light', unit: 'umol/m2/s' },
+      y: { field: 'rate', label: 'O2 released', unit: 'bubbles/min' },
+    }),
+  };
+  const light = el => {
+    const k = el.dataset.mount;
+    if (el.dataset.lit) return;
+    el.dataset.lit = '1';
+    // One dead component must not take the other ten down with it.
+    try { MOUNT[k](el); } catch (e) { console.error('gallery:', k, e); }
+  };
+  /* A rect check on scroll, not IntersectionObserver: an observer delivers
+     nothing while the tab is hidden, so a card that scrolled past in a
+     background tab would stay dark until the reader touched the wheel. */
+  const pending = [...document.querySelectorAll('#gallery [data-mount]')];
+  const sweep = () => {
+    for (let i = pending.length - 1; i >= 0; i--) {
+      const r = pending[i].getBoundingClientRect();
+      const near = r.top < innerHeight + 300 && r.bottom > -300
+                && r.left < innerWidth + 200 && r.right > -200;
+      if (near) light(pending.splice(i, 1)[0]);
+    }
+    if (!pending.length) { removeEventListener('scroll', sweep); row.removeEventListener('scroll', sweep); }
+  };
+  const row = document.getElementById('gallery');
+  row.addEventListener('scroll', sweep, { passive: true });
+
+  /* Page by whole cards: the step is a card plus its gap, read off the row so
+     it cannot disagree with the CSS. */
+  const prev = document.querySelector('.shelf .arrow.prev');
+  const next = document.querySelector('.shelf .arrow.next');
+  const step = () => {
+    const card = row.firstElementChild;
+    const gap = parseFloat(getComputedStyle(row).columnGap) || 16;
+    return Math.max(1, Math.round((card.getBoundingClientRect().width + gap)
+      * Math.max(1, Math.floor(row.clientWidth / (card.getBoundingClientRect().width + gap)) - 1)));
+  };
+  const ends = () => {
+    const max = row.scrollWidth - row.clientWidth;
+    prev.hidden = row.scrollLeft <= 2;
+    next.hidden = row.scrollLeft >= max - 2;
+  };
+  prev.addEventListener('click', () => row.scrollBy({ left: -step(), behavior: 'smooth' }));
+  next.addEventListener('click', () => row.scrollBy({ left: step(), behavior: 'smooth' }));
+  row.addEventListener('scroll', ends, { passive: true });
+  addEventListener('resize', ends);
+  ends();
+  addEventListener('scroll', sweep, { passive: true });
+  addEventListener('resize', sweep);
+  sweep();
+})();
+
+/* The count is read from the gallery, not typed: one list, and the sentence
+   beside it cannot claim a number the cards do not show. */
 document.getElementById('ncomp').textContent =
-  document.querySelectorAll('#chips span').length;
+  document.querySelectorAll('#gallery article').length + ' components';
 </script>
 </body>
 </html>
