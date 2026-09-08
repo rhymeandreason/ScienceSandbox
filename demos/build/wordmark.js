@@ -92,9 +92,17 @@
     const tail = prims.filter(p => p.li >= 5);         // ing…
     const dots = tail.filter(p => p.ch === '~');
     const rings = prims.filter(p => p.kind === 'ring');
-    const shift = (width - compose('build').width) / 2;
-    const pre = T(shift, 0);
-    headG.style.transform = pre;   // `build` alone sits centred; the slide takes this off
+    // Alone, `build` is five letters in a box drawn for nine, so it is set
+    // larger and settles to its true size as `ing…` arrives. The origin is the
+    // head's own centre in its own coordinates: a fixed point, so the growth
+    // cannot drift while parts are still dropping into the group's bounding box.
+    const SOLO = 1.32;
+    const INTRO_RATE = 1.25;   // the word lands 20% quicker than it is drawn
+    const wBuild = compose('build').width;
+    const shift = (width - wBuild) / 2;
+    const pre = `${T(shift, 0)} scale(${SOLO})`;
+    headG.style.transformOrigin = `${wBuild / 2}px 50px`;
+    headG.style.transform = pre;   // the slide takes both the shift and the scale off
 
     let anims = [], state = 'idle';
     const track = a => { anims.push(a); return a; };
@@ -124,7 +132,11 @@
     const hide = list => list.forEach(p => timeline(p.el, 10, [{ t: 0, opacity: 0 }, { t: 10, opacity: 0 }]));
 
     // Parts drop in from above, left to right, each landing at rest(p).
-    function stackIn(list, t0, rest = () => '', step = 170) {
+    // `rate` runs the whole drop quicker without touching the timings inside
+    // it: playbackRate scales an animation's delay along with its duration, so
+    // the stagger stays in proportion.
+    function stackIn(list, t0, rest = () => '', step = 170, rate = 1) {
+      const from = anims.length;
       const order = [...list].sort((a, b) => a.ax - b.ax);
       let end = t0;
       order.forEach((p, i) => {
@@ -147,7 +159,8 @@
           end = Math.max(end, d + 900);
         }
       });
-      return end;
+      if (rate !== 1) for (let i = from; i < anims.length; i++) anims[i].playbackRate = rate;
+      return end / rate;
     }
 
     // The loop: dots bounce in turn, discs step through the palette. It runs
@@ -187,10 +200,10 @@
       // Page load: "build" stacks in and holds, centred.
       build() {
         state = 'build';
-        if (reduce) return still(false);
+        if (reduce) { still(false); return 0; }
         stop(); hide(tail);
         headG.style.transform = pre;
-        stackIn(head, 200);
+        return stackIn(head, 200, undefined, 170, INTRO_RATE);   // when the last part has settled, in ms
       },
       // A request went out: the word slides left, "ing…" stacks on, then loops.
       building() {

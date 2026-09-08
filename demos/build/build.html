@@ -249,7 +249,13 @@
   // Off the load path, so the intro is not competing with the page's first
   // layout. A timer and not rAF: rAF never fires in a backgrounded tab, and the
   // word would sit unplayed until the tab came forward.
-  if (mark) setTimeout(() => mark.build(), 60);
+  //
+  // The rest of the first screen is staggered in behind the word: build() says
+  // when its last part settles, and the reveal starts a little before that so
+  // the two motions overlap rather than queue.
+  const ready = () => $('hero').classList.add('ready');
+  if (mark) setTimeout(() => setTimeout(ready, Math.max(0, mark.build() - 500)), 60);
+  else ready();
 
   let clockTimer = null;
   function setBusy(on) {

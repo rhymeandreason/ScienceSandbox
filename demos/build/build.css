@@ -48,10 +48,20 @@ body.work .bar { border-bottom-color: var(--border-hair); }
   transition: opacity .55s ease, transform .55s ease, visibility 0s linear .55s;
 }
 body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointer-events: none; }
+/* The first screen is the one playful surface in the builder: butter ground,
+   navy ink, and the word's own five colours. It is the stage the glyphs were
+   drawn on, and it ends at the fold — the shelf below and the workspace behind
+   stay on the site's cream, so the colour reads as a door and not a theme. */
 .hero .first {
+  --play-ground: #FFD166;
+  --play-ink: #1B1F3A;
+  --play-pop: #F26B4E;
   position: relative; min-height: 100%; box-sizing: border-box;
   display: grid; place-items: center; padding: 0 var(--page-gutter, 4rem);
-  background: radial-gradient(ellipse 70% 50% at 50% 110%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%);
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 118%, rgba(242, 107, 78, .22), transparent 70%),
+    var(--play-ground);
+  color: var(--play-ink);
 }
 .hero-in { width: min(46rem, 100%); }
 
@@ -60,16 +70,16 @@ body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointe
   position: absolute; left: 50%; bottom: 1.6rem; transform: translateX(-50%);
   display: flex; align-items: center; gap: .5em; text-decoration: none;
   font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight);
-  letter-spacing: .18em; text-transform: uppercase; color: var(--text-muted);
+  letter-spacing: .18em; text-transform: uppercase; color: color-mix(in srgb, var(--play-ink) 60%, transparent);
   border: 0; background: none; padding: .4rem .6rem; cursor: pointer;
   transition: color var(--dur-base);
 }
 .hero .down[hidden] { display: none; }
-.hero .down:hover { color: var(--accent); }
+.hero .down:hover { color: var(--play-ink); }
 .hero .down i { animation: nudge 2.4s ease-in-out infinite; }
 @keyframes nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
 
-.hero .shelf { padding: 4.5rem var(--page-gutter, 4rem) 6rem; border-top: 1px solid var(--border-hair); }
+.hero .shelf { padding: 4.5rem var(--page-gutter, 4rem) 6rem; background: var(--surface-page); }
 .hero .shelf .mine { width: min(64rem, 100%); margin: 0 auto; }
 /* The word is drawn, so the heading itself is for screen readers only. */
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -78,16 +88,18 @@ body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointe
    disc colours are its own, and wordmark.js reads them from here so the word
    has one source of colour. */
 .wordmark {
-  --wm-ink: var(--text-strong);
-  --wm-paper: var(--surface-page);
-  --wm-disc-1: #4ADE80; --wm-disc-2: #F26B4E; --wm-disc-3: #5AA9FF;
-  --wm-disc-4: #F7B733; --wm-disc-5: #C084FC;
+  --wm-ink: var(--play-ink, var(--text-strong));
+  --wm-paper: var(--play-ground, var(--surface-page));
+  /* Deeper than the study's, which was drawn on its own yellow: amber on butter
+     is a disc that disappears, so it is teal here. */
+  --wm-disc-1: #2FB86B; --wm-disc-2: #F26B4E; --wm-disc-3: #3B7DD8;
+  --wm-disc-4: #0FA3A3; --wm-disc-5: #8B5CF6;
   margin: 0 0 2.2rem;
 }
 /* The box is centred on the column, and `build` rests centred inside a box
    sized for the whole of `building…` — so the word is on the page's centre
    line in both states, and the slide left is exactly the room `ing…` needs. */
-.wordmark svg { display: block; width: min(30rem, 100%); height: auto; margin-inline: auto; overflow: visible; }
+.wordmark svg { display: block; width: min(34rem, 100%); height: auto; margin-inline: auto; overflow: visible; }
 /* Every part animates about its own centre, so it can be dropped and settled
    without the transform reaching for the SVG's origin.
 
@@ -99,25 +111,42 @@ body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointe
 .wordmark .hole { fill: var(--wm-paper); transform-box: fill-box; transform-origin: center; }
 .wordmark .stem, .wordmark .dot { fill: var(--wm-ink); }
 .wordmark .arc { fill: none; stroke: var(--wm-ink); stroke-width: 14; }
+/* The rest of the first screen arrives after the word does: the box, then the
+   line under it, then the button. `ready` is set by the page when the last
+   letter has settled, so nothing here can start before the word is whole.
+   Only in the hero — in the rail the same form is chrome, and shows at once. */
 .hero form { display: flex; flex-direction: column; gap: 0; }
+.hero .hero-in form, .hero .hero-in .hint, .hero .hero-in .cta, .hero .down {
+  opacity: 0; transform: translateY(12px);
+  transition: opacity .5s ease, transform .6s cubic-bezier(.2, .8, .2, 1);
+}
+.hero.ready .hero-in form { opacity: 1; transform: none; }
+.hero.ready .hero-in .hint { opacity: 1; transform: none; transition-delay: .18s; }
+.hero.ready .hero-in .cta { opacity: 1; transform: none; transition-delay: .3s; }
+.hero.ready .down { opacity: 1; transform: translateX(-50%); transition-delay: .5s; }
+/* The cue is centred by a translate of its own, so it has no room for the lift. */
+.hero .down { transform: translateX(-50%) translateY(12px); }
 .hero textarea {
   width: 100%; box-sizing: border-box; resize: none; padding: 1.1rem 1.3rem; min-height: 6.2rem;
-  border: 1.5px solid var(--border-hair); border-radius: 14px;
-  background: var(--surface-card); color: var(--text-strong);
-  box-shadow: 0 1px 0 var(--border-hair), 0 14px 34px -22px rgba(43, 39, 35, .45);
+  border: 1px solid color-mix(in srgb, var(--play-ink) 12%, transparent); border-radius: 16px;
+  background: var(--cream-50); color: var(--play-ink);
+  /* A soft layered shadow, the same as the intro study's cards and ask box,
+     so the two doors read as one set. */
+  box-shadow: 0 1px 2px rgba(27,31,58,.05), 0 16px 40px -14px rgba(27,31,58,.3);
   font-family: var(--font-editorial); font-size: clamp(1.2rem, 2.2vw, 1.6rem); line-height: 1.35;
   transition: border-color var(--dur-base), box-shadow var(--dur-base);
 }
-.hero textarea::placeholder { color: var(--text-muted); font-style: italic; transition: opacity .28s; }
-.hero textarea:hover { border-color: var(--text-muted); }
+.hero textarea::placeholder { color: color-mix(in srgb, var(--play-ink) 55%, transparent); font-style: italic; transition: opacity .28s; }
 .hero textarea:focus-visible {
-  outline: 0; border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 14px 34px -22px rgba(43, 39, 35, .45);
+  outline: 0; border-color: var(--play-ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--play-ink) 12%, transparent), 0 16px 40px -14px rgba(27,31,58,.3);
 }
 .hero form .row { display: flex; align-items: center; gap: 1.5rem; margin-top: 1.4rem; }
 .hero form .row .spacer { flex: 1; }
-.hero .hint { font-family: var(--font-editorial); font-size: .95rem; color: var(--text-muted); margin: 0; max-width: 30em; line-height: 1.4; }
-.hero .cta { flex: none; }
+.hero .hint { font-family: var(--font-editorial); font-size: 1rem; font-style: italic; color: color-mix(in srgb, var(--play-ink) 72%, transparent); margin: 0; max-width: 30em; line-height: 1.4; }
+/* The system recolours a cta with --cta-fill and nothing else. */
+.hero .cta { flex: none; --cta-fill: var(--play-ink); --cta-hover: var(--play-pop); color: #FFF7EC; border-color: transparent; border-radius: 999px; box-shadow: 0 8px 20px -8px rgba(27,31,58,.5); }
+.hero .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px rgba(27,31,58,.55); }
 
 /* The examples cycle through the placeholder rather than sitting under the box. */
 .hero textarea.swap::placeholder { opacity: 0; }
