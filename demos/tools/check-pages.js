@@ -74,10 +74,11 @@ const PDB_PAGES = new Set();
 // edges, no stage. questions-cms.html edits that graph's data file as text.
 // clip-shelf.html files short animation clips; its only stage is an mp4 in the
 // node map's own thumb. tests/kodolab-anim.html animates the wordmark itself,
-// drawn as SVG primitives — no molecule, no MolLib.
+// drawn as SVG primitives — no molecule, no MolLib. tests/contribute.html is
+// prose: how to add to the library, not a page that draws from it.
 const NO_SCENE = new Set(['index.html', 'admin.html', 'design-system.html',
                           'tests/droplet-test.html', 'tests/adhesion-test.html',
-                          'tests/concept-map.html',
+                          'tests/concept-map.html', 'tests/contribute.html',
                           'questions-cms.html', 'map-cms.html', 'clip-shelf.html',
                           'privacy.html', 'tests/kodolab-anim.html']);
 
