@@ -97,8 +97,13 @@
   .way .go { margin-top: auto; padding-top: 1.5rem; }
   code.f { font: 500 .86em var(--mono); background: rgba(20,33,61,.06); padding: .12em .4em; border-radius: 5px; white-space: nowrap; }
 
+  .band.ways-band { background: var(--butter); }
+  .ways-band .sechead h2 em { color: var(--coral); }
+  .ways-band .sechead p { color: var(--ink); }
+  .ways-band .way { border: 0; box-shadow: 0 1px 2px rgba(20,33,61,.08), 0 22px 48px -22px rgba(20,33,61,.45); }
+
   /* ---- steps ----------------------------------------------------------- */
-  .setup { background: var(--butter); }
+  .setup { background: var(--paper-2); }
   .setup .sechead h2 em { color: var(--coral); }
   .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.6rem; counter-reset: s; }
   .step { display: grid; grid-template-columns: 3rem 1fr; gap: 1.4rem; align-items: start; }
@@ -274,10 +279,10 @@
 </section>
 
 <!-- ============ the four ways in ============ -->
-<section class="band" id="ways">
+<section class="band ways-band" id="ways">
   <div class="wrap">
     <div class="sechead">
-      <span class="eyebrow">Ways in</span>
+      <span class="eyebrow" style="color:var(--ink)">Ways in</span>
       <h2>Four sizes of contribution, <em>smallest first</em></h2>
       <p>Pick one. Your agent reads the rest.</p>
     </div>
