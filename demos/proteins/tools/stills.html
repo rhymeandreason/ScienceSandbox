@@ -25,7 +25,7 @@
   body{font:14px/1.5 system-ui,-apple-system,sans-serif;margin:2rem;background:#faf8f4;color:#14161a}
   h1{font-size:1.2rem;margin:0 0 .4rem}
   p{color:#6d6f76;margin:0 0 1.2rem}
-  button{font:inherit;padding:.45rem 1rem;border:1px solid #14161a;background:#fff;border-radius:3px;cursor:pointer}
+  button,select{font:inherit;padding:.45rem 1rem;border:1px solid #14161a;background:#fff;border-radius:3px;cursor:pointer}
   /* The mount is 2x a card's 330x230 box: the still is a background-image on
      a retina screen, and a 1x bake is visibly soft next to the live canvas. */
   #mount{width:660px;height:460px;margin:1.2rem 0;border:1px solid #e4e0d7;background:#faf8f4}
@@ -37,6 +37,8 @@
 <h1>Gallery stills</h1>
 <p>Draws every protein once and writes <code>proteins/stills/&lt;key&gt;.webp</code>. Dev server only.</p>
 <button id="go">Bake all</button>
+<select id="pick"></select>
+<button id="one">Bake selected</button>
 <div id="mount"></div>
 <div id="log"></div>
 
@@ -73,7 +75,16 @@ const say = (t, bad) => {
 
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
-async function bake(p) {
+/* One live box, not one per entry. Picking a protein loads it here and
+   leaves it up — the point of a picker is to LOOK before baking, and a box
+   destroyed the instant its frame is captured never gave a human that
+   chance. `liveKey` is what it currently holds, so `bake` below can skip
+   the reload when the box on screen already IS the selection. */
+let liveBox = null;
+let liveKey = null;
+
+async function loadEntry(p) {
+  if (liveBox) { liveBox.destroy(); liveBox = null; liveKey = null; }
   const v = defaultOf(p);
   const t = await fetch(dataOf(p, v.read.baked)).then(r => r.json());
 
@@ -101,16 +112,30 @@ async function bake(p) {
   });
   if (box.setPocket && t.pocket) box.setPocket(t.pocket);
 
+  /* Chains build one per animation frame (kit/proteinbox.js's "One chain per
+     frame" note), so a fixed wait here baked big assemblies mid-build —
+     atp-synthase's 28 chains needed ~28 frames and only ever got the ~14 a
+     4x60ms wait affords. Poll box.building until the queue drains instead. */
+  for (let i = 0; box.building && i < 300; i++) { box.draw(); await wait(16); }
+  if (box.building) throw new Error(`${p.key}: chains never finished building`);
+
   // A few frames, not one: the fit runs off a resize and the pocket lands
   // after the ribbon, and a snapshot taken before either is the wrong frame.
   for (let i = 0; i < 4; i++) { box.draw(); await wait(60); }
+  box.draw();
+
+  liveBox = box; liveKey = p.key;
+  return box;
+}
+
+async function bake(p) {
+  const box = (liveKey === p.key && liveBox) ? liveBox : await loadEntry(p);
 
   /* THE RIBBON ON NOTHING. The renderer's context is alpha and the still keeps
      it, so the card's paper shows through and a still is not pinned to one
      background colour. WebP because PNG at this size is 400 KB a card. */
   box.draw();                            // the buffer is only readable now
   const webp = box.canvas.toDataURL('image/webp', 0.85);
-  box.destroy();
   /* A browser with no WebP ENCODER hands back a PNG under the name asked for,
      silently, and the bake would then write 400 KB files with the wrong
      extension. Checked rather than trusted; the fix is to run this in a
@@ -129,10 +154,18 @@ async function bake(p) {
   return out.bytes;
 }
 
-document.getElementById('go').addEventListener('click', async () => {
-  document.getElementById('go').disabled = true;
-  logEl.textContent = '';
-  for (const p of ENTRIES) {
+const pickEl = document.getElementById('pick');
+for (const p of ENTRIES) {
+  const o = document.createElement('option');
+  o.value = p.key; o.textContent = p.key;
+  pickEl.appendChild(o);
+}
+const goEl = document.getElementById('go');
+const oneEl = document.getElementById('one');
+
+async function run(entries) {
+  goEl.disabled = oneEl.disabled = pickEl.disabled = true;
+  for (const p of entries) {
     try {
       const bytes = await bake(p);
       say(`${p.key} — ${Math.round(bytes / 1024)} KB`);
@@ -141,8 +174,27 @@ document.getElementById('go').addEventListener('click', async () => {
     }
   }
   say('done.');
-  document.getElementById('go').disabled = false;
+  goEl.disabled = oneEl.disabled = pickEl.disabled = false;
+}
+
+goEl.addEventListener('click', () => { logEl.textContent = ''; run(ENTRIES); });
+oneEl.addEventListener('click', () => {
+  logEl.textContent = '';
+  run([ENTRIES.find(p => p.key === pickEl.value)]);
 });
+/* Picking a protein loads it right away — the mount is not just where a bake
+   happens to flash through, it is how you tell which entry you are about to
+   bake before you commit to it. */
+pickEl.addEventListener('change', () => {
+  loadEntry(ENTRIES.find(p => p.key === pickEl.value))
+    .catch(e => say(`${pickEl.value} — ${e.message}`, true));
+});
+
+/* ?key=<protein> preselects AND loads, so a card's own "rebake this one"
+   link (or a bookmark) opens straight to that protein on screen. */
+const wantKey = new URLSearchParams(location.search).get('key');
+if (wantKey && ENTRIES.some(p => p.key === wantKey)) pickEl.value = wantKey;
+pickEl.dispatchEvent(new Event('change'));   // load whatever ended up selected
 </script>
 </body>
 </html>

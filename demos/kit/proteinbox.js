@@ -564,6 +564,13 @@
       onResize: fit,
       onDestroy: () => { if (sesOwner === box) sesOwner = null; },
     });
+    /* True while chains are still queued, one per frame — see the "One chain
+       per frame" note in setData below. A caller that needs the WHOLE
+       structure before it acts (a thumbnail bake snapshotting the canvas)
+       polls this instead of guessing how many frames a given entry needs.
+       Set here, before `opts.data` can trigger the first setData call below,
+       so that call's own flip to `true` is never clobbered by this default. */
+    box.building = false;
 
     /* Two groups, never both visible. The trajectory is in FoldLib.orient()'s
        frame and the trace is in the crystal's, so they are not the same
@@ -860,6 +867,7 @@
       const naIds = ids.filter(id => t.chains[id] && t.chains[id].kind === 'na');
       const queue = ids.filter(id => !(t.chains[id] && t.chains[id].kind === 'na'));
       if (naIds.length) queue.push(NA_STEP);
+      if (!pre) box.building = true;
 
       /* One chain per frame. A tetramer is ~80k triangles and building all
          four in the frame the trace lands is a visible stall on a page that
@@ -923,6 +931,7 @@
              put the old one out of sight. */
           remember(ribKey, madeMeshes, drawn);
           if (pre) { warmGeo(madeMeshes.map(m => m.geometry)); return; }
+          box.building = false;
           sweepOld(mine);
           box.draw();
         }

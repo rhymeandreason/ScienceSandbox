@@ -374,8 +374,13 @@
       {canvas,antialias:o.antialias!==false,alpha:true});
     renderer.setPixelRatio(Math.min(devicePixelRatio,2));
     const scene=new THREE.Scene();
+    // An ortho camera's standing distance is not its framing, and frame()
+    // writes cam.r as the frustum HALF-HEIGHT — so the camera ends up parked
+    // roughly one molecule-radius away. With a near plane at 0.1 the front of
+    // a spinning molecule crosses it and is sliced open. Depth range is free
+    // under ortho (no perspective divide), so it spans the origin instead.
     const camera=o.ortho
-      ? new THREE.OrthographicCamera(-1,1,1,-1,0.1,1000)
+      ? new THREE.OrthographicCamera(-1,1,1,-1,-2000,2000)
       : new THREE.PerspectiveCamera(45,1,0.1,1000);
     const root=new THREE.Group(); scene.add(root);
 
