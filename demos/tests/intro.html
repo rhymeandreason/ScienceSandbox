@@ -418,19 +418,20 @@
   const NS = "http://www.w3.org/2000/svg";
   const S = 14, DISC = 30, HOLE = 16;
   const COLORS = ["#4ADE80", "#F26B4E", "#5AA9FF", "#F7B733", "#C084FC"];
-  const KO = 9;
   const ARM_UP = { k: "diag", A: [6, 80], B: [50, 40], cut: 40 };
   const ARM_DN = { k: "diag", A: [18, 70.2], B: [52, 100], cut: 100 };
+  // Optical sidebearings, not metric ones: a stem|stem gap of 12 is the reference,
+  // a round side reads emptier at the same distance, so it closes to 9 and round|round to 7.
   const LETTERS = [
-    { ch: "k", x: 0,        prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }, ARM_UP, ARM_DN] },
-    { ch: "o", x: 72 - KO,  prims: [{ k: "ring", cx: 30, cy: 70 }] },
-    { ch: "d", x: 144 - KO, prims: [{ k: "ring", cx: 30, cy: 70 }, { k: "stem", cx: 53, cy: 50, h: 100 }] },
-    { ch: "o", x: 216 - KO, prims: [{ k: "ring", cx: 30, cy: 70 }] },
-    { ch: "l", x: 288 - KO, prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }] },
-    { ch: "a", x: 314 - KO, prims: [{ k: "ring", cx: 30, cy: 70 }, { k: "stem", cx: 53, cy: 70, h: 60 }] },
-    { ch: "b", x: 386 - KO, prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }, { k: "ring", cx: 30, cy: 70 }] },
+    { ch: "k", x: 0,   prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }, ARM_UP, ARM_DN] },
+    { ch: "o", x: 60,  prims: [{ k: "ring", cx: 30, cy: 70 }] },
+    { ch: "d", x: 127, prims: [{ k: "ring", cx: 30, cy: 70 }, { k: "stem", cx: 53, cy: 50, h: 100 }] },
+    { ch: "o", x: 196, prims: [{ k: "ring", cx: 30, cy: 70 }] },
+    { ch: "l", x: 265, prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }] },
+    { ch: "a", x: 288, prims: [{ k: "ring", cx: 30, cy: 70 }, { k: "stem", cx: 53, cy: 70, h: 60 }] },
+    { ch: "b", x: 360, prims: [{ k: "stem", cx: 7, cy: 50, h: 100 }, { k: "ring", cx: 30, cy: 70 }] },
   ];
-  const VIEW = `${-30 + KO / 2} -70 506 240`;
+  const VIEW = "-25.5 -70 471 240";
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const ELASTIC = "cubic-bezier(0.34, 1.56, 0.64, 1)";
   function armPoly(a) {
