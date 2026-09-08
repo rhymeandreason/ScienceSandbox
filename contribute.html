@@ -330,27 +330,18 @@
     <div class="sechead">
       <span class="eyebrow" style="color:var(--amber)">Start</span>
       <h2>Hand this to <em>your agent</em></h2>
-      <p>Claude Code, Cursor, Codex, whichever you use. It clones the repo, reads the docs and builds. Replace the one line that says what you want.</p>
+      <p>Starter prompt. It clones the repo, reads the docs and builds. Replace the one line that says what you want. Opus, Fable, and Asta are especially good at 3D work.</p>
     </div>
     <div class="code">
       <button class="copy" type="button">Copy</button>
       <pre>Clone https://github.com/rhymeandreason/ScienceSandbox and read
 demos/CLAUDE.md, then the one doc its "What to read" table names for this
-task. Follow that doc exactly, including the parts that look like they do
-not apply.
+task.
 
 <span id="task">TASK: &lt;one sentence: what to add, and what it should teach&gt;</span>
 
-Worth repeating from the repo:
-  - Three.js r128 as a global script. No build, no bundler, no modules.
-  - Never type an atom or bond colour. palette.js publishes them as tokens.
-  - Molecule coordinates are real angstroms, not display units.
-  - A claim about chemistry ships with the check that verifies it.
-  - Write like a tutor for a first-year biology student.
-
 Start the dev server with node demos/tools/dev-server.js, run the checkers,
-then tell me exactly what to click to see whether it is right. Do not tell
-me it works. I will look.</pre>
+then give me the link and tell me exactly what to click to see whether it is right.</pre>
     </div>
     <div class="tabs" role="tablist" aria-label="Prompt for">
       <button type="button" role="tab" data-task="any" aria-selected="true">Any task</button>
@@ -510,19 +501,14 @@ document.querySelectorAll('.code .copy').forEach(btn => {
    governed by. The rest of the prompt is untouched, so the copy button still
    hands over one block. */
 const TASKS = {
-  molecule: `TASK: add <molecule or protein> — say what it should teach.
+  molecule: `TASK: add <molecule or protein>.
 The doc for this is demos/docs/AddingAMolecule.md (a spec built by hand) or
-demos/docs/AddingAProtein.md (a structure baked from a PDB entry). Real
-angstroms, and ship the assertion that checks the chemistry claim.
-Finish with: node demos/check-molecules.js`,
-  component: `TASK: build a <component> — a scene a page mounts by name, and
-say what it should teach. The doc for this is demos/docs/AddingAComponent.md,
-then demos/docs/Components.md, which is the section a model is handed to write
-a student's app. It is not done until tools/gen-app.js writes a working page
-from that section alone.`,
-  lesson: `TASK: build a lesson on <one idea>, carried from first look to
-understood. The doc for this is demos/docs/AddingAPage.md; ask me which
-existing page is closest and copy it. One idea per step, and the copy is
+demos/docs/AddingAProtein.md (a structure baked from a PDB entry). `,
+  component: `Prompt 1: Make a realistic 3D procedural model of <subject of your choice>. Build with three.js
+Prompt 2: Turn <filename> into a component. First convert it to Three.js R128. The doc for this is demos/docs/AddingAComponent.md`,
+  lesson: `TASK: build a lesson on <one idea>. It should include <list of concepts>. 
+The doc for this is demos/docs/AddingAPage.md; ask me which
+existing page is closest and copy it. One idea per step, and the text is
 written for a first-year biology student.`
 };
 TASKS.any = document.getElementById('task').textContent;
