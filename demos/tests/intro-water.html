@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<!-- The water card on the homepage (../../index.html), in its own frame. WaterSim draws the
-     small molecules from mol-solvation.js and the membrane card draws them
-     from mol-small.js; molecules.js refuses both on one page, so this one
-     card is an iframe. Nothing else lives here. -->
+<!-- The water card on the homepage (../../index.html), in its own frame.
+     WaterSim carries its own salt record and draws no library spec, so this
+     page loads no mol-*.js at all. Nothing else lives here. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -19,7 +18,6 @@
 <script src="../lib/palette.js"></script>
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
-<script src="../lib/mol-solvation.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="../kit/card-stage.js"></script>
 <script src="../water/watersim.js"></script>

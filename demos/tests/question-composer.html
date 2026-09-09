@@ -958,15 +958,12 @@
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/skel.js"></script>          <!-- mol-pathways builds glucose with it -->
-<script src="../lib/mol-solvation.js"></script>
 <!-- The two ANGSTROM-family domains, for one spec each: popc on the bilayer card
-     and glucose on the glycolysis one. mol-solvation above is the display-scale
-     family, and the rule is one family per SCENE (MolecularGeometry.md §1.5) —
-     these never share one, since every card is its own stage with its own
-     camera and no size here is ever read against a size from the other family.
-     This comment is the enforcement; no checker can see which scene a spec
-     lands in. mol-pathways costs 17 specs to draw one, which is the price of
-     the glycolysis card. -->
+     and glucose on the glycolysis one. Every spec this page draws is that
+     family, so the one-family-per-scene rule (MolecularGeometry.md §1.5) has
+     nothing to arbitrate; the water cards run on WaterSim, which draws no spec.
+     mol-pathways costs 17 specs to draw one, which is the price of the
+     glycolysis card. -->
 <script src="../lib/mol-lipids.js"></script>
 <script src="../lib/mol-sugars.js"></script>
 <script src="../lib/mol-carriers.js"></script>
