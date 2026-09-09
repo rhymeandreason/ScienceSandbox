@@ -6,6 +6,8 @@
 
 Reference for building a new `*-lab.html` page that hand-draws its scene from `mol-*.js` specs (`Stage.buildMolecule`, `VIEW`, `FX`). **A page that mounts a component instead — `kit/lesson-shell.js` + `X.mount()`, a cell, membrane, leaf, tree, or anything from the component library — is `AddingAComponent.md`'s job, not this one**; nothing below applies to it. Everyday lesson edits don't need this file — see `CLAUDE.md`.
 
+**Ask the human which existing page is closest, and copy it.** The shared modules live in `lib/`, so a lesson at the top level loads `lib/scene.js` and `css/kodo.css`, and a bench in `tests/` reaches them through `../`. Every page loads `molecules.js` + `scene.js`; everything above that is chosen — the `mol-*.js` domains it draws, the `kit/` pieces its mechanic needs, and rarely a standalone module. A page loading a domain it never draws is paying for someone else's molecules.
+
 ## Reading list
 
 `CLAUDE.md`'s "What to read" table routes by task. This section covers the one

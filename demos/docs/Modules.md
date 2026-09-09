@@ -4,6 +4,18 @@
 
 The shared layer: what exists, what each one owns, and how to add one.
 
+## Scope: shared, folder, one lesson
+
+**A module's scope is declared, not inferred**, and the table below says which each one is in its Rules column or its note.
+
+* **shared** — more than one page loads it: `scene.js`, `molecules.js`, `kit/motion.js`, `kit/card-stage.js`, `annotate.js`, `fx.js`. Changing one is a change to every lesson, so its rules belong here and its checker is not optional.
+* **folder** — owned by a folder and loaded by that folder's pages and bench: `water/`, `membrane/`, `reaction/`, `energy/`. Its stylesheet lives beside it, never in `css/`.
+* **one lesson** — built for a single page and loaded by nothing else: `haworth.js` (contrast-lab), `molecule-builder/` (the builder), `folding/actin.js`. It may hold that lesson's assumptions, and it says so in its header.
+
+**A one-lesson module is not a candidate for anything until a second page wants it.** Generalising on one instance is how a shared module acquires a caller's assumptions — see "One instance is not a convention" below. Promoting one means moving the file and changing its row here, in the same commit.
+
+**A component is not a module with a `mount()`.** It owns its own physics and its own scale (`kit/scale.js`), and it is the only layer a generated app can see: `docs/AddingAComponent.md`. A module a component happens to use stays a module.
+
 ## Script load order
 
 Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in this order — each script assumes the ones above it:

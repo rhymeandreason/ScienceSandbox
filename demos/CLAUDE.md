@@ -1,43 +1,66 @@
-<!-- KIND: rulebook — load whole, always. Project rules, the page index, and where every other doc applies. -->
+<!-- KIND: rulebook — load whole, always. What this repo builds, the four layers it builds in, the page index, and where every other doc is. -->
 
 # Working in demos/
 
-Self-contained browser 3D molecular simulations for Biology 101. One HTML page per lesson over a few shared modules. No build, no framework — Three.js r128 (global) + vanilla JS.
+**The product is a component library and a generator.** A student describes an app; a model writes one HTML file that mounts components by name and drives them by parameters. The hand-built lessons are the reference implementations and where components come from. The molecule library is mostly built — adding one is occasional, and has its own recipe.
 
 * Model the science accurately, especially atom and molecule geometry.
 * Let the human test visual changes in the browser; tell her what to click.
 * Be extremely concise everywhere, including commit messages. Sacrifice grammar for concision.
 
+## The four layers
+
+Each layer may use the ones above it and knows nothing of the ones below.
+
+| Layer | What it is | Where |
+| --- | --- | --- |
+| **Modules** | Plumbing: renderer, timeline, geometry questions, callouts, stage shell. No lesson state, no physics that two lessons would disagree about | `lib/`, `kit/`, root `*.js`, `css/` · `Modules.md` |
+| **Components** | A 3D scene mounted by name and driven by parameters, on one contract — `X.mount(el, params)` → `set` · `state` · `on` · `note` · `show` · `destroy`, each on `kit/card-stage.js` | `water/`, `membrane/`, `leaf/`, `tree/`, `kit/proteinbox.js` · `AddingAComponent.md` |
+| **Pages** | Hand-built lessons, one HTML file each. May reach past the components straight to modules | top level · `AddingAPage.md` |
+| **Generated apps** | Written by a model from `docs/Components.md` and a request, nothing else. The eval set | `tests/gen-*.html` · `Generator.md` |
+
+**A module's scope is declared, not inferred.** Three kinds, and `Modules.md` says which each one is: *shared* (`scene.js`, `kit/motion.js`), *folder* (`membrane/`, `water/`), *one lesson* (`haworth.js` is contrast-lab's, `molecule-builder/` is the builder's). **A one-lesson module is not a candidate for anything until a second page wants it** — generalising on one instance is how a shared module acquires a caller's assumptions. Promoting one means moving it and saying so in `Modules.md`'s table.
+
+**A component is not a module with a `mount()`.** It owns its own physics and its own scale (`kit/scale.js`), and it is the only layer a generated app can see. A module a component happens to use stays a module.
+
+**Share the plumbing, not the physics.** Deliberately no monolithic `engine.js`. The test for whether something belongs in a shared module — *would two lessons disagree about it?* — and the same split a level down inside the bonding builder: `Modules.md`.
+
+**A featured lesson and its component are two copies of one physics for now.** `membrane-lab.html` still runs its own inline membrane, `water-lab.html` its own driving of WaterSim. Until each migrates, a physics fix has two homes, and `Modules.md` says which.
+
 ## What to read
+
+Every doc lives in `demos/docs/` except the node graph's two and the clipper's, which sit beside the code they describe; prose names them bare, the way it names a script. **Each doc's `KIND:` header says when to load it** — *rulebook* = invariants, load whole; *recipe* = how to build one kind of thing; *argument* = why this and not that, written for the human, and loading one during a build spends context on priority judgement instead of on the build.
+
+**If you need a doc this table does not name, stop and say which.** A gap here is invisible from inside a build.
 
 | Task | Read |
 | --- | --- |
-| Adding or converting a molecule | `AddingAMolecule.md` — the eight steps, two of which catch failures that render correctly. `MolecularGeometry.md` §1 is the rulebook behind it, §1.4 for the fidelity tier it owes |
+| A component a generated app can mount (a cell, a tissue, an organism, any render) | `AddingAComponent.md` — the mount contract, the r128 stack, budgets, and the test of done: `tools/gen-app.js` writes a working page from `Components.md` alone |
+| What a generated app may use | `Components.md` — the reference the model is handed, and its only context. A component is not done until its section exists |
+| The generator, `tools/gen-app.js`, or the builder backend | `Generator.md` — how a page is generated today, what it costs, what the edit runs showed, and what the backend should do differently |
+| A template a generated app can be built on (the page's shape, not its scene) | `Generator.md` §3 — a template is `kit/lesson-shell.js` with a wrapper, never beside it: `ctx.q` means one thing or `Components.md` forks per template. `kit/app.js`'s `SHELLS` is the registration, and the failure that matters is a template the model never picks |
+| **Making pages consistent in style, especially the header and wordmark** | `Design.md` — **there are two shells** (`body.kodo` for a document, `body.lshell-page` for a full-window lesson or a component bench) and its first section is how to pick. Also the one way the logo is written and the tokens a page may not restate |
+| Adding or changing a shared module; which modules a page loads, in which order | `Modules.md` |
+| Set the scale of a component or module | `kit/scale.js` is the enum |
+| A new page that hand-draws molecules | `AddingAPage.md`, then the sibling page the human names |
+| A new page that mounts a component | `AddingAComponent.md`, then `Generator.md` |
+| A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
 | The chemistry a molecule has to obey | `SCIENCE.md` §§2-3, plus the target `mol-*.js` |
 | Changing geometry, or what a motion implies happened at the molecule scale | `SCIENCE.md` §§2-5 |
-| Polish on a reviewed animation (timing, easing, camera) | nothing extra |
-| **Making pages consistent in style, especially the header and wordmark** | `Design.md` — **there are two shells** (`body.kodo` for a document, `body.lshell-page` for a full-window lesson or a component bench) and its first section is how to pick. Also the one way the logo is written and the tokens a page may not restate. |
-| A new page that hand-draws molecules | `AddingAPage.md`, then the sibling page the human names |
-| A new page that mounts a component (cell, membrane, leaf, tree, …) | `AddingAComponent.md`, then `Generator.md` |
-| A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
-| The generator, `tools/gen-app.js`, the reference the model is handed, or the builder backend | `Generator.md` — how a page is generated today, what it costs, what the edit runs showed, and what the backend should do differently |
-| A template a generated app can be built on (the page's shape, not its scene) | `Generator.md` §3 — the six steps, of which two are prose the model reads. A template is `kit/lesson-shell.js` with a wrapper, never beside it: `ctx.q` means one thing or `Components.md` forks per template. `kit/app.js`'s `SHELLS` is the registration, and the failure that matters is a template the model never picks |
-| A component a generated app can mount (a cell, a tissue, an organism, any render) | `AddingAComponent.md` — the mount contract, the r128 stack, budgets, and the test of done: `tools/gen-app.js` writes a working page from `Components.md` alone. `Components.md` is the reference the model is handed and the section you add to it |
-| Add a Protein | `AddingAProtein.md` — say what the protein IS first, then pull the data that summary asked for, then build a bench to look at. Ends before the lesson does |
-| Drawing a PROTEIN, DNA or RNA, or anything from deposited coordinates | `rendering-modules.md` — which of tube / ribbon / nucleic / surface, what each costs, and why no outside viewer is loaded. A nucleic acid is drawn as a ladder whose rungs are JOINED, which no published viewer does; the index for those bakes is `proteins/nucleic-acids.js`, not `proteins.js`. **A protein is not a molecule spec**: it is real ångströms, its secondary structure comes from the file's own records, and `MolecularGeometry.md` §1.5's scale families are what keep it in one frame with anything built from a spec |
-| Set the scale of a component or module | `kit/scale.js` is the enum |
-| Adding or changing a shared module | `Modules.md` |
+| Adding or converting a molecule | `AddingAMolecule.md` — the eight steps, two of which catch failures that render correctly. `MolecularGeometry.md` §1 is the rulebook behind it, §1.4 for the fidelity tier it owes |
+| Add a protein | `AddingAProtein.md` — say what the protein IS first, then pull the data that summary asked for, then build a bench to look at. Ends before the lesson does |
+| Drawing a protein, DNA or RNA, or anything from deposited coordinates | `rendering-modules.md` — which of tube / ribbon / nucleic / surface, and why no outside viewer is loaded. A nucleic acid is a ladder whose rungs are JOINED, which no published viewer does; its index is `proteins/nucleic-acids.js`. **A protein is not a molecule spec**: real ångströms, secondary structure from the file's own records, and `MolecularGeometry.md` §1.5's scale families are what keep it in one frame with anything built from a spec |
+| The node graph — `nodegraph/`, its data, its layout, or anything it draws | `nodegraph/Nodegraph.md` — the rulebook: edge grammar, rank, placement, and the QA list every unit passes; its traps section is failures that ship looking fine. `nodegraph/Biology-Node-Graph.md` is the conceptual truth for what the graph is FOR, and `docs/Nodegraph-*.md` are the per-unit briefs |
 | Curating images for the node graph | `tools/clipper/README.md` — the extension, and why a clip carries its source page. The registry it writes is `nodegraph/images.js`; placement stays `graphcontent.js`'s job |
-| The node graph — `nodegraph/`, its data, its layout, or anything it draws | `nodegraph/Nodegraph.md` — the rulebook: edge grammar, rank, how placement is computed, and the QA list every unit has to pass. Its traps section is failures that ship looking fine. `nodegraph/Biology-Node-Graph.md` is the conceptual truth for what the graph is FOR, and the per-unit docs in `docs/Nodegraph-*.md` are the briefs for building one |
-| Questions-composer, Map, any page that mounts SEVERAL live 3D boxes, or any of `card-stage.js` / `molbox.js` / the builder-as-a-box | `ConceptMap.md` — the invariants half especially. Every item in it is a failure that ships looking fine, and most are invisible from the page that has them. **Being deprecated**: the node graph is its successor, and nothing new should depend on `lib/mapcontent.js` |
-| A new `reaction/` verb | `reaction/reaction.js`'s header, `reaction/check-reaction.js` |
 | A solvation page | `WaterSim.md`, then `Modules.md`'s `water/` note — `water/watersim.js` is the liquid itself |
-| The AI tutor, or `api/` | `docs/ai-tutor.md` — design, and the local setup the pages do not need |
+| A new `reaction/` verb | `reaction/reaction.js`'s header, `reaction/check-reaction.js` |
+| The AI tutor, or `api/` | `docs/ai-tutor.md` |
+| Deploying, short URLs, promoting a page to featured | `docs/deploy.md` |
+| Running locally, the checkers, the commit hook | `docs/dev.md` |
+| Questions-composer, Map, or any page mounting SEVERAL live 3D boxes | `ConceptMap.md` — the invariants half especially; every item is a failure that ships looking fine. **Being deprecated**: the node graph is its successor, and nothing new should depend on `lib/mapcontent.js` |
 | Deciding what to build next | ask the human if the roadmaps are still relevant |
 
-**Every doc in that table lives in `demos/docs/`** except the node graph's two and the clipper's, which sit beside the code they describe in `nodegraph/` and `tools/clipper/`; prose names them bare, the way it names a script.
-
-Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = invariants, load whole. *recipe* = how to build one kind of thing. *argument* = why this and not that, written for the human; loading one during a build spends context on judgement about priority instead of on the build. **If you need a doc this table does not name, stop and say which** — a gap here is invisible from inside a build, and guessing past it is how a rule gets missed.
+**Build-time briefs for a component in progress live at the repo root `docs/`**, not here: `Cell-Component.md`, `Membrane-Chemiosmosis.md`. They are read until the feature ships and then retired; the lasting rules move into `demos/docs/`.
 
 ## Pages (lessons)
 
@@ -68,42 +91,21 @@ Every `.md` opens with a `KIND:` comment saying when to load it. *rulebook* = in
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 | `dna-structure.html` | Walk through the parts of a DNA helix | featured lesson |
 | `tree/tree-lab.html` | Where a tree's mass comes from: Van Helmont's willow, photosynthesis as traffic, the tree taken apart by origin. The first lesson on `kit/lesson-shell.js`, the step-through shell every generated app takes, with `tree/tree.js` as the scene | prototype |
+**A featured lesson is served at a short URL** by a `vercel.json` rewrite, which does not move the file, so it carries `<base href="/demos/">` and its relative paths keep resolving. Which URL maps to which file is `vercel.json`; copying that list into prose is how it goes stale. Promoting a page: `docs/deploy.md`.
 
-**A featured lesson is served at a short URL** by a `vercel.json` rewrite, which does not move the file. So every page in the table above marked *featured lesson* carries `<base href="/demos/">` and its relative paths keep resolving. Which URL maps to which file is `vercel.json`'s `rewrites` block, and copying that list into prose is how it goes stale. Promoting a page to featured means adding the tag and both routes: `docs/deploy.md`.
+## The primary UX is always a bespoke 3D simulation
 
-## Making a new lesson
+A lesson's main stage is a 3D scene built for that lesson, at the scale the lesson is about — water and solvation are not the scale of a comparison or a pathway. A molecule-scale lesson prioritises interaction and animation **on the molecule**.
 
-**Ask the human which existing page is closest, and copy it.** The shared modules live in `lib/`, so a lesson at the top level loads `lib/scene.js` and `css/kodo.css`, and a bench in `tests/` reaches them through `../`; prose names them bare. Every page loads `molecules.js` + `scene.js`; everything above that is chosen — the `mol-*.js` domains it draws, the `kit/` pieces its mechanic needs, and rarely a standalone module. A page loading a domain it never draws is paying for someone else's molecules.
-
-**Never type an atom or bond colour.** `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*` at load, so a caption and the sphere it names cannot drift. `design-system.html` draws every token on the stage's own paper.
-
-## Architecture principle: **share the plumbing, not the physics**
-
-Deliberately **no monolithic `engine.js`**. What each shared module does and does not own, the test for whether something belongs in one, and the same split a level down inside the bonding builder: **`Modules.md`.**
-
-## The primary UX is always a bespoke 3D molecular simulation
-
-A lesson's main stage is a 3D scene built for that lesson. We use molecule, protein, or cellular scale depending on what the lesson is. Water and solvation sims are a different scale than comparison or pathway lessons like glycolysis.
-
-A molecule-scale lesson prioritizes interaction and animation **on the molecule**. See `Modules.md`.
-
-## Components, and the apps students generate from them
-
-Beside the hand-built lessons there is a **component library**: scenes a page mounts by name and drives by parameters, on one contract (`X.mount(el, params)` → `set` · `state` · `on` · `note` · `show` · `destroy`), each on `kit/card-stage.js`. Five are on it: `water/watersim-mount.js`, `membrane/membrane.js`, `leaf/leaf.js`, `tree/tree.js`, `Proteinbox.mount`. **`docs/Components.md` is the reference a model is handed to write a student's app, and it is the only thing the model sees**, so a component is not done until that section exists and `tools/gen-app.js` produces a working page from it (`Generator.md`). Generated pages live under `tests/gen-*.html`, listed in `admin.html` as **UGC**; they are the eval set, rerun after any change to a component or the reference. A rule the model keeps breaking is fixed in the library, never by rewording the prompt.
-
-**A featured lesson and its component are two copies of one physics for now.** `membrane-lab.html` still runs its own inline membrane; `water-lab.html` its own driving of WaterSim. Until each migrates, a physics fix has two homes, and `Modules.md` says which.
-
-**Build-time briefs for a component in progress live at the repo root `docs/`**, not here: `Cell-Component.md`, `Membrane-Chemiosmosis.md`. They are read until the feature ships and then retired; the lasting rules go into `demos/docs/`.
+Generated pages live under `tests/gen-*.html` and are listed in `admin.html` as **UGC**. They are the eval set, rerun after any change to a component or the reference. **A rule the model keeps breaking is fixed in the library, never by rewording the prompt.**
 
 ## Scientific accuracy
 
-`SCIENCE.md` is the rulebook — §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions. Module architecture is `Modules.md`. When to open it, and the rest: the table above.
+`SCIENCE.md` is the rulebook — §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions.
 
 **A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** — `MolecularGeometry.md` §1.4's fidelity tiers (prop / contrast / subject) set how much accuracy it owes for the claim it makes. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
 
-## AI Tutor
-
-See `docs/ai-tutor.md`.
+**Never type an atom or bond colour.** `tokens-from-palette.js` publishes `palette.js` as `--atom-*` / `--bond-*` at load, so a caption and the sphere it names cannot drift. `design-system.html` draws every token on the stage's own paper.
 
 ## Run / test locally
 
@@ -111,41 +113,13 @@ See `docs/ai-tutor.md`.
 node tools/dev-server.js        # http://localhost:8817/ — zero dependencies
 ```
 
-Live reload, and `no-store` so you never debug a fix that's already correct on disk. **It serves the repo root, not `demos/`**, because the root is what deploys. `/` is the lesson index; a lesson is `/demos/water-lab.html`. `demos/index.html` only redirects up.
+Live reload, `no-store`, and it serves the **repo root**, not `demos/`, because the root is what deploys. A lesson is `/demos/water-lab.html`. A CSS-only change swaps the stylesheet in place, so the scene keeps its camera and selection.
 
-**The dev server applies `vercel.json`'s rewrites but not its redirects**, so a short URL works locally and so does the file path behind it. A query string survives the redirect between them in production, which is what keeps the tutor's `?k=` links working whichever form gets shared.
+**Checkers run automatically on commit**, each gated to the files it can judge. **The hook prints only on skip or failure — a silent checker ran and passed.** The full list, the ungated exceptions, `check-handedness.js`, and what deploys: `docs/dev.md`.
 
-Save a file and the browser reloads; a **CSS-only** change swaps the stylesheet in place, so the scene keeps its camera, selection and toggles.
+Two browser gotchas: a backgrounded tab pauses `requestAnimationFrame`, so an automated screenshot may freeze on the last frame — drive the page's functions directly instead of trusting one shot. And **set the viewport before judging layout**: `resize_window` to ~1440x900. These are laptop lessons.
 
-**The pages are dependency-free; the tutor is not.** `water-lab`'s ask box needs SDKs and a key that are not in the working tree; setup is in `docs/ai-tutor.md`.
-
-**The tutor is live on `kodolab.org`, behind an access link.** No `?k=` means no Ask button, which is also what every checkout without a key sees, so its absence locally is normal and not a fault to chase. Deploying, the environment variables and the smoke test: `docs/deploy.md`.
-
-The reload client is injected into responses, never written to disk. **The site is on Vercel, built by the GitHub integration**, so what deploys is what is committed, and `.vercelignore` decides what is withheld from that. To see exactly what deploys:
-
-```bash
-python3 -m http.server 8818     # from the repo root; no injection, no reload
-```
-
-`check-molecules.js` prints every spec's bond angles, audits each declared `stereo` / `topology` / `chirality` claim, and **fails if any bonded pair's spheres merge** — a merged pair buries the stick, which is how a double bond can be correctly tagged and render as nothing. Run it after any geometry change.
-
-Two browser gotchas: a backgrounded tab pauses `requestAnimationFrame`, so an automated screenshot may freeze on the last frame — drive the page's functions directly instead of trusting one shot. And **set the viewport before judging layout**: `resize_window` to \~1440x900. These are laptop lessons, and judging one in a phone-width pane produces confident wrong conclusions. It cuts both ways — widening the pane is what exposed a canvas rendering at twice its box on retina.
-
-Framing, spacing, rotation, captions: the human tests in the browser. `tools/check-docs.js` audits what the docs *claim*.
-
-**Checkers run automatically on commit**, each gated to the files it can judge, so most commits run one or none — see `.githooks/pre-commit` for the exact patterns and reasoning. `npm i` in `demos/` points `core.hooksPath` there. Reinstall with `npm run hooks`; disable with `git config --unset core.hooksPath`; skip once with `git commit --no-verify`.
-
-**The hook prints only on skip or failure** — a silent checker ran and passed. Don't read silence as "it didn't fire".
-
-Widen a checker's gate pattern alongside any new derived artefact — nothing about a stale one is visible from the page that plays it.
-
-No CI: the hook is the run. It covers every checker except `tools/check-handedness.js` below, and `chain/`'s and `chair/`'s, which stay ungated while those pages are test-status. A checker is `node <path>`, offline and dependency-free; `.githooks/pre-commit` is the list.
-
-**`tools/check-handedness.js` is separate on purpose** — it needs the network and RDKit, and it is the only global-mirror check (why: MolecularGeometry.md §1.3). Run it after touching a ring builder or adding a stereocentre:
-
-```bash
-npm i && node tools/check-handedness.js
-```
+Framing, spacing, rotation, captions: the human tests in the browser.
 
 ## Copywriting
 
@@ -153,21 +127,19 @@ Write as a tutor for a college Bio 101 student. Concise, no repetition. The text
 
 **A number in user-facing text must be read from the data at render time.** A typed number is a claim nothing checks and a re-bake silently falsifies. **Read it from where the fact lives, not the nearest lookalike** — counting helices in a trajectory's `ss` gives five because adjacent ones merge, so the eight the page says is carried across from the HELIX records by the baker.
 
-**Don’t use em dashes.**
+**Don't use em dashes.**
 
 ## Working Conventions
 
-You are an engineer who cares about design and making science easy to understand. We want to make beautiful, richly interactive science simulations that are better than what’s out there. Be brave in your recommendations, you are an LLM and work that would take a human a day takes you 15 minutes.
+You are an engineer who cares about design and making science easy to understand. We want to make beautiful, richly interactive science simulations that are better than what's out there. Be brave in your recommendations, you are an LLM and work that would take a human a day takes you 15 minutes.
 
-The human uses molecule-viewer.html to manually choose a good default rotation for a molecule. Ask her to do this if you need. Don’t try to rotate dynamically, you can’t see what is happening.
+The human uses `molecule-viewer.html` to manually choose a good default rotation for a molecule. Ask her to do this if you need. Don't try to rotate dynamically, you can't see what is happening.
 
-**The human uses Safari.** Keep that in mind when she reports rendering or style bugs.
+**The human uses Safari.** Keep that in mind when she reports rendering or style bugs. **`proteins/tools/stills.html` only works in Chrome.**
 
-**`proteins/tools/stills.html` (bakes `proteins/stills/*.webp`) only works in Chrome.** 
+**Don't write a changelog in a code file's comments. Comments should be active voice, and only document things that are not obvious from reading the code.**
 
-**Don’t write a changelog in a code file’s comments. Comments should be active voice, and only document things that are not obvious from reading the code.**
-
-**Read a module’s own header before using it a way you have not used it before.** The load-bearing reasoning in this repo lives in the file headers, not only in `docs/` — and most of it is a trap that ships looking merely ugly, so it is written where someone about to fall in will be looking. `kit/ribbon.js` says not to slice a chain and build per secondary-structure element; a page did it anyway and drew the protein as scattered splinters.
+**Read a module's own header before using it a way you have not used it before.** The load-bearing reasoning in this repo lives in the file headers, not only in `docs/` — and most of it is a trap that ships looking merely ugly, so it is written where someone about to fall in will be looking. `kit/ribbon.js` says not to slice a chain and build per secondary-structure element; a page did it anyway and drew the protein as scattered splinters.
 
 ## Never use these structures:
 
