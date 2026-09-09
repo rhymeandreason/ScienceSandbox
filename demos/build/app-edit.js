@@ -139,11 +139,17 @@
    * words. The whitelist is the filter: nothing reaches the file that this
    * does not name, so `contenteditable` does not have to be trusted. */
   var INLINE = { STRONG: 'strong', B: 'strong', EM: 'em', I: 'em' };
-  function serialize(el, hit) {
+  function serialize(el, hit, depth) {
     var out = '';
     for (var n = el.firstChild; n; n = n.nextSibling) {
       var tag = n.nodeType === 1 ? INLINE[n.tagName] : null;
-      if (tag && hit.markup) out += '<' + tag + '>' + encode(n.textContent, hit) + '</' + tag + '>';
+      var d = (depth || 0);
+      /* Recursive, because bold inside italic is two nested tags and taking
+       * the textContent of the outer one would quietly drop the inner. The
+       * editor's own wrapper is transparent: it is not in the file and it is
+       * not the only thing between a paragraph and the words. */
+      if (n.nodeType === 1 && n.getAttribute && n.getAttribute('data-ssx') === 'e' && d < 4) out += serialize(n, hit, d + 1);
+      else if (tag && hit.markup && d < 4) out += '<' + tag + '>' + serialize(n, hit, d + 1) + '</' + tag + '>';
       else out += encode(n.textContent == null ? n.nodeValue : n.textContent, hit);
     }
     return out;
@@ -227,6 +233,7 @@
         spans.push(rec);
         order.push(span.textContent);
         restore(span, hit);
+        hoist(rec);
       } else if (el) {
         mark(el, hit, order.length ? order[order.length - 1] : '');
       }
@@ -265,6 +272,33 @@
     if (el.closest('.lshell-nav, .lshell-count, .lshell-progress, .lshell-topbar')) return 'chrome';
     if (el.ownerSVGElement || el.tagName === 'svg') return 'chart';
     return '';
+  }
+
+  /* AN INLINE TAG AROUND A PASSAGE IS PULLED INSIDE IT, and this is what makes
+   * bold reversible. A model writes `<p><strong>The claim.</strong> The rest`,
+   * so the tag is OUTSIDE the editable span and outside the passage's own
+   * pair: the browser cannot take it off, and asked to unbold it writes a
+   * `font-weight: normal` span within instead, which serializes away to
+   * nothing — the text would read unbolded on screen and save unchanged.
+   * Moving the tag inside the span puts every inline mark in one place, where
+   * execCommand can toggle it and the serializer can see it. The paragraph
+   * becomes the unit from then on, since the tag it used to hold is no longer
+   * anywhere in the passage's own find. */
+  function hoist(rec) {
+    var span = rec.span, par = span.parentElement;
+    if (!rec.hit.markup || !par || !INLINE[par.tagName]) return;
+    if (par.querySelectorAll('[data-ssx="e"]').length !== 1) return;
+    var tag = document.createElement(INLINE[par.tagName]);
+    while (span.firstChild) tag.appendChild(span.firstChild);
+    span.appendChild(tag);
+    while (par.firstChild) par.parentNode.insertBefore(par.firstChild, par);
+    par.remove();
+    rec.body = serialize(span, rec.hit);
+    var p = span.closest('p'), reg = p && !p._ssxRegion && region(rec.hit);
+    if (!reg) return;   // restore() already owns this paragraph, state and all
+    reg.script = rec.hit.script;
+    p._ssxRole = p._ssxRole || (ROLES[p.className] ? p.className : '');
+    claim(p, reg);
   }
 
   /* A ROLE OUTLIVES THE PARAGRAPH IT WAS PUT ON. The panel is rebuilt from the
@@ -348,12 +382,7 @@
   function reblock(p) {
     var reg = p._ssxRegion, hit = { script: reg.script, markup: true };
     var role = p._ssxRole || '';
-    var body = '';
-    for (var n = p.firstChild; n; n = n.nextSibling) {
-      var tag = n.nodeType === 1 ? INLINE[n.tagName] : null;
-      if (tag) body += '<' + tag + '>' + encode(n.textContent, hit) + '</' + tag + '>';
-      else body += encode(n.textContent == null ? n.nodeValue : n.textContent, hit);
-    }
+    var body = serialize(p, hit);
     /* The tag goes into the same string literal the words do, so its own
      * quotes are escaped the way theirs are. `\"` inside a single-quoted
      * literal is an identity escape, so this is right whichever it is. */
@@ -383,21 +412,19 @@
     var rec = span._ssx;
     if (name === 'strong' || name === 'em') {
       if (!rec || !rec.hit.markup) return;
-      /* Already inside one: the button takes it off. Without this there is no
-       * way back from a bold applied by mistake, since nothing here is undo. */
-      var had = wrapping(node, span, name);
-      if (had) {
-        while (had.firstChild) had.parentNode.insertBefore(had.firstChild, had);
-        had.remove();
-        span.normalize();
-      } else {
-        if (sel.isCollapsed) return;
-        var r = sel.getRangeAt(0);
-        if (!span.contains(r.commonAncestorContainer)) return;
-        var w = document.createElement(name);
-        try { r.surroundContents(w); } catch (e) { return; }  // a range across a tag boundary
-        sel.removeAllRanges();
-      }
+      /* execCommand, and not a wrapper of our own. A selection that covers
+       * part of an existing bold, or two of them and the words between, is
+       * exactly what it gets right and what surroundContents cannot express:
+       * it toggles the whole selection, splits and merges the tags, and
+       * `queryCommandState` is then the honest answer for the button. Off is
+       * the same press as on, which is the only way back from a bold applied
+       * by mistake, since nothing here is undo. `styleWithCSS` false so it
+       * writes tags rather than a style attribute the serializer would drop. */
+      sel = reselect(span);
+      if (sel.isCollapsed && !wrapping(sel.anchorNode, span, name)) return;
+      try { document.execCommand('styleWithCSS', false, false); } catch (e) { /* older engines */ }
+      document.execCommand(name === 'strong' ? 'bold' : 'italic');
+      kept = sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
       bank(rec, true);
       report(span);
       return;
@@ -422,6 +449,33 @@
     report(span);
   }
 
+  /* THE PALETTE IS IN THE OTHER DOCUMENT, so pressing one of its buttons takes
+   * the focus off this one and the selection with it. The live range is kept
+   * here as it moves, and put back before a role acts, which is the only way
+   * a button outside the frame can mean "these words". */
+  var kept = null;
+  document.addEventListener('selectionchange', function () {
+    if (!on) return;
+    var sel = getSelection();
+    if (!sel.rangeCount) return;
+    var node = sel.anchorNode, el = node && (node.nodeType === 1 ? node : node.parentElement);
+    var span = el && el.closest('[data-ssx="e"]');
+    if (!span) return;
+    kept = sel.getRangeAt(0).cloneRange();
+    /* The buttons say what the SELECTION is, so they follow it however it
+     * moved: a drag, shift and an arrow key, or select-all. */
+    clearTimeout(told);
+    told = setTimeout(function () { report(span); }, 60);
+  });
+  var told = null;
+  function reselect(span) {
+    var sel = getSelection();
+    if (!kept || !span.contains(kept.commonAncestorContainer)) return sel;
+    span.focus();
+    sel.removeAllRanges(); sel.addRange(kept);
+    return sel;
+  }
+
   /* The `strong` or `em` the caret sits inside, within this passage. */
   function wrapping(node, span, name) {
     var tag = name.toUpperCase();
@@ -436,11 +490,14 @@
   function report(span) {
     var rec = span && span._ssx;
     if (!rec) { post({ type: 'app-edit-focus', on: false }); return; }
-    var p = span.closest('p'), at = getSelection().anchorNode;
+    var p = span.closest('p');
+    var b = false, i = false;
+    try { b = document.queryCommandState('bold'); i = document.queryCommandState('italic'); }
+    catch (e) { b = !!wrapping(getSelection().anchorNode, span, 'strong'); }
     post({ type: 'app-edit-focus', on: true, markup: !!rec.hit.markup,
            block: !!(p && (p._ssxRegion || region(rec.hit))),
            role: (p && p._ssxRole) || (p && ROLES[p.className] ? p.className : ''),
-           strong: !!wrapping(at, span, 'strong'), em: !!wrapping(at, span, 'em'),
+           strong: b, em: i,
            text: (span.textContent || '').slice(0, 60) });
   }
 
@@ -455,7 +512,6 @@
     var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
     report(span);
     span.onblur = function () { bank(rec); report(null); };
-    span.onkeyup = span.onmouseup = function () { report(span); };
     span.oninput = function () { clearTimeout(span._t); span._t = setTimeout(function () { bank(rec, true); }, 400); };
     span.onkeydown = function (e) {
       if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
