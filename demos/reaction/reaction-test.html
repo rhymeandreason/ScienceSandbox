@@ -186,7 +186,7 @@
   </div>
   <table id="t5">
     <thead><tr><th></th><th>from</th><th>linkage</th><th>O from</th>
-      <th>H from</th><th>beats</th><th>result</th></tr></thead>
+      <th>H from</th><th>start</th><th>beats</th><th>result</th></tr></thead>
     <tbody></tbody>
   </table>
   <p class="legend" id="legend5"></p>
@@ -1068,7 +1068,8 @@ function linkageOf(hk, gk){
   const has = (sp, k) => !!MacroSpec.role(sp, k);
   if(Glycosidic.LINKAGE[hk] && has(g, 'c4')) return {
     name:'glycosidic', third:'a reference disaccharide', donor:'c1', acceptor:'c4',
-    pose:(H,G)=>Glycosidic.pose(H, G, DISACC) };
+    pose:(H,G)=>Glycosidic.pose(H, G, DISACC),
+    startQuat:G=>Glycosidic.startQuat(G, DISACC) };
   if(has(h, 'carboxyl') && has(g, 'amino')) return {
     name:'peptide', third:'the donor role', donor:'carboxyl', acceptor:'amino',
     pose:(H,G)=>Peptide.pose(H, G, 'carboxyl') };
@@ -1228,7 +1229,18 @@ document.getElementById('run4').onclick = runAll4;
  *  READ: whichever role's `leaves` contains an oxygen is the side that brings
  *  the water's oxygen, and the other brings its proton.
  */
-const BACKOFF = 4.2;                 // world units the guest waits at, pre-bond
+/* HOW FAR APART THEY WAIT, and it is not a number. A fixed world distance is
+ * wrong at both ends of this table: palmitate is sixteen carbons long and
+ * glycine is five atoms, so one gap reads as touching and the other as two
+ * molecules with no business together. Measured instead against THE BOND ABOUT
+ * TO FORM — the two atoms that keep their places are one bond apart at the
+ * pose, so three of those is a gap that means the same thing at any size. */
+const SEP_BONDS = 3;
+/* AND HOW MUCH OF THE TURN IS LEFT TO DO. Staged at the product's orientation
+ * from the first frame, nothing rotates into place and the approach reads as a
+ * slide. A fraction rather than a full tumble: a molecule swinging through a
+ * half turn on its way in passes through the one it is reacting with. */
+const TURN_LEFT = 0.35;
 
 let asm5 = [];
 function clear5(){ asm5.forEach(g=>L.root.remove(g)); asm5 = []; }
@@ -1269,8 +1281,33 @@ function run5(cs, live){
     // is eight angstroms down its own chain and points nowhere near the reaction.
     const hKeep = gA.userData.atomWorld(hr.keep).clone();
     const dir = gB.userData.atomWorld(gr.keep).clone().sub(hKeep).normalize();
-    gB.position.copy(home).addScaledVector(dir, BACKOFF);
+    // The bond it is about to make, measured rather than assumed: these two
+    // atoms are exactly one bond apart in the pose macromolecule/ solved.
+    const bondLen = gB.userData.atomWorld(gr.keep).distanceTo(hKeep);
+
+    /* WHERE IT STARTS FACING. `Glycosidic` measures a start orientation off the
+     * disaccharide it reads the linkage from; `Ester` and `Peptide` expose none,
+     * so theirs is derived — part of the way back from the pose along the
+     * shortest rotation, and it turns the rest on the way in. That asymmetry is
+     * the component's to absorb, so the table says which each row got. */
+    const qPose = new THREE.Quaternion(pose.quat[0], pose.quat[1], pose.quat[2], pose.quat[3]);
+    let qStart;
+    if(L5.startQuat){ qStart = new THREE.Quaternion(...L5.startQuat(G)); out.start = 'measured'; }
+    else { qStart = new THREE.Quaternion().slerp(qPose, 1 - TURN_LEFT); out.start = 'derived'; }
+    gB.quaternion.copy(qStart);
     gB.updateMatrixWorld(true);
+
+    /* THE GAP IS SOLVED AFTER THE TURN, NOT BEFORE IT. A group rotates about its
+     * own origin, and an origin is not the reacting atom — palmitate's is eight
+     * angstroms down its chain — so a distance measured at the pose orientation
+     * and then turned is not the distance you asked for. It came out at nearly
+     * five bond lengths for the ester and three for the sugars, off one setting.
+     * So place by the ATOM: translate until the bonding pair is exactly
+     * SEP_BONDS apart, whatever the orientation. */
+    const want = hKeep.clone().addScaledVector(dir, SEP_BONDS * bondLen);
+    gB.position.add(want.clone().sub(gB.userData.atomWorld(gr.keep)));
+    gB.updateMatrixWorld(true);
+    out.gap = +(gB.userData.atomWorld(gr.keep).distanceTo(hKeep) / bondLen).toFixed(2);
     L.fit();
 
     // ---- the two leaving sets, in the roles' own terms ----
@@ -1320,9 +1357,11 @@ function run5(cs, live){
         const climb = RXs.offstage(at, RXs.EXIT_EDGE).sub(at);
         cMO.seq([{dur:T.WATER_DRIFT/1000, ease:'inQuad',
                  onUpdate:e=>{ w.position.copy(step).addScaledVector(climb, e); }}], {tag:RUN});
-        const back = gB.position.clone();
-        cMO.seq([{dur:T.JOIN/1000, ease:'inOutCubic',
-                 onUpdate:e=>{ gB.position.lerpVectors(back, home, e); }}], {tag:RUN});
+        const back = gB.position.clone(), qFrom = gB.quaternion.clone();
+        cMO.seq([{dur:T.JOIN/1000, ease:'inOutCubic', onUpdate:e=>{
+          gB.position.lerpVectors(back, home, e);
+          // the turn rides the approach, so it arrives facing the way it bonds
+          gB.quaternion.copy(qFrom).slerp(qPose, e); }}], {tag:RUN});
         RXs.later(()=>{
           const bg = new THREE.Group();
           gB.updateMatrixWorld(true);
@@ -1344,6 +1383,7 @@ CASES4.forEach((cs,i)=>{
   tr.innerHTML = `<td><button class="run">▶</button></td>`
     + `<td class="probe">${cs.from.join(' + ')}</td><td class="v c5l"></td>`
     + `<td class="note c5o"></td><td class="note c5h"></td>`
+    + `<td class="note c5s"></td>`
     + `<td class="c1 note c5b"></td><td class="c5r">${pill('idle','—')}</td>`;
   body5.appendChild(tr);
   tr.querySelector('button').onclick = ()=>one5(i, true);
@@ -1353,6 +1393,8 @@ function show5(i, out){
   tr.querySelector('.c5l').textContent = out.linkage || '';
   tr.querySelector('.c5o').textContent = out.oFrom || '';
   tr.querySelector('.c5h').textContent = out.hFrom || '';
+  tr.querySelector('.c5s').textContent = out.start
+    ? `${out.start}${out.gap != null ? ` · gap ${out.gap}×` : ''}` : '';
   tr.querySelector('.c5b').textContent = out.threw ? '' : `${out.fx} · ${out.mo} · ${out.go}`;
   tr.querySelector('.c5r').innerHTML = out.threw ? pill('bad','threw')
     : (out.fx + out.mo + out.go) === 0 ? pill('noop','did nothing') : pill('ok','ran');
