@@ -6,7 +6,7 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 
 ## The page
 
-Every app is a step-through lesson on the shell: a full-window scene, a glass panel with eyebrow, title, body and controls, Back and Next, progress dots. One page, one shell, and one box per component: the single component of most pages goes in `shell.stage`, and a page with two mounts each in its own `shell.scene()`. There is no other layout.
+Every app is one page on one shell, and the shell is a template the page picks — see "Which template" below. A full-window scene, a glass panel with eyebrow, title, body and controls, and one box per component: the single component of most pages goes in `shell.stage`, and a page with two mounts each in its own `shell.scene()`. There is no other layout.
 
 ```html
 <!doctype html>
@@ -194,15 +194,17 @@ molecules · macromolecule · membrane · organelle · cell · tissue · organ �
 | Membrane | membrane | bulk |
 | Leaf | tissue | bulk |
 | Tree | organism | single |
+| HbCrowd | macromolecule | bulk |
 | BloodCell | cell | single |
 | AnimalCell | cell | single |
 | PlantCell | cell | single |
+| BloodFlow | organ | bulk |
 
 **At the cell rung, AnimalCell and PlantCell are the defaults.** They are what a reader pictures when they hear "a cell", and between them they carry a nucleus, organelles, a wall and a vacuole. BloodCell is a specialist — it has none of that — so it comes out when the subject really is blood or a red cell, or as a second example after a general cell has made the point.
 
 **Two rungs are often the lesson, not a choice between them.** *Why does osmosis matter* is two boxes or two steps: Membrane for the mechanism (water crossing, counted) and BloodCell or PlantCell for the consequence (a cell bursting, a leaf wilting). Neither half answers it alone — the mechanism without a consequence is a headcount nobody asked for, and the consequence without the mechanism is a shape changing for no stated reason. The same holds for a pump and the cell it keeps alive, or a chloroplast and the tree it feeds. **When a question asks why something MATTERS, reach for the pair.**
 
-Nothing is at the `organelle`, `organ` or `population` rung yet. **A size a page prints must come from `state()`, and most of these components have no scale to print one from.** Where a real size matters, say it as a fact about the real thing ("a red blood cell is about 8 µm across"), never as a measurement of the picture.
+Nothing is at the `organelle` or `population` rung yet. Graph sits on no rung: a chart is not in the world. **A size a page prints must come from `state()`, and most of these components have no scale to print one from.** Where a real size matters, say it as a fact about the real thing ("a red blood cell is about 8 µm across"), never as a measurement of the picture.
 
 ## WaterSim — liquid water and what follows from hydrogen bonds
 

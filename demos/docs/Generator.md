@@ -22,7 +22,7 @@ node tools/gen-app.js --edit <page> "..." <out> --whole      # the old whole-fil
 
 ## 2. What the reference is
 
-`Components.md` is the product's prompt. It is written to be handed to a model as its only context: the page skeleton, the contract every component shares, one section per component in a fixed shape (load order, the mount call with every param commented, what it models, the `state()` table, events, anchors, layers, Good for and Not for), the chart, and the copy rules. About 6,000 tokens with five components and the shell; each component adds a few hundred. It is cacheable as a prefix and should be cached in the backend.
+`Components.md` is the product's prompt. It is written to be handed to a model as its only context: the page skeleton, the two templates and when to pick each, the contract every component shares, the scale ladder, one section per component in a fixed shape (a `**Scale**` line, the mount call with every param commented, what it models, the `state()` table, events, anchors, layers, Good for and Not for), and the copy rules. **No section carries a script list** — `kit/app.js` owns the load order. It grew from about 6,000 tokens at five components to roughly twice that at eleven; the cost line's `cached` count is the number to trust, and every section costs every request.
 
 The rules that have held, learned from runs rather than guessed:
 
