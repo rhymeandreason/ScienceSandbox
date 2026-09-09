@@ -15,8 +15,30 @@
  *        ctx:   {},                       // handed to every step; the shell adds `ui` and `goTo`
  *        onStep: (step, i) => {},         // after the panel is filled, before onEnter
  *      });
- *      Component.mount(shell.stage, ...)  // the scene goes in shell.stage
+ *      Component.mount(shell.stage, ...)  // one component: it goes in shell.stage
  *      shell.goTo(0);
+ *
+ *  MORE THAN ONE COMPONENT IS MORE THAN ONE BOX, and the shell hands them out:
+ *
+ *      const cell = shell.scene('cell', el => PlantCell.mount(el, { viewOffset: shell.viewOffset }));
+ *      const m    = shell.scene('membrane', el => Membrane.mount(el, { viewOffset: shell.viewOffset }));
+ *      steps: [{ ..., scene: 'cell' }, { ..., scene: 'membrane' }]
+ *
+ *  Each `scene()` makes its own full-bleed layer inside the stage, mounts into
+ *  it, and returns the component. The stage is ONE element, so two mounts on
+ *  `shell.stage` put two canvases in one block flow: the first fills the
+ *  window, the second sits below it off screen still rendering, and the first
+ *  one's overlays (side labels, the annotation layer) draw over whichever
+ *  canvas is on top. It renders, so nobody sees it as a fault. A second canvas
+ *  landing directly in the stage therefore throws, naming this call.
+ *
+ *  A step names the scene it shows in `scene`; the shell shows it, hides the
+ *  rest and stops them, before onStep and onEnter run. A step that names none
+ *  keeps whatever the last one resolved, and the first swap falls back to the
+ *  first scene registered, so a page can name the scene only on the steps that
+ *  change it. `scene` may be an array: several visible at once split the stage
+ *  into equal columns, which is there for a template with a layout, not for
+ *  the step-through, whose panel covers a column's worth of the window.
  *
  *  It owns the DOM and the step index and nothing about the scene: the
  *  camera flight a step names in `camera` is the page's to fly, in onStep,
@@ -89,8 +111,11 @@
     /* On the stage element too, so CardStage finds it without being told —
        and the panel's rect with it, so lib/annotate.js keeps its labels out
        from under the glass without any component knowing there is a panel. */
-    els.stage.viewOffset = () => shellApi.viewOffset();
-    els.stage.keepOut = () => els.panel.getBoundingClientRect();
+    const wireStage = e => {
+      e.viewOffset = () => shellApi.viewOffset();
+      e.keepOut = () => els.panel.getBoundingClientRect();
+    };
+    wireStage(els.stage);
     els.hint.textContent = opts.hint || '';
     els.hint.hidden = !opts.hint;
 
@@ -125,6 +150,59 @@
     const ctx = opts.ctx || {};
     for (const k of Object.keys(ui)) if (!(k in ctx)) ctx[k] = ui[k].bind(ui);
     Object.assign(ctx, { ui, goTo: i => goTo(i) });
+
+    /* ---- scenes: one box per component, shown per step --------------- */
+    const scenes = new Map();          // name -> { el, c }
+    let shown = null;                  // the names currently on stage
+
+    function scene(name, mount) {
+      if (scenes.has(name)) return scenes.get(name).c;
+      if (typeof mount !== 'function') {
+        throw new Error(`kit/lesson-shell.js: shell.scene('${name}', el => X.mount(el, { viewOffset: shell.viewOffset })) `
+          + `takes the mount as a function, so the shell owns the box and can show and stop it per step.`);
+      }
+      const el = document.createElement('div');
+      el.className = 'lshell-scene';
+      wireStage(el);
+      els.stage.appendChild(el);
+      /* Mounted while the layer is at full size, whatever step is current: a
+         component sized at 0 lays its scene out against a canvas that does not
+         exist yet. Hidden immediately after, by the re-apply below. */
+      const c = mount(el);
+      scenes.set(name, { el, c });
+      if (shown) apply(shown);
+      return c;
+    }
+
+    /* Hidden with `visibility`, not `display`: a component keeps its size, its
+       last frame and its camera, so coming back to a step is instant and there
+       is no zero-size resize on the way out. What stops it costing anything is
+       the stop() below, not the CSS. */
+    function apply(names) {
+      shown = names.filter(n => scenes.has(n));
+      if (!shown.length && scenes.size) shown = [scenes.keys().next().value];
+      els.stage.classList.toggle('is-split', shown.length > 1);
+      for (const [name, s] of scenes) {
+        const on = shown.indexOf(name) >= 0;
+        s.el.classList.toggle('is-off', !on);
+        if (on) { if (s.c && s.c.start) s.c.start(); }
+        else if (s.c && s.c.stop) s.c.stop();
+      }
+    }
+
+    /* THE FAILURE THIS EXISTS FOR, made loud. Nothing legitimately puts two
+       canvases straight into the stage, and a page that does renders and is
+       wrong. Thrown from the observer so it is an uncaught error the builder's
+       relay carries back into the next edit, without stopping the page. */
+    new MutationObserver(() => {
+      const direct = [...els.stage.children].filter(n => n.tagName === 'CANVAS');
+      if (direct.length > 1 || (direct.length && scenes.size)) {
+        throw new Error('kit/lesson-shell.js: more than one component was mounted into shell.stage, so the '
+          + 'canvases stack and all but the first are off screen. Give each its own box: '
+          + "const c = shell.scene('cell', el => PlantCell.mount(el, { viewOffset: shell.viewOffset })), "
+          + "and name the one a step shows with `scene: 'cell'`.");
+      }
+    }).observe(els.stage, { childList: true });
 
     let current = -1;
     steps.forEach((s, i) => {
@@ -179,6 +257,9 @@
         b.classList.toggle('is-current', k === i);
         b.classList.toggle('is-done', k < i);
       });
+      /* Before onStep and onEnter: a step flies the camera of the component
+         it is about to show, and sets params on one that has to be running. */
+      if (scenes.size) apply(step.scene ? [].concat(step.scene) : (shown || []));
       if (opts.onStep) opts.onStep(step, i, ctx);
       if (step.onEnter) step.onEnter(ctx);
     }
@@ -209,6 +290,11 @@
     const shellApi = {
       el, stage: els.stage, panel: els.panel, ui, ctx, steps,
       goTo, get current() { return current; },
+      /* `scene(name, mount)` registers and returns the component;
+         `showScene(name | [names])` puts one on stage outside the step order,
+         for a control that switches scale where a step would be too much. */
+      scene, showScene: n => apply([].concat(n)),
+      scenes: () => [...scenes.keys()],
       panelRect: () => els.panel.getBoundingClientRect(),
       narrow: () => window.innerWidth <= 760,
       /* Hand this to any component's mount as `viewOffset`: half the panel's
@@ -218,7 +304,11 @@
         return window.innerWidth <= 760 ? { x: 0, y: Math.round(r.height / 2) } : { x: -Math.round(r.right / 2), y: 0 };
       },
       theme(name, on) { document.body.classList.toggle(name, !!on); },
-      destroy() { window.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('lshell-page'); },
+      destroy() {
+        for (const s of scenes.values()) if (s.c && s.c.destroy) s.c.destroy();
+        scenes.clear();
+        window.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('lshell-page');
+      },
     };
     return shellApi;
   }

@@ -6,7 +6,7 @@ A generated app is one HTML file. It loads the shared library from `demos/`, mou
 
 ## The page
 
-Every app is a step-through lesson on the shell: a full-window scene, a glass panel with eyebrow, title, body and controls, Back and Next, progress dots. One page, one shell, one or more components mounted in `shell.stage`. There is no other layout.
+Every app is a step-through lesson on the shell: a full-window scene, a glass panel with eyebrow, title, body and controls, Back and Next, progress dots. One page, one shell, and one box per component: the single component of most pages goes in `shell.stage`, and a page with two mounts each in its own `shell.scene()`. There is no other layout.
 
 ```html
 <!doctype html>
@@ -30,7 +30,7 @@ Every app is a step-through lesson on the shell: a full-window scene, a glass pa
 
 **`data-shell` names the template and `data-use` names the components this page mounts, and that one tag loads the library**: the modules those components are built from, their stylesheets and the shell, in the only order they load in. Name every component you mount and nothing you do not. Never write a `<script>` or `<link>` for a library file yourself; a second copy of a module overwrites the first. Some pairs are refused: the loader says which, and why, on the page.
 
-Paths are relative to the file, which lives one folder below `demos/`. Everything is a global; there are no modules and no build. The shell owns the DOM: no markup goes in the body, the panel is filled per step, and the scene is whatever is mounted in `shell.stage`.
+Paths are relative to the file, which lives one folder below `demos/`. Everything is a global; there are no modules and no build. The shell owns the DOM: no markup goes in the body, the panel is filled per step, and the scene is whatever the shell was given to mount.
 
 Never type an atom or bond colour; the palette publishes them as CSS custom properties `--atom-O`, `--atom-H`, `--atom-Na`, `--bond-covalent`, `--bond-hbond`, and a caption naming an atom uses its token.
 
@@ -84,6 +84,20 @@ Inside a step, on `ctx` (and on `ctx.ui`, which is the same set of functions: `c
 The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`.
 
 `shell.viewOffset` is what every mount takes to centre its scene beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.
+
+### A second component is a second box
+
+**`shell.stage` holds one component.** A lesson that changes scale — the cell this happens in, the membrane inside it — asks the shell for a box per component and each step names the one it shows:
+
+```js
+const cell = shell.scene('cell', el => PlantCell.mount(el, { viewOffset: shell.viewOffset }));
+const m    = shell.scene('membrane', el => Membrane.mount(el, { viewOffset: shell.viewOffset }));
+// steps: [{ ..., scene: 'cell' }, { ..., scene: 'membrane' }, { ..., scene: 'cell' }]
+```
+
+`scene(name, mount)` returns the component, so everything after it is unchanged: `set()`, `state()`, `on()`, `note()`. The shell shows the step's scene, hides and stops the others before `onStep` and `onEnter` run, and destroys them with the page. A step that names no `scene` keeps the one already on stage, so name it only on the steps that change it. `shell.showScene('cell')` does the same from a control, for a switch of scale that does not deserve its own step.
+
+**Never mount twice into `shell.stage`.** Two canvases in one element stack out of view and the first component's labels draw over the second, which renders and looks like a bug in the scene. The shell throws when it happens.
 
 ## Contract every component shares
 
@@ -619,6 +633,9 @@ correctly and then breaks, or breaks nothing and is wrong anyway.
   template the page actually enters, and no other `<script>` or
   `<link>` for a library file. Its `data-use` names every component the page mounts, and no other.
 - Every `mount()` passes `viewOffset: shell.viewOffset`.
+- One component per box: the page mounts once into `shell.stage`, or gives each
+  component its own `shell.scene(name, el => ...)` and names the scene its
+  steps show. Never two mounts into `shell.stage`.
 - The last line of the page's script is `shell.goTo(0)`.
 - No markup in the body: the shell builds the panel, steps fill it.
 - No `setTimeout`, no `setInterval`, no animation loop. A step sets a

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>scenes test</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="PlantCell,Membrane"></script>
+<script>
+/* Two scales in one lesson: the cell, then the membrane inside it. The bench
+   for shell.scene() — one box per component, one on stage per step. */
+const shell = LessonShell.create({
+  brand: 'Where the light reaction happens',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: [
+    {
+      scene: 'cell',
+      eyebrow: 'The place', title: 'A leaf cell is full of chloroplasts',
+      body: '<p><b>Photosynthesis happens inside an organelle, not in the cytosol.</b> Every green disc here is one chloroplast.</p>',
+      nextLabel: 'Go inside',
+      onEnter(ctx) { cell.notes(['chloroplast']); ctx.showPanel(cell); },
+      onExit() { cell.notes(false); },
+    },
+    {
+      scene: 'membrane',
+      eyebrow: 'The machine', title: 'One thylakoid membrane, pumping',
+      body: '<p><b>Light drives protons into the lumen, and they come back through the turbine.</b> The lumen is the enclosed half, so this membrane pumps down the screen.</p>',
+      onEnter(ctx) {
+        ctx.controls(`
+          <div class="slider"><div class="slider-head"><span class="label">Light</span><span class="value" id="lv">1</span></div>
+            <input type="range" id="light" min="0" max="1" step="0.05" value="1"></div>
+          <div class="stats">
+            <div class="stat"><div class="stat-label">Proton gradient</div><div class="stat-value" id="dph">0</div></div>
+            <div class="stat"><div class="stat-label">ATP made</div><div class="stat-value" id="atpmade">0</div></div>
+          </div>`);
+        const lv = ctx.q('#lv');
+        ctx.range(ctx.q('#light'), v => { lv.textContent = v; m.set({ fuelRate: v }); });
+        const dph = ctx.q('#dph'), made = ctx.q('#atpmade');
+        m.on('frame', s => { dph.textContent = s.dpH; made.textContent = s.atpMade; });
+      },
+    },
+    {
+      scene: 'cell',
+      eyebrow: 'Back out', title: 'And that is one disc of one chloroplast',
+      body: '<p><b>The membrane you just watched is stacked hundreds deep inside each of these.</b></p>',
+      onEnter() { cell.lookAt && cell.lookAt('chloroplast'); },
+    },
+  ],
+});
+
+const cell = shell.scene('cell', el => PlantCell.mount(el, { viewOffset: shell.viewOffset, tissue: 'leaf' }));
+const m = shell.scene('membrane', el => Membrane.mount(el, {
+  viewOffset: shell.viewOffset,
+  context: 'thylakoid', fuel: 'light', fuelRate: 1,
+  proteins: { complex: { x: -80 }, synthase: { x: 40 }, leak: null },
+  contents: { inside: { water: 30, H: 22 }, outside: { water: 30, H: 22 } },
+  potential: 'nernst',
+}));
+shell.goTo(0);
+</script>
+</body>
+</html>

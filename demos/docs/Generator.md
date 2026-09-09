@@ -37,6 +37,8 @@ A template is the page's shape: how the panel is paced. There are two, `steps` a
 
 1. **`kit/<name>-shell.js`, built on `LessonShell.create`.** Not beside it. The step-through owns the panel, `ctx`, `ui`, `viewOffset`, `theme` and the stage, and a template that reimplements any of those forks the reference: `ctx.q` has to mean one thing or every component section needs a copy per template. `kit/sandbox-shell.js` is the worked case, and it is fifty lines of which forty are the header. Where the base genuinely cannot express the shape, add an option to `lesson-shell.js` whose default is today's behaviour (`chrome:'none'` is one) rather than a second copy of the panel.
 
+   **The boxes are the base's too.** `shell.scene(name, mount)` builds one full-bleed layer per component inside the stage and shows the one a step names; a template that wants them side by side, or two thirds and a third, styles `.lshell-scene` under its own class and calls `showScene` with several names — the stage already goes to equal columns under `.is-split`. A template that mounts components itself takes on their visibility, their start/stop and their destroy, which is the base's job, and the reference would need a copy of "a second component is a second box" per template. `shell.viewOffset` is the one piece a column layout has to replace: it assumes the canvas is the window, so a half-width column reads the panel's overlap wrong.
+
 2. **A line in `kit/app.js`'s `SHELLS`**: the global a page enters through, and the files to load after `lesson-shell.js`. That is the whole registration — `api/_builder.js` reads this table, so nothing else names the template anywhere in the backend.
 
 3. **A row in Components.md's "Which template" table**, and this row is the one that decides whether the template is ever used. Not what it looks like: **when to reach for it**, in the words a request would arrive in. "A request that says show me why is a step-through; one that says let me try is a sandbox." A row describing the layout produces a template the model never picks.
@@ -51,7 +53,7 @@ A template is the page's shape: how the panel is paced. There are two, `steps` a
 
 ## 4. The eval set
 
-Every generated page that taught something is in `admin.html` under Generated apps with the `UGC` badge, and the request that made it is on its card. Rerun those requests after a change and drive the result: load it, read the console, `pump` the sim by hand, check the numbers and the notes. A page that only "runs" has not been checked; both real defects found so far (a frame cost, a noisy readout) were invisible without driving.
+Every generated page that taught something is in `admin.html` under Generated apps with the `UGC` badge, and the request that made it is on its card. One of them must be an EDIT that asks for a second scale ("show me where in the cell this happens"): the mount into an element another component already fills renders, so it only shows up by driving the page. Rerun those requests after a change and drive the result: load it, read the console, `pump` the sim by hand, check the numbers and the notes. A page that only "runs" has not been checked; both real defects found so far (a frame cost, a noisy readout) were invisible without driving.
 
 ## 5. What the runs measured
 

@@ -50,6 +50,18 @@ body.lshell-page.is-night { --bg: #232735; --on-bg: #f4f2ec; }
 .lshell-stage { position: fixed; inset: 0; }
 .lshell-stage canvas { display: block; touch-action: none; }
 
+/* One box per component, stacked full-bleed, one shown at a time. Hidden with
+   `visibility` so a component keeps its size and last frame and comes back
+   without a resize; the shell stops it, which is what makes it free. */
+.lshell-scene { position: absolute; inset: 0; }
+.lshell-scene.is-off { visibility: hidden; pointer-events: none; }
+
+/* Several at once, for a template with a layout: equal columns, and a hidden
+   one leaves the row rather than holding an empty column. */
+.lshell-stage.is-split { display: flex; }
+.lshell-stage.is-split > .lshell-scene { position: relative; inset: auto; flex: 1 1 0; min-width: 0; }
+.lshell-stage.is-split > .lshell-scene.is-off { display: none; }
+
 /* ---------- top bar ---------- */
 .lshell-topbar {
   position: fixed; top: 0; left: 0; right: 0; height: 60px;
