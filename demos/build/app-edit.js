@@ -105,23 +105,70 @@
     return (i === 0 || BOUND.test(src[i - 1])) && (i + len >= src.length || BOUND.test(src[i + len]));
   }
 
+  /* WHICH FIELD OF A STEP A PASSAGE IS, read off the shell's own class names.
+   * It is the only thing that can tell two identical passages apart: a step's
+   * `nextLabel` names the step after it and that step's `eyebrow` repeats the
+   * words, so neither is unique on its own and both are unique with the key
+   * they are written under. The shell's markup is a contract; these are the
+   * five fields of it that hold a page's words. */
+  var KEYS = [
+    ['.lshell-panel .eyebrow', 'eyebrow'],
+    ['.lshell-panel .title', 'title'],
+    ['.lshell-nav .primary', 'nextLabel'],
+    ['.lshell-brand', 'brand'],
+    ['.lshell-hint', 'hint'],
+  ];
+  function keyFor(el) {
+    for (var i = 0; i < KEYS.length; i++) if (el.closest(KEYS[i][0])) return KEYS[i][1];
+    return '';
+  }
+
+  /* The one occurrence written under `key`, widened to take the key with it.
+   * The pair then carries `eyebrow: '…'` rather than the words alone, which is
+   * unique where they are not; the replacement puts the same key back. Two
+   * passages under the SAME key are still ambiguous and still refused. */
+  function keyed(find, key) {
+    var pre = new RegExp('\\b' + key + '\\s*:\\s*$');
+    var pick = null, at = -1, i = -1;
+    while ((i = src.indexOf(find, i + 1)) >= 0) {
+      var q = src[i - 1];
+      if (!/['"`]/.test(q) || src[i + find.length] !== q) continue;   // not a whole literal
+      var m = pre.exec(src.slice(Math.max(0, i - 80), i - 1));
+      if (!m) continue;
+      if (pick) return null;                                          // two under one key
+      pick = { start: i - 1 - m[0].length, q: q };
+      at = i;
+    }
+    if (!pick) return null;
+    var wide = src.slice(pick.start, at + find.length + 1);
+    if (src.split(wide).length - 1 !== 1) return null;
+    return { find: wide, at: at,
+             pre: src.slice(pick.start, at), post: pick.q };
+  }
+
   /* The text's one place in the source, or WHY there isn't one. The reason is
    * carried rather than discarded because a passage that cannot be typed over
    * is the case a student needs told: the panel says which of these it hit.
    * Uniqueness is counted over the raw source, unbounded matches included,
    * because the server applies the pair with the same exactly-once rule and
    * cannot see this one. */
-  function locate(text) {
+  function locate(text, key) {
     for (var k = 0; k < FORMS.length; k++) {
-      var find = FORMS[k].enc(text);
+      var find = FORMS[k].enc(text), pre = '', post = '';
       var i = src.indexOf(find);
       if (i < 0) continue;
       var n = src.split(find).length - 1;
-      if (n > 1) return { why: 'dupe', n: n };
-      if (!bounded(i, find.length)) return { why: 'partial' };
+      if (n > 1) {
+        var one = key && keyed(find, key);
+        if (!one) return { why: 'dupe', n: n };
+        /* The context comes into the find; the words stay what is measured
+         * for markup and for the script, since that is where they sit. */
+        i = one.at; pre = one.pre; post = one.post; find = one.find;
+      } else if (!bounded(i, find.length)) return { why: 'partial' };
       var script = inScript(i);
       if (FORMS[k].id === 'js' && !script) return { why: 'partial' };
-      return { find: find, script: script, markup: markupAround(i, find.length) };
+      return { find: find, pre: pre, post: post, script: script,
+               markup: markupAround(i, find.length - pre.length - post.length) };
     }
     return { why: 'absent' };
   }
@@ -162,6 +209,7 @@
    * attribute order, and a find that has been through it stops matching the
    * file it came from. The text inside is unique, so the region is too. */
   function region(hit) {
+    if (!hit.markup) return null;   // a widened find starts at its key, not in markup
     var i = src.indexOf(hit.find);
     if (i < 0) return null;
     /* Back to the paragraph's own opening tag, not to the nearest `<`: a
@@ -214,8 +262,8 @@
     spans = []; order = [];
     var list = texts();
     for (var k = 0; k < list.length; k++) {
-      var node = list[k], parts = split(node.nodeValue), hit = locate(node.nodeValue);
-      var el = node.parentElement;
+      var node = list[k], parts = split(node.nodeValue), el = node.parentElement;
+      var hit = locate(node.nodeValue, keyFor(el));
       if (!hit.why) {
         /* A pending edit is re-applied here: the page repaints its panel from
          * the source strings on every step change, so an unsaved change would
@@ -354,7 +402,9 @@
     if (para) { reblock(para); return; }
     if (body === rec.body) return;
     rec.text = text; rec.body = body;
-    var pair = { find: rec.hit.find, replace: rec.lead + body + rec.trail, text: text };
+    var pair = { find: rec.hit.find,
+                 replace: (rec.hit.pre || '') + rec.lead + body + rec.trail + (rec.hit.post || ''),
+                 text: text };
     var had = find(rec.hit.find);
     if (had) { had.replace = pair.replace; had.text = text; }
     else pending.push(pair);
@@ -558,7 +608,7 @@
      * changed is a text node and not an element. A click is the cheap moment
      * to ask again, and it costs nothing when nothing new has appeared. */
     if (!pick && e.target.nodeType === 1 && owns(e.target) && !e.target.closest('[data-ssx], .ssx-ui')) {
-      var late = locate(owns(e.target).nodeValue);
+      var late = locate(owns(e.target).nodeValue, keyFor(e.target));
       /* Only the uneditable case. Text that turns out to round-trip is left
        * for the next repaint to wrap, rather than half-wired for a caret. */
       if (late.why) {
