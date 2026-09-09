@@ -165,6 +165,32 @@
   </table>
   <p class="legend" id="legend4"></p>
 
+  <h2>5 · One beat grammar, four reactions</h2>
+  <p class="claim">§3 showed the beats read; §4 showed the geometry generalises.
+  This runs one on the other: the same five beats — <b>bonds ring where they
+  break · the leaving group detaches and is held where it stood, still itself ·
+  the proton crosses · it becomes a water · it departs</b> — played on a sugar
+  condensation, an esterification and a peptide bond, with no branch per
+  linkage.
+  <br><br>The one thing the grammar cannot assume is <b>which molecule gives up
+  the oxygen</b>. A sugar's donor keeps its anomeric O and gives a proton; an
+  amino acid's carboxyl gives the whole hydroxyl and the amine gives the proton.
+  That is the mirror image, and it is read off the elements in each role's
+  <code>leaves</code> rather than branched on. The <b>O from</b> column is that
+  answer, and if it were typed per linkage this table would be the place it went
+  wrong.</p>
+  <div class="bar">
+    <button id="run5">Run all</button>
+    <button id="stop5">Clear</button>
+    <span id="prog5" class="pill idle">idle</span>
+  </div>
+  <table id="t5">
+    <thead><tr><th></th><th>from</th><th>linkage</th><th>O from</th>
+      <th>H from</th><th>beats</th><th>result</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="legend" id="legend5"></p>
+
 </div>
 <div class="col right">
   <div class="stagebox">
@@ -471,9 +497,13 @@ const note = name => { if(!tally.used.includes(name)) tally.used.push(name); };
  * the passes is never the stage half.
  */
 const carriersStub = () => ({ pop(){}, bondMid(){ return null; } });
+/* ONE SET OF WRAPPERS, not one per instance. §5 drives motion, fx and leaving
+ * directly rather than through a verb, and counting only what passes through a
+ * `Reaction` would report five beats as three and read as a step that half ran. */
+const cMO = counted(MO,'mo'), cFX = counted(FXi,'fx'), cGO = counted(GO,'go');
 const wiring = () => ({
   three:THREE, root, camera, canvas,
-  motion:counted(MO,'mo'), fx:counted(FXi,'fx'), leaving:counted(GO,'go'),
+  motion:cMO, fx:cFX, leaving:cGO,
   kit:KIT, stage:Stage, palette:PAL,
   molgraph:MolGraph, molLib:MolLib, skelLib:SkelLib, tag:RUN,
   flyersEl,
@@ -1175,6 +1205,198 @@ async function runAll4(){
   busy = false; setButtons(true);
 }
 document.getElementById('run4').onclick = runAll4;
+
+/* =============================================================================
+ *  5 · ONE BEAT GRAMMAR, FOUR REACTIONS
+ * =============================================================================
+ *  THE GRAMMAR, and it is the whole of what a reaction component would add on
+ *  top of `macromolecule/`:
+ *
+ *    1. both bonds that break ring, each in the colour of the bond it is
+ *    2. the leaving group comes off and is HELD where it stood, still a
+ *       hydroxyl, and steps a little clear. It has not gone anywhere yet
+ *    3. the proton crosses to it
+ *    4. only now is it a water: the second O–H is drawn
+ *    5. it departs, and the two molecules close
+ *
+ *  WHAT IT MAY NOT ASSUME. Which side brings the oxygen is not a property of
+ *  the grammar and not a property of the linkage class either — a sugar's donor
+ *  keeps its anomeric O and hands over a proton, while an amino acid's carboxyl
+ *  hands over its whole hydroxyl and takes a proton from the amine. Same
+ *  reaction, mirrored. Branching on the linkage name would put that right for
+ *  the two cases anyone tested and silently backwards for the third, so it is
+ *  READ: whichever role's `leaves` contains an oxygen is the side that brings
+ *  the water's oxygen, and the other brings its proton.
+ */
+const BACKOFF = 4.2;                 // world units the guest waits at, pre-bond
+
+let asm5 = [];
+function clear5(){ asm5.forEach(g=>L.root.remove(g)); asm5 = []; }
+
+function run5(cs, live){
+  clear5(); clearAsm(); reset();
+  const out = {threw:null, beats:0};
+  try{
+    const [hk, gk] = cs.from;
+    const L5 = linkageOf(hk, gk);
+    if(!L5) throw new Error('no linkage');
+    out.linkage = L5.name;
+    const H = unscale(MolLib.MOLECULES[hk], hk), G = unscale(MolLib.MOLECULES[gk], gk);
+    const slot = L5.slots ? L5.slots(H)[0] : L5.donor;
+    const pose = L5.pose(H, G, slot);
+    const hr = MacroSpec.role(H, slot), gr = MacroSpec.role(G, L5.acceptor);
+
+    /* WHICH SIDE BRINGS THE OXYGEN — asked of the atoms, never of the linkage. */
+    const hasO = (sp, r) => r.leaves.some(i => sp.atoms[i].el === 'O');
+    const hostGivesO = hasO(H, hr);
+    if(hostGivesO === hasO(G, gr))
+      throw new Error('both roles leave an O, or neither does — not a condensation');
+    // NAMED BY ROLE, not only by molecule: both sugars are glucose, so the
+    // molecule alone cannot show that the peptide case is the mirror of the
+    // glycosidic one. The role is what differs.
+    out.oFrom = `${hostGivesO ? hk : gk} · ${hostGivesO ? slot : L5.acceptor}`;
+    out.hFrom = `${hostGivesO ? gk : hk} · ${hostGivesO ? L5.acceptor : slot}`;
+
+    // ---- on stage: host where it is, guest backed off along the new bond ----
+    const gA = Stage.buildMolecule(rescaleSpec(H)), gB = Stage.buildMolecule(rescaleSpec(G));
+    L.root.add(gA); L.root.add(gB); asm5 = [gA, gB];
+    const home = rescale(pose.pos);
+    gB.position.copy(home);
+    if(pose.quat) gB.quaternion.set(pose.quat[0], pose.quat[1], pose.quat[2], pose.quat[3]);
+    gB.updateMatrixWorld(true);
+    // BACK OFF ALONG THE BOND THAT IS ABOUT TO FORM, measured between the two
+    // atoms that keep their places — not along the origins, which for palmitate
+    // is eight angstroms down its own chain and points nowhere near the reaction.
+    const hKeep = gA.userData.atomWorld(hr.keep).clone();
+    const dir = gB.userData.atomWorld(gr.keep).clone().sub(hKeep).normalize();
+    gB.position.copy(home).addScaledVector(dir, BACKOFF);
+    gB.updateMatrixWorld(true);
+    L.fit();
+
+    // ---- the two leaving sets, in the roles' own terms ----
+    const oOwner = hostGivesO ? {g:gA, sp:H, r:hr} : {g:gB, sp:G, r:gr};
+    const hOwner = hostGivesO ? {g:gB, sp:G, r:gr} : {g:gA, sp:H, r:hr};
+    const oI  = oOwner.r.leaves.find(i => oOwner.sp.atoms[i].el === 'O');
+    const oH  = oOwner.r.leaves.find(i => oOwner.sp.atoms[i].el === 'H');
+    const hI  = hOwner.r.leaves.find(i => hOwner.sp.atoms[i].el === 'H');
+    if(oI == null || hI == null) throw new Error('a role leaves no proton');
+    const pO  = oOwner.g.userData.atomWorld(oI).clone();
+    const pH2 = oH != null ? oOwner.g.userData.atomWorld(oH).clone() : null;
+    const pH1 = hOwner.g.userData.atomWorld(hI).clone();
+    const pKeepO = oOwner.g.userData.atomWorld(oOwner.r.keep).clone();
+
+    // ---- 1 · both bonds ring, each as the bond it is ----
+    cFX.spawnRing(pO.clone().lerp(pKeepO, 0.5), PAL.atoms.O);
+    cFX.spawnRing(pH1, RXs.colors.H_LEAVE);
+    RXs.shedAtoms({g:oOwner.g, key:null}, oOwner.r.leaves);
+    RXs.shedAtoms({g:hOwner.g, key:null}, hOwner.r.leaves);
+
+    // ---- 2 · it comes off and STAYS, still a hydroxyl ----
+    const w = new THREE.Group();
+    w.add(Stage.atom(PAL.atoms.O, PAL.radii.O, pO, 'O'));
+    if(pH2) { w.add(Stage.atom(PAL.atoms.H, PAL.radii.H, pH2, 'H')); cGO.link(w, [[pO, pH2]]); }
+    cGO.hold(w);
+    const step = pO.clone().sub(pKeepO).normalize().multiplyScalar(OH_STEP);
+    cMO.seq([{dur:OH_STEP_MS/1000, ease:'outQuad',
+             onUpdate:e=>{ w.position.copy(step).multiplyScalar(e); }}], {tag:RUN});
+
+    // ---- 3 · the proton crosses ----
+    RXs.hop(pH1, pO.clone().add(step), '+', ()=>{
+      // ---- 4 · and only now is it a water ----
+      const OHW = SkelLib.GL.OH * MolLib.SCALE;
+      const ref = pH2 || pKeepO;
+      const d1 = ref.clone().sub(pO).normalize();
+      let nrm = new THREE.Vector3().crossVectors(d1, pH1.clone().sub(pO));
+      if(nrm.lengthSq() < 1e-6) nrm.set(0,0,1); else nrm.normalize();
+      const t2 = pO.clone().add(
+        d1.clone().applyAxisAngle(nrm, 104.5*Math.PI/180).multiplyScalar(OHW));
+      const h = Stage.atom(PAL.atoms.H, PAL.radii.H, pO.clone(), 'H');
+      w.add(h);
+      cGO.gather([{mesh:h, to:t2}], {dur:T.WATER_FORM});
+      RXs.later(()=>{
+        cGO.link(w, [[pO, t2]]);
+        // ---- 5 · it departs, and the two close on the bond they just made ----
+        const at = pO.clone().add(step);
+        const climb = RXs.offstage(at, RXs.EXIT_EDGE).sub(at);
+        cMO.seq([{dur:T.WATER_DRIFT/1000, ease:'inQuad',
+                 onUpdate:e=>{ w.position.copy(step).addScaledVector(climb, e); }}], {tag:RUN});
+        const back = gB.position.clone();
+        cMO.seq([{dur:T.JOIN/1000, ease:'inOutCubic',
+                 onUpdate:e=>{ gB.position.lerpVectors(back, home, e); }}], {tag:RUN});
+        RXs.later(()=>{
+          const bg = new THREE.Group();
+          gB.updateMatrixWorld(true);
+          cGO.link(bg, [[hKeep, gB.userData.atomWorld(gr.keep).clone()]]);
+          cGO.hold(bg);
+          cFX.spawnRing(rescale(pose.bondAt), PAL.atoms.O);
+        }, T.JOIN);
+      }, T.WATER_FORM);
+      RXs.later(()=>cGO.drop(w), T.WATER_FORM + T.WATER_DRIFT);
+    });
+    out.total = T.HOP + T.WATER_FORM + Math.max(T.WATER_DRIFT, T.JOIN + 200);
+  }catch(e){ out.threw = e; }
+  return out;
+}
+
+const body5 = document.querySelector('#t5 tbody');
+CASES4.forEach((cs,i)=>{
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><button class="run">▶</button></td>`
+    + `<td class="probe">${cs.from.join(' + ')}</td><td class="v c5l"></td>`
+    + `<td class="note c5o"></td><td class="note c5h"></td>`
+    + `<td class="c1 note c5b"></td><td class="c5r">${pill('idle','—')}</td>`;
+  body5.appendChild(tr);
+  tr.querySelector('button').onclick = ()=>one5(i, true);
+});
+function show5(i, out){
+  const tr = body5.children[i];
+  tr.querySelector('.c5l').textContent = out.linkage || '';
+  tr.querySelector('.c5o').textContent = out.oFrom || '';
+  tr.querySelector('.c5h').textContent = out.hFrom || '';
+  tr.querySelector('.c5b').textContent = out.threw ? '' : `${out.fx} · ${out.mo} · ${out.go}`;
+  tr.querySelector('.c5r').innerHTML = out.threw ? pill('bad','threw')
+    : (out.fx + out.mo + out.go) === 0 ? pill('noop','did nothing') : pill('ok','ran');
+  if(out.threw) tr.querySelector('.c5o').textContent = String(out.threw.message).slice(0,70);
+}
+function play5(cs, live){
+  tally.reset();
+  const out = run5(cs, live);
+  const settle = (out.total || 2600) + 400;
+  const done = ()=>{ out.fx = tally.fx; out.mo = tally.mo; out.go = tally.go;
+    stageState(`${cs.from.join(' + ')} → ${out.linkage || 'no linkage'}`,
+      out.threw ? ['nothing drawn'] : ['reacting, the beats are on the clock']);
+    return out; };
+  if(!live){ if(!out.threw){ try{ burst(settle); }catch(e){ out.threw = e; } } return Promise.resolve(done()); }
+  return new Promise(r=>setTimeout(()=>r(done()), settle));
+}
+async function one5(i, live){ if(busy) return; busy = true; setButtons(false);
+  body5.children[i].classList.add('busy');
+  const out = await play5(CASES4[i], live);
+  body5.children[i].classList.remove('busy'); show5(i, out);
+  busy = false; setButtons(true); }
+async function runAll5(){
+  if(busy) return; busy = true; setButtons(false);
+  const prog = document.getElementById('prog5'); const sides = new Set();
+  for(let i=0;i<CASES4.length;i++){
+    prog.className='pill idle'; prog.textContent = `${i+1}/${CASES4.length}`;
+    await yieldToUI();
+    body5.children[i].classList.add('busy');
+    const out = await play5(CASES4[i], false);
+    body5.children[i].classList.remove('busy'); show5(i, out);
+    if(out.oFrom) sides.add(`${out.linkage} → ${out.oFrom.split(' · ')[1]}`);
+  }
+  prog.textContent='done'; prog.className='pill ok';
+  document.getElementById('legend5').innerHTML =
+    `One grammar, no branch per linkage, and the same beat counts on all four. `
+    + `The oxygen came from <code>${[...sides].join('</code>, <code>')}</code> — `
+    + `the glycosidic case takes it from the ACCEPTOR and the other two from the `
+    + `DONOR, which is the mirror a per-linkage branch would have got right twice `
+    + `and silently backwards once. It is read off each role's own leaving atoms.`;
+  busy = false; setButtons(true);
+}
+document.getElementById('run5').onclick = runAll5;
+document.getElementById('stop5').onclick = ()=>{ if(!busy){ clear5(); clearAsm(); reset();
+  stageState('cleared', ['stage · empty']); } };
 
 document.getElementById('run1').onclick = ()=>runAll(1);
 document.getElementById('run2').onclick = ()=>runAll(2);
