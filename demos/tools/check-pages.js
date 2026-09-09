@@ -151,15 +151,23 @@ for (const page of PAGES) {
 
   const have = new Set(Object.keys(sandbox.MolLib.MOLECULES));
 
-  /* A COMPONENT MAY OWN ITS OWN SPECS. watersim.js carries its salts: an ionic
+  /* A MODULE MAY OWN ITS OWN NAME TABLE, and a page that loads it can draw
+     those names without any mol-*.js. watersim.js carries its salts: an ionic
      solute is drawn only as its dissociated ions, so the record has no
-     coordinates, belongs to no scale family, and needs no mol-*.js. A page
-     that loads the sim has those keys, and telling it to load a domain file
-     for them is the checker asking for a whole family it does not draw. */
-  if (/<script\s+src="[^"]*water\/watersim\.js"/.test(src)) {
-    const sim = fs.readFileSync(path.resolve(__dirname, '../water/watersim.js'), 'utf8');
-    const tbl = sim.match(/const SALTS=\{([\s\S]*?)\n  \};/);
-    if (tbl) for (const m of tbl[1].matchAll(/^\s*([a-z0-9]+)\s*:/gm)) have.add(m[1]);
+     coordinates and belongs to no scale family. The two drag modules carry
+     RECIPES, whose bond lengths are the bench's own — water's O–H is 1.90
+     there against the library's 1.55, sized so the shared pair sits visibly
+     off the H. Telling either page to load a domain file for those names is
+     the checker asking for a whole family it does not draw. */
+  const OWNS = [
+    ['water/watersim.js',   /const SALTS\s*=\s*\{([\s\S]*?)\n  \};/],
+    ['lib/covalent-drag.js',/const RECIPES\s*=\s*\{([\s\S]*?)\n  \};/],
+    ['lib/ionic-drag.js',   /const RECIPES\s*=\s*\{([\s\S]*?)\n  \};/],
+  ];
+  for (const [file, re] of OWNS) {
+    if (!new RegExp(`<script\\s+src="[^"]*${file.split('/').pop().replace('.', '\\.')}"`).test(src)) continue;
+    const tbl = fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8').match(re);
+    if (tbl) for (const m of tbl[1].matchAll(/^\s{4}([a-z0-9]+)\s*:/gm)) have.add(m[1]);
   }
 
   /* A page's spec names do not all live in the page any more. The map pages
@@ -184,7 +192,13 @@ for (const page of PAGES) {
      draws. Stripped before matching, not exempted after — a page that both
      follows the signal AND draws the molecule still has the drawing to
      match on. */
-  const hay = [src, ...content].join('\n').replace(/\.follow\s*\([^,]+,\s*['"][^'"]+['"]\s*\)/g, '.follow()');
+  /* A LESSON ID IS NOT A SPEC NAME. The bonding builder's tabs are
+     `data-lesson="water"`, and its `hydronium` tab is built from the `hcl`
+     recipe, so the id is not even a recipe name, let alone a spec. Same shape
+     of false positive as the signal names below. */
+  const hay = [src, ...content].join('\n')
+    .replace(/\bdata-(?:lesson|needs)\s*=\s*"[^"]*"/g, 'data-_')
+    .replace(/\.follow\s*\([^,]+,\s*['"][^'"]+['"]\s*\)/g, '.follow()');
 
   const used = ALL.filter(n =>
     new RegExp(`MOLECULES\\s*\\.\\s*${n}\\b`).test(hay) ||

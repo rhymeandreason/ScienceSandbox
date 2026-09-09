@@ -458,15 +458,19 @@
      * they face. Same argument covalent-drag.js makes about its reagent. */
     // the seat facing the partner, in both views' orderings
     const WEDGE=SOLV.SEATS-1;
-    const WSPEC=(global.MolLib.MOLECULES||{}).water;
-    const HPOS=WSPEC ? WSPEC.atoms.filter(a=>a.el==='H').map(a=>a.pos)
-                     : [[1.226,-0.948,0],[-1.226,-0.948,0]];
+    /* The solvent water, at this module's own scale. These are the family-A
+     * O–H positions (|H| = 1.55). They are written here rather than read from
+     * MolLib.MOLECULES.water because the shell radii below are measured
+     * ångströms put through UPA, so the scale has to be a property of this
+     * module — read it off the registry and a page that loads family B moves
+     * every hydration shell 17% without saying so. */
+    const HPOS=[[1.226,-0.948,0],[-1.226,-0.948,0]];
     let waters=[], poured=false;
 
     const HLEN=Math.hypot(HPOS[0][0],HPOS[0][1],HPOS[0][2]);
-    /* Display units per Ångström, read off the page's own water: an O–H drawn
-     * at 1.55 for a real 0.958 Å. Everything below is a measured distance put
-     * through it, so the shells are not eyeballed. */
+    /* Display units per Ångström: an O–H drawn at 1.55 for a real 0.958 Å.
+     * Everything below is a measured distance put through it, so the shells
+     * are not eyeballed. */
     const UPA=HLEN/0.958;
     /* Ion centre to water OXYGEN centre, Ångström. Measured values: Na⁺–O 2.40,
      * K⁺–O 2.80, Mg²⁺–O 2.09 (all from the first peak of the ion–water radial
