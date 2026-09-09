@@ -378,7 +378,7 @@ html.bare .chrome-title { display: none !important }
        <body class="kodo">
        <div class="page">                       gutter + measure, once
          <nav class="sitenav">                  wordmark, crumb, anything right
-           <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+           <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
            <span class="crumb">proteins</span>
          </nav>
          <header class="pagehead">              name of THIS page, and its deck
@@ -440,26 +440,24 @@ body.kodo {
 .sitenav .spacer { flex: 1 }
 
 .mark {
-  font-family: var(--font-display);
-  font-size: var(--mark-size);
-  font-weight: 500;
-  letter-spacing: -.035em;
-  line-height: 1;
-  text-transform: lowercase;
+  line-height: 0;                  /* no descender strip under an inline image */
   text-decoration: none;
-  color: var(--text-strong);
   margin: 0;
 }
-.mark em   { font-style: normal; color: var(--accent) }
-.mark .dot { color: var(--spark) }
+/* The mark is the drawn wordmark, sized off the same token the lettered
+   fallback used, so `.mark.hero` still scales it by changing --mark-size.
+   It stays INLINE on `vertical-align: baseline`, because a replaced element's
+   baseline is its bottom edge and the drawn letters sit on that edge: that is
+   what puts the crumb on the wordmark's own baseline in `.sitenav`'s baseline
+   row. `display:block` forfeits the baseline entirely and `vertical-align:
+   bottom` moves it, either way setting the crumb 6px off. The `line-height: 0`
+   on `.mark` above is the other half: it takes the descender strip an inline
+   image would otherwise sit above. */
+.mark img { display: inline-block; vertical-align: baseline; height: var(--mark-size); width: auto; }
 
-/* The homepage, and only the homepage. Tighter tracking because a geometric
-   face at 5rem sets loose at the tracking that suits it at 1.35. */
-.mark.hero {
-  --mark-size: clamp(2.8rem, 9vw, 5.5rem);
-  letter-spacing: -.045em;
-  line-height: .9;
-}
+/* The homepage, and only the homepage. One token, so the mark cannot pick up a
+   second treatment on the way to being bigger. */
+.mark.hero { --mark-size: clamp(2.8rem, 9vw, 5.5rem) }
 
 /* Where you are. A <span> when this page IS that place, an <a> when it is a
    level up — same size either way, so the bar does not change shape. */

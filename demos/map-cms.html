@@ -47,6 +47,8 @@
   .logo { font-size: 1.5rem; font-weight: 500; letter-spacing: -0.04em; margin: 0;
           text-transform: lowercase; text-decoration: none; color: inherit; }
   .logo em { font-style: normal; color: var(--accent); }
+  .logo { line-height: 0; }
+  .logo img { display: inline-block; vertical-align: baseline; height: 1.35rem; width: auto; }
   .logo .dot { color: var(--spark); }
   .mast .title { font-family: var(--serif); font-size: 0.95rem; color: var(--muted); }
   .mast .spacer { flex: 1; }
@@ -182,7 +184,7 @@
 <div class="wrap">
 
 <header class="mast">
-  <a class="logo" href="admin.html">kodo<em>lab</em><span class="dot">.</span></a>
+  <a class="logo" href="admin.html"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
   <span class="title">map — questions and crossings</span>
   <span class="spacer"></span>
   <a class="btn" href="tests/question-composer.html">Open the map</a>

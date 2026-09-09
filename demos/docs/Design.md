@@ -44,7 +44,7 @@ this.
 <div class="page">
 
   <nav class="sitenav">
-    <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+    <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
     <span class="crumb">proteins</span>
   </nav>
 
@@ -68,16 +68,17 @@ document's paper rhythm, which is why it is a class and not `body`.
 
 ## 1. The wordmark
 
-**Never retype the letters.** The mark is this, exactly, on every page:
+**Never set the letters in type.** The mark is the drawn wordmark, and it is
+this, exactly, on every page:
 
 ```html
-<a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+<a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
 ```
 
-The `<em>` and the `.dot` span are load-bearing: they are what colour `lab` green
-and the full stop orange. A page that writes `kodolab.` as plain text renders a
-monochrome logo, which looks deliberate and is not. On the homepage the mark is
-the `<h1>`; everywhere else it is an `<a>` to `/`.
+The path is root-absolute so it survives a page that carries `<base
+href="/demos/">`. `kodo.css` sizes the image off `--mark-size`, so a page sets
+no width of its own. On the homepage the mark is the `<h1>`; everywhere else it
+is an `<a>` to `/`.
 
 **One size.** `.mark` is `1.35rem` on every page in the repo. There is exactly
 one exception and it says so out loud:

@@ -74,7 +74,7 @@
 <div class="page">
 
 <nav class="sitenav">
-  <a class="mark" href="/">kodo<em>lab</em><span class="dot">.</span></a>
+  <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
   <span class="crumb">design system</span>
 </nav>
 
@@ -114,17 +114,17 @@ the bar and the masthead above are the same elements, not a copy.
 &lt;/div&gt;</pre>
 
 <h3>The wordmark, at its two sizes</h3>
-<p>One element, one size. <code>.mark.hero</code> is the homepage and nothing
-else. The <code>&lt;em&gt;</code> and the <code>.dot</code> span are what colour
-<em>lab</em> and the full stop; a page that types the letters plain renders a
-monochrome logo that looks deliberate.</p>
+<p>One element, one size. The mark is the drawn wordmark,
+<code>/kodolab-wordmark.svg</code>, put inside <code>.mark</code>; the sheet
+sizes it off <code>--mark-size</code>, so <code>.mark.hero</code> &mdash; the
+homepage and nothing else &mdash; is still only a change of that token.</p>
 <div class="specimen">
   <nav class="sitenav">
-    <span class="mark">kodo<em>lab</em><span class="dot">.</span></span>
+    <span class="mark"><img src="/kodolab-wordmark.svg" alt="kodolab"></span>
     <span class="crumb" id="marksize">&mdash;</span>
   </nav>
   <header class="pagehead open">
-    <span class="mark hero">kodo<em>lab</em><span class="dot">.</span></span>
+    <span class="mark hero"><img src="/kodolab-wordmark.svg" alt="kodolab"></span>
     <p class="meta" id="herosize">&mdash;</p>
   </header>
 </div>
@@ -371,7 +371,7 @@ document.getElementById('fams').innerHTML = [
 
 // THE SHELL, MEASURED OFF ITSELF. The two marks on this page print the size they
 // are actually drawn at, so the one-size rule is checked rather than asserted.
-const sizeOf = sel => Math.round(parseFloat(getComputedStyle(document.querySelector(sel)).fontSize) * 100) / 100 + 'px';
+const sizeOf = sel => Math.round(document.querySelector(sel + ' img').getBoundingClientRect().height * 100) / 100 + 'px';
 document.getElementById('marksize').textContent = '.mark \u00b7 ' + sizeOf('.specimen .mark');
 document.getElementById('herosize').textContent = '.mark.hero \u00b7 ' + sizeOf('.specimen .mark.hero');
 
