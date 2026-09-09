@@ -124,9 +124,23 @@ console.log('\n3. ammonia — the one pair a proton lands in');
 
 /* ---- 4. a carbonyl oxygen is sp², and its ears stay in the plane ------- */
 console.log('\n4. carbonyl oxygen — two ears, both in the sp² plane');
-{
-  const spec = MOLECULES.carbonic;                      // H₂CO₃: one C=O, two −OH
+/* BOTH carbonics, because there are two and they are drawn by different pages:
+ * family A's is molecule-lab's reagent, family B's is what lobes-test draws.
+ * The lobe claims below are about DIRECTIONS, so they must hold at either
+ * scale — a spec that passed at one and not the other would be wrong, not
+ * merely differently sized. */
+for (const key of ['carbonic', 'carbonic [mol-small.js]'].filter(k => MOLECULES[k])) {
+  const spec = MOLECULES[key];                          // H₂CO₃: one C=O, two −OH
+  console.log(`  · ${key}`);
   const c = spec.atoms.findIndex(a => a.el === 'C');
+
+  /* The sp² centre is planar, which is what puts the ears in a plane at all.
+   * Asserted on the angles rather than assumed from the drawing. */
+  const at = MG.neighbors(spec, c);
+  const sum = [[0,1],[0,2],[1,2]]
+    .reduce((t,[i,j]) => t + deg(bondVec(spec, c, at[i]), bondVec(spec, c, at[j])), 0);
+  ok(near(sum, 360, 0.1), 'the three angles at carbon sum to 360° — sp², planar',
+     `${sum.toFixed(2)}°`);
   const dbl = MG.neighbors(spec, c).find(j =>
     spec.atoms[j].el === 'O' && MG.bondOrder(spec, c, j) === 2);
   ok(dbl != null, 'found the C=O oxygen', `atom ${dbl}`);

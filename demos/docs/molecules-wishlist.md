@@ -30,7 +30,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 | `mol-lipids.js` | glycerol, palmitate, palmitoleate, POPC | **elaidate**, **triacylglycerol**, **cholesterol**, **retinal (11-cis / all-trans)**, **testosterone / estradiol**, **ouabain** |
 | `mol-nucleic.js` | adenine, thymine, guanine, cytosine, purine, pyrimidine | **uracil**, **CMP** |
 | `mol-cofactors.js` | — | **heme b**, **chlorophyll a**, **β-carotene** |
-| `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol | **CO**, **urea**, **methanol** |
+| `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol, carbonic | **CO**, **urea**, **methanol** |
 | `mol-solvation.js` | water, NaCl, KCl, ethanol, ammonia, methane, O₂, CO₂, carbonic, bicarbonate, hydronium | **Zn²⁺**, **Fe²⁺/Fe³⁺** |
 | *deleted* | ~~`mol-contrast.js`~~ ~~`mol-compare.js`~~ ~~`mol-monomers.js`~~ ~~`mol-vitamins.js`~~ **(all done)** | dissolved into the rows above |
 

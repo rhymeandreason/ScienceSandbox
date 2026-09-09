@@ -279,8 +279,8 @@ engine. `water-lab.html` and `molecule-lab.html` hard-code `HL=1.55` and tune
 `EQ`, `MIN`, `hbThreshold` and the ice lattice around it.
 
 **Which is why the small molecules exist twice.** `mol-small.js` carries water,
-ammonia, methane, CO₂ and ethanol from measured lengths as family B;
-`mol-solvation.js` keeps the family-A versions.
+ammonia, methane, O₂, CO₂, ethanol and carbonic acid from measured lengths as
+family B; `mol-solvation.js` keeps the family-A versions.
 
 | page needs | load |
 |---|---|

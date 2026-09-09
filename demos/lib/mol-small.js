@@ -131,6 +131,31 @@
       units:'angstrom',
       src:{path:'hand', note:'r(C=O)=1.160, linear by symmetry'},
     },
+    carbonic: {
+      name:'Carbonic acid', formula:'H₂CO₃', class:'polar',
+      // C=O 1.203 Å, C–O(H) 1.340 Å, O–H 0.961 Å; O=C–O 125.2°, O–C–O 109.6°,
+      // C–O–H 106.3°. The syn-syn (C2v) conformer, which is the gas-phase
+      // minimum. The three angles at carbon sum to 360.0° — the sp2 centre is
+      // planar, and check-molecules.js holds it there.
+      //   THE POINT OF HAVING IT: one molecule carrying both kinds of oxygen,
+      // so a carbonyl's lone pairs can be read against a hydroxyl's. The C=O
+      // has two pairs in the sp2 plane and no H of its own; each C–O–H has two
+      // and donates one. `lobes-test` panel B is that comparison.
+      //   NO `ionizesTo`: bicarbonate is family A's, and the CO₂ → carbonic →
+      // bicarbonate chain is molecule-lab's. Same argument as co2's `class`
+      // above — this file does not claim a reaction it cannot perform.
+      atoms:[ {el:'C',pos:[0,0.0855,0]},          // 0 sp2 carbon
+              {el:'O',pos:[0,1.2885,0]},          // 1 carbonyl O (=O)
+              {el:'O',pos:[1.095,-0.687,0]},      // 2 hydroxyl O
+              {el:'O',pos:[-1.095,-0.687,0]},     // 3 hydroxyl O
+              {el:'H',pos:[1.8471,-0.0887,0]},    // 4 acidic H on atom 2
+              {el:'H',pos:[-1.8471,-0.0887,0]} ], // 5 acidic H on atom 3
+      bonds:[ [0,1,2],[0,2],[0,3],[2,4],[3,5] ],
+      sites:{ donors:[{atom:4},{atom:5}],
+              acceptors:[{atom:1, lonePairs:2},{atom:2, lonePairs:2},{atom:3, lonePairs:2}] },
+      units:'angstrom',
+      src:{path:'hand', note:'syn-syn C2v: r(C=O)=1.203, r(C-O)=1.340, r(O-H)=0.961, OCO=125.2/109.6, COH=106.3'},
+    },
     ethanol: {
       name:'Ethanol', formula:'C₂H₅OH', class:'polar',
       // C–C 1.512, C–O 1.431, O–H 0.971 Å; C–C–O 107.8°, C–O–H 105.4°.

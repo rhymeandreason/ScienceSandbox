@@ -219,8 +219,8 @@ Two cheap wins that belong to no lesson: **hydroxide** (you have hydronium, so a
 
 | file | holds | now | after | needed by |
 | --- | --- | --- | --- | --- |
-| `mol-solvation.js` | water, salts, small polars/nonpolars — display units | 10 | 12 | `water-lab`, `molecule-lab`, `molecule-builder` |
-| `mol-small.js` | the same substances to scale (family B) — either/or | 5 | 7 | family-B pages |
+| `mol-solvation.js` | water, salts, small polars/nonpolars — display units | 10 | 12 | `molecule-lab` |
+| `mol-small.js` | the same substances to scale (family B) — either/or | 6 | 7 | family-B pages |
 | `mol-aminoacids.js` **(built)** | the eight amino acids, ex-`mol-monomers`/`mol-contrast` | 8 | 14 | `macromolecule-builder`, `contrast-lab` |
 | `mol-glycans.js` **(built)** | the four disaccharides, ex-`mol-contrast` | 4 | 5 | `macromolecule-builder`, `chain/`, `chair/`, `capillary/`, `amylase/` |
 | `mol-pathways.js` | G6P → pyruvate, ATP, NADH, Pi — glucose moved to `mol-sugars.js` | 16 | 16 | `glycolysis-lab`, `krebs-lab`, `fermentation-lab`, `molecule-viewer` |
