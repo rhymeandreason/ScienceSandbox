@@ -2,7 +2,7 @@
 <meta charset="utf-8">
 <title>reaction/ test bench — every verb, on a molecule no pathway names</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/bench.css">
 <style>
   body{margin:0;background:var(--paper);color:var(--ink);
        font-family:var(--font-sans);}
@@ -476,6 +476,14 @@ const RXbare = Reaction.create(wiring());
 let busy = false;
 function reset(){
   MO.cancel(RUN); GO.clear(); RXfull.clearFlyers(); RXbare.clearFlyers();
+  /* AND THE EFFECTS, which nothing else sweeps. fx.js has no cancel — a page
+   * runs one lesson forwards and never abandons a hop mid-flight — but a bench
+   * abandons one every time a run is cut short or a tab stops painting. That
+   * hop then lands inside the NEXT run and fires its `onArrive` there: the
+   * condensation was building two waters, one of them left over from the run
+   * before. `_fx` is the only handle, so drain it through each effect's own
+   * cleanup rather than dropping the meshes on the floor. */
+  if(FXi._fx) FXi._fx.splice(0).forEach(e=>{ if(e.cleanup) e.cleanup(); });
   LANES.clear(); L.fit();
 }
 // Every beat a verb schedules, plus slack for the fade that outlasts the swap.
