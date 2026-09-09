@@ -15,7 +15,10 @@ body {
 
 /* ---- bar -------------------------------------------------------------- */
 .bar {
-  display: flex; align-items: baseline; gap: 14px; padding: 14px 22px 10px;
+  /* The app bar's inset, kodo.css's — the same one `.sitenav.floating` takes,
+     so the wordmark here and on a full-window lesson are in one place. */
+  display: flex; align-items: baseline; gap: 14px;
+  padding: var(--bar-top) var(--bar-side) var(--bar-bottom);
   flex: none; min-height: 44px; box-sizing: border-box;
   border-bottom: 1px solid transparent;
   transition: border-color .5s;
@@ -49,17 +52,20 @@ body.work .bar { border-bottom-color: var(--border-hair); }
 }
 body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointer-events: none; }
 /* The first screen is the one playful surface in the builder: butter ground,
-   navy ink, and the word's own five colours. It is the stage the glyphs were
-   drawn on, and it ends at the fold — the shelf below and the workspace behind
-   stay on the site's cream, so the colour reads as a door and not a theme. */
+   the site's ink, and the word's own five colours. It is the stage the glyphs
+   were drawn on, and it ends at the fold — the shelf below and the workspace
+   behind stay on the site's cream, so the colour reads as a door and not a
+   theme. The three names are LOCAL, the values are brand.css's: this screen
+   says "ground / ink / pop" everywhere below and would read as nothing if it
+   said "butter / navy / coral", but a value typed here is a fourth palette. */
 .hero .first {
-  --play-ground: #FFD166;
-  --play-ink: #1B1F3A;
-  --play-pop: #F26B4E;
+  --play-ground: var(--hue-butter);
+  --play-ink:    var(--brand-ink);
+  --play-pop:    var(--hue-coral);
   position: relative; min-height: 100%; box-sizing: border-box;
   display: grid; place-items: center; padding: 0 var(--page-gutter, 4rem);
   background:
-    radial-gradient(ellipse 90% 55% at 50% 118%, rgba(242, 107, 78, .22), transparent 70%),
+    radial-gradient(ellipse 90% 55% at 50% 118%, color-mix(in srgb, var(--play-pop) 22%, transparent), transparent 70%),
     var(--play-ground);
   color: var(--play-ink);
 }
@@ -132,21 +138,21 @@ body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointe
   background: var(--cream-50); color: var(--play-ink);
   /* A soft layered shadow, the same as the intro study's cards and ask box,
      so the two doors read as one set. */
-  box-shadow: 0 1px 2px rgba(27,31,58,.05), 0 16px 40px -14px rgba(27,31,58,.3);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--play-ink) 5%, transparent), 0 16px 40px -14px color-mix(in srgb, var(--play-ink) 30%, transparent);
   font-family: var(--font-editorial); font-size: clamp(1.2rem, 2.2vw, 1.6rem); line-height: 1.35;
   transition: border-color var(--dur-base), box-shadow var(--dur-base);
 }
 .hero textarea::placeholder { color: color-mix(in srgb, var(--play-ink) 55%, transparent); font-style: italic; transition: opacity .28s; }
 .hero textarea:focus-visible {
   outline: 0; border-color: var(--play-ink);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--play-ink) 12%, transparent), 0 16px 40px -14px rgba(27,31,58,.3);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--play-ink) 12%, transparent), 0 16px 40px -14px color-mix(in srgb, var(--play-ink) 30%, transparent);
 }
 .hero form .row { display: flex; align-items: center; gap: 1.5rem; margin-top: 1.4rem; }
 .hero form .row .spacer { flex: 1; }
 .hero .hint { font-family: var(--font-editorial); font-size: 1rem; font-style: italic; color: color-mix(in srgb, var(--play-ink) 72%, transparent); margin: 0; max-width: 30em; line-height: 1.4; }
 /* The system recolours a cta with --cta-fill and nothing else. */
-.hero .cta { flex: none; --cta-fill: var(--play-ink); --cta-hover: var(--play-pop); color: #FFF7EC; border-color: transparent; border-radius: 999px; box-shadow: 0 8px 20px -8px rgba(27,31,58,.5); }
-.hero .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px rgba(27,31,58,.55); }
+.hero .cta { flex: none; --cta-fill: var(--play-ink); --cta-hover: var(--play-pop); color: var(--brand-paper); border-color: transparent; border-radius: 999px; box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--play-ink) 50%, transparent); }
+.hero .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px color-mix(in srgb, var(--play-ink) 55%, transparent); }
 
 /* The examples cycle through the placeholder rather than sitting under the box. */
 .hero textarea.swap::placeholder { opacity: 0; }
@@ -212,7 +218,7 @@ body.work .preview { opacity: 1; }
 .device {
   position: relative; height: 100%; border-radius: 14px; overflow: hidden;
   border: 1px solid var(--border-hair); background: var(--surface-card);
-  box-shadow: 0 1px 0 var(--border-hair), 0 24px 48px -28px rgba(43, 39, 35, .5);
+  box-shadow: 0 1px 0 var(--border-hair), 0 24px 48px -28px color-mix(in srgb, var(--brand-ink) 50%, transparent);
 }
 .device iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--surface-card); }
 /* A request out: the card dims a step and the sweep runs along its top edge. */
@@ -244,7 +250,7 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 /* Each block of the rail is a card on the same paper the app's card lies on. */
 .rail .card {
   flex: none; background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 14px;
-  box-shadow: 0 1px 0 var(--border-hair), 0 18px 36px -26px rgba(43, 39, 35, .45);
+  box-shadow: 0 1px 0 var(--border-hair), 0 18px 36px -26px color-mix(in srgb, var(--brand-ink) 45%, transparent);
 }
 .rail .card[hidden] { display: none; }
 /* Only the request card is lifted. History and the foot are quiet: the page
@@ -338,7 +344,7 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
   display: block; aspect-ratio: 16 / 10; border-radius: 10px; border: 1px solid var(--border-hair);
   background: var(--surface-stage) center / cover no-repeat;
   background-image: radial-gradient(var(--surface-rule) 1px, transparent 1.2px); background-size: 12px 12px;
-  box-shadow: 0 10px 20px -16px rgba(43, 39, 35, .5);
+  box-shadow: 0 10px 20px -16px color-mix(in srgb, var(--brand-ink) 50%, transparent);
   transition: transform var(--dur-base), border-color var(--dur-base);
 }
 .mine .thumb[style] { background-size: cover; }
@@ -388,7 +394,7 @@ body.nofx .hero, body.nofx .rail, body.nofx .preview, body.nofx .bar { transitio
 
 /* ---- dialogs ---------------------------------------------------------- */
 dialog.beta { border: 1px solid var(--border-hair); border-radius: 12px; padding: 20px 24px; max-width: 26em; background: var(--surface-card); color: var(--text-body); }
-dialog.beta::backdrop { background: rgba(43, 39, 35, .45); }
+dialog.beta::backdrop { background: color-mix(in srgb, var(--brand-ink) 45%, transparent); }
 dialog.beta h2 { margin: 0 0 8px; font-size: 18px; color: var(--text-strong); }
 dialog.beta p { margin: 0 0 14px; font-size: 14px; }
 dialog.beta form { text-align: right; }
