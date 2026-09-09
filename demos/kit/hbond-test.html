@@ -120,7 +120,7 @@
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/skel.js"></script>
-<script src="../lib/mol-solvation.js"></script>
+<script src="../lib/mol-small.js"></script>
 <script src="../lib/mol-carriers.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="molgraph.js"></script>
@@ -146,7 +146,11 @@ function mount(canvasId, r, cam){
  * whatever units go in, and a registered spec has already had SCALE applied —
  * so a cutoff quoted in ångströms is meaningless against one. Rather than
  * typing the scaled number, read the spec's own O–H and convert the module's
- * own default with it. */
+ * own default with it.
+ *   This is why the page is family B (mol-small.js) and not the solvation set:
+ * family A carries `units:'scene'` and is the one family register() does NOT
+ * scale, so K would come out 1.62 while calling itself display-units-per-
+ * angstrom. On a to-scale water it lands on SCALE, which is what it means. */
 const W = MolLib.MOLECULES.water;
 const OH = Math.hypot(...W.atoms[1].pos.map((v,i)=>v-W.atoms[0].pos[i]));
 const K  = OH / 0.9572;                       // display units per ångström
