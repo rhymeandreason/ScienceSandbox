@@ -291,6 +291,11 @@
     }
   }
 
+  /* A pair that puts back what it found is not an edit. Bolding a phrase and
+   * unbolding it leaves one of these, and without this the save writes a
+   * version in which nothing changed. */
+  function prune() { pending = pending.filter(function (e) { return e.replace !== e.find; }); }
+
   function find(f) { for (var i = 0; i < pending.length; i++) if (pending[i].find === f) return pending[i]; return null; }
 
   function unpaint() {
@@ -319,6 +324,7 @@
     var had = find(rec.hit.find);
     if (had) { had.replace = pair.replace; had.text = text; }
     else pending.push(pair);
+    prune();
     post({ type: 'app-edit-dirty', count: pending.length });
   }
 
@@ -356,6 +362,7 @@
     var pair = find(reg.find) || (pending.push({ find: reg.find }), pending[pending.length - 1]);
     pair.replace = p._ssxGone ? '' : open + body + '</p>' + (p._ssxAfter || '');
     regions[reg.find] = { role: role, gone: !!p._ssxGone, after: p._ssxAfter || '' };
+    prune();
     post({ type: 'app-edit-dirty', count: pending.length });
   }
 
@@ -375,12 +382,22 @@
     if (!span) return;
     var rec = span._ssx;
     if (name === 'strong' || name === 'em') {
-      if (!rec || !rec.hit.markup || sel.isCollapsed) return;
-      var r = sel.getRangeAt(0);
-      if (!span.contains(r.commonAncestorContainer)) return;
-      var w = document.createElement(name === 'strong' ? 'strong' : 'em');
-      try { r.surroundContents(w); } catch (e) { return; }   // a range across a tag boundary
-      sel.removeAllRanges();
+      if (!rec || !rec.hit.markup) return;
+      /* Already inside one: the button takes it off. Without this there is no
+       * way back from a bold applied by mistake, since nothing here is undo. */
+      var had = wrapping(node, span, name);
+      if (had) {
+        while (had.firstChild) had.parentNode.insertBefore(had.firstChild, had);
+        had.remove();
+        span.normalize();
+      } else {
+        if (sel.isCollapsed) return;
+        var r = sel.getRangeAt(0);
+        if (!span.contains(r.commonAncestorContainer)) return;
+        var w = document.createElement(name);
+        try { r.surroundContents(w); } catch (e) { return; }  // a range across a tag boundary
+        sel.removeAllRanges();
+      }
       bank(rec, true);
       report(span);
       return;
@@ -405,15 +422,25 @@
     report(span);
   }
 
+  /* The `strong` or `em` the caret sits inside, within this passage. */
+  function wrapping(node, span, name) {
+    var tag = name.toUpperCase();
+    for (var e = node && (node.nodeType === 1 ? node : node.parentElement); e && e !== span; e = e.parentElement) {
+      if (INLINE[e.tagName] === name) return e;
+    }
+    return null;
+  }
+
   /* What the caret is in, so the builder can offer only the roles that apply
    * to it. Sent on every focus and after every role. */
   function report(span) {
     var rec = span && span._ssx;
     if (!rec) { post({ type: 'app-edit-focus', on: false }); return; }
-    var p = span.closest('p');
+    var p = span.closest('p'), at = getSelection().anchorNode;
     post({ type: 'app-edit-focus', on: true, markup: !!rec.hit.markup,
            block: !!(p && (p._ssxRegion || region(rec.hit))),
            role: (p && p._ssxRole) || (p && ROLES[p.className] ? p.className : ''),
+           strong: !!wrapping(at, span, 'strong'), em: !!wrapping(at, span, 'em'),
            text: (span.textContent || '').slice(0, 60) });
   }
 
@@ -428,6 +455,7 @@
     var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
     report(span);
     span.onblur = function () { bank(rec); report(null); };
+    span.onkeyup = span.onmouseup = function () { report(span); };
     span.oninput = function () { clearTimeout(span._t); span._t = setTimeout(function () { bank(rec, true); }, 400); };
     span.onkeydown = function (e) {
       if (e.key === 'Enter') { e.preventDefault(); span.blur(); }

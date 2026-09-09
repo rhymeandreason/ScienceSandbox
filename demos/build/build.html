@@ -246,7 +246,9 @@
     $('rowBlock').hidden = $('rowPara').hidden = !f.block;
     for (const b of $('roles').querySelectorAll('button[data-role]')) {
       const r = b.dataset.role;
-      b.classList.toggle('is-on', r === (f.role || 'plain') && (r === 'plain' || !!f.role));
+      const on = r === 'strong' ? f.strong : r === 'em' ? f.em
+               : r === 'plain' ? !f.role : r === f.role;
+      b.classList.toggle('is-on', !!on);
     }
   }
 
