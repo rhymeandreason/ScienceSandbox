@@ -785,11 +785,24 @@ RXs.verb('dehydrate', {dur: () => T.HOP + T.WATER_FORM + T.WATER_DRIFT + 200, la
   MO.seq([{dur: OH_STEP_MS/1000, ease:'outQuad',
            onUpdate: e => { w.position.copy(away).multiplyScalar(e); }}], {tag:RUN});
 
-  /* THE PROTON CROSSES TO IT. It does not go to solution: one water leaves and
-   * both of its hydrogens are accounted for, so drifting this one off frame and
-   * building the water with a third of its own is two hydrogens where the
-   * chemistry has one — the defect `in` is commented against in reaction.js.
-   * It aims at where the oxygen has come to rest, not where it started. */
+  /* A PROTON CROSSES TO IT, and `+` is the claim: the O–H breaks heterolytically,
+   * the oxygen keeps both electrons, and H⁺ is what leaves. Same convention the
+   * module uses everywhere — `+` a proton, `−` a hydride, one steel for both,
+   * because the contrast is the whole reason one of them reduces a carrier.
+   * What lands is drawn as a bonded hydrogen, which is what it becomes: the
+   * water's oxygen supplies the pair.
+   *
+   * It does not go to solution. One water leaves and both of its hydrogens are
+   * accounted for, so drifting this one off frame and building the water with a
+   * third of its own is two hydrogens where the chemistry has one — the defect
+   * `in` is commented against in reaction.js. It aims at where the oxygen has
+   * come to rest, not where it started.
+   *
+   * PEDAGOGICAL, AND EXPLICIT ABOUT IT: this is where the atoms END UP, not the
+   * mechanism. A real glycosidase goes through an oxocarbenium-like transition
+   * state with two carboxylates doing general acid/base catalysis, and no
+   * single proton makes this trip. The bookkeeping is what the lesson is for and
+   * the bookkeeping is exact; the arrow is a simplification. */
   RXs.hop(pH1, pO.clone().add(away), '+', ()=>{
     /* THE ARRIVING H IS A REAL MESH, which is fx.js's rule for a hop: the glow
      * is a courier, and a hop with no arrival reads as the hydrogen having been
