@@ -141,6 +141,30 @@
   </table>
   <p class="legend" id="legend3"></p>
 
+  <h2>4 · One surface, four reactions</h2>
+  <p class="claim">The same request shape — <code>{from:[a, b]}</code> and
+  nothing else — pointed at four condensations from three different classes.
+  <b>No product is named</b>: which linkage this is, where the second molecule
+  sits, where the bond forms, where the water assembles and what the two
+  molecules become are all read out of <code>macromolecule/</code>, which
+  already does this and is already audited by
+  <code>check-macromolecule.js</code>.
+  <br><br>The question is whether one surface covers all four without a special
+  case. The <b>third argument</b> column is the answer: what each
+  <code>pose()</code> needs beyond the two molecules. If they differ, the
+  component has to absorb the difference, and that is the thing to design
+  rather than discover.</p>
+  <div class="bar">
+    <button id="run4">Run all</button>
+    <span id="prog4" class="pill idle">idle</span>
+  </div>
+  <table id="t4">
+    <thead><tr><th></th><th>from</th><th>linkage</th><th>third argument</th>
+      <th>product</th><th>leaves</th><th>result</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="legend" id="legend4"></p>
+
 </div>
 <div class="col right">
   <div class="stagebox">
@@ -163,6 +187,13 @@
 <script src="../lib/skel.js"></script>
 <script src="../lib/mol-sugars.js"></script>
 <script src="../lib/mol-glycans.js"></script>
+<script src="../lib/mol-aminoacids.js"></script>
+<script src="../lib/mol-lipids.js"></script>
+<script src="../chain/frame.js"></script>
+<script src="../macromolecule/spec.js"></script>
+<script src="../macromolecule/glycosidic.js"></script>
+<script src="../macromolecule/ester.js"></script>
+<script src="../macromolecule/peptide.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="../lib/fx.js"></script>
 <script src="../kit/motion.js"></script>
@@ -579,9 +610,13 @@ const pill = (cls, text) => `<span class="pill ${cls}">${text}</span>`;
  *
  * DRAWN, not present: the nonpolar C–H are deliberately off (kit/lanes.js's
  * `optH` convention), so the H count here is hydroxyl hydrogens. */
-function stageState(label){
+function stageState(label, override){
   const el = document.getElementById('stagestate');
   if(!el) return;
+  // §4 draws an assembly rather than lanes, and reports its own rows. Reading
+  // LANES there would say "empty" over a stage with two molecules on it, which
+  // is the same lie this readout exists to stop.
+  if(override){ el.innerHTML = `<b>${label}</b><br>` + override.join('<br>'); return; }
   if(!LANES.lanes.length){ el.innerHTML = `<b>stage</b> · empty`; return; }
   const rows = LANES.lanes.map((l,j)=>{
     const sp = specOf(l.key), u = l.g.userData, c = {};
@@ -971,6 +1006,175 @@ function restart3(){
 document.getElementById('run3').onclick = runLesson;
 document.getElementById('restart3').onclick = restart3;
 drawTabs(); drawSteps();
+
+/* =============================================================================
+ *  4 · ONE SURFACE, FOUR REACTIONS
+ * =============================================================================
+ *  `macromolecule/` works in angstroms and a registered spec is in display
+ *  units, so everything crossing that line is divided by SCALE going in and
+ *  multiplied coming out. macromolecule-builder.html does the same and says so;
+ *  a pose solved against scaled coordinates puts the bond at 1.43/1.9 of a bond
+ *  length, which renders as a molecule slightly inside another one.
+ *
+ *  `view:` IS DROPPED going in. Stage.buildMolecule bakes a spec's view rotation
+ *  into the atom meshes, so a pose solved against the raw coordinates would
+ *  desync from every mesh that draws it.
+ */
+const SCL = MolLib.SCALE;
+const unscale = (spec, key) => Object.assign({}, spec, {key, view:null,
+  atoms: spec.atoms.map(a => ({el:a.el, pos:a.pos.map(v => v/SCL)}))});
+const rescale = v => new THREE.Vector3(v[0]*SCL, v[1]*SCL, v[2]*SCL);
+// The records glycosidic.js measures a linkage off. It never draws them.
+const DISACC = {cellobiose: unscale(MolLib.MOLECULES.cellobiose, 'cellobiose'),
+                maltose:    unscale(MolLib.MOLECULES.maltose,    'maltose')};
+
+/* WHICH CONDENSATION THIS IS, asked of the two molecules' own roles and of
+ * nothing else. A page that took the linkage as a parameter would let an author
+ * ask for a peptide bond between two sugars, which renders. Order matters only
+ * because an amino acid carries BOTH a carboxyl and an amino: test the pair that
+ * needs both before the one that needs either. */
+function linkageOf(hk, gk){
+  const h = MolLib.MOLECULES[hk], g = MolLib.MOLECULES[gk];
+  const has = (sp, k) => !!MacroSpec.role(sp, k);
+  if(Glycosidic.LINKAGE[hk] && has(g, 'c4')) return {
+    name:'glycosidic', third:'a reference disaccharide', donor:'c1', acceptor:'c4',
+    pose:(H,G)=>Glycosidic.pose(H, G, DISACC) };
+  if(has(h, 'carboxyl') && has(g, 'amino')) return {
+    name:'peptide', third:'the donor role', donor:'carboxyl', acceptor:'amino',
+    pose:(H,G)=>Peptide.pose(H, G, 'carboxyl') };
+  if(has(g, 'carboxyl') && Ester.slots(unscale(h, hk)).length) return {
+    name:'ester', third:'a free slot on the host', acceptor:'carboxyl',
+    slots:H=>Ester.slots(H), pose:(H,G,slot)=>Ester.pose(H, G, slot) };
+  return null;
+}
+
+const CASES4 = [
+  {from:['glucose','glucose']},
+  {from:['alphaGlucose','alphaGlucose']},
+  {from:['glycerol','palmitate']},
+  {from:['glycine','alanine']},
+];
+
+// Section 4 draws a product assembly, not lanes: two residues in a relative
+// pose with a bond between them, which is what `MacroSpec.react` returns.
+let asmA = null, asmB = null, asmBond = null;
+function clearAsm(){
+  [asmA, asmB, asmBond].forEach(o=>{ if(o) L.root.remove(o); });
+  asmA = asmB = asmBond = null;
+}
+
+function react4(cs){
+  const [hk, gk] = cs.from;
+  const out = {threw:null};
+  try{
+    const L4 = linkageOf(hk, gk);
+    if(!L4) throw new Error('no linkage: neither molecule’s roles match the other’s');
+    out.linkage = L4.name; out.third = L4.third;
+    const H = unscale(MolLib.MOLECULES[hk], hk), G = unscale(MolLib.MOLECULES[gk], gk);
+    const slot = L4.slots ? L4.slots(H)[0] : L4.donor;
+    out.slot = slot;
+    const pose = L4.pose(H, G, slot);
+    if(!pose) throw new Error('pose() returned nothing');
+
+    /* CONSERVATION, CHECKED RATHER THAN DERIVED. The roles say what leaves; the
+     * assertion is that it is a water and nothing else. An author cannot get
+     * this wrong because an author never writes it — but a LIBRARY can, and
+     * this is the line that would have caught the two-hydrogen bug in §3. */
+    const left = [...MacroSpec.role(H, slot).leaves.map(i=>H.atoms[i].el),
+                  ...MacroSpec.role(G, L4.acceptor).leaves.map(i=>G.atoms[i].el)];
+    const tally4 = {}; left.forEach(e=>tally4[e]=(tally4[e]||0)+1);
+    out.leaves = Object.keys(tally4).sort().map(e=>`${e}${tally4[e]}`).join('');
+    out.balanced = out.leaves === 'H2O1';
+
+    const R = MacroSpec.react(H, G, slot, L4.acceptor);
+    out.product = `${R.host.atoms.length} + ${R.guest.atoms.length} atoms, 2 residues`;
+    // Counted off the residue specs, not off the meshes: the readout should say
+    // what is there, and a mesh count folds the bonds in with the atoms.
+    const tal = sp => { const c = {}; sp.atoms.forEach(a=>c[a.el]=(c[a.el]||0)+1);
+      return Object.keys(c).sort().map(e=>`${e}${c[e]}`).join(' '); };
+    out.residues = [tal(R.host), tal(R.guest)];
+
+    // ---- draw it: host where it is, guest at the pose, bond between ----
+    clearAsm(); LANES.clear();
+    asmA = Stage.buildMolecule(rescaleSpec(R.host));
+    L.root.add(asmA);
+    asmB = Stage.buildMolecule(rescaleSpec(R.guest));
+    asmB.position.copy(rescale(pose.pos));
+    if(pose.quat) asmB.quaternion.set(pose.quat[0], pose.quat[1], pose.quat[2], pose.quat[3]);
+    L.root.add(asmB);
+    if(pose.bondAt) FXi.spawnRing(rescale(pose.bondAt), PAL.atoms.O);
+    if(pose.waterAt) waterAt(rescale(pose.waterAt));
+    L.fit();
+    out.ok = true;
+  }catch(e){ out.threw = e; }
+  return out;
+}
+const rescaleSpec = sp => Object.assign({}, sp, {view:null,
+  atoms: sp.atoms.map(a=>({el:a.el, pos:a.pos.map(v=>v*SCL)}))});
+
+// The water, where macromolecule/ says the two groups gave it up.
+function waterAt(at){
+  const OHW = SkelLib.GL.OH * SCL;
+  const g = new THREE.Group();
+  const t1 = at.clone().add(new THREE.Vector3(OHW, 0, 0));
+  const t2 = at.clone().add(new THREE.Vector3(OHW, 0, 0)
+    .applyAxisAngle(new THREE.Vector3(0,0,1), 104.5*Math.PI/180));
+  g.add(Stage.atom(PAL.atoms.O, PAL.radii.O, at, 'O'));
+  g.add(Stage.atom(PAL.atoms.H, PAL.radii.H, t1, 'H'));
+  g.add(Stage.atom(PAL.atoms.H, PAL.radii.H, t2, 'H'));
+  GO.link(g, [[at, t1], [at, t2]]);
+  GO.hold(g);
+  RXs.later(()=>GO.drop(g), 2600);
+  return g;
+}
+
+const body4 = document.querySelector('#t4 tbody');
+CASES4.forEach((cs,i)=>{
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td><button class="run">▶</button></td>`
+    + `<td class="probe">${cs.from.join(' + ')}</td>`
+    + `<td class="v s4l"></td><td class="note s4t"></td>`
+    + `<td class="note s4p"></td><td class="note s4x"></td>`
+    + `<td class="s4r">${pill('idle','—')}</td>`;
+  body4.appendChild(tr);
+  tr.querySelector('button').onclick = ()=>one4(i);
+});
+function show4(i, out){
+  const tr = body4.children[i];
+  tr.querySelector('.s4l').textContent = out.linkage || '';
+  tr.querySelector('.s4t').textContent = out.third || '';
+  tr.querySelector('.s4p').textContent = out.product || '';
+  tr.querySelector('.s4x').textContent = out.leaves || '';
+  tr.querySelector('.s4r').innerHTML = out.threw ? pill('bad','threw')
+    : !out.balanced ? pill('noop','not a water') : pill('ok','ran');
+  if(out.threw) tr.querySelector('.s4p').textContent = String(out.threw.message).slice(0,70);
+  stageState(`${CASES4[i].from.join(' + ')} → ${out.linkage || 'no linkage'}`,
+    out.threw ? ['nothing drawn']
+      : out.residues.map((t,k)=>`residue ${k} · ${CASES4[i].from[k]} · ${t}`));
+}
+function one4(i){ if(busy) return; busy = true; setButtons(false);
+  show4(i, react4(CASES4[i])); busy = false; setButtons(true); }
+async function runAll4(){
+  if(busy) return; busy = true; setButtons(false);
+  const prog = document.getElementById('prog4'); const thirds = new Set();
+  for(let i=0;i<CASES4.length;i++){
+    prog.className='pill idle'; prog.textContent = `${i+1}/${CASES4.length}`;
+    await yieldToUI();
+    const out = react4(CASES4[i]); show4(i, out);
+    if(out.third) thirds.add(out.third);
+  }
+  prog.textContent='done'; prog.className='pill ok';
+  document.getElementById('legend4').innerHTML =
+    `<code>pose()</code> took <b>${thirds.size}</b> different third arguments: `
+    + `<code>${[...thirds].join('</code>, <code>')}</code>. `
+    + `That is what one surface has to absorb.<br>`
+    + `And <code>MacroSpec.react</code> returns <b>two residues, not a product</b> — `
+    + `"the bond itself is BETWEEN them and belongs to whatever draws the chain". `
+    + `So <code>to:</code> cannot be a spec name in general, and a reaction component `
+    + `renders an assembly rather than swapping one molecule for another.`;
+  busy = false; setButtons(true);
+}
+document.getElementById('run4').onclick = runAll4;
 
 document.getElementById('run1').onclick = ()=>runAll(1);
 document.getElementById('run2').onclick = ()=>runAll(2);
