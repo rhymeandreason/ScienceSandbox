@@ -269,15 +269,14 @@ const lessonOf = p => p.lesson ? '../' + p.lesson : null;
    to the folding pipeline. */
 const dataOf = (p, file) => `../${p.dir}/data/${file}`;
 
-/* CONTEXTS ARE RATIONED (ConceptMap.md invariant 1), and CONTEXTS ARE THE ONLY
-   THING RATIONED. An off-screen box already stops its own loop — card-stage's
-   observer — so a card scrolled past costs no frame time whether it is live or
-   destroyed. What eviction buys is the context, and a destroyed one cannot come
-   back on the same canvas, so the card rebuilds from scratch when the reader
-   scrolls up. Below the browser's ~8 cap that rebuild is pure loss, which is why
-   every card here stays live and the ceiling only bites past eight proteins.
-   `onEvict` fires before the destroy, so a card that loses its box keeps the
-   last frame it drew and reads as gone quiet rather than gone. */
+/* ONE CONTEXT ON THIS PAGE, AND IT BELONGS TO THE MODAL. Every card used to
+   be live, out of a pool of eight, which is a grid of WebGL contexts a reader
+   is mostly scrolling past: the cards do not animate, and the frame they show
+   is the frame `proteins/tools/stills.html` baked from the same box, colour
+   and rotation. So a card is its still, and the molecule becomes turnable the
+   moment the reader opens one. The pool stays because the modal's context has
+   to be released on close — a canvas that has lost one can never be granted
+   another. */
 /* TWO REGISTRIES, ONE GALLERY. `nucleic-acids.js` indexes the bakes that carry
    DNA or RNA, and the ones with a protein in them belong on this page — Zif268
    is a protein that arrives with a duplex, and leaving it off would make the
@@ -297,31 +296,12 @@ const ENTRIES = [...ProteinLib.PROTEINS, ...NucleicAcids.withProtein()]
 const entryOf = key => isNA({ key }) ? NucleicAcids.byKey(key) : ProteinLib.byKey(key);
 const defaultOf = p => isNA(p) ? NucleicAcids.defaultOf(p) : ProteinLib.defaultOf(p);
 
-const POOL_LIMIT = Math.min(ENTRIES.length, 8);
-const pool = CardStage.pool({
-  limit: POOL_LIMIT,
-  onEvict: (key, box) => { const url = box.snapshot && box.snapshot(); still(key, url); },
-});
+const pool = CardStage.pool({ limit: 1 });
 
-/* The evicted card's last frame, as a plain image behind the (now empty)
-   mount. Kept rather than cleared because a still protein still says which
-   protein it is. */
-function still(key, url) {
-  const el = document.querySelector(`.stage[data-key="${key}"]`);
-  if (!el || !url) return;
-  el.style.backgroundImage = `url(${url})`;
-  el.style.backgroundSize = 'contain';
-  el.style.backgroundPosition = 'center';
-  el.style.backgroundRepeat = 'no-repeat';
-}
-
-/* THE BAKED FIRST FRAME. A card that has not had a context yet has nothing to
-   keep the last frame OF, so it drew an empty rectangle until it did — the one
-   state on this page a reader cannot tell from a broken one, and the one that
-   lasts longest on a slow connection because the trace has to arrive first.
-   `proteins/tools/stills.html` bakes these from the same box, colour and
-   rotation, so the live canvas replaces the picture with the same picture.
-   A missing file just fails to load: the card is then as it was. */
+/* THE BAKED FRAME EVERY CARD SHOWS. `proteins/tools/stills.html` bakes these
+   from the same box, colour and rotation the modal opens in, so a card and the
+   molecule it opens are one picture. A missing file just fails to load, and
+   the card is then an empty stage rather than a broken one. */
 const stillSrc = key => `stills/${key}.webp`;
 
 /* One protein's default variant, as chains the box can draw — every protein
@@ -447,92 +427,7 @@ $('tally').textContent =
   + (nComplex ? ` · ${nComplex} complexes` : '')
   + ` · ${variants} structures`;
 
-/* A BOX IS ACQUIRED WHEN ITS CARD IS SEEN, and re-acquired on a click, because
-   acquire is also bring-to-front: a card already live must re-acquire or the
-   one being looked at is the next evicted. A zero-sized mount is never handed
-   to a box — Stage.frame bails on a missing aspect and leaves THREE's
-   constructor frustum, a 30 Å protein in a 2 Å frame. */
-const io = new IntersectionObserver(entriesSeen => {
-  for (const e of entriesSeen) {
-    if (!e.isIntersecting) continue;
-    open(e.target.dataset.key, e.target);
-  }
-}, { rootMargin: '200px' });
-
-const traces = {};                       // key -> the loaded chains
-
-function open(key, mount) {
-  if (!mount.clientWidth || !mount.clientHeight) return;
-  const p = entryOf(key);
-  const draw = t => {
-    pool.acquire(key, () => Proteinbox.create({
-      mount, orbit: true, pad: 1.15, sub: 8,
-      /* Perspective and trackball, matching the benches: a card here is a
-         thumbnail a reader is invited to turn, and the turntable's pitch clamp
-         runs out exactly where someone looks at the top of a molecule.
-
-         `zoom:false` GIVES THE WHEEL BACK TO THE PAGE. On a bench the wheel is
-         the reader's zoom and the canvas is the whole stage; on a gallery it is
-         how they get down the grid, and a card that swallows it traps the
-         scroll under the pointer. Dragging still turns the molecule. */
-      stage: { ortho: false, turn: 'trackball', zoom: false },
-      /* PER-CHAIN COLOUR WHERE THE PROTEIN ASKS FOR IT, null everywhere else —
-         which keeps the default, and the default is that every protein in the
-         repo is drawn the same way. Collagen is the case: its files record no
-         secondary structure at all, so the ss palette draws a triple helix as
-         one green rope and the braid, which is the whole subject, is invisible
-         on the card that indexes it. Read from the registry so this card and
-         the bench cannot colour the same molecule two ways. */
-      /* Colour is the protein registry's to state; the ladder takes the
-         palette's base family, so a nucleic entry leaves it to the box. */
-      /* WHICH CHAINS THE CARD IS ABOUT. A partner chain is in the file and
-         not in the subject — T7's borrowed thioredoxin is the case — and the
-         index says which, so this card, the still baked from it and the bench
-         cannot disagree. Null keeps the box's own default, which is every
-         chain, and that is what every entry without a partner gets. */
-      chains: isNA(p) ? NucleicAcids.drawnOf(p, null, t) : null,
-      colors: isNA(p) ? null : ProteinLib.colorsOf(p, ProteinLib.defaultOf(p)),
-      /* THE ROTATION IS ASKED OF WHICHEVER REGISTRY HOLDS THE ENTRY. Passing
-         null for a nucleic one was right while every nucleic bake carried its
-         own solved basis — and it stopped being right the moment one of them
-         got a hand-picked rotation, because `Bake.viewFor` then writes NO view
-         into the bake and the card would open in the crystal's frame while the
-         bench opened in the chosen one. Both indexes answer `viewOf`, and it
-         is every consumer calling it that stops this card and that bench
-         becoming two opinions about which way one molecule faces. */
-      view: (isNA(p) ? NucleicAcids : ProteinLib).viewOf(p),
-      data: t,
-    }));
-    /* THE POCKET, where a protein has one. Myoglobin without its heme is the
-       container drawn and the subject left out — and this is the card the
-       collection is indexed by, so it has to show what the protein is FOR.
-       Fed after the box exists; the box owns how it is drawn. */
-    const box = pool.get && pool.get(key);
-    if (box && box.setPocket && t.pocket) box.setPocket(t.pocket);
-    /* The still gives way to the live box only once that box has drawn. Clearing
-       it before the create meant a frame of empty card on every acquire, which
-       on a page that re-acquires as you scroll is the flicker. */
-    mount.style.backgroundImage = '';
-  };
-  if (traces[key]) draw(traces[key]);
-  else load(p).then(t => { traces[key] = t; draw(t); })
-    .catch(e => console.warn(`gallery: ${key} — ${e.message}`));
-}
-
-/* THE FIRST FEW OPEN ON LOAD, and the rest wait to be seen. Two reasons, and
-   the second is the one that bites: the cards above the fold should be turning
-   when the page arrives rather than popping in behind an observer, and a
-   document that is never visible — a background tab, a thumbnail capture, an
-   automated screenshot — gets no intersection callbacks at all, so a gallery
-   that waited for one would render a grid of empty frames and look broken to
-   exactly the readers who cannot tell it apart from a bug. */
-const EAGER = 4;                         // above the fold; the rest wait to be seen
-const stages = [...document.querySelectorAll('.stage')];
-stages.forEach((el, i) => {
-  if (i < EAGER) open(el.dataset.key, el);
-  io.observe(el);
-  el.addEventListener('pointerdown', () => open(el.dataset.key, el));
-});
+const traces = {};                       // key -> the loaded chains, per modal open
 
 /* ===================================================================
    THE MODAL. A card is a thumbnail and a sentence; this is where the rest of
@@ -617,8 +512,13 @@ function openModal(p) {
   $('m-close').focus();
 
   /* THE BOX LAST, and only once the sheet is laid out: a zero-sized mount gets
-     THREE's constructor frustum, which is the same trap the cards have. */
+     THREE's constructor frustum, which is the same trap the cards have.
+     The card's own still stands in the mount until the box has drawn: the
+     trace is a fetch away, and the modal opens on the picture the reader
+     just clicked rather than on a hole where it was. */
   const mount = $('m-stage');
+  mount.style.cssText = `background-image:url(${stillSrc(p.key)});`
+    + 'background-size:contain;background-position:center;background-repeat:no-repeat';
   requestAnimationFrame(() => { if (openKey === p.key) openBox(p, mount); });
 }
 
@@ -705,6 +605,7 @@ function openBox(p, mount) {
       data: t,
     }));
     if (box && box.setPocket && t.pocket) box.setPocket(t.pocket);
+    mount.style.backgroundImage = '';     // the live box has drawn the same frame
     fillMeasure(p, t);
   };
   if (traces[p.key]) draw(traces[p.key]);
