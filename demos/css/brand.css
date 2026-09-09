@@ -1,0 +1,55 @@
+/* =============================================================================
+   brand.css — THE VALUES THE WHOLE SITE IS DRAWN IN, and nothing else.
+
+   Colour only: no reset, no components, no type, no layout. It exists because
+   the front door (index.html, contribute.html) is a bespoke scroll piece that
+   must NOT load kodo.css — that sheet is a base reset with its own scroll and
+   its own `.mark`, and it fights index's. But the two have to agree on the
+   paper, the ink and the hues, and the way that agreement was kept until now
+   was by typing the same hex in three files.
+
+       index.html / contribute.html   <link>  it, and alias to short names
+       kodo.css                       @imports it, and maps ROLES onto it
+
+   So a colour is decided here once. A page that wants a role — the body text,
+   a border, the primary fill — reads kodo.css's semantic tier instead; those
+   are the names that carry an opinion about use.
+   ========================================================================== */
+:root {
+  /* PAPER. --brand-paper-t is the same colour as three numbers, for the places
+     it is laid over something at an alpha (a translucent nav, paper-coloured
+     type on an ink band). */
+  --brand-paper:    #faf8f4;
+  --brand-paper-t:  250, 248, 244;
+  --brand-paper-2:  #f1ece3;   /* the warmer ground a molecule is drawn on */
+  --brand-card:     #ffffff;
+  --brand-rule:     #e4e0d7;
+
+  /* INK, the wordmark's navy. Tinted all the way down rather than left neutral:
+     warm-grey prose under a navy heading reads as two inks on one page. */
+  --brand-ink:      #14213d;
+  --brand-ink-2:    #2b3a5c;
+  --brand-ink-3:    #4a5675;
+  --brand-mute:     #6b7280;
+
+  /* THE TWO THAT ARE ROLES. Deep green is the primary fill — a button, a
+     selected state, the thing to press — and it is the one accent that means
+     something rather than merely distinguishing. Orange is its counterpoint. */
+  --brand-green:    #1f5f4f;
+  --brand-orange:   #e2643a;
+
+  /* THE SIGNATURE HUES, and they are a categorical set: no ramp, no order, no
+     meaning attached to any one of them. A band picks one and then uses it for
+     everything that band says — its eyebrow, the <em> in its heading, its dot —
+     so the reader learns the section by colour rather than by counting.
+     Butter and coral also serve as band GROUNDS, which is why they are the two
+     that carry ink at full strength.
+     Do not reach in here for a role. A primary button is --brand-green through
+     kodo.css's --accent, not "the green one". */
+  --hue-coral:      #f26b4e;
+  --hue-blue:       #5aa9ff;
+  --hue-green:      #4ade80;
+  --hue-amber:      #f7b733;
+  --hue-violet:     #c084fc;
+  --hue-butter:     #ffd166;
+}

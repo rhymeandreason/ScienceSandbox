@@ -11,18 +11,24 @@
 <script defer src="/demos/lib/site.js"></script>
 <title>Contribute — Kodolab</title>
 <meta name="description" content="How to add a molecule, a component, or a lesson to Kodolab's open library of interactive 3D biology.">
+<link rel="stylesheet" href="/demos/css/brand.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Jost:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
   :root {
-    --paper: #F4F1E8;
-    --paper-2: #EDE8DB;
-    --ink: #14213D;
-    --ink-2: #2B3A5C;
-    --mute: #6B7280;
-    --green: #4ADE80; --coral: #F26B4E; --blue: #5AA9FF; --amber: #F7B733; --violet: #C084FC;
-    --butter: #FFD166;
+    /* SHORT NAMES ONLY. Every value is brand.css's, aliased so this page's
+       inline `--dot:var(--coral)` stays short; a hex typed here is a colour
+       that has quietly left the system. brand.css */
+    --paper: var(--brand-paper);
+    --paper-t: var(--brand-paper-t);
+    --paper-2: var(--brand-paper-2);
+    --ink: var(--brand-ink);
+    --ink-2: var(--brand-ink-2);
+    --mute: var(--brand-mute);
+    --green: var(--hue-green); --coral: var(--hue-coral); --blue: var(--hue-blue);
+    --amber: var(--hue-amber); --violet: var(--hue-violet);
+    --butter: var(--hue-butter);
     --serif: 'Literata', Georgia, serif;
     --sans: 'Jost', -apple-system, 'Segoe UI', sans-serif;
     /* Futura where the OS has it (macOS does); Jost is its clone elsewhere. */
@@ -46,7 +52,7 @@
 
   /* ---- chrome ---------------------------------------------------------- */
   .sitenav {
-    background: rgba(244,241,232,.92); backdrop-filter: blur(10px);
+    background: rgba(var(--paper-t),.92); backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(20,33,61,.12);
   }
   .sitenav .wrap { display: flex; align-items: center; gap: 1rem; padding: .9rem 0; }
@@ -58,7 +64,7 @@
 
   .cta {
     font: 500 14px var(--sans); letter-spacing: .06em; padding: .8rem 1.4rem; border-radius: 999px;
-    border: 0; background: var(--ink); color: #FFF7EC; cursor: pointer; text-decoration: none; display: inline-block;
+    border: 0; background: var(--ink); color: var(--paper); cursor: pointer; text-decoration: none; display: inline-block;
     box-shadow: 0 8px 20px -8px rgba(20,33,61,.5); transition: transform .15s var(--soft), box-shadow .15s;
   }
   .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px rgba(20,33,61,.55); }
@@ -133,14 +139,14 @@
   .agent { background: var(--ink); color: var(--paper); }
   .agent .sechead h2 { color: #fff; }
   .agent .sechead h2 em { color: var(--amber); }
-  .agent .sechead p { color: rgba(244,241,232,.78); }
+  .agent .sechead p { color: rgba(var(--paper-t),.78); }
   .agent .code { background: #0E1930; border: 1px solid rgba(232,237,247,.14); }
-  .agent .after { margin-top: 1.4rem; font-family: var(--serif); font-weight: 400; font-size: 1rem; color: rgba(244,241,232,.75); max-width: 46em; }
+  .agent .after { margin-top: 1.4rem; font-family: var(--serif); font-weight: 400; font-size: 1rem; color: rgba(var(--paper-t),.75); max-width: 46em; }
   .agent .after code { font: 500 .86em var(--mono); background: rgba(232,237,247,.12); padding: .12em .4em; border-radius: 5px; }
   .tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .9rem; }
   .tabs button {
     font: 500 13px var(--sans); letter-spacing: .02em; padding: .5rem 1rem; border-radius: 999px;
-    border: 1px solid rgba(232,237,247,.25); background: transparent; color: rgba(244,241,232,.8);
+    border: 1px solid rgba(232,237,247,.25); background: transparent; color: rgba(var(--paper-t),.8);
     cursor: pointer; transition: background .15s, color .15s, border-color .15s;
   }
   .tabs button:hover { background: rgba(232,237,247,.12); color: #fff; }
@@ -155,7 +161,7 @@
   .galhead { display: flex; align-items: baseline; gap: .9rem; flex-wrap: wrap; margin-bottom: 1.6rem; }
   .galhead h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); color: #fff; }
   .galhead h2 em { color: var(--amber); }
-  .galhead p { font: 400 14px var(--sans); color: rgba(244,241,232,.7); }
+  .galhead p { font: 400 14px var(--sans); color: rgba(var(--paper-t),.7); }
   .galhead a { color: #fff; text-underline-offset: 3px; }
 
   /* One row, scrolled sideways. The padding is the wrap's own gutter, so the
@@ -204,7 +210,7 @@
   .gallery .rung { margin-top: auto; padding-top: .7rem; font: 500 10px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); }
 
   /* ---- licence + close ------------------------------------------------- */
-  .close { background: var(--coral); color: #FFF7EC; text-align: center; padding: 5.5rem 0; }
+  .close { background: var(--coral); color: var(--paper); text-align: center; padding: 5.5rem 0; }
   .close h2 { font-size: clamp(2rem, 4.4vw, 3.4rem); line-height: 1.04; color: #fff; }
   .close h2 em { color: var(--ink); }
   .close p { font-family: var(--serif); font-weight: 400; font-size: 1.12rem; max-width: 34em; margin: 1.1rem auto 1.9rem; color: rgba(255,247,236,.92); }

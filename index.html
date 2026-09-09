@@ -13,19 +13,25 @@
      the same from the root as it does from a page under /demos/. lib/site.js -->
 <script defer src="/demos/lib/site.js"></script>
 <title>Kodolab — interactive 3D biology</title>
+<link rel="stylesheet" href="/demos/css/brand.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Jost:wght@300;400;500;600&display=swap">
 <link rel="stylesheet" href="demos/kit/proteinbox.css">
 <style>
   :root {
-    --paper: #F4F1E8;
-    --paper-2: #EDE8DB;
-    --ink: #14213D;
-    --ink-2: #2B3A5C;
-    --mute: #6B7280;
-    --green: #4ADE80; --coral: #F26B4E; --blue: #5AA9FF; --amber: #F7B733; --violet: #C084FC;
-    --butter: #FFD166;
+    /* SHORT NAMES ONLY. Every value is brand.css's, aliased so this page's
+       inline `--dot:var(--coral)` stays short; a hex typed here is a colour
+       that has quietly left the system. brand.css */
+    --paper: var(--brand-paper);
+    --paper-t: var(--brand-paper-t);
+    --paper-2: var(--brand-paper-2);
+    --ink: var(--brand-ink);
+    --ink-2: var(--brand-ink-2);
+    --mute: var(--brand-mute);
+    --green: var(--hue-green); --coral: var(--hue-coral); --blue: var(--hue-blue);
+    --amber: var(--hue-amber); --violet: var(--hue-violet);
+    --butter: var(--hue-butter);
     --serif: 'Literata', Georgia, serif;
     --sans: 'Jost', -apple-system, 'Segoe UI', sans-serif;
     /* Futura where the OS has it (macOS does); Jost is its clone elsewhere. */
@@ -173,7 +179,7 @@
   .ask .row { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; margin-top: 1.1rem; flex-wrap: wrap; }
   .cta {
     font: 500 14px var(--sans); letter-spacing: .06em; padding: .8rem 1.4rem; border-radius: 999px;
-    border: 0; background: var(--ink); color: #FFF7EC; cursor: pointer; text-decoration: none; display: inline-block;
+    border: 0; background: var(--ink); color: var(--paper); cursor: pointer; text-decoration: none; display: inline-block;
     box-shadow: 0 8px 20px -8px rgba(20,33,61,.5); transition: transform .15s var(--soft), box-shadow .15s;
   }
   .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px rgba(20,33,61,.55); }
@@ -193,15 +199,15 @@
   .gate.on { opacity: 1; transform: none; pointer-events: auto; }
   .gate h3 { font-size: 1.6rem; color: #fff; }
   .gate h3 em { color: var(--amber); }
-  .gate p { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 1rem; color: rgba(244,241,232,.85); }
+  .gate p { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 1rem; color: rgba(var(--paper-t),.85); }
   .gate .echo { font-style: italic; color: var(--amber); border-left: 2px solid var(--amber); padding-left: .8rem; }
   .gate form { display: flex; gap: .6rem; margin-top: .4rem; }
-  .gate input { flex: 1; font: 400 15px var(--sans); padding: .7rem 1rem; border-radius: 999px; border: 2px solid rgba(244,241,232,.4); background: transparent; color: #fff; }
-  .gate input::placeholder { color: rgba(244,241,232,.5); }
+  .gate input { flex: 1; font: 400 15px var(--sans); padding: .7rem 1rem; border-radius: 999px; border: 2px solid rgba(var(--paper-t),.4); background: transparent; color: #fff; }
+  .gate input::placeholder { color: rgba(var(--paper-t),.5); }
   .gate .cta { background: var(--coral); color: #fff; }
-  .gate .small { font: 400 12px var(--sans); color: rgba(244,241,232,.6); }
+  .gate .small { font: 400 12px var(--sans); color: rgba(var(--paper-t),.6); }
   .gate .small a { color: var(--amber); }
-  .gate .close { position: absolute; right: 14px; top: 12px; background: none; border: 0; color: rgba(244,241,232,.7); font: 500 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+  .gate .close { position: absolute; right: 14px; top: 12px; background: none; border: 0; color: rgba(var(--paper-t),.7); font: 500 12px var(--sans); letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
   @media (max-width: 900px) { .gen .wrap { grid-template-columns: 1fr; gap: 2.5rem; } }
 
   /* ---- the gallery ----------------------------------------------------- */
@@ -209,7 +215,7 @@
   .gallery .wrap { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; margin-bottom: 2.4rem; }
   .gallery h2 { font-size: clamp(2rem, 4vw, 3.2rem); line-height: 1.05; color: #fff; }
   .gallery h2 em { color: var(--violet); }
-  .gallery .lede { font-family: var(--serif); font-weight: 400; font-size: 1.05rem; color: rgba(244,241,232,.75); max-width: 30em; margin: .6rem 0 0; }
+  .gallery .lede { font-family: var(--serif); font-weight: 400; font-size: 1.05rem; color: rgba(var(--paper-t),.75); max-width: 30em; margin: .6rem 0 0; }
   .gallery .more { font: 500 12px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--violet); text-decoration: none; white-space: nowrap; padding-bottom: .4rem; border-bottom: 1px solid var(--violet); }
   .marquee { display: flex; align-items: flex-start; gap: 1.2rem; width: max-content; animation: slide 70s linear infinite; padding-left: 1.2rem; }
   .marquee:hover { animation-play-state: paused; }
@@ -219,10 +225,10 @@
   .marquee .pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .marquee a:hover .pic { transform: translateY(-6px) rotate(-1.2deg); border-color: var(--violet); }
   .marquee .name { display: block; margin-top: .6rem; font-family: var(--serif); font-size: 1.05rem; line-height: 1.3; color: #fff; }
-  .marquee .does { display: block; margin-top: .15rem; padding-bottom: .5rem; font: 400 12px/1.45 var(--sans); letter-spacing: .04em; color: rgba(244,241,232,.6); }
+  .marquee .does { display: block; margin-top: .15rem; padding-bottom: .5rem; font: 400 12px/1.45 var(--sans); letter-spacing: .04em; color: rgba(var(--paper-t),.6); }
 
   /* ---- the waitlist band -------------------------------------------- */
-  .join { background: var(--coral); color: #FFF7EC; padding: 5.5rem 0; text-align: center; }
+  .join { background: var(--coral); color: var(--paper); padding: 5.5rem 0; text-align: center; }
   .join h2 { font-size: clamp(2.2rem, 4.6vw, 3.8rem); line-height: 1.02; color: #fff; }
   .join h2 em { color: var(--ink); }
   .join p { font-family: var(--serif); font-weight: 400; font-size: 1.15rem; max-width: 34em; margin: 1rem auto 1.8rem; color: rgba(255,247,236,.9); }

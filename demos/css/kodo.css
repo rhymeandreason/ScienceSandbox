@@ -37,6 +37,9 @@
    what the six pages still on main.css link directly. It resolves against this
    file's own URL, so every path a page reaches kodo.css by works. */
 @import url('annotate.css');
+/* The values, shared with the front door, which cannot load this sheet. Every
+   colour below is a ROLE pointed at one of brand.css's names. brand.css */
+@import url('brand.css');
 /* -----------------------------------------------------------------------------
    0. BASE
    Declared here rather than inherited from sandbox.css, which is on its way out.
@@ -292,13 +295,15 @@ html.bare .chrome-title { display: none !important }
    keep their values; nothing outside a role changes.
    -------------------------------------------------------------------------- */
 :root {
-  --paper-white: #faf8f4;
-  --paper-card:  #ffffff;
-  --rule-line:   #e4e0d7;
-  --ink-900:     #14161a;
-  --ink-500:     #6d6f76;
-  --green-700:   #1f5f4f;   /* accent */
-  --orange-500:  #e2643a;   /* spark, the warm counterpoint */
+  --paper-white: var(--brand-paper);
+  --paper-card:  var(--brand-card);
+  --rule-line:   var(--brand-rule);
+  --ink-900:     var(--brand-ink);
+  --ink-700:     var(--brand-ink-2);
+  --ink-600:     var(--brand-ink-3);
+  --ink-500:     var(--brand-mute);
+  --green-700:   var(--brand-green);    /* accent */
+  --orange-500:  var(--brand-orange);   /* spark, the warm counterpoint */
 
   --surface-page:   var(--paper-white);
   --surface-rule:   transparent;      /* this paper is flat; see §10.1 */
@@ -306,13 +311,13 @@ html.bare .chrome-title { display: none !important }
   --surface-card:   var(--paper-card);
   /* Warmer than this paper on purpose. #faf8f4 behind a molecule on #faf8f4
      paper is a frame with nothing in it. */
-  --surface-stage:  #f1ece3;
+  --surface-stage:  var(--brand-paper-2);
   --border-hair:    var(--rule-line);
   --border-strong:  var(--ink-900);
 
   --text-strong:  var(--ink-900);
-  --text-body:    #3a3d44;
-  --text-dim:     #55585f;
+  --text-body:    var(--ink-700);
+  --text-dim:     var(--ink-600);
   --text-muted:   var(--ink-500);
   --text-inverse: var(--paper-white);
 
@@ -328,6 +333,10 @@ html.bare .chrome-title { display: none !important }
 
   --accent: var(--green-700);
   --spark:  var(--orange-500);
+
+  /* The signature hues are brand.css's, unrenamed on purpose: they are a
+     categorical set and giving one a role name here would be the first step to
+     a second primary. A section picks one; --accent stays the button. */
 
   --focus-ring: 2px solid var(--green-700);
 }
