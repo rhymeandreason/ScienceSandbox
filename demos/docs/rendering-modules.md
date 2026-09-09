@@ -4,17 +4,17 @@
 
 **`kit/molbox.js` — `Molbox`**
 
-Use this to draw macromolecules on the page unless you need animations.
+**Takes a SPEC, so nothing on this page goes in one.** One molecule from `mol-*.js` on a camera solved against its own extent, size-agnostic — a water or a lipid. It cannot read deposited coordinates; a protein, DNA or RNA goes to `Proteinbox` below.
 
 **`kit/proteinbox.js` — `Proteinbox`**
 
-`Use this to draw Proteins unless the human gives you a reason not to. `Its own CardStage scene, ortho by default, real angstroms.
+**Use this to draw a protein unless the human gives you a reason not to.** Its own CardStage scene, ortho by default, real ångströms.
 
 ```
-Proteinbox.create({ mount, trace | data, chains, view, colors, sub, orbit, surface, fold })
+Proteinbox.create({ mount, trace | data, chains, view, colors, sub, orbit, surface, skin, fold })
 ```
 
-Three things it can show, and only the first is free: the 12 KB trace on create, a \~360 KB SES and an \~830 KB trajectory on the click that asks for them. Omit `surface` and there is no toggle; omit `fold` and there is no play button. Returns card-stage's box (so a pool's acquire / snapshot / destroy work unchanged) plus `drop()`, `setData(t)`, `setPocket(p)` and `rep`.
+Four reps, and only the first is free: the 12 KB trace on create, a \~360 KB SES and an \~830 KB trajectory on the click that asks for them. Omit `surface` and there is no toggle; omit `fold` and there is no play button. Returns card-stage's box (so a pool's acquire / snapshot / destroy work unchanged) plus `drop()`, `setData(t)`, `setPocket(p)` and `rep`.
 
 * **`data:` is `trace:` already parsed** — the same object, no fetch. **It does not read PDB and must not learn to**: parsing decides which altloc, which chain, and whether secondary structure is read or detected, and a page that owns a protein already owns those decisions. What is shared is the box — the scene, the camera, the framing and the turn — so a page whose coordinates arrive as anything else parses them itself and hands over chains. `proteins/prion/prion-test.html` builds the object straight off a PDB with `proteins/prion/prion.js`.
 
@@ -29,6 +29,8 @@ Three things it can show, and only the first is free: the 12 KB trace on create,
 * **`colors:`** overrides the ss palette: one number for flat, or `{C,H,E}` for some of it. Omit it and every protein in the repo is drawn the same way, which is the default for a reason. A page overrides only when colour is carrying a claim of its own (prion: healthy fold against disease fold).
 
 * **`setPocket({atoms, bonds})` is the few atoms drawn INSIDE the ribbon** — a heme, what is bound to its iron, the one or two side chains a bench is about. Ball-and-stick is the exception a group of \~40 atoms earns: it is a shape you can read at 10 Å across, which 150 residues of the same treatment is not, and it is how every published figure draws a porphyrin. **The proportions are the module's** (`BALL`, `FE_BALL`, `STICK`): smaller balls and more than twice the house stick width, because the subject is the group's shape seen from across a 40 Å protein and at that distance the house width is about a pixel. Judge them at a whole-protein framing, never zoomed in. Sticks are SPLIT, each half in its atom's colour — deposited coordinates have no spec and often no hydrogens, so the bond does more of the work of saying what the atoms are. It draws in the chain group, so a heme wears the same `view` as the protein; it does not widen the framing radius, because a pocket is inside the protein by definition; and it clears with the ribbon on every `setData`. Returns `{group, materials}` so a lesson can fade or tint it without the box growing an opinion about timing. **What is IN the pocket is the baker's decision, never the box's** — the same refusal it makes about parsing. `proteins/myoglobin/` is the worked example; `hemoglobin-lab.html` still draws its heme by hand, and is the one place the two conventions have not yet met.
+
+* **`skin:true` is a fourth rep and a different claim**: the same SES drawn OVER the ribbon rather than instead of it, which is what a page asks for when the question is WHERE ON the fold something is. `surface` alone still means what it always did. On a skin, `paintSkin(fn)` recolours per residue by writing one array into the geometry already uploaded — no rebuild, nothing refetched, and **nothing moves**, which is the point when the claim is that a substitution left the fold alone. `patch(name, {chains,num}, {colour,opacity})` is a residue-sized mark as its OWN mesh over the same buffers, because one mesh has one opacity.
 
 * **One decoded surface across every box**, for the same reason contexts are rationed: the LRU rations contexts, not what a page hangs off one. A box that loses its surface falls back to the ribbon it never removed.
 
@@ -68,7 +70,7 @@ Cα trace + secondary structure → a cartoon: helices as flat twisted bands, st
 
 DNA or RNA → a ladder: a flat backbone ribbon per strand, and one rung per base pair spanning **both** backbones. Same contract as `RibbonLib` — real ångströms in, plain `BufferGeometry` out, THREE passed in, no materials. `NucleicLib.build(THREE, trace, opts)` → `{ strands: [{id, geo}], rungs: {G: geo, C: geo, …}, stubs: {…} }`.
 
-* **The joined rung is the reason it exists.** 3Dmol and Mol\* both hang a separate stub off each strand, pointing inward and stopping in mid-air — correct, and it says "bases face inward" while saying nothing about which base is with which. For a reader meeting base pairing for the first time the pair IS the lesson. `viewer-compare.html` at the repo root is where both were looked at, on 1BNA and 1EHZ.
+* **The joined rung is the reason it exists.** 3Dmol and Mol\* both hang a separate stub off each strand, pointing inward and stopping in mid-air — correct, and it says "bases face inward" while saying nothing about which base is with which. For a reader meeting base pairing for the first time the pair IS the lesson. `viewer-compare/` at the repo root is where both were looked at, on 1BNA and 1EHZ.
 
 * **An unpaired base is a STUB — half a rung, going nowhere** — and that is what makes the rung mean anything. A hairpin loop, a melted end, a bulge and every one of tRNA's tertiary contacts come out visibly not-a-ladder. The picture under-claims and never invents a pair.
 
@@ -86,13 +88,13 @@ DNA or RNA → a ladder: a flat backbone ribbon per strand, and one rung per bas
 
 **`kit/surface.js` — `SurfLib`**
 
-The browser half of the SES1 format written by `bake-surface.js`.
+The browser half of the SES1 format written by `hemoglobin/tools/bake-surface.js`.
 
 * `decode(THREE, arrayBuffer)` → `{geo, head, res, nVert, nTri}` — de-quantises positions, keeps normals as int8 interleaved
 
 * `chainOf` / `numberOf` — per-vertex residue lookups, which is what lets a page paint one residue onto the skin
 
-* The format itself stays specified in `bake-surface.js`'s header, next to the writer
+* The format itself stays specified in `hemoglobin/tools/bake-surface.js`'s header, next to the writer
 
 **`hemoglobin/foldplay.js` — `FoldPlay`**
 
@@ -134,7 +136,7 @@ The reading side of the above. `naTrace(text, only, mod)` for the chains — P f
 
 **`tools/bake-card-surface.js`** (baker, not a module)
 
-A card-tier SES: `node tools/bake-card-surface.js <file.pdb> [chains] [spacing]` → `<file>.card.surf.bin`. Same `encode` as `bake-surface.js`, required rather than copied, so `SurfLib` decodes both.
+A card-tier SES: `node tools/bake-card-surface.js <file.pdb> [chains] [spacing]` → `<file>.card.surf.bin`. Same `encode` as `hemoglobin/tools/bake-surface.js`, required rather than copied, so `SurfLib` decodes both.
 
 * 1.4 A against the lesson tier's 0.6. On 2HHB: 0.6 is 1.5 MB, 1.1 is 608 KB, 1.4 is 362 KB, 1.7 is 266 KB. 1.4 is where the shape is still the protein's and the file is small enough that a toggle answers rather than makes the reader wait.
 * **The frame is READ from the trace file**, not re-derived. `2HHB.surf.bin` is in the frame `FoldLib.orient()` solved from chain B; a card's ribbon is in the crystal frame centred on its own Ca. A surface that is the right shape in the wrong orientation reads as a bug in the mesh rather than as a missing rotation.
