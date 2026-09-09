@@ -2,7 +2,6 @@
    kodo.css — THE SITE SHEET. One <link>, and a page is in the system.
 
        <link rel="stylesheet" href="css/kodo.css">
-       <link rel="stylesheet" href="css/sandbox.css">   <!-- retiring -->
        <link rel="stylesheet" href="<page>.css">        <!-- page chrome -->
 
    It is main.css and editorial.css welded together: main.css's three token
@@ -42,7 +41,6 @@
 @import url('brand.css');
 /* -----------------------------------------------------------------------------
    0. BASE
-   Declared here rather than inherited from sandbox.css, which is on its way out.
    -------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box }
 
@@ -257,10 +255,9 @@ html.bare .chrome-title { display: none !important }
 
 /* -----------------------------------------------------------------------------
    6. LEGACY ALIASES
-   The names sandbox.css and all four featured lessons already use, pointed at
-   the tiers above. They exist so sandbox.css's :root could be deleted without
-   touching a page, and they are the migration's checklist: when nothing greps
-   for --ink any more, that line goes.
+   The names the featured lessons, pathways.css and water-tutor.css already
+   use, pointed at the tiers above. They are the migration's checklist: when
+   nothing greps for --ink any more, that line goes.
    -------------------------------------------------------------------------- */
 :root {
   --paper:      var(--surface-page);
@@ -278,11 +275,6 @@ html.bare .chrome-title { display: none !important }
   --font-marker: var(--font-shout);
   --font-hand:   var(--font-aside);
 
-  /* The torn edge masking #side. It belongs to the graph-paper sidebar, which
-     glycolysis and water-tutor both switch off by hand, so it is already on its
-     way out; it lives here only so sandbox.css keeps resolving until that block
-     goes. */
-  --torn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
 }
 
 /* -----------------------------------------------------------------------------
@@ -1161,16 +1153,13 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    what most lessons are; #app-sidebar adds a right rail, and a page opts in by
    name so the rail is a choice rather than something it inherits.
 
-   THE RAIL IS PLAIN. sandbox.css dresses #side as torn grid paper, and both of
-   the pages this system was drawn from switch it off by hand: glycolysis
-   because an opaque column cuts a rectangle out of the scene behind it, and
-   water-tutor because grid paper behind a launcher is decoration for a notebook
-   that is not there any more. Two pages arriving at the same override
-   independently is the system's answer, not a coincidence. The paper the
-   student sees is the stage's, and the rail lies on top of it.
-
-   sandbox.css still carries the graph-paper version and loads after this file,
-   so a page that has not migrated is untouched by any of this.
+   THE RAIL IS PLAIN. The paper the student sees is the stage's, and the rail
+   lies on top of it. The graph-paper rail this replaced was switched off by
+   hand on both of the pages the system was drawn from: glycolysis because an
+   opaque column cuts a rectangle out of the scene behind it, and water-tutor
+   because grid paper behind a launcher is decoration for a notebook that is
+   not there any more. Two pages arriving at the same override independently is
+   the system's answer, not a coincidence.
    ========================================================================== */
 #app,
 #app-sidebar {
@@ -1423,15 +1412,15 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    10. SHAPES A TOKEN CANNOT REACH
    The sketchbook stated a few things in px — a 2px drawn edge, a tilt, a fold
    printed with a gradient. Each survives a repaint, so each is undone by name.
-   sandbox.css, pathways.css and water-tutor.css still load after this file on
-   the lessons, which is why these are rules and not deletions.
+   pathways.css and water-tutor.css still load after this file on the lessons,
+   which is why these are rules and not deletions.
    ========================================================================== */
 
 /* -----------------------------------------------------------------------------
    10.1 SHAPE — the handful of places a token cannot reach.
    -------------------------------------------------------------------------- */
 
-/* The dotted grid printed on the sandbox paper. --surface-rule is transparent
+/* The dotted grid printed on the sketchbook paper. --surface-rule is transparent
    above, so the gradient already draws nothing; the image is dropped as well
    so the browser stops compositing a full-stage layer for it every frame. */
 :root #stage,
@@ -1445,9 +1434,9 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
 }
 
 /* EVERY EDGE IN THE SYSTEM IS A HAIRLINE. The components in §7 state 1px
-   themselves; these four are stated in px by sandbox.css, pathways.css and
-   annotate.css, which load after this file and are shared with the frozen
-   benches, so they are corrected here rather than at source.
+   themselves; these four are stated in px by pathways.css and annotate.css,
+   which load after this file and are shared with the frozen benches, so they
+   are corrected here rather than at source.
 
    The 2px drawn line was the sketchbook's signature and this is the last of it
    on a `body.kodo` page. Two 2px edges survive on purpose and neither is a

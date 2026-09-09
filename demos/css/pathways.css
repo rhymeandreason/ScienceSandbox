@@ -10,7 +10,7 @@
    WHAT STAYS ON THE PAGE: the pathway's own colours, its --carw, and the tally
    grid — every one of them a count or a size that IS the lesson.
 
-   LOAD ORDER: main.css, sandbox.css, then this, then the page's <style>.
+   LOAD ORDER: main.css, then this, then the page's <style>.
    Tokens come from main.css; nothing here declares a colour that is not a
    pathway's own.
    --------------------------------------------------------------------------- */
@@ -56,11 +56,9 @@
       background-size:26px 26px; background-position:13px 13px}
   }
   #side::before{display:none}
-  /* The sidebar's one column of content. It was sandbox.css's, and this is all
-     a pathway page ever used of it, so it comes here with the rest of the rail
-     rather than keeping that sheet linked for it. sandbox.css also said
-     `flex:1`, which this file has always overridden with `flex:none` further
-     down — the sidebar scrolls, not the card — so it is not restated here. */
+  /* The sidebar's one column of content. It comes here with the rest of the
+     rail because a pathway page is the only thing that draws it. No `flex`:
+     the sidebar scrolls, not the card, which `flex:none` further down says. */
   #card{display:flex;flex-direction:column;min-height:0}
 
   /* ---------- species labels: DOM over the canvas, one per lane ----------
@@ -662,8 +660,8 @@ font-size: 20px;
   /* THE UTILITY CONTROLS SIT IN THE BOTTOM CORNERS, quiet. Restart throws work
      away and PNG is a side errand, so neither may be more inviting than the
      lesson's button between them — and the top of the stage is for the
-     molecule's name. PNG takes #restart's muted treatment, overriding
-     sandbox.css's ink chip; the pathway map's door stacks above Restart. */
+     molecule's name. PNG takes #restart's muted treatment rather than the
+     stage button's ink; the pathway map's door stacks above Restart. */
   #tools{position:fixed;right:26px;bottom:22px;z-index:20;
     display:flex;flex-direction:column;align-items:flex-end;gap:10px}
   /* THE TOGGLES ARE main.css's `.btn .btn--check` — the tick is the state and

@@ -16,8 +16,8 @@
  *  bench must not repaint the molecule to repaint its panel.
  *
  *  Spacing, radius and timing still come from main.css. Load after main.css,
- *  before kit/proteinbox.css. A bench does not load sandbox.css: this sheet
- *  owns #app, #stage and .chip, and main.css carries the rest.
+ *  before kit/proteinbox.css. This sheet owns #app, #stage and .chip; main.css
+ *  carries the rest, and a bench links nothing else.
  *
  *  WHAT A PAGE STILL OWNS. Anything that carries its own claim: prion adds a
  *  `.disease` variant to the button and the chip because its whole subject is

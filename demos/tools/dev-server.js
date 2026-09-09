@@ -20,8 +20,8 @@
  *     the real dependency graph, not a parse of the script tags — and a save
  *     wakes only the pages whose set contains the changed file. Editing
  *     `kit/ribbon.js` reloads the two folding lessons and leaves
- *     `water-lab` alone; editing `sandbox.css` still swaps CSS everywhere,
- *     because everything loads it. A page the server has no record of (it
+ *     `water-lab` alone; editing `kodo.css` swaps CSS everywhere, because
+ *     every page loads it. A page the server has no record of (it
  *     restarted while the tab sat open) is reloaded — conservative is right
  *     when the alternative is a tab that silently stops updating.
  *

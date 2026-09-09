@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="css/main.css">
-<link rel="stylesheet" href="css/sandbox.css">
 <style>
   /* One accent per PAIR, not per molecule — the two halves are supposed to look
      like the same thing, so giving them different colours would do the lesson's
@@ -79,6 +78,9 @@
   @media (max-width:920px){
     #lesson{bottom:14px;max-width:88%}
   }
+
+/* The export button is a plain .btn; only its corner is this page's. */
+#savepng { position: absolute; left: 26px; bottom: 22px; z-index: 5 }
 </style>
 </head>
 <body>
@@ -98,7 +100,7 @@
       <label><input type="checkbox" id="highlightdiff"> highlight difference</label>
       <label><input type="checkbox" id="showh"> show C–H hydrogens</label>
     </div>
-    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+    <button id="savepng" class="btn"><i class="ph-bold ph-download-simple"></i> PNG</button>
     <button id="debugtoggle" aria-label="toggle debug panel"><i class="ph-bold ph-bug"></i></button>
     <pre id="debugpanel"></pre>
   </div>

@@ -130,8 +130,8 @@
       const x=c.getContext('2d');
       const size=text.length>1?66:92;
       let cur=ink||labelInk(el,'3d');
-      // element symbols use the sans stack (--font-sans in sandbox.css), not the
-      // slab — a canvas can't read a CSS var, so the stack is repeated here
+      // element symbols use the sans stack (--font-sans), not the slab — a
+      // canvas can't read a CSS var, so the stack is repeated here
       function draw(){
         x.clearRect(0,0,128,128);
         x.fillStyle=cur||INK;

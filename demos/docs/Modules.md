@@ -34,11 +34,10 @@ Four rules were prose here and enforced by nothing: both molecule families at on
 
 ```html
 <link rel="stylesheet" href="kodo.css">      <!-- always, first — the site sheet: tokens, type scale, buttons, page shell; loads the fonts. It imports brand.css, so a page never links that -->
-<link rel="stylesheet" href="sandbox.css">   <!-- DEPRECATED: old pages only, never a new one -->
 <link rel="stylesheet" href="pathways.css"> <!-- only for a step-through pathway lesson; see below -->
 <link rel="stylesheet" href="energy/energy.css"> <!-- only with energy/energy.js; after pathways.css -->
 <link rel="stylesheet" href="kit/enzyme-blob.css">  <!-- only with kit/enzyme-blob.js; the module depends on these rules -->
-<link rel="stylesheet" href="proteins/protein-test.css"> <!-- only for a protein bench; after main.css, before kit/proteinbox.css, and never with sandbox.css -->
+<link rel="stylesheet" href="proteins/protein-test.css"> <!-- only for a protein bench; after main.css, before kit/proteinbox.css -->
 <link rel="stylesheet" href="molecule-builder/molecule-builder.css"> <!-- only with molecule-builder.js -->
 ...
 <script src=".../three.min.js"></script>

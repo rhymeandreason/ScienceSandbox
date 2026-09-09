@@ -3,7 +3,7 @@
  *
  *  Same contract as massaction.css and diffusion.css: every rule scoped under
  *  `.coupling`, and nothing here positions or sizes that root — the host
- *  decides where it sits. Colours and type come from sandbox.css's variables.
+ *  decides where it sits. Colours and type come from main.css's variables.
  *
  *  THE THREE MODULES LOOK ALIKE ON PURPOSE and are still three files. A
  *  student meeting the second should recognise the chrome and go straight to

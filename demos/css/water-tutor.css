@@ -84,7 +84,7 @@
    edge, so sliding it would only break the one thing on the page that is
    reliably centred. */
 
-/* sandbox.css pins #brand to the stage corner; here it is the block's first row,
+/* main.css pins #brand to the stage corner; here it is the block's first row,
    the lesson's name and the step numbers side by side. */
 #brand {
   position: static;
@@ -133,12 +133,11 @@ opacity: .75;
 
 
 /* =============================================================================
-   The water furniture, out of sandbox.css.
+   The water furniture.
 
    The temperature column and the salt readout are this lesson's instruments,
-   not shared chrome: only the two water pages ever drew them. They came across
-   when this page dropped sandbox.css, and the copy over there is untouched for
-   the pages still loading it.
+   not shared chrome: only the two water pages ever drew them, so they live
+   here rather than in a sheet everything loads.
    ========================================================================== */
 #tempbar {
   position: absolute;

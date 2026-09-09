@@ -204,7 +204,6 @@ maybe `lesson-shell.css`, maybe its own.
 | `css/lesson-shell.css` | **the other shell**: full-window scene, glass panel, progress dots. Its own tokens on `body.lshell-page` | only a lesson or bench on that shell, after `kodo.css` |
 | `css/annotate.css` | the look of a callout | never links it — `kodo.css` imports it |
 | `css/main.css` | **frozen** — no new rules. The bench sketchbook look, and none of the pages on it is one a student lands on | never on a student-facing page. A bench that copies its siblings still links it: the protein benches are `main.css` + `proteins/protein-test.css` + `kit/proteinbox.css` |
-| `css/sandbox.css` | the old shared chrome. Deprecated; old pages still load it | never |
 | `pathways.css` · `proteins/protein-test.css` · `kit/enzyme-blob.css` | **folder chrome**, shared by the pages of one folder: a step-through pathway's rail and lane plates, a protein bench's stage-and-panel grid, the blob's two sways | only a page in that folder, after `kodo.css` |
 | the page's own `.css` | **its chrome only** — `build.css`, `graph.css`, `energy/energy.css`. Never a token, never a colour, never a type step `kodo.css` already sets | only if the page has chrome no other page has |
 

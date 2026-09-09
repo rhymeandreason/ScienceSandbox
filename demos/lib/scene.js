@@ -455,8 +455,8 @@
     const pts=new Map(); let pinchD=0;
     if(o.orbit!==false){
       // preventDefault stops the browser starting a TEXT SELECTION on the same
-      // drag — sandbox.css also sets user-select:none on #stage, and both are
-      // wanted: the CSS covers pages that take the pointer themselves
+      // drag — the site sheet also sets user-select:none on #stage, and both
+      // are wanted: the CSS covers pages that take the pointer themselves
       // (orbit:false, where this handler does not exist), this covers a drag
       // that begins on the canvas and sweeps out of the stage entirely.
       canvas.addEventListener('pointerdown',e=>{e.preventDefault();

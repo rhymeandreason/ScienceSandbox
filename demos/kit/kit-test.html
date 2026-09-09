@@ -6,7 +6,6 @@
 <title>kit test bench</title>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="../css/main.css">
-<link rel="stylesheet" href="../css/sandbox.css">
 <link rel="stylesheet" href="enzyme-blob.css">
 <style>
   #stage,#side{min-height:0} #side{overflow-y:auto}
@@ -21,6 +20,13 @@
   #band{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:6;display:none;
     background:rgba(255,255,255,.72);border:2px solid var(--ink);border-radius:9px;
     padding:14px 18px;max-width:70%;text-align:center;font-family:var(--font-sans);font-size:14px}
+
+/* Bench chrome. No other page draws a title block or a stats readout. */
+#labtitle { margin: 0 0 8px; font-family: var(--font-shout); font-weight: var(--weight-regular);
+            font-size: 28px; line-height: 1.12 }
+#labintro { margin: 0 0 18px; font-size: 15px; line-height: 1.5; color: var(--text-muted) }
+#stats    { position: absolute; left: 26px; bottom: 66px; z-index: 5;
+            font-size: 13px; line-height: 1.7; color: var(--text-muted) }
 </style>
 </head>
 <body>

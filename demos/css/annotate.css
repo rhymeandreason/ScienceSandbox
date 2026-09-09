@@ -2,9 +2,8 @@
    annotate.css — the look of a callout on the model.
 
    Pairs with annotate.js, which writes ONLY transform, opacity, z-index and
-   display; everything a callout looks like is here. It moved out of
-   sandbox.css so the module carries its own appearance rather than borrowing a
-   page stylesheet's.
+   display; everything a callout looks like is here, so the module carries its
+   own appearance rather than borrowing a page stylesheet's.
 
    A PAGE ON kodo.css DOES NOT LINK THIS FILE. kodo.css @imports it, so every
    lesson and every generated app has callout styling whether or not anyone
@@ -13,10 +12,6 @@
    still on main.css link it themselves; that is the whole of the direct-link
    list, and it shrinks as they migrate.
 
-   sandbox.css used to carry a frozen copy for pages that loaded it and not this
-   one. It has been deleted: no page on that sheet draws callouts, so it styled
-   nothing — while quietly styling four lessons that DID draw them and had
-   forgotten the link, in the previous look, beside lessons in the current one.
 
    IT HAS TO SIT RIGHT IN BOTH, and the two hosts do not agree about corners:
    the site sheet flattens everything to 4px, the lesson shell rounds to 12-14.

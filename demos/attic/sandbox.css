@@ -1,13 +1,13 @@
 /* ---------------------------------------------------------------------------
-   sandbox.css — the shared page chrome, being retired into main.css.
+   sandbox.css — ARCHIVED. The shared page chrome of the sketchbook era.
 
-   Every page links main.css FIRST, so anything still here wins over the design
-   system, and moving a piece across is a deletion rather than an edit. Tokens
-   and the font @import have already gone; what is left is layout and the
-   lesson furniture (#stage, #side, #card, .chip and the rest).
+   No live page loads this. It sits in attic/ for the three lessons beside it,
+   which are .vercelignore'd worked examples; everything it used to dress
+   (#stage, #side, #card, .chip) is main.css's or kodo.css's now. Don't link it
+   from anything new, and don't fix a bug in it: fix the page that reads it, or
+   let the page go.
 
-   Pages keep their two <link rel=preconnect> hints, because main.css's @import
-   is discovered late and the early handshake is worth the duplicated line.
+   --torn was main.css's and is inlined below, so this file resolves on its own.
    --------------------------------------------------------------------------- */
 
  * {
@@ -146,11 +146,6 @@
    align-items: center;
    gap: 11px;
    z-index: 6
- }
-
- #brand .drop {
-   font-size: 26px;
-   color: var(--ink)
  }
 
  #brand h1 {
@@ -424,31 +419,6 @@
     13px button label to an 18px line box and Chrome to 13, which made this
     button 34 tall in one and 29 in the other on all thirteen pages that use it.
     Pinned to the 34 the design system uses. */
- #savepng {
-   line-height: 18px;
-   position: absolute;
-   left: 26px;
-   bottom: 22px;
-   z-index: 5;
-   font-weight: 600;
-   font-size: 13px;
-   letter-spacing: .5px;
-   color: var(--ink);
-   background: transparent;
-   border: 2px solid var(--ink);
-   border-radius: var(--radius);
-   padding: 6px 15px;
-   cursor: pointer;
-   display: inline-flex;
-   align-items: center;
-   gap: 6px
- }
-
- #savepng:hover {
-   background: var(--ink);
-   color: var(--paper)
- }
-
  /* on-stage toggle chips / layers panel */
  #chips {
    position: absolute;
@@ -552,8 +522,8 @@
    height: 100%;
    background: var(--panel);
    z-index: 2;
-   -webkit-mask: var(--torn);
-   mask: var(--torn);
+   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
+   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='60' viewBox='0 0 14 60' preserveAspectRatio='none'%3E%3Cpath d='M14,0 L14,60 L8,60 L2,55 L7,49 L1,43 L6,37 L2,31 L7,25 L1,19 L6,13 L2,8 L7,3 L1,0 Z' fill='black'/%3E%3C/svg%3E");
    -webkit-mask-size: 100% 100%;
    mask-size: 100% 100%
  }

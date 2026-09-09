@@ -38,15 +38,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="../css/main.css">
-<link rel="stylesheet" href="../css/sandbox.css">
 <link rel="stylesheet" href="massaction.css">
 
 <style>
   /* Deliberately thin. Everything that styles the sim itself is
      massaction.css; if this file has to add a rule to make the demo look
      right, the module is leaking and the rule belongs there instead. */
-  /* sandbox.css's body is the dark surround a lesson's canvas sits on; this
-     page has no canvas stage, so it takes the paper directly. */
+  /* A lesson's body is the dark surround its canvas sits on; this page has no
+     canvas stage, so it takes the paper directly. */
   body{padding:26px 20px 60px;background:var(--paper);color:var(--ink)}
   .bench{max-width:1180px;margin:0 auto}
   .bench > h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px;color:var(--ink)}

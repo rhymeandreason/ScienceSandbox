@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
 <link rel="stylesheet" href="css/main.css">
-<link rel="stylesheet" href="css/sandbox.css">
 <style>
   /* Layout, card strip, notes rail and dock are molecule-builder.html's, lifted
      wholesale (CLAUDE.md "Adding a new page" step 0). What changed is only what
@@ -240,7 +239,8 @@
   #recipe .rhint{font-family:var(--font-sans);font-style:italic;opacity:.8}
   #recipe .rmiss{color:#b3402f}
 
-  #savepng{bottom:22px;right:26px;left:auto}
+  /* A plain .btn, parked in the stage's bottom-right corner. */
+  #savepng{position:absolute;bottom:22px;right:26px;z-index:5}
 
   @media (max-width:920px){
     #notes,#rail{position:static;width:auto;margin:12px 26px}
@@ -276,7 +276,7 @@
       <button class="act" id="hbtn">C–H hydrogens</button>
     </div>
     <div id="recipe" title="click to copy"></div>
-    <button id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
+    <button id="savepng" class="btn"><i class="ph-bold ph-download-simple"></i> PNG</button>
   </div>
 </div>
 

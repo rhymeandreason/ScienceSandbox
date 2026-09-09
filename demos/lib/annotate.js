@@ -39,7 +39,7 @@
  *  in the scene. A canvas sprite bakes whatever font is loaded at draw
  *  time — atomkit.js carries a whole comment about redrawing once the
  *  webfonts settle — and it resamples badly as the camera pulls in. DOM
- *  gets the house type from sandbox.css for free, stays crisp at every
+ *  gets the house type from the page's stylesheet for free, stays crisp at every
  *  zoom, and can be read by a screen reader. The cost is that the layer
  *  cannot be occluded by geometry, which is not a cost: a label
  *  half-swallowed by the atom it names reads as a rendering fault. These
