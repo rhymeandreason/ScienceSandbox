@@ -55,7 +55,7 @@ One test page, every relevant structure as a ribbon, buttons to switch. Not a le
 * **`proteins/collagen/collagen-test.html` —**  **(Advanced)** More files were included on this page to show closeups, a mutation example,  and the whole structure. There are two stories here: scurvy and brittle bone disease.
 * **`proteins/atp-synthase/atp-synthase-test.html` —**  **(Advanced)** This assembly has many chains, and a custom rotation animation. Ask the human before doing animation. Tell her what should happen.
 
-**The layout is `proteins/protein-test.css`.** Three sheets and no others: `css/main.css`, then this, then `kit/proteinbox.css`. This sheet owns `#app`, `#stage` and `.chip`; `main.css` carries the spacing, radius and timing. Its own header is the argument. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all.
+**The layout is `proteins/protein-test.css`.** Two sheets and no others: this, then `kit/proteinbox.css`. **A bench links no site sheet** — every protein has a public URL, so it must not depend on the frozen sketchbook look. This sheet carries the reset, the spacing and radius scales and the timing, and owns `#app`, `#stage` and `.chip`. Its own header is the argument. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all.
 
 **Bake, do not parse the deposition at runtime.** A baker beside the page cuts each source down to what the bench draws and writes it to `data/` as `bake-trace.js`-shaped JSON the box takes directly.
 

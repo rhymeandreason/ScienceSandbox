@@ -687,38 +687,62 @@ const RXs = Reaction.create(wiring());
  * and not something read off a spec — both lanes ARE the same molecule, and
  * that is what makes the reaction hard to draw rather than a defect here.
  */
-RXs.verb('dehydrate', {dur: () => 1400, lane(c){
-  const m = sugarMeta(c.spec), u = c.lane.g.userData;
-  if(m.donorH == null) return;
-  if(c.j === 0){
-    // The donor: its anomeric O keeps its place and becomes the bridge, so only
-    // the proton goes. Steel, and a '+', the colour and sign every moving
-    // hydrogen in this module wears.
-    const from = u.atomWorld(m.donorH).clone();
-    FXi.spawnRing(from, RXs.colors.H_LEAVE);
-    RXs.shedAtoms(c.lane, [m.donorH]);
-    RXs.protonAway(from);
-    return;
-  }
-  // The acceptor: the whole hydroxyl leaves, and it is the water. Ringed on the
-  // C–O that breaks, in oxygen red — the bond, not the atom.
-  const oI = m.acceptorO, hI = m.acceptorH;
-  if(oI == null || hI == null) return;
-  const pO = u.atomWorld(oI).clone(), pH = u.atomWorld(hI).clone();
-  FXi.spawnRing(pO.clone().lerp(u.atomWorld(m.acceptorC), 0.5), PAL.atoms.O);
-  RXs.shedAtoms(c.lane, [oI, hI]);
-  /* The third atom arrives from the other molecule, so it is drawn entering
-   * frame rather than lifted off a lane — the donor's own proton has already
-   * left as a glow. A real lesson would land that proton here instead; the
-   * beat order is a tuning decision and the geometry is the same either way. */
-  const OHW = SkelLib.GL.OH * MolLib.SCALE;
-  const d1 = pH.clone().sub(pO).normalize();
-  const t1 = pO.clone().add(d1.clone().multiplyScalar(OHW));
-  const t2 = pO.clone().add(d1.clone().applyAxisAngle(
-    new THREE.Vector3(0,0,1), 104.5*Math.PI/180).multiplyScalar(OHW));
-  RXs.expel(c.lane, [{el:'O', at:pO}, {el:'H', at:pH},
-                     {el:'H', at:pH.clone().add(new THREE.Vector3(0.1,0,0))}],
-            {gather:[t1, t2], bonds:[[pO,t1],[pO,t2]]});
+RXs.verb('dehydrate', {dur: () => 900 + 420 + 1100 + 200, lane(c){
+  /* ONE EVENT ACROSS TWO MOLECULES, so it runs ONCE, from the acceptor's lane —
+   * and a lane the step does not name is a lane the step skips, which is the
+   * rule `red` and `decarb` already use. Which lane is the donor is the page's
+   * bookkeeping, not a spec's: both lanes ARE the same molecule, and that is
+   * the reaction being hard to draw rather than a defect here.
+   *
+   * IT IS ALSO THE SHAPE THE MODULE HAS NO SLOT FOR. A verb is per-lane ("what
+   * happens to a molecule") or `whole` ("how many molecules there are"), and
+   * this is neither: the lane count is unchanged and the event spans two lanes.
+   * Running it from one lane's body is the honest workaround, not a third kind.
+   */
+  if(c.j !== 1) return;
+  const dl = LANES.lanes[0], al = c.lane;
+  if(!dl) return;
+  const dm = sugarMeta(specOf(dl.key)), am = sugarMeta(specOf(al.key));
+  if(dm.donorH == null || am.acceptorO == null || am.acceptorH == null) return;
+  const du = dl.g.userData, au = al.g.userData;
+
+  // The donor keeps its anomeric oxygen — that O becomes the bridge — and gives
+  // up only its proton. The acceptor gives up the whole hydroxyl. Both read off
+  // `condense`, which is where the product's geometry decided it.
+  const pH1 = du.atomWorld(dm.donorH).clone();
+  const pO  = au.atomWorld(am.acceptorO).clone();
+  const pH2 = au.atomWorld(am.acceptorH).clone();
+
+  // BOTH BONDS THAT BREAK, each in its own colour, which is `waterAway`'s rule:
+  // the C–O in oxygen red, the O–H in hydrogen steel. One ring would say a
+  // condensation happens in a single place, and it happens in two molecules.
+  FXi.spawnRing(pO.clone().lerp(au.atomWorld(am.acceptorC), 0.5), PAL.atoms.O);
+  FXi.spawnRing(pH1, RXs.colors.H_LEAVE);
+  RXs.shedAtoms(dl, [dm.donorH]);
+  RXs.shedAtoms(al, [am.acceptorO, am.acceptorH]);
+
+  /* THE PROTON DOES NOT GO TO SOLUTION — it becomes the water's second
+   * hydrogen. Drifting it off frame and building the water with a third H of
+   * its own is two hydrogens where the chemistry has one, which is the defect
+   * `in` is commented against in reaction.js. So it crosses to the oxygen and
+   * the water assembles around it when it lands. */
+  RXs.hop(pH1, pO, '+', ()=>{
+    const OHW = SkelLib.GL.OH * MolLib.SCALE;
+    // The acceptor's own H was already an O–H and keeps its direction; only its
+    // length is corrected. The arriving one swings to the true angle IN THE
+    // PLANE THE THREE ATOMS ALREADY SHARE, so the fold happens in the plane the
+    // eye is watching rather than through the screen. `waterAway`'s geometry.
+    const d1 = pH2.clone().sub(pO).normalize();
+    let nrm = new THREE.Vector3().crossVectors(d1, pH1.clone().sub(pO));
+    if(nrm.lengthSq() < 1e-6) nrm.set(0,0,1); else nrm.normalize();
+    const t1 = pO.clone().add(d1.clone().multiplyScalar(OHW));
+    const t2 = pO.clone().add(
+      d1.clone().applyAxisAngle(nrm, 104.5*Math.PI/180).multiplyScalar(OHW));
+    // The third atom starts where the proton just landed, so the water is
+    // visibly made of what arrived rather than spawned beside it.
+    RXs.expel(al, [{el:'O', at:pO}, {el:'H', at:pH2}, {el:'H', at:pO.clone()}],
+              {gather:[t1, t2], bonds:[[pO,t1],[pO,t2]]});
+  });
 }});
 
 /* ---- AND THE WATER ARRIVING, the same gap seen from the other side --------
@@ -752,7 +776,7 @@ let pair = PAIRS[0];
 // says so by repeating them, and the runner then knows not to respawn.
 const lessonSteps = () => [
   {fx:'dehydrate', from:'page',   sub:[pair.key, pair.key], keys:[pair.key, pair.key],
-   say:'The water leaves — one H off the anomeric –OH, the whole C4 hydroxyl off the other'},
+   say:'The water leaves: the acceptor\u2019s whole \u2013OH, plus the donor\u2019s anomeric proton, which crosses and becomes its second hydrogen'},
   {fx:'join',      from:'module', sub:[pair.key, pair.key], keys:[pair.product],
    say:'They close, and the bond forms'},
   {fx:'wateron',   from:'page',   sub:[pair.product],       keys:[pair.product],

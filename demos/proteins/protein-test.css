@@ -15,9 +15,9 @@
  *  tokens, because `kit/proteinbox.css` and the stage draw from those and a
  *  bench must not repaint the molecule to repaint its panel.
  *
- *  Spacing, radius and timing still come from main.css. Load after main.css,
- *  before kit/proteinbox.css. This sheet owns #app, #stage and .chip; main.css
- *  carries the rest, and a bench links nothing else.
+ *  A BENCH LINKS THIS SHEET AND kit/proteinbox.css, and nothing else. This one
+ *  first: it carries the reset, the spacing and radius scales and the timing,
+ *  so the page has no site sheet under it.
  *
  *  WHAT A PAGE STILL OWNS. Anything that carries its own claim: prion adds a
  *  `.disease` variant to the button and the chip because its whole subject is
@@ -41,6 +41,45 @@
   --h-accent:#1f5f4f;   /* deep green — the pressed control */
   --h-spark:#e2643a;    /* warm counterpoint — hover, and the marked figure */
 }
+
+/* THE MEASUREMENTS, which were main.css's until a bench stopped linking it.
+   Spacing, radius and timing, plus the five names css/annotate.css reads from
+   its host with no fallback. Values are main.css's own, unchanged: a callout
+   and a panel that disagreed about a hairline would show it. They are stated
+   as roles rather than folded into --h-* because kit/proteinbox.css and
+   annotate.css read them by these names, and a bench must not repaint the
+   molecule to repaint its panel. */
+:root{
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 22px;
+  --space-6: 30px;
+
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-pill: 999px;
+
+  --dur-fast: .12s;
+  --ease-out: cubic-bezier(.2, .9, .3, 1);
+
+  /* annotate.css's host names. --font-ui is the exception to "unchanged":
+     main.css named Nunito and @imported it, and a bench does not load that
+     webfont for two callouts. A callout on a bench reads in the bench's face. */
+  --text-strong:    #2b2723;
+  --text-muted:     #8a8073;
+  --surface-raised: #f1ece3;
+  --border-hair:    #d8cfbf;
+  --font-ui: var(--h-ui);
+}
+
+/* THE RESET, also main.css's. Two rules, and a bench needs both: the grid in
+   #app is sized in border-box, and an unreset body puts a margin inside a
+   100vh stage and scrolls the page. */
+*, *::before, *::after { box-sizing: border-box }
+
+html, body { margin: 0; height: 100%; color: var(--h-ink); font-family: var(--h-ui) }
 
 /* The panel is a reading column, not a control strip, so the hierarchy is
    carried by size and colour rather than by rules and boxes. */
