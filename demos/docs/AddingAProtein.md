@@ -55,7 +55,7 @@ One test page, every relevant structure as a ribbon, buttons to switch. Not a le
 * **`proteins/collagen/collagen-test.html` —**  **(Advanced)** More files were included on this page to show closeups, a mutation example,  and the whole structure. There are two stories here: scurvy and brittle bone disease.
 * **`proteins/atp-synthase/atp-synthase-test.html` —**  **(Advanced)** This assembly has many chains, and a custom rotation animation. Ask the human before doing animation. Tell her what should happen.
 
-**The layout is `proteins/protein-test.css` .**  Load it after `sandbox.css` and before `kit/proteinbox.css`. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all.
+**The layout is `proteins/protein-test.css`.** Load it after `css/main.css` + `css/sandbox.css` and before `kit/proteinbox.css` — **the protein benches are on the frozen bench sheet**, which `Design.md` says nothing new links, and they are the exception until they convert. Copying a sibling inherits it; converting one is a decision for the human, not a side effect of adding a protein. What a page adds in its own `<style>` is only what it says with COLOUR — prion's rust `.disease` variant is the whole of its block, and rnase has no block at all.
 
 **Bake, do not parse the deposition at runtime.** A baker beside the page cuts each source down to what the bench draws and writes it to `data/` as `bake-trace.js`-shaped JSON the box takes directly.
 
@@ -166,5 +166,3 @@ Recommend SES only against a criterion, never a feeling:
 **Skip it when the claim is about the fold.** A ribbon is strictly better there, because a surface buries the secondary structure that *is* the point. Prion is a fold claim, which is why the stack reads at all as a ribbon and would read as a lump of dough as a surface.
 
 It is expensive and it is a bake, not a render: `rendering-modules.md` owns the how, including the rule that a surface's frame is read from the trace file rather than re-derived.
-
-## 

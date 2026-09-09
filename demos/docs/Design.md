@@ -86,7 +86,7 @@ one exception and it says so out loud:
 | | where | what it is |
 | --- | --- | --- |
 | `.mark` | every page | 1.35rem, in the nav bar |
-| `.mark.hero` | the homepage, and nothing else | `clamp(2.8rem, 9vw, 5.5rem)`, in the masthead |
+| `.mark.hero` | a masthead on this shell | `clamp(2.8rem, 9vw, 5.5rem)`. Defined by `kodo.css` and unused today: the front door draws its own hero, because it is not on this shell |
 | `.sitenav.floating` | a full-window app (the node graph) | the same bar, fixed over the canvas |
 
 **This is the rule with the worst failure mode in the repo.** Four pages each
@@ -154,7 +154,7 @@ load, so a caption and the sphere it names cannot drift.
 **Those are ROLES, and roles are what a page reads.** The values behind them
 live one file down in `css/brand.css`, which `kodo.css` imports — so a page on
 this shell never links it and never names a `--brand-*`. It is a separate file
-for one reason: the front door (`index.html`, `contribute.html`) cannot load
+for one reason: the front door (the repo-root `index.html`, `contribute.html`) cannot load
 `kodo.css`, because the site sheet is a base reset with its own scroll and its
 own `.mark` and both fight a bespoke scroll piece. Those two link `brand.css`
 alone. It is the only thing the two halves of the site share, and it is the
@@ -212,13 +212,14 @@ maybe `lesson-shell.css`, maybe its own.
 folder owns stays beside it** (`energy/energy.css`, `kit/enzyme-blob.css`).
 **This table is the one list.** `Modules.md` carries the `<link>` order a hand-built page writes and nothing else about the sheets.
 
-**`index.html` and `contribute.html` have no sheet of their own**: ~240 lines
+**The repo-root `index.html` and `contribute.html` have no sheet of their own**: ~240 lines
 inline each, on `brand.css` alone, because the site sheet's reset and its own
 `.mark` both fight a bespoke scroll piece. The two are not merged while they are
 still being reworked, and that is a decision, not an omission.
 
 ## The pages on this shell
 
-`index.html` (the homepage, and the only `.mark.hero`) · `proteins/index.html` ·
-`proteins/myoglobin/myoglobin.html` · `nodegraph/nodegraph.html` (the
-`.sitenav.floating` case). Copy the closest one.
+`proteins/index.html` · `proteins/myoglobin/myoglobin.html` ·
+`nodegraph/nodegraph.html` (the `.sitenav.floating` case). Copy the closest one.
+**The repo-root `index.html` and `contribute.html` are NOT on it** — they link
+`brand.css` alone and draw their own chrome, which is the section above.
