@@ -189,7 +189,6 @@ async function loadFor(shot) {
     if (/three\.min\.js/.test(f)) continue;   // this page wrote that tag itself
     await loadScript(url(f));
   }
-  return {};
 }
 
 /* ---- one live box --------------------------------------------------------- */

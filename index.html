@@ -137,7 +137,7 @@
   }
   .field.set .card a:hover { transform: translateY(-4px); box-shadow: 0 2px 4px rgba(var(--ink-t),.06), 0 24px 50px -14px rgba(var(--ink-t),.35); }
   .card .stage { position: relative; aspect-ratio: 3 / 2; background: var(--stage-bg, #fff); }
-  .card .stage > canvas, .card .stage > iframe, .card .stage > img { display: block; width: 100%; height: 100%; object-fit: contain; border: 0; }
+  .card .stage > canvas, .card .stage > img { display: block; width: 100%; height: 100%; object-fit: contain; border: 0; }
   .card .stage .num {
     position: absolute; left: 14px; top: 12px; font: 600 11px/1 var(--sans); letter-spacing: .2em;
     color: var(--ink); background: rgba(255,255,255,.7); padding: 6px 8px; border-radius: 999px;
@@ -405,8 +405,7 @@
   </div>
 </footer>
 
-<!-- the library, in load order. mol-small + mol-sugars are one family; water
-     is in its own frame because mol-solvation cannot load beside them. -->
+<!-- the library, in load order (kit/app.js's ORDER is the one copy of it) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <!-- The momentum, and ONLY the momentum: Lenis, 5 kB gzipped, one file, MIT.
      Same version dna-structure.html pins. It drives the WINDOW scroll, so the
@@ -423,6 +422,8 @@
 <script src="demos/lib/atomkit.js"></script>
 <script src="demos/kit/card-stage.js"></script>
 <script src="demos/kit/molbox.js"></script>
+<script src="demos/water/watersim.js"></script>
+<script src="demos/water/watersim-mount.js"></script>
 <script src="demos/proteins/proteins.js"></script>
 <script src="demos/membrane/parts.js"></script>
 <script src="demos/membrane/pump.js"></script>
@@ -547,10 +548,12 @@ const lenis = new Lenis({ autoRaf: true, duration: 1.1 });
   document.querySelectorAll("[data-mount]").forEach(el => mounts[el.dataset.mount] = el);
   const noZoom = { zoom: false };   // the wheel is how a reader gets down the page
 
-  // water, in its own frame (see the note over the script tags)
-  const wf = document.createElement("iframe");
-  wf.src = "demos/tests/intro-water.html"; wf.title = "liquid water"; wf.loading = "eager";
-  mounts.water.appendChild(wf);
+  // warm, so the cluster jostles instead of sitting still
+  WaterSim.mount(mounts.water, {
+    nWater: 14, hbonds: true, temperature: 60,
+    cam: { theta: 0.6, phi: 1.1, r: 17 },
+    stage: noZoom,
+  });
 
   // pad over the default: the fit is solved on the opening silhouette, and a
   // turning molecule sweeps a wider one
