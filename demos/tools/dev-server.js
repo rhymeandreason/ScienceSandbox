@@ -455,7 +455,10 @@ function images(req, res, json) {
  *
  * The stills DO deploy: they are the gallery's first frame, and the reason a
  * card that has not got a WebGL context yet shows the protein rather than an
- * empty rectangle. Only `proteins/tools/stills.html` posts here.
+ * empty rectangle. Two benches post here: `proteins/tools/stills.html` for the
+ * protein gallery and `tools/component-stills.html` for the component shelf,
+ * and `set` says which. The directory is chosen from that whitelist rather
+ * than taken from the body, so a key can never write outside one of them.
  */
 function stills(req, res, json) {
   if (!require(path.join(ROOT, 'api/_local.js')).local(req)) {
@@ -477,12 +480,16 @@ function stills(req, res, json) {
     const m = /^data:image\/webp;base64,(.+)$/.exec(body.webp || '');
     if (!m) return json(400, { error: 'webp must be a data:image/webp;base64 URL' });
 
-    const dir = path.join(DEMOS, 'proteins/stills');
+    const SETS = { proteins: 'proteins/stills', components: 'media/components' };
+    const into = SETS[body.set || 'proteins'];
+    if (!into) return json(400, { error: `set must be one of ${Object.keys(SETS).join(', ')}` });
+
+    const dir = path.join(DEMOS, into);
     fs.mkdirSync(dir, { recursive: true });
     const file = path.join(dir, `${body.key}.webp`);
     const buf = Buffer.from(m[1], 'base64');
     fs.writeFileSync(file, buf);
-    console.log(`  proteins/stills/${body.key}.webp \u2190 ${Math.round(buf.length / 1024)} KB`);
+    console.log(`  ${into}/${body.key}.webp \u2190 ${Math.round(buf.length / 1024)} KB`);
     return json(200, { ok: true, bytes: buf.length });
   });
 }

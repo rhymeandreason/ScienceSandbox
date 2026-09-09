@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<base href="/demos/tools/">
+<title>Bake the component shelf's stills</title>
+
+<!-- ===================================================================
+     THE SHELF'S FIRST FRAME, BAKED. contribute.html shows eleven
+     components at once, and eleven live WebGL contexts on a page a
+     reader is only scrolling past is a stalled laptop for a picture
+     that never moves under their eye anyway. This bench draws each one
+     once, in the SAME box the shelf uses with the SAME parameters, and
+     POSTs the frame to the dev server, which writes
+     media/components/<key>.webp.
+
+     ONE CONTEXT, REUSED. The picker loads a component and leaves it up:
+     the point of a picker is to LOOK before baking, since nothing here
+     can judge whether a scene has settled into a frame worth keeping.
+
+     WHY A SCRIPT LOADER AND NOT A LIST OF TAGS. WaterSim is the only
+     component on mol-solvation.js and molecules.js refuses a second
+     family, so a page holding every component's scripts cannot exist.
+     Each component's files are loaded when it is picked, read from
+     kit/app.js's own USES table so this bench cannot drift from what a
+     generated page loads. Picking across the families reloads the page,
+     carrying the queue, because a family cannot be unloaded.
+
+     INTERNAL TOOL, DEV SERVER ONLY, CHROME ONLY (Safari encodes no
+     WebP; the bake says so rather than writing a PNG under the name).
+     The stills are committed and deploy.
+     =================================================================== -->
+
+<style>
+  body{font:14px/1.5 system-ui,-apple-system,sans-serif;margin:2rem;background:#faf8f4;color:#14161a}
+  h1{font-size:1.2rem;margin:0 0 .4rem}
+  p{color:#6d6f76;margin:0 0 1.2rem}
+  button,select{font:inherit;padding:.45rem 1rem;border:1px solid #14161a;background:#fff;border-radius:3px;cursor:pointer}
+  button[disabled]{opacity:.45;cursor:default}
+  /* THE SHELF'S CARD STAGE, 1:1. On a retina screen the backing store is
+     then 536x358 — 2x the card, which is what the still needs — and a 536px
+     box would have baked 4x and quadrupled the file. Scaled up only for
+     looking at: a transform does not touch the drawing buffer. */
+  #mount{width:268px;height:179px;margin:1.2rem 0;border:1px solid #e4e0d7;background:#fff;
+         transform:scale(2);transform-origin:top left}
+  #wrap{height:400px}
+  #mount iframe{width:100%;height:100%;border:0;display:block}
+  #log{font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap}
+  .bad{color:#c0392b}
+</style>
+</head>
+<body>
+<h1>Component stills</h1>
+<p>Draws each component once and writes <code>media/components/&lt;key&gt;.webp</code>. Dev server, Chrome.</p>
+<button id="go">Bake all</button>
+<select id="pick"></select>
+<button id="one">Bake selected</button>
+<div id="wrap"><div id="mount"></div></div>
+<div id="log"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+/* WHAT THE SHELF SHOWS, AND THE POSE IT SHOWS IT IN. contribute.html reads
+   these keys as filenames and nothing else, so this table is the only place a
+   thumbnail's parameters live. `use` is the name kit/app.js knows the
+   component by; `warm` is seconds of simulation pumped before the capture,
+   because most of these open on a frame nobody would choose. */
+const SHOTS = [
+  { key: 'watersim', use: 'WaterSim', warm: 6,
+    mount: el => WaterSim.mount(el, { nWater: 14, hbonds: true, temperature: 60,
+      cam: { theta: 0.6, phi: 1.1, r: 17 }, stage: { zoom: false } }) },
+
+  { key: 'membrane', use: 'Membrane', warm: 14,
+    mount: el => Membrane.mount(el, {
+      proteins: { K: { x: -34 }, pump: { x: 34 } },
+      contents: { inside: { water: 12, K: 8 }, outside: { water: 9, NA: 8, CL: 6 } },
+      sideLabels: false, pumpAuto: true,
+      cam: { theta: 0.35, phi: Math.PI / 2 - 0.22, r: 250 } }) },
+
+  /* The trajectory is fetched here rather than by the box: `protein:` starts
+     a fetch and returns, and a capture taken before it lands is an empty
+     frame that still writes a file. proteins/tools/stills.html hands the data
+     over for the same reason. */
+  { key: 'proteinbox', use: 'Proteinbox', warm: 0,
+    mount: async el => {
+      const hb = ProteinLib.byKey('hemoglobin');
+      const v = ProteinLib.defaultOf(hb);
+      const data = await fetch(`../${hb.dir}/data/${v.read.baked}`).then(r => r.json());
+      // colors omitted: helices, sheets and loops in the library's palette,
+      // which is the picture the protein gallery shows for the same molecule
+      return Proteinbox.create({ mount: el, base: '../', orbit: false, pad: 1.1, sub: 8,
+        stage: { ortho: false }, view: ProteinLib.viewOf(hb), data });
+    } },
+
+  { key: 'hbcrowd', use: 'HbCrowd', warm: 3,
+    mount: async el => {
+      /* A FULL ROOM. The box frames its own focus sphere and only ever pulls
+         back, so `cam` is overruled and the framing comes from intro()
+         below; the count is free to be the crowd the component is named for. */
+      const h = HbCrowd.mount(el, { variant: 'HbS', stick: true, base: '../', n: 120 });
+      await h.ready;          // a surface and the fibre bake, both over the network
+      h.play();               // the crowd only assembles once it is running
+      /* The intro is the component's own framing: it puts the camera on one
+         molecule and widens from there, so a few seconds into it is a shot
+         centred on something. Zooming by hand instead lands the camera on
+         the room's centre, which is empty. */
+      h.intro(9);
+      return h;
+    } },
+
+  { key: 'bloodcell', use: 'BloodCell', warm: 2,
+    mount: el => BloodCell.mount(el, { cut: 1 }) },
+
+  { key: 'animalcell', use: 'AnimalCell', warm: 3,
+    mount: el => AnimalCell.mount(el, {}) },
+
+  { key: 'plantcell', use: 'PlantCell', warm: 3,
+    mount: el => PlantCell.mount(el, {}) },
+
+  { key: 'leaf', use: 'Leaf', warm: 2,
+    mount: el => Leaf.mount(el, { aperture: 1 }) },
+
+  { key: 'bloodflow', use: 'BloodFlow', warm: 6,
+    mount: el => BloodFlow.mount(el, { sickle: 0 }) },
+
+  { key: 'tree', use: 'Tree', warm: 2,
+    mount: el => Tree.mount(el, {}) },
+
+  /* Graph is HTML, not a scene: it has no canvas to read, so its card keeps
+     drawing itself. Listed here only so the shelf's keys are all in one place. */
+  { key: 'graph', use: 'Graph', skip: 'draws in HTML, no canvas to bake' },
+];
+
+const mountEl = document.getElementById('mount');
+const logEl = document.getElementById('log');
+const pickEl = document.getElementById('pick');
+const goEl = document.getElementById('go');
+const oneEl = document.getElementById('one');
+
+const say = (t, bad) => {
+  const d = document.createElement('div');
+  if (bad) d.className = 'bad';
+  d.textContent = t; logEl.appendChild(d);
+};
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---- the library, loaded per component ------------------------------------
+   kit/app.js's USES table says what each component is built from, and it says
+   so for the builder too (its header: THIS TABLE IS THE ONE COPY). Read as
+   text through its CommonJS export, so picking a component here loads exactly
+   what a generated page mounting it would. */
+let APP = null;
+async function appTable() {
+  if (APP) return APP;
+  const src = await fetch('../kit/app.js').then(r => r.text());
+  const mod = { exports: {} };
+  new Function('module', 'exports', src)(mod, mod.exports);
+  APP = mod.exports;
+  return APP;
+}
+
+const loaded = new Set();
+function loadScript(src) {
+  if (loaded.has(src)) return Promise.resolve();
+  loaded.add(src);
+  return new Promise((ok, no) => {
+    const t = document.createElement('script');
+    t.src = src; t.onload = ok; t.onerror = () => no(new Error(`${src} did not load`));
+    document.head.appendChild(t);
+  });
+}
+
+/* A family is the molecule set a component draws with: mol-small.js or
+   mol-solvation.js, never both in one document. Which one this page has
+   already committed to decides whether a pick can be served here. */
+const familyOf = files =>
+  files.includes('lib/mol-solvation.js') ? 'solvation'
+  : files.includes('lib/mol-small.js') ? 'small' : null;
+let family = null;
+
+async function loadFor(shot) {
+  const app = await appTable();
+  const plan = app.plan([shot.use], 'steps');
+  const url = f => (/^https?:/.test(f) ? f : '../' + f);
+
+  const want = familyOf(plan.scripts.map(f => f.replace('../', '')));
+  if (want && family && want !== family) return { reload: true };
+  if (want) family = want;
+
+  for (const f of plan.css) {
+    if (app.CORE_CSS.includes(f)) continue;   // the shell's sheets would restyle this bench
+    const l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = url(f);
+    document.head.appendChild(l);
+  }
+  // In order and one at a time: these are globals with a load order, not modules.
+  for (const f of plan.scripts) {
+    if (/three\.min\.js/.test(f)) continue;   // this page wrote that tag itself
+    await loadScript(url(f));
+  }
+  return { reload: false };
+}
+
+/* ---- one live box --------------------------------------------------------- */
+let live = null, liveKey = null;
+
+async function loadShot(shot) {
+  if (live) { try { live.destroy(); } catch (e) {} live = null; liveKey = null; }
+  mountEl.innerHTML = '';
+
+  const { reload } = await loadFor(shot);
+  if (reload) {
+    /* A family cannot be unloaded, so the rest of the run continues after a
+       reload. The queue rides in sessionStorage. */
+    sessionStorage.setItem('bake-queue', JSON.stringify(queue));
+    location.search = `?key=${shot.key}`;
+    return null;
+  }
+
+  const handle = await shot.mount(mountEl);
+  const box = handle.box || handle;          // Proteinbox.create IS the box
+
+  // Proteinbox builds one chain per frame; a capture before the queue drains
+  // is a protein with chains missing.
+  for (let i = 0; box.building && i < 300; i++) { box.draw(); await wait(16); }
+
+  /* Pumped, not waited out: a backgrounded tab pauses rAF and would bake
+     whatever frame the loop stopped on. Fixed steps also make a still
+     repeatable, which a wall-clock wait is not. */
+  const steps = Math.round((shot.warm || 0) / 0.016);
+  for (let i = 0; i < steps; i++) box.pump(0.016);
+  if (shot.pose) { shot.pose(handle, box); for (let i = 0; i < 60; i++) box.pump(0.016); }
+  box.draw();
+
+  live = handle; liveKey = shot.key;
+  return box;
+}
+
+async function bake(shot) {
+  if (shot.skip) throw new Error(shot.skip);
+  const box = (liveKey === shot.key && live) ? (live.box || live) : await loadShot(shot);
+  if (!box) return 0;                        // reloading; the queue carries on there
+
+  box.draw();                                // the buffer is only readable now
+  const webp = box.canvas.toDataURL('image/webp', 0.85);
+  if (!/^data:image\/webp;/.test(webp)) {
+    throw new Error('this browser will not encode WebP — run the bake in Chrome');
+  }
+
+  const r = await fetch('/api/stills', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ set: 'components', key: shot.key, webp }),
+  });
+  const out = await r.json();
+  if (!r.ok) throw new Error(out.error || r.status);
+  return out.bytes;
+}
+
+/* ---- the run -------------------------------------------------------------- */
+let queue = [];
+
+for (const s of SHOTS) {
+  const o = document.createElement('option');
+  o.value = s.key; o.textContent = s.key + (s.skip ? ' (not baked)' : '');
+  pickEl.appendChild(o);
+}
+
+async function run(keys) {
+  goEl.disabled = oneEl.disabled = pickEl.disabled = true;
+  queue = keys.slice();
+  while (queue.length) {
+    const shot = SHOTS.find(s => s.key === queue[0]);
+    queue.shift();
+    try {
+      const bytes = await bake(shot);
+      if (bytes) say(`${shot.key} — ${Math.round(bytes / 1024)} KB`);
+    } catch (e) {
+      say(`${shot.key} — ${e.message}`, true);
+    }
+  }
+  say('done.');
+  goEl.disabled = oneEl.disabled = pickEl.disabled = false;
+}
+
+goEl.addEventListener('click', () => { logEl.textContent = ''; run(SHOTS.filter(s => !s.skip).map(s => s.key)); });
+oneEl.addEventListener('click', () => { logEl.textContent = ''; run([pickEl.value]); });
+pickEl.addEventListener('change', () => {
+  const shot = SHOTS.find(s => s.key === pickEl.value);
+  if (shot.skip) { mountEl.innerHTML = ''; say(`${shot.key} — ${shot.skip}`); return; }
+  loadShot(shot).catch(e => say(`${shot.key} — ${e.message}`, true));
+});
+
+/* ?key=<component> preselects and loads it, which is also how a run that had
+   to cross the molecule families picks itself back up. */
+const wantKey = new URLSearchParams(location.search).get('key');
+if (wantKey && SHOTS.some(s => s.key === wantKey)) pickEl.value = wantKey;
+
+const carried = sessionStorage.getItem('bake-queue');
+if (carried) {
+  sessionStorage.removeItem('bake-queue');
+  const rest = JSON.parse(carried);
+  run([pickEl.value, ...rest.filter(k => k !== pickEl.value)]);
+} else {
+  pickEl.dispatchEvent(new Event('change'));
+}
+</script>
+</body>
+</html>
