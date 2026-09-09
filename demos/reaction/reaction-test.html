@@ -116,6 +116,30 @@
 
   <p class="legend" id="legend"></p>
 
+  <h2>3 · The same verbs, on a lesson</h2>
+  <p class="claim">Two glucoses become a disaccharide and a water leaves; then a
+  water arrives and the bond comes apart. Real specs out of the library, whose
+  <code>condense</code> and <code>glycosidic</code> blocks already name every
+  atom that moves — nothing is authored here and nothing is typed. <b>The
+  product, the linkage and the configuration are read off the molecules</b>, so
+  the caption cannot claim a linkage the spec does not have.
+  <br><br>β-glucose reaches <b>cellobiose</b> and α-glucose reaches
+  <b>maltose</b>: two molecules, one difference, and it is the difference
+  between wood and bread. Which verbs the module supplied and which the page had
+  to write is the last column, and it is the answer to whether any of this is
+  reusable.</p>
+  <div class="bar">
+    <span id="pairtabs"></span>
+    <button id="run3">Run the lesson</button>
+    <span id="prog3" class="pill idle">idle</span>
+  </div>
+  <table id="t3">
+    <thead><tr><th></th><th>step</th><th>verb</th><th>from</th>
+      <th>result</th><th>what it does</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="legend" id="legend3"></p>
+
 </div>
 <div class="col right">
   <div class="stagebox">
@@ -135,6 +159,8 @@
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/skel.js"></script>
+<script src="../lib/mol-sugars.js"></script>
+<script src="../lib/mol-glycans.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="../lib/fx.js"></script>
 <script src="../kit/motion.js"></script>
@@ -279,6 +305,46 @@ const H = (g,i,hyb,slot) => g.grow(i,'H',GL.CH,hyb||'sp3',slot||0);
   seal('freeW', g, 'probe · water', 'H₂O', {}); }
 
 /* =============================================================================
+ *  SECTION 3'S METADATA, DERIVED FROM CLAIMS THE MOLECULES ALREADY MAKE
+ * =============================================================================
+ *  A sugar carries no `probe` block and must not grow one: `condense` already
+ *  names the atom each half keeps and the atoms that leave with the water, and
+ *  `glycosidic` already names the anomeric carbon, the bridge and the partner.
+ *  Both are audited by check-molecules.js. Reading the verbs' vocabulary out of
+ *  those is the whole point — a second copy typed here would be a claim nothing
+ *  checks, and the first renumbering of a build would aim a bond at the wrong
+ *  hydroxyl with everything still rendering correctly.
+ *
+ *  WHICH ROLE IS DONOR IS THE MOLECULE'S TO SAY, not this page's: `makes[0]`
+ *  carries it, along with the product and the configuration. β-glucose reaches
+ *  cellobiose and α-glucose reaches maltose, and neither reaches the other.
+ */
+const _meta = new WeakMap();               // never write to a library spec
+function sugarMeta(spec){
+  if(_meta.has(spec)) return _meta.get(spec);
+  const m = {};
+  const gl = spec.glycosidic;
+  // The bond a glycosidase breaks, which is exactly what `split` wants.
+  if(gl) { m.cleave = [gl.bridge, gl.partner]; m.bridge = gl.bridge; m.link = gl.link;
+           m.config = gl.config; }
+  const cd = spec.condense;
+  if(cd && cd.makes && cd.makes.length){
+    const mk = cd.makes[0];
+    const role = k => cd.roles.find(r => r.key === k);
+    const d = role(mk.donor), a = role(mk.acceptor);
+    // The donor keeps its anomeric oxygen and gives up only that oxygen's H;
+    // the acceptor gives up its whole hydroxyl. The water is O + H + H either
+    // way, so the shape of the reaction cannot catch this backwards — the spec
+    // says which, and the spec is what is read.
+    if(d) { m.donorO = d.keep; m.donorH = d.leaves[0]; }
+    if(a) { m.acceptorC = a.keep; m.acceptorO = a.leaves[0]; m.acceptorH = a.leaves[1]; }
+    m.product = mk.product; m.config = m.config || mk.config;
+  }
+  _meta.set(spec, m);
+  return m;
+}
+
+/* =============================================================================
  *  THE CASES — one row of both tables
  * =============================================================================
  *  `sub` is the lane contents going in, `keys` the species coming out, and `st`
@@ -316,7 +382,7 @@ const L = Lesson.create(canvas, {
   // read as two SIZES of molecule, and `split` and `join` are about exactly that.
   ortho:true, cam:{theta:0.30, phi:1.32, r:26}, zoom:false, drag:false,
   boxes:()=>{ if(!window.LANES || !LANES.lanes.length) return [{x:0,y:0,rxz:8,hy:8}];
-    return LANES.lanes.map(l=>{ const e=Stage.measure(SPECS[l.key]);
+    return LANES.lanes.map(l=>{ const e=Stage.measure(specOf(l.key));
       return {x:l.g.position.x, y:l.g.position.y, rxz:e.rxz, hy:e.hy}; }); },
   reservePx:()=>({top: LANES ? LANES.heightPx() : 40}),
   frame:()=>{ if(window.LANES) LANES.step(); },
@@ -330,9 +396,16 @@ const KIT = AtomKit.create(THREE);
 const PAL = MolLib.PALETTE;
 const GO = Leaving.create({root, camera, motion:MO, tag:RUN});
 
+/* ONE LOOKUP FOR BOTH. The lanes and the module have to agree about what a key
+ * means or the stage draws one molecule and the verbs read another's atoms. */
+const specOf = k => SPECS[k] || MolLib.MOLECULES[k];
+
 const LANES = window.LANES = Lanes.create({
-  root, camera, canvas, host:platesEl, specOf:k=>SPECS[k], radii:PAL.radii, spread:7.0,
+  root, camera, canvas, host:platesEl, specOf, radii:PAL.radii, spread:7.0,
   build:spec=>{ const g = Stage.buildMolecule(spec);
+    // The pathway lanes' convention: nonpolar C–H off, hydroxyl O–H always on.
+    // A sugar drawn with all 24 atoms is a hairball and the ring stops counting.
+    Stage.setOptionalH(g, false);
     // A latent hydrogen is drawn only from the beat it arrives on — the ring
     // O's proton in `open`. Same convention the pathway lanes use.
     ((spec.probe && spec.probe.latentH) || []).forEach(i=>GO.shed(g,[i]));
@@ -371,10 +444,12 @@ const wiring = () => ({
   kit:KIT, stage:Stage, palette:PAL,
   molgraph:MolGraph, molLib:MolLib, skelLib:SkelLib, tag:RUN,
   flyersEl,
-  specOf:k=>SPECS[k],
+  specOf,
   // THE FIRST FINDING, and it is a default: without this every verb reads
-  // `spec.gly` and returns early on undefined.
-  meta:spec=>spec.probe,
+  // `spec.gly` and returns early on undefined. Section 3's molecules carry no
+  // block of their own either — theirs is derived from the claims they already
+  // publish, which is `sugarMeta` below.
+  meta:spec=>spec.probe || sugarMeta(spec),
   ...Reaction.stageHost({lanes:LANES, carriers:carriersStub, onLanes:()=>L.fit()}),
 });
 // A point a carrier tile would stand on, if there were a tray. Above the lane,
@@ -452,7 +527,11 @@ function runCase(cs, RX, live){
     // A per-lane verb has no completion of its own — the caller lands it,
     // exactly as a lesson does after `durOf`. `split` and `join` land
     // themselves, so respawning behind them would undo what they did.
-    if(!out.whole && !out.threw){
+    // …and not at all when the step leaves the lane contents alone: respawning
+    // identical lanes rebuilds the very atoms the step just took off.
+    const same = cs.keys.length === cs.sub.length
+              && cs.keys.every((k,i)=>k === cs.sub[i]);
+    if(!out.whole && !out.threw && !same){
       try { LANES.render(cs.keys, null, null); LANES.settle(); } catch(e){}
     }
     L.fit();
@@ -581,6 +660,186 @@ function summarise(){
       + `<code>${[...used].join(' ')}</code> — that is what a non-pathway lesson has to answer.`
     : '';
 }
+
+/* =============================================================================
+ *  3 · THE CONDENSATION, AS A LESSON WOULD RUN IT
+ * =============================================================================
+ *  ON THE BARE HOST DELIBERATELY. A condensation spends no carrier and has no
+ *  tray, so if this needs the chemistry half at all, the answer to "is any of
+ *  this reusable" is no. It does not: `join` and `split` are the module's, and
+ *  the two the page writes below use only primitives the module exposes for
+ *  exactly this.
+ */
+const RXs = Reaction.create(wiring());
+
+/* ---- THE WATER LEAVING, WHICH THE MODULE HAS NO VERB FOR ------------------
+ * `lose` is the nearest thing and it does not fit: it takes an oxygen, that
+ * oxygen's H and a second H off an adjacent carbon — three atoms of ONE
+ * molecule. A condensation's water is assembled from TWO, and which half gives
+ * up the whole hydroxyl is the thing the product's geometry decides. So the
+ * page writes it, out of `expel` and `shedAtoms`, which is the path the module
+ * documents for a lesson with chemistry of its own.
+ *
+ * PER-LANE, NOT WHOLE, because the lane count does not change — the module's
+ * one structural claim, and a page verb has no licence to break it. Each lane
+ * loses its OWN atoms: the donor its anomeric proton, the acceptor its whole
+ * C4 hydroxyl. Which lane is which is the page's bookkeeping, so it is `c.j`
+ * and not something read off a spec — both lanes ARE the same molecule, and
+ * that is what makes the reaction hard to draw rather than a defect here.
+ */
+RXs.verb('dehydrate', {dur: () => 1400, lane(c){
+  const m = sugarMeta(c.spec), u = c.lane.g.userData;
+  if(m.donorH == null) return;
+  if(c.j === 0){
+    // The donor: its anomeric O keeps its place and becomes the bridge, so only
+    // the proton goes. Steel, and a '+', the colour and sign every moving
+    // hydrogen in this module wears.
+    const from = u.atomWorld(m.donorH).clone();
+    FXi.spawnRing(from, RXs.colors.H_LEAVE);
+    RXs.shedAtoms(c.lane, [m.donorH]);
+    RXs.protonAway(from);
+    return;
+  }
+  // The acceptor: the whole hydroxyl leaves, and it is the water. Ringed on the
+  // C–O that breaks, in oxygen red — the bond, not the atom.
+  const oI = m.acceptorO, hI = m.acceptorH;
+  if(oI == null || hI == null) return;
+  const pO = u.atomWorld(oI).clone(), pH = u.atomWorld(hI).clone();
+  FXi.spawnRing(pO.clone().lerp(u.atomWorld(m.acceptorC), 0.5), PAL.atoms.O);
+  RXs.shedAtoms(c.lane, [oI, hI]);
+  /* The third atom arrives from the other molecule, so it is drawn entering
+   * frame rather than lifted off a lane — the donor's own proton has already
+   * left as a glow. A real lesson would land that proton here instead; the
+   * beat order is a tuning decision and the geometry is the same either way. */
+  const OHW = SkelLib.GL.OH * MolLib.SCALE;
+  const d1 = pH.clone().sub(pO).normalize();
+  const t1 = pO.clone().add(d1.clone().multiplyScalar(OHW));
+  const t2 = pO.clone().add(d1.clone().applyAxisAngle(
+    new THREE.Vector3(0,0,1), 104.5*Math.PI/180).multiplyScalar(OHW));
+  RXs.expel(c.lane, [{el:'O', at:pO}, {el:'H', at:pH},
+                     {el:'H', at:pH.clone().add(new THREE.Vector3(0.1,0,0))}],
+            {gather:[t1, t2], bonds:[[pO,t1],[pO,t2]]});
+}});
+
+/* ---- AND THE WATER ARRIVING, the same gap seen from the other side --------
+ * `hydrate` is the nearest module verb and it does not fit either: it adds
+ * water across a C=C and reads `ene`. Hydrolysis adds it across the C–O–C the
+ * condensation made. `flyFree` and `offstage` do the whole of it.
+ *
+ * THE WATER IS SKEL-BUILT, not MolLib's `water`, for reaction.js's own reason:
+ * that spec's O–H is exaggerated for the solvation engine, and beside a real
+ * pyranose it would read as the biggest bond on the stage.
+ */
+RXs.verb('wateron', {dur: () => 1100, lane(c){
+  const m = sugarMeta(c.spec);
+  if(m.bridge == null) return;
+  const to = c.lane.g.userData.atomWorld(m.bridge).clone();
+  RXs.flyFree(SPECS.freeW, RXs.offstage(to), to, 1000,
+              ()=>FXi.spawnRing(to, PAL.atoms.O));
+}});
+
+/* ---- the lesson, read off the molecules ------------------------------- */
+// Both anomers, and neither reaches the other's product. `condense.makes` says
+// which, so the tabs cannot offer a pairing the library does not build.
+const PAIRS = ['glucose','alphaGlucose'].filter(k=>MolLib.MOLECULES[k]).map(k=>{
+  const m = sugarMeta(MolLib.MOLECULES[k]);
+  return {key:k, name:MolLib.MOLECULES[k].short || MolLib.MOLECULES[k].name,
+          product:m.product, config:m.config};
+});
+let pair = PAIRS[0];
+
+// keys BEFORE and AFTER each step. A step whose lane contents do not change
+// says so by repeating them, and the runner then knows not to respawn.
+const lessonSteps = () => [
+  {fx:'dehydrate', from:'page',   sub:[pair.key, pair.key], keys:[pair.key, pair.key],
+   say:'The water leaves — one H off the anomeric –OH, the whole C4 hydroxyl off the other'},
+  {fx:'join',      from:'module', sub:[pair.key, pair.key], keys:[pair.product],
+   say:'They close, and the bond forms'},
+  {fx:'wateron',   from:'page',   sub:[pair.product],       keys:[pair.product],
+   say:'Hydrolysis: a water arrives at the bridging oxygen'},
+  {fx:'split',     from:'module', sub:[pair.product],       keys:[pair.key, pair.key],
+   say:'The bond breaks, and one molecule is two again'},
+];
+
+const body3 = document.querySelector('#t3 tbody');
+function drawTabs(){
+  const el = document.getElementById('pairtabs'); el.innerHTML = '';
+  PAIRS.forEach(pr=>{
+    const b = document.createElement('button');
+    const prod = MolLib.MOLECULES[pr.product];
+    // Every word of this label is read from a spec: the anomer's own short
+    // name, the product's name, and the linkage the product declares.
+    b.textContent = `${pr.name} → ${prod ? prod.name : pr.product}`
+      + (prod && prod.glycosidic ? ` (${prod.glycosidic.config} ${prod.glycosidic.link})` : '');
+    b.style.borderColor = pr === pair ? 'var(--ink)' : '';
+    b.onclick = ()=>{ if(busy) return; pair = pr; drawTabs(); drawSteps(); };
+    el.appendChild(b);
+  });
+}
+function drawSteps(){
+  body3.innerHTML = '';
+  lessonSteps().forEach((st,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><button class="run">▶</button></td>`
+      + `<td class="probe">${i+1}</td><td class="v">${st.fx}</td>`
+      + `<td class="probe">${st.from}</td>`
+      + `<td class="s3">${pill('idle','—')}</td><td class="note">${st.say}</td>`;
+    body3.appendChild(tr);
+    tr.querySelector('button').onclick = ()=>oneStep(i);
+  });
+  document.getElementById('legend3').textContent = '';
+}
+
+function show3(i, out){
+  const tr = body3.children[i];
+  const did = out.fx + out.mo + out.go;
+  tr.querySelector('.s3').innerHTML = out.threw ? pill('bad','threw')
+    : did === 0 ? pill('noop','did nothing') : pill('ok', out.whole ? 'ran · whole' : 'ran');
+  if(out.threw) tr.querySelector('.note').textContent = String(out.threw.message).slice(0,80);
+}
+async function oneStep(i){
+  if(busy) return; busy = true; setButtons(false);
+  const st = lessonSteps()[i];
+  body3.children[i].classList.add('busy');
+  const out = await runCase({v:st.fx, sub:st.sub, keys:st.keys, st}, RXs, true);
+  body3.children[i].classList.remove('busy');
+  show3(i, out);
+  busy = false; setButtons(true);
+}
+async function runLesson(){
+  if(busy) return; busy = true; setButtons(false);
+  const prog = document.getElementById('prog3');
+  const steps = lessonSteps();
+  for(let i=0;i<steps.length;i++){
+    prog.className = 'pill idle'; prog.textContent = `${i+1}/${steps.length} · ${steps[i].fx}`;
+    await yieldToUI();
+    body3.children[i].classList.add('busy');
+    const out = await runCase({v:steps[i].fx, sub:steps[i].sub, keys:steps[i].keys, st:steps[i]},
+                              RXs, false);
+    body3.children[i].classList.remove('busy');
+    show3(i, out);
+  }
+  prog.textContent = 'done'; prog.className = 'pill ok';
+  const mod = steps.filter(x=>x.from==='module').map(x=>x.fx);
+  const own = steps.filter(x=>x.from==='page').map(x=>x.fx);
+  document.getElementById('legend3').innerHTML =
+    `The module supplied <code>${mod.join(' ')}</code> unchanged, on the bare host — `
+    + `no tray, no carrier, no chemistry members at all.<br>The page wrote `
+    + `<code>${own.join(' ')}</code>, both out of exposed primitives, because a `
+    + `condensation's water comes off two molecules and <code>lose</code> takes `
+    + `three atoms off one.<br><br>`
+    + `<b>And one thing only a non-thioester join could show:</b> `
+    + `<code>reaction.js:1236</code> rings the bond it makes in `
+    + `<code>THIO()</code> unconditionally — sulfur's colour, carried over from `
+    + `citrate synthase, where the new bond really is a C–S. Here the new bond `
+    + `is the glycosidic C–O–C and it is drawn in sulfur yellow. Every other `
+    + `verb colours the bond it makes by what the bond IS `
+    + `(<code>in</code> and <code>out</code> in phosphorus, <code>lose</code> in `
+    + `oxygen), so this is the one that guessed.`;
+  busy = false; setButtons(true);
+}
+document.getElementById('run3').onclick = runLesson;
+drawTabs(); drawSteps();
 
 document.getElementById('run1').onclick = ()=>runAll(1);
 document.getElementById('run2').onclick = ()=>runAll(2);
