@@ -724,7 +724,13 @@ const RXs = Reaction.create(wiring());
  * and not something read off a spec — both lanes ARE the same molecule, and
  * that is what makes the reaction hard to draw rather than a defect here.
  */
-RXs.verb('dehydrate', {dur: () => 900 + 420 + 1100 + 200, lane(c){
+const T = RXs.timing;
+// How far the hydroxyl steps off the carbon it left. Far enough to read as
+// detached, near enough to still belong to that molecule — it has not gone
+// anywhere yet, and it must not look like it has.
+const OH_STEP = 1.1, OH_STEP_MS = 320;
+
+RXs.verb('dehydrate', {dur: () => T.HOP + T.WATER_FORM + T.WATER_DRIFT + 200, lane(c){
   /* ONE EVENT ACROSS TWO MOLECULES, so it runs ONCE, from the acceptor's lane —
    * and a lane the step does not name is a lane the step skips, which is the
    * rule `red` and `decarb` already use. Which lane is the donor is the page's
@@ -749,36 +755,72 @@ RXs.verb('dehydrate', {dur: () => 900 + 420 + 1100 + 200, lane(c){
   const pH1 = du.atomWorld(dm.donorH).clone();
   const pO  = au.atomWorld(am.acceptorO).clone();
   const pH2 = au.atomWorld(am.acceptorH).clone();
+  const pC  = au.atomWorld(am.acceptorC).clone();
 
   // BOTH BONDS THAT BREAK, each in its own colour, which is `waterAway`'s rule:
   // the C–O in oxygen red, the O–H in hydrogen steel. One ring would say a
   // condensation happens in a single place, and it happens in two molecules.
-  FXi.spawnRing(pO.clone().lerp(au.atomWorld(am.acceptorC), 0.5), PAL.atoms.O);
+  FXi.spawnRing(pO.clone().lerp(pC, 0.5), PAL.atoms.O);
   FXi.spawnRing(pH1, RXs.colors.H_LEAVE);
   RXs.shedAtoms(dl, [dm.donorH]);
   RXs.shedAtoms(al, [am.acceptorO, am.acceptorH]);
 
-  /* THE PROTON DOES NOT GO TO SOLUTION — it becomes the water's second
-   * hydrogen. Drifting it off frame and building the water with a third H of
-   * its own is two hydrogens where the chemistry has one, which is the defect
-   * `in` is commented against in reaction.js. So it crosses to the oxygen and
-   * the water assembles around it when it lands. */
-  RXs.hop(pH1, pO, '+', ()=>{
+  /* THE HYDROXYL DOES NOT VANISH AND COME BACK AS A WATER. It comes off the
+   * carbon and STAYS THERE, a real –OH standing beside the molecule it left,
+   * and it is still only a hydroxyl — the reaction is not finished. Shedding it
+   * and drawing nothing until the proton lands is a second of nothing where the
+   * student is watching the one thing the step is about.
+   *
+   * Built at the atoms' own world positions and bonded straight away, so what
+   * stands there is the group that was on the molecule a frame ago, not a new
+   * O and H placed near each other.
+   */
+  const w = new THREE.Group();
+  w.add(Stage.atom(PAL.atoms.O, PAL.radii.O, pO, 'O'));
+  w.add(Stage.atom(PAL.atoms.H, PAL.radii.H, pH2, 'H'));
+  GO.link(w, [[pO, pH2]]);
+  GO.hold(w);
+  // A short step out along the bond that broke: detached, not departing.
+  const away = pO.clone().sub(pC).normalize().multiplyScalar(OH_STEP);
+  MO.seq([{dur: OH_STEP_MS/1000, ease:'outQuad',
+           onUpdate: e => { w.position.copy(away).multiplyScalar(e); }}], {tag:RUN});
+
+  /* THE PROTON CROSSES TO IT. It does not go to solution: one water leaves and
+   * both of its hydrogens are accounted for, so drifting this one off frame and
+   * building the water with a third of its own is two hydrogens where the
+   * chemistry has one — the defect `in` is commented against in reaction.js.
+   * It aims at where the oxygen has come to rest, not where it started. */
+  RXs.hop(pH1, pO.clone().add(away), '+', ()=>{
+    /* THE ARRIVING H IS A REAL MESH, which is fx.js's rule for a hop: the glow
+     * is a courier, and a hop with no arrival reads as the hydrogen having been
+     * destroyed. It appears on the oxygen and settles into the bond angle.
+     *
+     * THE O–H ALREADY THERE IS NOT TOUCHED, so the water keeps the length and
+     * direction the molecule itself drew. Only the newcomer moves, to a real
+     * H–O–H about the axis the three atoms already share — the fold happens in
+     * the plane the eye is watching rather than through the screen. */
     const OHW = SkelLib.GL.OH * MolLib.SCALE;
-    // The acceptor's own H was already an O–H and keeps its direction; only its
-    // length is corrected. The arriving one swings to the true angle IN THE
-    // PLANE THE THREE ATOMS ALREADY SHARE, so the fold happens in the plane the
-    // eye is watching rather than through the screen. `waterAway`'s geometry.
     const d1 = pH2.clone().sub(pO).normalize();
     let nrm = new THREE.Vector3().crossVectors(d1, pH1.clone().sub(pO));
     if(nrm.lengthSq() < 1e-6) nrm.set(0,0,1); else nrm.normalize();
-    const t1 = pO.clone().add(d1.clone().multiplyScalar(OHW));
     const t2 = pO.clone().add(
       d1.clone().applyAxisAngle(nrm, 104.5*Math.PI/180).multiplyScalar(OHW));
-    // The third atom starts where the proton just landed, so the water is
-    // visibly made of what arrived rather than spawned beside it.
-    RXs.expel(al, [{el:'O', at:pO}, {el:'H', at:pH2}, {el:'H', at:pO.clone()}],
-              {gather:[t1, t2], bonds:[[pO,t1],[pO,t2]]});
+    const h = Stage.atom(PAL.atoms.H, PAL.radii.H, pO.clone(), 'H');
+    w.add(h);
+    // No bond while it travels — kit/leaving.js's rule — then the second O–H
+    // once it has arrived, and only then is this a water.
+    GO.gather([{mesh:h, to:t2}], {dur:T.WATER_FORM});
+    RXs.later(()=>{
+      GO.link(w, [[pO, t2]]);
+      // …and NOW it leaves. Off the screen edge, not up the world axis, so it
+      // clears the frame at any orbit angle.
+      const at = pO.clone().add(away);
+      const climb = RXs.offstage(at, RXs.EXIT_EDGE).sub(at);
+      MO.seq([{dur:T.WATER_DRIFT/1000, ease:'inQuad',
+               onUpdate: e => { w.position.copy(away).addScaledVector(climb, e); }}],
+             {tag:RUN});
+    }, T.WATER_FORM);
+    RXs.later(()=>GO.drop(w), T.WATER_FORM + T.WATER_DRIFT);
   });
 }});
 
