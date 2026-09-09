@@ -4,7 +4,7 @@
 
 **The product is a component library and a generator.** A student describes an app; a model writes one HTML file that mounts components by name and drives them by parameters. The hand-built lessons are the reference implementations and where components come from. The molecule library is mostly built — adding one is occasional, and has its own recipe.
 
-* Model the science accurately, especially atom and molecule geometry.
+* Model the science accurately.
 * Let the human test visual changes in the browser; tell her what to click.
 * Be extremely concise everywhere, including commit messages. Sacrifice grammar for concision.
 
@@ -16,7 +16,7 @@ Each layer may use the ones above it and knows nothing of the ones below.
 | --- | --- | --- |
 | **Modules** | Plumbing: renderer, timeline, geometry questions, callouts, stage shell. No lesson state, no physics that two lessons would disagree about | `lib/`, `kit/`, root `*.js`, `css/` · `Modules.md` |
 | **Components** | A 3D scene mounted by name and driven by parameters, on one contract — `X.mount(el, params)` → `set` · `state` · `on` · `note` · `show` · `destroy`, each on `kit/card-stage.js` | `water/`, `membrane/`, `leaf/`, `tree/`, `kit/proteinbox.js` · `AddingAComponent.md` |
-| **Pages** | Hand-built lessons, one HTML file each. May reach past the components straight to modules | top level · `AddingAPage.md` |
+| **Pages, Featured Lessons** | Hand-built lessons, one HTML file each. May reach past the components straight to modules | top level · `AddingAPage.md` |
 | **Generated apps** | Written by a model from `docs/Components.md` and a request, nothing else. The eval set | `tests/gen-*.html` · `Generator.md` |
 
 **A module's scope is declared, not inferred.** Three kinds, and `Modules.md` says which each one is: *shared* (`scene.js`, `kit/motion.js`), *folder* (`membrane/`, `water/`), *one lesson* (`haworth.js` is contrast-lab's, `molecule-builder/` is the builder's). **A one-lesson module is not a candidate for anything until a second page wants it** — generalising on one instance is how a shared module acquires a caller's assumptions. Promoting one means moving it and saying so in `Modules.md`'s table.
@@ -91,7 +91,7 @@ Every doc lives in `demos/docs/` except the node graph's two and the clipper's, 
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 | `dna-structure.html` | Walk through the parts of a DNA helix | featured lesson |
 | `tree/tree-lab.html` | Where a tree's mass comes from: Van Helmont's willow, photosynthesis as traffic, the tree taken apart by origin. The first lesson on `kit/lesson-shell.js`, the step-through shell every generated app takes, with `tree/tree.js` as the scene | prototype |
-**A featured lesson is served at a short URL** by a `vercel.json` rewrite, which does not move the file, so it carries `<base href="/demos/">` and its relative paths keep resolving. Which URL maps to which file is `vercel.json`; copying that list into prose is how it goes stale. Promoting a page: `docs/deploy.md`.
+| **A featured lesson is served at a short URL** by a `vercel.json` rewrite, which does not move the file, so it carries `<base href="/demos/">` and its relative paths keep resolving. Which URL maps to which file is `vercel.json`; copying that list into prose is how it goes stale. Promoting a page: `docs/deploy.md`. |  |  |
 
 ## The primary UX is always a bespoke 3D simulation
 
@@ -117,15 +117,15 @@ Live reload, `no-store`, and it serves the **repo root**, not `demos/`, because 
 
 **Checkers run automatically on commit**, each gated to the files it can judge. **The hook prints only on skip or failure — a silent checker ran and passed.** The full list, the ungated exceptions, `check-handedness.js`, and what deploys: `docs/dev.md`.
 
-Two browser gotchas: a backgrounded tab pauses `requestAnimationFrame`, so an automated screenshot may freeze on the last frame — drive the page's functions directly instead of trusting one shot. And **set the viewport before judging layout**: `resize_window` to ~1440x900. These are laptop lessons.
+Two browser gotchas: a backgrounded tab pauses `requestAnimationFrame`, so an automated screenshot may freeze on the last frame — drive the page's functions directly instead of trusting one shot. And **set the viewport before judging layout**: `resize_window` to \~1440x900. These are laptop lessons.
 
 Framing, spacing, rotation, captions: the human tests in the browser.
 
 ## Copywriting
 
-Write as a tutor for a college Bio 101 student. Concise, no repetition. The text supports the visuals and interaction — prioritize core concepts, and steer the reader toward asking more rather than dumping facts.
+Write as a tutor for a college Bio 101 student. Concise, no repetition. The text supports the visuals and interaction. Prioritize core concepts, and steer the reader toward asking more rather than dumping facts.
 
-**A number in user-facing text must be read from the data at render time.** A typed number is a claim nothing checks and a re-bake silently falsifies. **Read it from where the fact lives, not the nearest lookalike** — counting helices in a trajectory's `ss` gives five because adjacent ones merge, so the eight the page says is carried across from the HELIX records by the baker.
+**A number in user-facing text must be read from the data at render time.** A typed number is a claim nothing checks and a re-bake silently falsifies. **Read it from where the fact lives, not the nearest lookalike**. Example: counting helices in a trajectory's `ss` gives five because adjacent ones merge, so the eight the page says is carried across from the HELIX records by the baker.
 
 **Don't use em dashes.**
 
@@ -141,7 +141,7 @@ The human uses `molecule-viewer.html` to manually choose a good default rotation
 
 **Read a module's own header before using it a way you have not used it before.** The load-bearing reasoning in this repo lives in the file headers, not only in `docs/` — and most of it is a trap that ships looking merely ugly, so it is written where someone about to fall in will be looking. `kit/ribbon.js` says not to slice a chain and build per secondary-structure element; a page did it anyway and drew the protein as scattered splinters.
 
-## Never use these structures:
+## When writing, never use these structures when writing:
 
 * "It's not just X — it's Y"
 * "Not only X, but Y"
