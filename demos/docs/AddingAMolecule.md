@@ -10,9 +10,9 @@ Eight steps, in the order that avoids rework.
 
 `MolecularGeometry.md` §1.4 — prop, contrast, or subject. It sets how much accuracy the spec owes for the claim it makes, and every step below is cheaper when this is settled first.
 
-## 2. Pick the file by builder and scale family, never by topic
+## 2. Pick the file by builder, never by topic
 
-`molecules.js`'s manifest note is the argument, and it is load-bearing: the partition is which builder a spec needs and which scale family it is in. A topic-shaped file ("respiration") names no builder and is nobody's alternate.
+`molecules.js`'s manifest note is the argument, and it is load-bearing: the partition is which builder a spec needs, which is why `DOMAINS` is dependency-ordered. A topic-shaped file ("respiration") names no builder, so it splits nothing that a page pays for.
 
 A NEW domain file needs a cost argument — nothing already in the library wants these specs, and a page drawing one would otherwise parse a pathway to get it. That is what `mol-krebs.js` and `mol-carriers.js` each argue in their headers — and `mol-vitamins.js` argued it too, until glucose moved into `mol-sugars.js` and reaching its one occupant stopped being expensive. A cost argument expires when the cost does; re-read the header before trusting it. Add it to `DOMAINS` and to `Modules.md`'s table.
 

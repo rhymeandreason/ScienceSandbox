@@ -57,7 +57,7 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 
 Two that are not any one file's:
 
-* **One scale family per SCENE, not per page** (MolecularGeometry.md §1.5). A page with separate stages may load both families and says so at its script tags — that comment is the only enforcement, since which scene a spec lands in is a runtime fact.
+* **A scene is one scale** (MolecularGeometry.md §1.5). Every spec in `lib/` is now one family, so the live case is a protein's real ångströms beside a spec-built molecule — a card decides that, and `kit/scale.js`'s rungs are where a component declares it.
 * **`querySelectorAll` finds a control that `opacity: 0` has hidden.** Anything gated by `.near`, `.hub` or a class is verified with computed style, or it is not verified. And a synthetic `click` in the console skips the pointer sequence half these bugs live in, so it passes on a completely dead button. Test controls with a real click.
 
 ## **Card kinds**

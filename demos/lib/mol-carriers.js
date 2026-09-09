@@ -16,7 +16,7 @@
  *                                          carriers from it
  *    mol-monomers.js   amp
  *
- *  The partition is by derivation and scale family, not by topic (molecules.js
+ *  The partition is by derivation, not by topic (molecules.js
  *  DOMAINS), and a carrier passes that test on its own: every spec here is
  *  all but AMP are Skel builds. What made the old arrangement
  *  wrong was not the taxonomy but the cost — a page paying for a pathway it
@@ -29,7 +29,7 @@
  *
  *  `atpSkel` and `nadhSkel` are ATP and NADH from ideal VSEPR angles and
  *  measured bond lengths; `atp` and `nadh` are real PubChem conformers. Same
- *  molecules, same scale family, two derivations each, and molecule-viewer.html
+ *  molecules, two derivations each, and molecule-viewer.html
  *  switches between them under one camera.
  *
  *  THE SCHEMATICS ARE WHAT THE LESSONS DRAW, not the conformers —

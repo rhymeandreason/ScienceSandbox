@@ -252,15 +252,12 @@
   // does not mean remembering four checkers.
   //   ENUM: a new mol-*.js goes here AND in CLAUDE.md's script table.
   //   tools/check-docs.js asserts every name below is a real file.
-  /* THE PARTITION IS BY DERIVATION AND SCALE FAMILY, NOT BY TOPIC. Every
-   * comment below names a BUILDER dependency or a family, and the array is
-   * dependency-ORDERED because of it — `skel.js` first, then the files that
-   * need it, then the one that also needs mol-monomers.js. `DOMAIN_ALTERNATES`
-   * leans on the same axis: two files can only replace each other if they hold
-   * the same substances at a different scale.
-   * A topic-shaped file ("respiration", "photosynthesis") fits neither
-   * mechanism — it names no builder and is nobody's alternate — so file a new
-   * molecule by HOW IT IS BUILT and let the lesson load what it draws. The
+  /* THE PARTITION IS BY DERIVATION, NOT BY TOPIC. Every comment below names a
+   * BUILDER dependency, and the array is dependency-ORDERED because of it —
+   * `skel.js` first, then the files that need it.
+   * A topic-shaped file ("respiration", "photosynthesis") names no builder, so
+   * file a new molecule by HOW IT IS BUILT and let the lesson load what it
+   * draws. The
    * cost being managed is a page paying to parse specs it never renders; that
    * is what splits a file, not subject matter. */
   const DOMAINS = [

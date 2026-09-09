@@ -452,7 +452,7 @@
     // noticed: C1 carries two identical hydrogens, so ethanol has no hand to
     // get wrong and needs no `chiral`. Lactate's C2 does, and has one.
     // NOT `ethanol`: mol-small.js already holds one, all-atom and hand-written
-    // for the solvation lessons. Same substance, same scale family, different
+    // for the solvation lessons. Same substance, different
     // DEPICTION — its methyl carries three explicit H's and this file's methyls
     // are united atoms, so reusing it would sprout three hydrogens on the
     // methyl at the exact moment the step is claiming one hydride arrived

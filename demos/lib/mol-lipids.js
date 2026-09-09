@@ -7,7 +7,7 @@
  *
  *  FAMILY B. Loads beside mol-small.js and mol-pathways.js — the membrane
  *  page compares a water against a lipid tail, and that comparison only
- *  means anything inside one scale family (molecules.js's header,
+ *  means anything in the library (molecules.js's header,
  *  MolecularGeometry.md §1). Every domain in lib/ is that family now.
  *
  *  CONSTRUCTED, NOT TYPED — MolecularGeometry.md §1.2 path 4, the same
