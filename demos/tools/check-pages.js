@@ -151,6 +151,17 @@ for (const page of PAGES) {
 
   const have = new Set(Object.keys(sandbox.MolLib.MOLECULES));
 
+  /* A COMPONENT MAY OWN ITS OWN SPECS. watersim.js carries its salts: an ionic
+     solute is drawn only as its dissociated ions, so the record has no
+     coordinates, belongs to no scale family, and needs no mol-*.js. A page
+     that loads the sim has those keys, and telling it to load a domain file
+     for them is the checker asking for a whole family it does not draw. */
+  if (/<script\s+src="[^"]*water\/watersim\.js"/.test(src)) {
+    const sim = fs.readFileSync(path.resolve(__dirname, '../water/watersim.js'), 'utf8');
+    const tbl = sim.match(/const SALTS=\{([\s\S]*?)\n  \};/);
+    if (tbl) for (const m of tbl[1].matchAll(/^\s*([a-z0-9]+)\s*:/gm)) have.add(m[1]);
+  }
+
   /* A page's spec names do not all live in the page any more. The map pages
    * keep their card tables in lib/mapcontent.js — CONTENT, not a library: no
    * behaviour, no scene, and the spec names they draw are in there. Without

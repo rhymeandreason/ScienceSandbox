@@ -413,14 +413,26 @@ function create(THREE, root, opts={}){
   const OCTA=[new THREE.Vector3(1,0,0),new THREE.Vector3(-1,0,0),
               new THREE.Vector3(0,1,0),new THREE.Vector3(0,-1,0),
               new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,-1)];
-  // WHICH salt is a lesson decision, so the key comes from the page — and naming
-  // it there is also what keeps check-pages.js able to see it, since that audit
-  // reads a page's own source for the specs it uses.
+  // WHICH salt is a lesson decision, so the key comes from the page.
   // display radius for an ion: Na⁺/Cl⁻ read the tuning, since those two carry the
   // lesson; any other ion (e.g. K⁺) uses its own spec radius.
+  /* The salts this sim can dissolve. An ionic solute is never drawn as a
+     molecule — only as its two dissociated ions — so a record is a formula and
+     two {ion, charge, radius}, with no coordinates and no bond length. That is
+     why these live here and not in a mol-*.js: they carry no geometry, so they
+     belong to no scale family, and a page that only dissolves salt needs no
+     spec file at all. Radii are the palette's ion radii in scene units.
+     An unknown key still falls through to MolLib, so a page that has loaded a
+     domain file can dissolve anything in it. */
+  const SALTS={
+    nacl:{ name:'Salt', formula:'NaCl',
+           dissociates:[{ion:'Na',charge:+1,radius:0.70},{ion:'Cl',charge:-1,radius:1.24}] },
+  };
+  const saltSpec=key=>SALTS[key] || (global.MolLib && global.MolLib.MOLECULES[key]);
+
   function ionRadius(ion, specR){ return ion==='Na'?cfg.naRad : ion==='Cl'?cfg.clRad : specR; }
   function addSalt(specKey){
-    const spec=global.MolLib.MOLECULES[specKey];
+    const spec=saltSpec(specKey);
     if(!spec || !spec.dissociates) throw new Error(`addSalt: ${specKey} is not a dissociating salt`);
     const catDef=spec.dissociates.find(d=>d.charge>0);   // cation
     const anDef =spec.dissociates.find(d=>d.charge<0);   // anion
@@ -714,7 +726,7 @@ function create(THREE, root, opts={}){
     spawn, remove, clearLines, addSalt, clearSalt, assignShells, anyDescending,
     // the page's own decorations are drawn with the same factories, so a callout
     // and the molecule under it cannot end up different shapes
-    atom, bond, dashTube, water, ionRadius, ANG, HL, H1L, H2L,
+    atom, bond, dashTube, water, ionRadius, ANG, HL, H1L, H2L, SALTS, saltSpec,
     get fz(){ return fz; } };
 }
 

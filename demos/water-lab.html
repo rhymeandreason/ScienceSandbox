@@ -78,7 +78,6 @@
 <script src="lib/palette.js"></script>
 <script src="lib/tokens-from-palette.js"></script>
 <script src="lib/molecules.js"></script>
-<script src="lib/mol-solvation.js"></script>
 <script src="lib/scene.js"></script>
 <script src="lib/fx.js"></script>
 <script src="lib/atomkit.js"></script>
@@ -694,7 +693,7 @@ function renderReadout(p){
     const na=salt.find(m=>m.userData.charge>0), cl=salt.find(m=>m.userData.charge<0);
     const fp=Math.round(-p.dTf), bp=Math.round(100+p.dTb);
     saltinfoEl.innerHTML=
-      `<b>${salt.length/2}</b> ${MolLib.MOLECULES[SALT].formula} : <b>${sim.mols.length}</b> H₂O `
+      `<b>${salt.length/2}</b> ${sim.saltSpec(SALT).formula} : <b>${sim.mols.length}</b> H₂O `
       +`<span class="muted">· ${p.molal.toFixed(1)} m molality</span>`
       +`&nbsp;&nbsp;<span class="muted">|</span>&nbsp;&nbsp;`
  //     +`Na⁺ <b>${na.userData.shellCount}/6</b> · Cl⁻ <b>${cl.userData.shellCount}/6</b>`

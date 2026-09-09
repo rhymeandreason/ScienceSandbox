@@ -50,7 +50,7 @@ Four rules were prose here and enforced by nothing: both molecule families at on
 <script src="mol-aminoacids.js"></script>  <!-- the domains this page shows -->
 <script src="mol-krebs.js"></script>       <!-- the citric-acid cycle + CoA/FAD; needs skel.js -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
-<script src="water/watersim.js"></script>  <!-- only for a solvation page; after scene.js, needs mol-solvation.js -->
+<script src="water/watersim.js"></script>  <!-- only for a solvation page; after scene.js. Carries its own salts, so needs no mol-*.js -->
 <script src="water/watersim-mount.js"></script>  <!-- the one-call box over it; after kit/card-stage.js -->
 <script src="kit/motion.js"></script>     <!-- the timeline, if anything animates -->
 <script src="kit/molgraph.js"></script>   <!-- if the page asks a spec a question -->

@@ -83,7 +83,7 @@
       if (sim.salt.length) sim.assignShells();
     }
     function saltCation(key) {
-      const spec = global.MolLib.MOLECULES[key];
+      const spec = sim.saltSpec(key);
       return spec && spec.dissociates ? spec.dissociates.find(d => d.charge > 0).ion : null;
     }
 
