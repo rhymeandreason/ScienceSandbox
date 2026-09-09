@@ -1,0 +1,207 @@
+<!doctype html>
+<!-- requests
+1. why does changing one amino acid in haemoglobin cause sickle cell anaemia?
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>From Mutation to Occlusion</title>
+<style>
+  .flow-stats { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="HbCrowd,BloodCell,BloodFlow"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Sickle Cell Anaemia: Molecular to Vascular Scale',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: [
+    {
+      eyebrow: 'Molecular scale',
+      title: 'A single hydrophobic patch triggers polymerization',
+      body: '<p><b>A point mutation replaces hydrophilic glutamate with hydrophobic valine at position 6 of the β-globin chain.</b></p><p>In deoxygenated conditions, this exposed hydrophobic patch docks into a complementary pocket on adjacent tetramers, initiating continuous strand assembly.</p>',
+      scene: 'crowd',
+      onEnter(ctx) {
+        crowd.set({ variant: 'HbS', stick: true });
+        crowd.reset();
+        crowd.note('patch');
+        ctx.ui.controls('<button class="btn primary" id="dock-btn">Polymerize Strand</button>');
+        const btn = ctx.ui.q('#dock-btn');
+        btn.onclick = () => {
+          btn.disabled = true;
+          crowd.play();
+        };
+      },
+      onExit() {
+        crowd.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Molecular comparison',
+      title: 'HbA stays in solution; HbS forms rigid fibres',
+      body: '<p><b>Normal adult haemoglobin (HbA) carries a charged glutamate that repels aggregation.</b></p><p>Switch between variants to see how the surface property determines whether tetramers stay free in the cytosol or form long insoluble polymers.</p>',
+      scene: 'crowd',
+      onEnter(ctx) {
+        ctx.ui.controls(`
+          <div class="choices">
+            <button class="choice" id="opt-hba">Normal HbA (Glutamate 6)</button>
+            <button class="choice is-active" id="opt-hbs">Sickle HbS (Valine 6)</button>
+          </div>
+          <div style="margin-top:12px">
+            <button class="btn secondary" id="run-btn">Trigger Assembly</button>
+          </div>
+        `);
+        const btnA = ctx.ui.q('#opt-hba');
+        const btnS = ctx.ui.q('#opt-hbs');
+        const runBtn = ctx.ui.q('#run-btn');
+
+        btnA.onclick = () => {
+          btnA.classList.add('is-active');
+          btnS.classList.remove('is-active');
+          crowd.set({ variant: 'HbA', stick: false });
+          crowd.reset();
+          crowd.note('patch');
+        };
+        btnS.onclick = () => {
+          btnS.classList.add('is-active');
+          btnA.classList.remove('is-active');
+          crowd.set({ variant: 'HbS', stick: true });
+          crowd.reset();
+          crowd.note('patch');
+        };
+        runBtn.onclick = () => {
+          crowd.play();
+        };
+      },
+      onExit() {
+        crowd.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Cellular scale',
+      title: 'Growing fibres distort the erythrocyte',
+      body: '<p><b>Intracellular polymer strands push against the plasma membrane, distorting the cell into a rigid crescent.</b></p><p>Cut open the cell to view how dense haemoglobin packing translates internal fibre growth into outward sickle morphology.</p>',
+      scene: 'cell',
+      onEnter(ctx) {
+        cell.set({ sickle: 0, cut: 1, hb: true });
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Fibre burden (sickling)</span>
+              <span class="value" id="sickle-val">0%</span>
+            </div>
+            <input type="range" id="sickle-range" min="0" max="1" step="0.01" value="0">
+          </div>
+          <div style="margin-top:10px">
+            <button class="btn ghost" id="toggle-cut">Toggle Cross-Section</button>
+          </div>
+        `);
+        let cutState = 1;
+        ctx.ui.range(ctx.ui.q('#sickle-range'), v => {
+          cell.set({ sickle: v }, { snap: true });
+          ctx.ui.q('#sickle-val').textContent = Math.round(v * 100) + '%';
+          if (v > 0.6) {
+            cell.note('horn');
+          } else {
+            cell.notes(false);
+          }
+        });
+        ctx.ui.q('#toggle-cut').onclick = () => {
+          cutState = cutState === 1 ? 0 : 1;
+          cell.set({ cut: cutState });
+        };
+      },
+      onExit() {
+        cell.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Organ and vascular scale',
+      title: 'Rigid sickle cells cause microvascular occlusion',
+      body: '<p><b>Capillaries are narrower than resting red blood cells, requiring flexible membrane deformation.</b></p><p>Normal discocytes deform in single file, but rigid crescents catch at the capillary throat and nucleate upstream logjams that block blood supply.</p>',
+      scene: 'flow',
+      onEnter(ctx) {
+        flow.set({ sickle: 0, throat: 0.47, n: 40 });
+        flow.reset();
+        flow.note('throat');
+        ctx.ui.controls(`
+          <div class="choices">
+            <button class="choice is-active" id="flow-healthy">Flexible Discocytes (HbA)</button>
+            <button class="choice" id="flow-sickle">Rigid Sickled Cells (HbS)</button>
+          </div>
+          <div class="stats flow-stats">
+            <div class="stat">
+              <div class="stat-label">Cells Passed</div>
+              <div class="stat-value" id="passed-val">0</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">Cells Stuck</div>
+              <div class="stat-value" id="stuck-val">0</div>
+            </div>
+          </div>
+        `);
+        const btnHealthy = ctx.ui.q('#flow-healthy');
+        const btnSickle = ctx.ui.q('#flow-sickle');
+        btnHealthy.onclick = () => {
+          btnHealthy.classList.add('is-active');
+          btnSickle.classList.remove('is-active');
+          flow.set({ sickle: 0 });
+          flow.reset();
+          flow.note('throat');
+        };
+        btnSickle.onclick = () => {
+          btnSickle.classList.add('is-active');
+          btnHealthy.classList.remove('is-active');
+          flow.set({ sickle: 1 });
+          flow.reset();
+          flow.notes(false);
+        };
+        this.unsub = flow.on('frame', s => {
+          const passedEl = ctx.ui.q('#passed-val');
+          const stuckEl = ctx.ui.q('#stuck-val');
+          if (passedEl) passedEl.textContent = s.passed;
+          if (stuckEl) stuckEl.textContent = s.stuck;
+        });
+      },
+      onExit() {
+        if (this.unsub) this.unsub();
+        flow.notes(false);
+      }
+    }
+  ]
+});
+
+const crowd = shell.scene('crowd', el => HbCrowd.mount(el, {
+  variant: 'HbS',
+  n: 12,
+  stick: true,
+  base: '../',
+  viewOffset: shell.viewOffset
+}));
+
+const cell = shell.scene('cell', el => BloodCell.mount(el, {
+  sickle: 0,
+  cut: 1,
+  hb: true,
+  autoRotate: false,
+  viewOffset: shell.viewOffset
+}));
+
+const flow = shell.scene('flow', el => BloodFlow.mount(el, {
+  sickle: 0,
+  n: 40,
+  speed: 1,
+  throat: 0.47,
+  viewOffset: shell.viewOffset
+}));
+
+flow.on('jam', () => flow.note('jam'));
+
+shell.goTo(0);
+</script>
+</body>
+</html>

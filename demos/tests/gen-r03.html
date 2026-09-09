@@ -1,0 +1,162 @@
+<!doctype html>
+<!-- requests
+1. what happens inside a leaf when the plant runs out of water?
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Water Deficit in a Leaf</title>
+<style>
+.readout { display: flex; gap: 1rem; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="Leaf,PlantCell"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Plant Physiology',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: {},
+  steps: [
+    {
+      scene: 'leaf',
+      eyebrow: 'Hydrated tissue',
+      title: 'Transpiration drives water flow',
+      body: '<p><b>A well-watered leaf loses water vapour constantly through open stomata.</b> This evaporation pulls sap up through the xylem in the vascular bundle while admitting CO₂ for photosynthesis.</p>',
+      nextLabel: 'Zoom into a cell',
+      onEnter(ctx) {
+        leaf.notes(false);
+        leaf.set({ aperture: 1, flows: { co2: 0.8, o2: 0.8, vapour: 0.8, sap: 0.8 } });
+        leaf.note('stoma');
+        leaf.note('bundle');
+        ctx.ui.showPanel(leaf, { only: ['legend'] });
+      },
+      onExit() { leaf.notes(false); }
+    },
+    {
+      scene: 'cell',
+      eyebrow: 'Cellular scale',
+      title: 'Turgor pressure maintains structure',
+      body: '<p><b>Inside mesophyll cells, a full central vacuole exerts outward pressure against the rigid cell wall.</b> This turgor pressure keeps unlignified tissues upright and pushes guard cells apart to open pores.</p>',
+      nextLabel: 'Cut water supply',
+      onEnter(ctx) {
+        cell.notes(false);
+        cell.set({ t: 0 });
+        cell.note('vacuole');
+        cell.note('wall');
+        ctx.ui.showPanel(cell, { only: ['legend'] });
+      },
+      onExit() { cell.notes(false); }
+    },
+    {
+      scene: 'cell',
+      eyebrow: 'Water deficit',
+      title: 'Loss of turgor causes wilting',
+      body: '<p><b>When soil dries, water leaves the vacuole by osmosis and internal pressure drops to zero.</b> The cell becomes flaccid. Severe drought causes plasmolysis, where the plasma membrane shrinks away from the cell wall.</p>',
+      nextLabel: 'See leaf response',
+      onEnter(ctx) {
+        cell.notes(false);
+        cell.set({ t: 1.5 });
+        cell.note('membrane');
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Cell water status</span>
+              <span class="value" id="t-val">Flaccid / Plasmolysed</span>
+            </div>
+            <input type="range" id="t-slider" min="0" max="2" step="0.05" value="1.5">
+          </div>
+        `);
+        const label = ctx.ui.q('#t-val');
+        ctx.ui.range(ctx.ui.q('#t-slider'), v => {
+          cell.set({ t: parseFloat(v) }, { snap: true });
+          if (v < 0.3) label.textContent = 'Turgid';
+          else if (v < 1.1) label.textContent = 'Flaccid';
+          else label.textContent = 'Plasmolysed';
+        });
+      },
+      onExit() { cell.notes(false); }
+    },
+    {
+      scene: 'leaf',
+      eyebrow: 'Stomatal defense',
+      title: 'Guard cells shut the pores',
+      body: '<p><b>Drained guard cells lose turgor and collapse against each other, closing the stomatal pore.</b> Shutting stomata halts water vapour escape, protecting the leaf from lethal dehydration.</p>',
+      nextLabel: 'Examine trade-off',
+      onEnter(ctx) {
+        leaf.notes(false);
+        leaf.set({ aperture: 0, flows: { co2: 0.8, o2: 0.8, vapour: 0.8, sap: 0.2 } });
+        leaf.note('stoma');
+        ctx.ui.showPanel(leaf, { only: ['legend'] });
+      },
+      onExit() { leaf.notes(false); }
+    },
+    {
+      scene: 'leaf',
+      eyebrow: 'The trade-off',
+      title: 'Conservation starves photosynthesis',
+      body: '<p><b>Closing stomata conserves water but cuts off carbon dioxide entry.</b> The plant stops photosynthesizing and must rely on stored reserves until water returns.</p>',
+      onEnter(ctx) {
+        leaf.notes(false);
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Stomatal aperture</span>
+              <span class="value" id="ap-val">0%</span>
+            </div>
+            <input type="range" id="ap-slider" min="0" max="1" step="0.05" value="0">
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">Water loss</div>
+              <div class="stat-value" id="stat-water">Halted</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">CO₂ uptake</div>
+              <div class="stat-value" id="stat-co2">Halted</div>
+            </div>
+          </div>
+        `);
+        const apVal = ctx.ui.q('#ap-val');
+        const statWater = ctx.ui.q('#stat-water');
+        const statCo2 = ctx.ui.q('#stat-co2');
+        ctx.ui.range(ctx.ui.q('#ap-slider'), v => {
+          const num = parseFloat(v);
+          leaf.set({ aperture: num, flows: { co2: 0.8, o2: 0.8, vapour: 0.8, sap: 0.2 + 0.6 * num } }, { snap: true });
+          apVal.textContent = Math.round(num * 100) + '%';
+          if (num === 0) {
+            statWater.textContent = 'Halted';
+            statCo2.textContent = 'Halted';
+          } else if (num < 0.5) {
+            statWater.textContent = 'Low';
+            statCo2.textContent = 'Restricted';
+          } else {
+            statWater.textContent = 'High';
+            statCo2.textContent = 'Active';
+          }
+        });
+      },
+      onExit() { leaf.notes(false); }
+    }
+  ]
+});
+
+const leaf = shell.scene('leaf', el => Leaf.mount(el, {
+  viewOffset: shell.viewOffset,
+  aperture: 1,
+  flows: { co2: 0.8, o2: 0.8, vapour: 0.8, sap: 0.8 }
+}));
+
+const cell = shell.scene('cell', el => PlantCell.mount(el, {
+  viewOffset: shell.viewOffset,
+  tissue: 'leaf',
+  t: 0
+}));
+
+shell.goTo(0);
+</script>
+</body>
+</html>

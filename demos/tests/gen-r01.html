@@ -1,0 +1,221 @@
+<!doctype html>
+<!-- requests
+1. why does a red blood cell burst in pure water but a plant cell just gets firmer?
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tonicity: Animal vs Plant Cells</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="BloodCell,PlantCell"></script>
+<script>
+let bloodUnsub = null;
+let plantUnsub = null;
+
+const shell = LessonShell.create({
+  brand: 'Cell Biology · Osmosis & Tonicity',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: {},
+  steps: [
+    {
+      eyebrow: 'Animal Cells',
+      title: 'A red blood cell in pure water bursts',
+      scene: 'blood',
+      body: '<p><b>An animal cell lacks a rigid wall.</b> In hypotonic pure water, water enters the cell by osmosis down its concentration gradient.</p><p>Because the lipid bilayer membrane has fixed surface area, swelling forces the biconcave disc into a sphere until tension ruptures the membrane (lysis), spilling the internal haemoglobin.</p>',
+      nextLabel: 'See plant cells',
+      onEnter(ctx) {
+        blood.set({ tonicity: 0, spill: 0, cut: 1 });
+        blood.notes(['rim', 'haemoglobin']);
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Surrounding Solution</span>
+              <span class="value" id="ton-val">Plasma (isotonic)</span>
+            </div>
+            <input type="range" id="ton-slider" min="-1" max="0" step="0.05" value="0">
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-label">Swell ratio</span>
+              <span class="stat-value" id="swell-val">1.0×</span>
+              <span class="stat-sub">Sphere limit</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Cell volume</span>
+              <span class="stat-value" id="vol-val">90 µm³</span>
+              <span class="stat-sub">Current volume</span>
+            </div>
+          </div>
+        `);
+
+        const labelMap = (v) => v <= -0.9 ? 'Pure water (hypotonic)' : (v >= -0.1 ? 'Plasma (isotonic)' : 'Dilute solution');
+        ctx.ui.range(ctx.ui.q('#ton-slider'), v => {
+          const num = parseFloat(v);
+          const spillVal = num <= -0.85 ? ((-num - 0.85) / 0.15) * 0.9 : 0;
+          blood.set({ tonicity: num, spill: spillVal }, { snap: true });
+          ctx.ui.q('#ton-val').textContent = labelMap(num);
+        });
+
+        bloodUnsub = blood.on('frame', s => {
+          if (!s) return;
+          const elSwell = ctx.ui.q('#swell-val');
+          const elVol = ctx.ui.q('#vol-val');
+          if (elSwell && s.swellRatio != null) elSwell.textContent = s.swellRatio.toFixed(2) + '×';
+          if (elVol && s.volume != null) elVol.textContent = Math.round(s.volume) + ' µm³';
+        });
+      },
+      onExit() {
+        blood.notes(false);
+        if (bloodUnsub) { bloodUnsub(); bloodUnsub = null; }
+      }
+    },
+    {
+      eyebrow: 'Plant Cells',
+      title: 'A plant cell resists bursting and turns turgid',
+      scene: 'plant',
+      body: '<p><b>A plant cell is encased in a strong cellulose cell wall.</b> When placed in pure water, water enters the large central vacuole.</p><p>As the protoplast expands, it presses firmly against the wall. The rigid wall exerts mechanical back-pressure (turgor pressure), opposing further net water entry before the membrane can burst.</p>',
+      nextLabel: 'What about drought?',
+      onEnter(ctx) {
+        plant.set({ t: 0, tissue: 'leaf' });
+        plant.notes(['wall', 'vacuole', 'membrane']);
+        ctx.ui.controls(`
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-label">Cell State</span>
+              <span class="stat-value" id="state-val">Turgid</span>
+              <span class="stat-sub">Full internal pressure</span>
+            </div>
+          </div>
+        `);
+        plantUnsub = plant.on('frame', s => {
+          if (!s) return;
+          const el = ctx.ui.q('#state-val');
+          if (el && s.state) el.textContent = s.state.charAt(0).toUpperCase() + s.state.slice(1);
+        });
+      },
+      onExit() {
+        plant.notes(false);
+        if (plantUnsub) { plantUnsub(); plantUnsub = null; }
+      }
+    },
+    {
+      eyebrow: 'Hypertonic Contrast',
+      title: 'In salty water, plant cells plasmolyse',
+      scene: 'plant',
+      body: '<p><b>When water leaves, the difference is just as clear.</b> In a hypertonic environment or dry soil, water leaves the plant cell vacuole.</p><p>The central vacuole collapses and the plasma membrane pulls away from the rigid wall, causing plasmolysis and wilting.</p>',
+      nextLabel: 'Compare both',
+      onEnter(ctx) {
+        plant.notes(['wall', 'membrane', 'vacuole']);
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Water availability</span>
+              <span class="value" id="plant-state-txt">Turgid</span>
+            </div>
+            <input type="range" id="plant-slider" min="0" max="2" step="0.05" value="0">
+          </div>
+        `);
+        ctx.ui.range(ctx.ui.q('#plant-slider'), v => {
+          const num = parseFloat(v);
+          plant.set({ t: num, now: true });
+        });
+        plantUnsub = plant.on('frame', s => {
+          if (!s) return;
+          const txt = ctx.ui.q('#plant-state-txt');
+          if (txt && s.state) txt.textContent = s.state.charAt(0).toUpperCase() + s.state.slice(1);
+        });
+      },
+      onExit() {
+        plant.notes(false);
+        if (plantUnsub) { plantUnsub(); plantUnsub = null; }
+      }
+    },
+    {
+      eyebrow: 'Side-by-Side Summary',
+      title: 'Cell walls dictate osmotic fate',
+      scene: 'blood',
+      body: '<p><b>Cell walls transform an osmotic hazard into structural support.</b> Animal cells must strictly regulate internal osmolarity to prevent lysis in hypotonic fluids or crenation in hypertonic brine.</p><p>Plants harness hypotonic intake to keep stems and leaves upright through turgor pressure.</p>',
+      onEnter(ctx) {
+        blood.notes(false);
+        plant.notes(false);
+        ctx.ui.controls(`
+          <div class="choices">
+            <button class="choice is-selected" id="btn-blood">View Red Blood Cell</button>
+            <button class="choice" id="btn-plant">View Plant Cell</button>
+          </div>
+          <div id="sub-ctrls"></div>
+        `);
+
+        function renderBloodCtrls() {
+          ctx.ui.q('#sub-ctrls').innerHTML = `
+            <div class="slider">
+              <div class="slider-head">
+                <span class="label">Blood Cell Solution</span>
+                <span class="value" id="b-txt">Plasma (0)</span>
+              </div>
+              <input type="range" id="b-slider" min="-1" max="1" step="0.05" value="0">
+            </div>
+          `;
+          ctx.ui.range(ctx.ui.q('#b-slider'), v => {
+            const val = parseFloat(v);
+            const spill = val <= -0.85 ? ((-val - 0.85) / 0.15) * 0.9 : 0;
+            blood.set({ tonicity: val, spill: spill }, { snap: true });
+            const label = val < -0.3 ? 'Hypotonic (water)' : (val > 0.3 ? 'Hypertonic (brine)' : 'Isotonic (plasma)');
+            ctx.ui.q('#b-txt').textContent = label;
+          });
+        }
+
+        function renderPlantCtrls() {
+          ctx.ui.q('#sub-ctrls').innerHTML = `
+            <div class="slider">
+              <div class="slider-head">
+                <span class="label">Plant Water State</span>
+                <span class="value" id="p-txt">Turgid</span>
+              </div>
+              <input type="range" id="p-slider" min="0" max="2" step="0.05" value="0">
+            </div>
+          `;
+          ctx.ui.range(ctx.ui.q('#p-slider'), v => {
+            plant.set({ t: parseFloat(v), now: true });
+            const s = plant.state();
+            if (s && s.state) {
+              ctx.ui.q('#p-txt').textContent = s.state.charAt(0).toUpperCase() + s.state.slice(1);
+            }
+          });
+        }
+
+        ctx.ui.q('#btn-blood').onclick = () => {
+          shell.showScene('blood');
+          ctx.ui.q('#btn-blood').classList.add('is-selected');
+          ctx.ui.q('#btn-plant').classList.remove('is-selected');
+          renderBloodCtrls();
+        };
+
+        ctx.ui.q('#btn-plant').onclick = () => {
+          shell.showScene('plant');
+          ctx.ui.q('#btn-plant').classList.add('is-selected');
+          ctx.ui.q('#btn-blood').classList.remove('is-selected');
+          renderPlantCtrls();
+        };
+
+        renderBloodCtrls();
+      },
+      onExit() {
+        if (bloodUnsub) { bloodUnsub(); bloodUnsub = null; }
+        if (plantUnsub) { plantUnsub(); plantUnsub = null; }
+      }
+    }
+  ]
+});
+
+const blood = shell.scene('blood', el => BloodCell.mount(el, { viewOffset: shell.viewOffset, cut: 1 }));
+const plant = shell.scene('plant', el => PlantCell.mount(el, { viewOffset: shell.viewOffset, tissue: 'leaf' }));
+
+shell.goTo(0);
+</script>
+</body>
+</html>

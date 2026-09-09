@@ -1,0 +1,95 @@
+<!doctype html>
+<!-- requests
+1. why is a tree mostly built out of air, and where in the leaf does that happen?
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Where a Tree’s Mass Comes From</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="Tree,Leaf"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Photosynthesis and Plant Mass',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: {},
+  steps: [
+    {
+      scene: 'tree',
+      eyebrow: 'Organism scale',
+      title: 'Where does an oak get its mass?',
+      body: '<p><b>Most of a tree’s dry mass comes from the air, not the soil.</b> Plant roots draw up water and dissolved minerals, but the vast majority of structural biomass is built from carbon dioxide captured from the atmosphere during photosynthesis.</p>',
+      nextLabel: 'Break down the mass',
+      onEnter(ctx) {
+        tree.set({ piles: null, treeOpacity: 1, flows: { co2: 0.8, o2: 0.8, h2o: 0.6, minerals: 0.3 } });
+        ctx.ui.showPanel(tree, { notes: ['canopy', 'soil', 'air'] });
+      },
+      onExit() {
+        tree.notes(false);
+      }
+    },
+    {
+      scene: 'tree',
+      eyebrow: 'Mass breakdown',
+      title: 'The dry weight of wood and foliage',
+      body: '<p><b>Over 90% of a plant’s dry material is atmospheric carbon.</b> Soil minerals provide essential nutrients like nitrogen and phosphorus, but account for only about 1% of dry mass. Hydrogen from water contributes roughly 6%, and the remaining mass is carbon from CO₂.</p>',
+      nextLabel: 'Look inside the leaf',
+      onEnter(ctx) {
+        tree.set({ piles: 'dry', treeOpacity: 0.2, flows: { co2: 0, o2: 0, h2o: 0, minerals: 0 } });
+        ctx.ui.showPanel(tree, { only: ['legend'], legendLabel: 'Dry mass origin' });
+      },
+      onExit() {
+        tree.set({ piles: null, treeOpacity: 1 });
+      }
+    },
+    {
+      scene: 'leaf',
+      eyebrow: 'Tissue scale',
+      title: 'Where carbon enters the leaf',
+      body: '<p><b>Carbon dioxide diffuses through microscopic pores called stomata.</b> In the leaf cross-section below, CO₂ enters the spongy air spaces on the underside, then diffuses into palisade mesophyll cells densely packed with chloroplasts where carbon fixation occurs.</p>',
+      nextLabel: 'Test stomatal control',
+      onEnter(ctx) {
+        leaf.set({ aperture: 1, explode: 0, isolate: null, flows: { co2: 1, o2: 1, vapour: 0.8, sap: 0.8 } });
+        ctx.ui.showPanel(leaf, { notes: ['stoma', 'palisade', 'bundle'], zoom: ['stoma'] });
+      },
+      onExit() {
+        leaf.notes(false);
+      }
+    },
+    {
+      scene: 'leaf',
+      eyebrow: 'Transpiration trade-off',
+      title: 'Balancing carbon intake and water loss',
+      body: '<p><b>Capturing CO₂ inevitably costs water vapour.</b> Because stomata must be open for carbon dioxide to diffuse in, water evaporates out through transpiration. Regulate the stomata below to observe how pore size directly gates gas exchange.</p>',
+      onEnter(ctx) {
+        leaf.set({ explode: 0.2, isolate: null, flows: { co2: 1, o2: 1, vapour: 1, sap: 1 } });
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Stomatal aperture</span>
+              <span class="value" id="ap-val">100%</span>
+            </div>
+            <input type="range" id="aperture" min="0" max="1" step="0.01" value="1">
+          </div>
+        `);
+        const valEl = ctx.ui.q('#ap-val');
+        ctx.ui.range(ctx.ui.q('#aperture'), v => {
+          leaf.set({ aperture: v }, { snap: true });
+          valEl.textContent = Math.round(v * 100) + '%';
+        });
+      }
+    }
+  ]
+});
+
+const tree = shell.scene('tree', el => Tree.mount(el, { viewOffset: shell.viewOffset }));
+const leaf = shell.scene('leaf', el => Leaf.mount(el, { viewOffset: shell.viewOffset }));
+
+shell.goTo(0);
+</script>
+</body>
+</html>

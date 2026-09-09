@@ -25,7 +25,11 @@
  *      steps: [{ ..., scene: 'cell' }, { ..., scene: 'membrane' }]
  *
  *  Each `scene()` makes its own full-bleed layer inside the stage, mounts into
- *  it, and returns the component. The stage is ONE element, so two mounts on
+ *  it, and returns a handle that behaves as the component does — `set`,
+ *  `state`, `on`, `note` and the rest — for as long as the page holds it. Only
+ *  a few scenes stay live (`sceneLimit`, 4): a WebGL context is rationed and
+ *  the pool destroys the least recently shown, so the handle is what the page
+ *  keeps and the instance under it is the shell's to rebuild. The stage is ONE element, so two mounts on
  *  `shell.stage` put two canvases in one block flow: the first fills the
  *  window, the second sits below it off screen still rendering, and the first
  *  one's overlays (side labels, the annotation layer) draw over whichever
@@ -152,26 +156,103 @@
     Object.assign(ctx, { ui, goTo: i => goTo(i) });
 
     /* ---- scenes: one box per component, shown per step --------------- */
-    const scenes = new Map();          // name -> { el, c }
+    /* A SCENE IS A WEBGL CONTEXT, AND THEY ARE RATIONED. A browser keeps 8 to
+       16 and silently drops the oldest past that: the symptom is a canvas
+       going blank with no error, on the scene the student saw first. A page
+       asking for six scenes is not obviously past a cap nobody states, so the
+       shell holds a few live and destroys the rest — kit/card-stage.js's pool,
+       keyed by scene name, least recently SHOWN evicted.
+
+       Which is why `scene()` returns a handle and not the component. A pooled
+       component is destroyed and rebuilt under the page, and a page holding
+       the instance would be calling set() on a corpse — card-stage.js's header
+       says it found exactly that. The handle forwards to whatever instance is
+       live, mounts one if there is none, and carries across the two things a
+       rebuild would otherwise lose: every `on()` the page subscribed, and the
+       params it had `set()`. So a step written against `cell` keeps working
+       whether or not that scene has been rebuilt since, and no page says
+       anything about pooling. */
+    const scenes = new Map();          // name -> { el, make, c, params, subs, handle }
     let shown = null;                  // the names currently on stage
+    let boxes = null;                  // the pool, made on the first scene
+
+    function build(s) {
+      const c = s.make(s.el);
+      s.c = c;
+      if (Object.keys(s.params).length && c.set) c.set(s.params);
+      if (c.on) for (const sub of s.subs) sub.off = c.on(sub.ev, sub.fn);
+      return c;
+    }
+
+    /* The live instance, mounted if the pool dropped it. Mounting into a
+       hidden layer is safe because the layer keeps its size — the reason the
+       CSS hides with `visibility` and not `display`. */
+    function ensure(name) {
+      const s = scenes.get(name);
+      if (!boxes) return s.c || build(s);
+      return boxes.acquire(name, () => build(s));
+    }
+
+    /* Everything the page holds goes through here, so the instance underneath
+       may be replaced at any time. `set` and `on` are remembered as well as
+       forwarded; a component returning itself for chaining is handed back as
+       the handle, or the page would be holding the instance again. */
+    function handle(name) {
+      const s = scenes.get(name);
+      return new Proxy({}, {
+        get(_, k) {
+          if (k === 'sceneName') return name;
+          const c = ensure(name);
+          const v = c[k];
+          if (typeof v !== 'function') return v;
+          if (k === 'set') return (p, o) => { Object.assign(s.params, p); return wrap(v.call(c, p, o), c, s); };
+          if (k === 'on') return (ev, fn) => {
+            const sub = { ev, fn, off: null };
+            sub.off = v.call(c, ev, fn);
+            s.subs.push(sub);
+            return () => { const i = s.subs.indexOf(sub); if (i >= 0) s.subs.splice(i, 1); return sub.off && sub.off(); };
+          };
+          if (k === 'destroy') return () => {
+            if (boxes) boxes.release(name); else if (s.c) s.c.destroy();
+            scenes.delete(name); s.el.remove();
+          };
+          return (...a) => wrap(v.apply(c, a), c, s);
+        },
+        set(_, k, v) { ensure(name)[k] = v; return true; },
+        has(_, k) { return k in ensure(name); },
+      });
+    }
+    const wrap = (out, c, s) => (out === c ? s.handle : out);
 
     function scene(name, mount) {
-      if (scenes.has(name)) return scenes.get(name).c;
+      if (scenes.has(name)) return scenes.get(name).handle;
       if (typeof mount !== 'function') {
         throw new Error(`kit/lesson-shell.js: shell.scene('${name}', el => X.mount(el, { viewOffset: shell.viewOffset })) `
-          + `takes the mount as a function, so the shell owns the box and can show and stop it per step.`);
+          + `takes the mount as a function, so the shell owns the box and can show, stop and rebuild it.`);
       }
       const el = document.createElement('div');
       el.className = 'lshell-scene';
       wireStage(el);
       els.stage.appendChild(el);
-      /* Mounted while the layer is at full size, whatever step is current: a
-         component sized at 0 lays its scene out against a canvas that does not
-         exist yet. Hidden immediately after, by the re-apply below. */
-      const c = mount(el);
-      scenes.set(name, { el, c });
+      const s = { el, make: mount, c: null, params: {}, subs: [], handle: null };
+      scenes.set(name, s);
+      s.handle = handle(name);
+      /* The pool is made on the first scene, not at create: a hand-built page
+         on this shell may not have loaded card-stage.js at all, and one that
+         never asks for a scene should not need it. Without it nothing is ever
+         evicted, which is the old behaviour and correct for one or two. */
+      if (!boxes && global.CardStage && global.CardStage.pool) {
+        boxes = global.CardStage.pool({
+          limit: opts.sceneLimit || 4,
+          onEvict: key => { const e = scenes.get(key); if (e) { e.c = null; for (const sub of e.subs) sub.off = null; } },
+        });
+      }
+      /* Mounted now, at full size, whatever step is current: a component sized
+         at 0 lays its scene out against a canvas that does not exist yet.
+         Hidden immediately after, by the re-apply below. */
+      ensure(name);
       if (shown) apply(shown);
-      return c;
+      return s.handle;
     }
 
     /* Hidden with `visibility`, not `display`: a component keeps its size, its
@@ -183,11 +264,14 @@
       if (!shown.length && scenes.size) shown = [scenes.keys().next().value];
       els.stage.classList.toggle('is-split', shown.length > 1);
       for (const [name, s] of scenes) {
-        const on = shown.indexOf(name) >= 0;
-        s.el.classList.toggle('is-off', !on);
-        if (on) { if (s.c && s.c.start) s.c.start(); }
-        else if (s.c && s.c.stop) s.c.stop();
+        s.el.classList.toggle('is-off', shown.indexOf(name) < 0);
       }
+      /* Shown first, and through the pool, so showing a scene is what makes it
+         the most recently used one and the eviction order is the order the
+         student actually visited. A scene that is off is left alone unless it
+         is live: touching it here would rebuild what was just dropped. */
+      for (const name of shown) { const c = ensure(name); if (c.start) c.start(); }
+      for (const [name, s] of scenes) if (shown.indexOf(name) < 0 && s.c && s.c.stop) s.c.stop();
     }
 
     /* THE FAILURE THIS EXISTS FOR, made loud. Nothing legitimately puts two
@@ -305,7 +389,8 @@
       },
       theme(name, on) { document.body.classList.toggle(name, !!on); },
       destroy() {
-        for (const s of scenes.values()) if (s.c && s.c.destroy) s.c.destroy();
+        if (boxes) boxes.clear();
+        else for (const s of scenes.values()) if (s.c && s.c.destroy) s.c.destroy();
         scenes.clear();
         window.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('lshell-page');
       },

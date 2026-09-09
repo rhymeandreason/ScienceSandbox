@@ -1,0 +1,106 @@
+<!doctype html>
+<!-- requests
+1. show me how water molecules stick to each other
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hydrogen Bonding in Water</title>
+<style>
+  .charge-tag { font-weight: 600; }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="WaterSim"></script>
+<script>
+let unbindFrame = null;
+
+const shell = LessonShell.create({
+  brand: 'Molecular Biology 101',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { state: {} },
+  steps: [
+    {
+      eyebrow: 'Polarity',
+      title: 'Water is a polar molecule',
+      body: '<p><b>Oxygen pulls shared electrons more strongly than hydrogen.</b> This unequal sharing creates a partial negative charge on the oxygen atom and a partial positive charge on each hydrogen atom.</p>',
+      nextLabel: 'See how they attract',
+      onEnter(ctx) {
+        w.set({ nWater: 2, still: true, hbonds: false, temperature: null });
+        w.notes(['O', 'H']);
+        ctx.ui.showPanel(w, { notes: ['O', 'H'] });
+      },
+      onExit() {
+        w.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Hydrogen Bonds',
+      title: 'Opposites attract',
+      body: '<p><b>A hydrogen bond forms between opposite partial charges.</b> The partially negative oxygen of one molecule is electrostatically attracted to the partially positive hydrogen of an adjacent molecule.</p>',
+      nextLabel: 'See the bulk liquid',
+      onEnter(ctx) {
+        w.set({ nWater: 6, still: false, hbonds: true, temperature: null });
+        w.notes(['water']);
+        ctx.ui.showPanel(w, { notes: ['water'], layers: ['hbonds'] });
+      },
+      onExit() {
+        w.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Cohesion',
+      title: 'A dynamic molecular network',
+      body: '<p><b>In liquid water, hydrogen bonds constantly form, break, and reform.</b> This transient network holds water molecules together, giving water its strong cohesion, high surface tension, and high specific heat capacity.</p>',
+      nextLabel: 'Explore temperature',
+      onEnter(ctx) {
+        w.set({ nWater: 24, still: false, hbonds: true, temperature: 25 });
+        ctx.ui.controls('<div class="stats"><div class="stat"><div class="stat-label">Hydrogen bonds</div><div class="stat-value" id="hb-count">0</div><div class="stat-sub">active in sample</div></div></div>');
+        unbindFrame = w.on('frame', s => {
+          const el = ctx.ui.q('#hb-count');
+          if (el) el.textContent = s.hbondCount;
+        });
+        ctx.ui.showPanel(w, { layers: ['hbonds'] });
+      },
+      onExit() {
+        if (unbindFrame) { unbindFrame(); unbindFrame = null; }
+      }
+    },
+    {
+      eyebrow: 'Thermal Motion',
+      title: 'Temperature disrupts bonding',
+      body: '<p><b>Thermal kinetic energy competes with hydrogen bonding.</b> As temperature rises, faster molecular motion breaks bonds more frequently, weakening cohesion until molecules escape as vapour.</p>',
+      onEnter(ctx) {
+        w.set({ nWater: 24, still: false, hbonds: true, temperature: 25 });
+        ctx.ui.controls('<div class="slider"><div class="slider-head"><span class="label">Temperature</span><span class="value" id="temp-val">25 °C</span></div><input type="range" id="temp" min="0" max="100" step="1" value="25"></div><div class="stats"><div class="stat"><div class="stat-label">Hydrogen bonds</div><div class="stat-value" id="hb-count">0</div></div><div class="stat"><div class="stat-label">Network strength</div><div class="stat-value" id="hb-scale">0%</div></div></div>');
+        
+        ctx.ui.range(ctx.ui.q('#temp'), v => {
+          w.set({ temperature: Number(v) });
+          const tEl = ctx.ui.q('#temp-val');
+          if (tEl) tEl.textContent = v + ' °C';
+        });
+        
+        unbindFrame = w.on('frame', s => {
+          const hbEl = ctx.ui.q('#hb-count');
+          const scEl = ctx.ui.q('#hb-scale');
+          if (hbEl) hbEl.textContent = s.hbondCount;
+          if (scEl) scEl.textContent = Math.round(s.hbScale * 100) + '%';
+        });
+        
+        ctx.ui.showPanel(w, { layers: ['hbonds'] });
+      },
+      onExit() {
+        if (unbindFrame) { unbindFrame(); unbindFrame = null; }
+      }
+    }
+  ]
+});
+
+const w = WaterSim.mount(shell.stage, { viewOffset: shell.viewOffset });
+shell.goTo(0);
+</script>
+</body>
+</html>

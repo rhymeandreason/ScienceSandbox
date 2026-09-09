@@ -1,0 +1,123 @@
+<!doctype html>
+<!-- requests
+1. how does oxygen get from flowing blood into a red blood cell and onto haemoglobin?
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Oxygen Uptake in Blood</title>
+<style>
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="BloodFlow,BloodCell,Membrane,Proteinbox"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Respiratory Physiology',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: [
+    {
+      eyebrow: '1. Capillary transit',
+      title: 'Red blood cells squeeze into single file',
+      scene: 'flow',
+      body: '<p><b>Capillaries are so narrow that red blood cells must deform and pass in single file.</b> This close contact minimises the diffusion distance between alveolar gases or plasma and the erythrocyte interior.</p>',
+      onEnter(ctx) {
+        ctx.ui.controls('<div class="stats"><div class="stat"><div class="stat-label">Vessel radius</div><div class="stat-value" id="v-rad">-</div><div class="stat-sub">micrometres</div></div><div class="stat"><div class="stat-label">Throat radius</div><div class="stat-value" id="t-rad">-</div><div class="stat-sub">micrometres</div></div></div>');
+        const s = flow.state();
+        if (s) {
+          ctx.ui.q('#v-rad').textContent = s.vesselR;
+          ctx.ui.q('#t-rad').textContent = s.throatR;
+        }
+      },
+      onExit() {}
+    },
+    {
+      eyebrow: '2. Cellular specialisation',
+      title: 'A biconcave package of haemoglobin',
+      scene: 'cell',
+      body: '<p><b>Mature mammalian red blood cells lack a nucleus and organelles to dedicate all internal volume to haemoglobin.</b> The biconcave disc geometry provides a high surface-area-to-volume ratio for rapid gas exchange.</p>',
+      onEnter(ctx) {
+        cell.notes(['haemoglobin', 'dimple']);
+        ctx.ui.controls('<div class="stats"><div class="stat"><div class="stat-label">Cell surface area</div><div class="stat-value" id="c-area">-</div><div class="stat-sub">&micro;m&sup2;</div></div><div class="stat"><div class="stat-label">Cell volume</div><div class="stat-value" id="c-vol">-</div><div class="stat-sub">&micro;m&sup3;</div></div></div>');
+        const s = cell.state();
+        if (s) {
+          ctx.ui.q('#c-area').textContent = Math.round(s.area);
+          ctx.ui.q('#c-vol').textContent = Math.round(s.volume);
+        }
+      },
+      onExit() {
+        cell.notes(false);
+      }
+    },
+    {
+      eyebrow: '3. Membrane transit',
+      title: 'Oxygen diffuses directly across lipid bilayers',
+      scene: 'membrane',
+      body: '<p><b>Small nonpolar molecules like O₂ dissolve into the hydrophobic lipid core and cross without protein channels.</b> Net diffusion occurs spontaneously down the concentration gradient from oxygenated blood plasma into the cell interior.</p>',
+      onEnter(ctx) {
+        membrane.notes(['heads', 'tails']);
+        ctx.ui.showPanel(membrane, { only: ['legend'] });
+      },
+      onExit() {
+        membrane.notes(false);
+      }
+    },
+    {
+      eyebrow: '4. Molecular capture',
+      title: 'Haemoglobin binds and traps oxygen',
+      scene: 'protein',
+      body: '<p><b>Haemoglobin is a globular tetramer that binds dissolved oxygen at four heme subunits.</b> By sequestering free O₂, haemoglobin keeps cytosolic free oxygen low, sustaining the concentration gradient that drives ongoing diffusion into the cell.</p>',
+      onEnter(ctx) {
+        ctx.ui.controls('<div class="stats"><div class="stat"><div class="stat-label">Polypeptide chains</div><div class="stat-value" id="p-chains">-</div></div><div class="stat"><div class="stat-label">Total residues</div><div class="stat-value" id="p-res">-</div></div></div>');
+        const s = protein.state();
+        if (s) {
+          ctx.ui.q('#p-chains').textContent = s.chains || 4;
+          ctx.ui.q('#p-res').textContent = s.residues || 574;
+        }
+      },
+      onExit() {}
+    }
+  ]
+});
+
+const flow = shell.scene('flow', el => BloodFlow.mount(el, {
+  sickle: 0,
+  n: 35,
+  speed: 1,
+  throat: 0.5,
+  seed: 3,
+  viewOffset: shell.viewOffset
+}));
+
+const cell = shell.scene('cell', el => BloodCell.mount(el, {
+  cut: 1,
+  tonicity: 0,
+  hb: true,
+  autoRotate: false,
+  viewOffset: shell.viewOffset
+}));
+
+const membrane = shell.scene('membrane', el => Membrane.mount(el, {
+  context: 'plasma',
+  proteins: {},
+  contents: {
+    inside: { water: 50, o2: 4 },
+    outside: { water: 50, o2: 30 }
+  },
+  viewOffset: shell.viewOffset
+}));
+
+const protein = shell.scene('protein', el => Proteinbox.mount(el, {
+  protein: 'hemoglobin',
+  rep: 'ribbon',
+  viewOffset: shell.viewOffset
+}));
+
+shell.goTo(0);
+</script>
+</body>
+</html>

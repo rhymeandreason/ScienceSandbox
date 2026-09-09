@@ -1,0 +1,105 @@
+<!doctype html>
+<!-- requests
+1. let me play with the stomata and see what it does to the leaf
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Leaf Stomata Sandbox</title>
+<style>
+  .control-group { margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="sandbox" data-use="Leaf"></script>
+<script>
+const shell = Sandbox.create({
+  brand: 'Leaf Anatomy & Gas Exchange',
+  hint: 'Drag to orbit · Scroll to zoom · Underside holds stomata',
+  eyebrow: 'Sandbox',
+  title: 'Stomata and the Transpiration Trade-Off',
+  body: '<p><b>Stomata govern both carbon gain and water loss.</b> Opening the guard pores allows carbon dioxide to diffuse into the photosynthetic mesophyll, but inevitably permits water vapour to escape from saturated internal air spaces.</p>',
+  controls: `
+    <div class="control-group">
+      <div class="slider">
+        <div class="slider-head">
+          <span class="label">Stomatal aperture</span>
+          <span class="value" id="aperture-val">100%</span>
+        </div>
+        <input type="range" id="aperture" min="0" max="1" step="0.01" value="1">
+      </div>
+    </div>
+    <div class="control-group">
+      <div class="slider">
+        <div class="slider-head">
+          <span class="label">Explode tissue layers</span>
+          <span class="value" id="explode-val">0%</span>
+        </div>
+        <input type="range" id="explode" min="0" max="1" step="0.01" value="0">
+      </div>
+    </div>
+    <div class="chips" id="view-chips">
+      <button class="chip" id="btn-stoma">Look at stomata</button>
+      <button class="chip" id="btn-palisade">Focus palisade</button>
+      <button class="chip" id="btn-vein">Focus vein</button>
+      <button class="chip active" id="btn-all">Show all</button>
+    </div>
+  `,
+  onReady(ctx) {
+    ctx.range(ctx.q('#aperture'), v => {
+      L.set({ aperture: v }, { snap: true });
+      ctx.q('#aperture-val').textContent = Math.round(v * 100) + '%';
+    });
+
+    ctx.range(ctx.q('#explode'), v => {
+      L.set({ explode: v }, { snap: true });
+      ctx.q('#explode-val').textContent = Math.round(v * 100) + '%';
+    });
+
+    const resetChips = () => {
+      ctx.qa('#view-chips .chip').forEach(btn => btn.classList.remove('active'));
+    };
+
+    ctx.q('#btn-stoma').onclick = () => {
+      resetChips();
+      ctx.q('#btn-stoma').classList.add('active');
+      L.note('stoma');
+    };
+
+    ctx.q('#btn-palisade').onclick = () => {
+      resetChips();
+      ctx.q('#btn-palisade').classList.add('active');
+      L.set({ isolate: 'palisade' });
+      L.note('palisade');
+    };
+
+    ctx.q('#btn-vein').onclick = () => {
+      resetChips();
+      ctx.q('#btn-vein').classList.add('active');
+      L.set({ isolate: 'bundle' });
+      L.note('bundle');
+    };
+
+    ctx.q('#btn-all').onclick = () => {
+      resetChips();
+      ctx.q('#btn-all').classList.add('active');
+      L.set({ isolate: null });
+      L.notes(false);
+    };
+  }
+});
+
+const L = Leaf.mount(shell.stage, {
+  viewOffset: shell.viewOffset,
+  aperture: 1,
+  explode: 0,
+  flows: { co2: 1, o2: 1, vapour: 1, sap: 1 }
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>

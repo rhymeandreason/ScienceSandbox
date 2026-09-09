@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>scene pool test</title></head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="PlantCell,AnimalCell,Tree,Leaf"></script>
+<script>
+/* The bench for the scene pool. Four scenes and a limit of two, so every step
+   evicts: the handles the page holds have to keep working, the subscription
+   below has to survive its component being rebuilt, and no step may show a
+   layer whose canvas was destroyed. __frames and __h are for driving it. */
+const shell = LessonShell.create({
+  brand: 'Four scenes, two contexts', sceneLimit: 2,
+  steps: [
+    { scene: 'plant', title: 'A leaf cell', body: '<p>Four scenes, two live contexts. Walking the steps evicts and rebuilds.</p>' },
+    { scene: 'animal', title: 'An animal cell', body: '<p>The plant cell is now destroyed, and its handle still answers.</p>' },
+    { scene: 'tree', title: 'A tree', body: '<p>Two rebuilds in.</p>' },
+    { scene: 'leaf', title: 'A leaf', body: '<p>Three.</p>' },
+    { scene: 'plant', title: 'Back to the leaf cell', body: '<p>Rebuilt from the params it was last set to, with its frame subscription intact.</p>' },
+  ],
+});
+const plant = shell.scene('plant', el => PlantCell.mount(el, { viewOffset: shell.viewOffset, tissue: 'leaf' }));
+const animal = shell.scene('animal', el => AnimalCell.mount(el, { viewOffset: shell.viewOffset }));
+const tree = shell.scene('tree', el => Tree.mount(el, { viewOffset: shell.viewOffset }));
+const leaf = shell.scene('leaf', el => Leaf.mount(el, { viewOffset: shell.viewOffset }));
+window.__frames = 0;
+plant.on('frame', () => { window.__frames++; });
+window.__h = { plant, animal, tree, leaf };
+shell.goTo(0);
+</script>
+</body></html>
