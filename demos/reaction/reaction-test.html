@@ -1,0 +1,593 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>reaction/ test bench — every verb, on a molecule no pathway names</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="../css/main.css">
+<style>
+  body{margin:0;background:var(--paper);color:var(--ink);
+       font-family:var(--font-sans);}
+  .wrap{display:flex;gap:20px;align-items:flex-start;
+        padding:22px 20px 60px;max-width:1560px;margin:0 auto}
+  .col{min-width:0}
+  .col.left{flex:0 0 640px}
+  .col.right{flex:1 1 auto;position:sticky;top:22px}
+  h1{font-family:var(--font-slab);font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);max-width:66ch;margin:0 0 8px;line-height:1.5}
+  h2{font-family:var(--font-slab);font-size:13px;letter-spacing:.4px;
+     text-transform:uppercase;color:var(--muted);margin:26px 0 6px;
+     border-top:1px solid var(--hair);padding-top:12px}
+  .claim{font-size:12.5px;color:var(--muted);margin:0 0 12px;max-width:66ch;line-height:1.55}
+  .claim b{color:var(--ink)}
+  table{border-collapse:collapse;width:100%;font-size:12px}
+  th{text-align:left;font-weight:600;color:var(--muted);font-size:11px;
+     letter-spacing:.3px;text-transform:uppercase;padding:0 6px 6px;
+     border-bottom:1px solid var(--hair)}
+  td{padding:5px 6px;border-bottom:1px solid var(--hair);vertical-align:top}
+  td.v{font-family:var(--font-mono,monospace);font-weight:600;white-space:nowrap}
+  td.probe{font-family:var(--font-mono,monospace);color:var(--muted);white-space:nowrap}
+  td.note{font-family:var(--font-mono,monospace);font-size:11px;color:var(--muted);
+          line-height:1.45;word-break:break-word}
+  td.c1{white-space:nowrap}
+  tr.busy{background:rgba(0,0,0,.04)}
+  .pill{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;
+        font-weight:600;white-space:nowrap}
+  .ok  {background:#e2f0e8;color:#1f6b48}
+  .noop{background:#fdf0d8;color:#8a5a10}
+  .bad {background:#f8dede;color:#9b2c2c}
+  .idle{background:var(--hair);color:var(--muted)}
+  button{font:inherit;font-size:12px;padding:4px 10px;border:1px solid var(--hair);
+         border-radius:6px;background:var(--paper);color:var(--ink);cursor:pointer}
+  button:hover{border-color:var(--muted)}
+  button:disabled{opacity:.45;cursor:default}
+  button.run{padding:2px 8px;font-size:11px}
+  .bar{display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap}
+  /* THE BOX CARRIES THE HEIGHT, not the canvas. `main.css` sizes `#gl` at
+     height:100% — the id every lesson's stage uses — so a height set on the
+     canvas here loses to it and the stage collapses to the backing store's
+     own aspect ratio. Give the parent a height and the site sheet is right. */
+  .stagebox{position:relative;border:1px solid var(--hair);border-radius:10px;
+            overflow:hidden;background:var(--paper);height:600px}
+  .stagebox canvas{display:block;width:100%}
+  #plates,#flyers{position:absolute;inset:0;pointer-events:none}
+  .plate{position:absolute;text-align:center;transform-origin:50% 100%;white-space:nowrap}
+  .plate .pn{font-family:var(--font-slab);font-size:13px;color:var(--ink)}
+  .plate .pf{font-size:10.5px;color:var(--muted)}
+  .flyplate{position:absolute;transform:translate(-50%,-100%);white-space:nowrap;
+            font-size:11px;color:var(--muted);transition:opacity .15s linear}
+  .legend{font-size:11.5px;color:var(--muted);margin:8px 0 0;line-height:1.6}
+  code{font-family:var(--font-mono,monospace);font-size:11.5px}
+</style>
+
+<body>
+<div class="wrap">
+<div class="col left">
+
+  <h1>reaction/ — every verb, on a molecule no pathway names</h1>
+  <p class="sub">The module claims its verbs are chemistry and the lanes are only
+  a stage fact. Nothing ran that claim outside glycolysis, the cycle and
+  fermentation until this page. Two passes, and the second is the one that
+  prices the next caller.</p>
+
+  <h2>1 · Every verb runs on a probe</h2>
+  <p class="claim">Each verb is driven on a <b>probe</b> built here from
+  <code>SkelLib</code>, carrying only the metadata that verb reads and nothing
+  else. <b>A probe is not a molecule and makes no chemical claim</b> — it is a
+  carbon chain with one feature bolted on, so nothing here is a statement about
+  a reaction. What it asserts is about the <b>code</b>: a verb that needs a
+  glycolysis intermediate to run has chemistry the module was not supposed to
+  own, and it fails visibly in this column.
+  <br><br><b>“did nothing” is the result that matters.</b> Nine of these verbs
+  return early on a missing metadata key with no error at all, so a bench that
+  only caught throws would call them green. Motion, fx and leaving are counted
+  through each run; zero of all three is a verb that was invoked and did not
+  happen.</p>
+  <div class="bar">
+    <button id="run1">Run all</button>
+    <button id="stop">Reset stage</button>
+    <span id="prog1" class="pill idle">idle</span>
+  </div>
+  <table id="t1">
+    <thead><tr><th></th><th>verb</th><th>probe → probe</th><th>result</th>
+      <th>fx·mo·go</th><th>host members used</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>2 · What a verb needs beyond the stage</h2>
+  <p class="claim">The same verbs, against a host that is
+  <code>Reaction.stageHost()</code> plus <code>specOf</code> and
+  <code>meta</code> and <b>nothing else</b>: no <code>carrierPoint</code>, no
+  <code>carrierBond</code>, no <code>onCarrierTaken</code>, no
+  <code>donorSpec</code>, <code>freeSpec</code>, <code>waterSpec</code> or
+  <code>handleSpec</code>. A verb that survives is one a lesson with no carrier
+  tray can mount today. A verb that throws names the member it wanted, and that
+  list is the cost of the next non-pathway caller — beta-oxidation, the Calvin
+  cycle — measured instead of discovered halfway through building one.
+  <br><br>Pass 1's last column says what a verb <i>used</i>; this says what it
+  cannot do <i>without</i>. A member in one and not the other is a guarded
+  optional, which is the module behaving.</p>
+  <div class="bar">
+    <button id="run2">Run all</button>
+    <span id="prog2" class="pill idle">idle</span>
+  </div>
+  <table id="t2">
+    <thead><tr><th></th><th>verb</th><th>bare host</th><th>threw at</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <p class="legend" id="legend"></p>
+
+</div>
+<div class="col right">
+  <div class="stagebox">
+    <canvas id="gl"></canvas>
+    <div id="plates"></div>
+    <div id="flyers"></div>
+  </div>
+  <p class="legend">One stage, the way a lesson mounts the module — not fifteen
+  live boxes. <b>Run all</b> drives a virtual clock, so the tables read the same
+  in a hidden tab as in a window; a row's <b>▶</b> runs that one verb in real
+  time, which is the half of a bench you look at.</p>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/skel.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/fx.js"></script>
+<script src="../kit/motion.js"></script>
+<script src="../kit/molgraph.js"></script>
+<script src="../kit/focus.js"></script>
+<script src="../kit/fit.js"></script>
+<script src="../kit/lanes.js"></script>
+<script src="../kit/leaving.js"></script>
+<script src="../kit/stagekit.js"></script>
+<script src="../lib/atomkit.js"></script>
+<script src="../reaction/reaction.js"></script>
+<script>
+"use strict";
+
+/* =============================================================================
+ *  THE PROBES
+ * =============================================================================
+ *  Built here, registered nowhere. `MolLib.register` would put them in the
+ *  global table where check-molecules.js and every other page would meet them,
+ *  and they are not molecules: each is a carbon chain wearing exactly the one
+ *  feature a verb reads, at Skel's real bond lengths but in no arrangement
+ *  anything makes. They are scaled by MolLib.SCALE by hand for that reason —
+ *  the same multiply `register` does, so a probe stands beside a real spec at
+ *  one scale, without joining the library.
+ *
+ *  THE METADATA BLOCK IS `probe`, NOT `gly`. That is itself the first finding:
+ *  `host.meta` defaults to `spec => spec.gly`, so a caller that is not
+ *  glycolysis must pass its own accessor or every verb reads undefined and
+ *  returns early — silently, which is the failure mode section 1 exists for.
+ */
+const {GL, chainC, ringPyranose} = SkelLib;
+const SC = MolLib.SCALE;
+const SPECS = {};
+
+function seal(key, sk, name, formula, probe){
+  const spec = sk.spec({name, formula, short:name, units:'scene'});
+  spec.atoms = spec.atoms.map(a => ({el:a.el, pos:[a.pos[0]*SC, a.pos[1]*SC, a.pos[2]*SC]}));
+  spec.probe = probe;
+  SPECS[key] = spec;
+  return spec;
+}
+const H = (g,i,hyb,slot) => g.grow(i,'H',GL.CH,hyb||'sp3',slot||0);
+
+/* ---- three carbons, and where the phosphate is -----------------------
+ * `ohh` and `p1` differ by one substituent and are built in the SAME order, so
+ * C1's oxygen lands on identical coordinates in both. `in` depends on that:
+ * `leavingH` finds the proton a phosphate displaces by matching the product's
+ * bridging O to the substrate's O by POSITION, and returns null the moment two
+ * specs stop sharing a scaffold.
+ */
+{ const g=chainC(3); const o1=g.hydroxyl(0,0); g.hydroxyl(1,1); g.hydroxyl(2,0);
+  seal('ohh', g, 'probe · C3 triol', 'C₃H₈O₃', {cN:[0,1,2], phosphates:0, oh:o1}); }
+{ const g=chainC(3); const p1=g.phosphate(0,0); g.hydroxyl(1,1); g.hydroxyl(2,0);
+  seal('p1', g, 'probe · C3 1-P', 'C₃H₇O₆P', {cN:[0,1,2], phosphates:1, p1}); }
+{ const g=chainC(3); const o1=g.hydroxyl(0,0); g.hydroxyl(1,1); const p3=g.phosphate(2,0);
+  seal('p3', g, 'probe · C3 3-P', 'C₃H₇O₆P', {cN:[0,1,2], phosphates:1, p3, oh:o1}); }
+
+/* ---- an aldehyde with the hydrogen a dehydrogenase would take -------- */
+{ const g=chainC(3); g.carbonyl(0,0); const h=H(g,0,'sp2');
+  g.hydroxyl(1,1); const p3=g.phosphate(2,0);
+  seal('ald', g, 'probe · C3 aldehyde-P', 'C₃H₇O₆P',
+       {cN:[0,1,2], phosphates:1, p3, aldehydeH:h, hydride:h}); }
+{ const g=chainC(3); g.phosphate(0,0); g.hydroxyl(1,1); g.phosphate(2,0);
+  seal('aldP', g, 'probe · C3 bis-P', 'C₃H₈O₁₀P₂', {cN:[0,1,2], phosphates:2}); }
+
+/* ---- a hydride donor, and something with a carbon to put it on ------- */
+{ const g=chainC(3); const h=H(g,0); g.hydroxyl(1,1); g.hydroxyl(2,0);
+  seal('hyd', g, 'probe · C3 donor', 'C₃H₈O₂', {cN:[0,1,2], hydride:h}); }
+{ const g=chainC(3); g.carbonyl(1,0); g.hydroxyl(2,0);
+  seal('keto', g, 'probe · C3 acceptor', 'C₃H₆O₂', {cN:[0,1,2], oxC:1}); }
+
+/* ---- a dehydration: the O and the H that leave together -------------- */
+{ const g=chainC(3); const h2=H(g,1); const o3=g.hydroxyl(2,0);
+  seal('losA', g, 'probe · C3 hydrate', 'C₃H₈O', {cN:[0,1,2], oh3:o3, loseH:h2}); }
+
+/* ---- a ring, for the only verb that changes a molecule's conformation -
+ * `open` is the verb most likely to be secretly glucose-shaped: it reads five
+ * metadata keys, walks the chain, and solves a rotation onto the product's own
+ * axis. Given a pyranose that is not a sugar, either it unfurls or the walk is
+ * carrying an assumption about which ring it is on.
+ */
+{ const g=ringPyranose();                       // 0 = ring O, 1…5 = C1…C5
+  const c6=g.grow(5,'C',GL.CC,'sp3',0);
+  const ao=g.hydroxyl(1,0);                     // the anomeric –OH; its H is ao+1
+  const c2h=H(g,2);
+  const openH=g.grow(0,'H',GL.OH,'sp3',0);      // latent: appears on the ring O
+  seal('ringA', g, 'probe · ring', 'C₆H₁₂O₆',
+       {cN:[1,2,3,4,5,c6], open:[1,0], anomeric:{o:ao, h:ao+1},
+        c2H:c2h, openH, latentH:[openH]}); }
+{ const g=chainC(6); g.hydroxyl(1,1); g.hydroxyl(2,0); g.hydroxyl(3,1); g.hydroxyl(4,0);
+  seal('chain6', g, 'probe · C6 chain', 'C₆H₁₄O₄', {cN:[0,1,2,3,4,5], cleave:[2,3]}); }
+
+/* ---- a proton that moves one carbon over ----------------------------- */
+{ const g=chainC(3); g.hydroxyl(1,1); const mh=H(g,2);
+  seal('isoA', g, 'probe · C3 isomer', 'C₃H₈O', {cN:[0,1,2], movingH:mh}); }
+{ const g=chainC(3); g.hydroxyl(1,1);
+  seal('isoB', g, 'probe · C3 isomer′', 'C₃H₈O', {cN:[0,1,2]}); }
+
+/* ---- a carboxylate with exactly two terminal oxygens -----------------
+ * `carbonAway` refuses anything else, which is the guard that keeps a
+ * decarboxylation from flying an ester off a molecule that has no carbon to
+ * lose. So the probe is a real carboxylate: C=O plus a bare O.
+ */
+{ const g=chainC(3); g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);
+  const h=H(g,1); g.hydroxyl(2,0);
+  seal('decA', g, 'probe · C3 acid', 'C₃H₆O₃', {cN:[0,1,2], decarb:0, hydride:h}); }
+{ const g=chainC(2); g.hydroxyl(1,0);
+  seal('decB', g, 'probe · C2', 'C₂H₆O', {cN:[0,1]}); }
+
+/* ---- a thioester, and the handle it rides ---------------------------- */
+{ const g=chainC(4);
+  const s=g.grow(0,'S',GL.CS,'sp3',0);
+  const ca=g.grow(s,'C',GL.CC,'sp3',0);
+  g.carbonyl(ca,0);
+  const cm=g.grow(ca,'C',GL.CC,'sp3',1);
+  seal('thioA', g, 'probe · thioester', 'C₆H₁₂OS',
+       {cN:[0,1,2,3], thiol:s, acyl:[ca,cm], hot:ca, keto:ca, carrier:true}); }
+{ const g=chainC(4); const s=g.grow(0,'S',GL.CS,'sp3',0); g.grow(s,'H',GL.SH,'sp3',0);
+  seal('handle', g, 'probe · handle', 'C₄H₁₀S', {cN:[0,1,2,3], thiol:s, carrier:true}); }
+
+/* ---- a double bond, and the saturated pair that makes one ------------ */
+{ const g=chainC(3); g.hydroxyl(0,0); g.order(1,2,2);
+  seal('eneA', g, 'probe · C3 ene', 'C₃H₆O', {cN:[0,1,2], ene:[1,2]}); }
+{ const g=chainC(3); g.hydroxyl(0,0); const h1=H(g,1); const h2=H(g,2);
+  seal('dehA', g, 'probe · C3 saturated', 'C₃H₈O',
+       {cN:[0,1,2], dehydroC:[1,2], dehydroH:[h1,h2]}); }
+
+/* ---- a hydroxyl that moves one carbon over --------------------------- */
+{ const g=chainC(3); const o=g.hydroxyl(1,1);
+  seal('shA', g, 'probe · C3 2-ol', 'C₃H₈O', {cN:[0,1,2], oh:o}); }
+{ const g=chainC(3); const o=g.hydroxyl(0,0);
+  seal('shB', g, 'probe · C3 1-ol', 'C₃H₈O', {cN:[0,1,2], oh:o}); }
+
+/* ---- the free species a verb asks the host for ----------------------- */
+{ const g=new SkelLib.Skel(); const p=g.put('P', SkelLib.V(0,0,0));
+  // Slot 0 every time: `freeTet` returns only the slots that are still open, so
+  // asking for slot k on the k-th growth walks off the end of a shrinking list.
+  for(let k=0;k<4;k++) g.grow(p,'O',GL.PO,'sp3',0);
+  seal('freeP', g, 'probe · free phosphate', 'PO₄', {p:p}); }
+{ const g=new SkelLib.Skel(); const o=g.put('O', SkelLib.V(0,0,0));
+  g.grow(o,'H',GL.OH,'sp3',0); g.grow(o,'H',GL.OH,'sp3',1);
+  seal('freeW', g, 'probe · water', 'H₂O', {}); }
+
+/* =============================================================================
+ *  THE CASES — one row of both tables
+ * =============================================================================
+ *  `sub` is the lane contents going in, `keys` the species coming out, and `st`
+ *  the step record. Nothing here is a reaction: the pairs are chosen so the
+ *  verb's own metadata reads resolve, and for no other reason.
+ */
+const CASES = [
+  {v:'in',        sub:['ohh'],        keys:['p1'],           st:{fx:'in',  anchor:'p1'}},
+  {v:'out',       sub:['p1'],         keys:['ohh'],          st:{fx:'out', anchor:'p1'}},
+  {v:'ox',        sub:['ald'],        keys:['aldP'],         st:{fx:'ox',  anchor:'p3'}},
+  {v:'red',       sub:['hyd','keto'], keys:['ohh','ohh'],    st:{fx:'red'}},
+  {v:'move',      sub:['p1'],         keys:['p3'],           st:{fx:'move', anchor:'p1', dest:'p3'}},
+  {v:'lose',      sub:['losA'],       keys:['isoB'],         st:{fx:'lose'}},
+  {v:'open',      sub:['ringA'],      keys:['chain6'],       st:{fx:'open'}},
+  {v:'iso',       sub:['isoA'],       keys:['isoB'],         st:{fx:'iso'}},
+  {v:'split',     sub:['chain6'],     keys:['ohh','ohh'],    st:{fx:'split'}},
+  {v:'decarb',    sub:['decA'],       keys:['decB'],         st:{fx:'decarb', couple:{up:false}}},
+  {v:'join',      sub:['ohh','ohh'],  keys:['chain6'],       st:{fx:'join'}},
+  {v:'thioester', sub:['thioA'],      keys:['ohh','handle'], st:{fx:'thioester', couple:{up:false}}},
+  {v:'hydrate',   sub:['eneA'],       keys:['ohh'],          st:{fx:'hydrate'}},
+  {v:'dehydro',   sub:['dehA'],       keys:['eneA'],         st:{fx:'dehydro'}},
+  {v:'shift',     sub:['shA'],        keys:['shB'],          st:{fx:'shift'}},
+];
+
+/* =============================================================================
+ *  THE STAGE — one, mounted the way a lesson mounts it
+ * ============================================================================= */
+const canvas = document.getElementById('gl');
+const platesEl = document.getElementById('plates');
+const flyersEl = document.getElementById('flyers');
+const RUN = 'bench';
+
+const L = Lesson.create(canvas, {
+  // Orthographic for the reason glycolysis is: two lanes side by side must not
+  // read as two SIZES of molecule, and `split` and `join` are about exactly that.
+  ortho:true, cam:{theta:0.30, phi:1.32, r:26}, zoom:false, drag:false,
+  boxes:()=>{ if(!window.LANES || !LANES.lanes.length) return [{x:0,y:0,rxz:8,hy:8}];
+    return LANES.lanes.map(l=>{ const e=Stage.measure(SPECS[l.key]);
+      return {x:l.g.position.x, y:l.g.position.y, rxz:e.rxz, hy:e.hy}; }); },
+  reservePx:()=>({top: LANES ? LANES.heightPx() : 40}),
+  frame:()=>{ if(window.LANES) LANES.step(); },
+  // Both project, so both run AFTER the render or they are pinned to the last
+  // frame's camera. kit/lanes.js's header and reaction.js's `drawFlyers` say so.
+  afterFrame:()=>{ if(window.LANES) LANES.draw(); if(window.RXfull) RXfull.drawFlyers(); },
+});
+const root = L.root, camera = L.camera;
+const MO = L.motion, FXi = L.fx;
+const KIT = AtomKit.create(THREE);
+const PAL = MolLib.PALETTE;
+const GO = Leaving.create({root, camera, motion:MO, tag:RUN});
+
+const LANES = window.LANES = Lanes.create({
+  root, camera, canvas, host:platesEl, specOf:k=>SPECS[k], radii:PAL.radii, spread:7.0,
+  build:spec=>{ const g = Stage.buildMolecule(spec);
+    // A latent hydrogen is drawn only from the beat it arrives on — the ring
+    // O's proton in `open`. Same convention the pathway lanes use.
+    ((spec.probe && spec.probe.latentH) || []).forEach(i=>GO.shed(g,[i]));
+    return g; },
+  plateHTML:spec=>`<div class="pn">${spec.name}</div><div class="pf">${spec.formula||''}</div>`,
+});
+
+/* =============================================================================
+ *  COUNTING WHAT A VERB DID
+ * =============================================================================
+ *  The three modules a verb can move anything through, wrapped so every call is
+ *  counted. This is the whole of the no-op detector: a verb that was invoked
+ *  and scheduled no beat, spawned no effect and shed no atom did not happen,
+ *  and it did not say so.
+ */
+const tally = {fx:0, mo:0, go:0, used:[], reset(){ this.fx=0; this.mo=0; this.go=0;
+                                                   this.used=[]; }};
+function counted(obj, slot){
+  return new Proxy(obj, {get(t,k){ const v = Reflect.get(t,k);
+    if(typeof v !== 'function') return v;
+    return function(){ tally[slot]++; return v.apply(t, arguments); }; }});
+}
+// Recorded, not just counted: which member, so section 1's last column can say
+// what a verb reached for rather than only that it reached.
+const note = name => { if(!tally.used.includes(name)) tally.used.push(name); };
+
+/* ---- the two hosts ---------------------------------------------------
+ * IDENTICAL BELOW THE CHEMISTRY LINE. Both get the same wiring, the same
+ * `stageHost`, the same `specOf` and the same `meta`, so a difference between
+ * the passes is never the stage half.
+ */
+const carriersStub = () => ({ pop(){}, bondMid(){ return null; } });
+const wiring = () => ({
+  three:THREE, root, camera, canvas,
+  motion:counted(MO,'mo'), fx:counted(FXi,'fx'), leaving:counted(GO,'go'),
+  kit:KIT, stage:Stage, palette:PAL,
+  molgraph:MolGraph, molLib:MolLib, skelLib:SkelLib, tag:RUN,
+  flyersEl,
+  specOf:k=>SPECS[k],
+  // THE FIRST FINDING, and it is a default: without this every verb reads
+  // `spec.gly` and returns early on undefined.
+  meta:spec=>spec.probe,
+  ...Reaction.stageHost({lanes:LANES, carriers:carriersStub, onLanes:()=>L.fit()}),
+});
+// A point a carrier tile would stand on, if there were a tray. Above the lane,
+// because that is where every pathway page's column is.
+const seatFor = j => new THREE.Vector3((LANES.lanes[j] ? LANES.lanes[j].g.position.x : 0), 9, 0);
+
+const RXfull = window.RXfull = Reaction.create(Object.assign(wiring(), {
+  carrierPoint:(st,ref,j)=>{ note('carrierPoint'); return seatFor(j); },
+  carrierBond:(st,j)=>{ note('carrierBond'); return seatFor(j); },
+  onCarrierTaken:j=>{ note('onCarrierTaken'); },
+  donorSpec:()=>{ note('donorSpec'); return SPECS.freeP; },
+  freeSpec:()=>{ note('freeSpec'); return SPECS.freeP; },
+  waterSpec:()=>{ note('waterSpec'); return SPECS.freeW; },
+  handleSpec:()=>{ note('handleSpec'); return SPECS.handle; },
+  handlePoint:seat=>{ note('handlePoint'); return null; },
+  onHandleMoved:dir=>{ note('onHandleMoved'); },
+}));
+// …and the same module with the chemistry half simply absent.
+const RXbare = Reaction.create(wiring());
+
+/* =============================================================================
+ *  RUNNING ONE
+ * ============================================================================= */
+let busy = false;
+function reset(){
+  MO.cancel(RUN); GO.clear(); RXfull.clearFlyers(); RXbare.clearFlyers();
+  LANES.clear(); L.fit();
+}
+// Every beat a verb schedules, plus slack for the fade that outlasts the swap.
+const settleMs = (RX, st) => RX.durOf(st) + 500;
+
+/* ---- THE CLOCK THE TABLE RUNS ON, AND WHY IT IS NOT THE REAL ONE -----
+ * Half of what a verb asks the host for, it asks on ARRIVAL: `ox` turns the
+ * carrier over inside the hydride's `onArrive`, and so do `decarb`, `dehydro`
+ * and `thioester`. Those callbacks belong to fx.js, which advances off
+ * `performance.now()` once per rendered frame — so in any tab that is not
+ * painting, the hop never lands, the callback never fires, and the table
+ * quietly reports a verb needing LESS than it needs. That is the exact class
+ * of failure this page exists to catch, so it must not have one.
+ *
+ * So the table drives a virtual clock: `performance.now` is advanced by hand in
+ * steps under fx.js's own 0.1 s stall clamp, and motion, fx and the lanes are
+ * stepped against it until both are drained. Synchronous, so no rAF can
+ * interleave, and identical in a hidden tab, a screenshot and a foreground
+ * window. The row's own ▶ runs in real time instead, for the half of a bench
+ * that is looking at it.
+ */
+function burst(ms){
+  const real = performance.now.bind(performance);
+  let virt = real();
+  performance.now = () => virt;
+  try {
+    const dt = 0.05, span = ms / 1000;
+    for(let t = 0; t < span + 3; t += dt){
+      virt += dt * 1000;
+      MO.step(dt); FXi.step(); LANES.step();
+      if(t > span && !MO.busy && !FXi._fx.length) break;
+    }
+  } finally {
+    performance.now = real;
+    // Drains empty, so this only resets fx's internal `_last` to real time —
+    // without it the next painted frame sees a dt from the future.
+    FXi.step();
+  }
+}
+
+function runCase(cs, RX, live){
+  reset();
+  LANES.render(cs.sub, null, null); LANES.settle(); L.fit();
+  tally.reset();
+  const out = {threw:null, whole:false, landed:false};
+  try { out.whole = RX.all(cs.st, cs.keys, ()=>{ out.landed = true; }); }
+  catch(e){ out.threw = e; }
+  const finish = ()=>{
+    // A per-lane verb has no completion of its own — the caller lands it,
+    // exactly as a lesson does after `durOf`. `split` and `join` land
+    // themselves, so respawning behind them would undo what they did.
+    if(!out.whole && !out.threw){
+      try { LANES.render(cs.keys, null, null); LANES.settle(); } catch(e){}
+    }
+    L.fit();
+    out.fx = tally.fx; out.mo = tally.mo; out.go = tally.go;
+    out.used = tally.used.slice();
+    return out;
+  };
+  /* A VERB MOSTLY THROWS LATER THAN IT IS CALLED. `dehydro` asks for the
+   * carrier inside a beat `later` scheduled, so the missing member surfaces
+   * when the timeline steps over it, not from `all()` — a bench catching only
+   * the call site would file that verb under "ran". */
+  if(!live){
+    if(!out.threw){ try { burst(settleMs(RX, cs.st)); } catch(e){ out.threw = e; } }
+    return Promise.resolve(finish());
+  }
+  // Real time puts those same beats on setTimeout, out of reach of a try —
+  // so listen for them instead, for as long as this one run lasts.
+  const onErr = e => { if(!out.threw) out.threw = e.error || new Error(e.message); };
+  window.addEventListener('error', onErr);
+  return new Promise(r=>setTimeout(()=>{
+    window.removeEventListener('error', onErr); r(finish()); }, settleMs(RX, cs.st)));
+}
+
+/* =============================================================================
+ *  THE TABLES
+ * ============================================================================= */
+const pill = (cls, text) => `<span class="pill ${cls}">${text}</span>`;
+const body1 = document.querySelector('#t1 tbody');
+const body2 = document.querySelector('#t2 tbody');
+const rows = {};
+
+CASES.forEach(cs=>{
+  const r1 = document.createElement('tr');
+  r1.innerHTML = `<td><button class="run">▶</button></td>`
+    + `<td class="v">${cs.v}</td>`
+    + `<td class="probe">${cs.sub.join(' + ')} → ${cs.keys.join(' + ')}</td>`
+    + `<td class="s1">${pill('idle','—')}</td><td class="c1 note"></td><td class="u1 note"></td>`;
+  body1.appendChild(r1);
+  const r2 = document.createElement('tr');
+  r2.innerHTML = `<td><button class="run">▶</button></td>`
+    + `<td class="v">${cs.v}</td>`
+    + `<td class="s2">${pill('idle','—')}</td><td class="m2 note"></td>`;
+  body2.appendChild(r2);
+  rows[cs.v] = {r1, r2, cs, full:null};
+  r1.querySelector('button').onclick = ()=>one(cs, 1);
+  r2.querySelector('button').onclick = ()=>one(cs, 2);
+});
+
+function show1(cs, out){
+  const r = rows[cs.v].r1;
+  const did = out.fx + out.mo + out.go;
+  rows[cs.v].full = out.threw ? null : did;      // pass 2 is read against this
+  r.querySelector('.s1').innerHTML = out.threw ? pill('bad','threw')
+    : did === 0 ? pill('noop','did nothing') : pill('ok', out.whole ? 'ran · whole' : 'ran');
+  r.querySelector('.c1').textContent = out.threw ? String(out.threw.message).slice(0,60)
+    : `${out.fx} · ${out.mo} · ${out.go}`;
+  r.querySelector('.u1').textContent = out.threw ? '' : (out.used.join(', ') || 'stage only');
+}
+/* THE VERDICT THAT IS NOT A THROW AND NOT A NO-OP. Several verbs guard the
+ * chemistry half — `thioester` runs `host.freeSpec && host.freeSpec()`, so with
+ * no free species it detaches the acyl group, skips the whole phosphate leg and
+ * reports nothing. Against the bare host it therefore looked as green as `move`,
+ * which genuinely needs nothing. Read the count against the same verb's full-host
+ * count and the difference is the half that silently did not happen. */
+function show2(cs, out){
+  const r = rows[cs.v].r2;
+  const did = out.fx + out.mo + out.go;
+  const full = rows[cs.v].full;
+  r.querySelector('.s2').innerHTML = out.threw ? pill('bad','needs chemistry')
+    : did === 0 ? pill('noop','did nothing')
+    : (full != null && did < full) ? pill('noop','runs, does less')
+    : pill('ok','stage only');
+  // The member, not the stack: `host.carrierPoint is not a function` names it,
+  // and that name IS the finding.
+  r.querySelector('.m2').textContent = out.threw
+    ? String(out.threw.message).replace(/^.*?host\./,'host.').slice(0,72)
+    : full == null ? 'run pass 1 first to price this row'
+    : did < full ? `${did} of ${full} beats` : '';
+}
+
+async function one(cs, pass){
+  if(busy) return; busy = true; setButtons(false);
+  const r = pass === 1 ? rows[cs.v].r1 : rows[cs.v].r2;
+  r.classList.add('busy');
+  const out = await runCase(cs, pass === 1 ? RXfull : RXbare, true);
+  r.classList.remove('busy');
+  (pass === 1 ? show1 : show2)(cs, out);
+  busy = false; setButtons(true); summarise();
+}
+/* A MACROTASK THAT IS NOT A TIMER. `setTimeout(0)` between rows is clamped to a
+ * second in a background tab and to a MINUTE once the tab has been hidden a
+ * while, which turns a nine-second table into a stall with no error — the same
+ * hidden-tab trap the virtual clock is here for. A message port is not clamped,
+ * and still yields far enough for a visible window to repaint the row. */
+const yieldToUI = () => new Promise(r=>{
+  const c = new MessageChannel(); c.port1.onmessage = ()=>r(); c.port2.postMessage(0); });
+
+async function runAll(pass){
+  if(busy) return; busy = true; setButtons(false);
+  const prog = document.getElementById(pass === 1 ? 'prog1' : 'prog2');
+  for(let i=0;i<CASES.length;i++){
+    const cs = CASES[i];
+    prog.className = 'pill idle'; prog.textContent = `${i+1}/${CASES.length} · ${cs.v}`;
+    const r = pass === 1 ? rows[cs.v].r1 : rows[cs.v].r2;
+    r.classList.add('busy');
+    await yieldToUI();                          // let the row repaint between cases
+    const out = await runCase(cs, pass === 1 ? RXfull : RXbare, false);
+    r.classList.remove('busy');
+    (pass === 1 ? show1 : show2)(cs, out);
+  }
+  prog.textContent = 'done'; prog.className = 'pill ok';
+  busy = false; setButtons(true); summarise();
+}
+function setButtons(on){
+  document.querySelectorAll('button').forEach(b=>{ b.disabled = !on; });
+}
+function summarise(){
+  const used = new Set();
+  CASES.forEach(cs=>{ const t = rows[cs.v].r1.querySelector('.u1').textContent;
+    t.split(',').map(s=>s.trim()).filter(s=>s && s!=='stage only').forEach(s=>used.add(s)); });
+  const bare = CASES.filter(cs=>
+    rows[cs.v].r2.querySelector('.s2').textContent.trim() === 'stage only').map(cs=>cs.v);
+  document.getElementById('legend').innerHTML = used.size || bare.length
+    ? `<b>${bare.length}</b> of ${CASES.length} verbs run on the stage half alone: `
+      + `<code>${bare.join(' ')}</code>.<br>The rest want `
+      + `<code>${[...used].join(' ')}</code> — that is what a non-pathway lesson has to answer.`
+    : '';
+}
+
+document.getElementById('run1').onclick = ()=>runAll(1);
+document.getElementById('run2').onclick = ()=>runAll(2);
+document.getElementById('stop').onclick = ()=>{ if(!busy) reset(); };
+
+LANES.render(['ohh'], null, null); LANES.settle();
+L.resize(); L.fit(); L.start();
+</script>
+</body>
+</html>
