@@ -11,7 +11,7 @@
  *  nothing else, system-ui for everything that is read, warm paper, deep green
  *  for the live control and rust for its hover — and a reader arriving from the
  *  gallery should not cross a style boundary to look at one protein. The
- *  palette is declared here under `--h-*` rather than by shadowing main.css's
+ *  palette is declared here under `--h-*` rather than by shadowing the site's
  *  tokens, because `kit/proteinbox.css` and the stage draw from those and a
  *  bench must not repaint the molecule to repaint its panel.
  *
@@ -42,9 +42,9 @@
   --h-spark:#e2643a;    /* warm counterpoint — hover, and the marked figure */
 }
 
-/* THE MEASUREMENTS, which were main.css's until a bench stopped linking it.
+/* THE MEASUREMENTS, which were the site sheet's until a bench stopped linking one.
    Spacing, radius and timing, plus the five names css/annotate.css reads from
-   its host with no fallback. Values are main.css's own, unchanged: a callout
+   its host with no fallback. Values are css/bench.css's own, unchanged: a callout
    and a panel that disagreed about a hairline would show it. They are stated
    as roles rather than folded into --h-* because kit/proteinbox.css and
    annotate.css read them by these names, and a bench must not repaint the
@@ -65,7 +65,7 @@
   --ease-out: cubic-bezier(.2, .9, .3, 1);
 
   /* annotate.css's host names. --font-ui is the exception to "unchanged":
-     main.css named Nunito and @imported it, and a bench does not load that
+     the site sheet named Nunito and @imported it, and a bench does not load that
      webfont for two callouts. A callout on a bench reads in the bench's face. */
   --text-strong:    #2b2723;
   --text-muted:     #8a8073;
@@ -74,7 +74,7 @@
   --font-ui: var(--h-ui);
 }
 
-/* THE RESET, also main.css's. Two rules, and a bench needs both: the grid in
+/* THE RESET. Two rules, and a bench needs both: the grid in
    #app is sized in border-box, and an unreset body puts a margin inside a
    100vh stage and scrolls the page. */
 *, *::before, *::after { box-sizing: border-box }
@@ -181,7 +181,7 @@ td.flag:last-child{color:var(--h-spark)}
 
    The house spark carries it now. It is a UI colour on both mastheads and on
    no molecule, which is what the old literal yellow was bought for — a bench
-   spends main.css's accents on its subject, so borrowing one here would put a
+   spends the site's accents on its subject, so borrowing one here would put a
    subject colour on a row that has no subject. */
 tr.hi td{background:rgba(226,100,58,.16);border-bottom:0}
 tr.hi td:first-child{border-radius:var(--radius-sm) 0 0 var(--radius-sm);

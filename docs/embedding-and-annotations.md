@@ -21,7 +21,7 @@ read once before first paint, copying `embed`, `text`, `chrome`, `step` onto
 teacher would want to switch off:
 
 * **text off** — `#app-sidebar` collapses to `grid-template-columns: 1fr` and
-  `#side` goes. The rail *is* the prose (`css/main.css:641`).
+  `#side` goes. The rail *is* the prose (`#side`, in the page's site sheet).
 * **UI off** — hide the on-stage chrome (`#titleblock`, `#tempbar`, `#tray`,
   `#chips`) and a bare live model is left, which is what somebody wants next to
   their own slide text.
@@ -72,7 +72,7 @@ will go looking for the toggle.
   just got interested in *that* model — send them to `/water` with the step
   preserved, where the rail prose they were not shown is waiting. `?from=embed`
   on the end is the only usage signal an iframe will ever give us.
-* **It must not eat the mouse.** Same treatment as `#side` (`css/main.css:660`):
+* **It must not eat the mouse.** Same treatment as `#side` in the site sheet:
   `pointer-events:none` on the container, `auto` on the link, so a drag near the
   corner still orbits.
 * **Bottom-right, `z-index: 7.5`-ish** — above the annot layer's 7, below

@@ -3,7 +3,7 @@
  *
  *  Same contract as massaction.css: every rule is scoped under `.diffusion`,
  *  and no rule here positions, sizes or frames that root — the host decides
- *  where it sits. Colours and type come from main.css's variables.
+ *  where it sits. Colours and type come from the site sheet's variables.
  *
  *  The two files are deliberately near-identical in look. They are siblings —
  *  populations of dots in a box, counters underneath — and a student who has

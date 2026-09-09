@@ -5,7 +5,7 @@
  *  page do not fight and a host's own #dock/#dims rules do not reach in. The
  *  module creates this markup itself; a page only supplies the box.
  *
- *  Colours are tokens from css/main.css — never a typed hex, so a caption and
+ *  Colours are tokens from css/bench.css — never a typed hex, so a caption and
  *  the sphere it names cannot drift.
  * ========================================================================== */
 
@@ -15,7 +15,7 @@
 .mb-stage > .mb-canvas { display:block; width:100%; height:100%; }
 
 /* view switch: 2D counts electrons, 3D shows shape. The control itself is
-   main.css's `.segmented` — this adds only placement and the earned-yet fade,
+   kodo.css's `.segmented` — this adds only placement and the earned-yet fade,
    so the buttons cannot drift from every other segmented control in the repo. */
 .mb-dims {
   position:absolute; left:50%; bottom:22px; transform:translateX(-50%);

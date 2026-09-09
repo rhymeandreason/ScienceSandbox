@@ -10,8 +10,8 @@
    WHAT STAYS ON THE PAGE: the pathway's own colours, its --carw, and the tally
    grid — every one of them a count or a size that IS the lesson.
 
-   LOAD ORDER: main.css, then this, then the page's <style>.
-   Tokens come from main.css; nothing here declares a colour that is not a
+   LOAD ORDER: kodo.css, then this, then the page's <style>.
+   Tokens come from kodo.css; nothing here declares a colour that is not a
    pathway's own.
    --------------------------------------------------------------------------- */
   /* THE PATHWAY PALETTE: the four things a step can spend or make. A lesson
@@ -508,12 +508,12 @@ font-size: 20px;
 
 
   /* the action button (Begin, and every no-reagent step), inside #bottombar.
-     main.css's .pill, so the lesson's one invitation is the same object the
+     the site sheet's .pill, so the lesson's one invitation is the same object the
      rest of the site presses. Only the reserved-space trick is left here:
      `visibility` holds the row's height on the steps with no button. It comes
      out at 50px inside an 88px --barh, so nothing here can re-frame the shot.
-     The blue here is for the pages still on main.css. kodo.css puts the button
-     back to the site's own primary, which is the accent: see its §10. */
+     The blue here is the sketchbook's; kodo.css puts the button back to the
+     site's own primary, which is the accent: see its §10. */
   #actbtn{visibility:hidden; --pill-fill:var(--action-blue)}
   /* the row that holds the action button and, at the end of a turn, the way
      past it. Centred, so a shorter secondary sits on the primary's axis. */
@@ -664,7 +664,7 @@ font-size: 20px;
      stage button's ink; the pathway map's door stacks above Restart. */
   #tools{position:fixed;right:26px;bottom:22px;z-index:20;
     display:flex;flex-direction:column;align-items:flex-end;gap:10px}
-  /* THE TOGGLES ARE main.css's `.btn .btn--check` — the tick is the state and
+  /* THE TOGGLES ARE the site sheet's `.btn .btn--check` — the tick is the state and
      the chip around it is only a label, which is the rule that file argues.
      Nothing about them is written here any more; what stays is the corner they
      sit in. */

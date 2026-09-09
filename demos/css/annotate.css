@@ -9,7 +9,7 @@
    lesson and every generated app has callout styling whether or not anyone
    remembered — which matters because components are growing notes a generated
    page turns on, and an unstyled callout there lands on nothing. The six pages
-   still on main.css link it themselves; that is the whole of the direct-link
+   still on bench.css link it themselves; that is the whole of the direct-link
    list, and it shrinks as they migrate.
 
 
@@ -17,7 +17,7 @@
    the site sheet flattens everything to 4px, the lesson shell rounds to 12-14.
    So the shapes below read `--annot-radius`, which each host sets and this file
    only defaults. Everything else is a semantic token with a literal fallback,
-   because the pages still on main.css load this file too and main.css has no
+   because the pages still on bench.css load this file too and bench.css has no
    --accent. A callout is the same object on every page; only its corners and
    its accent are the room's.
    ========================================================================== */

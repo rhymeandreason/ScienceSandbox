@@ -21,7 +21,7 @@
  *  the module and ignoring the half the name described is what the old name
  *  cost.
  *
- *  `.inset`, `.inset-view` and `.inset-leader*` in main.css KEEP their names,
+ *  `.inset`, `.inset-view` and `.inset-leader*` in the site sheet KEEP their names,
  *  because those are the convention and the convention is still called an
  *  inset. The sentence that falls out: Molbox renders a molecule; wrap it in
  *  `.inset` and pass a `leader`, and it becomes a figure inset.
@@ -52,7 +52,7 @@
  *    behind it. Unframed, it reads as an object standing IN that scene at
  *    that size, which is a false claim about a lipid roughly a thousand
  *    times over. The border is what makes it a window instead of a lie,
- *    and it lives in main.css's `.inset` component rather than here —
+ *    and it lives in the site sheet's `.inset` component rather than here —
  *    kit/ carries no CSS. A caller that drops the class gets a wrong
  *    picture, and nothing offline can see it, so it is said here too.
  *
@@ -154,7 +154,7 @@
 
   function create(opts = {}) {
     /* The box the close-up fills, and the element whose box IS the canvas's —
-       `.inset-view` in main.css's component. The module makes the canvas
+       `.inset-view` in the site sheet's component. The module makes the canvas
        inside it and takes it away on destroy, which is not tidiness: destroy
        force-loses the WebGL context to give it back, and a canvas that has
        lost one can never be granted another, so a caller that supplied the
@@ -172,7 +172,7 @@
     const view = opts.view || mount;
 
     /* The framed box itself, which is what a leader points FROM. `.inset` is
-       main.css's component and this module's header already names it. */
+       the site sheet's component and this module's header already names it. */
     const frame = opts.frame || (mount.closest && mount.closest('.inset')) ||
                   mount.parentElement;
 
@@ -280,7 +280,7 @@
          the box hides the overshoot everywhere except exactly there. Moving
          the endpoint inward along the diagonal by r(1 - 1/root2) lands it on
          the nearest point of the corner arc. The radius is READ from the
-         frame's computed style: it is a design-system value in main.css, and
+         frame's computed style: it is a design-system value in the site sheet, and
          a copy typed here would not follow it. */
       const k = 1 - Math.SQRT1_2;
       const R = radii(), W = f.width, H = f.height;
@@ -361,7 +361,7 @@
         'kit/molbox.js: `view` is ' + view.clientWidth + 'x' + view.clientHeight +
         ' but the canvas is ' + canvas.clientWidth + 'x' + canvas.clientHeight +
         ' — anything projected into it will be skewed. Wrap the canvas in an ' +
-        'element whose box is the canvas\'s (main.css `.inset-view`).');
+        'element whose box is the canvas\'s (the site sheet\'s `.inset-view`).');
     }
 
     if (opts.spec) show(opts.spec);

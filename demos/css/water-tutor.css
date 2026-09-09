@@ -7,7 +7,7 @@
 
    What is left here is layout and this page's own decisions: where the stage
    and the rail sit, the scrim under the title, the tray. The buttons are
-   main.css's (.pill, .pill--ghost, .textbtn) and this file only names their
+   kodo.css's (.pill, .pill--ghost, .textbtn) and this file only names their
    colours. Nothing below can reach a featured lesson.
    ========================================================================== */
 
@@ -21,7 +21,7 @@
    bare right-hand side still orbits the molecule under it. */
 #stage { grid-column: 1 / -1; grid-row: 1 }
 
-/* main.css puts #side in row 1 already; with the stage spanning every column,
+/* kodo.css puts #side in row 1 already; with the stage spanning every column,
    auto-placement would otherwise drop the rail into a row of its own. */
 #askchat { pointer-events: auto }
 
@@ -47,7 +47,7 @@
   gap: 4px
 }
 
-/* The two tray buttons are main.css's .pill; each wears its own substance's
+/* The two tray buttons are kodo.css's .pill; each wears its own substance's
    colour, so the button and the thing it drops into the water are the same
    idea: water the H-bond blue, salt the ion-dipole amber. --pill-fill is the
    only thing this page has to say about them, and the nudge ring picks it up. */
@@ -84,7 +84,7 @@
    edge, so sliding it would only break the one thing on the page that is
    reliably centred. */
 
-/* main.css pins #brand to the stage corner; here it is the block's first row,
+/* kodo.css pins #brand to the stage corner; here it is the block's first row,
    the lesson's name and the step numbers side by side. */
 #brand {
   position: static;
@@ -116,7 +116,7 @@ opacity: .75;
 
 /* ---- the tabs ----
    Named steps as ghost pills, the way membrane-lab names its six. The look is
-   main.css's .pill--ghost; the row's own spacing is all that is left here. */
+   kodo.css's .pill--ghost; the row's own spacing is all that is left here. */
 #steps { margin-bottom: 0; gap: 8px; flex-wrap: wrap }
 
 /* ---- the launcher, at the foot of the rail ----

@@ -10,7 +10,7 @@
    a caption and the trace beside it cannot name different colours. A host that
    only draws `tone:'p'` never has to define the other two.
 
-   LOAD ORDER: main.css, then this (a pathway loads it after pathways.css).
+   LOAD ORDER: the page's sheet, then this (a pathway loads it after pathways.css).
    --------------------------------------------------------------------------- */
 
 /* THE FIGURE, both views. No ticks and no numbers, because the axis carries no

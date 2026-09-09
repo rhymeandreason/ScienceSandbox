@@ -37,7 +37,7 @@ Four rules were prose here and enforced by nothing: both molecule families at on
 <link rel="stylesheet" href="pathways.css"> <!-- only for a step-through pathway lesson; see below -->
 <link rel="stylesheet" href="energy/energy.css"> <!-- only with energy/energy.js; after pathways.css -->
 <link rel="stylesheet" href="kit/enzyme-blob.css">  <!-- only with kit/enzyme-blob.js; the module depends on these rules -->
-<link rel="stylesheet" href="proteins/protein-test.css"> <!-- only for a protein bench; after main.css, before kit/proteinbox.css -->
+<link rel="stylesheet" href="proteins/protein-test.css"> <!-- a protein bench links this and kit/proteinbox.css, and no site sheet -->
 <link rel="stylesheet" href="molecule-builder/molecule-builder.css"> <!-- only with molecule-builder.js -->
 ...
 <script src=".../three.min.js"></script>

@@ -6,7 +6,7 @@
  *  owns the sim. So every rule here is scoped under `.massaction` and no rule
  *  here positions, sizes or frames that root — the host decides where it sits.
  *
- *  Colours and type come from main.css's variables, so a host that loads the
+ *  Colours and type come from the site sheet's variables, so a host that loads it
  *  site's sheet needs nothing else. The two species colours are the exception:
  *  #4f5bd5 / #a855f7 are the canvas's own, set in JS (COL) and repeated here
  *  only where CSS has to match them.
@@ -92,7 +92,7 @@
   min-width:62px;text-align:right}
 
 .massaction .ma-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}
-/* main.css's .pill--ghost. These are the demo's controls, not its invitation:
+/* The site sheet's .pill--ghost. These are the demo's controls, not its invitation:
    hollow is what the component already says, and the shape, hover and focus
    ring stop being this file's business. */
 

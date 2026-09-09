@@ -1,9 +1,15 @@
 /* =============================================================================
-   main.css — the design system: tokens, type scale, buttons.
+   bench.css — THE BENCH SHEET. The sketchbook look, and nothing public.
+
+   FROZEN: no new rules. Forty-odd test pages and internal tools are drawn in
+   it and none of them is a page a student reaches — the site sheet is
+   kodo.css, and new work links that. A bench stays here because repainting it
+   proves nothing and costs a day. Renamed from main.css when the protein
+   gallery, the last public thing on it, took its own sheet.
 
    LOAD ORDER. This file first, then the page's own chrome:
 
-       <link rel="stylesheet" href="main.css">
+       <link rel="stylesheet" href="bench.css">
        <link rel="stylesheet" href="<page>.css">      <!-- page chrome -->
 
    Three tiers, and a rule for choosing between them:

@@ -203,7 +203,7 @@ maybe `lesson-shell.css`, maybe its own.
 | `css/kodo.css` | **the site sheet.** Maps the roles onto brand.css and carries the reset, type, buttons and document shell | always, first |
 | `css/lesson-shell.css` | **the other shell**: full-window scene, glass panel, progress dots. Its own tokens on `body.lshell-page` | only a lesson or bench on that shell, after `kodo.css` |
 | `css/annotate.css` | the look of a callout | never links it — `kodo.css` imports it |
-| `css/main.css` | **frozen** — no new rules. The bench sketchbook look. Nothing a student lands on is drawn in it: the protein gallery came off it, and what is left is scratch benches | never |
+| `css/bench.css` | **frozen** — no new rules. The bench sketchbook look. Nothing a student lands on is drawn in it: the protein gallery came off it, and what is left is scratch benches | never |
 | `pathways.css` · `proteins/protein-test.css` · `kit/enzyme-blob.css` | **folder chrome**, shared by the pages of one folder: a step-through pathway's rail and lane plates, a protein bench's stage-and-panel grid, the blob's two sways | only a page in that folder, after `kodo.css` |
 | the page's own `.css` | **its chrome only** — `build.css`, `graph.css`, `energy/energy.css`. Never a token, never a colour, never a type step `kodo.css` already sets | only if the page has chrome no other page has |
 

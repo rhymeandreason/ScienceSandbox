@@ -3,7 +3,7 @@
  * A host that opens a lesson has already said what it is: the node graph puts
  * it in a modal with the lesson's name across the top, so the page's own title
  * would be the second one on screen. This adds `bare` to <html> when the page
- * is framed, and main.css hides anything the PAGE has marked `.chrome-title`.
+ * is framed, and the site sheet hides anything the PAGE has marked `.chrome-title`.
  *
  * The page owns what bare means. This file only decides WHEN — the marking is
  * the lesson's, because only it knows which element is its name and which is a

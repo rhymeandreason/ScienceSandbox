@@ -4,7 +4,7 @@
        <link rel="stylesheet" href="css/kodo.css">
        <link rel="stylesheet" href="<page>.css">        <!-- page chrome -->
 
-   It is main.css and editorial.css welded together: main.css's three token
+   It is bench.css and editorial.css welded together: bench.css's three token
    tiers and its components, carrying the editorial values rather than the
    sketchbook ones. Nothing here is a retheme of anything — there is no second
    sheet left to disagree with, which is what the split cost every time a page
@@ -21,8 +21,8 @@
    the masthead. A page that draws its own is a page whose logo is a different
    size from the one next door, which is the state this section ended.
 
-   main.css is what the benches still load. It is frozen: the sketchbook look,
-   kept because sixty test pages are drawn in it and none of them is a lesson.
+   bench.css is what the benches still load. It is frozen: the sketchbook look,
+   kept because forty test pages are drawn in it and none of them is public.
    New work links this file.
    ========================================================================== */
 
@@ -33,7 +33,7 @@
    switch on, so a <link> a page has to remember is a <link> a page will forget
    — and an unstyled callout on a generated page has no fallback to land on.
    Importing keeps ONE copy of the rules and one file that owns them, which is
-   what the six pages still on main.css link directly. It resolves against this
+   what the pages still on bench.css link directly. It resolves against this
    file's own URL, so every path a page reaches kodo.css by works. */
 @import url('annotate.css');
 /* The values, shared with the front door, which cannot load this sheet. Every
@@ -1490,7 +1490,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    10.2 PATHWAY CHROME
    pathways.css is loaded AFTER this file and still draws the sketchbook, so
    its pieces are converted here rather than there. The bench pages that also
-   load pathways.css read main.css instead and are untouched.
+   load pathways.css read bench.css instead and are untouched.
    -------------------------------------------------------------------------- */
 
 /* The running ledger was a pinned yellow sticky — paper, a fold, a tilt. In

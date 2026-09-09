@@ -308,7 +308,7 @@
     let dims = null;
     if (dimsHost) {
       dims = document.createElement('div');
-      /* `.segmented` is main.css's component for exactly this control, and the
+      /* `.segmented` is the site sheet's component for exactly this control, and the
        * pressed state is `aria-pressed` — which the design system reads AND a
        * screen reader announces, so there is no second source of truth. `mb-dims`
        * carries only what is this module's business: where the control sits and
