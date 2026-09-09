@@ -192,12 +192,20 @@ for (const page of PAGES) {
      draws. Stripped before matching, not exempted after — a page that both
      follows the signal AND draws the molecule still has the drawing to
      match on. */
-  /* A LESSON ID IS NOT A SPEC NAME. The bonding builder's tabs are
+  /* A NOTE ANCHOR IS NOT A SPEC NAME EITHER, and `water` is both: a component
+     names one molecule of each kind on stage as a note/layer anchor
+     (Components.md), so a generated app saying notes:['water'] is naming the
+     callout, not asking for a spec. WaterSim loads no mol-*.js at all now, so
+     without this every generated page that labels its water fails here.
+
+     A LESSON ID IS NOT A SPEC NAME. The bonding builder's tabs are
      `data-lesson="water"`, and its `hydronium` tab is built from the `hcl`
      recipe, so the id is not even a recipe name, let alone a spec. Same shape
      of false positive as the signal names below. */
   const hay = [src, ...content].join('\n')
     .replace(/\bdata-(?:lesson|needs)\s*=\s*"[^"]*"/g, 'data-_')
+    .replace(/\b(?:notes|layers|zoom|only)\s*:\s*\[[^\]]*\]/g, 'ui:_')
+    .replace(/\.notes?\s*\(\s*\[?[^)]*\)/g, '.note()')
     .replace(/\.follow\s*\([^,]+,\s*['"][^'"]+['"]\s*\)/g, '.follow()');
 
   const used = ALL.filter(n =>

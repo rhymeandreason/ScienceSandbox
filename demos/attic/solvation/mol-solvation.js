@@ -6,16 +6,18 @@
   const SELFNAME = 'mol-solvation.js';
   // Registry from molecules.js. Domain files only ever ADD to it.
   const Lib = global.MolLib
-    || (typeof require === 'function' ? require('./molecules.js').MolLib : null);
+    || (typeof require === 'function' ? require('../../lib/molecules.js').MolLib : null);
   if (!Lib) throw new Error(SELFNAME + ': molecules.js must be loaded first');
   const { MOLECULES, VIEW, register } = Lib;
 
-  // FAMILY A. Every bond length here was chosen individually to clear its two
-  // display radii, and water-lab/molecule-lab hard-code HL=1.55 and tune their
-  // whole solvation engine around it. These may not share a SCENE with family B
-  // — a page whose stages are separate may load both, and says so at its script
-  // tags. mol-small.js is the exception either way: same keys, never both.
-  // See the scale-families note in molecules.js. Needs no builder.
+  // FAMILY A, and ATTICKED. Every bond length here was chosen individually to
+  // clear its two display radii, and molecule-lab hard-codes HL=1.55 and tunes
+  // its whole solvation engine around it — which is why the file could not
+  // follow the rest of the library to real ångströms and moved here with its
+  // one remaining page instead. lib/mol-small.js is the same substances to
+  // scale and is what a live page loads; these two define the same KEYS, so
+  // nothing may load both. Not in lib/DOMAINS, so check-molecules.js no longer
+  // audits it.
   register({
     water: {
       name:'Water', formula:'H₂O', class:'solvent',

@@ -40,9 +40,9 @@
  *    claim only where two molecules are drawn under the same camera; a page
  *    whose stages are separate makes no such claim and may load both, saying
  *    so at its script tags. Nothing here can check it — which scene a spec is
- *    drawn into is a runtime fact. MolecularGeometry.md §1.5. The mol-small /
- *    mol-solvation throw below is a DIFFERENT rule and is unaffected: those two
- *    define the same keys, so the loser is overwritten for every scene at once.
+ *    drawn into is a runtime fact. MolecularGeometry.md §1.5. The duplicate-key
+ *    throw below is a DIFFERENT rule and is unaffected: two files defining one
+ *    key means the loser is overwritten for every scene at once.
  *
  *    B. DERIVED (the amino acids, palmitate, amp, and everything the Skel
  *       builder makes — glucose and the glycolysis intermediates).
@@ -55,11 +55,12 @@
  *  two molecules side by side at different scales, with nothing on screen
  *  saying so.
  *
- *  HOW A FAMILY-B PAGE SHOWS A SMALL MOLECULE: load mol-small.js, not
- *  mol-solvation.js. It carries water, ammonia, methane, CO₂ and ethanol built
- *  from MEASURED lengths in real ångströms, so they sit correctly beside an
- *  amino acid or a sugar. mol-solvation.js keeps the family-A versions, which
- *  are the solvation engine's tuned particles and are not to scale.
+ *  HOW A PAGE SHOWS A SMALL MOLECULE: load mol-small.js. It carries water,
+ *  ammonia, methane, O₂, CO₂, ethanol and carbonic acid built from MEASURED
+ *  lengths in real ångströms, so they sit correctly beside an amino acid or a
+ *  sugar. It is the only small-molecule domain: the family-A set was the
+ *  solvation engine's tuned particles, and it moved to attic/solvation/ with
+ *  molecule-lab.html, its last page.
  *
  *  The two files define the SAME KEYS on purpose, and register() throws if both
  *  load — so picking the wrong one is a loud failure rather than a molecule
@@ -240,15 +241,15 @@
       }
       // Two domain files claiming the same name is never intentional, and
       // letting the last one silently win is how a page draws a molecule from
-      // a family it did not mean to load. mol-solvation.js and mol-small.js
-      // deliberately define the SAME keys at different scales, so this is what
-      // stands between "wrong file in the script tags" and "everything looks
-      // fine but the water is 16% small".
+      // a family it did not mean to load. No pair in lib/ collides today —
+      // attic/solvation/mol-solvation.js is the one that did, and nothing live
+      // may load it — so this stands between "wrong file in the script tags"
+      // and "everything looks fine but the water is 16% small".
       if(MOLECULES[key] && MOLECULES[key] !== spec) throw new Error(
         `molecules.js: '${key}' is already registered — two domain files define `
-        + `it. Check the page's <script> tags: mol-solvation.js (family A, the `
-        + `solvation engine's particles) and mol-small.js (family B, to scale) `
-        + `both define the small molecules and must never load together.`);
+        + `it. Check the page's <script> tags. If one of them is `
+        + `attic/solvation/mol-solvation.js, that is the display-unit set and no `
+        + `live page may load it; otherwise the two files disagree about a key.`);
       if(spec.pep) derivePeptideCondense(key, spec);
       MOLECULES[key] = spec;
     }
@@ -317,7 +318,7 @@
    * cost being managed is a page paying to parse specs it never renders; that
    * is what splits a file, not subject matter. */
   const DOMAINS = [
-    'mol-solvation.js',    // family A — needs no builder
+    'mol-small.js',        // family B, hand-written from spectroscopic values — no builder
     'mol-aminoacids.js',   // family B, PubChem conversions + one mirror — no builder.
                            //   D-alanine reflects alanine, so the two are in ONE
                            //   file and the ordering is local to it.
@@ -352,10 +353,13 @@
   // the same keys at a different scale, so register() throws if both load —
   // which is the point. Anything walking the library for checking has to load
   // an alternate SEPARATELY (see lib-node.js), never alongside what it swaps.
+  //   EMPTY, and that is the interesting part: mol-small.js was the alternate
+  // to mol-solvation.js until the solvation set went to attic/solvation/ with
+  // molecule-lab.html, its last page. The library is one scale family again.
+  // An atticked file is not an alternate — nothing in lib/ may load it, and
+  // lib-node.js does not walk it.
   //   ENUM: a new either/or domain file goes here, not in DOMAINS.
-  const DOMAIN_ALTERNATES = [
-    { file:'mol-small.js', replaces:'mol-solvation.js' },
-  ];
+  const DOMAIN_ALTERNATES = [];
 
   /* ---------- atom references by name ----------
    * Specs carry an optional `names` array: one PDB-style label per atom, in

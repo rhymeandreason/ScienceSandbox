@@ -61,11 +61,12 @@ function ok(cond, what, detail) {
   else { fails++; console.log(`  FAIL  ${what}${detail ? '   ' + detail : ''}`); }
 }
 
-/* THE ÅNGSTRÖM SPEC, by name. A page picks its scale family by which domain
- * file it loads; lib-node.js loads them ALL, so under Node `MOLECULES.water` is
- * mol-solvation's display-unit water and the ångström one is suffixed. Naming
- * it explicitly here is the same decision diffusion-test.html makes with a
- * <script> tag — and getting it wrong is precisely what §5 asserts is fatal. */
+/* THE ÅNGSTRÖM SPEC, by name. lib-node.js walks every domain AND every
+ * DOMAIN_ALTERNATES entry, merging an alternate under a suffixed key. That list
+ * is empty today, so the suffix never hits and this falls through to `M[k]` —
+ * kept, and kept a lookup rather than inlined, because the day a second scale
+ * family returns this is the line that has to keep choosing the measurable one.
+ * Getting that choice wrong is precisely what §5 asserts is fatal. */
 const ang = k => M[`${k} [mol-small.js]`] || M[k];
 
 /* A free particle: no wall ever reached, so every claim about the WALK is
@@ -201,20 +202,25 @@ ok(Math.abs(diffusionOf(2) * 2 - diffusionOf(4) * 4) < 1e-12,
 }
 
 /* ---- 5. scale families cannot be mixed -------------------------------- */
-/* mol-solvation.js and mol-small.js define the SAME KEYS at two scales
- * (MolecularGeometry.md §1). A page that loads the display-unit set would
- * compare a stylised water against a measured glucose and read the difference
- * as chemistry. The module throws instead — asserted, because it is a guard
- * that only fires on a page nobody has written yet. */
+/* A display-unit spec would compare a stylised water against a measured glucose
+ * and read the difference as chemistry (MolecularGeometry.md §1). The module
+ * throws instead. `lib/` is one scale family today — the display-unit set is
+ * attic/solvation/mol-solvation.js and nothing live loads it — so the guard
+ * fires on no page that exists, which is exactly why it is asserted here
+ * rather than trusted. */
 {
   let threw = false;
   try { radiusOf({ name: 'fake', units: 'scene', atoms: [{ el: 'O', pos: [0, 0, 0] }] }); }
   catch (e) { threw = /scale famil|ångström|angstrom/i.test(e.message); }
   ok(threw, 'a display-units spec is refused, not silently mis-measured');
-  // Both families exist in the registry, they define the same keys, and only
-  // one of them can be measured. That is the trap the throw above exists for.
-  ok(M.water && M.water.units === 'scene' && ang('water').units === 'angstrom',
-     'both families are present and only the ångström one is measurable');
+  // And the water this bench measures is on the measurable side of it. Not
+  // every `units:'scene'` spec is family A — a spec DERIVED from an already
+  // registered one carries the same stamp because it is already scaled
+  // (dAlanine mirrors alanine; see the units note in molecules.js) — so the
+  // claim worth asserting is about the spec §1-§4 actually put through
+  // radiusOf, not a sweep of the registry.
+  ok(ang('water').units === 'angstrom',
+     'the water this bench measures is the ångström one', ang('water').units);
   // The SCRIPT TAGS, not the prose — the bench's own comment names
   // mol-solvation.js as the file it must not load, and a naive text search
   // reads that warning as the mistake it warns about.

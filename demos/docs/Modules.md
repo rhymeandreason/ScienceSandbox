@@ -46,7 +46,7 @@ Four rules were prose here and enforced by nothing: both molecule families at on
 <script src="tokens-from-palette.js"></script>  <!-- always, straight after — publishes the atom/bond colours as CSS -->
 <script src="molecules.js"></script>   <!-- always — PALETTE, SCALE, VIEW + the empty registry -->
 <script src="skel.js"></script>        <!-- only if the page shows a Skel-built molecule -->
-<script src="mol-solvation.js"></script>   <!-- the specs: load the domains this page shows -->
+<script src="mol-small.js"></script>       <!-- the specs: load the domains this page shows -->
 <script src="mol-aminoacids.js"></script>  <!-- the domains this page shows -->
 <script src="mol-krebs.js"></script>       <!-- the citric-acid cycle + CoA/FAD; needs skel.js -->
 <script src="scene.js"></script>       <!-- always — Stage.create + molecule builder -->
@@ -82,7 +82,7 @@ Four rules were prose here and enforced by nothing: both molecule families at on
 
 **Two kinds of page.** Most load `scene.js` + MolLib. The folding pages (`folding-lab`, `folding-lab-ribbon`, `hemoglobin-lab`) draw *deposited* coordinates through `scene.js` too, but load `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`: every coordinate is a real ångström and display radii are `PALETTE.radii / SCALE`, computed in the page.
 
-A page that needs a real water beside measured molecules loads `mol-small` (not `mol-solvation`) — **family-B pages use `mol-small.js`, solvation pages use `mol-solvation.js`.** They define the same keys and `register()` throws if both load.
+A page that needs a real water beside measured molecules loads `mol-small.js`, and so does every other page in `lib/` now: **the library is one scale family.** `mol-solvation.js` was family A and moved to `attic/solvation/` with `molecule-lab.html`, its last page. `register()` still throws on a duplicate key, which is what would catch a second file arriving at a different scale.
 
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 
@@ -131,8 +131,8 @@ A page loads only the domains it draws. Order is `molecules.js` → `skel.js` �
 | --- | --- | --- |
 | `skel.js` | `SkelLib` = `Skel` + `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds + the nucleotide fragments `adenine`, `ribosyl`, `Skel.phosphoUnit`. Builder, not data; no dependencies | MolecularGeometry.md §1.2, §1.5 |
 | `residues.js` | `ResidueLib` = `SIDE` (twenty side chains in each residue's N–CA–C frame) + `graft` + `TYPES`. **Generated** by `tools/bake-residues.js` — real ångströms, no `SCALE`, no MolLib. Not a domain file: it holds pieces of molecules | own header |
-| `mol-solvation.js` · `mol-aminoacids.js` · `mol-pathways.js` · `mol-krebs.js` · `mol-carriers.js` · `mol-sugars.js` · `mol-glycans.js` · `mol-lipids.js` · `mol-nucleic.js` | nothing — each `register()`s its specs into `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
-| `mol-small.js` | the same substances as `mol-solvation.js` but **to scale** (family B). Either/or — `register()` throws if both load, and that stays true however many scenes a page has | own header, MolecularGeometry.md §1.5 |
+| `mol-small.js` · `mol-aminoacids.js` · `mol-pathways.js` · `mol-krebs.js` · `mol-carriers.js` · `mol-sugars.js` · `mol-glycans.js` · `mol-lipids.js` · `mol-nucleic.js` | nothing — each `register()`s its specs into `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
+| `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid, hand-written from spectroscopic values and **to scale**. The small-molecule domain; `attic/solvation/mol-solvation.js` is the display-unit set it replaced | own header, MolecularGeometry.md §1.5 |
 | `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |
 
 ### Structure rendering — deposited coordinates

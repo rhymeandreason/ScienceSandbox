@@ -42,7 +42,6 @@
     'lib/tokens-from-palette.js',
     'lib/molecules.js',
     'lib/mol-small.js',
-    'lib/mol-solvation.js',
     'lib/scene.js',
     'lib/geo.js',            // before card-stage.js
     'lib/atomkit.js',
@@ -96,13 +95,14 @@
   ];
   const CORE_CSS = ['css/kodo.css', 'css/lesson-shell.css'];
 
-  /* What each component is built from, and the stylesheet it draws with. The
-     small-molecule family is a component's declaration like any other file:
-     WaterSim is the only one on mol-solvation.js, which is why it cannot share
-     a page with anything on mol-small.js — the two define the same molecules
-     at different scales and molecules.js refuses the second. */
+  /* What each component is built from, and the stylesheet it draws with.
+     Every component that draws a small molecule is on mol-small.js, and
+     WaterSim is on none: it carries its own salt record and builds its water
+     from its own HL, so it needs no spec file. That is why there is no longer
+     a family clash to guard here — the solvation set went to attic/solvation/
+     with molecule-lab.html, its last page. */
   const USES = {
-    WaterSim:   ['lib/mol-solvation.js', 'water/watersim.js', 'water/watersim-mount.js'],
+    WaterSim:   ['water/watersim.js', 'water/watersim-mount.js'],
     Membrane:   ['lib/mol-small.js', 'lib/atomkit.js', 'membrane/parts.js', 'membrane/pump.js',
                  'membrane/chemiosmosis.js', 'membrane/membrane.js'],
     Proteinbox: ['folding/folding.js', 'kit/ribbon.js', 'kit/nucleic.js', 'kit/surface.js',
@@ -139,13 +139,6 @@
     const files = new Set(CORE);
     for (const f of SHELLS[tpl].files) files.add(f);
     for (const n of want) for (const f of USES[n]) files.add(f);
-
-    if (files.has('lib/mol-small.js') && files.has('lib/mol-solvation.js')) {
-      const other = want.filter(n => USES[n].indexOf('lib/mol-small.js') >= 0);
-      throw new Error(`kit/app.js: WaterSim cannot share a page with ${other.join(', ')}. `
-        + `WaterSim draws the small molecules at its own scale and the others draw them to scale, `
-        + `and one page cannot hold both. Put the two subjects in two pages, or drop one.`);
-    }
 
     const css = CORE_CSS.slice();
     for (const n of want) for (const f of (CSS[n] || [])) if (css.indexOf(f) < 0) css.push(f);

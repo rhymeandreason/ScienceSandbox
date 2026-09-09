@@ -62,7 +62,7 @@
  * different scale FAMILY (MolecularGeometry.md §1), and mixing the two here
  * would compare a stylised water against a measured glucose and call the
  * difference chemistry. mol-small.js exists precisely so the small molecules
- * are available in ångström; load that, not mol-solvation.js.
+ * are available in ångström; load that. A `units:'scene'` spec is refused.
  */
 function radiusOf(spec) {
   if (!spec || !spec.atoms || !spec.atoms.length) throw new Error('radiusOf: no atoms');

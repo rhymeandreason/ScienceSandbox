@@ -34,7 +34,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 | `mol-solvation.js` | water, NaCl, KCl, ethanol, ammonia, methane, O₂, CO₂, carbonic, bicarbonate, hydronium | **Zn²⁺**, **Fe²⁺/Fe³⁺** |
 | *deleted* | ~~`mol-contrast.js`~~ ~~`mol-compare.js`~~ ~~`mol-monomers.js`~~ ~~`mol-vitamins.js`~~ **(all done)** | dissolved into the rows above |
 
-`mol-small.js` and `mol-solvation.js` stay the family A / family B either-or they already are; `register()` throws if both load, and that is the point.
+`mol-small.js` is the only small-molecule domain; the family-A set moved to `attic/solvation/` with `molecule-lab.html`, its last page. `register()` still throws on a duplicate key, which is what would catch a second scale family arriving.
 
 ### The one proposal not carried out: renaming `mol-pathways.js`
 
@@ -50,7 +50,7 @@ Two smaller facts back it up. The file holds `lactate`, `acetaldehyde` and `etha
 
 **`mol-carriers.js` is the biggest structural win. DONE.** FAD and CoA are the two largest Skel builds in the repo and are currently stranded in `mol-krebs.js`, which `glycolysis-lab` does not load. No page draws a pathway without drawing its carriers, so they belong in one file every pathway page loads deliberately — and `mol-krebs.js` shrinks to the eight acids.
 
-**Ions go in `mol-solvation.js`** because `nacl` and `kcl` already live there as bare dissociation records with no coordinates. A molecule with no geometry has no family, so Zn²⁺ and Fe are the same kind of object.
+**Ions go in `mol-small.js`** because `nacl` and `kcl` already live there as bare dissociation records with no coordinates. A molecule with no geometry has no family, so Zn²⁺ and Fe are the same kind of object.
 
 **Ouabain goes in `mol-lipids.js`, not beside the ions it is grouped with in every pharmacology textbook.** It is a 58-atom steroid glycoside with a rigid fused-ring core — family B, and structurally cholesterol's neighbour. That it happens to inhibit a pump is a fact about a protein, not a chemical class, which is the same reasoning that dissolves `mol-vitamins.js`.
 

@@ -1,44 +1,32 @@
 /* =====================================================================
  *  mol-small.js — the small molecules AT TRUE SCALE (family B)
  * =====================================================================
- *  The same substances as mol-solvation.js, and deliberately NOT the same
- *  specs. Load exactly one of the two.
+ *  Water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid: measured bond
+ *  lengths in real ångströms, scaled by register() like every other family-B
+ *  spec. These are PROPS — a water to put beside an amino acid, a methane to
+ *  put beside a fatty acid — and they are comparable to every other family-B
+ *  molecule and to each other.
  *
- *    mol-solvation.js   family A. Each bond length hand-picked to clear its own
- *                       display radii; water's O–H is 1.55 against radii
- *                       summing to 1.50. water-lab and molecule-lab hard-code
- *                       HL=1.55 and tune EQ, MIN, hbThreshold and the ice
- *                       lattice around it. These are the SOLVATION ENGINE'S
- *                       PARTICLES, and they are not to scale.
+ *  THE SMALL MOLECULES USED TO EXIST TWICE, and the reason is worth keeping
+ *  even though the other copy is gone. attic/solvation/mol-solvation.js was
+ *  family A: every bond length hand-picked to clear its own display radii,
+ *  water's O–H 1.55 against radii summing to 1.50. Those were the SOLVATION
+ *  ENGINE'S PARTICLES, not a picture of a molecule, and the engine was tuned
+ *  around them — so the file could not follow the rest of the library to real
+ *  ångströms, and moved to attic/ with molecule-lab.html, its last page.
+ *  A family-A water was a tuned parameter; a family-B water is a picture.
+ *  Different objects that shared a name, which is why the two defined the same
+ *  KEYS and only one could be right on a page.
  *
- *    mol-small.js       family B. Measured bond lengths in real ångströms,
- *                       scaled by register() like every other family-B spec.
- *                       These are PROPS: a water to put beside an amino acid,
- *                       a methane to put beside a fatty acid. They are
- *                       comparable to every other family-B molecule and to
- *                       each other.
+ *  It is safe to run the solvation engine on THESE — water/watersim.js builds
+ *  its water from its own HL and reads no spec at all. What is not safe is
+ *  assuming a spec's numbers are ångströms without checking `units`: the
+ *  atticked file carries `units:'scene'`, and register() leaves those alone.
  *
- *  WHY BOTH EXIST, given that this project's rule is one molecule per library
- *  ("one glucose, not two"): these are not two copies of one thing. A family-A
- *  water is a tuned parameter of a physics engine — changing it re-tunes the
- *  engine. A family-B water is a picture of a water molecule. They answer
- *  different questions, and for this PAIR only one can be right on a given page
- *  — not because of the general family rule, which is per scene (see
- *  MolecularGeometry.md §1.5), but because these two define the same KEYS, so
- *  whichever loads last wins for every stage at once.
- *  Duplicating the SUBSTANCE is the cost; the alternative was every page that
- *  merely draws a water having to either re-tune solvation or show a molecule
- *  16% too small, which is what the peptide bench did until this file existed.
- *
- *  `register()` throws if both files load, so the mistake is loud.
- *
- *  DO NOT run the solvation engine on these. Its constants assume family A;
- *  hand it a to-scale water and the H-bond thresholds are all wrong.
- *
- *  The salts are NOT duplicated here. `nacl`/`kcl` carry no coordinates at all
- *  — only dissociation records — so they are scale-free and mol-solvation.js's
- *  versions are already reusable anywhere. A molecule with no geometry has no
- *  family.
+ *  The salts are not here. `nacl`/`kcl` carry no coordinates — only
+ *  dissociation records — so they are scale-free and belong to no family.
+ *  watersim.js keeps the one it dissolves in its own SALTS table, and the
+ *  bonding builder its own in IonicDrag.RECIPES.
  *
  *  Sources: spectroscopic/microwave equilibrium geometries, the values any
  *  textbook quotes. Each is named against its spec below. Angles are the real
@@ -105,7 +93,7 @@
       //
       // THE NONPOLAR REFERENCE. Two identical atoms means no electronegativity
       // difference, no dipole, and nothing for water to H-bond to — see
-      // mol-solvation.js's copy for why it carries NO acceptors despite being
+      // attic/solvation/mol-solvation.js's copy for why it carries NO acceptors despite being
       // oxygen. In family B it also carries the size argument the membrane
       // lesson runs on: radiusOf puts it at about half of glucose, and that
       // gap plus the missing charge is the whole of "why O₂ crosses and

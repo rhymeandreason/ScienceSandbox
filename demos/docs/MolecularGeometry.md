@@ -275,24 +275,25 @@ Two consequences:
 Family A is **not** "ångströms not yet converted". It isn't expressible as any
 molecule times any single factor — that's what makes it family A — so un-baking
 it is a geometry change, not a units change, and means re-tuning the solvation
-engine. `water-lab.html` and `molecule-lab.html` hard-code `HL=1.55` and tune
-`EQ`, `MIN`, `hbThreshold` and the ice lattice around it.
+engine. `water/watersim.js` hard-codes `HL=1.55` and tunes `EQ`, `MIN`,
+`hbThreshold` and the ice lattice around it — in the module, not off a spec, so
+the sim needs no `mol-*.js` at all.
 
-**Which is why the small molecules exist twice.** `mol-small.js` carries water,
-ammonia, methane, O₂, CO₂, ethanol and carbonic acid from measured lengths as
-family B; `mol-solvation.js` keeps the family-A versions.
+**The small molecules used to exist twice, and no longer do.** `mol-small.js`
+carries water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid from
+measured lengths as family B, and it is the only small-molecule domain `lib/`
+holds. `mol-solvation.js` kept the family-A versions until it moved to
+`attic/solvation/` with `molecule-lab.html`, its last page.
 
-| page needs | load |
-|---|---|
-| solvation physics (H-bonds, ice, dissolving) | `mol-solvation.js` |
-| a small molecule **beside** an amino acid, sugar or lipid | `mol-small.js` |
-
-They define the same keys deliberately and `register()` throws if both load, so
-choosing wrong fails loudly instead of rendering 15% off. This is the one place
-the "one molecule, not two" rule is broken on purpose: **a family-A water is a
-tuned parameter of a physics engine; a family-B water is a picture of a water
-molecule.** Different objects sharing a name. Nothing scale-free is duplicated —
-`nacl` and `kcl` carry no coordinates, only dissociation records.
+The duplication was real while it lasted and the reason is worth keeping: **a
+family-A water was a tuned parameter of a physics engine; a family-B water is a
+picture of a water molecule.** Different objects sharing a name, which is the
+one place the "one molecule, not two" rule was broken on purpose. What dissolved
+it was not a conversion — family A still cannot be un-baked — but the discovery
+that almost nothing read those specs. `watersim.js` builds its water from its
+own `HL` and carries its own salt record; the bonding builder's geometry is
+`CovalentDrag`/`IonicDrag`'s own `RECIPES`. Nothing scale-free was ever
+duplicated: `nacl` and `kcl` carry no coordinates, only dissociation records.
 
 **The rule: one scene, one family.** Not one page.
 
@@ -302,9 +303,11 @@ bigger than the other. That is what mixing families falsifies, and it is a
 property of the SCENE rather than of the script tags. A page whose stages are
 separate — its own canvas, its own camera, nothing drawn against anything from
 the other stage — makes no comparison for a family to be wrong about.
-`tests/cards-cluster.html` is the case: an ångström phospholipid in a
-`kit/molbox.js` card beside display-scale water in `water/watersim.js` cards, and
-no size on that page is ever read against a size from the other family.
+`tests/cards-cluster.html` was the case: an ångström phospholipid in a
+`kit/molbox.js` card beside a `water/watersim.js` card, and no size on that page
+ever read against a size from the other family. It no longer loads two families
+— `watersim.js` draws no spec — but the rule it demonstrated is the one that
+survives, because `kit/card-stage.js` makes many stages cheap.
 
 The page-wide phrasing was a proxy for the real rule, and a safe one while every
 page had one stage. It stops being safe now that `kit/card-stage.js` makes many
@@ -313,10 +316,12 @@ someone toward the worse fix: a second copy of a molecule at the other scale.
 
 Two things this does NOT relax:
 
-* **`mol-small.js` and `mol-solvation.js` still may not both load**, and
+* **Two files defining the same KEYS still may not both load**, and
   `register()` still throws. That is a different rule with a different reason —
-  they define the same KEYS, so the second one silently wins and every scene on
-  the page gets whichever loaded last. Scenes cannot be separate about that.
+  the second one silently wins and every scene on the page gets whichever loaded
+  last. Scenes cannot be separate about that. No pair in `lib/` collides today;
+  `attic/solvation/mol-solvation.js` is the one that did, and nothing live may
+  load it.
 * **Only family B may make a size claim**, in any scene, because only family B
   is comparable molecule-to-molecule.
 

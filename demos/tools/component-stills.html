@@ -18,13 +18,14 @@
      the point of a picker is to LOOK before baking, since nothing here
      can judge whether a scene has settled into a frame worth keeping.
 
-     WHY A SCRIPT LOADER AND NOT A LIST OF TAGS. WaterSim is the only
-     component on mol-solvation.js and molecules.js refuses a second
-     family, so a page holding every component's scripts cannot exist.
-     Each component's files are loaded when it is picked, read from
-     kit/app.js's own USES table so this bench cannot drift from what a
-     generated page loads. Picking across the families reloads the page,
-     carrying the queue, because a family cannot be unloaded.
+     WHY A SCRIPT LOADER AND NOT A LIST OF TAGS. Each component's files are
+     loaded when it is picked, read from kit/app.js's own USES table so this
+     bench cannot drift from what a generated page loads. It also used to be
+     forced: WaterSim was the only component on mol-solvation.js, molecules.js
+     refuses a second scale family, and picking across the two reloaded the
+     page because a family cannot be unloaded. That is gone — every component
+     that draws a small molecule is on mol-small.js and WaterSim draws none —
+     but the loader stays, since reading USES is what keeps this honest.
 
      INTERNAL TOOL, DEV SERVER ONLY, CHROME ONLY (Safari encodes no
      WebP; the bake says so rather than writing a PNG under the name).
@@ -172,22 +173,10 @@ function loadScript(src) {
   });
 }
 
-/* A family is the molecule set a component draws with: mol-small.js or
-   mol-solvation.js, never both in one document. Which one this page has
-   already committed to decides whether a pick can be served here. */
-const familyOf = files =>
-  files.includes('lib/mol-solvation.js') ? 'solvation'
-  : files.includes('lib/mol-small.js') ? 'small' : null;
-let family = null;
-
 async function loadFor(shot) {
   const app = await appTable();
   const plan = app.plan([shot.use], 'steps');
   const url = f => (/^https?:/.test(f) ? f : '../' + f);
-
-  const want = familyOf(plan.scripts.map(f => f.replace('../', '')));
-  if (want && family && want !== family) return { reload: true };
-  if (want) family = want;
 
   for (const f of plan.css) {
     if (app.CORE_CSS.includes(f)) continue;   // the shell's sheets would restyle this bench
@@ -200,7 +189,7 @@ async function loadFor(shot) {
     if (/three\.min\.js/.test(f)) continue;   // this page wrote that tag itself
     await loadScript(url(f));
   }
-  return { reload: false };
+  return {};
 }
 
 /* ---- one live box --------------------------------------------------------- */
@@ -210,14 +199,7 @@ async function loadShot(shot) {
   if (live) { try { live.destroy(); } catch (e) {} live = null; liveKey = null; }
   mountEl.innerHTML = '';
 
-  const { reload } = await loadFor(shot);
-  if (reload) {
-    /* A family cannot be unloaded, so the rest of the run continues after a
-       reload. The queue rides in sessionStorage. */
-    sessionStorage.setItem('bake-queue', JSON.stringify(queue));
-    location.search = `?key=${shot.key}`;
-    return null;
-  }
+  await loadFor(shot);
 
   const handle = await shot.mount(mountEl);
   const box = handle.box || handle;          // Proteinbox.create IS the box
@@ -241,7 +223,6 @@ async function loadShot(shot) {
 async function bake(shot) {
   if (shot.skip) throw new Error(shot.skip);
   const box = (liveKey === shot.key && live) ? (live.box || live) : await loadShot(shot);
-  if (!box) return 0;                        // reloading; the queue carries on there
 
   box.draw();                                // the buffer is only readable now
   const webp = box.canvas.toDataURL('image/webp', 0.85);
@@ -293,19 +274,11 @@ pickEl.addEventListener('change', () => {
   loadShot(shot).catch(e => say(`${shot.key} — ${e.message}`, true));
 });
 
-/* ?key=<component> preselects and loads it, which is also how a run that had
-   to cross the molecule families picks itself back up. */
+/* ?key=<component> preselects and loads it. */
 const wantKey = new URLSearchParams(location.search).get('key');
 if (wantKey && SHOTS.some(s => s.key === wantKey)) pickEl.value = wantKey;
 
-const carried = sessionStorage.getItem('bake-queue');
-if (carried) {
-  sessionStorage.removeItem('bake-queue');
-  const rest = JSON.parse(carried);
-  run([pickEl.value, ...rest.filter(k => k !== pickEl.value)]);
-} else {
-  pickEl.dispatchEvent(new Event('change'));
-}
+pickEl.dispatchEvent(new Event('change'));
 </script>
 </body>
 </html>

@@ -23,11 +23,12 @@
      they even out is a prediction, not a setting — and it is the argument
      the membrane page needs for "why O₂ crosses and glucose doesn't".
 
-     SCALE FAMILY, deliberately: mol-small.js, NOT mol-solvation.js. The
-     small molecules must be in ångström to be measured against glucose;
-     mol-solvation's are display units, a different family
-     (MolecularGeometry.md §1), and radiusOf throws rather than compare
-     them. That throw is the guard rail — this comment is only the reason.
+     SCALE FAMILY, deliberately: mol-small.js. The small molecules must be in
+     ångström to be measured against glucose. A display-units spec is a
+     different family (MolecularGeometry.md §1) and radiusOf throws rather
+     than compare them — the guard rail is that throw, not this comment.
+     Nothing in lib/ is display units now; attic/solvation/mol-solvation.js
+     was, and check-diffusion.js §5 still asserts the refusal.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -101,8 +102,8 @@
 <script src="../lib/tokens-from-palette.js"></script>
 <script src="../lib/molecules.js"></script>
 <script src="../lib/skel.js"></script>
-<!-- ÅNGSTRÖM FAMILY. mol-small.js replaces mol-solvation.js; loading both
-     throws in register(), and loading the wrong one throws in radiusOf. -->
+<!-- ÅNGSTRÖM FAMILY. Two files defining one key throw in register(), and a
+     display-units spec throws in radiusOf. -->
 <script src="../lib/mol-small.js"></script>
 <script src="diffusion.js"></script>
 <script>

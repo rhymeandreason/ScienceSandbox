@@ -46,8 +46,9 @@ const unit = a=>{const l=len(a);return [a[0]/l,a[1]/l,a[2]/l];};
 const deg  = (a,b)=>Math.acos(Math.max(-1,Math.min(1,dot(unit(a),unit(b)))))*180/Math.PI;
 const bondVec=(spec,i,j)=>sub(spec.atoms[j].pos, spec.atoms[i].pos);
 
-// mol-solvation's water is family A (display units); the spec used here for a
-// geometry claim only ever supplies DIRECTIONS, so the family does not matter.
+// The spec used here for a geometry claim only ever supplies DIRECTIONS, so
+// its scale family does not matter — which is why this survived the library
+// going from two families to one.
 const water = MOLECULES.water;
 
 console.log('lone-pair geometry — lobes.js\n');
@@ -124,11 +125,11 @@ console.log('\n3. ammonia — the one pair a proton lands in');
 
 /* ---- 4. a carbonyl oxygen is sp², and its ears stay in the plane ------- */
 console.log('\n4. carbonyl oxygen — two ears, both in the sp² plane');
-/* BOTH carbonics, because there are two and they are drawn by different pages:
- * family A's is molecule-lab's reagent, family B's is what lobes-test draws.
- * The lobe claims below are about DIRECTIONS, so they must hold at either
- * scale — a spec that passed at one and not the other would be wrong, not
- * merely differently sized. */
+/* The loop is over one key today and stays a loop on purpose: family A's
+ * carbonic is in attic/solvation/ and out of lib-node's walk, but the claims
+ * below are about DIRECTIONS, so any second carbonic must pass them at its own
+ * scale too. A spec that held at one scale and not the other would be wrong,
+ * not merely differently sized. */
 for (const key of ['carbonic', 'carbonic [mol-small.js]'].filter(k => MOLECULES[k])) {
   const spec = MOLECULES[key];                          // H₂CO₃: one C=O, two −OH
   console.log(`  · ${key}`);
