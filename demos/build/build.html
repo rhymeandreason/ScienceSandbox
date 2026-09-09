@@ -29,7 +29,6 @@
   <span class="tools" id="tools" hidden>
     <a class="btn" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
     <a class="btn" id="newApp" href="build.html"><i class="ph-bold ph-plus"></i>New app</a>
-    <button class="iconbtn" id="textMode" type="button" title="Edit the text on the page" aria-pressed="false" hidden><i class="ph-bold ph-text-t"></i></button>
     <button class="iconbtn" id="railToggle" type="button" title="Hide the panel" aria-pressed="false"><i class="ph-bold ph-sidebar-simple"></i></button>
   </span>
 </header>
@@ -92,41 +91,46 @@
 
   <aside class="rail">
     <div class="card railform" id="railForm"></div>
-    <!-- Text mode's own panel, in the history's slot: the two are never both
-         useful, and the mode needs somewhere to say what it just refused. -->
-    <div class="card scroll editcard" id="editCard" hidden>
-      <h3>Edit text <span class="ver" id="editSay"></span></h3>
-      <p class="hint">Click a passage to change it. Click anything else to point the AI at it.</p>
-      <!-- The roles a passage can take. Shown only with a caret in one, and
-           only the roles that passage can hold: a title goes through
-           textContent, so nothing may be bold inside it. -->
-      <div class="roles" id="roles" hidden>
-        <div class="rrow" id="rowInline">
-          <button class="btn" type="button" data-role="strong" title="Bold the selected words"><b>B</b></button>
-          <button class="btn" type="button" data-role="em" title="Italicise the selected words"><i>I</i></button>
-        </div>
-        <div class="rrow" id="rowBlock">
-          <button class="btn" type="button" data-role="plain">Body</button>
-          <button class="btn" type="button" data-role="lead">Lead</button>
-          <button class="btn" type="button" data-role="callout">Callout</button>
-          <button class="btn" type="button" data-role="foot">Note</button>
-        </div>
-        <div class="rrow" id="rowPara">
-          <button class="btn" type="button" data-role="after"><i class="ph-bold ph-plus"></i>Paragraph</button>
-          <span class="spacer"></span>
-          <button class="btn" type="button" data-role="delete" title="Remove this paragraph"><i class="ph-bold ph-trash"></i></button>
-        </div>
-      </div>
-      <ol class="whylog" id="whyLog"></ol>
-      <div class="row">
-        <button class="btn" id="editCancel" type="button">Cancel</button>
+    <!-- One card, two panes. The mode is a tab and not a toolbar button
+         because that is what it is: the rail shows the app's past, or the
+         tools for changing its words, and never both. -->
+    <div class="card card--quiet scroll" id="railPanel" hidden>
+      <div class="tabs" role="tablist">
+        <button class="tab" id="tabHistory" type="button" role="tab" aria-selected="true">History</button>
+        <button class="tab" id="tabText" type="button" role="tab" aria-selected="false">Edit text<span class="count" id="editSay"></span></button>
         <span class="spacer"></span>
-        <button class="btn btn--tint" id="editSave" type="button">Save</button>
+        <span class="ver" id="ver"></span>
       </div>
-    </div>
-    <div class="card card--quiet scroll" id="historyCard" hidden>
-      <h3 id="historyHead">History <span class="ver" id="ver"></span></h3>
       <ol class="history" id="history"></ol>
+      <div class="pane" id="paneText" hidden>
+        <p class="hint">Click a passage to change it. Click anything else to point the AI at it.</p>
+        <!-- The roles a passage can take. Shown only with a caret in one, and
+             only the roles that passage can hold: a title goes through
+             textContent, so nothing may be bold inside it. -->
+        <div class="roles" id="roles" hidden>
+          <div class="rrow" id="rowInline">
+            <button class="btn" type="button" data-role="strong" title="Bold the selected words"><b>B</b></button>
+            <button class="btn" type="button" data-role="em" title="Italicise the selected words"><i>I</i></button>
+          </div>
+          <div class="rrow" id="rowBlock">
+            <button class="btn" type="button" data-role="plain">Body</button>
+            <button class="btn" type="button" data-role="lead">Lead</button>
+            <button class="btn" type="button" data-role="callout">Callout</button>
+            <button class="btn" type="button" data-role="foot">Note</button>
+          </div>
+          <div class="rrow" id="rowPara">
+            <button class="btn" type="button" data-role="after"><i class="ph-bold ph-plus"></i>Paragraph</button>
+            <span class="spacer"></span>
+            <button class="btn" type="button" data-role="delete" title="Remove this paragraph"><i class="ph-bold ph-trash"></i></button>
+          </div>
+        </div>
+        <ol class="whylog" id="whyLog"></ol>
+        <div class="row">
+          <button class="btn" id="editCancel" type="button">Cancel</button>
+          <span class="spacer"></span>
+          <button class="btn btn--tint" id="editSave" type="button">Save</button>
+        </div>
+      </div>
     </div>
     <div class="card card--quiet railfoot" id="railFoot" hidden>
       <p class="hint">Keep your edit link; this browser may forget it.</p>
@@ -188,8 +192,7 @@
     if (on && !(app && token)) return;
     textOn = !!on;
     document.body.classList.toggle('editing', textOn);
-    $('editCard').hidden = !textOn;
-    $('textMode').setAttribute('aria-pressed', String(textOn));
+    paintTabs();
     banked = 0;
     if (!textOn) { whys = []; paintWhy(); paintRoles(null); }
     if (textOn) Apps.editMode.on(frame, app.html);
@@ -201,8 +204,27 @@
    * stops, so a disabled button is what a fast student would find under
    * their pointer; saving with nothing banked just leaves the mode. */
   function paintEditBar() {
-    $('editSay').textContent = banked ? `${banked} unsaved` : '';
+    $('editSay').textContent = banked || '';
   }
+
+  /* Which pane the card is showing. The history list is the resting state; a
+   * page nobody may edit has no second tab to offer. */
+  function paintTabs() {
+    const may = !!(app && token);
+    $('tabText').hidden = !may;
+    $('tabHistory').setAttribute('aria-selected', String(!textOn));
+    $('tabText').setAttribute('aria-selected', String(textOn));
+    $('history').hidden = textOn;
+    $('paneText').hidden = !textOn;
+  }
+  /* Leaving the mode throws away what is not saved, and the tab is now an
+   * easy thing to hit on the way past, so it asks. */
+  const leave = () => {
+    if (banked && !confirm(`Leave without saving ${banked} change${banked === 1 ? '' : 's'}?`)) return;
+    setTextMode(false);
+  };
+  $('tabHistory').addEventListener('click', leave);
+  $('tabText').addEventListener('click', () => setTextMode(true));
 
   /* What the last few clicks landed on, and for a passage that cannot be
    * typed over, why. The sentence is written here rather than in the frame:
@@ -300,8 +322,7 @@
     const b = e.target.closest('button[data-i]'); if (!b) return;
     picks.splice(Number(b.dataset.i), 1); paintPills();
   });
-  $('textMode').addEventListener('click', () => setTextMode(!textOn));
-  $('editCancel').addEventListener('click', () => setTextMode(false));
+  $('editCancel').addEventListener('click', leave);
   $('editSave').addEventListener('click', () => Apps.editMode.save(frame));
 
   // The relay's snapshot of the running app, kept on the app row for the shelf.
@@ -343,7 +364,7 @@
     $('tools').hidden = !app;
     if (app) $('viewLink').href = Apps.link('view', app.id);
     $('railFoot').hidden = !editing;
-    $('textMode').hidden = !editing;
+    paintTabs();
     $('send').textContent = app ? (editing ? 'Change It' : 'Remix to edit') : "Let's Go";
     $('request').placeholder = app ? (editing ? 'How should it be better?' : 'Remix this app to ask for changes') : TRIES[tryIndex];
     $('request').disabled = !!app && !editing;
@@ -386,7 +407,7 @@
       row(String(v.n), { n: v.n, what: `${route(v)} · ${what}`, request: v.request, summary: v.summary, meta,
                          bad: !!v.error, current: v.n === app.n, restorable: v.n !== app.n && !v.error });
     }
-    $('historyCard').hidden = textOn || !ol.children.length;
+    $('railPanel').hidden = !(app && token) && !ol.children.length;
   }
 
   $('history').addEventListener('click', async e => {
