@@ -28,6 +28,7 @@
   /* INK, the wordmark's navy. Tinted all the way down rather than left neutral:
      warm-grey prose under a navy heading reads as two inks on one page. */
   --brand-ink:      #14213d;
+  --brand-ink-t:    20, 33, 61;    /* the same, for a hairline or a shadow at an alpha */
   --brand-ink-2:    #2b3a5c;
   --brand-ink-3:    #4a5675;
   --brand-mute:     #6b7280;

@@ -9,7 +9,7 @@
 <!-- Site-wide chrome: analytics + the foot. Absolute src, so this resolves
      the same from the root as it does from a page under /demos/. lib/site.js -->
 <script defer src="/demos/lib/site.js"></script>
-<title>Contribute — Kodolab</title>
+<title>Kodolab open source</title>
 <meta name="description" content="How to add a molecule, a component, or a lesson to Kodolab's open library of interactive 3D biology.">
 <link rel="stylesheet" href="/demos/css/brand.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -24,6 +24,7 @@
     --paper-t: var(--brand-paper-t);
     --paper-2: var(--brand-paper-2);
     --ink: var(--brand-ink);
+    --ink-t: var(--brand-ink-t);
     --ink-2: var(--brand-ink-2);
     --mute: var(--brand-mute);
     --green: var(--hue-green); --coral: var(--hue-coral); --blue: var(--hue-blue);
@@ -33,6 +34,10 @@
     --sans: 'Jost', -apple-system, 'Segoe UI', sans-serif;
     /* Futura where the OS has it (macOS does); Jost is its clone elsewhere. */
     --display: 'Futura', 'Jost', -apple-system, sans-serif;
+    /* The reading face, kodo.css's --font-ui. Here for the crumb alone: it is
+       the one word this bar and a lesson's bar both say, so it is set in the
+       same face rather than in this page's display sans. */
+    --ui: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
     --elastic: cubic-bezier(0.34, 1.56, 0.64, 1);
     --soft: cubic-bezier(0.22, 1, 0.36, 1);
@@ -51,13 +56,26 @@
   .lede { font-family: var(--serif); font-weight: 400; font-size: 1.18rem; line-height: 1.6; color: var(--ink-2); }
 
   /* ---- chrome ---------------------------------------------------------- */
+  /* THE BAR IS THE SITE'S, in a sticky translucent frame this page keeps: the
+     mark and the crumb are kodo.css's §6.5 grammar to the value, so this header
+     and a lesson's are one bar. What stays this page's own is the translucent
+     backing and the links to its own sections. Design.md §§1-2 */
   .sitenav {
     background: rgba(var(--paper-t),.92); backdrop-filter: blur(10px);
-    border-bottom: 1px solid rgba(20,33,61,.12);
+    border-bottom: 1px solid rgba(var(--ink-t),.12);
   }
-  .sitenav .wrap { display: flex; align-items: center; gap: 1rem; padding: .9rem 0; }
-  .sitenav img { width: 116px; height: auto; display: block; }
-  .sitenav .crumb { font: 500 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--mute); padding-left: 1rem; border-left: 1px solid rgba(20,33,61,.2); }
+  .sitenav .wrap { display: flex; align-items: center; gap: .75rem; padding: .9rem 0; }
+  /* One element, one size — 1.35rem, the size it is on every page that is not
+     the front door. The image is inline on its own baseline so the crumb sits
+     on the wordmark's, the way it does under kodo.css. */
+  .sitenav .mark { --mark-size: 1.35rem; line-height: 0; text-decoration: none; }
+  .sitenav .mark img { display: inline-block; vertical-align: baseline; height: var(--mark-size); width: auto; }
+  /* The mark and the crumb are their OWN baseline row inside a bar that is
+     otherwise centred, because the bar carries a button and a button has no
+     business on a text baseline. Without this the crumb sits 6px high. */
+  .sitenav .here { display: inline-flex; align-items: baseline; gap: .75rem; }
+  /* Where you are. No divider rule: the system separates it by space. */
+  .sitenav .crumb { font: 600 .74rem var(--ui); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); }
   .sitenav .sp { flex: 1; }
   .sitenav a.lnk { font: 500 13px var(--sans); text-decoration: none; color: var(--ink-2); }
   .sitenav a.lnk:hover { color: var(--coral); }
@@ -65,12 +83,12 @@
   .cta {
     font: 500 14px var(--sans); letter-spacing: .06em; padding: .8rem 1.4rem; border-radius: 999px;
     border: 0; background: var(--ink); color: var(--paper); cursor: pointer; text-decoration: none; display: inline-block;
-    box-shadow: 0 8px 20px -8px rgba(20,33,61,.5); transition: transform .15s var(--soft), box-shadow .15s;
+    box-shadow: 0 8px 20px -8px rgba(var(--ink-t),.5); transition: transform .15s var(--soft), box-shadow .15s;
   }
-  .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px rgba(20,33,61,.55); }
+  .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 26px -8px rgba(var(--ink-t),.55); }
   .cta.big { font-size: 16px; padding: 1rem 1.9rem; }
   .cta.hot { background: var(--coral); color: #fff; }
-  .cta.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(20,33,61,.35); }
+  .cta.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px rgba(var(--ink-t),.35); }
   .cta.ghost:hover { box-shadow: inset 0 0 0 1.5px var(--ink); }
   .cta.sm { font-size: 13px; padding: .55rem 1.05rem; box-shadow: none; }
   .cta:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
@@ -95,8 +113,8 @@
   /* ---- the four ways --------------------------------------------------- */
   .ways { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.4rem; list-style: none; padding: 0; margin: 0; }
   .way {
-    background: #fff; border: 1px solid rgba(20,33,61,.08); border-radius: 18px; padding: 1.8rem 1.9rem 1.6rem;
-    box-shadow: 0 1px 2px rgba(20,33,61,.05), 0 18px 44px -20px rgba(20,33,61,.28);
+    background: #fff; border: 1px solid rgba(var(--ink-t),.08); border-radius: 18px; padding: 1.8rem 1.9rem 1.6rem;
+    box-shadow: 0 1px 2px rgba(var(--ink-t),.05), 0 18px 44px -20px rgba(var(--ink-t),.28);
     display: flex; flex-direction: column;
   }
   .way .top { display: flex; align-items: center; gap: .6rem; font: 600 11px var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--mute); }
@@ -105,12 +123,12 @@
   .way h3 { font-size: 1.4rem; line-height: 1.2; margin: .9rem 0 .6rem; }
   .way > p { font-family: var(--serif); font-weight: 400; font-size: 1.02rem; line-height: 1.6; color: var(--ink-2); }
   .way .go { margin-top: auto; padding-top: 1.5rem; }
-  code.f { font: 500 .86em var(--mono); background: rgba(20,33,61,.06); padding: .12em .4em; border-radius: 5px; white-space: nowrap; }
+  code.f { font: 500 .86em var(--mono); background: rgba(var(--ink-t),.06); padding: .12em .4em; border-radius: 5px; white-space: nowrap; }
 
   .band.ways-band { background: var(--butter); }
   .ways-band .sechead h2 em { color: var(--coral); }
   .ways-band .sechead p { color: var(--ink); }
-  .ways-band .way { border: 0; box-shadow: 0 1px 2px rgba(20,33,61,.08), 0 22px 48px -22px rgba(20,33,61,.45); }
+  .ways-band .way { border: 0; box-shadow: 0 1px 2px rgba(var(--ink-t),.08), 0 22px 48px -22px rgba(var(--ink-t),.45); }
 
   /* ---- steps ----------------------------------------------------------- */
   .setup { background: var(--paper-2); }
@@ -206,7 +224,7 @@
   .gallery h4 { font: 500 13.5px var(--mono); margin: 0 0 .35rem; letter-spacing: -.01em; }
   .gallery p { font-family: var(--serif); font-weight: 400; font-size: .92rem; line-height: 1.5; color: var(--ink-2); }
   .gallery .feats { list-style: none; display: flex; flex-wrap: wrap; gap: .3rem; margin: .7rem 0 0; padding: 0; }
-  .gallery .feats li { font: 400 11px var(--sans); letter-spacing: .01em; color: var(--ink-2); background: rgba(20,33,61,.055); border-radius: 999px; padding: .22rem .55rem; }
+  .gallery .feats li { font: 400 11px var(--sans); letter-spacing: .01em; color: var(--ink-2); background: rgba(var(--ink-t),.055); border-radius: 999px; padding: .22rem .55rem; }
   .gallery .rung { margin-top: auto; padding-top: .7rem; font: 500 10px var(--sans); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); }
 
   /* ---- licence + close ------------------------------------------------- */
@@ -225,7 +243,7 @@
   .licence p { font-family: var(--serif); font-weight: 400; font-size: .98rem; line-height: 1.6; color: var(--ink-2); }
   .licence a { text-underline-offset: 3px; }
 
-  footer { padding: 2.5rem 0 3rem; border-top: 1px solid rgba(20,33,61,.2); font: 400 13px var(--sans); color: var(--mute); }
+  footer { padding: 2.5rem 0 3rem; border-top: 1px solid rgba(var(--ink-t),.2); font: 400 13px var(--sans); color: var(--mute); }
   footer .wrap { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
   footer a { text-decoration: none; }
   footer .dots i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 4px; }
@@ -242,8 +260,10 @@
 
 <nav class="sitenav">
   <div class="wrap">
-    <a href="/"><img src="kodolab-wordmark.svg" alt="kodolab"></a>
-    <span class="crumb">Contribute</span>
+    <span class="here">
+      <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
+      <span class="crumb">Community</span>
+    </span>
     <span class="sp"></span>
     <a class="lnk" href="#ways">How to Contribute</a>
     <a class="lnk" href="#start">Start</a>
