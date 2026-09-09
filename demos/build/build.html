@@ -88,16 +88,22 @@
 <main class="split">
   <section class="preview">
     <div class="device"><iframe id="frame" title="the app" sandbox="allow-scripts"></iframe></div>
-    <div class="editbar" id="editBar" hidden>
-      <span class="say" id="editSay">Click the text to change it. Click anything else to point the AI at it.</span>
-      <span class="spacer"></span>
-      <button class="btn" id="editCancel" type="button">Cancel</button>
-      <button class="btn btn--tint" id="editSave" type="button">Save</button>
-    </div>
   </section>
 
   <aside class="rail">
     <div class="card railform" id="railForm"></div>
+    <!-- Text mode's own panel, in the history's slot: the two are never both
+         useful, and the mode needs somewhere to say what it just refused. -->
+    <div class="card scroll editcard" id="editCard" hidden>
+      <h3>Edit text <span class="ver" id="editSay"></span></h3>
+      <p class="hint">Click a passage to change it. Click anything else to point the AI at it.</p>
+      <ol class="whylog" id="whyLog"></ol>
+      <div class="row">
+        <button class="btn" id="editCancel" type="button">Cancel</button>
+        <span class="spacer"></span>
+        <button class="btn btn--tint" id="editSave" type="button">Save</button>
+      </div>
+    </div>
     <div class="card card--quiet scroll" id="historyCard" hidden>
       <h3 id="historyHead">History <span class="ver" id="ver"></span></h3>
       <ol class="history" id="history"></ol>
@@ -162,20 +168,44 @@
     if (on && !(app && token)) return;
     textOn = !!on;
     document.body.classList.toggle('editing', textOn);
-    $('editBar').hidden = !textOn;
+    $('editCard').hidden = !textOn;
     $('textMode').setAttribute('aria-pressed', String(textOn));
     banked = 0;
+    if (!textOn) { whys = []; paintWhy(); }
     if (textOn) Apps.editMode.on(frame, app.html);
     else Apps.editMode.done(frame);
     paintEditBar();
+    paintHistory();
   }
   /* Save is never disabled. A change is banked a moment after the typing
    * stops, so a disabled button is what a fast student would find under
    * their pointer; saving with nothing banked just leaves the mode. */
   function paintEditBar() {
-    $('editSay').textContent = banked
-      ? `${banked} change${banked === 1 ? '' : 's'} to save`
-      : 'Click the text to change it. Click anything else to point the AI at it.';
+    $('editSay').textContent = banked ? `${banked} unsaved` : '';
+  }
+
+  /* What the last few clicks landed on, and for a passage that cannot be
+   * typed over, why. The sentence is written here rather than in the frame:
+   * it is copy a student reads, and it belongs on the page with the rest. */
+  let whys = [];
+  const WHY = {
+    note:   () => 'A callout. The component names it, so the words are not in this app.',
+    chips:  () => "A component's own control, drawn from what it can point at and show.",
+    chrome: () => 'Drawn by the lesson template, the same on every app.',
+    chart:  () => 'Drawn by the chart, not text in the file.',
+    dupe:   n => `These exact words are in the file ${n} times, so a change could land on the wrong one.`,
+    absent: () => 'Painted while the app runs, so there is nothing in the file to change.',
+    partial: () => 'Part of a longer line in the file, not a passage of its own.',
+  };
+  function why(w) {
+    if (!w) return '';
+    if (w.where && WHY[w.where]) return WHY[w.where]();
+    return (WHY[w.code] || WHY.absent)(w.n);
+  }
+  function paintWhy() {
+    const ol = $('whyLog');
+    ol.innerHTML = whys.slice(0, 6).map(w =>
+      `<li><span class="ref">${esc(w.note || w.text || w.tag)}</span><span class="say">${esc(w.line)}</span></li>`).join('');
   }
 
   function fromEditor(msg) {
@@ -183,6 +213,9 @@
       // The same part clicked twice is one reference, not two.
       const key = p => (p.note || '') + '|' + (p.text || '') + '|' + (p.step || '');
       if (!picks.some(p => key(p) === key(msg.pill))) { picks.push(msg.pill); paintPills(); }
+      whys = whys.filter(w => key(w) !== key(msg.pill));
+      whys.unshift({ ...msg.pill, line: why(msg.pill.why) });
+      paintWhy();
       return;
     }
     if (msg.type === 'app-edit-ready' || msg.type === 'app-edit-dirty') {
@@ -308,7 +341,7 @@
       row(String(v.n), { n: v.n, what: `${route(v)} · ${what}`, request: v.request, summary: v.summary, meta,
                          bad: !!v.error, current: v.n === app.n, restorable: v.n !== app.n && !v.error });
     }
-    $('historyCard').hidden = !ol.children.length;
+    $('historyCard').hidden = textOn || !ol.children.length;
   }
 
   $('history').addEventListener('click', async e => {

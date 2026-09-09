@@ -105,21 +105,25 @@
     return (i === 0 || BOUND.test(src[i - 1])) && (i + len >= src.length || BOUND.test(src[i + len]));
   }
 
-  /* The text's one place in the source, or null. Uniqueness is counted over
-   * the raw source, unbounded matches included, because the server applies the
-   * pair with the same exactly-once rule and cannot see this one. */
+  /* The text's one place in the source, or WHY there isn't one. The reason is
+   * carried rather than discarded because a passage that cannot be typed over
+   * is the case a student needs told: the panel says which of these it hit.
+   * Uniqueness is counted over the raw source, unbounded matches included,
+   * because the server applies the pair with the same exactly-once rule and
+   * cannot see this one. */
   function locate(text) {
     for (var k = 0; k < FORMS.length; k++) {
       var find = FORMS[k].enc(text);
       var i = src.indexOf(find);
       if (i < 0) continue;
-      if (src.indexOf(find, i + 1) >= 0) return null;   // twice: not ours to change
-      if (!bounded(i, find.length)) return null;
+      var n = src.split(find).length - 1;
+      if (n > 1) return { why: 'dupe', n: n };
+      if (!bounded(i, find.length)) return { why: 'partial' };
       var script = inScript(i);
-      if (FORMS[k].id === 'js' && !script) return null; // an escape outside a script is not one
+      if (FORMS[k].id === 'js' && !script) return { why: 'partial' };
       return { find: find, script: script, markup: markupAround(i, find.length) };
     }
-    return null;
+    return { why: 'absent' };
   }
 
   function encode(text, hit) {
@@ -164,7 +168,7 @@
     for (var k = 0; k < list.length; k++) {
       var node = list[k], parts = split(node.nodeValue), hit = locate(node.nodeValue);
       var el = node.parentElement;
-      if (hit) {
+      if (!hit.why) {
         /* A pending edit is re-applied here: the page repaints its panel from
          * the source strings on every step change, so an unsaved change would
          * otherwise vanish the moment the student walked to the next step. */
@@ -180,17 +184,43 @@
         spans.push(rec);
         order.push(span.textContent);
       } else if (el) {
-        /* A named part is selected whole. `data-note` is the library saying
-         * this thing has a name the model can act on, and the label inside it
-         * is not separately meaningful — nor separately clickable, since a
-         * callout's own leader and label are pointer-events: none. */
-        var host = el.closest('[data-note]') || el;
-        if (host.hasAttribute('data-ssx')) continue;
-        host.setAttribute('data-ssx', host.closest(CONTROL) ? 'sc' : 's');
-        host._ssxAnchor = order.length ? order[order.length - 1] : '';
+        mark(el, hit, order.length ? order[order.length - 1] : '');
       }
     }
     post({ type: 'app-edit-ready', editable: spans.length, pending: pending.length });
+  }
+
+  /* A named part is selected whole. `data-note` is the library saying this
+   * thing has a name the model can act on, and the label inside it is not
+   * separately meaningful — nor separately clickable, since a callout's own
+   * leader and label are pointer-events: none. */
+  function mark(el, hit, anchor) {
+    var host = el.closest('[data-note]') || el;
+    if (host.hasAttribute('data-ssx')) return host;
+    host.setAttribute('data-ssx', host.closest(CONTROL) ? 'sc' : 's');
+    if (anchor != null) host._ssxAnchor = anchor;
+    host._ssxWhy = { code: hit.why, n: hit.n || 0, where: where(host) };
+    return host;
+  }
+
+  /* Whether an element holds words of its own, which is what the walker asks
+   * of a text node and what a click has to ask of whatever it landed on. */
+  function owns(el) {
+    for (var n = el.firstChild; n; n = n.nextSibling) {
+      if (n.nodeType === 3 && n.nodeValue.trim()) return n;
+    }
+    return null;
+  }
+
+  /* WHICH LAYER DREW IT, as a word the builder turns into a sentence: the copy
+   * belongs on the page a student is reading, not in here. `data-note` and the
+   * shell's own class names are the library saying whose text this is. */
+  function where(el) {
+    if (el.closest('[data-note]')) return 'note';
+    if (el.closest('.show-panel')) return 'chips';
+    if (el.closest('.lshell-nav, .lshell-count, .lshell-progress, .lshell-topbar')) return 'chrome';
+    if (el.ownerSVGElement || el.tagName === 'svg') return 'chart';
+    return '';
   }
 
   function find(f) { for (var i = 0; i < pending.length; i++) if (pending[i].find === f) return pending[i]; return null; }
@@ -245,6 +275,7 @@
       note: note ? note.getAttribute('data-note') : '',
       anchor: String(el._ssxAnchor || '').slice(0, 160),
       step: (document.querySelector('.lshell-count') || {}).textContent || '',
+      why: el._ssxWhy || { code: 'absent', n: 0, where: where(el) },
     } });
     el.setAttribute('data-ssx-hit', '1');
     setTimeout(function () { el.removeAttribute('data-ssx-hit'); }, 600);
@@ -267,6 +298,20 @@
       return;
     }
     var pick = e.target.closest ? e.target.closest('[data-ssx="s"]') : null;
+    /* A READOUT IS FILLED IN AFTER THE PAINT — the stat that says `--` until
+     * the sim's first frame holds no words when the outlines go on, so it is
+     * never marked and a repaint would not catch it either, since what
+     * changed is a text node and not an element. A click is the cheap moment
+     * to ask again, and it costs nothing when nothing new has appeared. */
+    if (!pick && e.target.nodeType === 1 && owns(e.target) && !e.target.closest('[data-ssx], .ssx-ui')) {
+      var late = locate(owns(e.target).nodeValue);
+      /* Only the uneditable case. Text that turns out to round-trip is left
+       * for the next repaint to wrap, rather than half-wired for a caret. */
+      if (late.why) {
+        pick = mark(e.target, late, null);
+        if (pick.getAttribute('data-ssx') !== 's') pick = null;
+      }
+    }
     if (pick && !pick.closest(CONTROL)) { e.preventDefault(); e.stopPropagation(); select(pick); }
   }
 
@@ -328,12 +373,20 @@
         clearTimeout(redraw);
         redraw = setTimeout(function () {
           if (!on || document.activeElement && document.activeElement.hasAttribute('contenteditable')) return;
+          /* Deaf while repainting. Painting is itself a childList mutation
+           * that adds elements holding text, so an observer left listening
+           * reads its own work as another redraw and never stops. */
+          observer.disconnect();
           unpaint(); paint();
+          observer.takeRecords();
+          observe();
         }, 300);
       });
     }
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    observe();
   }
+
+  function observe() { observer.observe(document.body, { childList: true, subtree: true, characterData: true }); }
 
   function disarm() {
     on = false;
