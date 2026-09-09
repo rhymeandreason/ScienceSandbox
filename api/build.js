@@ -2,7 +2,7 @@
  *  api/build.js — the builder's model turn
  * =============================================================================
  *  GET  /api/build → whether this link may build, and what the reference has
- *  POST /api/build {request, visitorId, id?, token?, errors?, provider?}
+ *  POST /api/build {request, visitorId, id?, token?, errors?, selection?, provider?}
  *                → {id, token?, n, title, summary, html, mode, usage, ms, problems,
  *                   shell, uses (a draft only: what the model chose to build with)}
  *
@@ -25,6 +25,7 @@ const providers = require('./_providers/index.js');
 const { local } = require('./_local.js');
 
 const MAX_ERRORS = 8;
+const MAX_PICKS  = 8;
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -57,6 +58,8 @@ module.exports = async function handler(req, res) {
   if (request.length > builder.MAX_REQUEST) return res.status(400).json({ error: `keep it under ${builder.MAX_REQUEST} characters` });
   const errors = (Array.isArray(body.errors) ? body.errors : []).slice(0, MAX_ERRORS).map(e => String(e).slice(0, 300));
   const provider = bench && body.provider ? String(body.provider) : null;
+  /* What the student clicked before they typed, from the text mode's pills. */
+  const selection = (Array.isArray(body.selection) ? body.selection : []).slice(0, MAX_PICKS);
 
   const capped = await apps.exceeded({ cohort: who, visitorId: body.visitorId });
   if (capped) return res.status(capped.status).json(capped.body);
@@ -67,7 +70,7 @@ module.exports = async function handler(req, res) {
       const app = await apps.read(body.id);
       if (!app || !app.version) return res.status(404).json({ error: 'no such app' });
 
-      const out = await builder.edit({ html: app.version.html, request, errors, provider, bench });
+      const out = await builder.edit({ html: app.version.html, request, errors, selection, provider, bench });
       const failed = !out.html;
       const v = await apps.addVersion(app.id, {
         kind: 'edit', html: out.html || app.version.html, request, summary: out.summary,

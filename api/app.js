@@ -10,6 +10,7 @@
  *       rotate                        → a fresh token; the old link stops working
  *       title   {title}
  *       thumb   {thumb}                → a small JPEG data URL for the shelf, token required
+ *       text    {edits}                → the student's own text edits, applied as a version
  *  GET  /api/app?ids=a,b,c            → title, thumb and last-edited time, for the shelf
  *
  *  Nothing here calls a model, so nothing here is rate limited. Reading is
@@ -24,16 +25,22 @@
  *  by a model from the reference; a version is only ever a copy of one. A
  *  `save` that accepted a page was here and was never wired to anything, so it
  *  went: it was the one path by which bytes nobody generated could reach an
- *  app id other people open by link. Direct manipulation wants a patch against
- *  the stored page, applied the way `_builder.js` applies the model's edits.
+ *  app id other people open by link. Direct manipulation is `text`, and it is
+ *  the patch that comment asked for: find/replace pairs from the WYSIWYG mode,
+ *  applied by `_builder.js` under the same exactly-once rule the model's edits
+ *  meet, then syntax-checked before they are stored. The caller says which
+ *  passage changes and to what, never what the file becomes.
  *  The one image here is the thumb: a data URL under 80 KB, on the app row,
  *  token-gated, and only ever read back by a browser that holds the id.
  * ========================================================================== */
 'use strict';
 
 const apps    = require('./_apps.js');
+const builder = require('./_builder.js');
 const keys    = require('./_keys.js');
 const { local } = require('./_local.js');
+
+const MAX_TEXT_EDITS = 200;
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -108,6 +115,41 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id, title: String(body.title || '').slice(0, 120) });
     }
 
+    /* The text mode's save. One version for the session, however many
+     * passages it touched, because a row per keystroke makes the history
+     * useless for the one thing it is for. A find that no longer matches
+     * exactly once means the page moved under the editor — another tab, or a
+     * model turn — so the whole batch is refused and the browser reloads
+     * rather than half of it landing. */
+    if (action === 'text') {
+      const edits = (Array.isArray(body.edits) ? body.edits : []).slice(0, MAX_TEXT_EDITS)
+        .map(e => ({ find: String(e.find || ''), replace: String(e.replace || '').slice(0, 4000) }));
+      if (!edits.length) return res.status(400).json({ error: 'no text edits to save' });
+      const app = await apps.read(id);
+      if (!app || !app.version) return res.status(404).json({ error: 'no such app' });
+
+      const out = builder.apply(app.version.html, edits);
+      if (out.failed) {
+        return res.status(409).json({
+          error: 'the page changed under the editor; reload and try again',
+          failed: out.failed.map(f => `edit ${f.i + 1} found ${f.count} matches`),
+        });
+      }
+      /* A quote that got past the editor's escaping is a page that parses
+       * nowhere, and it would be stored before anyone ran it. */
+      const problems = builder.syntax(out.html);
+      if (problems.length) return res.status(400).json({ error: problems.join('; ') });
+
+      /* The history line names the passage that changed, not the count: what
+       * a student looks for when going back is the sentence they remember. */
+      const first = edits[0].find.trim().replace(/\s+/g, ' ').slice(0, 60);
+      const v = await apps.addVersion(id, {
+        kind: 'text', html: out.html,
+        summary: `“${first}”${edits.length > 1 ? ` and ${edits.length - 1} more` : ''}`,
+      });
+      return res.status(200).json({ id, n: v.n, html: out.html, edits: edits.length });
+    }
+
     if (action === 'thumb') {
       const t = String(body.thumb || '');
       if (t && !(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(t) && t.length <= 80000)) {
@@ -117,7 +159,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id, thumb: !!t });
     }
 
-    return res.status(400).json({ error: 'action must be restore, remix, rotate, title or thumb' });
+    return res.status(400).json({ error: 'action must be restore, remix, rotate, title, thumb or text' });
   } catch (err) {
     console.error('[app] ' + ((err && err.message) || err));
     return res.status(500).json({ error: 'the app store failed' });

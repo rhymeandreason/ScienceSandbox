@@ -183,7 +183,9 @@ CREATE INDEX IF NOT EXISTS finds_visitor_idx ON finds (visitor_id, created_at DE
 --  the common case, and undo is what makes anyone trust the editor. The latest
 --  version is the highest `n`; a restore writes a new row copying an old one.
 --  `kind` says what wrote it: 'build' and 'edit' spent a model call and are
---  what the rate limit counts; 'save', 'restore', 'remix' and 'seed' did not.
+--  what the rate limit counts; 'text', 'save', 'restore', 'remix' and 'seed'
+--  did not. A 'text' row is the WYSIWYG mode's save: find/replace pairs the
+--  student made by hand, applied to the stored page by api/app.js.
 --
 --  Same privacy rule as everything else here: no IP, no name. `cohort` is the
 --  access link's label, which for a beta tester is one person, by design.
@@ -208,7 +210,7 @@ CREATE TABLE IF NOT EXISTS app_versions (
   id          bigserial PRIMARY KEY,
   app_id      text NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
   n           int  NOT NULL,                -- 1-based per app
-  kind        text NOT NULL CHECK (kind IN ('build', 'edit', 'save', 'restore', 'remix', 'seed')),
+  kind        text NOT NULL CHECK (kind IN ('build', 'edit', 'text', 'save', 'restore', 'remix', 'seed')),
   html        text NOT NULL,
   request     text,                         -- what was asked, for build and edit
   summary     text,                         -- the model's one line about what changed
@@ -221,6 +223,13 @@ CREATE TABLE IF NOT EXISTS app_versions (
   created_at  timestamptz NOT NULL DEFAULT now(),
   UNIQUE (app_id, n)
 );
+
+-- The text mode was added after the first apps were stored, so the check has
+-- to be replaced rather than declared. Idempotent, and the constraint is named
+-- so re-running this does not stack a second copy of it.
+ALTER TABLE app_versions DROP CONSTRAINT IF EXISTS app_versions_kind_check;
+ALTER TABLE app_versions ADD  CONSTRAINT app_versions_kind_check
+  CHECK (kind IN ('build', 'edit', 'text', 'save', 'restore', 'remix', 'seed'));
 
 -- The limiter's query is "how many model turns has this cohort or visitor
 -- spent since T", which is this index over the two kinds that spend.

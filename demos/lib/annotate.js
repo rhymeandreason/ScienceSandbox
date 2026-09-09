@@ -351,6 +351,10 @@ window.Annot = (function () {
     function add(spec) {
       const el = document.createElement('div');
       el.className = 'annot' + (spec.tone ? ' annot-' + spec.tone : '');
+      /* The name the caller asked for, on the element. A label is drawn from
+         the component's own library, so it is not text anyone can edit in
+         place; naming it is what lets a student point at it and ask. */
+      if (spec.key) el.dataset.note = spec.key;
 
       const off = spec.offset || [0, 0];
       applyOffset(el, off);
@@ -916,7 +920,7 @@ window.Notebook = (function () {
       const lib = library[name] || {};
       const spec = Object.assign({ text: name, offset: [34, -26] }, lib, over);
       if (open.has(name)) open.get(name).remove();
-      const n = ensure().add({ text: spec.text, card: spec.card, offset: spec.offset, tone: spec.tone,
+      const n = ensure().add({ key: name, text: spec.text, card: spec.card, offset: spec.offset, tone: spec.tone,
         at: () => at(), facing: facings[name] || null });
       open.set(name, n);
       if (!box.running) box.draw();

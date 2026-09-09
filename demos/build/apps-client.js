@@ -110,8 +110,12 @@ window.addEventListener('unhandledrejection',function(e){send('unhandled: '+(e.r
    is copied to an image first, and the clone html2canvas rasterises gets those
    images in place of its (empty) canvases. Armed three seconds in, so the
    scene has settled; taken once, and again whenever the builder asks. */
-var armed=false,done=false,asked=false,lib=null;setTimeout(function(){armed=true},3000);
-window.addEventListener('message',function(e){if(e.data&&e.data.type==='app-snap')asked=true});
+var armed=false,done=false,asked=false,lib=null,ed=null;setTimeout(function(){armed=true},3000);
+/* The text editor is a real file, fetched the first time the builder turns the
+   mode on: a page being read never pays for it. */
+window.addEventListener('message',function(e){if(!e.data)return;if(e.data.type==='app-snap')asked=true;
+if(e.data.type==='app-edit'&&e.data.on&&!ed){ed=document.createElement('script');ed.src='app-edit.js';document.head.appendChild(ed);
+var m=e.data;ed.onload=function(){window.postMessage(m,'*')}}});
 var raf=window.requestAnimationFrame.bind(window);
 window.requestAnimationFrame=function(cb){return raf(function(t){cb(t);if((armed&&!done)||asked){done=true;asked=false;snap()}})};
 function loadLib(){return lib||(lib=new Promise(function(ok,bad){if(window.html2canvas)return ok();var s=document.createElement('script');
@@ -145,11 +149,12 @@ g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,sx,sy,cw,ch,0,0,w,h);parent.p
 
   /* Puts the page in the iframe and returns the errors it relays, as a live
    * array the caller drains between turns. */
-  function mount(iframe, html, onError, onThumb) {
+  function mount(iframe, html, onError, onThumb, onEdit) {
     const errors = [];
     const listener = e => {
       if (e.source !== iframe.contentWindow || !e.data) return;
       if (e.data.type === 'app-thumb') { if (onThumb) onThumb(e.data.data); return; }
+      if (/^app-(edit|select)/.test(e.data.type)) { if (onEdit) onEdit(e.data); return; }
       if (e.data.type !== 'app-error') return;
       errors.push(e.data.message);
       if (onError) onError(e.data.message, errors);
@@ -161,6 +166,17 @@ g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,sx,sy,cw,ch,0,0,w,h);parent.p
     iframe.srcdoc = framed(html);
     return errors;
   }
+
+  /* Text-edit mode. `on` hands the frame the page as STORED, which is what a
+   * find has to match: the DOM in front of the student is the rendered page,
+   * and the source is what a version is made of. `save` asks for the pairs
+   * banked so far; `done` clears them and takes the outlines down. */
+  const editMode = {
+    on:   (iframe, html) => iframe.contentWindow.postMessage({ type: 'app-edit', on: true, html }, '*'),
+    save: iframe => iframe.contentWindow.postMessage({ type: 'app-edit', save: true }, '*'),
+    done: iframe => iframe.contentWindow.postMessage({ type: 'app-edit', done: true }, '*'),
+    off:  iframe => iframe.contentWindow.postMessage({ type: 'app-edit' }, '*'),
+  };
 
   /* The file, standing alone: the library paths made absolute to this site. */
   function exportFile(html, title) {
@@ -188,5 +204,5 @@ g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,sx,sy,cw,ch,0,0,w,h);parent.p
     d.showModal();
   }
 
-  return { KEY, VISITOR, ID, api, link, mount, preview, exportFile, remember, forget, tokenFor, mine, beta };
+  return { KEY, VISITOR, ID, api, link, mount, preview, editMode, exportFile, remember, forget, tokenFor, mine, beta };
 })();

@@ -57,6 +57,7 @@ const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
 
 const MAX_DRAFT = 16000;   // output tokens; a page is 2,000 to 4,500
 const MAX_EDITS = 6000;
+const MAX_PICKS = 8;
 const MAX_REQUEST = 600;
 
 /* Read per call rather than at load: the dev server drops the require cache per
@@ -150,6 +151,26 @@ function withHistory(html, requests) {
   const m = /^\s*<!doctype[^>]*>\s*\n?/i.exec(bare);
   return m ? bare.slice(0, m[0].length).trimEnd() + '\n' + block + bare.slice(m[0].length)
            : block + bare;
+}
+
+/* What the student clicked in the running page before they typed. Each one is
+ * a passage the WYSIWYG mode could not map back to the source on its own — a
+ * callout's label, a readout painted from data — so what the model gets is
+ * where to look rather than the text to match: the anchor is the nearest
+ * passage that IS in the file exactly once. No new fencing: every field here
+ * was already read out of the page, which arrives in this same turn. */
+function selectionBlock(picks) {
+  const list = (Array.isArray(picks) ? picks : []).slice(0, MAX_PICKS);
+  if (!list.length) return '';
+  const line = p => {
+    const bits = [`"${String(p.text || '').slice(0, 120)}"`];
+    if (p.note) bits.push(`the note keyed ${String(p.note).slice(0, 40)}`);
+    if (p.tag) bits.push(`<${String(p.tag).slice(0, 12)}${p.cls ? ' class="' + String(p.cls).slice(0, 80) + '"' : ''}>`);
+    if (p.step) bits.push(`on step ${String(p.step).slice(0, 12)}`);
+    if (p.anchor) bits.push(`just after "${String(p.anchor).slice(0, 160)}", which is in the file exactly once`);
+    return '- ' + bits.join(', ');
+  };
+  return `\n\nThey are pointing at ${list.length === 1 ? 'this part' : 'these parts'} of the running page:\n${list.map(line).join('\n')}`;
 }
 
 /* ---- applying and checking ---------------------------------------------- */
@@ -391,7 +412,7 @@ async function draft({ request, provider, bench }) {
 /* One edit turn. `html` is the page as stored, history comment and all;
  * `errors` is what the browser relayed since the last turn. Returns the new
  * page with its history extended, or `problems` when neither route landed. */
-async function edit({ html, request, errors, provider, bench }) {
+async function edit({ html, request, errors, selection, provider, bench }) {
   const p = providers.pick(provider, bench);
   const req = String(request || '').trim().slice(0, MAX_REQUEST);
   const sys = system();
@@ -407,7 +428,7 @@ async function edit({ html, request, errors, provider, bench }) {
    * app and the result runs on an opaque origin, so give the sandbox flags in
    * apps-client.js a second look before loosening them. */
   const context = `Here is the page as it stands:\n\n${html}${errorsBlock(errors)}`;
-  const askFor = `The student now asks: ${req}\n\nChange the page to answer them, keeping everything they did not ask to change. Leave the requests comment at the top alone; the server maintains it.`;
+  const askFor = `The student now asks: ${req}${selectionBlock(selection)}\n\nChange the page to answer them, keeping everything they did not ask to change. Leave the requests comment at the top alone; the server maintains it.`;
 
   let out = await p.ask({
     system: sys, context, schema: EDITS_SCHEMA, max: MAX_EDITS, thinking: 'low',

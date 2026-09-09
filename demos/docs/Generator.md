@@ -94,7 +94,23 @@ Built, in `_builder.js` and measured above: the pair format with its whole-file 
 
 Still true: the cheapest edit is the one the library makes trivial. Thinking tokens fell from 3,700 to 900 on the same edit once the component had the parameter, and no format change matches that.
 
-## 7. The backend
+## 7. Editing the text by hand
+
+A model turn is not the only way a page changes. **Text mode** (`build/app-edit.js`, the `T` in the builder's toolbar) lets a student click a passage in the running app and type over it, and everything about it follows from one test: **a text is editable if it round-trips to the source.**
+
+Every word a generated page shows is a string literal in its file — `eyebrow`, `title`, the `body` HTML, a label inside a `ctx.ui.controls` template. Find the node's text in the source exactly once and the change is a `{find, replace}` pair, which is the format `_builder.js` already applies; the model is not called, the turn is free and instant, and it lands in the history as a version like any other. Find it zero times or twice and the passage is not editable, and no pencil appears on it.
+
+The test refuses the right things without being told to. A readout painted from data each frame is not in the source, so it cannot be typed over, which is CLAUDE.md's rule about numbers in user-facing text arrived at from the other end. A callout's label comes from the component's own library, so it is not the page's to change. **A match must also be the whole authored passage**, bounded by a quote or a tag either side: the bench caught the shell's own `Back` button matching inside `nextLabel: 'Back to Start'`, and a chart's `20` tick matching inside `Math.round(mM / 20)`, and the second would have edited the physics.
+
+- **What makes a replacement safe is the context of the match**, read from where it landed. Inside a `<script>` the text is a string literal, so quotes, backslashes and `${` are escaped — all three quote characters, whatever the literal's own delimiter, since knowing the delimiter would mean lexing the script and `\"` inside a single-quoted string is a legal identity escape. Where the enclosing literal holds markup the text is going through innerHTML, so `<`, `>` and `&` become entities; where it does not it is going through textContent and a typed `<` has to stay one. `api/app.js` syntax-checks the spliced page before storing it, so a case this gets wrong is a refused save and not a broken app.
+- **What cannot be edited can still be pointed at.** A click on a non-editable passage sends it to the request box as a pill, and the pill goes to the next model turn as where to look: the rendered text, the tag, the step, and the nearest passage that IS in the file exactly once. `annotate.js` writes `data-note` on a callout, so a note goes as its key rather than as a label to fuzzy-match, and the named part is selected whole. Pills clear when the request is sent, because a selection is about the sentence being written.
+- **One version per session, not per passage**, on a Save button; unsaved edits survive a step change (they are re-applied when the panel repaints) but not a reload. `kind` is `text` in `app_versions`, so restore and the history list work unchanged, and the row names the passage rather than counting the edits.
+- **The requests comment is left alone.** It records what was asked for, and a hand edit is not a request; the version row is its record.
+- **The bench is `build/edit-test.html`**, which arms the editor on a real generated page with no database and prints the pairs Save would send. It is where both false positives above were found, and it is the regression test.
+
+Not built: the style side. The shell has no typography utilities on purpose — its type is role-based (`.title`, `.body`, `.eyebrow`, `.stat-label`), and a font-size or colour control would be the fastest way to make a student's app look broken. What belongs here instead is a small fixed palette of ROLES on the selection — strong, emphasis, lead, footnote, callout, split and delete a paragraph — each a tag or a class the shell already styles, added to `lesson-shell.css` once and to `Components.md` in the same commit, so the editor's palette and the generator's vocabulary stay one list.
+
+## 8. The backend
 
 `api/build.js` is the model turn: a first draft makes an app row and returns the edit token once; an edit needs the token and writes a version. `api/app.js` reads a stored page for anyone with the id, and restores, remixes, rotates the token and retitles for the token's holder; it takes no HTML from a caller. `api/_apps.js` is the two tables and the limit, its own constants counted in `app_versions`: 60 model turns an hour per visitor, 200 an hour and 600 a day per cohort, failing open like the tutor's. The same key as the tutor gates it.
 

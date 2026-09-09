@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Text mode bench</title>
+<base href="/demos/build/">
+<link rel="stylesheet" href="../css/kodo.css">
+<style>
+  body { margin: 0; display: grid; grid-template-columns: 1fr 380px; height: 100vh; font: 14px/1.5 system-ui; }
+  iframe { width: 100%; height: 100%; border: 0; }
+  aside { border-left: 1px solid #ddd; padding: 12px; overflow: auto; background: #fafafa; }
+  select, button { font: inherit; margin: 0 4px 8px 0; }
+  pre { white-space: pre-wrap; word-break: break-all; font-size: 11px; background: #fff; border: 1px solid #eee; padding: 6px; }
+  li { font-size: 12px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div><iframe id="f" sandbox="allow-scripts allow-same-origin"></iframe></div>
+<aside>
+  <h3>Text mode bench</h3>
+  <p>The frame editor on a real generated page. No database: Save prints the pairs and applies them here.</p>
+  <select id="page"></select>
+  <button id="arm">Arm</button><button id="off">Off</button><button id="save">Save</button>
+  <p id="stat"></p>
+  <h4>Pairs</h4><pre id="pairs">(none)</pre>
+  <h4>Applied</h4><pre id="out">(nothing saved yet)</pre>
+  <h4>Selections</h4><ul id="picks"></ul>
+</aside>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const PAGES = ['gen-rbc-test', 'gen-salmon-n5', 'gen-photo-4', 'gen-plantcell-turgor', 'gen-animalcell-parts'];
+  $('page').innerHTML = PAGES.map(p => `<option>${p}</option>`).join('');
+  let src = '';
+
+  const RELAY = `<script>window.addEventListener('message',function(e){if(e.data&&e.data.type==='app-edit'&&e.data.on&&!window.__ed){window.__ed=1;
+var s=document.createElement('script');s.src='app-edit.js';var m=e.data;s.onload=function(){window.postMessage(m,'*')};document.head.appendChild(s)}});<\/script>`;
+
+  async function load() {
+    src = await (await fetch(`../tests/${$('page').value}.html`)).text();
+    const head = /<head[^>]*>/i.exec(src);
+    const base = `<base href="${location.origin}/demos/build/">`;
+    $('f').srcdoc = head ? src.slice(0, head.index + head[0].length) + base + RELAY + src.slice(head.index + head[0].length) : base + RELAY + src;
+    $('out').textContent = '(nothing saved yet)';
+    $('picks').innerHTML = '';
+  }
+  $('page').addEventListener('change', load);
+  $('arm').addEventListener('click', () => $('f').contentWindow.postMessage({ type: 'app-edit', on: true, html: src }, '*'));
+  $('off').addEventListener('click', () => $('f').contentWindow.postMessage({ type: 'app-edit', done: true }, '*'));
+  $('save').addEventListener('click', () => $('f').contentWindow.postMessage({ type: 'app-edit', save: true }, '*'));
+
+  addEventListener('message', e => {
+    const d = e.data; if (!d || !/^app-(edit|select)/.test(d.type)) return;
+    if (d.type === 'app-edit-ready') $('stat').textContent = `${d.editable} editable passages · ${d.pending} pending`;
+    if (d.type === 'app-edit-dirty') $('stat').textContent = `${d.count} banked`;
+    if (d.type === 'app-select') {
+      $('picks').insertAdjacentHTML('beforeend', `<li><b>${d.pill.text}</b><br>${d.pill.tag}.${d.pill.cls} ${d.pill.note ? '· note=' + d.pill.note : ''}<br>step ${d.pill.step} · after "${d.pill.anchor}"</li>`);
+    }
+    if (d.type === 'app-edit-edits') {
+      $('pairs').textContent = JSON.stringify(d.edits, null, 1) || '(none)';
+      let out = src, bad = [];
+      d.edits.forEach((p, i) => {
+        const n = out.split(p.find).length - 1;
+        if (n !== 1) { bad.push(`edit ${i + 1}: ${n} matches`); return; }
+        out = out.replace(p.find, () => p.replace);
+      });
+      $('out').textContent = bad.length ? 'FAILED: ' + bad.join('; ')
+        : `applied ${d.edits.length}. Reloading the frame with the result.`;
+      if (!bad.length) { src = out; const h = /<head[^>]*>/i.exec(src); const base = `<base href="${location.origin}/demos/build/">`;
+        $('f').srcdoc = src.slice(0, h.index + h[0].length) + base + RELAY + src.slice(h.index + h[0].length); }
+    }
+  });
+  load();
+})();
+</script>
+</body>
+</html>

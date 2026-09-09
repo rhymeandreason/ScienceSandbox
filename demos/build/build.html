@@ -29,6 +29,7 @@
   <span class="tools" id="tools" hidden>
     <a class="btn" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
     <a class="btn" id="newApp" href="build.html"><i class="ph-bold ph-plus"></i>New app</a>
+    <button class="iconbtn" id="textMode" type="button" title="Edit the text on the page" aria-pressed="false" hidden><i class="ph-bold ph-text-t"></i></button>
     <button class="iconbtn" id="railToggle" type="button" title="Hide the panel" aria-pressed="false"><i class="ph-bold ph-sidebar-simple"></i></button>
   </span>
 </header>
@@ -58,6 +59,7 @@
       <h1 class="sr-only">Build</h1>
       <div class="wordmark" id="wordmark"></div>
       <form id="ask">
+        <div class="refs" id="refs" hidden></div>
         <textarea id="request" maxlength="600" rows="2" autofocus></textarea>
         <div class="progress" id="progress" hidden>
           <div class="track"><i></i></div>
@@ -86,6 +88,12 @@
 <main class="split">
   <section class="preview">
     <div class="device"><iframe id="frame" title="the app" sandbox="allow-scripts"></iframe></div>
+    <div class="editbar" id="editBar" hidden>
+      <span class="say" id="editSay">Click the text to change it. Click anything else to point the AI at it.</span>
+      <span class="spacer"></span>
+      <button class="btn" id="editCancel" type="button">Cancel</button>
+      <button class="btn btn--tint" id="editSave" type="button">Save</button>
+    </div>
   </section>
 
   <aside class="rail">
@@ -135,9 +143,88 @@
 
   function show(html) {
     enterWork();
-    errors = Apps.mount(frame, html, () => paintErrors(), saveThumb);
+    setTextMode(false);
+    errors = Apps.mount(frame, html, () => paintErrors(), saveThumb, fromEditor);
     paintErrors();
   }
+
+  /* ---- text mode ---------------------------------------------------------
+   * The mode itself runs in the frame (`app-edit.js`); this end owns the
+   * button, the save, and the pills. A pill is a passage the mode could not
+   * map back to the source, parked next to the request box so the next AI
+   * turn knows what the student was pointing at. */
+  let textOn = false;
+  let picks = [];
+  let banked = 0;
+
+  function setTextMode(on) {
+    if (on === textOn) return;
+    if (on && !(app && token)) return;
+    textOn = !!on;
+    document.body.classList.toggle('editing', textOn);
+    $('editBar').hidden = !textOn;
+    $('textMode').setAttribute('aria-pressed', String(textOn));
+    banked = 0;
+    if (textOn) Apps.editMode.on(frame, app.html);
+    else Apps.editMode.done(frame);
+    paintEditBar();
+  }
+  /* Save is never disabled. A change is banked a moment after the typing
+   * stops, so a disabled button is what a fast student would find under
+   * their pointer; saving with nothing banked just leaves the mode. */
+  function paintEditBar() {
+    $('editSay').textContent = banked
+      ? `${banked} change${banked === 1 ? '' : 's'} to save`
+      : 'Click the text to change it. Click anything else to point the AI at it.';
+  }
+
+  function fromEditor(msg) {
+    if (msg.type === 'app-select') {
+      // The same part clicked twice is one reference, not two.
+      const key = p => (p.note || '') + '|' + (p.text || '') + '|' + (p.step || '');
+      if (!picks.some(p => key(p) === key(msg.pill))) { picks.push(msg.pill); paintPills(); }
+      return;
+    }
+    if (msg.type === 'app-edit-ready' || msg.type === 'app-edit-dirty') {
+      banked = msg.count != null ? msg.count : msg.pending || 0;
+      paintEditBar();
+      return;
+    }
+    if (msg.type === 'app-edit-edits') saveText(msg.edits);
+  }
+
+  async function saveText(edits) {
+    if (!edits || !edits.length) { setTextMode(false); return; }
+    setBusy(true);
+    try {
+      const r = await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'text', id: app.id, edits } });
+      app.n = r.n; app.html = r.html;
+      extra[r.n] = `${r.edits} passage${r.edits === 1 ? '' : 's'}, by hand`;
+      open = String(r.n);
+      show(r.html);
+      paintApp(); loadVersions();
+      notice('');
+    } catch (err) {
+      notice(err.message, true);
+      if (err.status === 409) show(app.html);
+    } finally { setBusy(false); }
+  }
+
+  function paintPills() {
+    const box = $('refs');
+    box.hidden = !picks.length;
+    box.innerHTML = picks.map((p, i) =>
+      `<span class="ref" title="${esc(p.tag)}${p.step ? ' · step ' + esc(p.step) : ''}">`
+      + `<i class="ph-bold ph-crosshair-simple"></i>${esc(p.note || p.text || p.tag)}`
+      + `<button type="button" data-i="${i}" aria-label="Remove">&times;</button></span>`).join('');
+  }
+  $('refs').addEventListener('click', e => {
+    const b = e.target.closest('button[data-i]'); if (!b) return;
+    picks.splice(Number(b.dataset.i), 1); paintPills();
+  });
+  $('textMode').addEventListener('click', () => setTextMode(!textOn));
+  $('editCancel').addEventListener('click', () => setTextMode(false));
+  $('editSave').addEventListener('click', () => Apps.editMode.save(frame));
 
   // The relay's snapshot of the running app, kept on the app row for the shelf.
   let snapAsked = false;
@@ -178,6 +265,7 @@
     $('tools').hidden = !app;
     if (app) $('viewLink').href = Apps.link('view', app.id);
     $('railFoot').hidden = !editing;
+    $('textMode').hidden = !editing;
     $('send').textContent = app ? (editing ? 'Change It' : 'Remix to edit') : "Let's Go";
     $('request').placeholder = app ? (editing ? 'How should it be better?' : 'Remix this app to ask for changes') : TRIES[tryIndex];
     $('request').disabled = !!app && !editing;
@@ -337,6 +425,7 @@
     const carried = errors.slice();
     try {
       const body = { request, visitorId: Apps.VISITOR, errors: carried };
+      if (picks.length) body.selection = picks;
       if (app) { body.id = app.id; body.token = token; }
       const r = await Apps.api('../../api/build', { method: 'POST', body });
       if (!app) {
@@ -348,6 +437,8 @@
         app.n = r.n; app.html = r.html;
       }
       $('request').value = '';
+      // A selection is about the sentence just sent, and it goes with it.
+      picks = []; paintPills();
       const route = r.mode === 'draft' ? (r.retried ? 'draft, one retry' : 'draft')
                   : r.mode === 'edits' ? `${r.edits} edit${r.edits === 1 ? '' : 's'}`
                   : `whole file (${r.fallback})`;
