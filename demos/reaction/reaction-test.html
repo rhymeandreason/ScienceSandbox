@@ -130,6 +130,7 @@
   reusable.</p>
   <div class="bar">
     <span id="pairtabs"></span>
+    <button id="restart3">Restart</button>
     <button id="run3">Run the lesson</button>
     <span id="prog3" class="pill idle">idle</span>
   </div>
@@ -147,6 +148,7 @@
     <div id="plates"></div>
     <div id="flyers"></div>
   </div>
+  <p class="legend" id="stagestate"></p>
   <p class="legend">One stage, the way a lesson mounts the module — not fifteen
   live boxes. <b>Run all</b> drives a virtual clock, so the tables read the same
   in a hidden tab as in a window; a row's <b>▶</b> runs that one verb in real
@@ -545,6 +547,7 @@ function runCase(cs, RX, live){
     L.fit();
     out.fx = tally.fx; out.mo = tally.mo; out.go = tally.go;
     out.used = tally.used.slice();
+    stageState(`after ${cs.st.fx}`);
     return out;
   };
   /* A VERB MOSTLY THROWS LATER THAN IT IS CALLED. `dehydro` asks for the
@@ -567,6 +570,32 @@ function runCase(cs, RX, live){
  *  THE TABLES
  * ============================================================================= */
 const pill = (cls, text) => `<span class="pill ${cls}">${text}</span>`;
+
+/* WHAT IS ACTUALLY STANDING THERE. A lane keeps its name across a step that
+ * only takes atoms off it, so after `dehydrate` the stage shows two molecules
+ * both labelled Glucose, one of them short an –OH — and read as a starting
+ * state that is inexplicably asymmetric. The plate says what the lane IS; this
+ * says what is drawn on it, which is the question a bench is asked.
+ *
+ * DRAWN, not present: the nonpolar C–H are deliberately off (kit/lanes.js's
+ * `optH` convention), so the H count here is hydroxyl hydrogens. */
+function stageState(label){
+  const el = document.getElementById('stagestate');
+  if(!el) return;
+  if(!LANES.lanes.length){ el.innerHTML = `<b>stage</b> · empty`; return; }
+  const rows = LANES.lanes.map((l,j)=>{
+    const sp = specOf(l.key), u = l.g.userData, c = {};
+    // HIDDEN, NOT REMOVED — both `setOptionalH` and kit/leaving.js's `shed`
+    // work by `visible`, so a mesh that is still parented can be off screen.
+    // Counting parentage alone reports every atom the spec has, which is the
+    // one number that cannot answer "what am I looking at".
+    sp.atoms.forEach((a,i)=>{ const m = u.atomMeshes[i];
+      if(m && m.parent && m.visible !== false) c[a.el] = (c[a.el]||0)+1; });
+    const drawn = Object.keys(c).sort().map(e=>`${e}${c[e]}`).join(' ');
+    return `lane ${j} · ${sp.name} · drawn ${drawn}`;
+  });
+  el.innerHTML = `<b>${label || 'stage'}</b><br>` + rows.join('<br>');
+}
 const body1 = document.querySelector('#t1 tbody');
 const body2 = document.querySelector('#t2 tbody');
 const rows = {};
@@ -804,7 +833,7 @@ function drawTabs(){
     b.textContent = `${pr.name} → ${prod ? prod.name : pr.product}`
       + (prod && prod.glycosidic ? ` (${prod.glycosidic.config} ${prod.glycosidic.link})` : '');
     b.style.borderColor = pr === pair ? 'var(--ink)' : '';
-    b.onclick = ()=>{ if(busy) return; pair = pr; drawTabs(); drawSteps(); };
+    b.onclick = ()=>{ if(busy) return; pair = pr; drawTabs(); restart3(); };
     el.appendChild(b);
   });
 }
@@ -870,15 +899,31 @@ async function runLesson(){
     + `oxygen), so this is the one that guessed.`;
   busy = false; setButtons(true);
 }
+/* BACK TO THE START, which `reset()` alone is not: that empties the stage. A
+ * step whose lane contents do not change leaves the molecules standing under
+ * their own names with atoms already taken off them, and there was no way back
+ * to a clean pair short of reloading the page. */
+function restart3(){
+  if(busy) return;
+  reset();
+  LANES.render([pair.key, pair.key], null, null); LANES.settle(); L.fit();
+  [...body3.children].forEach(tr=>{ tr.querySelector('.s3').innerHTML = pill('idle','—'); });
+  drawSteps();
+  document.getElementById('prog3').className = 'pill idle';
+  document.getElementById('prog3').textContent = 'idle';
+  stageState('start');
+}
 document.getElementById('run3').onclick = runLesson;
+document.getElementById('restart3').onclick = restart3;
 drawTabs(); drawSteps();
 
 document.getElementById('run1').onclick = ()=>runAll(1);
 document.getElementById('run2').onclick = ()=>runAll(2);
-document.getElementById('stop').onclick = ()=>{ if(!busy) reset(); };
+document.getElementById('stop').onclick = ()=>{ if(busy) return;
+  reset(); LANES.render(['ohh'], null, null); LANES.settle(); L.fit(); stageState('reset'); };
 
 LANES.render(['ohh'], null, null); LANES.settle();
-L.resize(); L.fit(); L.start();
+L.resize(); L.fit(); L.start(); stageState('start');
 </script>
 </body>
 </html>
