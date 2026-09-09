@@ -169,7 +169,9 @@
        says it found exactly that. The handle forwards to whatever instance is
        live, mounts one if there is none, and carries across the two things a
        rebuild would otherwise lose: every `on()` the page subscribed, and the
-       params it had `set()`. So a step written against `cell` keeps working
+       params it had `set()`. Nothing is built until something asks for it, so
+       registering ten scenes costs nothing until the steps that show them.
+       So a step written against `cell` keeps working
        whether or not that scene has been rebuilt since, and no page says
        anything about pooling. */
     const scenes = new Map();          // name -> { el, make, c, params, subs, handle }
@@ -247,10 +249,12 @@
           onEvict: key => { const e = scenes.get(key); if (e) { e.c = null; for (const sub of e.subs) sub.off = null; } },
         });
       }
-      /* Mounted now, at full size, whatever step is current: a component sized
-         at 0 lays its scene out against a canvas that does not exist yet.
-         Hidden immediately after, by the re-apply below. */
-      ensure(name);
+      /* NOT MOUNTED HERE. A page registers every scene it has in a row, and
+         building them all would open a context per scene only to evict most
+         of them before the first step draws. Whatever asks for the scene
+         first mounts it — a step showing it, or the page touching its handle
+         — and a layer is full size whether or not it is hidden, so a scene
+         built late still lays out against a real canvas. */
       if (shown) apply(shown);
       return s.handle;
     }

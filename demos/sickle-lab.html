@@ -203,9 +203,14 @@ const traces = Promise.all(Object.entries(V).map(([k, v]) =>
   fetch(v.trace).then(r => r.json()).then(t => { TRACE[k] = t; })));
 
 const SIDE = { full: null, left: 'sk-half left', right: 'sk-half right' };
+/* `sk-scene` and not the shell's own layer class: those layers belong to
+   kit/lesson-shell.js, which shows, stops and pools them, and this page hands
+   out its boxes itself so it can hold two side by side and fade one over
+   another. Wearing the shell's class puts these under rules written for
+   scenes it owns. */
 function host(side, cls) {
   const d = document.createElement('div');
-  d.className = 'lshell-scene ' + (SIDE[side] || '') + (cls ? ' ' + cls : '');
+  d.className = 'sk-scene ' + (SIDE[side] || '') + (cls ? ' ' + cls : '');
   d.style.cssText = side === 'full' ? 'position:absolute;inset:0' : '';
   /* An overlay that will fade in starts out, or the step opens on it fading. */
   if (cls === 'sk-fade') { d.style.opacity = 0; d.style.pointerEvents = 'none'; }
