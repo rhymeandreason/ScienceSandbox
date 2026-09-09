@@ -29,6 +29,8 @@
           line-height:1.45;word-break:break-word}
   td.c1{white-space:nowrap}
   tr.busy{background:rgba(0,0,0,.04)}
+  tr.loaded td{background:rgba(0,0,0,.035)}
+  tr.loaded td:first-child{box-shadow:inset 2px 0 0 var(--ink)}
   .pill{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;
         font-weight:600;white-space:nowrap}
   .ok  {background:#e2f0e8;color:#1f6b48}
@@ -183,6 +185,8 @@
     <button id="run5">Run all</button>
     <button id="stop5">Clear</button>
     <span id="prog5" class="pill idle">idle</span>
+    <span class="legend" style="margin:0">Click a row to load its molecules;
+      <b>▶</b> reacts what is standing there.</span>
   </div>
   <table id="t5">
     <thead><tr><th></th><th>from</th><th>linkage</th><th>O from</th>
@@ -1245,7 +1249,12 @@ const TURN_LEFT = 0.35;
 let asm5 = [];
 function clear5(){ asm5.forEach(g=>L.root.remove(g)); asm5 = []; }
 
-function run5(cs, live){
+/* STAGING AND REACTING ARE TWO THINGS. Clicking a row LOADS: the stage is
+ * cleared and the two molecules are placed where the reaction starts, and
+ * nothing moves. ▶ then reacts what is standing there. Running both off one
+ * click meant the only way to look at the reactants was to catch them in the
+ * first frame of the thing you wanted to watch. */
+function stage5(cs){
   clear5(); clearAsm(); reset();
   const out = {threw:null, beats:0};
   try{
@@ -1322,6 +1331,20 @@ function run5(cs, live){
     const pH1 = hOwner.g.userData.atomWorld(hI).clone();
     const pKeepO = oOwner.g.userData.atomWorld(oOwner.r.keep).clone();
 
+    out.ctx = {gA, gB, home, hKeep, gr, oOwner, hOwner, oI, oH, hI,
+               pO, pH2, pH1, pKeepO, qPose, pose};
+    out.total = T.HOP + T.WATER_FORM + Math.max(T.WATER_DRIFT, T.JOIN + 200);
+  }catch(e){ out.threw = e; }
+  return out;
+}
+
+/* The five beats, on molecules already standing. Nothing here places anything:
+ * every position it uses was read off the meshes at load time, so what reacts
+ * is what you were looking at. */
+function beats5(out){
+  const {gA, gB, home, hKeep, gr, oOwner, hOwner, oI, oH, hI,
+         pO, pH2, pH1, pKeepO, qPose, pose} = out.ctx;
+  try{
     // ---- 1 · both bonds ring, each as the bond it is ----
     cFX.spawnRing(pO.clone().lerp(pKeepO, 0.5), PAL.atoms.O);
     cFX.spawnRing(pH1, RXs.colors.H_LEAVE);
@@ -1372,7 +1395,6 @@ function run5(cs, live){
       }, T.WATER_FORM);
       RXs.later(()=>cGO.drop(w), T.WATER_FORM + T.WATER_DRIFT);
     });
-    out.total = T.HOP + T.WATER_FORM + Math.max(T.WATER_DRIFT, T.JOIN + 200);
   }catch(e){ out.threw = e; }
   return out;
 }
@@ -1386,7 +1408,11 @@ CASES4.forEach((cs,i)=>{
     + `<td class="note c5s"></td>`
     + `<td class="c1 note c5b"></td><td class="c5r">${pill('idle','—')}</td>`;
   body5.appendChild(tr);
-  tr.querySelector('button').onclick = ()=>one5(i, true);
+  tr.querySelector('button').onclick = e=>{ e.stopPropagation(); one5(i, true); };
+  // The row itself loads. Clearing is part of loading, never a separate step:
+  // a stage holding the last reaction's leftovers is the state that lied before.
+  tr.onclick = ()=>load5(i);
+  tr.style.cursor = 'pointer';
 });
 function show5(i, out){
   const tr = body5.children[i];
@@ -1397,12 +1423,40 @@ function show5(i, out){
     ? `${out.start}${out.gap != null ? ` · gap ${out.gap}×` : ''}` : '';
   tr.querySelector('.c5b').textContent = out.threw ? '' : `${out.fx} · ${out.mo} · ${out.go}`;
   tr.querySelector('.c5r').innerHTML = out.threw ? pill('bad','threw')
+    : out.staged ? pill('idle','loaded')
     : (out.fx + out.mo + out.go) === 0 ? pill('noop','did nothing') : pill('ok','ran');
   if(out.threw) tr.querySelector('.c5o').textContent = String(out.threw.message).slice(0,70);
 }
+/* WHAT IS ON THE STAGE, and which row it belongs to. A reacted stage is not a
+ * loaded one: ▶ on a row that has already run re-loads first, or the beats
+ * would fire on molecules that have already lost the atoms they need. */
+let loaded5 = null;
+
+function markLoaded(i){
+  [...body5.children].forEach((tr,k)=>tr.classList.toggle('loaded', k === i));
+}
+function load5(i){
+  if(busy) return null;
+  const cs = CASES4[i];
+  const out = stage5(cs);
+  loaded5 = out.threw ? null : {i, out};
+  markLoaded(out.threw ? -1 : i);
+  show5(i, Object.assign({fx:0, mo:0, go:0, staged:true}, out));
+  stageState(`loaded · ${cs.from.join(' + ')}`, out.threw ? ['nothing drawn']
+    : [`${cs.from[0]} · ${out.linkage}, waiting at ${out.gap}× the bond`,
+       `${cs.from[1]} · turns ${out.start === 'measured' ? 'from its measured start' : 'the rest of the way'} as it closes`]);
+  return out;
+}
+
 function play5(cs, live){
+  const i = CASES4.indexOf(cs);
+  // Reuse what is standing only if it is this row and it has not reacted yet.
+  const out = (loaded5 && loaded5.i === i && !loaded5.reacted)
+    ? loaded5.out : stage5(cs);
+  loaded5 = out.threw ? null : {i, out, reacted:true};
+  markLoaded(out.threw ? -1 : i);
   tally.reset();
-  const out = run5(cs, live);
+  if(!out.threw) beats5(out);
   const settle = (out.total || 2600) + 400;
   const done = ()=>{ out.fx = tally.fx; out.mo = tally.mo; out.go = tally.go;
     stageState(`${cs.from.join(' + ')} → ${out.linkage || 'no linkage'}`,
@@ -1438,7 +1492,7 @@ async function runAll5(){
 }
 document.getElementById('run5').onclick = runAll5;
 document.getElementById('stop5').onclick = ()=>{ if(!busy){ clear5(); clearAsm(); reset();
-  stageState('cleared', ['stage · empty']); } };
+  loaded5 = null; markLoaded(-1); stageState('cleared', ['stage · empty']); } };
 
 document.getElementById('run1').onclick = ()=>runAll(1);
 document.getElementById('run2').onclick = ()=>runAll(2);
