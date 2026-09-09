@@ -1,6 +1,6 @@
-<!-- KIND: rulebook, scoped — load before touching the map's content (lib/mapcontent.js, and tools/bake-vectors.js which derives from it), the card pages (tests/question-composer.html, tests/cards-cluster.html), or the composer's search (api/find.js). What is HERE is what no file can say for itself: the design law, the alternatives that were measured and rejected, and the facts about other people's software. The traps are commented at their own sites and are not repeated here. The last section is an ARGUMENT rather than a rule and can be skipped during a build. Nothing here applies to a lesson that draws one stage of its own. -->
+<!-- KIND: rulebook, scoped — the door map and the composer that enters it by typing: tests/question-composer.html, lib/mapcontent.js, tools/bake-vectors.js and api/find.js. **Being deprecated**: nodegraph/ is the successor and nothing new should depend on lib/mapcontent.js. Load only when touching one of those four files. The shared invariants that used to live here are in demos/docs/Modules.md and demos/docs/dev.md. -->
 
-# Cards, the stage concepts, and the door map
+# The door map, and the composer
 
 ## **Goal**
 
@@ -50,15 +50,6 @@ Three rules, all learned from a frame-rate readout in the corner rather than fro
 * **A revealed card starts on a calm frame, not a settled one.** A context, its shaders and its geometry are tens of milliseconds that no spreading makes free — but waiting for a full settle left the card the reader just opened on its placeholder for seconds. At LOAD there is no motion to protect, so the first drain runs flat out and in reveal order; every drain after it waits and goes latest-first.
 
 **Canvases follow separately.** A card's canvas measures its UNZOOMED layout box, so at k = 2.5 it draws 2.5x fewer pixels than the screen shows. Pixel ratio is re-set after the wheel stops, because re-sizing a drawing buffer reallocates it.
-
-## **Invariants**
-
-**They are commented at their own sites, which is where they bite.** Listing them here as well was two copies to keep in step. What is worth knowing cold is the SHAPE they share: every one of them ships looking fine. Contexts are dropped with no error, a control renders and highlights and does nothing, a card sits at the origin at opacity 1, a toggle is present and queryable and invisible. Read the header comment of whichever file you are in before changing it.
-
-Two that are not any one file's:
-
-* **A scene is one scale** (MolecularGeometry.md §1.5). Every spec in `lib/` is now one family, so the live case is a protein's real ångströms beside a spec-built molecule — a card decides that, and `kit/scale.js`'s rungs are where a component declares it.
-* **`querySelectorAll` finds a control that `opacity: 0` has hidden.** Anything gated by `.near`, `.hub` or a class is verified with computed style, or it is not verified. And a synthetic `click` in the console skips the pointer sequence half these bugs live in, so it passes on a completely dead button. Test controls with a real click.
 
 ## **Card kinds**
 
@@ -260,18 +251,6 @@ The caption takes a second sans token, `--ui` (`system-ui`), because `--sans` is
 **The drawing half is cheap; the half that bites is the checks that GATE rather than draw.** Adding specimens, a kind check that skipped a non-concept left the surface toggle invisible at every zoom, and not focusing a named card left it just under the controls threshold for a second reason. Neither threw, neither logged, and both survived a DOM query that found the buttons and reported them working. **The lesson is the test, not the count.** A cheap kind is still a kind — cheap for a leaf, as specimens and videos both turned out to be, and not cheap for anything that questions must cross THROUGH.
 
 **A named card is focused**, the way a clicked one is, so it takes `.hub` and its full width. Naming a card is asking to work on it.
-
-## **Gotchas for a cold session**
-
-* **The browser probe tab is hidden**, so `requestAnimationFrame`, `ResizeObserver` and `IntersectionObserver` delivery never fire. Drive `box.pump(dt)` and the page's own `step()` directly. `pump()` exists for this.
-
-* **`setTimeout` is throttled there too**, so a debounce does not fire on the schedule you typed against. A dropdown that looks empty a second after typing is usually this and not a bug.
-
-* **Screenshots with 4 live contexts come back blank** in the probe tab — the compositor does not pick up four WebGL layers. Verify with `readPixels` or `snapshot()` instead, and ask the human to look in Safari.
-
-* Checkers: `node tools/check-pages.js`, `tools/check-docs.js`, `tools/bake-vectors.js --check` (the map's own — vectors AND references), `proteins/check-proteins.js`, `kit/check-kit.js`, `molecule-builder/check-molecule-builder.js`, `check-molecules.js` (slow, \~2min). The pre-commit hook gates each; silence means it ran and passed.
-
-* `check-docs.js` treats any backticked path as a claim the file exists, and resolves it from `demos/` — so a checker outside `demos/tools/` needs its directory (`proteins/check-proteins.js`, not the bare name). Write a former filename in italics, not in backticks. This doc has broken that rule four times now and the checker caught every one.
 
 ## **Considered**
 

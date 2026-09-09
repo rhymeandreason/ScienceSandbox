@@ -44,7 +44,7 @@ Every doc lives in `demos/docs/` except the node graph's two and the clipper's, 
 | Set the scale of a component or module | `kit/scale.js` is the enum |
 | A new page that hand-draws molecules | `AddingAPage.md`, then the sibling page the human names |
 | A new page that mounts a component | `AddingAComponent.md`, then `Generator.md` |
-| A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §§5-6, `glycolysis-lab.html`'s `STEPS` table and what reads it |
+| A new step-through pathway lesson | `AddingAPage.md`, `Modules.md`'s load order, `SCIENCE.md` §5, `glycolysis-lab.html`'s `STEPS` table and what reads it |
 | The chemistry a molecule has to obey | `SCIENCE.md` §§2-3, plus the target `mol-*.js` |
 | Changing geometry, or what a motion implies happened at the molecule scale | `SCIENCE.md` §§2-5 |
 | Adding or converting a molecule | `AddingAMolecule.md` — the eight steps, two of which catch failures that render correctly. `MolecularGeometry.md` §1 is the rulebook behind it, §1.4 for the fidelity tier it owes |
@@ -57,7 +57,7 @@ Every doc lives in `demos/docs/` except the node graph's two and the clipper's, 
 | The AI tutor, or `api/` | `docs/ai-tutor.md` |
 | Deploying, short URLs, promoting a page to featured | `docs/deploy.md` |
 | Running locally, the checkers, the commit hook | `docs/dev.md` |
-| Questions-composer, Map, or any page mounting SEVERAL live 3D boxes | `ConceptMap.md` — the invariants half especially; every item is a failure that ships looking fine. **Being deprecated**: the node graph is its successor, and nothing new should depend on `lib/mapcontent.js` |
+| Questions-composer, or the door map | `tests/question-composer.md`, beside the page. **Being deprecated**: the node graph is its successor, and nothing new should depend on `lib/mapcontent.js`. A page mounting SEVERAL live 3D boxes reads `kit/card-stage.js`'s header instead |
 | Deciding what to build next | ask the human if the roadmaps are still relevant |
 
 **Build-time briefs for a component in progress live at the repo root `docs/`**, not here: `Cell-Component.md`, `Membrane-Chemiosmosis.md`. They are read until the feature ships and then retired; the lasting rules move into `demos/docs/`.
@@ -84,7 +84,7 @@ Every doc lives in `demos/docs/` except the node graph's two and the clipper's, 
 | `molecule-viewer.html` | Reference shelf: (ATP · NADH · acetyl-CoA · FADH₂). **Three views of one molecule** — 3D with measured and idealized (skel), then *the same spheres sliding onto the diagram's layout* (`flat2d`), then the drawn diagram (SmilesDrawer over the generated `smiles`). | internal tool |
 | `build/build.html` | The builder: a request becomes an app from `Components.md`, stored in the database with every edit a version, run in a sandboxed frame. `app.html` beside it is the viewer. `Generator.md` | Prototype |
 | `nodegraph/nodegraph.html` | The whole of Bio 101 as one map: typed, ranked edges between \~200 cards across seven units. X is explanatory order and Y is the scale ladder, both baked from the data so the map is identical every session. Fog of war, a rank-1 walk on the arrow keys, themes as saved queries, and a `kinds` pill that reveals detail too small to be a node. `nodegraph/Nodegraph.md` | prototype |
-| `tests/question-composer.html` | The door map, entered by typing: the reader's words become the root card, and the map opens through the authored question they matched plus the concepts the wording reached on its own. Every protein in `proteins/proteins.js` is a node on it; `PLACEMENTS` only says where one sits. Content (lessons, videos, sims, molecules) is `CONTENT` + `PLACEMENTS`, separate from the concepts that show it. `ConceptMap.md` | prototype |
+| `tests/question-composer.html` | The door map, entered by typing: the reader's words become the root card, and the map opens through the authored question they matched plus the concepts the wording reached on its own. Every protein in `proteins/proteins.js` is a node on it; `PLACEMENTS` only says where one sits. Content (lessons, videos, sims, molecules) is `CONTENT` + `PLACEMENTS`, separate from the concepts that show it. `tests/question-composer.md` | prototype |
 | `capillary/pbf-test.html` | Capillary action as a position-based fluid: water climbing a 3.5 nm slot between real cellulose walls, with a measured contact angle, evaporation, and Young-Laplace holding as the pore narrows. `WaterSim.md` is its rulebook | prototype |
 | `sickle/fibre-test.html` | HbS fibre structure test bench, with SES surface render (HbA vs HbS toggle). No lesson page yet | prototype |
 | `dna-structure.html` | Walk through the parts of a DNA helix | featured lesson |
@@ -99,7 +99,7 @@ Generated pages live under `tests/gen-*.html` and are listed in `admin.html` as 
 
 ## Scientific accuracy
 
-`SCIENCE.md` is the rulebook — §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 fx/colour conventions.
+`SCIENCE.md` is the rulebook — §§2–3 polarity and covalent bonding, §4 rendering caveats, §5 what a motion may imply. The fx vocabulary itself is `Modules.md`'s "Effects".
 
 **A molecule that makes a chemical claim ships with the assertion that checks it, in the same commit** — `MolecularGeometry.md` §1.4's fidelity tiers (prop / contrast / subject) set how much accuracy it owes for the claim it makes. Pedagogical exaggerations (stretched bonds, neutral vs zwitterion) stay **explicit in comments**.
 

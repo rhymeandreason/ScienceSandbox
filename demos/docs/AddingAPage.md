@@ -22,7 +22,7 @@ chrome. Give each phase its own two-line list and drop the global one:
 | --- | --- |
 | Establish the facts (no code) | `CLAUDE.md`'s copywriting section. Nothing else |
 | Find where the new lesson does not fit the old shape | the sibling pages and the shared shell. No chemistry |
-| Molecules and step data | `MolecularGeometry.md` §1, `SCIENCE.md` §§5-6, the `STEPS` record |
+| Molecules and step data | `MolecularGeometry.md` §1, `SCIENCE.md` §5, the `STEPS` record |
 | The page | this file, `pathways.css`, the sibling's chrome |
 | Adversarial review | `SCIENCE.md` and the facts, and deliberately **not** the sibling page: a verifier holding the sibling checks whether the new page matches it, which is not the same question as whether it is true |
 

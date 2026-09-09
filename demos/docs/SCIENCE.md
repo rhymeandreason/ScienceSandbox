@@ -2,9 +2,9 @@
 
 # Scientific Accuracy Rules
 
-The rulebook for every page. §§2–3 are chemistry (polarity, covalent bonding);
-§§4–5 are per-page. Water/solvation physics lives in `WaterSim.md` (solvation
-apps only). Module architecture — what's shared and what stays local — lives
+The rulebook for every page. §§2–3 are chemistry (polarity, covalent bonding),
+§4 is rendering caveats, and the last section is what a motion may imply.
+Water/solvation physics lives in `WaterSim.md` (solvation apps only). Module architecture — what's shared and what stays local — lives
 in `Modules.md`.
 
 **Read `MolecularGeometry.md` §1.1–§1.6 before adding or converting any molecule
@@ -91,138 +91,18 @@ doesn't need it.
 
 ---
 
-## 5. Reaction & event animation (`fx.js`)
+---
 
-Every "something happened" moment gets a transient effect from the shared
-`fx.js`, so every page looks the same. One instance per page, bound to its scene:
+## 5. Effects
 
-```js
-const FXi = FX.create(THREE, root, camera);   // root: group the molecules live in
-FXi.spawnRing(pos, color);  FXi.popGlow(g, color);  …
-FXi.step();                                    // once per frame, in loop()
-```
-
-Effects step off a wall-clock delta (frame-rate independent) and are **purely
-cosmetic** — never feeding back into physics, H-bond counts or pH. `popGlow`
-scales *relative* to the target's current scale, so it works on a molecule Group
-(rest scale 1) and a bare ion mesh (rest scale = its radius) alike.
+**What a motion is allowed to imply** is §§2-4's business and stays here: a
+bond drawn breaking is a claim that a bond broke. HOW the effect is drawn —
+`fx.js`'s primitives, which event gets which ring, and the colour language — is
+a page convention rather than a chemical rule, and lives in `Modules.md`
+under "Effects (`fx.js`)".
 
 **Intensity tracks the chemistry.** Bonds breaking or forming get the full
 shockwave-and-sparks; **hydration** (no bonds broken, identity unchanged) gets a
 soft shimmer; a solute where **nothing happens** stays silent. Never dramatize a
 non-event — an animation on plain dissolving implies a reaction that didn't
 occur, and methane's silence is itself the lesson about nonpolar solutes.
-
-<!-- ENUM: update when an fx.js primitive is added or removed. -->
-| Function | What it draws | Used for |
-|---|---|---|
-| `spawnRing(pos,color)` | white core flash + double additive shockwave ring + 16-spark burst | bond break/form events |
-| `popGlow(g,color)` | emissive flash (2.2×) + springy scale overshoot on a molecule's atoms | a molecule freshly formed / an ion tearing free |
-| `settleShimmer(g,color)` | soft emissive breathe in-and-out, **no** scale/ring/sparks | a polar solute locking into its hydration shell |
-| `protonHop(from,to,onArrive,opt)` | glowing proton arcing between points with a fading comet trail | the H⁺ transfer of an acid ionization. `opt` is optional: `{color}` where a hop must not read as the effect firing beside it, `{dur}` in seconds, `{away}` for a proton a reaction **displaces** — snaps off the bond, then drifts and fades instead of landing |
-| `colorOf(g)` | reads a molecule's first **atom** colour (skips covalent-bond meshes) | tinting an effect to whatever it decorates |
-
-### Per-molecule event → effect → colour
-
-Atom colours are the single source of truth in `molecules.js`
-(`MolLib.PALETTE.atoms`); ion effects pull them live via `colorOf`.
-
-<!-- ENUM: update when an effect is wired to a new event. -->
-| Molecule | `class` | Event | Effect(s) | Colour(s) |
-|---|---|---|---|---|
-| **Water** H₂O | `solvent` | — (the medium; ambient H-bond network) | none | — |
-| **Salt** NaCl | `ionic` | water bridges the pair → **dissociation** | `spawnRing` + `popGlow` each ion | ring/Na⁺ violet `#9a3fe0`, Cl⁻ green `#1fa968` |
-| **Potassium chloride** KCl | `ionic` | same → **dissociation** | `spawnRing` + `popGlow` each ion | ring/K⁺ blue `#0054c0`, Cl⁻ green `#1fa968` |
-| **Ethanol** C₂H₅OH | `polar` | settles into water → hydration toast | `settleShimmer` (in sync with toast) | water-blue `#9fd4ff` |
-| **Ammonia** NH₃ | `polar` | settles into water → hydration toast | `settleShimmer` (in sync with toast) | water-blue `#9fd4ff` |
-| **Methane** CH₄ | `nonpolar` | squeezed out (no H-bonds) | **none** (silence is the point) | — |
-| **Carbon dioxide** CO₂ | `reactive` | **step 1:** CO₂ + H₂O → H₂CO₃ | `spawnRing` at attack site + `popGlow` on new H₂CO₃ | cool blue: ring `#7cc4ff`, glow `#bfe4ff` |
-| ↳ **Carbonic acid** H₂CO₃ | `polar`, `product` | **step 2:** H₂CO₃ → HCO₃⁻ + H⁺ | `popGlow` on HCO₃⁻ + `protonHop` acid→water | glow `#ffe4b0`; proton `#ffe08a`, trail `#ffcf6b` |
-| ↳ **Bicarbonate** HCO₃⁻ | `ion`, `product` | (formed in step 2) | — (glowed as part of step 2) | `#ffe4b0` |
-| ↳ **Hydronium** H₃O⁺ | `ion`, `product` | proton lands on a water | `spawnRing` at landing + `popGlow` on new H₃O⁺ | warm amber: ring `#ffc24d`, glow `#ffd98a` |
-
-### Bonding builder (`molecule-builder.html`)
-
-Each **bond type finishes in its own visual language**, because the page exists
-to say they are different kinds of event; recolouring one effect for all three
-would say the opposite. Every effect fires at a position the module **asks for**
-(the anchor atom, the landing point), never at the world origin.
-
-| Bond formed | Event | Effect(s) | Colour(s) |
-|---|---|---|---|
-| **Covalent** (H₂O, CH₄, NH₃) | the last slot fills | `spawnRing` from the **core atom**, expanding through the molecule — the bond is a thing the whole molecule now has | covalent stone `#b3a892` |
-| **Dative** (NH₃ + H⁺ → NH₄⁺) | the proton lands in the lone pair | `spawnRing` from the **donor**, in the **donor's own colour** (it did not come from both atoms) + the donor pair swells 1.34× and settles + amber `settleShimmer` on the new ion | N blue `#3f6ae0`; shimmer amber `#ffc24d` |
-| **Ionic** (NaCl, KCl) | the electron lands on the nonmetal | **no ring** — `spawnCore` white flash + `spawnBurst` at the **arrival point on the shell**: one electron arrived at one place, the molecule did not acquire something | white `#ffffff` + the nonmetal's colour |
-
-- The **completion ring fires once per molecule**, re-armed when the lesson
-  reports incomplete — rebuilding earns it again, a repeated finished state
-  doesn't.
-- The **electron's flight** carries the ionic story: sodium's dot detaches, arcs
-  over 0.55 s, lands **green**. An electron wears its owner's colour, so changing
-  colour mid-flight *is* the sentence "it changed owner". Counts flip at
-  transfer, not arrival — the callback only runs while the frame loop does, and a
-  backgrounded tab must not leave the readout stale.
-- The **dative flare is deliberately small** (1.34×). A ballooning dot stops
-  reading as an electron; the whole claim is that these are the *same two
-  electrons* throughout.
-
-### Dehydration synthesis has ONE effect, everywhere
-
-<!-- ENUM: every page that condenses calls this; nothing else may. -->
-A peptide bond, a glycosidic bond and a phosphoester are **the same reaction on
-different groups**: two halves give up an –OH and an –H, a water leaves, and a
-bond closes where they were. So they get one effect and one colour, and a page
-that invents its own flare for a condensation is teaching, in the language a
-student reads fastest, that these are three different kinds of chemistry.
-
-`fx.condense(bondAt, waterAt, opt)` is the only implementation. It fires in two
-places because the reaction happens in two: a full `spawnRing` **at the new
-bond's midpoint** in flare violet `#8a2be2`, plus a small white core and
-**oxygen-red** burst where the water goes. It does not draw the water; that is a molecule, and the page
-owns it.
-
-The midpoint matters. A flare at a molecule's transform origin lands in the
-middle of a ring system and says "something happened somewhere" — the failure
-`dna-lab` step 1 had already fixed for hydrogen bonds.
-
-Its rings are also the one effect in `fx.js` that is **painted rather than
-added**. Every other flare is a bright colour, and additive blending is right
-for those; violet is darker than the paper, and adding it to cream gives a pale
-pink smudge however saturated it is. The white core stays additive, because
-painting a white disc over a molecule punches a hole in it.
-
-`opt.color` exists only for a page saying *this particular one is not a
-condensation*. `opt.size` is the ångström scaling every `fx` primitive takes.
-
-### Colour language
-
-- **Cool blue** (`#7cc4ff` / `#bfe4ff`) — a **water-driven** step.
-- **Warm amber** (`#ffc24d` / `#ffd98a` / `#ffe08a`) — **acid / proton**
-  chemistry; echoes the ion–dipole bond colour and the falling-pH story.
-- **Ion palette** (violet / blue / green) — each ion flares in its own identity
-  colour so cation and anion read as distinct.
-- **Water-blue** (`#9fd4ff`) — the **hydration shell closing in**; a water
-  colour, not the solute's, because the solute is unchanged.
-- **Violet** (`#6a5acd` the bond, `#8a2be2` the flare) — **dehydration
-  synthesis**, whichever groups it joined. Two numbers for one idea because the
-  effects blend additively on cream: adding a violet that carries green
-  (`#6a5acd`, g=`0x5a`) lands as a pale pink smudge, so the flare uses the same
-  hue with the green taken out. `PALETTE.bonds.condense` is the stick; the flare
-  constant lives in `fx.js` beside `PROTON_GOLD`, like every other ring colour.
-- **White core flash** (`#ffffff`) — shared by all `spawnRing` events, the
-  white-hot instant before the coloured rings.
-
-### Where each is wired
-
-- Dissociation — `checkDissociation()`, in `water-lab.html`.
-- The CO₂ chain and the solute settle were `molecule-lab.html`'s, and went to
-  `attic/solvation/` with it. A page that brings either back re-wires them; the
-  effects themselves are still in `fx.js`.
-- Dehydration synthesis — `fx.condense()`, called by `dna-lab.html` step 2 (the
-  glycosidic bond and the phosphoester) and step 3 (the phosphodiester).
-  `dna-lab` deliberately adds no `popGlow` on the two molecules, because its
-  nucleotide is hydrogen-bonded to a partner four ångströms away and a 1.7×
-  punch swells one straight through the other.
-
-New pages: add `<script src="fx.js">`, `FX.create(THREE, root, camera)` once,
-`FXi.step()` in the loop, then call the primitives at your own event sites.

@@ -41,3 +41,11 @@ npm i && node tools/check-handedness.js
 ```
 
 `tools/check-docs.js` audits what the docs *claim*. Framing, spacing, rotation and captions the human tests in the browser.
+
+## Driving a page from a probe tab
+
+* **The browser probe tab is hidden**, so `requestAnimationFrame`, `ResizeObserver` and `IntersectionObserver` delivery never fire. Drive `box.pump(dt)` and the page's own `step()` directly. `pump()` exists for this.
+* **`setTimeout` is throttled there too**, so a debounce does not fire on the schedule you typed against. A dropdown that looks empty a second after typing is usually this and not a bug.
+* **Screenshots with 4 live contexts come back blank** — the compositor does not pick up four WebGL layers. Verify with `readPixels` or `snapshot()` instead, and ask the human to look in Safari.
+* **`querySelectorAll` finds a control that `opacity: 0` has hidden.** Anything gated by `.near`, `.hub` or a class is verified with computed style, or it is not verified. And a synthetic `click` skips the pointer sequence half these bugs live in, so it passes on a completely dead button. Test controls with a real click.
+* `check-docs.js` treats any backticked path as a claim the file exists, and resolves it from `demos/` — so a checker outside `demos/tools/` needs its directory (`proteins/check-proteins.js`, not the bare name). Write a former filename in italics, not in backticks.

@@ -110,15 +110,15 @@ General plumbing. A page loads the ones its mechanic needs; none of them knows w
 | --- | --- | --- |
 | `kit/motion.js` | `Motion.create` → `tween`, `seq`, `after`, `step(dt)`, `cancel(tag)`, plus a handle with `seek`/`duration`. **A page's timeline**, one clock advanced by the render loop, no `setTimeout`. No THREE; Node-loadable. A component's own params glide on `CardStage.tweens()` instead: `AddingAComponent.md` §1 | `kit/README.md` |
 | `kit/molgraph.js` | `MolGraph` — neighbours, `terminal`/`bridging`, `side`, `rings`, `findGroups`, `phosphoryl`, `leavingBond`, signed `torsion`, `centroid`/`spread`. Questions about a SPEC, no scene involved, so `kit/check-kit.js` asserts the same code a page animates with | `kit/README.md` |
-| `kit/card-stage.js` <br>**`ConceptMap.md`** | `CardStage.create({mount,cam,stage,step,frame,afterFrame,onResize,onDestroy,autoplay})` → `canvas` · `stage` · `start`/`stop`/`draw`/`pump` · `snapshot` · `running` · `destroy`, plus `CardStage.pool({limit,onEvict})`. **A live 3D box on a card, and the budget of them** — every component sits on it, and the pool is the reason a page with many boxes does not lose contexts | own header, `kit/README.md` |
-| `kit/molbox.js` <br>**`ConceptMap.md`** | `Molbox.create({mount,spec,spin,pad,stage,view,frame,afterFrame,leader})` → `show(spec)` · `fit` · `setSpin` · card-stage's box. One molecule in a box, on a camera it fits itself | `kit/README.md` |
+| `kit/card-stage.js` | `CardStage.create({mount,cam,stage,step,frame,afterFrame,onResize,onDestroy,autoplay})` → `canvas` · `stage` · `start`/`stop`/`draw`/`pump` · `snapshot` · `running` · `destroy`, plus `CardStage.pool({limit,onEvict})`. **A live 3D box on a card, and the budget of them** — every component sits on it, and the pool is the reason a page with many boxes does not lose contexts | own header, `kit/README.md` |
+| `kit/molbox.js` | `Molbox.create({mount,spec,spin,pad,stage,view,frame,afterFrame,leader})` → `show(spec)` · `fit` · `setSpin` · card-stage's box. One molecule in a box, on a camera it fits itself | `kit/README.md` |
 | `kit/stagekit.js` | `Lesson.create` → everything `Stage.create` returns plus `fx`/`motion`/`focus`, the `frame`/`afterFrame` hooks, `worldPerPx`/`pxToWorld`, and `fit()` (turns measured DOM chrome into the world bands `Stage.frame` takes). **Anything projecting DOM onto a 3D point goes in `afterFrame`** | `kit/README.md` |
 | `kit/fit.js` | `Fit.create({canvas,camera,cam,reserve})` → `usable` · `solve` · `anchorTop` · `frustum`. The arithmetic for a scene with chrome over it; the page supplies what it reserved | `kit/README.md` |
 | `kit/focus.js` | `Focus.create` → `atoms` (by spec index), `among` (whole objects), `clear`, `claim`. The one spelling of ghost-the-rest / light-the-chosen. A bond is lit only when BOTH ends are | `kit/README.md` |
 | `kit/modal.js` | `Modal.create({el,onShow,onHide})` → `show(arg)` / `hide` / `isOpen`, plus `Modal.anyOpen()`. The side doors a lesson grows. The page writes the markup | `kit/README.md` |
 | `kit/lanes.js` | `Lanes.create` → `render`/`swapOne`/`spawn`/`clear`/`settle` · `step` · `draw` · the geometry every flight target needs (`origin`, `base`, `shift`, `lift`, `top`, `offset`, `plateY`, `heightPx`). n molecules side by side that split and swap; **the module owns the lane LIST** | `kit/README.md` |
 | `annotate.js` | `Annot.create` → `add`, `span`, `step`, `play`, `setMode`, `show`, `clear`. Callouts pinned to a model, DOM over the canvas, three reveal modes. `span` is the measuring bracket: it answers "how far apart", which a callout cannot | own header |
-| `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | §5 |
+| `fx.js` | `FX.create` → `spawnRing`, `popGlow`, `protonHop`, `settleShimmer`, `step` | "Effects", below |
 | `atomkit.js` | `AtomKit.create` → `dot`, `cloud`, `label`, `charge`, `cel`, `DOT_GAP` | own header |
 | `molview.js` | `MolView.create` → `show`, `setMode`, `setHighlight`, `setOptionalH`, `step`, `fit`, `snap`, `viewEuler`, `resetPose`, `setSpin`, `atDeclaredView`, plus `usableAround`, `flatPose`, `VIEW_FIELD`. Three views of one molecule and the morph between them. `defaultView()` is the ONLY source of an opening angle. After `scene.js`; `smiles-drawer` only for the Diagram view | own header |
 | `lib/embed.js` | puts `bare` on `<html>` when the page is FRAMED (or `?chrome=bare` forces it). The page marks its own `.chrome-title` | own header |
@@ -183,14 +183,14 @@ Each of these carries a caller's assumptions on purpose. **Not a candidate for a
 | `kit/enzyme-blob.js` | `EnzymeBlob.create({camera,canvas,host})` → `update(sets,{key,pin})` / `clear` / `measure`, plus the pure `EnzymeBlob.circle(pts)`. The translucent blob behind the molecule a step acts on — one path for every enzyme. `sets` is arrays of GROUPS, never lane indices. Chrome is `kit/enzyme-blob.css` | `kit/README.md`, `kit/check-kit.js` |
 | `reaction/reaction.js` | `Reaction.create({host})` → `verbs`, `verb(name,{dur,lane})`, `durOf`, `lane`, `all`, plus `Reaction.stageHost({lanes,carriers,onLanes})`. What a step DOES to a molecule, driving the lesson's own 3D stage. `host` answers only stage questions; timings are the module's. Verb table: own header | `reaction/check-reaction.js` |
 | `haworth.js` | `Haworth` = `haworth` (sugar spec → Haworth-projection SVG) + `findRings` + `faces`. Derived from the spec's own geometry, never through SMILES. `contrast-lab.html` only | own header |
-| `molecule-builder/molecule-builder.js` <br>**`ConceptMap.md`** | `MoleculeBuilder.create({mount, recipe, onChange, dims, armDims, fill, turn, zoomOnComplete, afterFrame})` → `sim` · `setView` · `flat` · `reset` · `fill` · `state` · `snapshot` · card-stage's box. The bonding builder as a box a page can put anywhere. Owns its own ORTHOGRAPHIC stage; picks `CovalentDrag` or `IonicDrag` from the recipe name and holds no chemistry of its own | own header, `molecule-builder/check-molecule-builder.js` |
+| `molecule-builder/molecule-builder.js` | `MoleculeBuilder.create({mount, recipe, onChange, dims, armDims, fill, turn, zoomOnComplete, afterFrame})` → `sim` · `setView` · `flat` · `reset` · `fill` · `state` · `snapshot` · card-stage's box. The bonding builder as a box a page can put anywhere. Owns its own ORTHOGRAPHIC stage; picks `CovalentDrag` or `IonicDrag` from the recipe name and holds no chemistry of its own | own header, `molecule-builder/check-molecule-builder.js` |
 | `covalent-drag.js` / `ionic-drag.js` | `CovalentDrag` / `IonicDrag`, each driven by a `RECIPES` table | own header |
 | `amylase/fit.js` | `AmylaseFit` = `place` + `kabsch` · `clash` · `index`/`nearest` · `SEVERE`/`CLOSE`. Real ångströms, no THREE. The pose is deposited, not searched. `amylase/amylase-test.html` only | `amylase/tools/check-fit.js` |
 | `hemoglobin/hbfold.js` | `HbFold` = `decode` (baked fold → Cα trace, secondary structure, H-bonds, sequence, the **focus segment**'s backbone, `at(t)`). `hemoglobin-lab.html` only. Real ångströms, no THREE | own header |
 | `folding/actin.js` | `ActinLib` = `parseCA` + `screwOf` + `extend` + `encode`/`decode`. `attic/folding-lab.html` rungs 4–5 only. Real ångströms | own header |
 | `folding/villin.js` | `VillinLib` = `parseCA`/`segment` (PAE → rigid domains)/`poses` + `encode`/`decode`. `attic/folding-lab.html` act 3 only. Real ångströms | own header |
 | `lobes/lobes.js` | `Lobes.at(spec, i)` for the geometry, `Lobes.create(THREE).build(spec, {like: molGroup})` for meshes. The electrons a molecule is NOT sharing. **Not molecular orbitals** — the localised picture, and a page owes the student that word. **Always pass `like:`**, and `dirs.length` is not a pair count | own header, `lobes/check-lobes.js` |
-| `lib/mapcontent.js` | content, not code, and the door map's: `window.MapContent = {DOORS, CONCEPTS, QUESTIONS, CONTENT, PLACEMENTS}`. **QUESTIONS is question-major on purpose**, and rank belongs to the EDGE. `tools/mapcontent-io.js` is the one place that knows the shape | `ConceptMap.md` |
+| `lib/mapcontent.js` | content, not code, and the door map's: `window.MapContent = {DOORS, CONCEPTS, QUESTIONS, CONTENT, PLACEMENTS}`. **QUESTIONS is question-major on purpose**, and rank belongs to the EDGE. `tools/mapcontent-io.js` is the one place that knows the shape | `tests/question-composer.md` |
 | `questions.js` | content, not a module: `window.QuestionBank = {CONCEPTS, QUESTIONS}`, 27 coarse buckets, so more than one page reads the same rows. The `built` flag has to be kept true as lessons ship | the file's own header |
 
 ### Second simulations and figures
@@ -244,13 +244,145 @@ A side door off a lesson: its own canvas, its own physics, no MolLib and no geom
 | `hemoglobin/tools/bake-quaternary.js` | level 4's other three chains: 2HHB A/C/D Cα traces + four heme irons, rotated into the trajectory frame via `FoldLib.orient()` → `hemoglobin/data/2HHB-quaternary.json` (12 KB). JSON because 428 points need no second decoder | own header |
 
 
+## Effects (`fx.js`)
+
+Every "something happened" moment gets a transient effect from the shared
+`fx.js`, so every page looks the same. One instance per page, bound to its scene:
+
+```js
+const FXi = FX.create(THREE, root, camera);   // root: group the molecules live in
+FXi.spawnRing(pos, color);  FXi.popGlow(g, color);  …
+FXi.step();                                    // once per frame, in loop()
+```
+
+Effects step off a wall-clock delta (frame-rate independent) and are **purely
+cosmetic** — never feeding back into physics, H-bond counts or pH. `popGlow`
+scales *relative* to the target's current scale, so it works on a molecule Group
+(rest scale 1) and a bare ion mesh (rest scale = its radius) alike.
+
+**Intensity tracks the chemistry** — which event earns which effect is `SCIENCE.md` §5.
+
+<!-- ENUM: update when an fx.js primitive is added or removed. -->
+| Function | What it draws | Used for |
+|---|---|---|
+| `spawnRing(pos,color)` | white core flash + double additive shockwave ring + 16-spark burst | bond break/form events |
+| `popGlow(g,color)` | emissive flash (2.2×) + springy scale overshoot on a molecule's atoms | a molecule freshly formed / an ion tearing free |
+| `settleShimmer(g,color)` | soft emissive breathe in-and-out, **no** scale/ring/sparks | a polar solute locking into its hydration shell |
+| `protonHop(from,to,onArrive,opt)` | glowing proton arcing between points with a fading comet trail | the H⁺ transfer of an acid ionization. `opt` is optional: `{color}` where a hop must not read as the effect firing beside it, `{dur}` in seconds, `{away}` for a proton a reaction **displaces** — snaps off the bond, then drifts and fades instead of landing |
+| `colorOf(g)` | reads a molecule's first **atom** colour (skips covalent-bond meshes) | tinting an effect to whatever it decorates |
+
+#### Per-molecule event → effect → colour
+
+Atom colours are the single source of truth in `molecules.js`
+(`MolLib.PALETTE.atoms`); ion effects pull them live via `colorOf`.
+
+<!-- ENUM: update when an effect is wired to a new event. -->
+| Molecule | `class` | Event | Effect(s) | Colour(s) |
+|---|---|---|---|---|
+| **Water** H₂O | `solvent` | — (the medium; ambient H-bond network) | none | — |
+| **Salt** NaCl | `ionic` | water bridges the pair → **dissociation** | `spawnRing` + `popGlow` each ion | ring/Na⁺ violet `#9a3fe0`, Cl⁻ green `#1fa968` |
+| **Potassium chloride** KCl | `ionic` | same → **dissociation** | `spawnRing` + `popGlow` each ion | ring/K⁺ blue `#0054c0`, Cl⁻ green `#1fa968` |
+| **Ethanol** C₂H₅OH | `polar` | settles into water → hydration toast | `settleShimmer` (in sync with toast) | water-blue `#9fd4ff` |
+| **Ammonia** NH₃ | `polar` | settles into water → hydration toast | `settleShimmer` (in sync with toast) | water-blue `#9fd4ff` |
+| **Methane** CH₄ | `nonpolar` | squeezed out (no H-bonds) | **none** (silence is the point) | — |
+| **Carbon dioxide** CO₂ | `reactive` | **step 1:** CO₂ + H₂O → H₂CO₃ | `spawnRing` at attack site + `popGlow` on new H₂CO₃ | cool blue: ring `#7cc4ff`, glow `#bfe4ff` |
+| ↳ **Carbonic acid** H₂CO₃ | `polar`, `product` | **step 2:** H₂CO₃ → HCO₃⁻ + H⁺ | `popGlow` on HCO₃⁻ + `protonHop` acid→water | glow `#ffe4b0`; proton `#ffe08a`, trail `#ffcf6b` |
+| ↳ **Bicarbonate** HCO₃⁻ | `ion`, `product` | (formed in step 2) | — (glowed as part of step 2) | `#ffe4b0` |
+| ↳ **Hydronium** H₃O⁺ | `ion`, `product` | proton lands on a water | `spawnRing` at landing + `popGlow` on new H₃O⁺ | warm amber: ring `#ffc24d`, glow `#ffd98a` |
+
+#### Bonding builder (`molecule-builder.html`)
+
+Each **bond type finishes in its own visual language**, because the page exists
+to say they are different kinds of event; recolouring one effect for all three
+would say the opposite. Every effect fires at a position the module **asks for**
+(the anchor atom, the landing point), never at the world origin.
+
+| Bond formed | Event | Effect(s) | Colour(s) |
+|---|---|---|---|
+| **Covalent** (H₂O, CH₄, NH₃) | the last slot fills | `spawnRing` from the **core atom**, expanding through the molecule — the bond is a thing the whole molecule now has | covalent stone `#b3a892` |
+| **Dative** (NH₃ + H⁺ → NH₄⁺) | the proton lands in the lone pair | `spawnRing` from the **donor**, in the **donor's own colour** (it did not come from both atoms) + the donor pair swells 1.34× and settles + amber `settleShimmer` on the new ion | N blue `#3f6ae0`; shimmer amber `#ffc24d` |
+| **Ionic** (NaCl, KCl) | the electron lands on the nonmetal | **no ring** — `spawnCore` white flash + `spawnBurst` at the **arrival point on the shell**: one electron arrived at one place, the molecule did not acquire something | white `#ffffff` + the nonmetal's colour |
+
+- The **completion ring fires once per molecule**, re-armed when the lesson
+  reports incomplete — rebuilding earns it again, a repeated finished state
+  doesn't.
+- The **electron's flight** carries the ionic story: sodium's dot detaches, arcs
+  over 0.55 s, lands **green**. An electron wears its owner's colour, so changing
+  colour mid-flight *is* the sentence "it changed owner". Counts flip at
+  transfer, not arrival — the callback only runs while the frame loop does, and a
+  backgrounded tab must not leave the readout stale.
+- The **dative flare is deliberately small** (1.34×). A ballooning dot stops
+  reading as an electron; the whole claim is that these are the *same two
+  electrons* throughout.
+
+#### Dehydration synthesis has ONE effect, everywhere
+
+<!-- ENUM: every page that condenses calls this; nothing else may. -->
+A peptide bond, a glycosidic bond and a phosphoester are **the same reaction on
+different groups**: two halves give up an –OH and an –H, a water leaves, and a
+bond closes where they were. So they get one effect and one colour, and a page
+that invents its own flare for a condensation is teaching, in the language a
+student reads fastest, that these are three different kinds of chemistry.
+
+`fx.condense(bondAt, waterAt, opt)` is the only implementation. It fires in two
+places because the reaction happens in two: a full `spawnRing` **at the new
+bond's midpoint** in flare violet `#8a2be2`, plus a small white core and
+**oxygen-red** burst where the water goes. It does not draw the water; that is a molecule, and the page
+owns it.
+
+The midpoint matters. A flare at a molecule's transform origin lands in the
+middle of a ring system and says "something happened somewhere" — the failure
+`dna-lab` step 1 had already fixed for hydrogen bonds.
+
+Its rings are also the one effect in `fx.js` that is **painted rather than
+added**. Every other flare is a bright colour, and additive blending is right
+for those; violet is darker than the paper, and adding it to cream gives a pale
+pink smudge however saturated it is. The white core stays additive, because
+painting a white disc over a molecule punches a hole in it.
+
+`opt.color` exists only for a page saying *this particular one is not a
+condensation*. `opt.size` is the ångström scaling every `fx` primitive takes.
+
+#### Colour language
+
+- **Cool blue** (`#7cc4ff` / `#bfe4ff`) — a **water-driven** step.
+- **Warm amber** (`#ffc24d` / `#ffd98a` / `#ffe08a`) — **acid / proton**
+  chemistry; echoes the ion–dipole bond colour and the falling-pH story.
+- **Ion palette** (violet / blue / green) — each ion flares in its own identity
+  colour so cation and anion read as distinct.
+- **Water-blue** (`#9fd4ff`) — the **hydration shell closing in**; a water
+  colour, not the solute's, because the solute is unchanged.
+- **Violet** (`#6a5acd` the bond, `#8a2be2` the flare) — **dehydration
+  synthesis**, whichever groups it joined. Two numbers for one idea because the
+  effects blend additively on cream: adding a violet that carries green
+  (`#6a5acd`, g=`0x5a`) lands as a pale pink smudge, so the flare uses the same
+  hue with the green taken out. `PALETTE.bonds.condense` is the stick; the flare
+  constant lives in `fx.js` beside `PROTON_GOLD`, like every other ring colour.
+- **White core flash** (`#ffffff`) — shared by all `spawnRing` events, the
+  white-hot instant before the coloured rings.
+
+#### Where each is wired
+
+- Dissociation — `checkDissociation()`, in `water-lab.html`.
+- The CO₂ chain and the solute settle were `molecule-lab.html`'s, and went to
+  `attic/solvation/` with it. A page that brings either back re-wires them; the
+  effects themselves are still in `fx.js`.
+- Dehydration synthesis — `fx.condense()`, called by `dna-lab.html` step 2 (the
+  glycosidic bond and the phosphoester) and step 3 (the phosphodiester).
+  `dna-lab` deliberately adds no `popGlow` on the two molecules, because its
+  nucleotide is hydrogen-bonded to a partner four ångströms away and a 1.7×
+  punch swells one straight through the other.
+
+New pages: add `<script src="fx.js">`, `FX.create(THREE, root, camera)` once,
+`FXi.step()` in the loop, then call the primitives at your own event sites.
+
 ## Module notes
 
 What is true BETWEEN modules, and invisible from any one of them. Each module's own
 traps are in its header; the table above says where it sits.
 
 * **`atomkit.js` owns what a student learns to *read***, never how a bond forms.
-* **`kit/card-stage.js` is a LAYER, not a peer, and `ConceptMap.md` is its rulebook.** `kit/molbox.js` and `molecule-builder/molecule-builder.js` are both built on it, so nothing that constructs either can live inside it — the adapters a page writes to turn a descriptor into a box stay in the page. What the three of them share is a short list of invariants that all break silently: the WebGL context budget and its LRU pool, `onEvict` firing before the destroy so a released card keeps a still, `acquire` doubling as bring-to-front, the builder's `onResize` having to run after `Stage.resize`, `snapshot()` refusing mid-fold, and `Stage.frame`'s perspective distance floor of 6 (which is why molbox is orthographic). Read that file before touching any of them or either card page; do not re-derive the list from the code, because most of it is invisible from the page that has the bug.
+* **`kit/card-stage.js` is a LAYER, not a peer, and its own header is the rulebook.** `kit/molbox.js` and `molecule-builder/molecule-builder.js` are both built on it, so nothing that constructs either can live inside it — the adapters a page writes to turn a descriptor into a box stay in the page. What the three of them share is a short list of invariants that all break silently: the WebGL context budget and its LRU pool, `onEvict` firing before the destroy so a released card keeps a still, `acquire` doubling as bring-to-front, the builder's `onResize` having to run after `Stage.resize`, `snapshot()` refusing mid-fold, and `Stage.frame`'s perspective distance floor of 6 (which is why molbox is orthographic). Read that file before touching any of them or either card page; do not re-derive the list from the code, because most of it is invisible from the page that has the bug.
 * **`water/` is the only shared module that IS the physics.** Everywhere else the rule is share the plumbing, not the physics ("Adding a module", below); here the liquid is the shared thing and the lesson is what stays on the page. **It is one module and not four on purpose**: the freeze fraction, the lattice seating, the hydration shells and brine rejection all read each other, and splitting them yields four files that import each other.
 * **`lib/palette.js` carries `organelles`, the only place an organelle's colour lives.** The numbers are `cell/animalcell.js`'s, chosen by eye against the cream paper, and both cells read them from here, so the cut cell and anything else drawing an organelle cannot drift. Each entry is a cut shell (`outer` the outside face, `inner` the darker cut face, `rim` the band between) or, for one drawn as ribbons, `side` and `top`; plus its own parts (`cristaSide`, `nucleolus`, `ribosome`, …). The membrane-bounded ones also carry `head` and `tail`, which is what `membrane/membrane.js` tints its bilayer with when a `context` is set — so a student who zooms from the cut cell into a mitochondrion's inner membrane arrives at the same orange. A `centrosome` has no membrane and deliberately has no `head`/`tail`, or a page would try to set a bilayer inside one. `tokens-from-palette.js` publishes the lot as `--organelle-<name>` and `--organelle-<name>-<part>`, and `design-system.html` draws every one off its own computed value.
 * **Every mount carries its named parts and their notes.** `lib/annotate.js` also defines `Notebook.create({box, anchors, library})`, and each component's `create` returns `anchors` (name → live world point, null when the part is off stage) and `library` (name → `{text, card, offset}` in the lesson's words). The mount exposes `note(name, override?)`, `notes(names | false)`, `clearNotes()`, `anchors()`. It lives inside annotate.js so one script is all a page loads for callouts; a generated page loaded annotate.js and forgot a second one, and every note no-oped. A component without a pump answers `pump` with null and the note waits off screen.
