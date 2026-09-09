@@ -15,8 +15,9 @@
  *  tokens, because `kit/proteinbox.css` and the stage draw from those and a
  *  bench must not repaint the molecule to repaint its panel.
  *
- *  Spacing, radius and timing still come from main.css. Load after main.css
- *  and sandbox.css, before kit/proteinbox.css.
+ *  Spacing, radius and timing still come from main.css. Load after main.css,
+ *  before kit/proteinbox.css. A bench does not load sandbox.css: this sheet
+ *  owns #app, #stage and .chip, and main.css carries the rest.
  *
  *  WHAT A PAGE STILL OWNS. Anything that carries its own claim: prion adds a
  *  `.disease` variant to the button and the chip because its whole subject is
@@ -79,7 +80,7 @@ button.mode[aria-pressed=true]{background:var(--h-accent);
 /* The chip is the first thing the eye lands on inside a row, and it is always
    a WORD: colour alone would not survive the pressed state, where the row's
    own background takes over. What the word says is the page's business. */
-.chip{font-size:0.66rem;letter-spacing:0.1em;text-transform:uppercase;
+.chip{display:inline-flex;align-items:center;font-size:0.66rem;letter-spacing:0.1em;text-transform:uppercase;
   font-weight:600;padding:2px 7px;border-radius:var(--radius-pill);
   background:rgba(31,95,79,.12);color:var(--h-accent)}
 button.mode[aria-pressed=true] .chip{background:rgba(255,255,255,.22);color:#fff}
