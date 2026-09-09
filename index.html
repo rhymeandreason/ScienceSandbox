@@ -528,7 +528,9 @@
 })();
 
 /* ---- 1b. momentum ---------------------------------------------------------
-   Everything below reads window scroll, so nothing else has to change. */
+   The wheel is discrete ticks, so the scrubbed animation below advances in
+   visible steps; Lenis interpolates them into a ramp. Everything under it reads
+   window scroll, so nothing else has to change. */
 const lenis = new Lenis({ autoRaf: true, duration: 1.1 });
 
 /* ---- 2. six live boxes, then the scroll settles them ---------------------- */
@@ -586,14 +588,28 @@ const lenis = new Lenis({ autoRaf: true, duration: 1.1 });
       // is moved to put it back there, so the reader sees no hop.
       const cards = document.getElementById("cards");
       const before = cards.getBoundingClientRect().top;
+      // HOW FAST THE READER WAS GOING, read BEFORE the reposition, which zeroes
+      // it. Lenis reports velocity in px per frame, signed by direction.
+      const v = lenis.velocity || 0;
       field.style.setProperty("--w", 1); field.style.setProperty("--p", 1);
       field.classList.add("in", "told", "set", "done");
       field.style.height = "auto";
       const after = cards.getBoundingClientRect().top + scrollY;
       // through Lenis, immediately: the section just stopped being a runway, so
       // its cached page height is stale and a raw scrollTo lands nowhere.
+      const to = Math.max(0, after - before);
       lenis.resize();
-      lenis.scrollTo(Math.max(0, after - before), { immediate: true, force: true });
+      lenis.scrollTo(to, { immediate: true, force: true });
+      // THE STICK: that reposition also threw away the momentum still in flight,
+      // so a reader mid-flick hits a wall exactly as the masthead appears. Hand
+      // the motion back as a short glide, sized by the speed they already had —
+      // CARRY_FRAMES is roughly how many more frames of it they get. Only
+      // downward: a reader arriving slowly gets nothing, and is not shoved.
+      const CARRY_FRAMES = 24;
+      const carry = Math.min(v * CARRY_FRAMES, innerHeight * 0.5);
+      if (carry > 8) lenis.scrollTo(to + carry, {
+        duration: 0.7, easing: t => 1 - Math.pow(1 - t, 3), force: true,
+      });
     }
   };
   document.getElementById("count").textContent = String(document.querySelectorAll(".card").length).padStart(2, "0");
