@@ -15,7 +15,7 @@
  *  was right while glycolysis was its only host. The enzymes page needs the
  *  same physics with `ea` as a slider (lower the barrier, watch the rate move
  *  while ΔE does not), and a second copy of a legibility-tuned constant is
- *  precisely what a checker cannot see. LESSONS-ROADMAP.md §1.
+ *  precisely what a checker cannot see.
  *
  *  WHAT IT OWNS vs WHAT THE PAGE OWNS — CLAUDE.md's "share the plumbing, not
  *  the physics" split, one level down:

@@ -19,7 +19,7 @@
  *
  *  WHAT IT IS NOT. There is no membrane and no barrier. A wall that some
  *  molecules cross and others do not is osmosis, which is the membrane
- *  lesson's subject (LESSONS-ROADMAP §2); this module deliberately stops one
+ *  lesson's subject, a separate page; this module deliberately stops one
  *  step short, so that page can put a wall down the middle of a box whose
  *  behaviour the student already trusts. The line drawn here is a COUNTING
  *  line — imaginary, crossed freely, present only so both directions can be

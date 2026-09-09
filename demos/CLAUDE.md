@@ -58,7 +58,7 @@ Every doc lives in `demos/docs/` except the node graph's two and the clipper's, 
 | Deploying, short URLs, promoting a page to featured | `docs/deploy.md` |
 | Running locally, the checkers, the commit hook | `docs/dev.md` |
 | Questions-composer, or the door map | `tests/question-composer.md`, beside the page. **Being deprecated**: the node graph is its successor, and nothing new should depend on `lib/mapcontent.js`. A page mounting SEVERAL live 3D boxes reads `kit/card-stage.js`'s header instead |
-| Deciding what to build next | ask the human if the roadmaps are still relevant |
+| Deciding what to build next | ask the human. `molecules-wishlist.md` is the live plan for molecules; the lessons roadmap is archived at the repo root as `docs/old-LESSONS-ROADMAP.md` and is out of date |
 
 **Build-time briefs for a component in progress live at the repo root `docs/`**, not here: `Cell-Component.md`, `Membrane-Chemiosmosis.md`. They are read until the feature ships and then retired; the lasting rules move into `demos/docs/`.
 

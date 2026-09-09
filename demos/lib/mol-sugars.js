@@ -306,7 +306,7 @@
       // The two half-reactions glucose can enter. No page draws these today —
       // the drag lesson they were written for is gone — but they are a fact
       // about the molecule rather than about a page, they are what
-      // LESSONS-ROADMAP §1's hydrolysis half needs (an enzyme runs this
+      // the hydrolysis half needs (an enzyme runs this
       // backwards), and check-molecules.js audits them. A
       // condensation is one bond made and one water released, so a role names
       // the atom that STAYS bonded and the atoms that leave with the water.

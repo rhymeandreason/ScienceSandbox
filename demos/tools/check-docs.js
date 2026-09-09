@@ -45,9 +45,9 @@ const SCIENCE = rd('docs/SCIENCE.md');
 // excused — it is asserted ABSENT, so if one gets built the check fails and
 // tells you to update the doc that called it hypothetical.
 const KNOWN_ABSENT = {
-  // Deleted, and named in the docs that record deleting it. molecules-wishlist.md
-  // is the argument for dissolving it and LESSONS-ROADMAP.md the history; a doc
-  // that may not say what a file USED to be is a doc that cannot explain a move.
+  // Deleted, and named in the doc that records deleting it: molecules-wishlist.md
+  // is the argument for dissolving it. A doc that may not say what a file USED to
+  // be is a doc that cannot explain a move.
   'mol-contrast.js':    'dissolved into mol-glycans/mol-aminoacids/mol-nucleic/mol-lipids '
                         + '— molecules-wishlist.md records the split',
   'mol-vitamins.js':    'dissolved into mol-sugars.js — AddingAMolecule.md and '
@@ -107,13 +107,14 @@ const KNOWN_ABSENT = {
   'RDKit.js':           'library NAME, weighed against SmilesDrawer and unadopted',
   'Kekule.js':          'library NAME, weighed against SmilesDrawer and unadopted',
   'SmilesDrawer/RDKit.js': 'the two 2D candidates named as one alternative',
-  // LESSONS-ROADMAP.md's domain-file plan. Absent BY DESIGN — the roadmap is
-  // the file that proposes them, so building one must fail here until that
-  // row moves from "after" to "now".
-  'mol-photosynthesis.js': 'LESSONS-ROADMAP.md tier-after — deferred',
-  'mol-carbs.js':          'LESSONS-ROADMAP.md — proposed by docs/molecule-grouping.md, declined;\n                            //   the carbohydrates went to mol-sugars.js + mol-glycans.js instead',
-  'mol-signaling.js':      'LESSONS-ROADMAP.md — out of scope',
-  'mol-ecology.js':        'LESSONS-ROADMAP.md — out of scope',
+  // Proposed domain files, absent BY DESIGN — a doc names each as hypothetical,
+  // so building one must fail here until the doc that proposes it says now.
+  // (The lessons roadmap that ranked them is archived at the repo root as
+  // docs/old-LESSONS-ROADMAP.md; molecules-wishlist.md is the live plan.)
+  'mol-photosynthesis.js': 'deferred — photosynthesis has no molecules yet (molecules-wishlist.md)',
+  'mol-carbs.js':          'proposed by docs/molecule-grouping.md, declined;\n                            //   the carbohydrates went to mol-sugars.js + mol-glycans.js instead',
+  'mol-signaling.js':      'out of scope',
+  'mol-ecology.js':        'out of scope',
   // Build outputs and runtime strings, not repo files.
   'generated-specs.json':         'sdf2spec.js writes it; not committed',
   'generated-specs-generic.json': 'sdf2spec-generic.js writes it; not committed',

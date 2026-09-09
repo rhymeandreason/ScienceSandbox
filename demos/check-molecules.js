@@ -1241,7 +1241,7 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
   // one bond made, one water released. The claim it encodes is that the sugar,
   // the amino acid and the lipid enter ONE reaction. No page draws it today, but
   // it is a fact about the molecule rather than about a page, and it is what
-  // LESSONS-ROADMAP §1's hydrolysis half reads — an enzyme runs this backwards.
+  // the hydrolysis half reads the other way — an enzyme runs this backwards.
   //
   // Everything below exists because a wrong index here is invisible: a drawing
   // would still make a bond and still release something water-shaped, just off

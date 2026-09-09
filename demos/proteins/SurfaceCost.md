@@ -31,7 +31,7 @@ wants the pump's skin, `tools/bake-card-surface.js` bakes one from the same
 PDBs — the deleted script's only unshared knowledge was the OPM alignment,
 which `proteins/napump/tools/prep.js` now carries.
 
-Both remaining "not yet" rows have queued lessons in `LESSONS-ROADMAP.md`, so
+Both remaining "not yet" rows have lessons queued, so
 neither is a candidate for withholding from the deploy the way `*.pdb` is.
 
 ## Why the card tier does not need to go coarser

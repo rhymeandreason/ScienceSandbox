@@ -408,7 +408,7 @@ ok(Math.abs(diffusionOf(2) * 2 - diffusionOf(4) * 4) < 1e-12,
 
 /* ---- 9. it is diffusion, not osmosis ---------------------------------- */
 /* THE SCOPE LINE, kept by an assertion rather than by memory. The membrane
- * lesson is a separate page (LESSONS-ROADMAP §2) and this module stops one
+ * lesson is a separate page and this module stops one
  * step short on purpose: the line at the middle is imaginary. If a barrier
  * ever grows here it must be a decision somebody makes on purpose, not a
  * feature that arrives because it was easy. */
