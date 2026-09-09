@@ -274,6 +274,27 @@ function validate(html, names) {
   }
   if (!/\bshell\.goTo\(0\)/.test(src) && !/\.goTo\(0\)/.test(src))
     problems.push('never calls goTo(0), so no step is ever entered and the panel stays empty');
+
+  /* THE SHELL BEFORE ANYTHING HANGING OFF IT. `shell.scene(...)` reads like a
+   * declaration and gets written above create() as one; the page then throws
+   * ReferenceError before a single element exists, so the student is handed a
+   * white window. It is a load error, and the browser's relay only reaches the
+   * NEXT turn, which is the same argument as the syntax check above. */
+  const bound = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[A-Z][A-Za-z]*\.create\(/.exec(src);
+  if (bound) {
+    const early = new RegExp(`\\b${bound[1]}\\s*\\.\\s*(?:scene|showScene|stage|viewOffset|goTo|theme)\\b`, 'g');
+    for (const m of src.matchAll(early)) {
+      if (m.index > bound.index) continue;
+      problems.push(`uses ${m[0]} above the line that creates ${bound[1]}, so the page throws before it draws. `
+        + `Create the shell first, then mount into it, then goTo(0) last.`);
+      break;
+    }
+    for (const m of src.matchAll(/\b([A-Za-z_$][\w$]*)\s*\.\s*scene\(/g)) {
+      if (m[1] === bound[1]) continue;
+      problems.push(`calls ${m[1]}.scene(), and the shell on this page is ${bound[1]}`);
+      break;
+    }
+  }
   for (const n of declared) if (!known.has(n)) problems.push(`data-use names ${n}, which the reference does not describe`);
 
   const mounted = new Set();
