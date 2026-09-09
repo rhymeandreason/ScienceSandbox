@@ -205,11 +205,12 @@ maybe `lesson-shell.css`, maybe its own.
 | `css/annotate.css` | the look of a callout | never links it — `kodo.css` imports it |
 | `css/main.css` | **frozen.** The bench sketchbook look, kept because sixty test pages are drawn in it and none is a page a student lands on | never |
 | `css/sandbox.css` | the old shared chrome. Deprecated; old pages still load it | never |
+| `pathways.css` · `proteins/protein-test.css` · `kit/enzyme-blob.css` | **folder chrome**, shared by the pages of one folder: a step-through pathway's rail and lane plates, a protein bench's stage-and-panel grid, the blob's two sways | only a page in that folder, after `kodo.css` |
 | the page's own `.css` | **its chrome only** — `build.css`, `graph.css`, `energy/energy.css`. Never a token, never a colour, never a type step `kodo.css` already sets | only if the page has chrome no other page has |
 
 **A sheet that more than one folder's pages load goes in `css/`; a sheet one
 folder owns stays beside it** (`energy/energy.css`, `kit/enzyme-blob.css`).
-`Modules.md`'s table is the per-sheet detail and the exact load order.
+**This table is the one list.** `Modules.md` carries the `<link>` order a hand-built page writes and nothing else about the sheets.
 
 **`index.html` and `contribute.html` have no sheet of their own**: ~240 lines
 inline each, on `brand.css` alone, because the site sheet's reset and its own

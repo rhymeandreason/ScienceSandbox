@@ -175,19 +175,7 @@ Each of these carries a caller's assumptions on purpose. **Not a candidate for a
 
 ### Stylesheets
 
-**Which sheet a new page links is `Design.md`'s sheet table**; these rows are what each one holds.
-
-| Module | Exposes | Rules |
-| --- | --- | --- |
-| `css/brand.css` | **THE VALUES, and nothing else** — paper, the navy ink ramp, the green and orange that are roles, and the six signature hues. No reset, no components, no type | own header |
-| `kodo.css` | **THE SITE SHEET.** One `<link>` and a page is in the system. Three token tiers (primitive / semantic / domain), the reset, the type scale, the buttons and the document shell. Imports `brand.css` and `annotate.css` | `Design.md` |
-| `css/lesson-shell.css` | the chrome of **the OTHER shell**: `kit/lesson-shell.js`'s full-window scene, the glass panel over it, progress dots, Back and Next. Every generated app runs in it. Its own tokens on `body.lshell-page` | own header |
-| `annotate.css` | the look of a callout, paired with `annotate.js`. **A page does not link it: `kodo.css` imports it** | own header |
-| `main.css` | **the bench sheet, frozen.** The sketchbook values — cream paper, Nunito and Zilla Slab, marker headings. Sixty test pages are drawn in it and none is a lesson. Nothing new links it | own header |
-| `sandbox.css` | cream paper, torn-edge panel, `#app` grid, stage/panel chrome — **the sketchbook, and no page on `kodo.css` links it any more.** Gradually being deprecated, old pages still load it. | own header |
-| `pathways.css` | the chrome a **step-through pathway lesson** is made of, shared by `glycolysis-lab` and `krebs-lab`: the numbered rail, lane plates, bond hotspots, the enzyme's verdicts and the layer its blobs sit in, the carrier tray | own header |
-| `proteins/protein-test.css` | the chrome a **protein bench** is made of, shared by `proteins/prion/` and the benches after it: the stage-and-panel grid, `button.mode` + `.chip`, the figures table, the `.src` provenance links | `docs/AddingAProtein.md` |
-| `kit/enzyme-blob.css` | `.enzblob` / `.enzwob` and the two sways. **Layout never shares the `transform` property with an animation**: own header | own header |
+**`Design.md`'s sheet table is the one list** — which sheet a page links, what each holds, and where a folder's own chrome goes. The `<link>` order is above; nothing else about the sheets is here.
 
 ## Node only — checkers, bakers, tools
 
