@@ -299,6 +299,15 @@
     host.setAttribute('data-ssx', host.closest(CONTROL) ? 'sc' : 's');
     if (anchor != null) host._ssxAnchor = anchor;
     host._ssxWhy = { code: hit.why, n: hit.n || 0, where: where(host) };
+    /* The mark goes back on. A repaint takes the highlights with it, and a
+     * selection whose tag is still in the box but whose part is no longer lit
+     * reads as a selection that came undone. */
+    if (picked.length) {
+      var key = keyOf(pillFor(host));
+      for (var i = 0; i < picked.length; i++) {
+        if (keyOf(picked[i]) === key) { host.setAttribute('data-ssx-sel', '1'); break; }
+      }
+    }
     return host;
   }
 
@@ -382,7 +391,7 @@
 
   function unpaint() {
     document.querySelectorAll('[data-ssx]').forEach(function (el) {
-      if (el.getAttribute('data-ssx') !== 'e') { el.removeAttribute('data-ssx'); el._ssxAnchor = null; return; }
+      if (el.getAttribute('data-ssx') !== 'e') { el.removeAttribute('data-ssx'); el.removeAttribute('data-ssx-sel'); el._ssxAnchor = null; return; }
       el.replaceWith(document.createTextNode(el.textContent));
     });
     document.body.normalize();
@@ -570,9 +579,22 @@
     };
   }
 
-  function select(el) {
+  /* ---- what is picked out --------------------------------------------------
+   * A SELECTION, not a growing list. A plain click is the selection; holding
+   * cmd or ctrl adds to it, and clicking a picked part again with the
+   * modifier takes it out. The frame owns the set because it owns the
+   * highlight, and it hands the builder the whole list every time rather than
+   * one pill at a time, so the two cannot come apart.
+   *
+   * A pill is identified by what it says and where, not by its element: the
+   * panel is rebuilt on every step change, so an element picked on step one
+   * does not survive being walked away from — the reference to it should. */
+  var picked = [];
+  function keyOf(pill) { return (pill.note || '') + '|' + (pill.text || '') + '|' + (pill.step || ''); }
+
+  function pillFor(el) {
     var note = el.closest('[data-note]');
-    post({ type: 'app-select', pill: {
+    return {
       text: (el.textContent || '').trim().slice(0, 120),
       tag: el.tagName.toLowerCase(),
       cls: (el.getAttribute('class') || '').slice(0, 80),
@@ -580,10 +602,32 @@
       anchor: String(el._ssxAnchor || '').slice(0, 160),
       step: (document.querySelector('.lshell-count') || {}).textContent || '',
       why: el._ssxWhy || { code: 'absent', n: 0, where: where(el) },
-    } });
-    el.setAttribute('data-ssx-hit', '1');
-    setTimeout(function () { el.removeAttribute('data-ssx-hit'); }, 600);
+    };
   }
+
+  function unmark() {
+    var m = document.querySelectorAll('[data-ssx-sel]');
+    for (var i = 0; i < m.length; i++) m[i].removeAttribute('data-ssx-sel');
+  }
+
+  function select(el, add) {
+    var pill = pillFor(el), key = keyOf(pill), at = -1;
+    for (var i = 0; i < picked.length; i++) if (keyOf(picked[i]) === key) at = i;
+    if (!add) {
+      unmark();
+      picked = [pill];
+      el.setAttribute('data-ssx-sel', '1');
+    } else if (at >= 0) {
+      picked.splice(at, 1);
+      el.removeAttribute('data-ssx-sel');
+    } else {
+      picked.push(pill);
+      el.setAttribute('data-ssx-sel', '1');
+    }
+    post({ type: 'app-select', picks: picked });
+  }
+
+  function unselect() { unmark(); picked = []; post({ type: 'app-select', picks: picked }); }
 
   function onClick(e) {
     if (!on) return;
@@ -591,7 +635,7 @@
     if (b && b._ssxFor) {
       e.preventDefault(); e.stopPropagation();
       var t = b._ssxFor;
-      t.getAttribute('data-ssx') === 'e' ? edit(t) : select(t);
+      t.getAttribute('data-ssx') === 'e' ? edit(t) : select(t, e.metaKey || e.ctrlKey);
       return;
     }
     var span = e.target.closest ? e.target.closest('[data-ssx="e"]') : null;
@@ -616,7 +660,7 @@
         if (pick.getAttribute('data-ssx') !== 's') pick = null;
       }
     }
-    if (pick && !pick.closest(CONTROL)) { e.preventDefault(); e.stopPropagation(); select(pick); }
+    if (pick && !pick.closest(CONTROL)) { e.preventDefault(); e.stopPropagation(); select(pick, e.metaKey || e.ctrlKey); }
   }
 
   /* ONE BADGE, on whatever is under the pointer, and it is the way in to
@@ -643,10 +687,15 @@
   }
 
   var CSS = '[data-ssx]{outline:1px dashed rgba(60,110,220,.55);outline-offset:2px;border-radius:2px;cursor:text}'
+    + '[data-ssx-sel]{outline:2px solid rgb(60,110,220)!important;background:rgba(60,110,220,.16)!important}'
+    /* A callout's own box is 0x0 — its leader, dot and label are each placed
+       absolutely — so an outline on it is drawn nowhere. The label is the
+       part a student is pointing at, and it is what carries the mark. */
+    + '[data-ssx] .annot-label{outline:1px solid rgba(60,110,220,.5);outline-offset:2px;border-radius:2px}'
+    + '[data-ssx-sel] .annot-label{outline:2px solid rgb(60,110,220);background:rgba(60,110,220,.16)}'
     + '[data-ssx="s"],[data-ssx="sc"]{outline-style:solid;outline-color:rgba(60,110,220,.28);cursor:cell}'
     + '[data-ssx]:hover{outline-color:rgba(60,110,220,.95);background:rgba(60,110,220,.07)}'
     + '[data-ssx="e"][contenteditable]{outline:2px solid rgba(60,110,220,.95);background:rgba(60,110,220,.09)}'
-    + '[data-ssx-hit]{background:rgba(60,110,220,.3)!important;transition:background .4s}'
     + '.ssx-badge{position:fixed;z-index:2147483647;width:18px;height:18px;padding:0;line-height:16px;'
     + 'font-size:11px;border-radius:9px;border:1px solid #fff;background:rgb(60,110,220);color:#fff;cursor:pointer;display:none}';
 
@@ -703,12 +752,13 @@
   addEventListener('message', function (e) {
     var d = e.data;
     if (!d || d.type !== 'app-edit') return;
-    if (d.role) role(d.role);
+    if (d.clear) unselect();
+    else if (d.role) role(d.role);
     else if (d.on) arm(d.html);
     else if (d.save) {
       document.activeElement && document.activeElement.blur();
       post({ type: 'app-edit-edits', edits: pending.map(function (p) { return { find: p.find, replace: p.replace }; }) });
-    } else if (d.done) { pending = []; regions = {}; disarm(); }
+    } else if (d.done) { pending = []; regions = {}; picked = []; disarm(); }
     else disarm();
   });
 

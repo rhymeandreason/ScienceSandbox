@@ -194,7 +194,7 @@
     document.body.classList.toggle('editing', textOn);
     paintTabs();
     banked = 0;
-    if (!textOn) { whys = []; paintWhy(); paintRoles(null); }
+    if (!textOn) { picks = []; paintPills(); paintWhy(); paintRoles(null); }
     if (textOn) Apps.editMode.on(frame, app.html);
     else Apps.editMode.done(frame);
     paintEditBar();
@@ -229,7 +229,6 @@
   /* What the last few clicks landed on, and for a passage that cannot be
    * typed over, why. The sentence is written here rather than in the frame:
    * it is copy a student reads, and it belongs on the page with the rest. */
-  let whys = [];
   const WHY = {
     note:   () => 'A callout. The component names it, so the words are not in this app.',
     chips:  () => "A component's own control, drawn from what it can point at and show.",
@@ -244,10 +243,12 @@
     if (w.where && WHY[w.where]) return WHY[w.where]();
     return (WHY[w.code] || WHY.absent)(w.n);
   }
+  /* The log is the selection's reasons, so it says why the parts in the box
+   * right now are references and not edits — a reason for something no longer
+   * selected is a question nobody asked. */
   function paintWhy() {
-    const ol = $('whyLog');
-    ol.innerHTML = whys.slice(0, 6).map(w =>
-      `<li><span class="ref">${esc(w.note || w.text || w.tag)}</span><span class="say">${esc(w.line)}</span></li>`).join('');
+    $('whyLog').innerHTML = picks.map(p =>
+      `<li><span class="ref">${esc(p.note || p.text || p.tag)}</span><span class="say">${esc(why(p.why))}</span></li>`).join('');
   }
 
   /* The palette follows the caret: the frame says what the passage it is in
@@ -276,15 +277,9 @@
 
   function fromEditor(msg) {
     if (msg.type === 'app-edit-focus') { paintRoles(msg); return; }
-    if (msg.type === 'app-select') {
-      // The same part clicked twice is one reference, not two.
-      const key = p => (p.note || '') + '|' + (p.text || '') + '|' + (p.step || '');
-      if (!picks.some(p => key(p) === key(msg.pill))) { picks.push(msg.pill); paintPills(); }
-      whys = whys.filter(w => key(w) !== key(msg.pill));
-      whys.unshift({ ...msg.pill, line: why(msg.pill.why) });
-      paintWhy();
-      return;
-    }
+    /* The frame owns the selection; this end renders it. A click is the
+     * selection, cmd or ctrl adds to it, and the list arrives whole. */
+    if (msg.type === 'app-select') { picks = msg.picks || []; paintPills(); paintWhy(); return; }
     if (msg.type === 'app-edit-ready' || msg.type === 'app-edit-dirty') {
       banked = msg.count != null ? msg.count : msg.pending || 0;
       paintEditBar();
@@ -320,7 +315,9 @@
   }
   $('refs').addEventListener('click', e => {
     const b = e.target.closest('button[data-i]'); if (!b) return;
-    picks.splice(Number(b.dataset.i), 1); paintPills();
+    picks.splice(Number(b.dataset.i), 1);
+    paintPills(); paintWhy();
+    if (!picks.length) frame.contentWindow.postMessage({ type: 'app-edit', clear: true }, '*');
   });
   $('editCancel').addEventListener('click', leave);
   $('editSave').addEventListener('click', () => Apps.editMode.save(frame));
@@ -537,7 +534,8 @@
       }
       $('request').value = '';
       // A selection is about the sentence just sent, and it goes with it.
-      picks = []; paintPills();
+      picks = []; paintPills(); paintWhy();
+      frame.contentWindow.postMessage({ type: 'app-edit', clear: true }, '*');
       const route = r.mode === 'draft' ? (r.retried ? 'draft, one retry' : 'draft')
                   : r.mode === 'edits' ? `${r.edits} edit${r.edits === 1 ? '' : 's'}`
                   : `whole file (${r.fallback})`;
