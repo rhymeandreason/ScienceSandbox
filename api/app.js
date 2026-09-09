@@ -142,7 +142,7 @@ module.exports = async function handler(req, res) {
 
       /* The history line names the passage that changed, not the count: what
        * a student looks for when going back is the sentence they remember. */
-      const first = edits[0].find.trim().replace(/\s+/g, ' ').slice(0, 60);
+      const first = edits[0].find.replace(/<[^>]*>/g, '').trim().replace(/\s+/g, ' ').slice(0, 60);
       const v = await apps.addVersion(id, {
         kind: 'text', html: out.html,
         summary: `“${first}”${edits.length > 1 ? ` and ${edits.length - 1} more` : ''}`,

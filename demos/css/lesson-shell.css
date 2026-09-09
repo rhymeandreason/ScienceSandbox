@@ -118,6 +118,15 @@ body.is-night .lshell-progress button.is-current { background: #9fd98a; }
 .lshell-panel .body { font-family: var(--serif); font-size: 17px; line-height: 1.55; color: #2a2c30; font-optical-sizing: auto; }
 .lshell-panel .body p { margin: 0 0 14px; }
 .lshell-panel .body strong { font-weight: 500; }
+/* THE ROLES A PARAGRAPH CAN TAKE, and the whole list of them: `lead` here,
+   `callout` and `foot` below, plus strong and em inside a line. The panel has
+   no size, weight or colour a page may set — a lesson says what a paragraph
+   IS and the shell decides how that reads, which is what keeps a generated
+   app and a hand-built one in one voice. Components.md hands the model the
+   same four names, and the builder's text mode offers them on a selection. */
+.lshell-panel .body .lead { font-size: 19px; line-height: 1.45; color: var(--ink); margin-bottom: 16px; }
+.lshell-panel .body .callout { margin: 0 0 14px; }
+.lshell-panel .body .foot { margin: 0 0 14px; }
 .lshell-panel .controls { margin-top: 20px; display: flex; flex-direction: column; gap: 14px; }
 
 /* ---------- buttons ---------- */

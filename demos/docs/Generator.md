@@ -109,7 +109,13 @@ The test refuses the right things without being told to. A readout painted from 
 - **The requests comment is left alone.** It records what was asked for, and a hand edit is not a request; the version row is its record.
 - **The bench is `build/edit-test.html`**, which arms the editor on a real generated page with no database and prints the pairs Save would send. It is where both false positives above were found, and it is the regression test.
 
-Not built: the style side. The shell has no typography utilities on purpose — its type is role-based (`.title`, `.body`, `.eyebrow`, `.stat-label`), and a font-size or colour control would be the fastest way to make a student's app look broken. What belongs here instead is a small fixed palette of ROLES on the selection — strong, emphasis, lead, footnote, callout, split and delete a paragraph — each a tag or a class the shell already styles, added to `lesson-shell.css` once and to `Components.md` in the same commit, so the editor's palette and the generator's vocabulary stay one list.
+**The style side is a palette of ROLES, and there are no other knobs.** The shell has no typography utilities on purpose — a font-size or colour control would be the fastest way to make a student's app look broken — so what the mode offers is what a paragraph IS: body, `lead`, `callout`, `foot`, plus `<strong>` and `<em>` inside a line. Each is a tag or a class `lesson-shell.css` already styles, and `Components.md` hands the model the same four names, so an app the model wrote and an app a student edited stay one voice. Adding a role means both files in one commit.
+
+Two shapes of edit come out of that, and the second is why the paragraph, not the passage, is the unit:
+
+- **Inline** stays inside the passage's own pair: the replacement is the span's children serialized, with `strong` and `em` kept as tags and everything else — a paste, a browser's wrapper — flattened to its words. The whitelist is the filter, which is why the caret does not have to be `plaintext-only`. Offered only in a markup context: a tag inside a `title` would show as a tag, since that goes through textContent.
+- **A role, a new paragraph, or a deletion** is a class on the `<p>` or the `<p>` itself, so its pair spans the whole element. The bounds are read off the SOURCE, never off `outerHTML` — the browser normalises quoting and attribute order, and a find that has been through that stops matching the file it came from. Two edits over one stretch cannot both apply, so a paragraph that has taken a role writes itself whole from then on and any pair inside it is dropped.
+- **A role outlives the element it was put on.** The panel is rebuilt from the page's own strings on every step change, so the `<p>` carrying an unsaved role is thrown away; the role is held against the source region instead, which is the one name for it that does not change, and put back on whatever element is standing in that spot.
 
 ## 8. The backend
 

@@ -81,6 +81,8 @@ Inside a step, on `ctx` (and on `ctx.ui`, which is the same set of functions: `c
 | `showPanel(c, opts)` | the component's own chips, into the slot: see "The show panel" |
 | `goTo(i)` | jump to a step |
 
+**A paragraph in `body` takes one of four roles, and the shell decides how each reads**: nothing (body copy), `class="lead"` for an opening line worth more weight, `class="callout"` for a boxed aside, `class="foot"` for a smaller aside under the copy. Inside a line, `<strong>` and `<em>`. That is the whole vocabulary: never set a size, a weight, a colour or a font, and never write a `style` attribute. A student editing this app by hand is offered these same four and nothing else, so an app that reaches past them is one they cannot keep consistent.
+
 The panel's own classes, all styled: `.choices > .choice`, `.callout`, `.slider` with `.slider-head`, `.label`, `.value`, `.stats > .stat` with `.stat-label`, `.stat-value`, `.stat-sub`, `.chips > .chip`, `.switch` with `.track`, `.seg`, `.legend`, `.equation`, `.btn.primary | .secondary | .ghost`, and `.is-hidden`.
 
 `shell.viewOffset` is what every mount takes to centre its scene beside the panel. The shell knows nothing about the scene; the camera named by a step is flown in `onStep`.

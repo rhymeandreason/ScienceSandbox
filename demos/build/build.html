@@ -97,6 +97,26 @@
     <div class="card scroll editcard" id="editCard" hidden>
       <h3>Edit text <span class="ver" id="editSay"></span></h3>
       <p class="hint">Click a passage to change it. Click anything else to point the AI at it.</p>
+      <!-- The roles a passage can take. Shown only with a caret in one, and
+           only the roles that passage can hold: a title goes through
+           textContent, so nothing may be bold inside it. -->
+      <div class="roles" id="roles" hidden>
+        <div class="rrow" id="rowInline">
+          <button class="btn" type="button" data-role="strong" title="Bold the selected words"><b>B</b></button>
+          <button class="btn" type="button" data-role="em" title="Italicise the selected words"><i>I</i></button>
+        </div>
+        <div class="rrow" id="rowBlock">
+          <button class="btn" type="button" data-role="plain">Body</button>
+          <button class="btn" type="button" data-role="lead">Lead</button>
+          <button class="btn" type="button" data-role="callout">Callout</button>
+          <button class="btn" type="button" data-role="foot">Note</button>
+        </div>
+        <div class="rrow" id="rowPara">
+          <button class="btn" type="button" data-role="after"><i class="ph-bold ph-plus"></i>Paragraph</button>
+          <span class="spacer"></span>
+          <button class="btn" type="button" data-role="delete" title="Remove this paragraph"><i class="ph-bold ph-trash"></i></button>
+        </div>
+      </div>
       <ol class="whylog" id="whyLog"></ol>
       <div class="row">
         <button class="btn" id="editCancel" type="button">Cancel</button>
@@ -171,7 +191,7 @@
     $('editCard').hidden = !textOn;
     $('textMode').setAttribute('aria-pressed', String(textOn));
     banked = 0;
-    if (!textOn) { whys = []; paintWhy(); }
+    if (!textOn) { whys = []; paintWhy(); paintRoles(null); }
     if (textOn) Apps.editMode.on(frame, app.html);
     else Apps.editMode.done(frame);
     paintEditBar();
@@ -208,7 +228,30 @@
       `<li><span class="ref">${esc(w.note || w.text || w.tag)}</span><span class="say">${esc(w.line)}</span></li>`).join('');
   }
 
+  /* The palette follows the caret: the frame says what the passage it is in
+   * can hold, and a role that cannot apply is not offered rather than offered
+   * and refused. Mousedown, not click — the frame's selection is what a role
+   * acts on, and taking focus on the way down would drop it. */
+  $('roles').addEventListener('mousedown', e => {
+    const b = e.target.closest('button[data-role]');
+    if (!b) return;
+    e.preventDefault();
+    frame.contentWindow.postMessage({ type: 'app-edit', role: b.dataset.role }, '*');
+  });
+  function paintRoles(f) {
+    // A title takes neither kind, and an empty palette is worse than none.
+    $('roles').hidden = !f || !f.on || (!f.markup && !f.block);
+    if ($('roles').hidden) return;
+    $('rowInline').hidden = !f.markup;
+    $('rowBlock').hidden = $('rowPara').hidden = !f.block;
+    for (const b of $('roles').querySelectorAll('button[data-role]')) {
+      const r = b.dataset.role;
+      b.classList.toggle('is-on', r === (f.role || 'plain') && (r === 'plain' || !!f.role));
+    }
+  }
+
   function fromEditor(msg) {
+    if (msg.type === 'app-edit-focus') { paintRoles(msg); return; }
     if (msg.type === 'app-select') {
       // The same part clicked twice is one reference, not two.
       const key = p => (p.note || '') + '|' + (p.text || '') + '|' + (p.step || '');

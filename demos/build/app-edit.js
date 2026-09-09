@@ -133,6 +133,48 @@
     return s;
   }
 
+  /* WHAT A PASSAGE IS WORTH WRITING BACK. Text is encoded for its context;
+   * `strong` and `em` are kept as tags, and everything else an editable node
+   * has picked up — a paste, a browser's own wrapper — is flattened to its
+   * words. The whitelist is the filter: nothing reaches the file that this
+   * does not name, so `contenteditable` does not have to be trusted. */
+  var INLINE = { STRONG: 'strong', B: 'strong', EM: 'em', I: 'em' };
+  function serialize(el, hit) {
+    var out = '';
+    for (var n = el.firstChild; n; n = n.nextSibling) {
+      var tag = n.nodeType === 1 ? INLINE[n.tagName] : null;
+      if (tag && hit.markup) out += '<' + tag + '>' + encode(n.textContent, hit) + '</' + tag + '>';
+      else out += encode(n.textContent == null ? n.nodeValue : n.textContent, hit);
+    }
+    return out;
+  }
+
+  /* ---- a paragraph, in the source ----------------------------------------
+   * A role is a class on the <p>, so the pair for one spans the whole element
+   * and not just the words inside it. The bounds are read off the SOURCE and
+   * not off `outerHTML`: the browser's serialization normalises quoting and
+   * attribute order, and a find that has been through it stops matching the
+   * file it came from. The text inside is unique, so the region is too. */
+  function region(hit) {
+    var i = src.indexOf(hit.find);
+    if (i < 0) return null;
+    /* Back to the paragraph's own opening tag, not to the nearest `<`: a
+     * passage that follows a `<strong>` is preceded by `</strong>`, and the
+     * first version of this read that as the enclosing tag and gave up. */
+    var open = src.lastIndexOf('<p', i);
+    if (open < 0 || !/[\s>]/.test(src[open + 2] || '')) return null;
+    var shut = src.indexOf('>', open);
+    var end = src.indexOf('</p>', i);
+    if (shut < 0 || end < 0 || end > i + 4000) return null;
+    if (src.lastIndexOf('</p>', i) > open) return null;        // not the same paragraph
+    var attrs = src.slice(open + 2, shut);
+    var cls = /class\s*=\s*\\?(["'])([^"']*)\\?\1/.exec(attrs);
+    return { start: open, end: end + 4, attrs: attrs, cls: cls ? cls[2] : '',
+             find: src.slice(open, end + 4) };
+  }
+
+  var ROLES = { lead: 1, callout: 1, foot: 1 };
+
   /* ---- what is on the page ---------------------------------------------- */
 
   var SKIP = /^(script|style|noscript|title|option)$/i;
@@ -180,9 +222,11 @@
         node.parentNode.insertBefore(span, node);
         node.nodeValue = parts.trail;
         var rec = { span: span, hit: hit, lead: parts.lead, trail: parts.trail, text: span.textContent };
+        rec.body = serialize(span, hit);
         span._ssx = rec;
         spans.push(rec);
         order.push(span.textContent);
+        restore(span, hit);
       } else if (el) {
         mark(el, hit, order.length ? order[order.length - 1] : '');
       }
@@ -223,6 +267,30 @@
     return '';
   }
 
+  /* A ROLE OUTLIVES THE PARAGRAPH IT WAS PUT ON. The panel is rebuilt from the
+   * page's own strings on every step change, so the element carrying a role is
+   * thrown away and a fresh one takes its place; the role is held against the
+   * source region instead, which is the one name for it that does not change,
+   * and put back on whatever element is now standing in that spot. */
+  var regions = {};
+  function restore(span, hit) {
+    if (!hit.markup) return;
+    var p = span.closest('p');
+    if (!p || p._ssxRegion) return;
+    var reg = region(hit);
+    var held = reg && regions[reg.find];
+    if (!held) return;
+    p._ssxRegion = reg;
+    p._ssxRole = held.role; p._ssxGone = held.gone; p._ssxAfter = held.after;
+    if (held.role) p.className = held.role;
+    if (held.gone) p.style.display = 'none';
+    else if (held.after && !p.nextElementSibling) {
+      var add = document.createElement('p');
+      add.textContent = 'A new line.';
+      p.parentNode.insertBefore(add, p.nextSibling);
+    }
+  }
+
   function find(f) { for (var i = 0; i < pending.length; i++) if (pending[i].find === f) return pending[i]; return null; }
 
   function unpaint() {
@@ -239,25 +307,127 @@
    * whenever the student walks a step, and an edit that only existed in the
    * DOM would go with it. */
   function bank(rec, keep) {
-    var text = rec.span.textContent;
+    var text = rec.span.textContent, body = serialize(rec.span, rec.hit);
     if (!keep) rec.span.removeAttribute('contenteditable');
-    if (text === rec.text) return;
-    rec.text = text;
-    var pair = { find: rec.hit.find, replace: rec.lead + encode(text, rec.hit) + rec.trail, text: text };
+    /* A paragraph carrying a role is written back whole, so a change to its
+     * words rebuilds that pair rather than adding a second one inside it. */
+    var para = blockOf(rec.span);
+    if (para) { reblock(para); return; }
+    if (body === rec.body) return;
+    rec.text = text; rec.body = body;
+    var pair = { find: rec.hit.find, replace: rec.lead + body + rec.trail, text: text };
     var had = find(rec.hit.find);
     if (had) { had.replace = pair.replace; had.text = text; }
     else pending.push(pair);
     post({ type: 'app-edit-dirty', count: pending.length });
   }
 
+  /* ---- roles --------------------------------------------------------------
+   * Two kinds. `strong` and `em` are a wrapper around the SELECTION and stay
+   * inside the passage's own pair, which is why they are offered only where
+   * the enclosing literal is markup: a title goes through textContent and a
+   * tag in one would show as a tag. The rest are a class on the paragraph, or
+   * the paragraph itself going away, and each is one pair spanning the <p>. */
+
+  /* The paragraph this span sits in, if it already has a pending pair. */
+  function blockOf(el) {
+    var p = el.closest && el.closest('p');
+    if (!p || !p._ssxRegion) return null;
+    return p;
+  }
+
+  /* Rebuild a paragraph's pair from what is on the page now. The find never
+   * changes — it is the region as the FILE has it — so re-applying a role or
+   * retyping the words updates one pair rather than stacking overlaps. */
+  function reblock(p) {
+    var reg = p._ssxRegion, hit = { script: reg.script, markup: true };
+    var role = p._ssxRole || '';
+    var body = '';
+    for (var n = p.firstChild; n; n = n.nextSibling) {
+      var tag = n.nodeType === 1 ? INLINE[n.tagName] : null;
+      if (tag) body += '<' + tag + '>' + encode(n.textContent, hit) + '</' + tag + '>';
+      else body += encode(n.textContent == null ? n.nodeValue : n.textContent, hit);
+    }
+    /* The tag goes into the same string literal the words do, so its own
+     * quotes are escaped the way theirs are. `\"` inside a single-quoted
+     * literal is an identity escape, so this is right whichever it is. */
+    var open = role ? '<p class="' + role + '">' : '<p>';
+    if (reg.script) open = jsEsc(open);
+    var pair = find(reg.find) || (pending.push({ find: reg.find }), pending[pending.length - 1]);
+    pair.replace = p._ssxGone ? '' : open + body + '</p>' + (p._ssxAfter || '');
+    regions[reg.find] = { role: role, gone: !!p._ssxGone, after: p._ssxAfter || '' };
+    post({ type: 'app-edit-dirty', count: pending.length });
+  }
+
+  /* Everything inside this paragraph is now written by its own pair, so any
+   * pair for a passage within it is dropped: two edits over one stretch of
+   * the file cannot both apply. */
+  function claim(p, reg) {
+    p._ssxRegion = reg;
+    regions[reg.find] = { role: p._ssxRole || '', gone: !!p._ssxGone, after: p._ssxAfter || '' };
+    pending = pending.filter(function (e) { return e.find === reg.find || reg.find.indexOf(e.find) < 0; });
+  }
+
+  function role(name) {
+    var sel = getSelection(), node = sel.anchorNode;
+    var span = node && (node.nodeType === 1 ? node : node.parentElement);
+    span = span && span.closest('[data-ssx="e"]');
+    if (!span) return;
+    var rec = span._ssx;
+    if (name === 'strong' || name === 'em') {
+      if (!rec || !rec.hit.markup || sel.isCollapsed) return;
+      var r = sel.getRangeAt(0);
+      if (!span.contains(r.commonAncestorContainer)) return;
+      var w = document.createElement(name === 'strong' ? 'strong' : 'em');
+      try { r.surroundContents(w); } catch (e) { return; }   // a range across a tag boundary
+      sel.removeAllRanges();
+      bank(rec, true);
+      report(span);
+      return;
+    }
+    var p = span.closest('p');
+    if (!p) return;
+    var reg = p._ssxRegion || region(rec.hit);
+    if (!reg) return;
+    reg.script = rec.hit.script;
+    claim(p, reg);
+    if (name === 'delete') { p._ssxGone = true; p.style.display = 'none'; }
+    else if (name === 'after') {
+      var add = document.createElement('p');
+      add.textContent = 'A new line.';
+      p.parentNode.insertBefore(add, p.nextSibling);
+      p._ssxAfter = '<p>A new line.</p>';
+    } else {
+      p._ssxRole = ROLES[name] ? name : '';
+      p.className = p._ssxRole;
+    }
+    reblock(p);
+    report(span);
+  }
+
+  /* What the caret is in, so the builder can offer only the roles that apply
+   * to it. Sent on every focus and after every role. */
+  function report(span) {
+    var rec = span && span._ssx;
+    if (!rec) { post({ type: 'app-edit-focus', on: false }); return; }
+    var p = span.closest('p');
+    post({ type: 'app-edit-focus', on: true, markup: !!rec.hit.markup,
+           block: !!(p && (p._ssxRegion || region(rec.hit))),
+           role: (p && p._ssxRole) || (p && ROLES[p.className] ? p.className : ''),
+           text: (span.textContent || '').slice(0, 60) });
+  }
+
   function edit(span) {
     var rec = span._ssx;
     if (!rec) return;
-    span.setAttribute('contenteditable', 'plaintext-only');
+    /* Not `plaintext-only`: a role puts a <strong> inside, and the serializer
+     * is what keeps anything else out, so the caret does not have to. */
+    span.setAttribute('contenteditable', 'true');
     span.focus();
     var r = document.createRange(); r.selectNodeContents(span);
     var sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
-    span.onblur = function () { bank(rec); };
+    report(span);
+    span.onblur = function () { bank(rec); report(null); };
     span.oninput = function () { clearTimeout(span._t); span._t = setTimeout(function () { bank(rec, true); }, 400); };
     span.onkeydown = function (e) {
       if (e.key === 'Enter') { e.preventDefault(); span.blur(); }
@@ -399,11 +569,12 @@
   addEventListener('message', function (e) {
     var d = e.data;
     if (!d || d.type !== 'app-edit') return;
-    if (d.on) arm(d.html);
+    if (d.role) role(d.role);
+    else if (d.on) arm(d.html);
     else if (d.save) {
       document.activeElement && document.activeElement.blur();
       post({ type: 'app-edit-edits', edits: pending.map(function (p) { return { find: p.find, replace: p.replace }; }) });
-    } else if (d.done) { pending = []; disarm(); }
+    } else if (d.done) { pending = []; regions = {}; disarm(); }
     else disarm();
   });
 
