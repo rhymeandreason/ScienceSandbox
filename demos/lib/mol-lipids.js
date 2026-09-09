@@ -1,5 +1,5 @@
 /* =====================================================================
- *  mol-lipids.js — the membrane set (family B, real ångströms)
+ *  mol-lipids.js — the membrane set (real ångströms)
  * =====================================================================
  *  glycerol, so far. The phospholipid this file exists for is NOT here
  *  yet, and the reason is written down at the bottom rather than left
@@ -114,7 +114,7 @@
     //   really the carboxylate, palmitate.
     palmitate: {
       name:'Palmitic acid', formula:'C₁₆H₃₂O₂', class:'lipid', mono:'lipid',
-      // NOT a PubChem conversion, despite sitting in family B — see the comment
+      // NOT a PubChem conversion — see the comment
       // above: an idealised all-anti zigzag at a real 109.5°, united-atom, worked
       // out once and baked in as literals. molecule-pipeline.md item 0 listed this
       // as a path-2 spec that failed to reproduce (32 fetched H vs 1 committed)

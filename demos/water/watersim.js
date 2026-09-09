@@ -731,9 +731,8 @@ function create(THREE, root, opts={}){
 }
 
 global.WaterSim = { create, thermo, TUNING };
-/* Scale (kit/scale.js). Bulk molecules: this is family A in
-   MolecularGeometry.md 1.5, hand-written lengths tuned around HL=1.55, so it is
-   not any single factor off angstroms and unit stays null. A solute spec beside
+/* Scale (kit/scale.js). Bulk molecules: the module's own lengths, tuned around
+   HL=1.55 and not any single factor off angstroms, so unit stays null. A solute spec beside
    it is the same rung, single form, which is why water-lab puts one in this box. */
 global.WaterSim.SCALE = { rung: 'molecules', form: 'bulk', unit: null, exag: {}, down: {} };
 // Node-loadable half: a checker can assert the phase-change points without a scene.

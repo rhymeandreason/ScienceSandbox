@@ -20,7 +20,7 @@
  *  So the name is the one thing here that does NOT follow the rule, and it is
  *  worth being honest about rather than quietly filing it under a derivation
  *  it shares with three other files. Everything in it is Skel-built from ideal
- *  VSEPR angles and measured bond lengths, family B, needs `skel.js` — the
+ *  VSEPR angles and measured bond lengths, needs `skel.js` — the
  *  same sentence `mol-pathways.js` opens with. If a respiration page ever
  *  draws glycolysis and the cycle together it should load both files, which is
  *  what "let the lesson load what it draws" means; nothing here is a duplicate

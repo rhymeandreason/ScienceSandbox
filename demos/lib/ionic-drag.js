@@ -194,8 +194,7 @@
      * layers of water in the way. */
     LOOSE: 0.3,               // what is left of the ionic spring once wrapped
   };
-  /* Water, drawn to the same numbers as every other water in the project: the
-   * O–H vectors come straight out of MolLib (family A, 1.55), and the lone
+  /* Water, drawn to this module's own numbers (O–H 1.55, as below), and the lone
    * pairs use the tetrahedral pair covalent-drag.js draws on the water tab —
    * out of the H–O–H plane in 3D, swung into it in 2D so they stay countable. */
   const WAT = {
@@ -458,12 +457,11 @@
      * they face. Same argument covalent-drag.js makes about its reagent. */
     // the seat facing the partner, in both views' orderings
     const WEDGE=SOLV.SEATS-1;
-    /* The solvent water, at this module's own scale. These are the family-A
-     * O–H positions (|H| = 1.55). They are written here rather than read from
-     * MolLib.MOLECULES.water because the shell radii below are measured
-     * ångströms put through UPA, so the scale has to be a property of this
-     * module — read it off the registry and a page that loads family B moves
-     * every hydration shell 17% without saying so. */
+    /* The solvent water, at this module's own scale: O–H |H| = 1.55, written
+     * here rather than read from MolLib.MOLECULES.water because the shell radii
+     * below are measured ångströms put through UPA, so the scale has to be a
+     * property of this module. Read it off the registry instead and every
+     * hydration shell moves 17% without saying so. */
     const HPOS=[[1.226,-0.948,0],[-1.226,-0.948,0]];
     let waters=[], poured=false;
 

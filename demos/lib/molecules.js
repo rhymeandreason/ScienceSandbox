@@ -10,64 +10,21 @@
  *  solute class) that drive buildMolecule() and the solvation physics.
  *
  * ---------------------------------------------------------------------
- *  BOND-LENGTH SCALE FAMILIES — read this before putting two molecules
- *  from different sections on the same screen.
- * ---------------------------------------------------------------------
- *  There is ONE hard rule, and check-molecules.js enforces it: a bond must
- *  be longer than the sum of its two atoms' display radii, or the spheres
- *  swallow the stick and the molecule renders as a blob. Display radii here
- *  are stylised and LARGE, so no spec can use true ångströms.
+ *  BOND LENGTHS — one hard rule, and check-molecules.js enforces it: a bond
+ *  must be longer than the sum of its two atoms' display radii, or the spheres
+ *  swallow the stick and the molecule renders as a blob. Display radii here are
+ *  stylised and LARGE, so no spec may carry true ångströms at render time.
  *
- *  How each section satisfies that rule is NOT the same, and that is the
- *  trap. Two families live in this file:
+ *  Every spec in lib/ STORES real ångströms (`units:'angstrom'`) and register()
+ *  multiplies by SCALE once on the way in, so relative lengths are truthful and
+ *  every molecule in the library is comparable to every other. One scale
+ *  family: there is no longer a second set to keep off the same screen.
  *
- *    A. HAND-WRITTEN (water, ethanol, ammonia, methane, CO₂, carbonic,
- *       bicarbonate, hydronium — the solvation pages).
- *       Each length was chosen individually to clear its radii. Water's O–H
- *       is 1.55 against radii summing to 1.50. Implied scale runs ~1.2–1.6×
- *       and varies WITHIN a molecule (ethanol: C–C 1.19×, C–O 1.33×,
- *       O–H 1.61×). There is no proportionality claim, and there cannot be
- *       one: water-lab.html and molecule-lab.html hard-code HL=1.55 and tune
- *       their entire solvation engine around it (EQ, MIN, hbThreshold, the
- *       ice lattice spacing). Rescaling water means re-tuning that physics.
- *       Do not touch this family to make some other page tidy.
- *       These specs carry `units:'scene'` — the numbers ARE display units and
- *       register() leaves them alone. Family A is not "ångströms not yet
- *       converted": it is not expressible as any molecule × any single factor,
- *       which is exactly why item 7 could un-bake family B and not this.
+ *  A small molecule beside a big one is mol-small.js — water, ammonia, methane,
+ *  O₂, CO₂, ethanol, carbonic acid, from measured lengths.
  *
- *    THE RULE IS ONE FAMILY PER SCENE, NOT PER PAGE. A size difference is a
- *    claim only where two molecules are drawn under the same camera; a page
- *    whose stages are separate makes no such claim and may load both, saying
- *    so at its script tags. Nothing here can check it — which scene a spec is
- *    drawn into is a runtime fact. MolecularGeometry.md §1.5. The duplicate-key
- *    throw below is a DIFFERENT rule and is unaffected: two files defining one
- *    key means the loser is overwritten for every scene at once.
- *
- *    B. DERIVED (the amino acids, palmitate, amp, and everything the Skel
- *       builder makes — glucose and the glycolysis intermediates).
- *       These specs STORE REAL ÅNGSTRÖMS (`units:'angstrom'`) and register()
- *       multiplies by SCALE = 1.9 once, on the way in. Relative lengths are
- *       truthful, so these molecules are comparable to each other — and the
- *       file now says what a chemist would say.
- *
- *  THE RULE: a page should show molecules from ONE family. Mixing them means
- *  two molecules side by side at different scales, with nothing on screen
- *  saying so.
- *
- *  HOW A PAGE SHOWS A SMALL MOLECULE: load mol-small.js. It carries water,
- *  ammonia, methane, O₂, CO₂, ethanol and carbonic acid built from MEASURED
- *  lengths in real ångströms, so they sit correctly beside an amino acid or a
- *  sugar. It is the only small-molecule domain: the family-A set was the
- *  solvation engine's tuned particles, and it moved to attic/solvation/ with
- *  molecule-lab.html, its last page.
- *
- *  The two files define the SAME KEYS on purpose, and register() throws if both
- *  load — so picking the wrong one is a loud failure rather than a molecule
- *  that is quietly 15% wrong.
- *
- *  The salts are not duplicated: nacl/kcl carry no coordinates, only
- *  dissociation records, so they are scale-free and belong to no family.
+ *  The salts carry no coordinates, only dissociation records, so nacl/kcl are
+ *  scale-free. watersim.js keeps the one it dissolves in its own SALTS table.
  * ===================================================================== */
 (function(global){
   'use strict';
@@ -92,9 +49,8 @@
   // Each entry:
   //   name, formula
   //   class    — 'solvent' | 'ionic' | 'polar' | 'nonpolar'
-  //   atoms    — [{el, pos:[x,y,z]}]  local positions. These are family A
-  //              (hand-written, per-bond, matching water's exaggerated O–H) —
-  //              see the scale-families note at the top of this file.
+  //   atoms    — [{el, pos:[x,y,z]}]  local positions, real ångströms until
+  //              register() scales them once — see the note at the top.
   //   bonds    — [[i,j], …]  indices into atoms
   //   sites    — { donors:[{atom}], acceptors:[{atom, lonePairs}] }
   //              donor = a δ+ H that can point into water; acceptor = a
@@ -213,13 +169,8 @@
    * "everything is suddenly tiny" in some places and not others.
    *
    * `units:'scene'` means the numbers are already display-scale and must NOT
-   * be touched. Two groups carry it:
-   *   · the family-A solvation set, whose lengths were each hand-picked to
-   *     clear their display radii and are not a real molecule × any factor
-   *     (MolecularGeometry.md §1.5). Converting those is a separate, riskier job —
-   *     it means re-tuning the solvation engine.
-   *   · specs DERIVED from an already-registered spec (dAlanine mirrors
-   *     alanine), which are therefore already scaled.
+   * be touched. Only specs DERIVED from an already-registered spec carry it
+   * (dAlanine mirrors alanine), since those are scaled already.
    *
    * Scaling is idempotent: a spec is stamped once and never re-scaled, so a
    * double registration cannot silently double a molecule's size.
@@ -239,17 +190,12 @@
         for(const a of spec.atoms) a.pos = [a.pos[0]*SCALE, a.pos[1]*SCALE, a.pos[2]*SCALE];
         spec._scaled = true;
       }
-      // Two domain files claiming the same name is never intentional, and
-      // letting the last one silently win is how a page draws a molecule from
-      // a family it did not mean to load. No pair in lib/ collides today —
-      // attic/solvation/mol-solvation.js is the one that did, and nothing live
-      // may load it — so this stands between "wrong file in the script tags"
-      // and "everything looks fine but the water is 16% small".
+      // Two domain files claiming the same name is never intentional, and the
+      // last one silently wins: every scene on the page then draws whichever
+      // loaded last. No pair in lib/ collides today.
       if(MOLECULES[key] && MOLECULES[key] !== spec) throw new Error(
         `molecules.js: '${key}' is already registered — two domain files define `
-        + `it. Check the page's <script> tags. If one of them is `
-        + `attic/solvation/mol-solvation.js, that is the display-unit set and no `
-        + `live page may load it; otherwise the two files disagree about a key.`);
+        + `it. Check the page's <script> tags; the two files disagree about a key.`);
       if(spec.pep) derivePeptideCondense(key, spec);
       MOLECULES[key] = spec;
     }
@@ -318,8 +264,8 @@
    * cost being managed is a page paying to parse specs it never renders; that
    * is what splits a file, not subject matter. */
   const DOMAINS = [
-    'mol-small.js',        // family B, hand-written from spectroscopic values — no builder
-    'mol-aminoacids.js',   // family B, PubChem conversions + one mirror — no builder.
+    'mol-small.js',        // hand-written from spectroscopic values — no builder
+    'mol-aminoacids.js',   // PubChem conversions + one mirror — no builder.
                            //   D-alanine reflects alanine, so the two are in ONE
                            //   file and the ordering is local to it.
     'mol-pathways.js',   // needs skel.js — G6P to pyruvate, and nothing else:
@@ -342,10 +288,10 @@
                            //   the monosaccharides were: five pages wanted only
                            //   these and were parsing an amino acid and a fatty
                            //   acid to reach one.
-    'mol-lipids.js',       // family B, literals — plus palmitoleate, the one
+    'mol-lipids.js',       // literals — plus palmitoleate, the one
                            //   spec here that is built and the only reason this
                            //   file touches skel.js
-    'mol-nucleic.js',      // family B, PubChem — plus purine and pyrimidine, the
+    'mol-nucleic.js',      // PubChem — plus purine and pyrimidine, the
                            //   two parent rings, which are built
   ];
 
@@ -353,11 +299,8 @@
   // the same keys at a different scale, so register() throws if both load —
   // which is the point. Anything walking the library for checking has to load
   // an alternate SEPARATELY (see lib-node.js), never alongside what it swaps.
-  //   EMPTY, and that is the interesting part: mol-small.js was the alternate
-  // to mol-solvation.js until the solvation set went to attic/solvation/ with
-  // molecule-lab.html, its last page. The library is one scale family again.
-  // An atticked file is not an alternate — nothing in lib/ may load it, and
-  // lib-node.js does not walk it.
+  //   EMPTY: the library is one scale family. The machinery stays because the
+  // next either/or pair is a `units:` decision away.
   //   ENUM: a new either/or domain file goes here, not in DOMAINS.
   const DOMAIN_ALTERNATES = [];
 

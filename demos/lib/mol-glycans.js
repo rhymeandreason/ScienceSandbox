@@ -1,5 +1,5 @@
 /* =====================================================================
- *  mol-glycans.js — the disaccharides (family B, real ångströms)
+ *  mol-glycans.js — the disaccharides (real ångströms)
  * =====================================================================
  *  Four sugars joined to four sugars, and each pair of them is an argument
  *  about ONE linkage: maltose against cellobiose is α- against β-1,4 and is

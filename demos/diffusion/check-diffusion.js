@@ -213,9 +213,9 @@ ok(Math.abs(diffusionOf(2) * 2 - diffusionOf(4) * 4) < 1e-12,
   try { radiusOf({ name: 'fake', units: 'scene', atoms: [{ el: 'O', pos: [0, 0, 0] }] }); }
   catch (e) { threw = /scale famil|ångström|angstrom/i.test(e.message); }
   ok(threw, 'a display-units spec is refused, not silently mis-measured');
-  // And the water this bench measures is on the measurable side of it. Not
-  // every `units:'scene'` spec is family A — a spec DERIVED from an already
-  // registered one carries the same stamp because it is already scaled
+  // And the water this bench measures is on the measurable side of it. A spec
+  // DERIVED from an already registered one carries `units:'scene'` too, because
+  // it is already scaled
   // (dAlanine mirrors alanine; see the units note in molecules.js) — so the
   // claim worth asserting is about the spec §1-§4 actually put through
   // radiusOf, not a sweep of the registry.

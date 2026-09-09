@@ -18,7 +18,7 @@
  *
  *  The partition is by derivation and scale family, not by topic (molecules.js
  *  DOMAINS), and a carrier passes that test on its own: every spec here is
- *  family B, and all but AMP are Skel builds. What made the old arrangement
+ *  all but AMP are Skel builds. What made the old arrangement
  *  wrong was not the taxonomy but the cost — a page paying for a pathway it
  *  never draws in order to reach the carrier it does.
  *

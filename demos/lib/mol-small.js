@@ -1,38 +1,23 @@
 /* =====================================================================
- *  mol-small.js — the small molecules AT TRUE SCALE (family B)
+ *  mol-small.js — the small molecules, from measured lengths
  * =====================================================================
- *  Water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid: measured bond
- *  lengths in real ångströms, scaled by register() like every other family-B
- *  spec. These are PROPS — a water to put beside an amino acid, a methane to
- *  put beside a fatty acid — and they are comparable to every other family-B
- *  molecule and to each other.
+ *  Water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid: real ångströms,
+ *  scaled by register() like every other spec. These are PROPS — a water to put
+ *  beside an amino acid, a methane to put beside a fatty acid — and they are
+ *  comparable to every other molecule in the library.
  *
- *  THE SMALL MOLECULES USED TO EXIST TWICE, and the reason is worth keeping
- *  even though the other copy is gone. attic/solvation/mol-solvation.js was
- *  family A: every bond length hand-picked to clear its own display radii,
- *  water's O–H 1.55 against radii summing to 1.50. Those were the SOLVATION
- *  ENGINE'S PARTICLES, not a picture of a molecule, and the engine was tuned
- *  around them — so the file could not follow the rest of the library to real
- *  ångströms, and moved to attic/ with molecule-lab.html, its last page.
- *  A family-A water was a tuned parameter; a family-B water is a picture.
- *  Different objects that shared a name, which is why the two defined the same
- *  KEYS and only one could be right on a page.
- *
- *  It is safe to run the solvation engine on THESE — water/watersim.js builds
- *  its water from its own HL and reads no spec at all. What is not safe is
- *  assuming a spec's numbers are ångströms without checking `units`: the
- *  atticked file carries `units:'scene'`, and register() leaves those alone.
+ *  The solvation engine reads no spec: water/watersim.js builds its water from
+ *  its own HL, so nothing here is a tuned physics parameter.
  *
  *  The salts are not here. `nacl`/`kcl` carry no coordinates — only
- *  dissociation records — so they are scale-free and belong to no family.
+ *  dissociation records — so they are scale-free.
  *  watersim.js keeps the one it dissolves in its own SALTS table, and the
  *  bonding builder its own in IonicDrag.RECIPES.
  *
  *  Sources: spectroscopic/microwave equilibrium geometries, the values any
- *  textbook quotes. Each is named against its spec below. Angles are the real
- *  ones, which is the half family A already got right — what changes here is
- *  that the LENGTHS are real too, so the proportions between two molecules on
- *  screen mean something.
+ *  textbook quotes. Each is named against its spec below. Angles and lengths
+ *  are both real, so the proportions between two molecules on screen mean
+ *  something.
  * ===================================================================== */
 (function(global){
   'use strict';
@@ -94,7 +79,7 @@
       // THE NONPOLAR REFERENCE. Two identical atoms means no electronegativity
       // difference, no dipole, and nothing for water to H-bond to — see
       // attic/solvation/mol-solvation.js's copy for why it carries NO acceptors despite being
-      // oxygen. In family B it also carries the size argument the membrane
+      // oxygen. It also carries the size argument the membrane
       // lesson runs on: radiusOf puts it at about half of glucose, and that
       // gap plus the missing charge is the whole of "why O₂ crosses and
       // glucose doesn't".
@@ -111,7 +96,7 @@
       // MOLECULE has no net dipole — but each O still carries δ− and two lone
       // pairs, which is why CO₂ is far more soluble than O₂ or CH₄.
       // `class` is 'nonpolar' here, not the solvation file's 'reactive':
-      // nothing on a family-B page runs the CO₂ → carbonic chain, and claiming
+      // no page here runs the CO₂ → carbonic chain, and claiming
       // a reaction this file cannot perform would be a lie in the data.
       atoms:[ {el:'C',pos:[0,0,0]}, {el:'O',pos:[1.16,0,0]}, {el:'O',pos:[-1.16,0,0]} ],
       bonds:[ [0,1,2],[0,2,2] ],
@@ -129,7 +114,7 @@
       // so a carbonyl's lone pairs can be read against a hydroxyl's. The C=O
       // has two pairs in the sp2 plane and no H of its own; each C–O–H has two
       // and donates one. `lobes-test` panel B is that comparison.
-      //   NO `ionizesTo`: bicarbonate is family A's, and the CO₂ → carbonic →
+      //   NO `ionizesTo`: bicarbonate is the atticked solvation set's, and the CO₂ → carbonic →
       // bicarbonate chain is molecule-lab's. Same argument as co2's `class`
       // above — this file does not claim a reaction it cannot perform.
       atoms:[ {el:'C',pos:[0,0.0855,0]},          // 0 sp2 carbon
@@ -147,7 +132,7 @@
     ethanol: {
       name:'Ethanol', formula:'C₂H₅OH', class:'polar',
       // C–C 1.512, C–O 1.431, O–H 0.971 Å; C–C–O 107.8°, C–O–H 105.4°.
-      // All-atom, unlike the family-A version's united-atom methyls: at true
+      // All-atom, unlike the atticked version's united-atom methyls: at true
       // scale the H's fit, and the point of this spec is comparability.
       // Origin is the heavy-atom centroid, so it spins about its middle.
       atoms:[ {el:'C',pos:[-1.1538,-0.4542,0]},        // 0 methyl C

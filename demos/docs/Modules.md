@@ -78,11 +78,11 @@ Four rules were prose here and enforced by nothing: both molecule families at on
 
 * **A page loads only the molecules it shows.** `molecules.js` is the registry (`PALETTE`, `SCALE`, `VIEW`, `DOMAINS`) and holds no specs; the `mol-*.js` files assign into it. Wrong script tags = `MOLECULES.x is undefined`, not a silent wrong render.
 * Order is `molecules.js` → `skel.js` → `mol-*.js`. `skel.js` has no dependencies (real ångströms, never sees `SCALE`); the domain files need both, and `mol-glycans.js` builds lactose and galactobiose against `mol-sugars.js`'s galactose.
-* **Spec coordinates on disk are real ångströms** (`units:'angstrom'`); `register()` applies `SCALE` once on the way in. The family-A solvation set is `units:'scene'` — already display units. Why: MolecularGeometry.md §1.5; `check-molecules.js` requires the field. **One family per SCENE, not per page**: a page with separate stages may load both and says at its script tags why they never meet.
+* **Spec coordinates on disk are real ångströms** (`units:'angstrom'`); `register()` applies `SCALE` once on the way in, so every spec in `lib/` is comparable to every other. `check-molecules.js` requires the field. Why, and what a protein does instead: MolecularGeometry.md §1.5.
 
 **Two kinds of page.** Most load `scene.js` + MolLib. The folding pages (`folding-lab`, `folding-lab-ribbon`, `hemoglobin-lab`) draw *deposited* coordinates through `scene.js` too, but load `palette.js`/`molecules.js` for `PALETTE` alone, no `mol-*.js`: every coordinate is a real ångström and display radii are `PALETTE.radii / SCALE`, computed in the page.
 
-A page that needs a real water beside measured molecules loads `mol-small.js`, and so does every other page in `lib/` now: **the library is one scale family.** `mol-solvation.js` was family A and moved to `attic/solvation/` with `molecule-lab.html`, its last page. `register()` still throws on a duplicate key, which is what would catch a second file arriving at a different scale.
+A page that needs a real water beside measured molecules loads `mol-small.js`: **the library is one scale family.** `register()` still throws on a duplicate key, which is what would catch a second file arriving at a different scale.
 
 <!-- ENUM: update when a module is added, or an exported entry point is added/renamed. -->
 
@@ -132,7 +132,7 @@ A page loads only the domains it draws. Order is `molecules.js` → `skel.js` �
 | `skel.js` | `SkelLib` = `Skel` + `GL`/`AR` bond-length tables (**real ångströms**) + ring/chain scaffolds + the nucleotide fragments `adenine`, `ribosyl`, `Skel.phosphoUnit`. Builder, not data; no dependencies | MolecularGeometry.md §1.2, §1.5 |
 | `residues.js` | `ResidueLib` = `SIDE` (twenty side chains in each residue's N–CA–C frame) + `graft` + `TYPES`. **Generated** by `tools/bake-residues.js` — real ångströms, no `SCALE`, no MolLib. Not a domain file: it holds pieces of molecules | own header |
 | `mol-small.js` · `mol-aminoacids.js` · `mol-pathways.js` · `mol-krebs.js` · `mol-carriers.js` · `mol-sugars.js` · `mol-glycans.js` · `mol-lipids.js` · `mol-nucleic.js` | nothing — each `register()`s its specs into `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
-| `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid, hand-written from spectroscopic values and **to scale**. The small-molecule domain; `attic/solvation/mol-solvation.js` is the display-unit set it replaced | own header, MolecularGeometry.md §1.5 |
+| `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid from measured lengths — the props to put beside a big molecule. The small-molecule domain | own header |
 | `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |
 
 ### Structure rendering — deposited coordinates
@@ -195,7 +195,7 @@ A side door off a lesson: its own canvas, its own physics, no MolLib and no geom
 | Module | Exposes | Rules |
 | --- | --- | --- |
 | `massaction/` | `MassAction.create({host, scenarios, ea})` after `massaction.css` + `.js`. A plain 2D canvas whose dots stand for **populations**; molecules draw from the thermal distribution and react over a barrier, `ea` forward and `ea + ΔE` back. The page supplies which reaction. `ea` is a legibility knob | `massaction/check-massaction.js` |
-| `diffusion/` | `Diffusion.create({host, scenarios})` after `palette.js`/`molecules.js`. Same paradigm, asking about a box nothing is pushing. A scenario names molecules by MolLib key and the module reads their SIZE from the spec, so the rate difference is a prediction. **Needs an ångström-family spec**, and has deliberately no membrane | `diffusion/check-diffusion.js` |
+| `diffusion/` | `Diffusion.create({host, scenarios})` after `palette.js`/`molecules.js`. Same paradigm, asking about a box nothing is pushing. A scenario names molecules by MolLib key and the module reads their SIZE from the spec, so the rate difference is a prediction. **Reads size off the spec**, and has deliberately no membrane | `diffusion/check-diffusion.js` |
 | `coupling/` | `Coupling.create({host, scenarios, range})`. The only one with real numbers: every ΔG°′ is a published value carried on the scenario. **`shared` is not a caption** — unticked, the two ΔG do not add. Disagrees with `glycolysis-lab.html` on purpose | `coupling/check-coupling.js` |
 | `energy/energy.js` | `Energy.curve` · `solo` · `pair` · `tabs` · `levels` (pure) · `Y` / `BARRIER`. Free energy on a vertical axis, as two tabs of one card. **A FIGURE**: SVG strings, no canvas, no loop, no state. Its one rule is that the axis carries no scale | `energy/check-energy.js` |
 | `dna/codon.js` | `Codon.figure({dna, first, at, to, view})` draws a gene fragment before and after one substitution; `Codon.read` is the same analysis with no drawing. **Three views over one analysis** — `strip`, `card`, `chain` — and which a step takes is the question it asks. **Nothing about the outcome is authored**: it comes out of the genetic code | `dna/check-codon.js` |

@@ -68,12 +68,11 @@
      meniscus that evaporation pulls on. THAT is drawable at honest
      scale, and this bench is whether it renders as anything.
 
-     SCALE. Everything here is family B — real angstroms x MolLib.SCALE
-     (MolecularGeometry.md 1.5) — because the page makes a size claim
-     and only family B may. So the water is mol-small's to-scale
-     spectroscopic geometry, NOT water-lab's family-A physics water,
-     and the engine constants below are real distances scaled once,
-     not tuned numbers.
+     SCALE. Everything here is real angstroms x MolLib.SCALE
+     (MolecularGeometry.md 1.5), because the page makes a size claim.
+     So the water is mol-small's spectroscopic geometry, NOT the
+     solvation engine's tuned particle, and the engine constants below
+     are real distances scaled once, not tuned numbers.
 
      THE WALLS ARE REAL CELLULOSE. Not a hydroxyl lattice standing in
      for one: the cellobiose spec repeated by chain-repeat.js, the same
@@ -334,7 +333,7 @@ what this shows is the order things happen in, not the speed.</div>
 /* ============================================================= *
  *  Scale. One number, and every distance below is a real one.
  * ============================================================= */
-const A = MolLib.SCALE;              // scene units per angstrom (family B)
+const A = MolLib.SCALE;              // scene units per angstrom
 const nm = n => n*10*A;              // nanometres, for the pore itself
 const P  = MolLib.PALETTE;
 
@@ -667,7 +666,7 @@ const wallBondMesh=(function drawWallBonds(){
 /* ============================================================= *
  *  THE WATER
  * ============================================================= */
-const wspec=MolLib.MOLECULES.water;             // family B, to scale
+const wspec=MolLib.MOLECULES.water;             // to scale
 const OH=V3(wspec.atoms[1].pos), OH2=V3(wspec.atoms[2].pos);
 
 /* A POOL, AND A SUPPLY BEHIND IT. This is the piece the bench was missing.

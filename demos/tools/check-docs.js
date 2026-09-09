@@ -182,7 +182,7 @@ const norm = n => n.replace(/^demos\//, '');
 // a doc in demos/ naming api/_tutor.js is naming it from there, not from here.
 // 'docs' is where the rulebooks live and 'tests'/'attic' where the benches and
 // the superseded lessons do; all three are named bare in running text, the same
-// way a script is. 'attic/solvation' is molecule-lab.html and the family-A spec
+// way a script is. 'attic/solvation' is molecule-lab.html and the atticked spec
 // file it is the last page for, shelved together — the rulebooks still name
 // both, because a doc that may not say where a file WENT cannot explain a move.
 const SEARCH = ['.', '..', 'lib', 'css', 'docs', 'tests', 'attic', 'attic/solvation', 'tools', 'folding', 'folding/tools',

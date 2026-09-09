@@ -23,8 +23,8 @@
  *       carbon four at 109.5°, and the bench holds exactly that many ligands —
  *       the molecule is finished when the bench is empty.
  *
- *  Each recipe carries its own geometry. Slot dirs are the family-A ligand
- *  positions normalised, baked in rather than read from MolLib: the bond
+ *  Each recipe carries its own geometry. Slot dirs are ligand positions
+ *  normalised, baked in rather than read from MolLib: the bond
  *  lengths here are this bench's own (water's O–H is 1.90, not the library's
  *  1.55) because the shared pair needs room to sit visibly off the H, so the
  *  module owns its scale and loads no mol-*.js.

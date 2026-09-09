@@ -1,5 +1,5 @@
 /* =====================================================================
- *  mol-aminoacids.js — the amino acids (family B, real ångströms)
+ *  mol-aminoacids.js — the amino acids (real ångströms)
  * =====================================================================
  *  Eight of the twenty, and the pairs among them are the point: L- against
  *  D-alanine is handedness, glycine against proline is a free amino nitrogen

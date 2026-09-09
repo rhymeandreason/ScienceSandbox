@@ -220,7 +220,7 @@ Two cheap wins that belong to no lesson: **hydroxide** (you have hydronium, so a
 | file | holds | now | after | needed by |
 | --- | --- | --- | --- | --- |
 | `attic/solvation/mol-solvation.js` | water, salts, small polars/nonpolars — display units. **Atticked** with `molecule-lab`, its last page | 10 | 12 | — |
-| `mol-small.js` | the same substances to scale (family B) — either/or | 6 | 7 | family-B pages |
+| `mol-small.js` | the small molecules, to scale | 6 | 7 | any page |
 | `mol-aminoacids.js` **(built)** | the eight amino acids, ex-`mol-monomers`/`mol-contrast` | 8 | 14 | `macromolecule-builder`, `contrast-lab` |
 | `mol-glycans.js` **(built)** | the four disaccharides, ex-`mol-contrast` | 4 | 5 | `macromolecule-builder`, `chain/`, `chair/`, `capillary/`, `amylase/` |
 | `mol-pathways.js` | G6P → pyruvate, ATP, NADH, Pi — glucose moved to `mol-sugars.js` | 16 | 16 | `glycolysis-lab`, `krebs-lab`, `fermentation-lab`, `molecule-viewer` |
@@ -234,7 +234,7 @@ Two cheap wins that belong to no lesson: **hydroxide** (you have hydronium, so a
 Three notes on the deltas:
 
 * **ADP lands in `mol-pathways.js`**, not a new file — it's the same reaction the page already draws, from the other side.
-* **hydroxide and O₂ go in `mol-small.js`**, which is the only small-molecule domain now that the family-A set is in `attic/solvation/`.
+* **hydroxide and O₂ go in `mol-small.js`**, which is the only small-molecule domain.
 * **Both splits are now DONE, and the argument against them expired when a lesson arrived.** This entry used to say they served no page and would break the `mol-pathways.js` load line in five HTML files to move glucose. `macromolecule-builder` is that lesson: it wants amino acids and sugars and nothing from a pathway. Moving glucose cost two pages a new script tag and let **ten** pages drop `mol-pathways.js` entirely — the load line got shorter, not longer. See `docs/molecules-wishlist.md`.
 
 ### Corrections to the source docs

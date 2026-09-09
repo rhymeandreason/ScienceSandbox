@@ -33,11 +33,10 @@ MolLib.DOMAINS.forEach(here);                 // the specs themselves
  * registry above, since register() throws — but the checkers still have to see
  * both, or a whole file of specs would never be audited for overlap,
  * provenance or units.
- *   The list is EMPTY today. mol-small.js was the alternate to mol-solvation.js
- * until that file moved to attic/solvation/ with molecule-lab.html, its last
- * page, and mol-small took its place in DOMAINS. The machinery stays because
- * the next either/or pair is a `units:` decision away, and because an empty
- * loop is cheaper than rediscovering why the suffix scheme existed.
+ *   The list is EMPTY today: the library is one scale family. The machinery
+ * stays because the next either/or pair is a `units:` decision away, and
+ * because an empty loop is cheaper than rediscovering why the suffix scheme
+ * existed.
  *
  * Each alternate is therefore loaded in its OWN context, and its specs are
  * merged under a suffixed key (`water [mol-small.js]`). The suffix only ever

@@ -125,8 +125,8 @@ console.log('\n3. ammonia — the one pair a proton lands in');
 
 /* ---- 4. a carbonyl oxygen is sp², and its ears stay in the plane ------- */
 console.log('\n4. carbonyl oxygen — two ears, both in the sp² plane');
-/* The loop is over one key today and stays a loop on purpose: family A's
- * carbonic is in attic/solvation/ and out of lib-node's walk, but the claims
+/* The loop is over one key today and stays a loop on purpose: the atticked
+ * carbonic is out of lib-node's walk, but the claims
  * below are about DIRECTIONS, so any second carbonic must pass them at its own
  * scale too. A spec that held at one scale and not the other would be wrong,
  * not merely differently sized. */

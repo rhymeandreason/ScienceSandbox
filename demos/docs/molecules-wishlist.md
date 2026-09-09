@@ -6,7 +6,7 @@ The library as it should be partitioned, and what is missing from it. **Bold = d
 
 ## Why the partition changes
 
-Files are named for a chemical class rather than for a page. Class tracks builder and scale family almost perfectly, so the cost rule the partition exists to serve (`molecules.js`'s `DOMAINS` note: a page must not parse specs it never renders) still holds, and the name becomes something a person can predict.
+Files are named for a chemical class rather than for a page. Class tracks builder almost perfectly, so the cost rule the partition exists to serve (`molecules.js`'s `DOMAINS` note: a page must not parse specs it never renders) still holds, and the name becomes something a person can predict.
 
 Two files were named for pages and are dissolved:
 
@@ -34,7 +34,7 @@ The trade is that `contrast-lab` goes from three domain files to five, because a
 | `mol-solvation.js` | water, NaCl, KCl, ethanol, ammonia, methane, O₂, CO₂, carbonic, bicarbonate, hydronium | **Zn²⁺**, **Fe²⁺/Fe³⁺** |
 | *deleted* | ~~`mol-contrast.js`~~ ~~`mol-compare.js`~~ ~~`mol-monomers.js`~~ ~~`mol-vitamins.js`~~ **(all done)** | dissolved into the rows above |
 
-`mol-small.js` is the only small-molecule domain; the family-A set moved to `attic/solvation/` with `molecule-lab.html`, its last page. `register()` still throws on a duplicate key, which is what would catch a second scale family arriving.
+`mol-small.js` is the only small-molecule domain; the old solvation set moved to `attic/solvation/` with `molecule-lab.html`, its last page. `register()` still throws on a duplicate key, which is what would catch a second scale family arriving.
 
 ### The one proposal not carried out: renaming `mol-pathways.js`
 
@@ -52,7 +52,7 @@ Two smaller facts back it up. The file holds `lactate`, `acetaldehyde` and `etha
 
 **Ions go in `mol-small.js`** because `nacl` and `kcl` already live there as bare dissociation records with no coordinates. A molecule with no geometry has no family, so Zn²⁺ and Fe are the same kind of object.
 
-**Ouabain goes in `mol-lipids.js`, not beside the ions it is grouped with in every pharmacology textbook.** It is a 58-atom steroid glycoside with a rigid fused-ring core — family B, and structurally cholesterol's neighbour. That it happens to inhibit a pump is a fact about a protein, not a chemical class, which is the same reasoning that dissolves `mol-vitamins.js`.
+**Ouabain goes in `mol-lipids.js`, not beside the ions it is grouped with in every pharmacology textbook.** It is a 58-atom steroid glycoside with a rigid fused-ring core, structurally cholesterol's neighbour. That it happens to inhibit a pump is a fact about a protein, not a chemical class, which is the same reasoning that dissolves `mol-vitamins.js`.
 
 **`mol-cofactors.js` is the one genuinely new file**, and the protein gallery is what demands it. Heme is wanted by myoglobin, haemoglobin and ferritin, is too large for `mol-small.js`, is not a carrier in the NAD/FAD sense, and is the shape chlorophyll reads against.
 
@@ -143,7 +143,7 @@ Each must follow its partner's build line for line, the way galactose deliberate
 
 That heme is IN SITU, and it is a different object from a spec. Everything interesting about it is relative to the pocket: `proxRes`, `prox` and the `o2` site are meaningless the moment it leaves. There are four copies per bake, in the protein's frame, heavy atoms only, in the deoxy state of one particular crystal.
 
-A spec is the SUBSTANCE — one canonical heme b, centred, with its own `view`, its hydrogens present or declared in `optH`, comparable to a family-B water. `mol-small.js` and `mol-solvation.js` are the standing precedent for one substance held twice because the two answer different questions.
+A spec is the SUBSTANCE — one canonical heme b, centred, with its own `view`, its hydrogens present or declared in `optH`, comparable to any other spec. `mol-small.js` and the atticked `mol-solvation.js` were the standing precedent for one substance held twice because the two answered different questions.
 
 Sourcing it from `hemoglobin/data/` would make the spec a derived artefact of a derived artefact, inheriting 2HHB's accidents, and would chain it to a protein it has to outlive: the reason to want a heme spec at all is chlorophyll, the same ring carrying Mg instead of Fe.
 

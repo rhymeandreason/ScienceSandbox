@@ -242,93 +242,42 @@ Rules that follow:
 4. **Anything a lab manipulates needs an index map** (`pep`, `gly`) — reactions
    address atoms by position and a reindex silently breaks them.
 
-### 1.5 Bond-length scale families — one family per SCENE
+### 1.5 One scale family, and what still cannot share a scene
 
-Display radii in `PALETTE` are stylised and **large**, so no spec can use true
-ångströms: a bond must exceed the sum of its two atoms' radii or the spheres
-swallow the stick. `check-molecules.js` enforces that and nothing more — *how* a
-spec satisfies it is the trap. Two families:
+Display radii in `PALETTE` are stylised and **large**, so no spec can render at
+true ångströms: a bond must exceed the sum of its two atoms' radii or the
+spheres swallow the stick. `check-molecules.js` enforces that and nothing more.
 
-<!-- ENUM: update when a spec is added, or SCALE / the GL constants change. -->
-| Family | Specs | Rule | Implied scale |
-|---|---|---|---|
-| **A. hand-written** | everything in `mol-solvation.js` — water, ethanol, ammonia, methane, CO₂, carbonic, bicarbonate, hydronium, the two salts | each length picked to clear its own radii | ~1.2–1.6×, **varies within a molecule** |
-| **B. derived** | everything in `mol-aminoacids.js`, `mol-nucleic.js`, `mol-pathways.js`, `mol-krebs.js`, `mol-carriers.js`, `mol-sugars.js`, `mol-glycans.js` — the amino acids, the four bases and the four dNTPs, the carriers (ATP, NADH, CoA, FAD, AMP) and the two schematic pairs, glucose + all glycolysis intermediates, the mono- and disaccharides | **stored in real Å** (`units:'angstrom'`); `register()` applies the display scale once | **1.9×**, relative lengths truthful |
+**Every spec in `lib/` stores real ångströms** (`units:'angstrom'`), and
+`register()` multiplies by `SCALE` once on the way in. `check-molecules.js`
+requires the field, because getting it wrong is a silent 1.9× — big enough to
+see, small enough to look like styling. `units:'scene'` means already-display
+units and is now carried only by specs derived from an already-registered spec
+(dAlanine mirrors alanine). Two consequences:
 
-Families line up with the domain files, so **a page's script tags show which
-families it has available**. That's the only mechanical signal — nothing fails a
-build. The tags are not the violation, though: see the rule below.
-
-Family B stores real ångströms: a spec declares `units:'angstrom'` and
-`register()` multiplies by `SCALE` once; `units:'scene'` means already-display
-units, left alone. `check-molecules.js` requires the field, because getting it
-wrong is a silent 1.9× — big enough to see, small enough to look like styling.
-Two consequences:
-
-- **The display scale is one number in one place.** Changing `SCALE` moves all 26
-  family-B specs together. `skel.js` no longer knows `SCALE` exists.
+- **The display scale is one number in one place.** Changing `SCALE` moves every
+  spec together. `skel.js` does not know `SCALE` exists.
 - **Scale is applied at registration, not render.** `Stage.buildMolecule` isn't
-  the only reader — `glycolysis-lab`, `contrast-lab` and `haworth.js`
-  index `spec.atoms[i].pos` directly and compare against `PALETTE.radii`, which
-  are scene units.
+  the only reader — `glycolysis-lab`, `contrast-lab` and `haworth.js` index
+  `spec.atoms[i].pos` directly and compare against `PALETTE.radii`, which are
+  scene units.
 
-Family A is **not** "ångströms not yet converted". It isn't expressible as any
-molecule times any single factor — that's what makes it family A — so un-baking
-it is a geometry change, not a units change, and means re-tuning the solvation
-engine. `water/watersim.js` hard-codes `HL=1.55` and tunes `EQ`, `MIN`,
-`hbThreshold` and the ice lattice around it — in the module, not off a spec, so
-the sim needs no `mol-*.js` at all.
+The library used to hold a second family: hand-written specs whose lengths were
+each picked to clear their own radii, the solvation engine's tuned particles
+rather than pictures of molecules. They are in `attic/solvation/mol-solvation.js`
+with `molecule-lab.html`, their last page, and **nothing live may load them**.
+Every molecule in `lib/` is now comparable to every other, and a small molecule
+beside a big one is `mol-small.js`.
 
-**The small molecules used to exist twice, and no longer do.** `mol-small.js`
-carries water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid from
-measured lengths as family B, and it is the only small-molecule domain `lib/`
-holds. `mol-solvation.js` kept the family-A versions until it moved to
-`attic/solvation/` with `molecule-lab.html`, its last page.
+Two rules survive that:
 
-The duplication was real while it lasted and the reason is worth keeping: **a
-family-A water was a tuned parameter of a physics engine; a family-B water is a
-picture of a water molecule.** Different objects sharing a name, which is the
-one place the "one molecule, not two" rule was broken on purpose. What dissolved
-it was not a conversion — family A still cannot be un-baked — but the discovery
-that almost nothing read those specs. `watersim.js` builds its water from its
-own `HL` and carries its own salt record; the bonding builder's geometry is
-`CovalentDrag`/`IonicDrag`'s own `RECIPES`. Nothing scale-free was ever
-duplicated: `nacl` and `kcl` carry no coordinates, only dissociation records.
-
-**The rule: one scene, one family.** Not one page.
-
-A size difference is a claim only where a reader can *see* it as one — two
-molecules drawn in the same scene, under the same camera, where one is visibly
-bigger than the other. That is what mixing families falsifies, and it is a
-property of the SCENE rather than of the script tags. A page whose stages are
-separate — its own canvas, its own camera, nothing drawn against anything from
-the other stage — makes no comparison for a family to be wrong about.
-`tests/cards-cluster.html` was the case: an ångström phospholipid in a
-`kit/molbox.js` card beside a `water/watersim.js` card, and no size on that page
-ever read against a size from the other family. It no longer loads two families
-— `watersim.js` draws no spec — but the rule it demonstrated is the one that
-survives, because `kit/card-stage.js` makes many stages cheap.
-
-The page-wide phrasing was a proxy for the real rule, and a safe one while every
-page had one stage. It stops being safe now that `kit/card-stage.js` makes many
-stages cheap, because it forbids pages that are fine and would have pushed
-someone toward the worse fix: a second copy of a molecule at the other scale.
-
-Two things this does NOT relax:
-
-* **Two files defining the same KEYS still may not both load**, and
-  `register()` still throws. That is a different rule with a different reason —
-  the second one silently wins and every scene on the page gets whichever loaded
-  last. Scenes cannot be separate about that. No pair in `lib/` collides today;
-  `attic/solvation/mol-solvation.js` is the one that did, and nothing live may
-  load it.
-* **Only family B may make a size claim**, in any scene, because only family B
-  is comparable molecule-to-molecule.
-
-And one obligation it adds: a page mixing families **says so where the tags
-are**, naming the scenes and why they never meet. Nothing offline can check
-this — the scene a spec is drawn into is a runtime fact — so the comment is the
-whole of the enforcement.
+* **Two files defining the same KEYS may not both load**, and `register()`
+  throws. Different rule, different reason: the second silently wins and every
+  scene on the page gets whichever loaded last. No pair in `lib/` collides.
+* **A protein is not on this scale at all.** Deposited coordinates are drawn in
+  real ångströms with display radii of `PALETTE.radii / SCALE`, computed in the
+  page — so a protein and a spec-built molecule in ONE scene is still a scale
+  decision, and `kit/scale.js`'s rungs are where a component declares it.
 
 **Known residual, measured:** `ringPyranose()` builds a *regular* hexagon, so a
 pyranose's ring C–O is as long as its ring C–C. Against the real PubChem
