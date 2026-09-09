@@ -151,6 +151,24 @@ compares two pages side by side.
 and bond colours are published from `palette.js` as `--atom-*` / `--bond-*` at
 load, so a caption and the sphere it names cannot drift.
 
+**Those are ROLES, and roles are what a page reads.** The values behind them
+live one file down in `css/brand.css`, which `kodo.css` imports — so a page on
+this shell never links it and never names a `--brand-*`. It is a separate file
+for one reason: the front door (`index.html`, `contribute.html`) cannot load
+`kodo.css`, because the site sheet is a base reset with its own scroll and its
+own `.mark` and both fight a bespoke scroll piece. Those two link `brand.css`
+alone. It is the only thing the two halves of the site share, and it is the
+reason they agree on the paper and the ink.
+
+**The six signature hues** — coral, blue, green, amber, violet, butter — come
+from the same file and are a categorical set: no ramp, no order, no meaning
+carried by any one of them. A band picks one and then uses it for everything
+that band says, its eyebrow and its heading `<em>` and its dot, so the reader
+learns a section by colour rather than by counting. **A hue is never a role.**
+The primary fill is `--accent`, which is the deep green; reaching for the bright
+`--hue-green` because it is the green one is how a page ends up with a second
+primary that nothing declared.
+
 **Two sans faces, split by job.** `--font-display` is the geometric one: the
 wordmark, a masthead, a micro-cap, a numeral a page reads out. `--font-ui` is
 system-ui and is what everything is actually **read** in, because a display face
@@ -166,7 +184,9 @@ tracking has invented a third treatment.
 
 ## Where the truth lives
 
-`css/kodo.css` §6.5 is the shell itself, and its header carries the reasoning.
+`css/kodo.css` §6.5 is the shell itself, and its header carries the reasoning;
+`css/brand.css` holds the values every role above resolves to, and nothing else
+— no reset, no components, no type.
 `design-system.html` draws every token on the stage's own paper, reading each
 swatch's own computed value, so it cannot claim a colour the token does not
 hold. **Nothing above restates a value on purpose**: a hex typed into a doc is a
