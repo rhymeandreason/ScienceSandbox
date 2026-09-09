@@ -414,7 +414,14 @@ html.bare .chrome-title { display: none !important }
 :root {
   --page-max:    1180px;
   --page-gutter: clamp(1.25rem, 5vw, 4rem);
-  --page-top:    clamp(1.5rem, 4vw, 2.25rem);   /* nav to the top of the window */
+  /* Nav to the top of the window, and FLAT: it used to be a clamp, which grew
+     the gap with the viewport and read as the bar sinking down a wide screen.
+     The value lands the wordmark on the same line the front door's does — not
+     the same number, because contribute.html pads .9rem around a row a button
+     makes taller and centres the mark in it, and this bar is the mark's height.
+     Matching the padding there puts the mark 6px high; matching the MARK is
+     what a reader turning the page actually sees. */
+  --page-top:    1.29rem;
   --head-gap:    clamp(2rem, 5vw, 3.25rem);     /* masthead rule to first content */
   --mark-size:   1.35rem;
   --page-gap:    clamp(1rem, 2.2vw, 1.5rem);    /* the grid gutter every shelf uses */
