@@ -90,6 +90,8 @@ A page that needs a real water beside measured molecules loads `mol-small.js`: *
 
 Grouped by how often a page reaches for one. A module appears once; the group is its scope, and `Scope` above is what the three levels mean.
 
+**A file earns a row when someone has to decide something about it** — load it, call it, or obey a rule it carries. A file its parent always drags in, that no page calls and no page can load on its own, is named in the parent's row instead: `membrane/parts.js` and `membrane/pump.js` are the pattern. That is a rule about the TABLE, not about the file — an internal file still carries its own header and its own checker.
+
 ### Core — every page loads these
 
 Nothing below works without them, and no page chooses them.
@@ -156,7 +158,7 @@ Each owns its own physics and its own scale, on the `X.mount(el, params)` contra
 | `kit/proteinbox.js` <br>`docs/rendering-modules.md` | `Proteinbox.create({mount, trace/data, ...})` → card-stage's box plus `setData` · `paintSkin` · `patch` · `surface()` · `rep`. A protein in real ångströms, in its own scene; DNA/RNA through `kit/nucleic.js`. **Gated**: ribbon on create, surface and fold only on click | `docs/rendering-modules.md` |
 | `water/watersim.js` | `WaterSim.create(THREE, root, {tuning,onDissociate,onSaltChange})`. A page calls `step(frame)` with a DESCRIPTION of the scene and gets back what the module did. Draws no text and decides no fx; `thermo()` is reachable without THREE, which is what lets the checker run offline | `WaterSim.md` |
 | `water/watersim-mount.js` | `WaterSim.mount(el, {nWater,salt,nSalt,temperature,freeze,hbonds})` → `set` · `state` · `on('frame'\|'dissociate'\|'saltchange')` · `destroy`, on a card-stage box. Adds no physics: `w.sim` and `w.box` are the layers under it | `WaterSim.md` |
-| `membrane/membrane.js` | `Membrane.create(THREE, root, camera, opts)` is the sim, `Membrane.mount(el, params)` the box. One frame order for everything; what the lesson decided by step id is a parameter (`potential`, `pumpAuto`, `shells`, `proteins`). **membrane-lab.html does not load it yet** | own header |
+| `membrane/membrane.js` | `Membrane.create(THREE, root, camera, opts)` is the sim, `Membrane.mount(el, params)` the box, over `membrane/parts.js` (the shapes) and `membrane/pump.js` (the Post-Albers cycle as a function of time, no THREE, `membrane/check-pump.js`). One frame order for everything; what the lesson decided by step id is a parameter (`potential`, `pumpAuto`, `shells`, `proteins`). **membrane-lab.html does not load it yet** | own header |
 | `membrane/chemiosmosis.js` | the proton circuit, and it holds no THREE: `PROTONS_PER_PH`, the rotor's stoichiometry, `PMF_STALL`, `Complex`, `CONTEXTS`. **Load before `membrane.js`**, which throws without it. The bottom half is always the enclosed compartment, and `pumpDir()` is the single sign every direction reads | own header |
 | `leaf/leaf.js` | `Leaf.create(THREE, root, camera, opts)` / `Leaf.mount(el, params)`: five layers from a seed, `explode`, `isolate`. Tissue rung, prop tier — nothing is measured | `AddingAComponent.md` |
 | `tree/tree.js` | `Tree.mount` — a procedural oak, a person for scale, the potted willow, five particle flows and the piles by origin. Adds `flyTo` in Stage's turntable terms and a `viewOffset` callback. Organism rung; the lesson's copy is `tree/tree-steps.js` | `AddingAComponent.md` |
