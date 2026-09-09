@@ -80,10 +80,11 @@ doesn't need it.
   carried impossible bond angles for as long as they were hand-written.
 - Keep pedagogical exaggerations (enlarged bonds, spacing for legibility)
   **explicit in comments** so they aren't read as to-scale facts.
-- **Mixed conventions are fine, but label them.** The amino acids are real 3D
-  conformers; the water/solute and glycolysis specs are hand-built, flat (z=0),
-  united-atom methyls. Don't infer a spec's style from its neighbours — read the
-  comment above it.
+- **Mixed conventions are fine, but label them.** Every spec is real ångströms
+  now, but not every one is a real conformer: the amino acids are PubChem 3D,
+  the glycolysis set is built from VSEPR angles and measured lengths, and some
+  are deliberately flat (z=0). Don't infer a spec's style from its neighbours —
+  read the comment above it.
 - A stick only shows if the bond is **longer than the two display radii
   combined**. A rendering constraint, not chemistry, and why lengths get scaled
   up. `check-molecules.js` is the guard.
@@ -213,12 +214,10 @@ condensation*. `opt.size` is the ångström scaling every `fx` primitive takes.
 
 ### Where each is wired
 
-- Dissociation — `checkDissociation()`, in **both** `water-lab.html` and
-  `molecule-lab.html`.
-- CO₂ chain — `updateReactions()` (step 1 hydration, step 2 ionization),
-  `molecule-lab.html`.
-- Solute settle — `updateSolutes()` when descent ends and the hydration toast
-  fires (gated to `class === 'polar'`), `molecule-lab.html`.
+- Dissociation — `checkDissociation()`, in `water-lab.html`.
+- The CO₂ chain and the solute settle were `molecule-lab.html`'s, and went to
+  `attic/solvation/` with it. A page that brings either back re-wires them; the
+  effects themselves are still in `fx.js`.
 - Dehydration synthesis — `fx.condense()`, called by `dna-lab.html` step 2 (the
   glycosidic bond and the phosphoester) and step 3 (the phosphodiester).
   `dna-lab` deliberately adds no `popGlow` on the two molecules, because its

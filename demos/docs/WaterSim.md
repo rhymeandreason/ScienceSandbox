@@ -2,9 +2,10 @@
 
 # Water Sim
 
-Applies to the solvation apps (`water-lab.html`, `molecule-lab.html`) and to
-`capillary/`, whose benches are water at real scale against a real surface and
-are held to §§3-4 the same way.
+Applies to `water-lab.html` and to `capillary/`, whose benches are water at
+real scale against a real surface and are held to §§3-4 the same way.
+`molecule-lab.html` was the second solvation page and is in `attic/solvation/`
+with the specs it drew.
 
 **`water/watersim.js` is where §§1-2 actually live.** The H-bond matcher, the
 ice Iₕ lattice, the hydration shells and the temperature continuum are one
