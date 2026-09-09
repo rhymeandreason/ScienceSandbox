@@ -22,7 +22,7 @@ Only `molecules.js` + `scene.js` are universal. A page loads what it uses, in th
 
 ```html
 <link rel="stylesheet" href="kodo.css">      <!-- always, first — the site sheet: tokens, type scale, buttons, page shell; loads the fonts. It imports brand.css, so a page never links that -->
-<link rel="stylesheet" href="sandbox.css">   <!-- the old shared chrome, retiring into kodo.css -->
+<link rel="stylesheet" href="sandbox.css">   <!-- DEPRECATED: old pages only, never a new one -->
 <link rel="stylesheet" href="pathways.css"> <!-- only for a step-through pathway lesson; see below -->
 <link rel="stylesheet" href="energy/energy.css"> <!-- only with energy/energy.js; after pathways.css -->
 <link rel="stylesheet" href="kit/enzyme-blob.css">  <!-- only with kit/enzyme-blob.js; the module depends on these rules -->

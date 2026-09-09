@@ -192,9 +192,29 @@ swatch's own computed value, so it cannot claim a colour the token does not
 hold. **Nothing above restates a value on purpose**: a hex typed into a doc is a
 claim nothing checks.
 
-`css/main.css` is the frozen bench sheet, the sketchbook look, kept because
-sixty test pages are drawn in it and none of them is a page a student lands on.
-Nothing new links it.
+## The sheets
+
+Which one a new page links, in load order. A page links at most three: `kodo.css`,
+maybe `lesson-shell.css`, maybe its own.
+
+| Sheet | What it is | A new page |
+| --- | --- | --- |
+| `css/brand.css` | the colour values, and nothing else | never links it — `kodo.css` imports it |
+| `css/kodo.css` | **the site sheet.** Maps the roles onto brand.css and carries the reset, type, buttons and document shell | always, first |
+| `css/lesson-shell.css` | **the other shell**: full-window scene, glass panel, progress dots. Its own tokens on `body.lshell-page` | only a lesson or bench on that shell, after `kodo.css` |
+| `css/annotate.css` | the look of a callout | never links it — `kodo.css` imports it |
+| `css/main.css` | **frozen.** The bench sketchbook look, kept because sixty test pages are drawn in it and none is a page a student lands on | never |
+| `css/sandbox.css` | the old shared chrome. Deprecated; old pages still load it | never |
+| the page's own `.css` | **its chrome only** — `build.css`, `graph.css`, `energy/energy.css`. Never a token, never a colour, never a type step `kodo.css` already sets | only if the page has chrome no other page has |
+
+**A sheet that more than one folder's pages load goes in `css/`; a sheet one
+folder owns stays beside it** (`energy/energy.css`, `kit/enzyme-blob.css`).
+`Modules.md`'s table is the per-sheet detail and the exact load order.
+
+**`index.html` and `contribute.html` have no sheet of their own**: ~240 lines
+inline each, on `brand.css` alone, because the site sheet's reset and its own
+`.mark` both fight a bespoke scroll piece. The two are not merged while they are
+still being reworked, and that is a decision, not an omission.
 
 ## The pages on this shell
 
