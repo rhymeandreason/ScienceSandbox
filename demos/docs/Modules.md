@@ -149,7 +149,7 @@ Real angstroms, secondary structure from the file's own records. Which represent
 
 ### Components — mounted by name, driven by parameters
 
-Each owns its own physics and its own scale, on the `X.mount(el, params)` contract. The contract and the budgets are `AddingAComponent.md`; what a generated app may say to one is `Components.md`.
+Each owns its own physics and its own scale, on the `X.mount(el, params)` contract. The contract and the budgets are `AddingAComponent.md`; what a generated app may say to one is `Components.md`. **`kit/app.js`'s `USES` table is the list of what a generated app can mount**; a component missing from it cannot be mounted at all.
 
 | Module | Exposes | Rules |
 | --- | --- | --- |
@@ -164,6 +164,9 @@ Each owns its own physics and its own scale, on the `X.mount(el, params)` contra
 | `cell/organelles.js` | the shared kit: nucleus, mitochondrion, Golgi, ER, plastids, vacuole, plus `buildShell` (any parametric surface, offset inward and closed with a rounded lip, so a cut organelle has real membrane thickness) and `partsOf` (a cell's organelle list → the anchors, layers and `show` the contract asks for, live) | own header |
 | `bloodcell/bloodcell.js` | one red cell, **measured** — a scene unit to the micrometre. Sickling, swelling, crenating and the cut are one grid allocated at mount and moved. `state()` carries area, volume and swell ratio read off the profile | `AddingAComponent.md` |
 | `sickle/sickle-fibre.js` | `SickleFibre.mount(el, {base, preset})`; `preset` changes only HOW MANY copies are drawn. **Measured and modelled are separate blocks of `state()`.** The assembly maths (`place`, `strainOf`, `linkOf`, `seatsFor`) is free of THREE, so the checker runs it rather than a copy | own header |
+| `graph/graph.js` | `Graph.mount(el, params)` — Observable Plot under a SEMANTIC layer: a caller says what the graph MEANS (scatter of rate against light, fit a line, error bars from the spread) and never touches a mark, a scale or a colour. Not a scene, but on the same contract | own header |
+| `bloodcell/bloodflow.js` | `BloodFlow.mount(el, {sickle})` — a vessel of red cells, and what a stiff one does in it. After `bloodcell.js`, whose disc profile and red it reads | own header |
+| `sickle/hbcrowd.js` | `HbCrowd.mount(el, {variant, stick})` — a crowd of haemoglobins, and what HbS does that HbA does not. After `kit/surface.js` and `sickle/sickle-fibre.js` | own header |
 | `kit/scale.js` | `ScaleLadder.RUNGS` — nine rungs from `molecules` to `population`, and every component declares one block against it. Same rung may share a scene, different rungs may not; crossing one is a handoff between boxes. `unit` is usually **null**, which is a claim and not a gap. Just the enum: nothing enforces a block | `MolecularGeometry.md` §1.5 |
 
 ### Scoped — one lesson, or one folder's pages

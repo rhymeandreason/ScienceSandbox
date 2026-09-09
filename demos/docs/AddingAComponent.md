@@ -2,7 +2,7 @@
 
 # Adding a component
 
-A component is a 3D scene a student's app can mount by name and drive by parameters, without writing Three.js. Four exist on the contract: `water/watersim-mount.js`, `membrane/membrane.js`, `leaf/leaf.js`, `tree/tree.js`, plus `Proteinbox.mount` in `kit/proteinbox.js`. Read one before starting. `leaf/leaf.js` is the smallest and the closest model for a render; `membrane/membrane.js` for anything with physics.
+A component is a 3D scene a student's app can mount by name and drive by parameters, without writing Three.js. **`kit/app.js`'s `USES` table is the list of what exists** — eleven today: WaterSim, Membrane, Proteinbox, Leaf, Tree, BloodCell, BloodFlow, HbCrowd, AnimalCell, PlantCell, Graph. Read one before starting. `leaf/leaf.js` is the smallest and the closest model for a render; `membrane/membrane.js` for anything with physics; `graph/graph.js` for anything that is not a scene.
 
 **The test of done is not that the bench looks right.** It is that `gemini-3.7-flash`, given only `docs/Components.md` and a one-sentence request, produces a working page that mounts your component. `tools/gen-app.js` runs exactly that. A component the model cannot use from the reference is not finished.
 
@@ -99,7 +99,7 @@ Measure the fixed cost too, with nothing on stage. Membrane's was 3 ms a frame f
 
    **A dependency outside `demos/` goes in `kit/app.js`, not in the section.** The loader writes the tag, so the page's own source never names it and `validate()` never sees it. A cross-site script is the one thing to weigh before adding: Chrome may refuse a parser-blocking cross-site script written by `document.write` on a slow connection, which is a component that silently does not arrive. `kit/app.js`'s header says which ones are already taken on and why.
 
-6. `docs/Modules.md`: one bullet under the water/membrane/leaf/tree ones. `admin.html`: one card for the bench. `node tools/check-docs.js` passes.
+6. `docs/Modules.md`: one row in the Components table. `admin.html`: one card for the bench. `node tools/check-docs.js` passes.
 
 7. Run `node tools/gen-app.js "<a request a teacher would type that needs your component>" tests/gen-<name>-test.html`, open the page, drive it, and fix the component or the reference until it works first try. **Twice, and read the `retried` flag in the printed JSON**: `retried:true` means the draft failed `validate()` and the second try dropped whatever caused it, so a page missing your component is a block, not a preference. Add the page to `admin.html` under Generated apps with the `UGC` badge. That page is the eval; keep it.
 
