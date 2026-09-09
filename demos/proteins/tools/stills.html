@@ -57,11 +57,18 @@
 <script>
 'use strict';
 
-/* The gallery's own reading of the two registries, so a still cannot be baked
-   for an entry the gallery does not show — or, worse, in a different frame. */
-const NA_KEYS = new Set(NucleicAcids.withProtein().map(s => s.key));
+/* Every entry in the two registries, drawn in the frame its own registry
+   states — which is how a still cannot show a molecule differently from the
+   page that later replaces it with a live box.
+
+   EVERY NUCLEIC STRUCTURE, NOT ONLY THE COMPLEXES. proteins/index.html shows
+   `withProtein()` because a bare duplex on a gallery of proteins is a category
+   error, but other pages draw the bare ones: the homepage's DNA card and the
+   DNA lesson both open on dna-1BNA.json. A still they cannot have is the empty
+   rectangle this bench exists to remove. */
+const NA_KEYS = new Set(NucleicAcids.STRUCTURES.map(s => s.key));
 const isNA = p => NA_KEYS.has(p.key);
-const ENTRIES = [...ProteinLib.PROTEINS, ...NucleicAcids.withProtein()];
+const ENTRIES = [...ProteinLib.PROTEINS, ...NucleicAcids.STRUCTURES];
 const defaultOf = p => isNA(p) ? NucleicAcids.defaultOf(p) : ProteinLib.defaultOf(p);
 const dataOf = (p, file) => `../../${p.dir}/data/${file}`;
 

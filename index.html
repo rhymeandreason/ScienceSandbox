@@ -129,7 +129,7 @@
   }
   .field.set .card a:hover { transform: translateY(-4px); box-shadow: 0 2px 4px rgba(20,33,61,.06), 0 24px 50px -14px rgba(20,33,61,.35); }
   .card .stage { position: relative; aspect-ratio: 3 / 2; background: var(--stage-bg, #fff); }
-  .card .stage > canvas, .card .stage > iframe { display: block; width: 100%; height: 100%; border: 0; }
+  .card .stage > canvas, .card .stage > iframe, .card .stage > img { display: block; width: 100%; height: 100%; object-fit: contain; border: 0; }
   .card .stage .num {
     position: absolute; left: 14px; top: 12px; font: 600 11px/1 var(--sans); letter-spacing: .2em;
     color: var(--ink); background: rgba(255,255,255,.7); padding: 6px 8px; border-radius: 999px;
@@ -284,7 +284,7 @@
       </li>
       <li class="card" style="--sx:13vw; --sy:-2vh; --rot:-4deg; --sc:1.02; --dd:10s; --ds:-5s; --dot:var(--coral); --in:.24s">
         <div class="drift"><a href="/protein">
-          <div class="stage" data-mount="protein" style="--stage-bg:#FFF0EC"><span class="num"><i></i>03</span></div>
+          <div class="stage" style="--stage-bg:#FFF0EC"><img src="demos/proteins/stills/hemoglobin.webp" alt="haemoglobin, four folded chains" loading="lazy"><span class="num"><i></i>03</span></div>
           <div class="text"><h3>Levels of Protein Structure</h3><p>Haemoglobin, from a chain of amino acids to four folded chains.</p></div>
         </a></div>
       </li>
@@ -302,7 +302,7 @@
       </li>
       <li class="card" style="--sx:15vw; --sy:8vh; --rot:7deg; --sc:.96; --dd:8.5s; --ds:-4s; --dot:var(--blue); --in:.06s">
         <div class="drift"><a href="/dna">
-          <div class="stage" data-mount="dna" style="--stage-bg:#EEF2FA"><span class="num"><i></i>06</span></div>
+          <div class="stage" style="--stage-bg:#EEF2FA"><img src="demos/proteins/stills/dna.webp" alt="a DNA duplex, its rungs joined" loading="lazy"><span class="num"><i></i>06</span></div>
           <div class="text"><h3>Structure of DNA</h3><p>A helix from real coordinates, part by part.</p></div>
         </a></div>
       </li>
@@ -411,9 +411,6 @@
 <script src="demos/lib/atomkit.js"></script>
 <script src="demos/kit/card-stage.js"></script>
 <script src="demos/kit/molbox.js"></script>
-<script src="demos/kit/ribbon.js"></script>
-<script src="demos/kit/nucleic.js"></script>
-<script src="demos/kit/proteinbox.js"></script>
 <script src="demos/proteins/proteins.js"></script>
 <script src="demos/membrane/parts.js"></script>
 <script src="demos/membrane/pump.js"></script>
@@ -542,13 +539,10 @@
   Molbox.create({ mount: mounts.bonds, spec: MolLib.MOLECULES.methane, spin: 0.35, pad: 1.32, stage: Object.assign({ orbit: true }, noZoom) });
   Molbox.create({ mount: mounts.glycolysis, spec: MolLib.MOLECULES.glucose, spin: 0.28, pad: 1.28, stage: Object.assign({ orbit: true }, noZoom) });
 
-  const hb = ProteinLib.byKey("hemoglobin");
-  Proteinbox.create({ mount: mounts.protein, base: "demos/", protein: "hemoglobin", orbit: true, pad: 1.1, sub: 8,
-    stage: { ortho: false, turn: "trackball", zoom: false }, colors: ProteinLib.colorsOf(hb, ProteinLib.defaultOf(hb)) });
-  // DNA: Proteinbox draws a nucleic trace through kit/nucleic.js; the ladder
-  // with joined rungs is the same picture the lesson opens on
-  Proteinbox.create({ mount: mounts.dna, trace: "demos/proteins/dna/data/dna-1BNA.json", orbit: true, pad: 1.05, sub: 8,
-    stage: { ortho: false, turn: "trackball", zoom: false } });
+  /* Protein and DNA are STILLS, not boxes: neither card animates, both are
+     the slowest scenes here (a ribbon, and a ladder whose rungs are joined),
+     and the frame a reader sees is the one proteins/tools/stills.html baked
+     from the same registry entry the lesson opens on. Four live boxes left. */
 
   Membrane.mount(mounts.membrane, {
     proteins: { K: { x: -34 }, pump: { x: 34 } },
