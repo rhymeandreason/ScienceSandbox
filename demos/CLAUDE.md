@@ -15,7 +15,7 @@ Each layer may use the ones above it and knows nothing of the ones below.
 | Layer | What it is | Where |
 | --- | --- | --- |
 | **Modules** | Plumbing: renderer, timeline, geometry questions, callouts, stage shell. No lesson state, no physics that two lessons would disagree about | `lib/`, `kit/`, root `*.js`, `css/` · `Modules.md` |
-| **Components** | A 3D scene mounted by name and driven by parameters, on one contract — `X.mount(el, params)` → `set` · `state` · `on` · `note` · `show` · `destroy`, each on `kit/card-stage.js` | `water/`, `membrane/`, `leaf/`, `tree/`, `kit/proteinbox.js` · `AddingAComponent.md` |
+| **Components** | A 3D scene mounted by name and driven by parameters, on one contract — `X.mount(el, params)` → `set` · `state` · `on` · `note` · `show` · `destroy`, each on `kit/card-stage.js` | eleven, and `kit/app.js`'s `USES` is the list · `AddingAComponent.md` |
 | **Pages, Featured Lessons** | Hand-built lessons, one HTML file each. May reach past the components straight to modules | top level · `AddingAPage.md` |
 | **Generated apps** | Written by a model from `docs/Components.md` and a request, nothing else. The eval set | `tests/gen-*.html` · `Generator.md` |
 
@@ -139,7 +139,7 @@ The human uses `molecule-viewer.html` to manually choose a good default rotation
 
 **Read a module's own header before using it a way you have not used it before.** The load-bearing reasoning in this repo lives in the file headers, not only in `docs/` — and most of it is a trap that ships looking merely ugly, so it is written where someone about to fall in will be looking. `kit/ribbon.js` says not to slice a chain and build per secondary-structure element; a page did it anyway and drew the protein as scattered splinters.
 
-## When writing, never use these structures when writing:
+## Never use these structures when writing:
 
 * "It's not just X — it's Y"
 * "Not only X, but Y"
