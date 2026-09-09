@@ -58,11 +58,17 @@
  * a legibility knob for 3D pages and has no idea this file exists — cannot
  * quietly break the size-to-rate claim.
  *
- * ÅNGSTRÖM SPECS ONLY. A `units:'scene'` spec is drawn at display scale, a
- * different scale FAMILY (MolecularGeometry.md §1), and mixing the two here
- * would compare a stylised water against a measured glucose and call the
- * difference chemistry. mol-small.js exists precisely so the small molecules
- * are available in ångström; load that. A `units:'scene'` spec is refused.
+ * ÅNGSTRÖM SPECS ONLY, and NOT for the reason a 3D page refuses a mixed pair.
+ * MolecularGeometry.md §1.5 is about a SCENE — two molecules under one camera,
+ * one visibly bigger than the other. There is no camera here and no geometry
+ * drawn: a dot's radius is this scalar, and the scalar's real destination is
+ * Stokes-Einstein, where it becomes a RATE. So a spec from another scale family
+ * does not render wrong, it reports wrong — the ratio between a stylised water
+ * and a measured glucose comes out as a speed difference, and check-diffusion.js
+ * then grades that against published D values and passes or fails for the wrong
+ * reason. A wrong size you can see is a bug someone catches; a wrong size that
+ * has already turned into a plausible number is not. Hence the throw rather
+ * than a comment. mol-small.js is where the small molecules are in ångström.
  */
 function radiusOf(spec) {
   if (!spec || !spec.atoms || !spec.atoms.length) throw new Error('radiusOf: no atoms');
