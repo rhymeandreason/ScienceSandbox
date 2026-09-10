@@ -16,8 +16,10 @@
      THE CARDS ARE READ FROM THE REGISTRY, so a new mol-*.js spec appears
      here by being registered. Every card is a baked still
      (media/molecules); a molecule becomes turnable in the modal, on the
-     one live context this page makes. `#key` in the URL opens that
-     molecule, which is the link library.html's cards carry.
+     one live context this page makes, on the two views lib/molview.js
+     offers: the model, and the same spheres slid onto the diagram's flat
+     layout. `#key` in the URL opens that molecule, which is the link
+     library.html's cards carry.
      =================================================================== -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -76,6 +78,7 @@
   .mstage{position:relative;background:var(--paper);
     border-right:1px solid var(--border-hair);min-height:0}
   .mstage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #m-modes{position:absolute;z-index:2;left:50%;bottom:1rem;transform:translateX(-50%)}
   .mbody{padding:clamp(1.4rem,3vw,2.2rem);display:flex;flex-direction:column;
     min-height:0;overflow-y:auto}
   @media (max-width:800px){
@@ -126,13 +129,20 @@
 <div class="mmodal" id="modal" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="m-name">
     <button class="x" id="m-close" aria-label="Close">&times;</button>
-    <div class="mstage" id="m-stage"></div>
+    <div class="mstage" id="m-stage">
+      <!-- An on-stage switch (kodo.css §.segmented), shown only for a spec that
+           HAS a flat layout: a molecule with no `flat2d` cannot lie down. -->
+      <div class="segmented segmented--sm" id="m-modes" role="group" aria-label="View" hidden>
+        <button type="button" data-mode="3d" aria-pressed="true">3D</button>
+        <button type="button" data-mode="2d" aria-pressed="false">2D</button>
+      </div>
+    </div>
     <div class="mbody">
       <p class="does" id="m-does"></p>
       <h2 class="name" id="m-name"></h2>
       <p class="formula" id="m-formula"></p>
       <div class="measure" id="m-measure"></div>
-      <p class="hint">Drag to turn.</p>
+      <p class="hint" id="m-hint"></p>
       <pre class="recipe" id="m-recipe"></pre>
     </div>
   </div>
@@ -157,7 +167,6 @@
 <script src="lib/scene.js"></script>
 <script src="lib/molview.js"></script>
 <script src="kit/card-stage.js"></script>
-<script src="kit/molbox.js"></script>
 <script src="lib/mol-shelf.js"></script>
 <script>
 'use strict';
@@ -182,27 +191,32 @@ for (const m of MOLS) {
 $('tally').textContent = `${MOLS.length} molecules`;
 
 /* ---- the molecule modal ---------------------------------------------------
-   kit/molbox.js IS this box: a molecule on a camera solved from its own extent
-   and re-solved on every resize, a working wheel under ortho, and one context
-   made on open and given back on close (a canvas that has lost its context is
-   never granted another, so `destroy` takes the canvas with it). Solving the
-   camera by hand here is what drew every atom as an ellipse.
+   THE BOX IS lib/molview.js's, not a stage of our own. It owns the two views
+   this modal offers and the morph between them: 2D is the same spheres sliding
+   onto the diagram's layout, so the reader watches one molecule lie down rather
+   than being shown a second picture of it. It also owns the opening pose (the
+   spec's declared `view:`, or MolView.flatPose where it declares none, which is
+   the pose the card's still was baked in) and the drag, which turns the MODEL.
 
-   The frame it opens on is the still's (tools/molecule-stills.html): a `view:`
-   is baked into the meshes by Molbox, and a spec without one takes
-   MolView.flatPose, which is the one thing the baker does that Molbox does
-   not. */
-const modal = $('modal');
-let live = null;
+   kit/card-stage.js owns everything around it: one canvas, the loop, and a
+   destroy that hands the WebGL context back — a canvas that has lost one is
+   never granted another, so the box is new on every open. */
+const modal = $('modal'), modes = $('m-modes');
+let box = null, view = null;
 
-/* tools/molecule-stills.html's fallback pose, as `view:`'s own [x,y,z] ZYX
-   radians: MolView.flatPose lays the molecule's widest two directions on the
-   screen. A spec that declares `view:` keeps it. */
-const stillView = s => {
-  if (s.view) return undefined;
-  const e = new THREE.Euler().setFromQuaternion(MolView.flatPose(s), 'ZYX');
-  return [e.x, e.y, e.z];
-};
+const HINT = { '3d': 'Drag to turn.',
+               '2d': 'The layout is the diagram\u2019s. Only the bond lengths are the molecule\u2019s.' };
+
+function setMode(next) {
+  if (!view) return;
+  view.setMode(next);
+  for (const b of modes.children) b.setAttribute('aria-pressed', String(b.dataset.mode === next));
+  $('m-hint').textContent = HINT[next];
+}
+modes.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (b) setMode(b.dataset.mode);
+});
 
 function openModal(m) {
   const s = m.spec;
@@ -235,23 +249,42 @@ function openModal(m) {
   }
 
   const mount = $('m-stage');
-  mount.style.cssText = `background:url(media/molecules/${m.key}.webp) center/contain no-repeat var(--paper)`;
+  mount.style.background = `url(media/molecules/${m.key}.webp) center/contain no-repeat var(--paper)`;
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
   $('m-close').focus();
 
-  /* Built after the modal is shown: a zero-sized mount is not fitted at all,
-     and Molbox draws one frame from inside create() so the box is never blank.
-     `view` is the still's opening angle for a spec that declares none, so the
-     modal opens on the picture the card was showing. */
-  live = Molbox.create({ mount, spec: s, view: stillView, stage: { turn: 'trackball' } });
+  /* Built after the modal is shown: a box with no size cannot be fitted.
+     `orbit:false` because MolView turns the MODEL — a camera that also moved
+     would make the flat layout tiltable, and a layout you can tilt has stopped
+     saying that its angles are not the molecule's. */
+  box = CardStage.create({
+    mount,
+    stage: { ortho: true, cam: { theta: 0, phi: Math.PI / 2, r: 40 }, orbit: false },
+    step: () => { if (view) view.step(); },
+    onResize: () => { if (view) view.fit(); },
+  });
+  modes.hidden = !(s.flat2d && s.flat2d.length);
+  /* The switch stands ON the stage, so the frame the molecule is fitted into
+     stops above it — which is what `usable` is for, and it matters most for a
+     wide flat layout. A hidden switch has a zero-sized box, and a zero box
+     measured as an edge reserves the whole stage, so skip it. */
+  const around = MolView.usableAround($('m-stage'), { bottom: [modes] });
+  view = MolView.create({ canvas: box.canvas, camera: box.stage.camera,
+                          applyCam: box.stage.applyCam, root: box.stage.root,
+                          usable: () => modes.hidden ? { fw: 1, fh: 1 } : around() });
+  view.show(s);
+  view.fit();
+  setMode('3d');
+  // One frame now, so the box is never blank in the gap before the loop runs.
+  box.draw();
   mount.style.backgroundImage = '';
 }
 
 function closeModal() {
   if (modal.hidden) return;
-  if (live) { live.destroy(); live = null; }
-  $('m-stage').style.cssText = '';
+  if (box) { box.destroy(); box = null; view = null; }
+  $('m-stage').style.background = '';
   modal.hidden = true;
   document.body.style.overflow = '';
 }

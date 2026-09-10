@@ -40,7 +40,6 @@
  *
  *  Usage:
  *    const box = Molbox.create({ mount, spec: MolLib.MOLECULES.popc });
- *    // view: [x,y,z] ZYX radians (or spec => triple) for a spec with no `view:`
  *    box.stop();  box.start();          // or let visibility drive it
  *
  * ---------------------------------------------------------------------
@@ -190,18 +189,11 @@
       if (group) { stage.root.remove(group); group = null; }
       spec = next || null;
       if (!spec) return;
-      /* center:true also bakes the spec's `view:` into the MESHES — which is
-         why nothing here needs to know the pose exists. `opts.view` (an [x,y,z]
-         ZYX triple, or a function of the spec) overrides it for a spec that
-         declares none: molecules.html hands over the PCA pose its stills were
-         baked in, so the modal opens on the picture the card showed. It goes to
-         the meshes AND to the extent, because a camera solved against a
-         differently-turned molecule frames the wrong shape. */
-      const asked = typeof opts.view === 'function' ? opts.view(spec) : opts.view;
-      const view = asked !== undefined ? asked : spec.view;
-      group = global.Stage.buildMolecule(spec, { center: true, view });
+      // center:true also bakes the spec's `view:` into the meshes — which is
+      // why nothing here needs to know the pose exists.
+      group = global.Stage.buildMolecule(spec, { center: true });
       stage.root.add(group);
-      ext = global.Stage.measure(spec, { view });
+      ext = global.Stage.measure(spec);
       fit();
     }
 
