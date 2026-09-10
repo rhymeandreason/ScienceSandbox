@@ -241,6 +241,8 @@
   function why(w) {
     if (!w) return '';
     if (w.where && WHY[w.where]) return WHY[w.where]();
+    // Authored copy that is not in the file is not a readout: it has drifted.
+    if (w.code === 'absent' && w.copy) return 'These words and the ones in the file have come apart, so a change could not be put back. Reload the page.';
     return (WHY[w.code] || WHY.absent)(w.n);
   }
   /* The log is the selection's reasons, so it says why the parts in the box

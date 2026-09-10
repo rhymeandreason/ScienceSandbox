@@ -258,12 +258,29 @@
 
   /* ---- the mode --------------------------------------------------------- */
 
+  /* TWO PASSES, and the reason is the order the walker happens to run in.
+   * Everything is resolved first, then the passages are wrapped, then what is
+   * left is offered for pointing at — and a block holding a passage is never
+   * offered, whichever of its text nodes the walker reached first. One pass
+   * marked the paragraph as a thing to point at when its unresolved run came
+   * before its editable one, and a paragraph offered whole hides the words
+   * inside it. */
   function paint() {
     spans = []; order = [];
-    var list = texts();
+    var list = texts(), found = [];
+    for (var j = 0; j < list.length; j++) {
+      found.push(locate(list[j].nodeValue, keyFor(list[j].parentElement)));
+    }
+    var holds = [];
+    for (var j2 = 0; j2 < list.length; j2++) {
+      if (found[j2].why) continue;
+      for (var e2 = list[j2].parentElement; e2 && e2 !== document.body; e2 = e2.parentElement) {
+        if (holds.indexOf(e2) < 0) holds.push(e2);
+      }
+    }
     for (var k = 0; k < list.length; k++) {
       var node = list[k], parts = split(node.nodeValue), el = node.parentElement;
-      var hit = locate(node.nodeValue, keyFor(el));
+      var hit = found[k];
       if (!hit.why) {
         /* A pending edit is re-applied here: the page repaints its panel from
          * the source strings on every step change, so an unsaved change would
@@ -282,7 +299,7 @@
         order.push(span.textContent);
         restore(span, hit);
         hoist(rec);
-      } else if (el) {
+      } else if (el && holds.indexOf(el) < 0) {
         mark(el, hit, order.length ? order[order.length - 1] : '');
       }
     }
@@ -298,7 +315,11 @@
     if (host.hasAttribute('data-ssx')) return host;
     host.setAttribute('data-ssx', host.closest(CONTROL) ? 'sc' : 's');
     if (anchor != null) host._ssxAnchor = anchor;
-    host._ssxWhy = { code: hit.why, n: hit.n || 0, where: where(host) };
+    host._ssxWhy = { code: hit.why, n: hit.n || 0, where: where(host),
+                     /* Inside the panel's own copy, so `absent` means the words
+                      * on screen and the words in the file have come apart,
+                      * not that a readout painted them. */
+                     copy: !!host.closest('.lshell-panel .body, .lshell-panel .title, .lshell-panel .eyebrow') };
     /* The mark goes back on. A repaint takes the highlights with it, and a
      * selection whose tag is still in the box but whose part is no longer lit
      * reads as a selection that came undone. */
