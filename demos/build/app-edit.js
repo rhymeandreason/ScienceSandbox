@@ -772,7 +772,12 @@
     badge.style.top = (r.top - 9) + 'px';
   }
 
-  var CSS = '[data-ssx]{outline:1px dashed rgba(60,110,220,.55);outline-offset:2px;border-radius:2px;cursor:text}'
+  /* POINTER EVENTS BACK ON, because the shell turns them off. The topbar and
+     the hint are click-through so a drag over them orbits the scene, and a
+     passage inside one was outlined as editable and then took no click and no
+     badge: the brand looked editable and was not. A wrapper asking for its own
+     clicks is hittable however its ancestors are set. */
+  var CSS = '[data-ssx]{outline:1px dashed rgba(60,110,220,.55);outline-offset:2px;border-radius:2px;cursor:text;pointer-events:auto}'
     + '[data-ssx-sel]{outline:2px solid rgb(60,110,220)!important;background:rgba(60,110,220,.16)!important}'
     /* A callout's own box is 0x0 — its leader, dot and label are each placed
        absolutely — so an outline on it is drawn nowhere. The label is the
