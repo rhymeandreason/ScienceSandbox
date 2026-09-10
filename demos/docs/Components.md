@@ -266,11 +266,65 @@ const m = Membrane.mount(el, {
 });
 ```
 
-Outside is +y (top), inside is −y (bottom). The sheet is an oily bilayer: water and small gases cross it, ions do not. A K⁺ channel admits K⁺ by hydration (Na⁺ is smaller and still refused, because it holds its water too tightly). A Cl⁻ channel admits by charge. A Na⁺ leak channel (`NA`) lets sodium in down its gradient, which is what gives the pump work to do. An aquaporin (`AQP`) passes water in single file and nothing charged, so water crosses fast where one stands; it still seeps through the lipid on its own. The Na⁺/K⁺ pump carries 3 Na⁺ out and 2 K⁺ in per ATP, never open at both ends. With the potential on, every K⁺ leaving builds the voltage that stops the leak. A cell that is honest about seawater has `NA`, `K` and `pump`; an osmosis lesson at the kidney has `AQP`. **This is one patch of one membrane.** A cell in a tissue has two faces with different proteins, and a lesson about a gill, a gut or a kidney should say which face this is, usually the one touching the environment, and that the blood is on the other side of the cell, not on the other side of this membrane.
+Outside is +y (top), inside is −y (bottom). The sheet is an oily bilayer: water and small gases cross it, ions do not. `K` admits K⁺ by hydration (Na⁺ is smaller and still refused, holding its water too tightly); `CL` admits by charge; `NA` is a leak letting sodium in down its gradient, which is what gives the pump work to do; `AQP` passes water single file and nothing charged, so water crosses fast where one stands, though it still seeps through the lipid anyway. The Na⁺/K⁺ pump carries 3 Na⁺ out and 2 K⁺ in per ATP, never open at both ends. With the potential on, every K⁺ leaving builds the voltage that stops the leak. A cell honest about seawater has `NA`, `K` and `pump`; an osmosis lesson at the kidney has `AQP`. **This is one patch of one membrane.** A cell in a tissue has two faces with different proteins, and a lesson about a gill, a gut or a kidney should say which face this is, usually the one touching the environment, and that the blood is on the other side of the cell, not on the other side of this membrane.
 
-### Chemiosmosis: the same membrane in an organelle
+Populating it. The box starts empty. Say what is dissolved on each side and the module keeps the stage matching it:
 
-Respiration and photosynthesis are this picture with one parameter flipped.
+```js
+m.set({ contents: {
+  inside:  { water:46, K:20, NA:4, A:8 },     // kind: 'water' | 'o2' | 'co2' | 'NA' | 'K' | 'CL' | 'A' (an impermeant anion)
+  outside: { water:26, NA:26, CL:26 },
+} });                            // 'H' is a proton, for a chemiosmosis scene
+m.reset();                       // zero the counters after a change of scene
+m.spend();                       // one ATP, one pump turn; false if a turn is running or no Na⁺ inside
+```
+
+Or in millimolar, which is how a page should say it: `units: 'mM'` at mount, then `contents: { inside: { K:140, NA:12 }, outside: { NA:470, CL:550 } }`, and the module turns it into counts at one particle per 20 mM. Leave water out; it fills each side. A concentration the page states comes from `state().concentration`, never typed. Blood is about 150 mM Na⁺, seawater 470, a river under 1.
+
+Changing `contents` adds and removes only the difference, by current side, so a water that already crossed stays crossed. **The budget is 220 particles on stage, at most 110 of them ions**; past it nothing more is added. Keep the particle count equal per side and fewer free waters where the solute is; that is what makes osmosis a headcount rather than a pull. About 78 a side reads well: 78 water on the fresh side, and 26 water with 26 Na⁺ and 26 Cl⁻ on the salty one.
+
+**Osmosis is the mechanism half of this component.** Put more solute on one side and there are fewer free waters there; water crosses both ways and simply arrives more often on the crowded side, until the headcounts match. Nothing pulls; there is no osmotic force in the sim, because there is none in the cell. The verdict to print is `state().net`.
+
+For one molecule placed by hand there is `m.add(kind, opts)` with `opts.x, .y, .z`, and `m.scatter(kind, n, side, opts)` with side 1 outside, −1 inside.
+
+Defaults do the right thing: ions walk slower and are blocked by the bilayer, water and gases cross it and keep out of the pores, a K⁺ or Cl⁻ ion uses a channel of its kind when one stands in the sheet, and the anions stay deep inside. `opts` on `add`/`scatter` can override: `conducts:'K'`, `seeks:true` (tries the channel and is refused, what Na⁺ does), `speed:[lo,hi]`, `blocked:false`.
+
+**What to print, out of all of this.** The hand-built version of this lesson runs six steps on **two** instruments: a K⁺/Cl⁻ headcount beside each compartment, and one `mV` figure. Two of its steps show no number at all. Nothing else in the table below ever reaches the student. Take that as the shape: **`counts` (or `concentration`), `mV`, and `atpSpent` when a step is about the cost** are the printable few, and the rest of the table is for the page's own logic.
+
+Three habits worth copying. A verdict goes in words, not digits: `net` and the equilibrium it implies read as "levelled out" or "two currents cancelling", and a number beside them adds nothing. A count belongs on the picture at the compartment it counts, not in a panel. And an instrument that survives from one step to the next is what shows a quantity going down and then back up, so reuse the same one rather than adding a second.
+
+`state()`:
+
+| field | meaning |
+| --- | --- |
+| `t` | sim seconds |
+| `counts[kind].inside / .outside` | every kind on stage, by side |
+| `concentration[kind].inside / .outside` | the same in mM. If a page states a concentration, it comes from here |
+| `net` | `'entering'`, `'leaving'` or `'balanced'`: the water verdict, read off the free-water headcount per side, so right from the first frame |
+| `crossings.up / .down`, `netRecent` | lifetime crossings each way, and a recent net decaying to 0 at equilibrium (positive is leaving). Noisy for the first half minute, so print a count, not a direction |
+| `mV`, `equilibrium.K`, `equilibrium.CL` | membrane potential and each ion's equilibrium potential |
+| `crossed.K`, `crossed.CL`, `crossed.NA`, `crossed.water` | net transits through each channel, signed outward |
+| `atpSpent`, `pumpT` | the pump's ledger, and where it is in its cycle |
+| `context`, `sides.inside / .outside` | what to call the two compartments here; name them from these rather than "inside the cell" |
+| `pH.inside / .outside`, `dpH`, `pmf` | the proton gradient: pH per side, the difference, and the proton-motive force in mV (positive means protons want to come back in) |
+| `atpMade`, `rotorTurns`, `protonsThroughSynthase`, `protonsLeaked`, `complexTurns` | the proton circuit's ledger, counted rather than declared |
+| `stoichiometry.protonsPerTurn / .atpPerTurn / .protonsPerATP` | what the rotor is actually keeping to; do not type a ratio |
+| `fuel`, `fuelRate`, `pmfStall` | the fuel, the rate after back-pressure has slowed it, and the pmf at which the complexes stall |
+| `complexLabel`, `complexT` | the beat of the complex's six-phase cycle, and the words for it |
+
+Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `conduct` (traveller, dir) through a channel · `turn` (n) a pump turn starting · `turned` (n) one finishing · `pumped` (n) one proton thrown out by the complex · `atp` (n) the synthase completing one.
+
+Anchors for `note()`: `channel.K`, `channel.CL`, `channel.NA`, `aquaporin`, `pump`, `complex`, `synthase`, `leak` (each only when in the layout), `heads` and `tails` (the bilayer's halves), `outside`, `inside`, and one molecule of each kind on stage: `water`, `NA`, `K`, `CL`, `A`, `H`. The `outside` and `inside` cards are rewritten by the context, so they name the matrix or the stroma on their own. Two at once: `m.notes(['channel.K', 'pump'])`.
+
+Layers for `show()`: `water`, `ions`, `badges` (the charge signs), `shells`, `cut` (proteins cut open), `membrane`.
+
+Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, active transport and its cost, a cell in a changed environment. Not for: a specific real protein's shape, receptors, vesicles, anything at whole-cell scale. **A proton gradient in a mitochondrion or a chloroplast is the same component with an organelle `context`** and has its own section below.
+
+## Chemiosmosis — the same membrane in an organelle
+
+**Scale**: membrane, bulk — it IS Membrane, mounted with an organelle `context`, so everything in that section still holds: `contents`, `state()`, anchors, layers, the particle budget. Read it first; this section is only what changes. **There is no `Chemiosmosis` to mount** — the name on `data-use` and on `mount` is `Membrane`.
+
+Respiration and photosynthesis are that picture with one parameter flipped.
 
 ```js
 const m = Membrane.mount(el, {
@@ -288,57 +342,9 @@ const m = Membrane.mount(el, {
 
 **THE BOTTOM HALF IS ALWAYS THE ENCLOSED COMPARTMENT** — the cytosol, the matrix, the lumen — the way every textbook cross-section draws it. So a mitochondrion pumps protons UP the screen and a thylakoid pumps them DOWN, and the direction is not something to assume from the other one. The box names both halves on the stage itself and keeps them there, so do not add your own labels. For a caption, `state().sides.pumpedInto` is where the protons collect and `.inside` / `.outside` are the bottom and top names.
 
-A step that asks **what the gradient IS** gets `state().pH`, `.dpH`, `.pmf` in a stat tile. A step that asks **where the energy WENT** gets `state().atpMade` against `.protonsThroughSynthase` and `.protonsLeaked` — the ledger only means something as a comparison. A step that asks **what the machine is DOING** gets `state().complexLabel`, which names the beat of the cycle it is on. Do not caption a machine from the step's own prose while it is mid-turn; the label is what it is actually doing.
+**Printable here: `pmf` or `dpH`, and `atpMade`. One stat tile, chosen by what the step asks; the rest of the ledger drives the page, not the panel.** **What the gradient IS** is `state().pH`, `.dpH`, `.pmf`; **where the energy WENT** is `.atpMade` against `.protonsThroughSynthase` and `.protonsLeaked`, a ledger that only means something as a comparison; **what the machine is DOING** is `.complexLabel`, the beat of the cycle it is on. Do not caption a machine from the step's own prose while it is mid-turn; the label is what it is actually doing. Ratios come from `.stoichiometry` and `.complexStoichiometry`, never typed: the rotor decides them.
 
-Ratios come from `state().stoichiometry` and `.complexStoichiometry`, never typed: the rotor is what decides them.
-
-Populating it. The box starts empty. Say what is dissolved on each side and the module keeps the stage matching it:
-
-```js
-m.set({ contents: {
-  inside:  { water:46, K:20, NA:4, A:8 },     // kind: 'water' | 'o2' | 'co2' | 'NA' | 'K' | 'CL' | 'A' (an impermeant anion)
-  outside: { water:26, NA:26, CL:26 },
-} });                            // 'H' is a proton, for a chemiosmosis scene
-m.reset();                       // zero the counters after a change of scene
-m.spend();                       // one ATP, one pump turn; false if a turn is running or no Na⁺ inside
-```
-
-Or in millimolar, which is how a page should say it: `units: 'mM'` in the mount params, then `contents: { inside: { K:140, NA:12 }, outside: { NA:470, CL:550 } }` and the module turns it into counts, one particle per 20 mM, with water filling each side. Leave water out; the module fills it. `state().concentration[kind].inside / .outside` reads back in mM, so print that rather than typing a molarity. Blood is about 150 mM Na⁺, seawater 470, a river under 1.
-
-Changing `contents` adds and removes only the difference, by current side, so a water that already crossed stays crossed. **The budget is 220 particles on stage, of which at most 110 ions**; past it nothing more is added. Keep the same particle count per side and fewer free waters where the solute is; that is what makes osmosis a headcount rather than a pull. About 78 particles a side reads well: 78 water on the fresh side, and on a salty side 26 water with 26 Na⁺ and 26 Cl⁻.
-
-**Osmosis is the whole of this component too, and it is the mechanism half.** Put more solute on one side and there are fewer free waters there; water crosses both ways and simply arrives more often on the crowded side, until the headcounts match. `state().net` reads that count off the stage every frame and prints `'entering'`, `'leaving'` or `'balanced'`, so the verdict is measured rather than typed, and `crossings.up / .down` is what actually happened each way. Nothing pulls; there is no osmotic force in the sim, because there is none in the cell.
-
-For one molecule placed by hand there is `m.add(kind, opts)` with `opts.x, .y, .z`, and `m.scatter(kind, n, side, opts)` with side 1 outside, −1 inside.
-
-Defaults do the right thing: ions walk slower and are blocked by the bilayer, water and gases cross it and keep out of the pores, a K⁺ or Cl⁻ ion uses a channel of its kind when one stands in the sheet, and the anions stay deep inside. `opts` on `add`/`scatter` can override: `conducts:'K'`, `seeks:true` (tries the channel and is refused, what Na⁺ does), `speed:[lo,hi]`, `blocked:false`.
-
-`state()`:
-
-| field | meaning |
-| --- | --- |
-| `t` | sim seconds |
-| `counts[kind].inside / .outside` | every kind on stage, by side |
-| `concentration[kind].inside / .outside`, `mMPerParticle` | the same in mM, one particle per `mMPerParticle` (20); print this, never a typed molarity |
-| `net` | `'entering'`, `'leaving'` or `'balanced'`: the verdict to print for water. It is read off the free-water headcount per side, which is what osmosis is, so it is right from the first frame |
-| `crossings.up / .down`, `netRecent` | what actually happened: lifetime crossings each way, and a recent net that decays to 0 at equilibrium (positive means leaving the cell). Noisy for the first half minute at this crowd size, so print it as a count, not a direction |
-| `mV`, `equilibrium.K`, `equilibrium.CL` | membrane potential and each ion's equilibrium potential |
-| `crossed.K`, `crossed.CL`, `crossed.NA`, `crossed.water` | net transits through each channel, signed outward |
-| `atpSpent`, `pumpRunning`, `pumpPhase`, `pumpT` | the pump's ledger and where it is in its cycle |
-| `context`, `sides.inside / .outside` | what to call the two compartments here; print these rather than "inside the cell" |
-| `pH.inside / .outside`, `dpH`, `pmf` | the proton gradient: pH per side, the difference, and the proton-motive force in mV (positive means protons want to come back in) |
-| `atpMade`, `rotorTurns`, `protonsThroughSynthase`, `protonsLeaked`, `complexTurns` | the proton circuit's ledger, every entry counted rather than declared |
-| `stoichiometry.protonsPerTurn / .atpPerTurn / .protonsPerATP` | what the rotor is actually keeping to. Print it; do not type a ratio |
-| `fuel`, `fuelRate`, `pmfStall` | the fuel, the rate after back-pressure has slowed it, and the pmf at which the complexes stall |
-| `complexPhase`, `complexLabel`, `complexCaption`, `complexT` | where the complex is in its six-phase cycle, and the words for that beat |
-
-Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `conduct` (traveller, dir) through a channel · `turn` (n) a pump turn starting · `turned` (n) one finishing · `pumped` (n) one proton thrown out by the complex · `atp` (n) the synthase completing one.
-
-Anchors for `note()`: `channel.K`, `channel.CL`, `channel.NA`, `aquaporin`, `pump`, `complex`, `synthase`, `leak` (each only when that protein is in the layout), `heads` and `tails` (the bilayer's two halves), `outside`, `inside`, and one molecule of each kind on stage: `water`, `NA`, `K`, `CL`, `A`, `H`. The `outside` and `inside` cards are rewritten by the context, so they name the matrix or the stroma without the page saying so. "What are the two proteins?" is `m.notes(['channel.K', 'pump'])`.
-
-Layers for `show()`: `water`, `ions`, `badges` (the charge signs), `shells`, `cut` (proteins cut open), `membrane`.
-
-Good for: diffusion, osmosis and tonicity, selectivity, the resting potential, active transport and its cost, a cell in a changed environment, chemiosmosis in either organelle, uncouplers and why they make heat. Not for: a specific real protein's shape, receptors, vesicles, anything at whole-cell scale.
+Good for: chemiosmosis in either organelle, the proton circuit and where the energy went, uncouplers and why they make heat, respiratory control, light as the thing driving a gradient. Not for: the reactions feeding it (no Krebs cycle, no Calvin cycle, no electron carriers being made here).
 
 ## Proteinbox — a real protein, from the library
 
@@ -410,6 +416,8 @@ C.set({ progress: 1 });            // runs the reaction; set({progress:0}) runs 
 ```
 
 Pairs that work: `['glucose','glucose']` → cellobiose's β-1,4 (cellulose's linkage) · `['alphaGlucose','alphaGlucose']` → maltose's α-1,4 (starch's) · `['galactose','glucose']` → lactose · `['glycerol','palmitate']` → an ester, and `role` picks `sn1`/`sn2`/`sn3` for a second and third tail · `['glycine','alanine']` or any two of the twenty amino acids → a peptide bond · `['deoxyribose', 'adenine'|'guanine'|'thymine'|'cytosine']` → a nucleoside, the sugar-and-base bond DNA is built on.
+
+**Hydrolysis is this run backwards, and it is the same reaction.** Mount at `progress: 1` and set `0`: a water arrives, the bond breaks, the water splits, and each half goes back where it came from. The picture and the atom bookkeeping are right in that direction because every frame is recomputed from `progress` rather than replayed. **What does not reverse is the wording** — `phase` is named for a condensation, so it reads `done` at the bonded end and `apart` at the separated one, and the anchors' cards say "comes in" and "left". A hydrolysis step should caption from its own prose and use `phase` only to know where in the beat it is.
 
 **`progress` is the entire API and it scrubs.** A step sets it to 1; a slider bound straight to it drags through and back. The beat students miss is between the hydroxyl coming off and the proton arriving, and it lasts about 300 ms at full speed. Glides over ~3 s; pass `{snap:true}` for a slider being dragged.
 
@@ -659,6 +667,10 @@ y-axis.
 
 A tutor for a college Bio 101 student. Concise, no repetition, one claim per paragraph, in bold, that the picture is showing right now. Prefer a question the student can answer by touching a control. No em dashes.
 
+**`state()` is for driving the scene, not for filling the panel.** Most of what it carries is there so a step can time an animation, gate a control or decide a camera. A value reaches the student only when the step's own claim is about that number: **at most one or two readouts on screen at a time, and none on a step that is not asking a question they answer.** A wall of live counters is what a page looks like when it has not decided what the step is about. When a number is not the point, say the thing in words and let the picture carry it: a verdict like "levelled out" is the readout, and the digits behind it are the page's business.
+
+**Pick a couple of instruments and keep them across steps.** The same readout falling and then climbing again is an argument; a fresh set of numbers each step hides that it is the same quantity. Membrane's section names its printable few and is the worked example; where a section does not, the same restraint is the default.
+
 **Show, do not tell.** When a student asks what something is, put a note on it, in the step where they asked. When they ask what happens if, add a control that does it, or a step that shows it. When they ask to see or hide something, it is a layer. A note names the part it is on, not the whole scene. Add a paragraph only when none of those is possible. A panel body stays under two short paragraphs, and an edit that would push it past that replaces text rather than adding it. When something asked for is beyond the components, say so in one sentence in the page rather than faking it.
 
 ## Before you answer
@@ -678,6 +690,9 @@ correctly and then breaks, or breaks nothing and is wrong anyway.
 - No `setTimeout`, no `setInterval`, no animation loop. A step sets a
   destination and `set()` glides there; a readout lives in `on('frame')`.
 - Every number the student reads came from `state()`. None is typed.
+- Every number the student reads is one the step is about. A field exists to be
+  read by the page, not to be shown to the student; a step with a readout that
+  its own sentence never mentions drops the readout.
 - No colour is typed: the palette publishes `--atom-O`, `--bond-hbond` and the
   rest, and a caption naming an atom uses its token.
 - Nothing is mounted, set or called that this document does not describe. If
