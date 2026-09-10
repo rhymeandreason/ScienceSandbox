@@ -65,9 +65,12 @@
      line of code rather than as a formula. The mono is for the recipe. */
   .formula{font-size:.8rem;color:var(--text-muted);margin:.35rem 0 0}
 
-  /* One group of molecules: a small caption over its part of the grid. */
-  .group{grid-column:1/-1;margin:1.2rem 0 -.2rem;font-size:.7rem;letter-spacing:.16em;
-    text-transform:uppercase;font-weight:600;color:var(--text-muted)}
+  /* One group of molecules, headed the way library.html heads a section: the
+     masthead's face and case, two steps down. These are the page's spine. */
+  .group{grid-column:1/-1;margin:1.8rem 0 .2rem;
+    font-family:var(--font-display);font-size:clamp(1.6rem,2.6vw,2.1rem);
+    font-weight:500;letter-spacing:-.035em;line-height:1;
+    text-transform:lowercase;color:var(--text-strong)}
   .group:first-child{margin-top:0}
 
   /* ---- the molecule modal: proteins/index.html's sheet, one molecule -----

@@ -42,6 +42,15 @@
   /* Room above a section that has been jumped to, so its head is not welded to
      the top of the window. */
   main section{scroll-margin-top:1.5rem}
+
+  /* A BIGGER SECTION HEAD. `.sechead`'s micro-cap is sized for a strip on a
+     page whose masthead is the name; here the three heads ARE the page's
+     spine, and a reader jumped down to one has to land on something that
+     reads as a title. Same face, weight and case as the masthead's h1, two
+     steps down. */
+  .sechead h2{font-size:clamp(1.6rem,2.6vw,2.1rem);font-weight:500;
+    letter-spacing:-.035em;text-transform:lowercase;line-height:1}
+  .sechead{gap:1.1rem;margin-bottom:1.2rem}
   @media (prefers-reduced-motion:no-preference){ html{scroll-behavior:smooth} }
 
   /* Every column count is FIXED, not auto-fill: the two shelves are cut to
