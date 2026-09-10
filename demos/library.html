@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script defer src="/demos/lib/site.js"></script>
+<!-- Served at /library by a vercel.json rewrite, which does not move the file. -->
+<base href="/demos/">
+<title>Library — Kodolab</title>
+<meta name="description" content="Everything in Kodolab's open library: the 3D components a generated app can mount, every protein, and every molecule.">
+
+<!-- ===================================================================
+     THE WHOLE LIBRARY ON ONE SHELF: components, then proteins, then
+     molecules. The three are what a generated app is built from, and
+     until now each lived on its own page or on none.
+
+     TWO OF THE THREE ARE READ FROM A REGISTRY. A protein card is
+     proteins.js's entry and a molecule card is MolLib's spec, so a
+     fourth protein or a new mol-*.js appears here by being registered.
+     Components have no registry, so their cards are typed, the way
+     contribute.html's shelf types them, and kit/app.js's USES is the
+     list to check them against.
+
+     NO LIVE CONTEXT UNTIL A CARD IS OPENED. Every card is a baked still
+     (proteins/stills, media/components, media/molecules); a molecule
+     becomes turnable in the modal, on the one context this page makes.
+     =================================================================== -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="css/kodo.css">
+<link rel="stylesheet" href="graph/graph.css">
+
+<style>
+  :root { --page-max: 1180px }
+
+  .grid{display:grid;gap:var(--page-gap);
+    grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
+  /* Molecules are many and small: a tighter track, a shorter stage. */
+  .grid.mols{grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:calc(var(--page-gap) * .7)}
+  .grid.mols .stage{height:140px}
+  .grid.mols .body{padding:.9rem 1rem 1rem}
+  .grid.mols .name{font-size:1.05rem}
+
+  .card{background:var(--surface-card);border:1px solid var(--border-hair);border-radius:4px;
+    overflow:hidden;display:flex;flex-direction:column;color:inherit;text-decoration:none;
+    transition:border-color .18s,transform .18s,box-shadow .18s;cursor:pointer}
+  .card:hover{border-color:var(--accent);transform:translateY(-3px);
+    box-shadow:0 10px 26px rgba(20,22,26,.07)}
+  /* A fixed-height stage: a grid whose rows are sized by their picture reflows
+     as the stills land, and every card jumps. */
+  .stage{position:relative;height:200px;background:var(--paper);
+    border-bottom:1px solid var(--border-hair);
+    background-size:contain;background-position:center;background-repeat:no-repeat}
+  /* A component still is a 3:2 frame drawn to its edges, not a molecule on
+     paper, so it covers. */
+  .stage.shot{background-size:cover}
+  .stage > *{position:absolute;inset:0;display:block;width:100%;height:100%;border:0}
+  .body{padding:1.2rem 1.3rem 1.3rem;display:flex;flex-direction:column;flex:1}
+  .name{font-family:var(--font-display);font-size:1.3rem;font-weight:500;letter-spacing:-0.02em;
+    line-height:1.12;margin:0}
+  .does{display:inline-block;align-self:flex-start;margin:.5rem 0 0;
+    font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;
+    font-weight:600;color:var(--accent)}
+  .does.carrier{color:var(--spark)}
+  .blurb{font-size:.9rem;color:var(--muted);line-height:1.5;margin:.55rem 0 .9rem;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+  .facts{display:flex;flex-wrap:wrap;gap:6px;margin:auto 0 0}
+  .fact{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+    padding:3px 8px;border-radius:999px;border:1px solid var(--border-hair);
+    background:var(--paper);color:var(--muted)}
+  .fact.predicted{background:var(--spark);border-color:var(--spark);color:#faf8f4}
+  /* A component's feature chips are lowercase: they are what it can show, not
+     a classification. */
+  .feats{list-style:none;display:flex;flex-wrap:wrap;gap:.3rem;margin:.7rem 0 0;padding:0}
+  .feats li{font-size:.72rem;color:var(--text-body);background:var(--paper);
+    border:1px solid var(--border-hair);border-radius:999px;padding:.2rem .55rem}
+  .rung{margin-top:auto;padding-top:.8rem;font-size:.66rem;letter-spacing:.18em;
+    text-transform:uppercase;font-weight:600;color:var(--muted)}
+  /* The formula, in the mono the site uses for a molecule's own facts. */
+  .formula{font-family:var(--font-mono,ui-monospace,monospace);font-size:.8rem;
+    color:var(--text-muted);margin:.35rem 0 0}
+
+  /* One group of molecules: a small caption over its part of the grid. */
+  .group{grid-column:1/-1;margin:1.2rem 0 -.2rem;font-size:.7rem;letter-spacing:.16em;
+    text-transform:uppercase;font-weight:600;color:var(--text-muted)}
+  .group:first-child{margin-top:0}
+
+  /* ---- the molecule modal: proteins/index.html's sheet, one molecule -----
+     `.mmodal`, not `.modal`: kodo.css §10.3 owns `.modal` and its heading. */
+  .mmodal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;
+    justify-content:center;padding:clamp(1rem,4vw,3rem);
+    background:rgba(20,22,26,.55);backdrop-filter:blur(3px)}
+  .mmodal[hidden]{display:none}
+  .sheet{position:relative;background:var(--surface-card);
+    border:1px solid var(--border-hair);border-radius:6px;
+    box-shadow:0 24px 70px rgba(20,22,26,.28);
+    width:min(900px,100%);height:min(100%,560px);overflow:hidden;
+    display:grid;grid-template-columns:1.1fr 1fr}
+  .mstage{position:relative;background:var(--paper);
+    border-right:1px solid var(--border-hair);min-height:0}
+  .mstage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .mbody{padding:clamp(1.4rem,3vw,2.2rem);display:flex;flex-direction:column;
+    min-height:0;overflow-y:auto}
+  @media (max-width:800px){
+    .sheet{grid-template-columns:1fr;height:auto;max-height:100%;overflow:auto}
+    .mstage{height:300px;border-right:0;border-bottom:1px solid var(--border-hair)}
+    .mbody{overflow:visible}
+  }
+  .mbody .does{margin:0 0 .5rem}
+  .mbody .name{font-weight:400;font-size:clamp(26px,3vw,36px);color:var(--text-strong)}
+  .mbody .formula{font-size:1rem;margin:.5rem 0 0}
+  .measure{display:flex;gap:1.1rem 1.9rem;flex-wrap:wrap;margin:1.3rem 0 1.4rem;
+    padding:1.1rem 0 0;border-top:1px solid var(--border-hair)}
+  .measure div{min-width:6.5rem}
+  .measure b{display:block;font-family:var(--font-display);font-weight:500;
+    font-size:1.35rem;line-height:1.1;letter-spacing:-0.02em;color:var(--ink)}
+  .measure span{display:block;margin-top:.3rem;font-size:.76rem;color:var(--muted)}
+  .hint{font-size:.78rem;color:var(--muted);margin:0 0 1rem}
+  /* How to ask for it: the words the codebase uses, for whoever builds with it. */
+  .recipe{margin-top:auto;font-family:var(--font-mono,ui-monospace,monospace);font-size:.78rem;
+    line-height:1.6;color:var(--text-body);background:var(--paper);
+    border:1px solid var(--border-hair);border-radius:4px;padding:.7rem .9rem;white-space:pre-wrap}
+  .x{position:absolute;top:.6rem;right:.7rem;z-index:2;width:32px;height:32px;border-radius:999px;
+    cursor:pointer;border:1px solid var(--border-hair);background:var(--surface-card);
+    color:var(--muted);font-size:1.1rem;line-height:1}
+  .x:hover{color:var(--ink);border-color:var(--accent)}
+</style>
+</head>
+<body class="kodo">
+<div class="page">
+  <nav class="sitenav">
+    <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
+    <span class="crumb">library</span>
+  </nav>
+
+  <header class="pagehead">
+    <h1>library</h1>
+    <p class="meta" id="tally">&mdash;</p>
+    <p class="deck">Everything an app here is built from. Components are whole scenes a page mounts by name; proteins and molecules are the structures they draw.</p>
+  </header>
+
+  <main>
+    <section id="components">
+      <div class="sechead"><h2>Components</h2><span class="rule"></span><span class="count" id="n-comp"></span></div>
+      <div class="grid" id="comp-grid">
+        <a class="card" href="water/water-test.html"><div class="stage shot" style="background-image:url(media/components/watersim.webp)"></div><div class="body"><h3 class="name">WaterSim</h3><p class="blurb">Liquid water, and what follows from hydrogen bonds.</p><ul class="feats"><li>temperature</li><li>phase change</li><li>ice floating</li><li>salt dissolving</li></ul><div class="rung">molecules · bulk</div></div></a>
+        <a class="card" href="membrane/salmon-test.html"><div class="stage shot" style="background-image:url(media/components/membrane.webp)"></div><div class="body"><h3 class="name">Membrane</h3><p class="blurb">A bilayer, its proteins, and what crosses.</p><ul class="feats"><li>diffusion</li><li>osmosis</li><li>selectivity</li><li>pumps and ATP</li><li>resting potential</li><li>chemiosmosis</li></ul><div class="rung">membrane · bulk</div></div></a>
+        <a class="card" href="condense/condense-test.html"><div class="stage shot" style="background-image:url(media/components/condense.webp)"></div><div class="body"><h3 class="name">Condense</h3><p class="blurb">Two molecules joining, and the water that leaves.</p><ul class="feats"><li>glycosidic · ester · peptide</li><li>α against β</li><li>hydrolysis, run backwards</li></ul><div class="rung">molecules · single</div></div></a>
+        <a class="card" href="kit/proteinbox-mount-test.html"><div class="stage shot" style="background-image:url(media/components/proteinbox.webp)"></div><div class="body"><h3 class="name">Proteinbox</h3><p class="blurb">Any protein in the library, from deposited coordinates.</p><ul class="feats"><li>primary to quaternary</li><li>ribbon · surface · fold</li><li>two side by side</li></ul><div class="rung">macromolecule · single</div></div></a>
+        <a class="card" href="sickle/hbcrowd-test.html"><div class="stage shot" style="background-image:url(media/components/hbcrowd.webp)"></div><div class="body"><h3 class="name">HbCrowd</h3><p class="blurb">A crowd of haemoglobins, and the moment HbS starts a fibre.</p><ul class="feats"><li>HbA against HbS</li><li>a fibre starting</li></ul><div class="rung">macromolecule · bulk</div></div></a>
+        <a class="card" href="bloodcell/bloodcell-test.html"><div class="stage shot" style="background-image:url(media/components/bloodcell.webp)"></div><div class="body"><h3 class="name">BloodCell</h3><p class="blurb">One red blood cell, cut open.</p><ul class="feats"><li>tonicity</li><li>lysis and crenation</li><li>sickling</li></ul><div class="rung">cell · single</div></div></a>
+        <a class="card" href="cell/animalcell-test.html"><div class="stage shot" style="background-image:url(media/components/animalcell.webp)"></div><div class="body"><h3 class="name">AnimalCell</h3><p class="blurb">An animal cell cut open, with its organelles.</p><ul class="feats"><li>naming the parts</li><li>animal against plant</li><li>vesicle traffic</li></ul><div class="rung">cell · single</div></div></a>
+        <a class="card" href="cell/plantcell-test.html"><div class="stage shot" style="background-image:url(media/components/plantcell.webp)"></div><div class="body"><h3 class="name">PlantCell</h3><p class="blurb">A plant cell cut open, and what water does to it.</p><ul class="feats"><li>turgor and wilting</li><li>plasmolysis</li><li>cyclosis</li></ul><div class="rung">cell · single</div></div></a>
+        <a class="card" href="leaf/leaf-test.html"><div class="stage shot" style="background-image:url(media/components/leaf.webp)"></div><div class="body"><h3 class="name">Leaf</h3><p class="blurb">A leaf in cross-section, tissue by tissue.</p><ul class="feats"><li>gas exchange</li><li>transpiration</li><li>stomata opening</li></ul><div class="rung">tissue · bulk</div></div></a>
+        <a class="card" href="bloodcell/bloodflow-test.html"><div class="stage shot" style="background-image:url(media/components/bloodflow.webp)"></div><div class="body"><h3 class="name">BloodFlow</h3><p class="blurb">A vessel of red cells, narrowing.</p><ul class="feats"><li>vaso-occlusion</li><li>stiff against flexible</li></ul><div class="rung">organ · bulk</div></div></a>
+        <a class="card" href="tree/tree-lab.html"><div class="stage shot" style="background-image:url(media/components/tree.webp)"></div><div class="body"><h3 class="name">Tree</h3><p class="blurb">A tree, the air around it, and where its mass came from.</p><ul class="feats"><li>Van Helmont's willow</li><li>day and night</li></ul><div class="rung">organism · single</div></div></a>
+        <!-- Graph is HTML, not a canvas, so it draws itself rather than a still. -->
+        <a class="card" href="graph/graph-test.html"><div class="stage" id="graph-stage"></div><div class="body"><h3 class="name">Graph</h3><p class="blurb">A chart of measurements, or a live trace off a running sim.</p><ul class="feats"><li>scatter · line · bar</li><li>fit and error bars</li><li>live trace</li></ul><div class="rung">no rung · a chart is not in the world</div></div></a>
+      </div>
+    </section>
+
+    <section id="proteins">
+      <div class="sechead"><h2>Proteins</h2><span class="rule"></span><a class="more" href="/proteins">the gallery &rarr;</a></div>
+      <div class="grid" id="prot-grid"></div>
+    </section>
+
+    <section id="molecules">
+      <div class="sechead"><h2>Molecules</h2><span class="rule"></span><span class="count" id="n-mol"></span></div>
+      <div class="grid mols" id="mol-grid"></div>
+    </section>
+  </main>
+</div>
+
+<div class="mmodal" id="modal" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="m-name">
+    <button class="x" id="m-close" aria-label="Close">&times;</button>
+    <div class="mstage" id="m-stage"></div>
+    <div class="mbody">
+      <p class="does" id="m-does"></p>
+      <h2 class="name" id="m-name"></h2>
+      <p class="formula" id="m-formula"></p>
+      <div class="measure" id="m-measure"></div>
+      <p class="hint">Drag to turn.</p>
+      <pre class="recipe" id="m-recipe"></pre>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js"></script>
+<script src="lib/palette.js"></script>
+<script src="lib/tokens-from-palette.js"></script>
+<script src="lib/molecules.js"></script>
+<!-- Every domain file, in MolLib.DOMAINS order. tools/molecule-stills.html
+     loads the same list, so a still exists for everything drawn here. -->
+<script src="lib/skel.js"></script>
+<script src="lib/mol-small.js"></script>
+<script src="lib/mol-aminoacids.js"></script>
+<script src="lib/mol-pathways.js"></script>
+<script src="lib/mol-krebs.js"></script>
+<script src="lib/mol-carriers.js"></script>
+<script src="lib/mol-sugars.js"></script>
+<script src="lib/mol-glycans.js"></script>
+<script src="lib/mol-lipids.js"></script>
+<script src="lib/mol-nucleic.js"></script>
+<script src="lib/scene.js"></script>
+<script src="lib/molview.js"></script>
+<script src="proteins/proteins.js"></script>
+<script src="proteins/nucleic-acids.js"></script>
+<script src="graph/graph.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ---- components: the one live card ---------------------------------------- */
+try {
+  const el = $('graph-stage');
+  Graph.mount(el, {
+    kind: 'scatter', fit: 'linear', height: el.clientHeight, legend: false, tip: false,
+    data: [ { light: 0, rate: 0.4 }, { light: 200, rate: 3.1 }, { light: 400, rate: 5.9 },
+            { light: 600, rate: 8.4 }, { light: 800, rate: 10.9 }, { light: 1000, rate: 13.2 } ],
+    x: { field: 'light', label: 'Light', unit: 'umol/m2/s' },
+    y: { field: 'rate', label: 'O2 released', unit: 'bubbles/min' },
+  });
+} catch (e) { console.error('library: graph', e); }
+const nComp = document.querySelectorAll('#comp-grid .card').length;
+$('n-comp').textContent = `${nComp} components`;
+
+/* ---- proteins: proteins/index.html's card, linking out ----------------------
+   The same two registries and the same order: the two with a lesson first. */
+const NA_KEYS = new Set(NucleicAcids.withProtein().map(s => s.key));
+const isNA = p => NA_KEYS.has(p.key);
+const LEAD = ['hemoglobin', 'myoglobin'];
+const PROTEINS = [...ProteinLib.PROTEINS, ...NucleicAcids.withProtein()]
+  .sort((a, b) => (LEAD.indexOf(a.key) + 1 || 99) - (LEAD.indexOf(b.key) + 1 || 99));
+const defaultOf = p => isNA(p) ? NucleicAcids.defaultOf(p) : ProteinLib.defaultOf(p);
+
+function ecClass(p) {
+  const ec = isNA(p) ? null : ProteinLib.ecOf(p);
+  return ec ? ProteinLib.EC_CLASS[+ec[0]] : null;
+}
+function fillDoes(el, word, cls) {
+  if (!word || word === 'unknown') { el.remove(); return; }
+  el.textContent = word + (cls ? ` · ${cls[0]}` : '');
+  el.title = cls ? cls[1] : '';
+  el.className = 'does ' + (word === 'enzyme' ? 'enzyme' : 'carrier');
+}
+
+function proteinCard(p) {
+  const v = defaultOf(p), r = v.read;
+  const el = document.createElement('a');
+  el.className = 'card';
+  /* Every protein has /proteins/<key>; the lesson, where one exists, is the
+     better door. proteins/index.html prints both; a card here is one click. */
+  el.href = p.lesson ? p.lesson : `/proteins/${p.key}`;
+  el.innerHTML = `
+    <div class="stage" style="background-image:url(proteins/stills/${p.key}.webp)"></div>
+    <div class="body"><h3 class="name"></h3><p class="does"></p><p class="blurb"></p><div class="facts"></div></div>`;
+  el.querySelector('.name').textContent = p.name;
+  fillDoes(el.querySelector('.does'), p.does, ecClass(p));
+  el.querySelector('.blurb').textContent = p.blurb.split(/(?<=\.)\s+/)[0];
+  const fx = el.querySelector('.facts');
+  for (const f of [v.species, r.method].filter(Boolean)) {
+    const s = document.createElement('span');
+    s.className = 'fact' + (f === 'predicted' ? ' predicted' : '');
+    s.textContent = f; fx.appendChild(s);
+  }
+  return el;
+}
+for (const p of PROTEINS) $('prot-grid').appendChild(proteinCard(p));
+
+/* ---- molecules: every spec MolLib holds ---------------------------------
+   ONE CARD PER MOLECULE, NOT PER SPEC. atp and atpSkel are two derivations of
+   one molecule (molecule-viewer.html's derivation switch), so the first spec
+   registered under a name is the card and the second is not a second card. */
+const seen = new Set();
+const MOLS = Object.entries(MolLib.MOLECULES)
+  .filter(([, s]) => s.atoms && s.name && !seen.has(s.name) && seen.add(s.name))
+  .map(([key, s]) => ({ key, spec: s }));
+
+/* The domain file each spec came from, said the way a student would group
+   them. The partition itself is MolLib.DOMAINS, by derivation; these are only
+   the words over each part of the grid. A file not named here shows its name. */
+const GROUP = {
+  'mol-small.js':      'Small molecules',
+  'mol-aminoacids.js': 'Amino acids',
+  'mol-pathways.js':   'Glycolysis and fermentation',
+  'mol-krebs.js':      'The citric-acid cycle',
+  'mol-carriers.js':   'Carriers',
+  'mol-sugars.js':     'Sugars',
+  'mol-glycans.js':    'Disaccharides',
+  'mol-lipids.js':     'Lipids',
+  'mol-nucleic.js':    'Nucleic acids',
+};
+
+function moleculeCard(m) {
+  const s = m.spec;
+  const el = document.createElement('article');
+  el.className = 'card';
+  el.innerHTML = `
+    <div class="stage" style="background-image:url(media/molecules/${m.key}.webp)"></div>
+    <div class="body"><h3 class="name"></h3><p class="formula"></p><div class="facts"></div></div>`;
+  el.querySelector('.name').textContent = s.name;
+  el.querySelector('.formula').textContent = s.formula || '';
+  const fx = el.querySelector('.facts');
+  for (const f of [s.class, `${s.atoms.length} atoms`]) {
+    const c = document.createElement('span'); c.className = 'fact'; c.textContent = f; fx.appendChild(c);
+  }
+  el.addEventListener('click', () => openModal(m));
+  return el;
+}
+
+const molGrid = $('mol-grid');
+let lastDomain = null;
+for (const m of MOLS) {
+  if (m.spec.domain !== lastDomain) {
+    const h = document.createElement('div');
+    h.className = 'group';
+    h.textContent = GROUP[m.spec.domain] || m.spec.domain;
+    molGrid.appendChild(h);
+    lastDomain = m.spec.domain;
+  }
+  molGrid.appendChild(moleculeCard(m));
+}
+$('n-mol').textContent = `${MOLS.length} molecules`;
+
+/* The masthead's count, read from the three lists it counts. */
+$('tally').textContent =
+  `${nComp} components · ${ProteinLib.PROTEINS.length} proteins · ${MOLS.length} molecules`;
+
+/* ---- the molecule modal ---------------------------------------------------
+   One context, made on open and lost on close: a canvas that has lost its
+   context is never granted another, so the canvas is new each time. The frame
+   it opens in is the still's (tools/molecule-stills.html): a `view:` is baked
+   into the meshes, a spec without one takes MolView.flatPose. */
+const modal = $('modal');
+let live = null;
+
+function openModal(m) {
+  const s = m.spec;
+  $('m-name').textContent = s.name;
+  $('m-formula').textContent = s.formula || '';
+  const does = $('m-does');
+  does.className = 'does'; does.textContent = s.class || '';
+  $('m-recipe').textContent = `MolLib.MOLECULES.${m.key}\nlib/${s.domain}`;
+
+  /* Counted or measured at render, never typed. Span is in real ångströms:
+     Stage.measure divides SCALE back out. */
+  const heavy = s.atoms.filter(a => a.el !== 'H').length;
+  const rings = (s.topology && s.topology.rings) || [];
+  const tiles = [
+    [s.atoms.length, 'atoms'],
+    [heavy, 'heavy atoms'],
+    [Stage.measure(s).span.toFixed(1) + ' Å', 'widest span'],
+  ];
+  if (rings.length) tiles.push([rings.length, rings.length === 1 ? 'ring' : 'rings']);
+  const measure = $('m-measure');
+  measure.innerHTML = '';
+  for (const [n, label] of tiles) {
+    const d = document.createElement('div');
+    d.innerHTML = '<b></b><span></span>';
+    d.querySelector('b').textContent = n;
+    d.querySelector('span').textContent = label;
+    measure.appendChild(d);
+  }
+
+  const mount = $('m-stage');
+  mount.innerHTML = '';
+  mount.style.cssText = `background:url(media/molecules/${m.key}.webp) center/contain no-repeat var(--paper)`;
+  modal.hidden = false;
+  document.body.style.overflow = 'hidden';
+  $('m-close').focus();
+
+  /* The box after layout: a zero-sized mount gets the constructor frustum. */
+  requestAnimationFrame(() => {
+    if (modal.hidden) return;
+    const canvas = document.createElement('canvas');
+    mount.appendChild(canvas);
+    const st = Stage.create(canvas, {
+      ortho: true, cam: { theta: 0, phi: Math.PI / 2, r: 40 }, turn: 'trackball', zoom: false });
+    const g = Stage.buildMolecule(s);
+    if (!s.view) g.quaternion.copy(MolView.flatPose(s));
+    st.root.add(g);
+    const half = Stage.measure(s).radius * 1.06;
+    st.camera.top = half; st.camera.bottom = -half;
+    st.camera.left = -half * st.camera.aspect; st.camera.right = half * st.camera.aspect;
+    st.camera.updateProjectionMatrix();
+    st.resize();
+    let raf = 0;
+    const loop = () => { st.renderer.render(st.scene, st.camera); raf = requestAnimationFrame(loop); };
+    loop();
+    mount.style.backgroundImage = '';
+    live = { st, canvas, stop: () => cancelAnimationFrame(raf) };
+  });
+}
+
+function closeModal() {
+  if (modal.hidden) return;
+  if (live) {
+    live.stop();
+    live.st.renderer.dispose();
+    live.st.renderer.forceContextLoss();
+    live.canvas.remove();
+    live = null;
+  }
+  $('m-stage').innerHTML = '';
+  modal.hidden = true;
+  document.body.style.overflow = '';
+}
+$('m-close').addEventListener('click', closeModal);
+modal.addEventListener('mousedown', e => { if (e.target === modal) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>

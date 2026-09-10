@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<base href="/demos/tools/">
+<title>Bake the library's molecule stills</title>
+
+<!-- ===================================================================
+     THE LIBRARY'S MOLECULE CARDS, BAKED. library.html lists every spec
+     in MolLib, and seventy live WebGL contexts on a page a reader scrolls
+     past is the same stalled laptop the protein gallery and the component
+     shelf already refused. This bench draws each spec once, in the frame
+     library.html's modal opens it in, and POSTs the frame to the dev
+     server, which writes media/molecules/<key>.webp.
+
+     THE FRAME IS THE SPEC'S OWN. A `view:` is baked into the meshes by
+     Stage.buildMolecule, so the pose is identity; a spec without one takes
+     MolView.flatPose, the PCA attitude molecule-viewer.html opens on.
+     Both are the rule every page follows, so a still and the live model
+     that replaces it are one picture. Fit is Stage.measure's radius, which
+     a turn cannot push out of frame.
+
+     INTERNAL TOOL, DEV SERVER ONLY, CHROME ONLY (Safari encodes no WebP).
+     The stills are committed and deploy. Re-run after a spec's geometry
+     or `view:` changes.
+     =================================================================== -->
+
+<style>
+  body{font:14px/1.5 system-ui,-apple-system,sans-serif;margin:2rem;background:#faf8f4;color:#14161a}
+  h1{font-size:1.2rem;margin:0 0 .4rem}
+  p{color:#6d6f76;margin:0 0 1.2rem}
+  button,select{font:inherit;padding:.45rem 1rem;border:1px solid #14161a;background:#fff;border-radius:3px;cursor:pointer}
+  button[disabled]{opacity:.45;cursor:default}
+  /* 2x the library card's 3:2 stage, drawn on nothing: the still is a
+     background on paper and keeps its alpha. */
+  #mount{width:536px;height:358px;margin:1.2rem 0;border:1px solid #e4e0d7;background:#fff}
+  #mount canvas{width:100%;height:100%;display:block}
+  #log{font-family:ui-monospace,Menlo,monospace;font-size:12px;white-space:pre-wrap}
+  .bad{color:#c0392b}
+</style>
+</head>
+<body>
+<h1>Molecule stills</h1>
+<p>Draws every registered molecule once and writes <code>media/molecules/&lt;key&gt;.webp</code>. Dev server, Chrome.</p>
+<button id="go">Bake all</button>
+<select id="pick"></select>
+<button id="one">Bake selected</button>
+<div id="mount"><canvas id="gl"></canvas></div>
+<div id="log"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<!-- Every domain file, in MolLib.DOMAINS order: skel.js first, then the
+     files built on it. The same walk lib-node.js takes for the checkers. -->
+<script src="../lib/skel.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/mol-aminoacids.js"></script>
+<script src="../lib/mol-pathways.js"></script>
+<script src="../lib/mol-krebs.js"></script>
+<script src="../lib/mol-carriers.js"></script>
+<script src="../lib/mol-sugars.js"></script>
+<script src="../lib/mol-glycans.js"></script>
+<script src="../lib/mol-lipids.js"></script>
+<script src="../lib/mol-nucleic.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/molview.js"></script>
+<script>
+'use strict';
+
+const KEYS = Object.keys(MolLib.MOLECULES).filter(k => MolLib.MOLECULES[k].atoms);
+
+const canvas = document.getElementById('gl');
+const logEl = document.getElementById('log');
+const pickEl = document.getElementById('pick');
+const goEl = document.getElementById('go');
+const oneEl = document.getElementById('one');
+const say = (t, bad) => {
+  const d = document.createElement('div');
+  if (bad) d.className = 'bad';
+  d.textContent = t; logEl.appendChild(d);
+};
+
+/* One stage, reused: the canvas keeps its context and the root is emptied
+   between molecules. Straight down -Z, like molecule-viewer.html, because the
+   pose is the model's and the camera has one job. */
+const { scene, camera, renderer, root, applyCam } = Stage.create(canvas, {
+  ortho: true, cam: { theta: 0, phi: Math.PI / 2, r: 40 }, orbit: false, zoom: false });
+
+let liveKey = null;
+
+function show(key) {
+  const spec = MolLib.MOLECULES[key];
+  while (root.children.length) root.remove(root.children[0]);
+  const g = Stage.buildMolecule(spec);
+  if (!spec.view) g.quaternion.copy(MolView.flatPose(spec));
+  root.add(g);
+  /* The full 3D radius, not the silhouette: the modal lets the reader turn
+     it, and the still has to match the frame it opens in. */
+  /* Sized here, not by the stage's ResizeObserver: setSize wipes the buffer,
+     and the observer's first call lands after the first render. */
+  renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
+  const half = Stage.measure(spec).radius * 1.06;
+  const asp = canvas.clientWidth / canvas.clientHeight;
+  camera.top = half; camera.bottom = -half;
+  camera.left = -half * asp; camera.right = half * asp;
+  camera.updateProjectionMatrix();
+  applyCam();
+  renderer.render(scene, camera);
+  liveKey = key;
+}
+
+async function bake(key) {
+  if (liveKey !== key) show(key);
+  renderer.render(scene, camera);          // the buffer is only readable now
+  const webp = canvas.toDataURL('image/webp', 0.85);
+  if (!/^data:image\/webp;/.test(webp)) {
+    throw new Error('this browser will not encode WebP — run the bake in Chrome');
+  }
+  const r = await fetch('/api/stills', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ set: 'molecules', key, webp }),
+  });
+  const out = await r.json();
+  if (!r.ok) throw new Error(out.error || r.status);
+  return out.bytes;
+}
+
+for (const k of KEYS) {
+  const o = document.createElement('option');
+  o.value = k; o.textContent = k;
+  pickEl.appendChild(o);
+}
+
+async function run(keys) {
+  goEl.disabled = oneEl.disabled = pickEl.disabled = true;
+  for (const k of keys) {
+    try {
+      const bytes = await bake(k);
+      say(`${k} — ${Math.round(bytes / 1024)} KB`);
+    } catch (e) {
+      say(`${k} — ${e.message}`, true);
+    }
+  }
+  say('done.');
+  goEl.disabled = oneEl.disabled = pickEl.disabled = false;
+}
+
+goEl.addEventListener('click', () => { logEl.textContent = ''; run(KEYS); });
+oneEl.addEventListener('click', () => { logEl.textContent = ''; run([pickEl.value]); });
+pickEl.addEventListener('change', () => show(pickEl.value));
+
+/* ?key=<molecule> preselects and shows it. */
+const wantKey = new URLSearchParams(location.search).get('key');
+if (wantKey && KEYS.includes(wantKey)) pickEl.value = wantKey;
+pickEl.dispatchEvent(new Event('change'));
+</script>
+</body>
+</html>

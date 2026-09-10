@@ -455,9 +455,10 @@ function images(req, res, json) {
  *
  * The stills DO deploy: they are the gallery's first frame, and the reason a
  * card that has not got a WebGL context yet shows the protein rather than an
- * empty rectangle. Two benches post here: `proteins/tools/stills.html` for the
- * protein gallery and `tools/component-stills.html` for the component shelf,
- * and `set` says which. The directory is chosen from that whitelist rather
+ * empty rectangle. Three benches post here: `proteins/tools/stills.html` for
+ * the protein gallery, `tools/component-stills.html` for the component shelf,
+ * `tools/molecule-stills.html` for library.html's molecule grid, and `set`
+ * says which. The directory is chosen from that whitelist rather
  * than taken from the body, so a key can never write outside one of them.
  */
 function stills(req, res, json) {
@@ -473,14 +474,17 @@ function stills(req, res, json) {
     try { body = JSON.parse(raw); }
     catch { return json(400, { error: 'body is not JSON' }); }
 
-    // The key becomes a filename, so it is checked rather than trusted.
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(body.key || '')) {
-      return json(400, { error: 'key must be lowercase, digits and dashes' });
+    // The key becomes a filename, so it is checked rather than trusted. Case
+    // is kept: a molecule still is named by its MolLib key (dATP, alphaGlucose)
+    // so the page can derive the path from the registry alone.
+    if (!/^[A-Za-z0-9][A-Za-z0-9-]*$/.test(body.key || '')) {
+      return json(400, { error: 'key must be letters, digits and dashes' });
     }
     const m = /^data:image\/webp;base64,(.+)$/.exec(body.webp || '');
     if (!m) return json(400, { error: 'webp must be a data:image/webp;base64 URL' });
 
-    const SETS = { proteins: 'proteins/stills', components: 'media/components' };
+    const SETS = { proteins: 'proteins/stills', components: 'media/components',
+                   molecules: 'media/molecules' };
     const into = SETS[body.set || 'proteins'];
     if (!into) return json(400, { error: `set must be one of ${Object.keys(SETS).join(', ')}` });
 

@@ -129,6 +129,11 @@ const SHOTS = [
   { key: 'tree', use: 'Tree', warm: 2,
     mount: el => Tree.mount(el, {}) },
 
+  /* Mid-reaction, mounted there rather than set: `progress` glides over ~3 s,
+     and a mount parameter lands the frame the card is for, the water leaving. */
+  { key: 'condense', use: 'Condense', warm: 1,
+    mount: el => Condense.mount(el, { from: ['glucose', 'glucose'], progress: 0.55 }) },
+
   /* Graph is HTML, not a scene: it has no canvas to read, so its card keeps
      drawing itself. Listed here only so the shelf's keys are all in one place. */
   { key: 'graph', use: 'Graph', skip: 'draws in HTML, no canvas to bake' },

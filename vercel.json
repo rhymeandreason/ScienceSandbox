@@ -23,6 +23,7 @@
     { "source": "/demos/membrane-lab.html",    "destination": "/membrane",    "permanent": true },
     { "source": "/demos/dna-structure.html",   "destination": "/dna",         "permanent": true },
     { "source": "/demos/nodegraph/nodegraph.html", "destination": "/nodes",  "permanent": true },
+    { "source": "/demos/library.html",        "destination": "/library",     "permanent": true },
 
     { "source": "/demos/proteins/index.html",  "destination": "/proteins", "permanent": true },
     { "source": "/demos/proteins/reaction-map.html", "destination": "/proteins/reactions", "permanent": true },
@@ -63,6 +64,7 @@
     { "source": "/membrane",   "destination": "/demos/membrane-lab.html" },
     { "source": "/dna",        "destination": "/demos/dna-structure.html" },
     { "source": "/nodes",      "destination": "/demos/nodegraph/nodegraph.html" },
+    { "source": "/library",    "destination": "/demos/library.html" },
     { "source": "/admin",      "destination": "/demos/admin.html" },
     { "source": "/privacy",    "destination": "/demos/privacy.html" },
     { "source": "/contribute", "destination": "/contribute.html" },
