@@ -159,19 +159,31 @@ function flatPose(spec){
     for(let i=0;i<3;i++) for(let j=0;j<3;j++) C[i][j]+=d[i]*d[j]; });
   const mul=(M,v)=>[0,1,2].map(i=>M[i][0]*v[0]+M[i][1]*v[1]+M[i][2]*v[2]);
   const dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
-  const unit=v=>{ const l=Math.hypot(...v)||1; return v.map(x=>x/l); };
+  // null for a vector with no direction, so a degenerate axis is answerable
+  // rather than silently [0,0,0] — see the fallbacks below.
+  const unit=v=>{ const l=Math.hypot(...v); return l>1e-9 ? v.map(x=>x/l) : null; };
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];
   // power iteration, deflating after each axis — three eigenvectors is small
   // enough that a full solver would be more code than it is worth
   const axis=(M,seed)=>{ let v=unit(seed);
-    for(let k=0;k<80;k++) v=unit(mul(M,v)); return v; };
-  const e1=axis(C,[1,0.3,0.1]);
+    for(let k=0;k<80;k++){ const n=unit(mul(M,v)); if(!n) return null; v=n; }
+    return v; };
+  /* A CLOUD WITH NO SPREAD HAS NO PCA, AND WHAT FALLS OUT IS NOT A ROTATION.
+     Methane's one heavy atom leaves the covariance all zeros, whose leading
+     "eigenvector" is [0,0,0]; the zero matrix built from it makes a quaternion
+     of length 0.5, and three composes a mesh's matrix from the quaternion
+     WITHOUT normalising — so every atom drew as an ellipsoid that turned with
+     the model. It reached exactly the molecules with too few heavy atoms to
+     span a plane: water, ammonia, methane (one), O2 (two), CO2 (three, in a
+     line). A single heavy atom has no orientation to find, so identity; a
+     linear one has its long axis and any perpendicular will do for the rest. */
+  const e1=axis(C,[1,0.3,0.1]) || [1,0,0];
   // deflate e1 out, then the next-widest direction is the leading eigenvector
   const D=C.map((row,i)=>row.map((x,j)=>x-dot(mul(C,e1),e1)*e1[i]*e1[j]));
-  let e2=axis(D,[0.2,1,0.4]);
-  e2=unit(e2.map((x,i)=>x-dot(e2,e1)*e1[i]));          // re-orthogonalise
-  const e3=[e1[1]*e2[2]-e1[2]*e2[1],                   // right-handed, always
-            e1[2]*e2[0]-e1[0]*e2[2],
-            e1[0]*e2[1]-e1[1]*e2[0]];
+  const e2raw=axis(D,[0.2,1,0.4]);
+  const e2=(e2raw && unit(e2raw.map((x,i)=>x-dot(e2raw,e1)*e1[i])))   // re-orthogonalise
+        || unit(cross(e1, Math.abs(e1[0])<0.9 ? [1,0,0] : [0,1,0]));
+  const e3=cross(e1,e2);                               // right-handed, always
   // rows e1,e2,e3 — the rotation that sends the molecule's own axes to screen
   const M=new THREE.Matrix4().set(e1[0],e1[1],e1[2],0,
                                   e2[0],e2[1],e2[2],0,
