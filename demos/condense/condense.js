@@ -304,7 +304,16 @@
           .unproject(camera).sub(pO);
       };
 
-      B = { L, role, H, G, hr, gr, gA, gB, start, home, qStart, qPose, hKeep,
+      /* THE ANGLE THE GUEST TURNS THROUGH TO ARRIVE, off the pose and so off
+         the real disaccharide the linkage was measured from. It is the α/β
+         difference as one number: beta-1,4 is a half turn, which is why every
+         other glucose in cellulose is upside down and the chain lies flat
+         enough to stack into a fibre; alpha-1,4 is a third of that and
+         accumulates into starch's helix. Independent of `turn`, which only says
+         how much of it is left to watch. */
+      const linkageTurn = 2 * Math.acos(Math.min(1, Math.abs(qPose.clone().normalize().w)));
+
+      B = { L, role, H, G, hr, gr, gA, gB, start, home, qStart, qPose, hKeep, linkageTurn,
             oOwn, hOwn, oI, oH, hI, pO, pH2, pH1, pKeepO, t2, stepOut,
             water, wO, wH1, wH2, bond1, bond2, madeBond, away, bondLen,
             hostGivesO, leaves: leavesOf(H, hr, G, gr) };
@@ -436,6 +445,7 @@
         leaves: B.leaves,
         gapBonds: p.gap,
         bondAngstrom: +(B.bondLen / MolLib.SCALE).toFixed(2),
+        linkageTurn: +(B.linkageTurn * 180 / Math.PI).toFixed(1),
         atomsDrawn: [B.gA, B.gB].map(g => g.userData.atomMeshes.filter(m => m && m.visible).length),
         mechanism: 'atom bookkeeping, not the mechanism — no single proton makes this trip',
       };
@@ -472,9 +482,12 @@
         card: 'It waits a few bond lengths off, turns to face the way it will '
             + 'bond, and closes only once the water has been made.' },
       bond: { text: 'The bond they made',
-        card: 'The new bond belongs to neither molecule — it is between them. '
-            + 'Which bond it is, is what tells starch from cellulose, or a fat '
-            + 'from a protein.' },
+        card: 'The new bond belongs to neither molecule — it is between them, '
+            + 'and watch how far the second molecule had to turn to make it. '
+            + 'A beta-1,4 arrives flipped a half turn, so every other glucose '
+            + 'in cellulose is upside down and the chain lies flat enough to '
+            + 'stack into a fibre. An alpha-1,4 turns a third as far and winds '
+            + 'into starch\'s helix instead. Same two sugars, same water.' },
       water: { text: 'The water that left',
         card: 'One water, and it is made of both molecules: a whole hydroxyl '
             + 'from one and a single proton from the other. That is what '

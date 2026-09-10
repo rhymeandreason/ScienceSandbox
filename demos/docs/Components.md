@@ -417,9 +417,11 @@ Pairs that work: `['glucose','glucose']` → cellobiose's β-1,4 (cellulose's li
 
 The water is made of BOTH molecules — a whole hydroxyl from one and a single proton from the other — and which side gives which is read from the specs, not from the linkage: a sugar takes the oxygen from the acceptor, an ester and a peptide from the donor. `state().oxygenFrom` and `protonFrom` name them, so a caption prints from there rather than guessing. This is atom bookkeeping and not the mechanism; `state().mechanism` says so if a page wants to.
 
+**`state().linkageTurn` is the α/β difference as one number**, and it is the thing to print on the last step rather than describe. The second molecule turns to arrive, and how far is read off the real disaccharide: β-1,4 comes in flipped a half turn (180°), which is why every other glucose in cellulose is upside down and the chain lies flat enough to stack into a fibre we cannot digest; α-1,4 turns 57.5°, a third as far, and winds into starch's helix. Run both anomers in one lesson and the flip is visible rather than asserted.
+
 Glides: `progress`. Snaps and rebuilds: `from`, `role`, `gap`, `turn`.
 
-`state()`: `progress`, `phase` (`apart` · `breaking` · `waiting` · `crossing` · `water` · `closing` · `done`), `linkage` (`glycosidic` · `ester` · `peptide`), `host`, `guest`, `role`, `oxygenFrom`, `protonFrom`, `leaves` (always `H2O`), `bondAngstrom`, `atomsDrawn`. Events: `frame` (state) · `phase` (name, progress).
+`state()`: `progress`, `phase` (`apart` · `breaking` · `waiting` · `crossing` · `water` · `closing` · `done`), `linkage` (`glycosidic` · `ester` · `peptide`), `host`, `guest`, `role`, `oxygenFrom`, `protonFrom`, `leaves` (always `H2O`), `bondAngstrom`, `linkageTurn`, `atomsDrawn`. Events: `frame` (state) · `phase` (name, progress).
 
 Anchors for `note()`: `host`, `guest`, `bond`, `water`, `leavingH`. `bond` and `water` return null until they exist, so a callout on either appears only once the reaction has made it. Layers for `show()`: `water`.
 

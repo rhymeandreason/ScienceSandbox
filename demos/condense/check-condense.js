@@ -122,7 +122,31 @@ is(RUNGS.indexOf(Condense.SCALE.rung) >= 0, `SCALE.rung '${Condense.SCALE.rung}'
 is(typeof Condense.SCALE.unit === 'number' && Condense.SCALE.unit > 0,
    'SCALE.unit is a real metres-per-scene-unit, so a length may be printed');
 
-console.log('\n== 5. the beats are in order and inside 0..1');
+/* The claim the reference now tells a page to PRINT, so it needs an assertion:
+   beta-1,4 arrives flipped a half turn and alpha-1,4 nowhere near one. Both are
+   read off the deposited disaccharide, so a re-bake of cellobiose or maltose
+   that lost its geometry would show up here rather than as a caption quietly
+   stating the wrong number. */
+console.log('\n== 5. the linkage turn is the alpha/beta difference');
+const turnOf = (hk, gk) => {
+  const L = Condense.linkageOf(hk, gk, M);
+  const q = L.pose(un(M[hk], hk), un(M[gk], gk),
+                   { role: L.donor, refs: refsFor(L) }).quat;
+  const w = Math.min(1, Math.abs(q[3] / Math.hypot(q[0], q[1], q[2], q[3])));
+  return 2 * Math.acos(w) * 180 / Math.PI;
+};
+const refsFor = L => { const r = {}; (L.refs || []).forEach(k => { r[k] = un(M[k], k); }); return r; };
+const beta = turnOf('glucose', 'glucose'), alpha = turnOf('alphaGlucose', 'alphaGlucose');
+is(Math.abs(beta - 180) < 1, `beta-1,4 arrives flipped a half turn (${beta.toFixed(1)}\u00b0)`);
+is(alpha < 90, `alpha-1,4 turns far less (${alpha.toFixed(1)}\u00b0), and winds into a helix`);
+/* …and the helix maltose declares independently agrees with it: a 6-fold screw
+   is 60\u00b0 a residue, which is the turn measured above to within a few degrees.
+   Two records, baked by different code, saying the same thing. */
+const perTurn = M.maltose.helix && M.maltose.helix.perTurn;
+is(perTurn && Math.abs(alpha - 360 / perTurn) < 8,
+   `maltose's own helix (${perTurn} per turn = ${(360 / perTurn).toFixed(0)}\u00b0) matches that`);
+
+console.log('\n== 6. the beats are in order and inside 0..1');
 const B = Condense.BEAT, order = ['BREAK', 'CLEAR', 'CROSS', 'FORM', 'CLOSE'];
 let prev = 0, ordered = true;
 order.forEach(k => { if (!(B[k] > prev) || B[k] >= 1) ordered = false; prev = B[k]; });
