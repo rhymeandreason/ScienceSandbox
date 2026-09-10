@@ -147,11 +147,18 @@
         </div>
       </div>
     </div>
+    <!-- The line the student has to read, then the buttons under it: three
+         across a 300px rail wrapped the sentence to three ragged lines. The
+         camera is off on its own because it acts on the shelf, not the app. -->
     <div class="card card--quiet railfoot" id="railFoot" hidden>
       <p class="hint">Keep your edit link; this browser may forget it.</p>
-      <button class="btn" id="settings" type="button"><i class="ph-bold ph-link"></i>Edit link</button>
-      <button class="btn" id="export" type="button"><i class="ph-bold ph-download-simple"></i>Export</button>
-      <button class="btn" id="snap" type="button" title="Take the shelf thumbnail from the app as it is now"><i class="ph-bold ph-camera"></i></button>
+      <div class="row">
+        <button class="btn" id="settings" type="button"><i class="ph-bold ph-link"></i>Edit link</button>
+        <button class="btn" id="export" type="button"><i class="ph-bold ph-download-simple"></i>Export</button>
+        <button class="btn" id="tips" type="button" hidden><i class="ph-bold ph-lightbulb"></i>Tips</button>
+        <span class="spacer"></span>
+        <button class="btn" id="snap" type="button" title="Take the shelf thumbnail from the app as it is now"><i class="ph-bold ph-camera"></i></button>
+      </div>
     </div>
   </aside>
 </main>
@@ -589,6 +596,8 @@
   function paintHints() {
     const on = !hintsOff && !!(app && token);
     $('hints').hidden = !on;
+    // The way back, in the foot, and only once there is something to come back to.
+    $('tips').hidden = !hintsOff;
     if (!on) { clearInterval(hintTimer); hintTimer = null; return; }
     const h = HINTS[hintAt];
     $('hintSay').innerHTML = esc(h.text)
@@ -625,6 +634,12 @@
   $('hintOff').addEventListener('click', () => {
     hintsOff = true;
     try { localStorage.setItem('ss.build.nohints', '1'); } catch { /* this page load only */ }
+    paintHints();
+  });
+  $('tips').addEventListener('click', () => {
+    hintsOff = false;
+    hintAuto = true;                 // asked for them back: they cycle again
+    try { localStorage.removeItem('ss.build.nohints'); } catch { /* this page load only */ }
     paintHints();
   });
 

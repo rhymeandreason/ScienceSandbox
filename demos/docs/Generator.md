@@ -192,6 +192,8 @@ Not built: renaming a step from the row, which is text mode's `{find, replace}` 
 
 Under the request box, one tip at a time, dismissed for good on the cross (`ss.build.nohints` in localStorage). The list is `HINTS` in `build.html`, and it holds two kinds: how to ask for a change that lands, and the two panes beside History that a student would otherwise never open. Eight lines under the box is a wall nobody reads, so it is a carousel — nine seconds, paused on hover, and it stops cycling for good the moment a dot is clicked, since the student is steering by then.
 
+Dismissing is not a one-way door: **Tips** appears in the rail's foot when the hints are off, and puts them back. The foot itself is a line of copy with its buttons under it rather than beside it, because three buttons and a sentence across a 300px rail wrapped the sentence to three ragged lines.
+
 **A hint that has to be retyped is half given.** A hint may carry a `say`, the literal prompt, and it is drawn as a button that puts those words in the box — appended to whatever is already there, since asking for two changes in one turn is itself one of the hints.
 
 ## 10. The backend

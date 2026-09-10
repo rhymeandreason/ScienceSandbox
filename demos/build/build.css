@@ -310,13 +310,14 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 .hints .dots button.is-on { background: var(--accent); }
 .hints .iconbtn { flex: none; width: 20px; height: 20px; font-size: 12px; }
 
-/* The rail's foot: the one thing about the app the student has to keep. */
-.railfoot { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
-.railfoot .hint { font-size: 11px; }
-.railfoot .btn { padding: 3px 10px; font-size: 11px; line-height: 16px; }
+/* The rail's foot: the one thing about the app the student has to keep, then
+   the buttons on their own line under it. */
+.railfoot { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
 .railfoot[hidden] { display: none; }
-.railfoot .hint { flex: 1; }
-.railfoot .btn { flex: none; }
+.railfoot .hint { flex: none; font-size: 11px; line-height: 1.35; }
+.railfoot .row { display: flex; align-items: center; gap: 6px; }
+.railfoot .row .spacer { flex: 1; }
+.railfoot .btn { flex: none; padding: 3px 10px; font-size: 11px; line-height: 16px; }
 
 /* The history. One row per version; open, it is the turn: the request in
    the editorial face, the reply in the ui face, the cost line as a micro-cap. */
