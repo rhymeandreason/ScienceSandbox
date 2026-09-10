@@ -107,6 +107,19 @@
       back: $('.lshell-nav .ghost'), next: $('.lshell-nav .primary'), count: $('.lshell-count'),
       hint: $('.lshell-hint'),
     };
+    /* WHICH OF THE PANEL'S NUMBERS THE PAGE REPAINTS, said once, here, beside
+       the classes the sheet styles. A readout's first value is written into
+       the page's source like any other words, so nothing downstream can tell
+       it from copy by looking: the builder's text mode offered `90 µm³` as
+       something to edit, the sim overwrote it a frame later and a wrong
+       number stayed in the file. The mark is what it reads instead. A page
+       with a readout of its own shape writes `data-live` on it. */
+    const LIVE = '.stat-value, .value, .legend-pct, .pile-pct';
+    const markLive = root => {
+      for (const e of root.querySelectorAll(LIVE)) e.setAttribute('data-live', '');
+    };
+    els.count.setAttribute('data-live', '');
+
     els.brand.textContent = opts.brand || '';
     /* `chrome: 'none'` takes the Back/Next row and the progress dots away, for
        a shell with nowhere to go: a sandbox, a bench. Everything else is
@@ -124,7 +137,7 @@
     els.hint.hidden = !opts.hint;
 
     const ui = {
-      controls(html) { els.controls.innerHTML = html; },
+      controls(html) { els.controls.innerHTML = html; markLive(els.controls); },
       q(sel) { return els.controls.querySelector(sel); },
       qa(sel) { return [...els.controls.querySelectorAll(sel)]; },
       show(e) { if (!e) return; e.classList.remove('is-hidden'); e.classList.add('rise'); },
@@ -132,7 +145,11 @@
       setNext(label, visible = true) { els.next.textContent = label; els.next.classList.toggle('is-hidden', !visible); },
       /* The component's own "point at / show / legend" chips, appended to
          the controls slot. kit/card-stage.js draws it; this only places it. */
-      showPanel(c, opts) { return global.CardStage.showPanel(els.controls, c, opts); },
+      showPanel(c, opts) {
+        const p = global.CardStage.showPanel(els.controls, c, opts);
+        markLive(els.controls);
+        return p;
+      },
       /* Returns `sync(v)`: write a value into the slider FROM CODE and repaint
          its fill. The fill is a custom property this paints on 'input', and
          setting `.value` fires no event — so a slider driven by a tween or a

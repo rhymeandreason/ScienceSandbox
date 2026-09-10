@@ -275,16 +275,15 @@
   /* ---- what is on the page ---------------------------------------------- */
 
   var SKIP = /^(script|style|noscript|title|option)$/i;
-  /* WHAT THE PAGE PAINTS, said by the shell's own class names rather than
-   * guessed from whether the words happen to be in the file. A readout's
+  /* WHAT THE PAGE PAINTS, from the mark the shell puts on it. A readout's
    * FIRST value is written into the source by whoever built the page, so it
    * round-trips like any other passage and the round-trip test waves it
    * through — then the sim overwrites it on the next frame and the edit is
-   * gone, with a misleading number left in the file. These classes are the
-   * shell's contract for a live number, so text inside one is never edited,
-   * only pointed at. CLAUDE.md: a number in user-facing text is read from the
-   * data at render time. */
-  var READOUT = '.stat-value, .value, .legend-pct, .pile-pct, .lshell-count';
+   * gone, with a misleading number left in the file. Which classes hold a
+   * live number is `lesson-shell.js`'s to say, beside the sheet that styles
+   * them; this reads the answer. CLAUDE.md: a number in user-facing text is
+   * read from the data at render time. */
+  var READOUT = '[data-live]';
   var CONTROL = 'button, a, label, input, select, summary, [role="button"], [role="tab"]';
 
   function texts() {
