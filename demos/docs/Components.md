@@ -409,7 +409,7 @@ const C = Condense.mount(el, {
 C.set({ progress: 1 });            // runs the reaction; set({progress:0}) runs it backwards
 ```
 
-Pairs that work: `['glucose','glucose']` → cellobiose's β-1,4 (cellulose's linkage) · `['alphaGlucose','alphaGlucose']` → maltose's α-1,4 (starch's) · `['glycerol','palmitate']` → an ester, and `role` picks `sn1`/`sn2`/`sn3` for a second and third tail · `['glycine','alanine']` or any two of the twenty amino acids → a peptide bond.
+Pairs that work: `['glucose','glucose']` → cellobiose's β-1,4 (cellulose's linkage) · `['alphaGlucose','alphaGlucose']` → maltose's α-1,4 (starch's) · `['galactose','glucose']` → lactose · `['glycerol','palmitate']` → an ester, and `role` picks `sn1`/`sn2`/`sn3` for a second and third tail · `['glycine','alanine']` or any two of the twenty amino acids → a peptide bond.
 
 **`progress` is the entire API and it scrubs.** A step that wants the reaction run sets it to 1; a slider bound straight to it lets the student drag through and back. This matters because the beat students miss is between the hydroxyl coming off and the proton arriving, and it lasts about 300 ms at full speed. Glides by default over ~3 s; pass `{snap:true}` for a slider the student is dragging.
 

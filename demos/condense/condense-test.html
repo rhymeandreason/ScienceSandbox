@@ -49,6 +49,9 @@
 const PAIRS = [
   { from: ['glucose', 'glucose'],           label: 'β-glucose ×2' },
   { from: ['alphaGlucose', 'alphaGlucose'], label: 'α-glucose ×2' },
+  /* The one hetero pair the library measures: a galactose donating onto a
+     glucose is lactose, and lactase is the enzyme most adults stop making. */
+  { from: ['galactose', 'glucose'],         label: 'galactose + glucose (lactose)' },
   { from: ['glycerol', 'palmitate'],        label: 'glycerol + palmitate' },
   /* The same reaction on a tail with one cis double bond — contrast-lab's own
      pair, and why butter is solid and oil is not. The kink is the difference. */

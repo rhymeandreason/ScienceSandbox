@@ -51,9 +51,27 @@
    * puts beta-glucose on the stage and gets cellulose's bond, because that is
    * what beta-glucose makes. Nothing here is a mode the page picks. */
   const LINKAGE = {
-    glucose:      { via:'cellobiose', config:'beta',  link:'1→4', polymer:'cellulose' },
-    alphaGlucose: { via:'maltose',    config:'alpha', link:'1→4', polymer:'starch' },
+    glucose:      { via:'cellobiose',   config:'beta',  link:'1→4', polymer:'cellulose' },
+    alphaGlucose: { via:'maltose',      config:'alpha', link:'1→4', polymer:'starch' },
+    galactose:    { via:'galactobiose', config:'beta',  link:'1→4', polymer:'galactan' },
   };
+
+  /* …and the pairs whose two residues are DIFFERENT sugars, keyed donor>acceptor.
+   * A hetero pair cannot be read off either monomer's table — the acceptor's C4
+   * is the position the bond is made at, and galactose's points axial where
+   * glucose's points equatorial, so borrowing galactobiose's geometry for
+   * lactose would place the bond off the atom it is made at. It is listed here
+   * only where a disaccharide in the library measures that exact pair. */
+  const PAIRS = {
+    'galactose>glucose': { via:'lactose', config:'beta', link:'1→4', polymer:null },
+  };
+
+  /* The route for a donor and an acceptor, or null. A hetero pair with no
+   * measured reference stays refused: reading one monomer's table for it would
+   * be inventing the other, which is the same refusal as before wearing a
+   * table instead of an equality test. */
+  const routeFor = (hostKey, guestKey) =>
+    PAIRS[hostKey + '>' + guestKey] || (guestKey === hostKey ? LINKAGE[hostKey] : null) || null;
 
   const at = (spec, name) => {
     const i = (spec.names || []).indexOf(name);
@@ -78,12 +96,12 @@
   function pose(host, guest, lib){
     const hc = Spec.free(host, 'c1'), ga = Spec.free(guest, 'c4');
     if(!hc || !ga) return null;
-    const L = LINKAGE[host.key];
+    // A beta and an alpha glucose joined is a linkage no disaccharide here
+    // measures, and reading one of the two tables for it would be inventing the
+    // other — so a pair is refused unless something in the library measures it.
+    // `routeFor` is that test; lactose is the hetero pair that passes it.
+    const L = routeFor(host.key, guest.key);
     if(!L) return null;
-    // Both residues of a chain have to be the same sugar: a beta and an alpha
-    // glucose joined would be a linkage no disaccharide here measures, and
-    // reading one of the two tables for it would be inventing the other.
-    if(guest.key !== host.key) return null;
     const di = lib[L.via];
     if(!di) return null;
 
@@ -204,7 +222,7 @@
             v[2] + w*tz + x*ty - y*tx];
   };
 
-  const API = { pose, react, startQuat, TRIAD, LINKAGE, quatOf };
+  const API = { pose, react, startQuat, TRIAD, LINKAGE, PAIRS, routeFor, quatOf };
   if(typeof module === 'object' && module.exports) module.exports = API;
   global.Glycosidic = API;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -59,6 +59,7 @@ const M = global.MolLib.MOLECULES, S = global.MacroSpec;
    so a peptide is not only checked in the direction the example happens to use. */
 const PAIRS = [
   ['glucose', 'glucose'], ['alphaGlucose', 'alphaGlucose'],
+  ['galactose', 'galactose'], ['galactose', 'glucose'],
   ['glycerol', 'palmitate'], ['glycerol', 'palmitoleate'],
   ['glycine', 'alanine'], ['alanine', 'glycine'], ['serine', 'cysteine'],
   /* A role that is NOT the default, and the one most likely to rot: glutamate's
@@ -135,7 +136,16 @@ is(typeof Condense.SCALE.unit === 'number' && Condense.SCALE.unit > 0,
    read off the deposited disaccharide, so a re-bake of cellobiose or maltose
    that lost its geometry would show up here rather than as a caption quietly
    stating the wrong number. */
-console.log('\n== 5. the linkage turn is the alpha/beta difference');
+/* A pair with no disaccharide measuring it must stay refused. Relaxing the
+   same-sugar rule to let lactose through is exactly the change that could let
+   an unmeasured pair through with it, and the result would be a bond placed off
+   the atom it is made at — rendering perfectly. */
+console.log('\n== 5. an unmeasured pair is still refused');
+[['glucose', 'alphaGlucose'], ['glucose', 'galactose'], ['alphaGlucose', 'glucose']]
+  .forEach(([a, b]) => is(!Condense.linkageOf(a, b, M),
+    `${a} + ${b} is refused: nothing in the library measures it`));
+
+console.log('\n== 6. the linkage turn is the alpha/beta difference');
 const turnOf = (hk, gk) => {
   const L = Condense.linkageOf(hk, gk, M);
   const q = L.pose(un(M[hk], hk), un(M[gk], gk),
@@ -154,7 +164,7 @@ const perTurn = M.maltose.helix && M.maltose.helix.perTurn;
 is(perTurn && Math.abs(alpha - 360 / perTurn) < 8,
    `maltose's own helix (${perTurn} per turn = ${(360 / perTurn).toFixed(0)}\u00b0) matches that`);
 
-console.log('\n== 6. the beats are in order and inside 0..1');
+console.log('\n== 7. the beats are in order and inside 0..1');
 const B = Condense.BEAT, order = ['BREAK', 'CLEAR', 'CROSS', 'FORM', 'CLOSE'];
 let prev = 0, ordered = true;
 order.forEach(k => { if (!(B[k] > prev) || B[k] >= 1) ordered = false; prev = B[k]; });

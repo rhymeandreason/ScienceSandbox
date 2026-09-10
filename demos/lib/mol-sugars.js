@@ -68,6 +68,19 @@
       stereo:{ axial:[C4] },
       view:VIEW.pyranose,       // the same object as glucose's — they cannot drift
       optH:CH,
+      /* The same two half-reactions beta-glucose declares, reaching the other
+         product: galactose is beta at C1 too, so its homo-dimer is the beta-1,4
+         galactobiose. Indices come from the build variables, never typed.
+         LACTOSE IS NOT LISTED HERE and that is not an omission: it is galactose
+         donating onto GLUCOSE, so there is no "2 x this molecule" formula for
+         check-molecules.js to verify. The pair is measured where the geometry
+         is, in macromolecule/glycosidic.js's own table. */
+      condense:{
+        roles:[
+          { key:'c1', label:'anomeric –OH', keep:OH[0], leaves:[ohH[0]] },
+          { key:'c4', label:'C4 –OH',       keep:4,      leaves:[OH[3], ohH[3]] } ],
+        makes:[ { product:'galactobiose', donor:'c1', acceptor:'c4',
+                  config:'beta', invert:false } ] },
       contrast:{ pair:'glucose-galactose', partner:'glucose',
         differs:'one –OH orientation',
         lesson:'why galactosemia is a disease',

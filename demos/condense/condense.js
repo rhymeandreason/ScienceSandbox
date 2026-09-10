@@ -118,14 +118,18 @@
     const S = global.MacroSpec, h = M[hk], g = M[gk];
     if (!h || !g) throw new Error(`condense: unknown spec ${!h ? hk : gk}`);
     const has = (sp, k) => !!S.role(sp, k);
-    if (global.Glycosidic && global.Glycosidic.LINKAGE[hk] && has(g, 'c4'))
+    /* ASK THE MODULE, don't read its table. A pair is glycosidic when something
+       in the library MEASURES that pair — the two anomers of glucose, galactose
+       with itself, and galactose onto glucose, which is lactose. `routeFor` is
+       where that lives, and a fourth reference added there arrives here. */
+    if (global.Glycosidic && global.Glycosidic.routeFor(hk, gk) && has(g, 'c4'))
       return { name: 'glycosidic', donor: 'c1', acceptor: 'c4',
                pose: (H, G, o) => global.Glycosidic.pose(H, G, o.refs),
                /* The linkage geometry is MEASURED off a real disaccharide
                   rather than constructed from angles, so this one needs to see
                   the record. It knows which — LINKAGE is keyed by monomer — it
                   just cannot fetch it, being Node-loadable with no MolLib. */
-               refs: ['cellobiose', 'maltose'] };
+               refs: ['cellobiose', 'maltose', 'galactobiose', 'lactose'] };
     if (has(h, 'carboxyl') && has(g, 'amino'))
       return { name: 'peptide', donor: 'carboxyl', acceptor: 'amino',
                pose: (H, G, o) => global.Peptide.pose(H, G, o.role), refs: [] };
