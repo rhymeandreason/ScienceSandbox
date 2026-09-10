@@ -51,12 +51,15 @@
   .sechead h2{font-size:clamp(1.6rem,2.6vw,2.1rem);font-weight:500;
     letter-spacing:-.035em;text-transform:lowercase;line-height:1}
   .sechead{gap:1.1rem;margin-bottom:1.2rem}
-  /* The way OUT of a section is a door, not a caption: /proteins and
-     /molecules are whole pages, and the shelf above each is two rows of one.
-     A `.btn` and not a `.cta` — the accent capsule is the page's ONE action,
-     and a page with two of them has none. Centred on the head rather than sat
-     on its baseline, which is where a control that tall would hang. */
-  .sechead:has(.btn){align-items:center}
+  /* The way OUT of a section, in the front door's own device: a coloured
+     micro-cap with a rule under it (index.html's `.gallery .more`). Not a
+     button — the accent capsule is the page's ONE action, and a page with
+     three of them has none — and not kodo's muted `.more` either, which
+     beside a title-sized head reads as a caption. */
+  .sechead .more{font-size:.74rem;font-weight:var(--cap-weight);
+    letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
+    padding-bottom:.4rem;border-bottom:1px solid var(--accent);white-space:nowrap}
+  .sechead .more:hover{color:var(--spark);border-color:var(--spark)}
   @media (prefers-reduced-motion:no-preference){ html{scroll-behavior:smooth} }
 
   /* Every column count is FIXED, not auto-fill: the two shelves are cut to
@@ -169,12 +172,12 @@
     </section>
 
     <section id="proteins">
-      <div class="sechead"><h2>Proteins</h2><span class="rule"></span><a class="btn" href="/proteins">The gallery &rarr;</a></div>
+      <div class="sechead"><h2>Proteins</h2><span class="rule"></span><a class="more" href="/proteins">The whole gallery &rarr;</a></div>
       <div class="grid prots" id="prot-grid"></div>
     </section>
 
     <section id="molecules">
-      <div class="sechead"><h2>Molecules</h2><span class="rule"></span><a class="btn" href="/molecules">Every molecule &rarr;</a></div>
+      <div class="sechead"><h2>Molecules</h2><span class="rule"></span><a class="more" href="/molecules">Every molecule &rarr;</a></div>
       <div class="grid mols" id="mol-grid"></div>
     </section>
   </main>
