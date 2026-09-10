@@ -4,9 +4,20 @@
 
 A generated app is one HTML file. It loads the shared library from `demos/`, mounts one or two components into boxes, wires controls to `set()` and readouts to `state()`, and says in prose what the student is looking at. It writes no Three.js and no physics. If the request needs something no component offers, say so instead of inventing it.
 
+## Which template
+
+Two, and a page is one of them. Choose before writing anything, because the template decides what the panel is for and it is the `data-shell` in the page below.
+
+| template | `data-shell` | reach for it when |
+| --- | --- | --- |
+| Step-through | `steps` | the answer is an argument with an order. Each step makes one claim, the scene changes under it, and the student moves with Next. Anything explaining WHY or HOW something happens |
+| Sandbox | `sandbox` | the answer is the thing itself. One scene, every control visible at once, no steps and no Next. A student asking to try it, play with it, or see what happens if |
+
+**A request that says "show me why" is a step-through; one that says "let me try" is a sandbox.** When neither is clear, a step-through is the safer default: an argument can hold a sandbox's controls in its last step, and a sandbox cannot hold an argument at all.
+
 ## The page
 
-Every app is one page on one shell, and the shell is a template the page picks — see "Which template" below. A full-window scene, a glass panel with eyebrow, title, body and controls, and one box per component: the single component of most pages goes in `shell.stage`, and a page with two mounts each in its own `shell.scene()`. There is no other layout.
+Every app is one page on the shell the section above chose. A full-window scene, a glass panel with eyebrow, title, body and controls, and one box per component: the single component of most pages goes in `shell.stage`, and a page with two mounts each in its own `shell.scene()`. There is no other layout.
 
 ```html
 <!doctype html>
@@ -33,17 +44,6 @@ Every app is one page on one shell, and the shell is a template the page picks �
 Paths are relative to the file, which lives one folder below `demos/`. Everything is a global; there are no modules and no build. The shell owns the DOM: no markup goes in the body, the panel is filled per step, and the scene is whatever the shell was given to mount.
 
 Never type an atom or bond colour; the palette publishes them as CSS custom properties `--atom-O`, `--atom-H`, `--atom-Na`, `--bond-covalent`, `--bond-hbond`, and a caption naming an atom uses its token.
-
-## Which template
-
-Two, and a page is one of them. Choose before writing anything: the template decides what the panel is for.
-
-| template | `data-shell` | reach for it when |
-| --- | --- | --- |
-| Step-through | `steps` | the answer is an argument with an order. Each step makes one claim, the scene changes under it, and the student moves with Next. Anything explaining WHY or HOW something happens |
-| Sandbox | `sandbox` | the answer is the thing itself. One scene, every control visible at once, no steps and no Next. A student asking to try it, play with it, or see what happens if |
-
-**A request that says "show me why" is a step-through; one that says "let me try" is a sandbox.** When neither is clear, a step-through is the safer default: an argument can hold a sandbox's controls in its last step, and a sandbox cannot hold an argument at all.
 
 ## The step-through shell
 
@@ -114,8 +114,6 @@ c.destroy();                     // gives the WebGL context back
 c.sim; c.box;                    // the layers under it, for a page that outgrows the params
 ```
 
-Every `mount` takes `viewOffset: shell.viewOffset`, the function that centres the scene in the room the panel leaves. Always pass it.
-
 ### Movement: set() glides
 
 **A param a step sets is a move the student watches, so `set()` animates it.** You write the destination and the component takes the time it needs: `L.set({ aperture: 0 })` closes the stomata over about a second, it does not teleport them shut. Do not tween it yourself, and never reach for `setTimeout` — a backgrounded tab fires timers while the picture is frozen, and the student comes back to a scene that moved without them.
@@ -175,39 +173,23 @@ CardStage.showPanel(container, c, { layers: ['water'] });                    // 
 
 `only` picks any of `'notes'`, `'zoom'`, `'layers'`, `'legend'` when a step wants fewer rows than it named; `only: ['legend']` is the legend on its own. `legendLabel` renames its heading, which reads `legend` by default. A `zoom` chip is not a switch: it flies when pressed and comes home when pressed again, and only one is ever lit. A question like "what is the purple thing?" is answered by the legend and one note; "can I see it without the water?" by the layers chips.
 
-A backgrounded tab freezes the sim; nothing runs on timers. Readouts belong in the `frame` handler, never in their own loop. A number the page shows comes from `state()`, never typed.
+Readouts belong in the `frame` handler, never in their own loop.
 
 ## Scale: what rung each component sits at
 
-Every component declares a **rung** (how big) and a **form** (how many, orthogonal to rung). `kit/scale.js` holds the ladder as an enum. Each component is built and tested on its own, so nothing enforces this beyond that.
+Every component declares a **rung** (how big) and a **form** (how many) in its own section, off the ladder in `kit/scale.js`:
 
 ```
 molecules · macromolecule · membrane · organelle · cell · tissue · organ · organism · population
 ```
 
-**A page composing normally can't get this wrong**: each `mount()` gets its own box and its own camera, so components at different rungs just live in different boxes — pick whichever the lesson needs. 
+**A page composing normally cannot get this wrong**: each `mount()` gets its own box and its own camera, so components at different rungs simply live in different boxes. Nothing at the `organelle` or `population` rung yet; Graph sits on no rung, because a chart is not in the world.
 
-**Bulk plus single at one rung is normal inside one component's own render.** A solute molecule in bulk water. A chloroplast in bulk mesophyll. A red cell in a vessel — one component drawing more than one actor, not two components in one box.
-
-| Component | rung | form |
-| --- | --- | --- |
-| WaterSim | molecules | bulk |
-| Condense | molecules | single |
-| Proteinbox | macromolecule | single |
-| Membrane | membrane | bulk |
-| Leaf | tissue | bulk |
-| Tree | organism | single |
-| HbCrowd | macromolecule | bulk |
-| BloodCell | cell | single |
-| AnimalCell | cell | single |
-| PlantCell | cell | single |
-| BloodFlow | organ | bulk |
-
-**At the cell rung, AnimalCell and PlantCell are the defaults.** They are what a reader pictures when they hear "a cell", and between them they carry a nucleus, organelles, a wall and a vacuole. BloodCell is a specialist — it has none of that — so it comes out when the subject really is blood or a red cell, or as a second example after a general cell has made the point.
+**At the cell rung, AnimalCell and PlantCell are the defaults.** They are what a reader pictures when they hear "a cell", and between them they carry a nucleus, organelles, a wall and a vacuole. BloodCell is a specialist with none of that, so it comes out when the subject really is blood, or as a second example after a general cell has made the point.
 
 **Two rungs are often the lesson, not a choice between them.** *Why does osmosis matter* is two boxes or two steps: Membrane for the mechanism (water crossing, counted) and BloodCell or PlantCell for the consequence (a cell bursting, a leaf wilting). Neither half answers it alone — the mechanism without a consequence is a headcount nobody asked for, and the consequence without the mechanism is a shape changing for no stated reason. The same holds for a pump and the cell it keeps alive, or a chloroplast and the tree it feeds. **When a question asks why something MATTERS, reach for the pair.**
 
-Nothing is at the `organelle` or `population` rung yet. Graph sits on no rung: a chart is not in the world. **A size a page prints must come from `state()`, and most of these components have no scale to print one from.** Where a real size matters, say it as a fact about the real thing ("a red blood cell is about 8 µm across"), never as a measurement of the picture.
+Where a real size matters, say it as a fact about the real thing ("a red blood cell is about 8 µm across"), never as a measurement of the picture.
 
 ## WaterSim — liquid water and what follows from hydrogen bonds
 
