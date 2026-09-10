@@ -78,7 +78,9 @@
   .mstage{position:relative;background:var(--paper);
     border-right:1px solid var(--border-hair);min-height:0}
   .mstage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-  #m-modes{position:absolute;z-index:2;left:50%;bottom:1rem;transform:translateX(-50%)}
+  .stagebar{position:absolute;z-index:2;left:0;right:0;bottom:1rem;
+    display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;align-items:center}
+  .stagebar:empty,.stagebar[hidden]{display:none}
   .mbody{padding:clamp(1.4rem,3vw,2.2rem);display:flex;flex-direction:column;
     min-height:0;overflow-y:auto}
   @media (max-width:800px){
@@ -130,11 +132,16 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="m-name">
     <button class="x" id="m-close" aria-label="Close">&times;</button>
     <div class="mstage" id="m-stage">
-      <!-- An on-stage switch (kodo.css §.segmented), shown only for a spec that
-           HAS a flat layout: a molecule with no `flat2d` cannot lie down. -->
-      <div class="segmented segmented--sm" id="m-modes" role="group" aria-label="View" hidden>
-        <button type="button" data-mode="3d" aria-pressed="true">3D</button>
-        <button type="button" data-mode="2d" aria-pressed="false">2D</button>
+      <!-- On-stage instruments (kodo.css §.segmented, §.pill), each shown only
+           where the spec supports it: a molecule with no `flat2d` cannot lie
+           down, and one with no `optH` has no C-H hydrogens to hide. -->
+      <div class="stagebar" id="m-bar">
+        <div class="segmented segmented--sm" id="m-modes" role="group" aria-label="View" hidden>
+          <button type="button" data-mode="3d" aria-pressed="true">3D</button>
+          <button type="button" data-mode="2d" aria-pressed="false">2D</button>
+        </div>
+        <button type="button" class="pill pill--ghost pill--sm" id="m-hyd"
+                aria-pressed="false" hidden>C&ndash;H hydrogens</button>
       </div>
     </div>
     <div class="mbody">
@@ -201,7 +208,7 @@ $('tally').textContent = `${MOLS.length} molecules`;
    kit/card-stage.js owns everything around it: one canvas, the loop, and a
    destroy that hands the WebGL context back — a canvas that has lost one is
    never granted another, so the box is new on every open. */
-const modal = $('modal'), modes = $('m-modes');
+const modal = $('modal'), modes = $('m-modes'), hyd = $('m-hyd'), bar = $('m-bar');
 let box = null, view = null;
 
 const HINT = { '3d': 'Drag to turn.',
@@ -211,12 +218,27 @@ function setMode(next) {
   if (!view) return;
   view.setMode(next);
   for (const b of modes.children) b.setAttribute('aria-pressed', String(b.dataset.mode === next));
+  /* The flat layout folds every hydrogen into the atom it hangs on, so the
+     button has nothing to say there. Disabled rather than hidden: a control
+     that vanishes reads as one you imagined. */
+  hyd.disabled = next !== '3d';
   $('m-hint').textContent = HINT[next];
 }
 modes.addEventListener('click', e => {
   const b = e.target.closest('button');
   if (b) setMode(b.dataset.mode);
 });
+
+/* The nonpolar C-H's, which a spec lists in `optH`. Off to begin with, the way
+   a textbook figure leaves them out: they are most of the atoms and none of the
+   chemistry. An H on N or O is never in that list, so the H-bond donors stay. */
+function setHydrogens(on) {
+  if (!view) return;
+  view.setOptionalH(on);
+  hyd.setAttribute('aria-pressed', String(on));
+  hyd.classList.toggle('is-on', on);
+}
+hyd.addEventListener('click', () => setHydrogens(hyd.getAttribute('aria-pressed') !== 'true'));
 
 function openModal(m) {
   const s = m.spec;
@@ -265,17 +287,20 @@ function openModal(m) {
     onResize: () => { if (view) view.fit(); },
   });
   modes.hidden = !(s.flat2d && s.flat2d.length);
-  /* The switch stands ON the stage, so the frame the molecule is fitted into
-     stops above it — which is what `usable` is for, and it matters most for a
-     wide flat layout. A hidden switch has a zero-sized box, and a zero box
+  hyd.hidden = !(s.optH && s.optH.length);
+  bar.hidden = modes.hidden && hyd.hidden;
+  /* The instruments stand ON the stage, so the frame the molecule is fitted
+     into stops above them — which is what `usable` is for, and it matters most
+     for a wide flat layout. A hidden bar has a zero-sized box, and a zero box
      measured as an edge reserves the whole stage, so skip it. */
-  const around = MolView.usableAround($('m-stage'), { bottom: [modes] });
+  const around = MolView.usableAround($('m-stage'), { bottom: [bar] });
   view = MolView.create({ canvas: box.canvas, camera: box.stage.camera,
                           applyCam: box.stage.applyCam, root: box.stage.root,
-                          usable: () => modes.hidden ? { fw: 1, fh: 1 } : around() });
+                          usable: () => bar.hidden ? { fw: 1, fh: 1 } : around() });
   view.show(s);
   view.fit();
   setMode('3d');
+  setHydrogens(false);
   // One frame now, so the box is never blank in the gap before the loop runs.
   box.draw();
   mount.style.backgroundImage = '';
