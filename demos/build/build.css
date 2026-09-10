@@ -67,7 +67,7 @@ body.work .bar { border-bottom-color: var(--border-hair); }
 .bar .title[contenteditable]:empty::before { content: 'Name this app'; color: var(--text-muted); font-style: italic; }
 .bar .tools { display: flex; gap: 6px; flex-wrap: wrap; align-self: center; }
 .bar .tools[hidden] { display: none; }
-.bar .tools .btn { padding: 4px 11px; font-size: 12px; }
+.bar .tools .btn { padding: 4px 11px; font-size: 12px; text-decoration: none;}
 .bar .tools .btn.is-done { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 .notice { padding: 10px 22px; font-size: 13px; background: var(--surface-card); border-bottom: 1px solid var(--border-hair); color: var(--text-dim); flex: none; }
@@ -597,20 +597,20 @@ body.editing .device { outline: 2px solid var(--accent); outline-offset: -1px; }
 .whylog li { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .whylog .say { font-size: 12px; color: var(--text-dim); line-height: 1.35; }
 
-.refs { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; }
+.refs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
 .refs[hidden] { display: none; }
 .ref {
   display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
-  padding: 2px 3px 2px 6px; border-radius: 4px;
-  font-size: var(--cap-sm); letter-spacing: .04em;
+  padding: 4px 4px 4px 9px; border-radius: 6px;
+  font-size: 13px; letter-spacing: .01em; line-height: 16px;
   background: color-mix(in srgb, var(--text-muted) 12%, transparent);
-  color: var(--text-muted);
+  color: var(--text-body);
 }
-.ref i { font-size: 11px; opacity: .8; }
+.ref i { font-size: 14px; opacity: .8; color: var(--text-dim); }
 .ref > :not(button) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ref button {
   border: 0; background: none; cursor: pointer; color: inherit; opacity: .65;
-  font: inherit; font-size: 13px; line-height: 1; padding: 0 3px;
+  font: inherit; font-size: 15px; line-height: 1; padding: 0 4px;
 }
 .ref button:hover { opacity: 1; }
 
