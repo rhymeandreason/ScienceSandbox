@@ -49,6 +49,7 @@
     'lib/mol-glycans.js',
     'lib/mol-aminoacids.js',
     'lib/mol-lipids.js',
+    'lib/mol-nucleic.js',
     'lib/scene.js',
     'lib/fx.js',
     'lib/geo.js',            // before card-stage.js
@@ -80,6 +81,7 @@
     'macromolecule/glycosidic.js',
     'macromolecule/ester.js',
     'macromolecule/peptide.js',
+    'macromolecule/nucleoside.js',   // after glycosidic.js: it borrows quatOf
     'condense/condense.js',
     'cell/organelles.js',
     'cell/animalcell.js',
@@ -139,7 +141,8 @@
                  'lib/mol-aminoacids.js', 'lib/mol-lipids.js', 'lib/fx.js',
                  'chain/frame.js', 'macromolecule/spec.js',
                  'macromolecule/glycosidic.js', 'macromolecule/ester.js',
-                 'macromolecule/peptide.js', 'condense/condense.js'],
+                 'macromolecule/peptide.js', 'macromolecule/nucleoside.js',
+                 'lib/mol-nucleic.js', 'condense/condense.js'],
     Graph:      ['https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
                  'https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js',
                  'graph/graph.js'],

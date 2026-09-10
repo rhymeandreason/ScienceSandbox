@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>condense bench — one bond, one water, seven pairs</title>
+<title>condense bench — one bond, one water, ten pairs</title>
 <link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="../css/lesson-shell.css">
 <style>
@@ -27,6 +27,7 @@
 <script src="../lib/mol-glycans.js"></script>
 <script src="../lib/mol-aminoacids.js"></script>
 <script src="../lib/mol-lipids.js"></script>
+<script src="../lib/mol-nucleic.js"></script>
 <script src="../lib/scene.js"></script>
 <script src="../lib/fx.js"></script>
 <script src="../lib/annotate.js"></script>
@@ -35,6 +36,7 @@
 <script src="../macromolecule/glycosidic.js"></script>
 <script src="../macromolecule/ester.js"></script>
 <script src="../macromolecule/peptide.js"></script>
+<script src="../macromolecule/nucleoside.js"></script>
 <script src="../kit/card-stage.js"></script>
 <script src="../kit/lesson-shell.js"></script>
 <script src="../condense/condense.js"></script>
@@ -56,6 +58,10 @@ const PAIRS = [
   /* The same reaction on a tail with one cis double bond — contrast-lab's own
      pair, and why butter is solid and oil is not. The kink is the difference. */
   { from: ['glycerol', 'palmitoleate'],     label: 'glycerol + palmitoleate' },
+  /* The fourth condensation, and the only one whose halves are different kinds
+     of molecule: a sugar and a base make a nucleoside. Measured off dATP. */
+  { from: ['deoxyribose', 'adenine'],       label: 'deoxyribose + adenine' },
+  { from: ['deoxyribose', 'thymine'],       label: 'deoxyribose + thymine' },
   { from: ['glycine', 'alanine'],           label: 'glycine + alanine' },
   /* TWO BONDS FROM ONE PAIR, and the only thing separating them is `role`.
      Glutamate carries a second carboxyl on its side chain, so the same two
@@ -95,7 +101,7 @@ function bench(ctx) {
     <div class="bench-group">
       <div class="bench-hd">the pair</div>
       <div class="chips" id="pairs"></div>
-      <p class="foot">Three linkage classes. The component picks which from the two molecules' own
+      <p class="foot">Four linkage classes. The component picks which from the two molecules' own
         <code>condense</code> roles, so it cannot be asked for a peptide bond between two sugars.
         The last two are the same pair: only <code>role</code> differs, and it moves the bond from
         glutamate's backbone to its side chain.</p>

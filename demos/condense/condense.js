@@ -130,6 +130,14 @@
                   the record. It knows which — LINKAGE is keyed by monomer — it
                   just cannot fetch it, being Node-loadable with no MolLib. */
                refs: ['cellobiose', 'maltose', 'galactobiose', 'lactose'] };
+    /* A sugar and a base: the fourth condensation, and the only one whose two
+       halves are different KINDS of molecule. Tested before the peptide because
+       a base carries neither a carboxyl nor an amino role and would fall
+       through to the ester's slot test otherwise. */
+    if (global.Nucleoside && global.Nucleoside.routeFor(hk, gk))
+      return { name: 'nucleoside', donor: 'c1', acceptor: 'glyco',
+               pose: (H, G, o) => global.Nucleoside.pose(H, G, o.refs),
+               refs: ['dATP', 'dGTP', 'dTTP', 'dCTP'] };
     if (has(h, 'carboxyl') && has(g, 'amino'))
       return { name: 'peptide', donor: 'carboxyl', acceptor: 'amino',
                pose: (H, G, o) => global.Peptide.pose(H, G, o.role), refs: [] };
@@ -327,9 +335,15 @@
          reacted state instead would push the two molecules out of shot while
          they were still apart, which is most of the reaction. */
       apply(0);
-      const bb = new THREE.Box3().setFromObject(group);
-      const size = bb.getSize(new THREE.Vector3()), mid = bb.getCenter(new THREE.Vector3());
-      B.bounds = { centre: mid, rxz: Math.max(size.x, size.z) / 2, hy: size.y / 2 };
+      /* THE TWO MOLECULES ONLY. `setFromObject(group)` takes the whole scene,
+         and the whole scene at this moment includes the bond that has not been
+         made yet — built spanning the gap, invisible, and counted anyway, since
+         a Box3 does not care what is drawn. It dragged the centre off and left
+         one end of a tall pair nearly touching the frame edge. The water is
+         left out for the same reason from the other side: it is going to
+         leave, and framing to include its exit would shrink everything else. */
+      const bb = new THREE.Box3().setFromObject(gA).expandByObject(gB);
+      B.bounds = { centre: bb.getCenter(new THREE.Vector3()) };
       apply(p.progress);
       emit('build', state());
       return B;
@@ -524,12 +538,27 @@
     const api = { step, state, set, on, anchors, facings, library,
                   layersOf, show, palette, group,
                   bounds: () => B && B.bounds,
+                  /* Every drawn atom, in world space. A caller framing this has
+                     to measure across the CAMERA's axes, not the world's, and
+                     only it knows where the camera is. */
+                  points: () => {
+                    const out = [];
+                    if (!B) return out;
+                    [B.gA, B.gB].forEach(g => {
+                      g.updateMatrixWorld(true);
+                      g.userData.atomMeshes.forEach((m, i) => {
+                        if (m && m.visible !== false) out.push(g.userData.atomWorld(i));
+                      });
+                    });
+                    return out;
+                  },
                   destroy() { clear(); root.remove(group); } };
     return api;
   }
 
   function mount(el, params) {
     params = params || {};
+    const MolLib = global.MolLib;
     if (!global.CardStage) throw new Error('condense.js: load kit/card-stage.js first');
     let sim = null, last = null, nb = null, FXi = null;
     const box = global.CardStage.create({
@@ -577,8 +606,23 @@
       const fn = params.viewOffset || el.viewOffset;
       const off = (fn && W && H) ? fn(W, H) : null;
       const room = off && off.x ? Math.max(0.25, (W - 2 * Math.abs(off.x)) / W) : 1;
+      /* MEASURED ACROSS THE CAMERA'S AXES, not the world's. A Box3's y is world
+         up, and this camera looks nearly straight down — so world y runs INTO
+         the shot and the screen's vertical extent is mostly world z. Framing on
+         the box's own y understated the height badly, and a tall pair (a base
+         hanging below its sugar) sat with one end on the edge of the frame. */
+      box.camera.updateMatrixWorld();
+      const right = new THREE.Vector3().setFromMatrixColumn(box.camera.matrixWorld, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(box.camera.matrixWorld, 1);
+      const d = new THREE.Vector3();
+      let hw = 0, hh = 0;
+      sim.points().forEach(p => { d.copy(p).sub(b.centre);
+        hw = Math.max(hw, Math.abs(d.dot(right)));
+        hh = Math.max(hh, Math.abs(d.dot(up))); });
+      // …plus an atom, since a centre on the edge still shows half a sphere.
+      const r = MolLib.PALETTE.radii.O || 1;
       global.Stage.frame(box.camera, box.cam,
-                         [{ x: 0, y: 0, rxz: b.rxz / room, hy: b.hy }], { pad: 1.3 });
+                         [{ x: 0, y: 0, rxz: (hw + r) / room, hy: hh + r }], { pad: 1.15 });
       box.applyCam();
     }
     /* ORTHOGRAPHIC, for the reason every side-by-side page in this repo is: under
