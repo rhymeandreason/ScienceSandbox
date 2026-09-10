@@ -104,13 +104,17 @@ const Apps = (() => {
   const RELAY = `<script>(function(){function send(m){try{parent.postMessage({type:'app-error',message:String(m).slice(0,300)},'*')}catch(e){}}
 window.addEventListener('error',function(e){send((e.message||'error')+(e.filename?' @ '+String(e.filename).split('/').pop()+':'+e.lineno:''))});
 window.addEventListener('unhandledrejection',function(e){send('unhandled: '+(e.reason&&e.reason.message||e.reason))});
-/* The thumb: a real capture of the page, panel and all, by html2canvas-pro (the fork that parses color-mix and oklab; plain html2canvas throws on the shell's tokens) loaded
-   on demand. A WebGL canvas reads back blank once the frame is composited, so
-   inside the app's own rAF callback, right after it drew, every large canvas
-   is copied to an image first, and the clone html2canvas rasterises gets those
-   images in place of its (empty) canvases. Armed three seconds in, so the
-   scene has settled; taken once, and again whenever the builder asks. */
-var armed=false,done=false,asked=false,lib=null,ed=null;setTimeout(function(){armed=true},3000);
+/* THE THUMB IS NOT A PICTURE OF THE PAGE. It is the scene, plus the words on
+   the card in front of it, and the shelf composes the two in its own DOM.
+   Rasterising the panel here meant html2canvas reimplementing CSS, which broke
+   on every token the shell added (it already needed the fork that parses
+   color-mix and oklab); the canvas readback underneath it always worked. So
+   only the canvas is captured, and the panel travels as the four strings the
+   shell has already rendered. Both shells wear the same card, so one set of
+   strings covers steps and sandbox alike: nav is the Back/Next row the sandbox
+   does without. Armed three seconds in, so the scene has settled; taken once,
+   and again whenever the builder asks. */
+var armed=false,done=false,asked=false,tries=0,ed=null;setTimeout(function(){armed=true},3000);
 /* The text editor is a real file, fetched the first time the builder turns the
    mode on: a page being read never pays for it. */
 window.addEventListener('message',function(e){if(!e.data)return;if(e.data.type==='app-snap')asked=true;
@@ -128,20 +132,58 @@ return{eyebrow:String(t.eyebrow||''),title:String(t.title||''),scene:[].concat(t
 try{parent.postMessage(o,'*')}catch(x){}}
 document.addEventListener('lessonshell:step',outline);
 var raf=window.requestAnimationFrame.bind(window);
-window.requestAnimationFrame=function(cb){return raf(function(t){cb(t);if((armed&&!done)||asked){done=true;asked=false;snap()}})};
-function loadLib(){return lib||(lib=new Promise(function(ok,bad){if(window.html2canvas)return ok();var s=document.createElement('script');
-s.src='https://cdn.jsdelivr.net/npm/html2canvas-pro@2.4.2/dist/html2canvas-pro.min.js';s.onload=function(){ok()};s.onerror=function(){lib=null;bad()};document.head.appendChild(s)}))}
+/* A SHOT IS TAKEN, NOT ATTEMPTED. This used to mark itself done before snap
+   ran, so the one frame it happened to land on decided whether the app ever
+   got a thumb: a frame that drew nothing reads back blank, snap drops it
+   rather than overwrite a good still with a flat rectangle, and the page then
+   never tried again. Now only a posted shot ends it, and a page that can never
+   post one stops after a few seconds of frames instead of forever. */
+window.requestAnimationFrame=function(cb){return raf(function(t){cb(t);
+if(!((armed&&!done)||asked))return;
+if(snap()){done=true;asked=false;tries=0;return}
+if(++tries>300){done=true;asked=false;tries=0}})};
+/* The scene the student is looking at, which is not always the biggest canvas:
+   a shell hands out up to four and keeps the hidden ones sized, so a layer
+   marked is-off is a live context drawing something no one is being shown. */
+function shown(){var best=null,area=0,cs=document.querySelectorAll('canvas');
+for(var i=0;i<cs.length;i++){var c=cs[i],lay=c.closest?c.closest('.lshell-scene'):null;
+if(c.width<50||c.height<50)continue;
+if(lay&&lay.classList.contains('is-off'))continue;
+if(!c.offsetParent&&getComputedStyle(c).position!=='fixed')continue;
+var a=c.width*c.height;if(a>area){area=a;best=c}}
+return best}
+/* Read off the rendered panel, not the step object: body may be a function of
+   ctx, and what the card actually says is what the shelf should repeat. */
+function words(){var p=document.querySelector('.lshell-panel');
+var t=function(s){var e=p&&p.querySelector(s);return e?String(e.textContent||'').replace(/\\s+/g,' ').trim():''};
+var b=document.querySelector('.lshell-brand'),bd=p&&p.querySelector('.body'),body='';
+/* Joined across the block children: textContent alone runs the last word of one
+   paragraph into the first of the next. */
+if(bd)body=String(bd.children.length?[].map.call(bd.children,function(n){return n.textContent}).join(' '):bd.textContent).replace(/\\s+/g,' ').trim();
+return{brand:String((b&&b.textContent)||document.title||'').trim().slice(0,80),
+eyebrow:t('.eyebrow').slice(0,60),title:t('.title').slice(0,120),body:body.slice(0,320),
+steps:document.querySelectorAll('.lshell-progress > *').length,
+nav:!!document.querySelector('.lshell-nav')}}
 function snap(){try{
-var cs=[].slice.call(document.querySelectorAll('canvas')),copies=cs.map(function(c){if(c.width<50||c.height<50)return null;try{return c.toDataURL('image/png')}catch(e){return null}});
-var W=innerWidth,H=innerHeight,bg=getComputedStyle(document.body).backgroundColor;if(W<50||H<50)return;
-loadLib().then(function(){return html2canvas(document.body,{scale:Math.min(1,640/W),backgroundColor:bg,logging:false,useCORS:true,width:W,height:H,windowWidth:W,windowHeight:H,
-onclone:function(doc){var cl=doc.querySelectorAll('canvas');for(var i=0;i<cl.length&&i<copies.length;i++){if(!copies[i])continue;var im=doc.createElement('img');im.src=copies[i];im.style.cssText=cl[i].style.cssText;im.className=cl[i].className;im.width=cl[i].clientWidth;im.height=cl[i].clientHeight;im.style.width=cl[i].clientWidth+'px';im.style.height=cl[i].clientHeight+'px';cl[i].parentNode.replaceChild(im,cl[i])}}})})
-.then(function(src){var w=480,h=300,c=document.createElement('canvas');c.width=w;c.height=h;var g=c.getContext('2d');
-/* cover-crop to the shelf card's 16:10, centred */
-var cw=Math.min(src.width,src.height*1.6),ch=cw/1.6,sx=(src.width-cw)/2,sy=(src.height-ch)/2;
-g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,sx,sy,cw,ch,0,0,w,h);parent.postMessage({type:'app-thumb',data:c.toDataURL('image/jpeg',.72)},'*')})
-.catch(function(){});
-}catch(e){}}
+var c=shown();if(!c)return false;
+var w=640,h=400,out=document.createElement('canvas');out.width=w;out.height=h;var g=out.getContext('2d');
+g.fillStyle=getComputedStyle(document.body).backgroundColor||'#faf8f4';g.fillRect(0,0,w,h);
+/* cover-crop to the card's 16:10, centred */
+var cw=Math.min(c.width,c.height*1.6),ch=cw/1.6,sx=(c.width-cw)/2,sy=(c.height-ch)/2;
+g.drawImage(c,sx,sy,cw,ch,0,0,w,h);
+/* A WebGL canvas whose buffer has been cleared reads back as one flat colour,
+   and a flat rectangle on the shelf looks broken where paper looks unstarted.
+   It would also overwrite a good thumb, so it is dropped instead of posted. */
+var px=g.getImageData(0,0,w,h).data,seen={};
+for(var i=0;i<px.length;i+=4000)seen[px[i]+','+px[i+1]+','+px[i+2]]=1;
+if(Object.keys(seen).length<3)return false;
+/* The API caps the data URL at 80 KB. A busy scene overruns that at .72, so
+   quality gives way until it fits rather than the POST failing. */
+var q=.72,data=out.toDataURL('image/jpeg',q);
+while(data.length>76000&&q>.35){q-=.1;data=out.toDataURL('image/jpeg',q)}
+if(data.length>76000)return false;
+parent.postMessage({type:'app-thumb',data:data,meta:words()},'*');return true;
+}catch(e){return false}}
 })();</script>`;
 
   function framed(html, relay = RELAY) {
@@ -164,7 +206,7 @@ g.fillStyle=bg;g.fillRect(0,0,w,h);g.drawImage(src,sx,sy,cw,ch,0,0,w,h);parent.p
     const errors = [];
     const listener = e => {
       if (e.source !== iframe.contentWindow || !e.data) return;
-      if (e.data.type === 'app-thumb') { if (onThumb) onThumb(e.data.data); return; }
+      if (e.data.type === 'app-thumb') { if (onThumb) onThumb(e.data.data, e.data.meta); return; }
       if (/^app-(edit|select|outline)/.test(e.data.type)) { if (onEdit) onEdit(e.data); return; }
       if (e.data.type !== 'app-error') return;
       errors.push(e.data.message);

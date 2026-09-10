@@ -126,6 +126,15 @@ async function addVersion(appId, { kind, html, request, summary, errors, provide
             ${provider || null}, ${model || null}, ${usage ? JSON.stringify(usage) : null},
             ${Number.isFinite(ms) ? ms : null}, ${error || null})
     RETURNING n, created_at`;
+  /* The card's words, so an app has some before anyone opens it: a capture from
+     the running page is better and replaces these, which is why this only ever
+     fills a card that has none. Never allowed to fail a save — the version is
+     the record, and a shelf card is decoration. */
+  try {
+    const m = require('./_thumbmeta.js').fromSource(html);
+    if (m) await db`UPDATE apps SET thumb_meta = ${JSON.stringify(m)}
+                    WHERE id = ${appId} AND thumb_meta IS NULL`;
+  } catch (e) { console.error('[apps] thumb_meta: ' + ((e && e.message) || e)); }
   return row;
 }
 
@@ -184,9 +193,73 @@ async function setTitle(id, title) {
   await db`UPDATE apps SET title = ${String(title || '').slice(0, 120) || null} WHERE id = ${id}`;
 }
 
-async function setThumb(id, thumb) {
+/* The still and the words go together or the card is drawn half from this
+   version and half from the last one.
+
+   WORDLESS IS NOT PICTURELESS. A page whose panel is empty when the shot is
+   taken (one that never reached its first step, say) still posts a good scene,
+   and writing null over the row for it left an image no shelf would ever draw:
+   `scene` is the claim that decides that, and it belongs to the capture, not
+   to the words. So the words are replaced only when there are some, and the
+   claim is recorded either way. */
+async function setThumb(id, thumb, meta) {
   const db = log.sql();
-  await db`UPDATE apps SET thumb = ${thumb || null} WHERE id = ${id}`;
+  const words = meta && meta.title ? JSON.stringify(meta) : null;
+  await db`UPDATE apps
+              SET thumb = ${thumb || null},
+                  thumb_meta = CASE WHEN ${thumb || null}::text IS NULL THEN NULL
+                    ELSE COALESCE(${words}::jsonb, COALESCE(thumb_meta, '{}'::jsonb))
+                         || jsonb_build_object('scene', ${!!(meta && meta.scene)}::boolean) END
+            WHERE id = ${id}`;
+}
+
+/* The words alone, without disturbing the still beside them: the source
+   extractor sets these, and a later capture from the running page replaces
+   them. `_thumbmeta.js` says why the two are not equals.
+
+   IT MERGES, IT DOES NOT REPLACE. `scene` is a claim about the picture, which
+   only the capture that took it can make, and a plain write of the words
+   erased it: a shelf full of good scene stills went back to blank paper
+   because a `cards --force` pass ran over them afterwards. Only the six
+   fields this owns are overwritten; whatever else the row carries survives. */
+async function setCard(id, meta) {
+  const db = log.sql();
+  await db`UPDATE apps
+              SET thumb_meta = ${JSON.stringify(meta)}::jsonb
+                             || (COALESCE(thumb_meta, '{}'::jsonb)
+                                 - 'brand' - 'eyebrow' - 'title' - 'body' - 'steps' - 'nav')
+            WHERE id = ${id}`;
+}
+
+/* Every stored still whose row does not say whether it is the scene, so the
+   size of the image itself can answer. `_schema.sql` says why the flag decides
+   what the shelf draws. */
+async function thumbsWithoutSceneFlag() {
+  const db = log.sql();
+  return db`SELECT id, title, thumb FROM apps
+             WHERE thumb IS NOT NULL AND (thumb_meta->'scene') IS NULL
+             ORDER BY created_at DESC`;
+}
+
+async function markScene(id) {
+  const db = log.sql();
+  await db`UPDATE apps SET thumb_meta = COALESCE(thumb_meta, '{}'::jsonb) || '{"scene":true}'::jsonb
+            WHERE id = ${id}`;
+}
+
+/* Each app's newest stored source, for the apps whose card has no words yet.
+   The join is DISTINCT ON rather than a max() subquery because a version is
+   wanted whole and only the newest one. */
+async function sourcesNeedingCards(force) {
+  const db = log.sql();
+  return force
+    ? db`SELECT DISTINCT ON (v.app_id) v.app_id AS id, a.title, v.html AS src
+           FROM app_versions v JOIN apps a ON a.id = v.app_id
+          ORDER BY v.app_id, v.created_at DESC`
+    : db`SELECT DISTINCT ON (v.app_id) v.app_id AS id, a.title, v.html AS src
+           FROM app_versions v JOIN apps a ON a.id = v.app_id
+          WHERE a.thumb_meta IS NULL
+          ORDER BY v.app_id, v.created_at DESC`;
 }
 
 /* The shelf: title, thumb and last-edited for a handful of ids the browser
@@ -197,7 +270,7 @@ async function shelf(ids) {
   const db = log.sql();
   const list = ids.filter(validId).slice(0, 24);
   if (!list.length) return [];
-  return db`SELECT a.id, a.title, a.thumb,
+  return db`SELECT a.id, a.title, a.thumb, a.thumb_meta,
                    COALESCE((SELECT max(v.created_at) FROM app_versions v WHERE v.app_id = a.id),
                             a.created_at) AS edited
             FROM apps a WHERE a.id = ANY(${list})`;
@@ -229,6 +302,7 @@ async function usage() {
             GROUP BY 1, 2 ORDER BY 1 DESC, 2`;
 }
 
-module.exports = { LIMITS, enabled, exceeded, validId, setThumb, shelf,
+module.exports = { LIMITS, enabled, exceeded, validId, setThumb, setCard, sourcesNeedingCards,
+                   thumbsWithoutSceneFlag, markScene, shelf,
                    create, addVersion, read, versions, version, requests,
                    mayEdit, rotate, setTitle, recent, usage };

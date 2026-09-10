@@ -201,10 +201,17 @@ CREATE TABLE IF NOT EXISTS apps (
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 
--- A small JPEG data URL the builder captured from the running app, for the
--- shelf. Capped at the API, replaced on every edit, never served to anyone but
--- the browser that holds the ids.
+-- What the shelf draws a card from. `thumb` is a small JPEG data URL of the
+-- scene, captured from the running app, and `thumb_meta.scene` is what says so:
+-- thumbs taken before the shelf drew its own panel are whole pages with a
+-- rasterised panel in them, and the shelf skips those rather than drawing a
+-- second panel over the first. `thumb_meta` is the words on the card — brand, eyebrow, title, body, step count, and whether
+-- the shell wears a Back/Next row. The shelf composes the two in its own DOM,
+-- so the panel is never rasterised and stays sharp at any size. Both are
+-- capped at the API, replaced on every edit, and served only to the browser
+-- that holds the ids.
 ALTER TABLE apps ADD COLUMN IF NOT EXISTS thumb text;
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS thumb_meta jsonb;
 
 CREATE TABLE IF NOT EXISTS app_versions (
   id          bigserial PRIMARY KEY,

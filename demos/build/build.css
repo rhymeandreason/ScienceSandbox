@@ -348,15 +348,67 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
   box-shadow: 0 10px 20px -16px color-mix(in srgb, var(--brand-ink) 50%, transparent);
   transition: transform var(--dur-base), border-color var(--dur-base);
 }
-.mine .thumb[style] { background-size: cover; }
 /* A live card: the app rendered at laptop size and scaled to the slot, inert.
    The slot's own size decides the scale, so the frame is laid out at a fixed
    960 wide and shrunk by the ratio. */
 .mine .thumb { position: relative; overflow: hidden; }
-.mine .live {
-  position: absolute; left: 0; top: 0; width: 960px; height: 600px; border: 0;
-  transform-origin: 0 0; transform: scale(var(--k, .16)); pointer-events: none; background: var(--surface-card);
+.mine .live, .mine .card {
+  position: absolute; left: 0; top: 0; width: 960px; height: 600px;
+  transform-origin: 0 0; transform: scale(var(--k, .16));
 }
+.mine .live { border: 0; pointer-events: none; background: var(--surface-card); }
+
+/* A still card: the same box with the frame swapped for the stored scene, and
+   the shell's own first card rebuilt over it in DOM. The panel is never
+   rasterised, so it stays sharp at any size and re-themes with the page.
+
+   THE SHELL'S STYLESHEET CANNOT BE REUSED HERE. Its panel is position:fixed
+   and sized in vw, and both resolve against the window rather than this 960
+   box, so the measurements it uses at 960 wide are restated. That makes this a
+   miniature and not a replica: it tracks the card's SHAPE, and a restyle of
+   the shell will not reach it. Keep it to shape, and let the live cards above
+   carry the detail. */
+/* No background COLOUR: an app whose words are stored but whose scene never
+   captured falls through to the slot's own paper rather than a flat fill. */
+.mine .card {
+  display: block; background: center / cover no-repeat;
+  --panel-fill: color-mix(in srgb, #fff 86%, transparent);
+}
+.mine .s-top {
+  position: absolute; left: 24px; right: 24px; top: 22px; height: 28px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.mine .s-brand {
+  font-family: var(--font-display); font-weight: 500; font-size: 15px;
+  letter-spacing: .04em; color: var(--text-strong);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 60%;
+}
+.mine .s-dots { display: flex; gap: 6px; }
+.mine .s-dots i { width: 6px; height: 6px; border-radius: 50%; background: color-mix(in srgb, var(--text-strong) 22%, transparent); }
+.mine .s-dots i:first-child { background: var(--accent); }
+.mine .s-panel {
+  position: absolute; left: 24px; top: 76px; bottom: 24px; width: 430px;
+  display: flex; flex-direction: column; border-radius: 24px;
+  background: var(--panel-fill); border: 1px solid rgba(255,255,255,.7);
+  backdrop-filter: blur(20px) saturate(1.3); -webkit-backdrop-filter: blur(20px) saturate(1.3);
+  box-shadow: 0 30px 70px -40px color-mix(in srgb, var(--brand-ink) 45%, transparent);
+}
+.mine .s-scroll { flex: 1; overflow: hidden; padding: 36px 36px 16px; }
+.mine .s-eyebrow {
+  display: block; font-family: var(--font-display); font-weight: 500; font-size: 12px;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin-bottom: 14px;
+}
+.mine .s-title {
+  display: block; font-family: var(--font-display); font-weight: 500; font-size: 28px;
+  line-height: 1.08; letter-spacing: -.012em; color: var(--text-strong); margin-bottom: 20px;
+}
+.mine .s-body { display: block; font-family: var(--font-editorial); font-size: 17px; line-height: 1.55; color: #2a2c30; }
+.mine .s-nav {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 20px 18px; border-top: 1px solid var(--border-hair);
+}
+.mine .s-nav i { display: block; width: 62px; height: 30px; border-radius: 999px; border: 1px solid var(--border-hair); }
+.mine .s-nav i.primary { background: var(--accent); border-color: var(--accent); }
 .mine li { min-width: 0; }
 /* Title and date share one block so the date hangs off the title's baseline
    rather than floating a second gap below the thumb. */

@@ -7,6 +7,11 @@
  *    node demos/tools/db.js aim      where the tutor pointed, by target
  *    node demos/tools/db.js cost     turns, tokens and dollars per day
  *    node demos/tools/db.js apps     the builder's apps, newest first
+ *    node demos/tools/db.js cards [--force]
+ *                                    fill the shelf card's words from each app's
+ *                                    own source, where no capture has set them
+ *    node demos/tools/db.js scenes   mark the stills that are the scene alone,
+ *                                    which is what the shelf will draw
  *    node demos/tools/db.js builds   the builder's tokens and dollars per cohort per day
  *    node demos/tools/db.js seed <page> [title]
  *                                    store a page as an app; prints the view and edit links.
@@ -29,6 +34,20 @@ for (const line of read(path.join(ROOT, '.env.local')).split('\n')) {
 function read(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
 
 const log = require(path.join(ROOT, 'api/_log.js'));
+
+/* Width and height out of a JPEG's first frame header. Node reads no images,
+   and the one question here is the size, so the markers are walked directly. */
+function jpegSize(buf) {
+  for (let i = 2; i + 9 < buf.length;) {
+    if (buf[i] !== 0xFF) { i++; continue; }
+    const m = buf[i + 1], len = buf.readUInt16BE(i + 2);
+    if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+      return [buf.readUInt16BE(i + 7), buf.readUInt16BE(i + 5)];
+    }
+    i += 2 + len;
+  }
+  return null;
+}
 
 const CMDS = {
   async init() {
@@ -86,6 +105,48 @@ const CMDS = {
       + `${r.cohort || '-'}  ${r.parent_id ? 'remix of ' + r.parent_id + '  ' : ''}${r.title || '(untitled)'}`);
   },
 
+  /* Fills `thumb_meta` from each app's own stored source, for the cards that
+     have never been captured. Only where it is null: a capture from the running
+     page says more than the file does and must not be overwritten. `--force`
+     re-reads every app, for when the extractor itself has changed. */
+  async cards(...argv) {
+    const apps = require(path.join(ROOT, 'api/_apps.js'));
+    const meta = require(path.join(ROOT, 'api/_thumbmeta.js'));
+    const force = argv.includes('--force');
+    const rows = await apps.sourcesNeedingCards(force);
+    if (!rows.length) return console.log('every app already has its words');
+    let filled = 0, none = 0;
+    for (const r of rows) {
+      const m = meta.fromSource(r.src);
+      if (!m) { none++; console.log(`  --  ${r.id}  ${(r.title || '(untitled)').slice(0, 40)}  (no shell: nothing to draw)`); continue; }
+      await apps.setCard(r.id, m);
+      filled++;
+      console.log(`  ok  ${r.id}  ${String(m.steps).padStart(2)} steps  ${m.title.slice(0, 44)}`);
+    }
+    console.log(`\n${filled} filled, ${none} without a first card, of ${rows.length}`);
+  },
+
+  /* Says which stored stills are the scene alone. The shelf draws the image
+     only when the row claims that (`_schema.sql`), and rows lost the claim two
+     ways: a `cards --force` pass used to overwrite it, and the source
+     extractor never had it to give. The image's own size answers — the
+     scene-only relay writes 640x400, the whole-page capture it replaced wrote
+     480x300 — so this reads the JPEG rather than guessing from dates. */
+  async scenes() {
+    const apps = require(path.join(ROOT, 'api/_apps.js'));
+    const rows = await apps.thumbsWithoutSceneFlag();
+    if (!rows.length) return console.log('every still already says what it is');
+    let scene = 0, page = 0;
+    for (const r of rows) {
+      const d = jpegSize(Buffer.from((r.thumb || '').split(',')[1] || '', 'base64'));
+      const is = d && d[0] === 640 && d[1] === 400;
+      if (is) { await apps.markScene(r.id); scene++; }
+      else page++;
+      console.log(`  ${is ? 'ok ' : '-- '} ${r.id}  ${d ? d.join('x') : 'unreadable'}  ${(r.title || '(untitled)').slice(0, 40)}`);
+    }
+    console.log(`\n${scene} marked as the scene, ${page} left as whole-page captures to retake`);
+  },
+
   async builds() {
     const apps = require(path.join(ROOT, 'api/_apps.js'));
     const rows = await apps.usage();
@@ -125,6 +186,6 @@ const CMDS = {
     console.error('DATABASE_URL is not set in .env.local');
     process.exit(1);
   }
-  try { await CMDS[cmd](); }
+  try { await CMDS[cmd](...process.argv.slice(3)); }
   catch (err) { console.error(err.message); process.exit(1); }
 })();

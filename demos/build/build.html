@@ -380,12 +380,13 @@
   $('editCancel').addEventListener('click', leave);
   $('editSave').addEventListener('click', () => Apps.editMode.save(frame));
 
-  // The relay's snapshot of the running app, kept on the app row for the shelf.
+  // The relay's snapshot of the running app: the scene as an image, the card in
+  // front of it as its words. The shelf draws the second one itself.
   let snapAsked = false;
-  async function saveThumb(data) {
+  async function saveThumb(data, meta) {
     if (!app || !token || !data) return;
     try {
-      await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'thumb', id: app.id, thumb: data } });
+      await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'thumb', id: app.id, thumb: data, meta } });
       if (snapAsked) notice('Thumbnail taken.');
     } catch (err) { if (snapAsked) notice(err.message, true); }
     snapAsked = false;
@@ -651,17 +652,42 @@
   }
 
   // The shelf. The first few cards are the apps themselves, live in a scaled,
-  // inert frame: a thumb of the page never caught all of its UI. Six is the
-  // cap, since each is a WebGL context. Beyond that a card shows its stored
-  // thumb, or paper.
+  // inert frame; six is the cap, since each is a WebGL context. Beyond that a
+  // card is the same box with the frame swapped for a still: the scene as the
+  // stored image, the shell's own card rebuilt over it from the words stored
+  // beside it. Same 960x600 layout, same scale, so the two halves of the shelf
+  // read as one set. With neither, paper.
   const LIVE = 6;
   async function paintMine() {
     const list = Apps.mine().filter(m => !app || m.id !== app.id).slice(0, 12);
     const box = $('mine');
     if (!list.length) { box.hidden = true; return; }
     box.hidden = false; $('down').hidden = false;
-    const card = (m, i) => `<li><a href="${location.pathname}?id=${esc(m.id)}"><span class="thumb"${m.thumb && i >= LIVE ? ` style="background-image:url(${esc(m.thumb)})"` : ''}>`
-      + (i < LIVE ? `<iframe class="live" data-id="${esc(m.id)}" title="" tabindex="-1" aria-hidden="true"></iframe>` : '')
+    // The panel, as the shell draws it. `nav` is the Back/Next row the sandbox
+    // shell does without; the dots are one per step.
+    const still = m => {
+      const t = m.meta;
+      if (!m.thumb && !t) return '';
+      // A thumb is only laid down when it is known to be scene-only. A capture
+      // from before the shelf drew its own panel has one rasterised into it,
+      // and the words go over the top of it; the picture is dropped rather than
+      // the panel, since that baked panel is the blank one this replaced. Such
+      // a card is words on paper until its app is next opened and recaptured.
+      const scene = m.thumb && (!t || t.scene);
+      return `<span class="card"${scene ? ` style="background-image:url(${esc(m.thumb)})"` : ''}>`
+        + (t ? `<span class="s-top"><span class="s-brand">${esc(t.brand || '')}</span>`
+             + `<span class="s-dots">${'<i></i>'.repeat(Math.min(t.steps || 0, 12))}</span></span>`
+             + `<span class="s-panel"><span class="s-scroll">`
+             + (t.eyebrow ? `<span class="s-eyebrow">${esc(t.eyebrow)}</span>` : '')
+             + `<span class="s-title">${esc(t.title || '')}</span>`
+             + (t.body ? `<span class="s-body">${esc(t.body)}</span>` : '')
+             + `</span>`
+             + (t.nav ? `<span class="s-nav"><i class="ghost"></i><i class="primary"></i></span>` : '')
+             + `</span>` : '')
+        + `</span>`;
+    };
+    const card = (m, i) => `<li><a href="${location.pathname}?id=${esc(m.id)}"><span class="thumb">`
+      + (i < LIVE ? `<iframe class="live" data-id="${esc(m.id)}" title="" tabindex="-1" aria-hidden="true"></iframe>` : still(m))
       + `</span><span class="meta"><span class="name">${esc(m.title || 'untitled')}</span>`
       + `<time class="when" datetime="${new Date(m.edited || m.at || Date.now()).toISOString()}">${esc(ago(m.edited || m.at))}</time>`
       + `</span></a></li>`;
@@ -670,9 +696,14 @@
     try {
       const r = await Apps.api(`../../api/app?ids=${list.map(m => m.id).join(',')}`);
       const by = Object.fromEntries((r.apps || []).map(a => [a.id, a]));
-      for (const m of list) { const a = by[m.id]; if (a) { m.thumb = a.thumb; m.edited = a.edited; if (a.title) m.title = a.title; } }
+      for (const m of list) { const a = by[m.id]; if (a) { m.thumb = a.thumb; m.meta = a.thumb_meta; m.edited = a.edited; if (a.title) m.title = a.title; } }
       paint();
-    } catch { /* titles from the browser's own store are enough */ }
+    } catch (err) {
+      // The shelf still paints from the browser's own store, so a card keeps its
+      // title and date. Said out loud because the silent version turned one
+      // missing column into twelve blank thumbs with nothing to go on.
+      console.warn('[shelf] no stored thumbs: ' + err.message);
+    }
     const fit = () => { for (const t of box.querySelectorAll('.thumb')) t.style.setProperty('--k', (t.clientWidth / 960).toFixed(4)); };
     fit(); if (!box._ro) { box._ro = new ResizeObserver(fit); box._ro.observe(box); }
     // A live card is a WebGL app, and the shelf sits below the fold: mounting six

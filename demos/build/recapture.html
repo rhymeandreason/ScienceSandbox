@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recapture app thumbnails</title>
+<base href="/demos/build/">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="build.css">
+
+<!-- ===================================================================
+     RETAKE THE SHELF'S STILLS, ONE APP AT A TIME. A thumb is only laid
+     down when it is known to be the scene alone (`thumb_meta.scene`),
+     and every capture taken before that was a whole page with a
+     rasterised panel in it. Those cards draw their words on paper and
+     wait for their app to be opened, which for a shelf full of them is
+     not waiting, it is never.
+
+     So this opens them. Each app is mounted the way the builder mounts
+     it — same sandbox, same relay — left alone long enough to settle,
+     and the thumb it posts is saved under the app's own edit token.
+
+     NO SPECIAL ACCESS, AND IT NEEDS NONE. The shelf is `Apps.mine()`,
+     which IS the token store: a card is on it because this browser
+     holds the right to save that app. Reading a page is public
+     (`GET /api/app?id=`), so nothing here is a door the builder does
+     not already have.
+
+     INTERNAL TOOL. The frame has to be on screen and unhidden: a
+     backgrounded tab stops rAF, and the relay takes its shot from
+     inside the app's own frame callback.
+     =================================================================== -->
+
+<style>
+  body { display: block; overflow: auto; padding: 2rem; background: var(--surface-page); }
+  h1 { font-family: var(--font-editorial); font-weight: 400; font-size: 1.6rem; margin: 0 0 .3rem; color: var(--text-strong); }
+  p.lede { color: var(--text-dim); margin: 0 0 1.4rem; max-width: 42em; }
+  .row { display: flex; gap: .6rem; align-items: center; margin-bottom: 1.2rem; }
+  ol.list { list-style: none; margin: 1.4rem 0 0; padding: 0; max-width: 46em; }
+  ol.list li {
+    display: flex; gap: .8rem; align-items: baseline; padding: .5rem 0;
+    border-bottom: 1px solid var(--border-hair); font-size: .9rem;
+  }
+  ol.list .who { flex: 1; color: var(--text-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  ol.list .id { font-family: var(--font-mono); font-size: .78rem; color: var(--text-muted); }
+  ol.list .state { min-width: 9em; text-align: right; color: var(--text-muted); font-size: .82rem; }
+  li.done .state { color: var(--accent); }
+  li.bad  .state { color: var(--accent-hot); }
+  li.now { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+  /* The stage is real: laid out at 1440x900 so the scene composes as it does on
+     a laptop, then scaled down so the tool still fits a screen. A transform
+     does not stop it rendering; display:none would. */
+  .stage { width: 1440px; height: 900px; transform-origin: 0 0; transform: scale(.34); }
+  .stagebox { width: 490px; height: 306px; overflow: hidden; border: 1px solid var(--border-hair); border-radius: 8px; margin-top: 1.4rem; background: var(--surface-card); }
+  .stage iframe { width: 1440px; height: 900px; border: 0; }
+</style>
+</head>
+<body>
+
+<h1>Recapture app thumbnails</h1>
+<p class="lede">Opens each of your apps in turn and saves the still the running page posts. Apps whose card already holds a scene are skipped unless you ask for all of them. Leave this tab in front: a background tab stops animating and the shot comes out blank.</p>
+
+<div class="row">
+  <button class="btn btn--tint" id="go" type="button">Recapture</button>
+  <label><input type="checkbox" id="all"> include ones already done</label>
+  <span class="spacer"></span>
+  <span id="tally" class="id"></span>
+</div>
+
+<div class="stagebox"><div class="stage"><iframe id="frame" title="the app being captured"></iframe></div></div>
+
+<ol class="list" id="list"></ol>
+
+<script src="apps-client.js"></script>
+<script>
+'use strict';
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const SETTLE = 25000;              // the relay arms at 3s; a heavy scene loads for longer
+
+  let rows = [];
+
+  async function load() {
+    rows = Apps.mine().filter(m => Apps.tokenFor(m.id));
+    if (!rows.length) { $('list').innerHTML = '<li><span class="who">This browser holds no apps.</span></li>'; return; }
+    paint();
+    // Which already carry a scene, so a second pass can skip them.
+    try {
+      const r = await Apps.api(`../../api/app?ids=${rows.map(m => m.id).join(',')}`);
+      const by = Object.fromEntries((r.apps || []).map(a => [a.id, a]));
+      for (const m of rows) {
+        const a = by[m.id];
+        if (!a) continue;
+        if (a.title) m.title = a.title;
+        m.has = !!(a.thumb && a.thumb_meta && a.thumb_meta.scene);
+      }
+      paint();
+    } catch (err) { note('could not read the shelf: ' + err.message); }
+  }
+
+  function paint() {
+    $('list').innerHTML = rows.map((m, i) => `<li id="r${i}" class="${m.has ? 'done' : ''}">`
+      + `<span class="id">${esc(m.id)}</span>`
+      + `<span class="who">${esc(m.title || 'untitled')}</span>`
+      + `<span class="state">${m.has ? 'has a scene' : 'waiting'}</span></li>`).join('');
+    $('tally').textContent = `${rows.filter(m => m.has).length} of ${rows.length} captured`;
+  }
+  const state = (i, text, cls) => {
+    const li = $('r' + i); if (!li) return;
+    li.className = cls || '';
+    li.querySelector('.state').textContent = text;
+  };
+  const note = t => { $('tally').textContent = t; };
+
+  /* One app: fetch the page, mount it under the relay, and wait for the shot it
+     posts. Resolves with what was saved, or throws with why not. */
+  function capture(m, i) {
+    return new Promise(async (resolve, reject) => {
+      let done = false;
+      const frame = $('frame');
+      const timer = setTimeout(() => finish(new Error('no thumb in ' + (SETTLE / 1000) + 's')), SETTLE);
+      const finish = (err, out) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        frame.removeAttribute('srcdoc');
+        err ? reject(err) : resolve(out);
+      };
+      try {
+        state(i, 'loading', 'now');
+        const app = await Apps.api(`../../api/app?id=${encodeURIComponent(m.id)}`);
+        if (!app.html) return finish(new Error('no page stored'));
+        state(i, 'running', 'now');
+        Apps.mount(frame, app.html, () => {}, async (data, meta) => {
+          if (done) return;
+          try {
+            state(i, 'saving', 'now');
+            await Apps.api('../../api/app', {
+              method: 'POST', token: Apps.tokenFor(m.id),
+              body: { action: 'thumb', id: m.id, thumb: data, meta },
+            });
+            finish(null, { bytes: data.length, title: meta && meta.title });
+          } catch (err) { finish(err); }
+        });
+      } catch (err) { finish(err); }
+    });
+  }
+
+  $('go').addEventListener('click', async () => {
+    const all = $('all').checked;
+    const todo = rows.map((m, i) => [m, i]).filter(([m]) => all || !m.has);
+    if (!todo.length) return note('nothing to do');
+    $('go').disabled = true;
+    let ok = 0, bad = 0;
+    for (const [m, i] of todo) {
+      try {
+        const out = await capture(m, i);
+        m.has = true; ok++;
+        state(i, Math.round(out.bytes / 1024) + ' KB', 'done');
+      } catch (err) {
+        bad++;
+        state(i, err.message, 'bad');
+      }
+      note(`${ok} captured, ${bad} failed, ${todo.length - ok - bad} to go`);
+    }
+    $('go').disabled = false;
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -9,9 +9,10 @@
  *       remix   {visitorId}           → a new app whose parent is this one, with its own token
  *       rotate                        → a fresh token; the old link stops working
  *       title   {title}
- *       thumb   {thumb}                → a small JPEG data URL for the shelf, token required
+ *       thumb   {thumb, meta}          → the scene as a JPEG data URL and the words on
+ *                                       the card in front of it, for the shelf; token required
  *       text    {edits}                → the student's own text edits, applied as a version
- *  GET  /api/app?ids=a,b,c            → title, thumb and last-edited time, for the shelf
+ *  GET  /api/app?ids=a,b,c            → title, thumb, thumb_meta and last-edited, for the shelf
  *
  *  Nothing here calls a model, so nothing here is rate limited. Reading is
  *  open: an id is unguessable and a view link is meant to be shared. A REMIX
@@ -30,8 +31,10 @@
  *  applied by `_builder.js` under the same exactly-once rule the model's edits
  *  meet, then syntax-checked before they are stored. The caller says which
  *  passage changes and to what, never what the file becomes.
- *  The one image here is the thumb: a data URL under 80 KB, on the app row,
- *  token-gated, and only ever read back by a browser that holds the id.
+ *  The one image here is the thumb, and it is the SCENE ONLY: a data URL under
+ *  80 KB on the app row, token-gated, read back only by a browser that holds
+ *  the id. The panel over it travels beside it as text in `thumb_meta`, so the
+ *  shelf redraws the card in its own DOM instead of showing a rasterised one.
  * ========================================================================== */
 'use strict';
 
@@ -155,7 +158,26 @@ module.exports = async function handler(req, res) {
       if (t && !(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(t) && t.length <= 80000)) {
         return res.status(400).json({ error: 'thumb must be a JPEG data URL under 80 KB' });
       }
-      await apps.setThumb(id, t);
+      /* The words are rebuilt here rather than stored as sent: the frame that
+         posts them runs a page the model wrote, and the shelf puts them in its
+         own DOM. Clamped to the fields the card has room for. */
+      const m = body.meta && typeof body.meta === 'object' ? body.meta : null;
+      const str = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
+      const meta = m && {
+        brand:   str(m.brand, 80),
+        eyebrow: str(m.eyebrow, 60),
+        title:   str(m.title, 120),
+        body:    str(m.body, 320),
+        steps:   Math.max(0, Math.min(24, Number(m.steps) || 0)),
+        nav:     !!m.nav,
+        /* The stored image is the SCENE, with no panel in it. Only a capture
+           says so: the words can also be read out of the source, and that says
+           nothing about what the picture beside them contains. Thumbs taken
+           before the shelf drew its own panel are full pages with a rasterised
+           one baked in, and drawing over those gave two panels. */
+        scene:   true,
+      };
+      await apps.setThumb(id, t, meta);
       return res.status(200).json({ id, thumb: !!t });
     }
 
