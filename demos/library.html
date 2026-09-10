@@ -78,16 +78,17 @@
   .does.carrier{color:var(--spark)}
   .blurb{color:var(--muted);line-height:1.5;
     display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
-  .facts{display:flex;flex-wrap:wrap;gap:6px;margin:auto 0 0}
-  .fact{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
-    padding:3px 8px;border-radius:999px;border:1px solid var(--border-hair);
-    background:var(--paper);color:var(--muted)}
-  .fact.predicted{background:var(--spark);border-color:var(--spark);color:#faf8f4}
-  /* A component's feature chips are lowercase: they are what it can show, not
-     a classification. */
+  /* ONE TAG ON EVERY CARD. A component's features, a protein's species and
+     method, a molecule's class: all of them are words read off the data, so
+     they are one chip and set as words — uppercase signage would make a
+     classification out of "sperm whale". */
+  .facts{display:flex;flex-wrap:wrap;gap:.28rem;margin:auto 0 0}
   .feats{list-style:none;display:flex;flex-wrap:wrap;gap:.28rem;margin:.1rem 0 0;padding:0}
-  .feats li{font-size:.68rem;color:var(--text-body);background:var(--paper);
-    border:1px solid var(--border-hair);border-radius:999px;padding:.2rem .55rem}
+  .fact,
+  .feats li{font-size:.68rem;line-height:1.35;color:var(--text-body);
+    background:var(--paper);border:1px solid var(--border-hair);
+    border-radius:999px;padding:.2rem .55rem}
+  .fact.predicted{background:var(--spark);border-color:var(--spark);color:#faf8f4}
   .rung{margin-top:auto;padding-top:.7rem;font-size:.62rem;letter-spacing:.18em;
     text-transform:uppercase;font-weight:600;color:var(--muted)}
   /* The formula in the UI face, not the mono: a mono's subscripts are drawn on
