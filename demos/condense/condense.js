@@ -502,7 +502,17 @@
     let sim = null, last = null, nb = null, FXi = null;
     const box = global.CardStage.create({
       mount: el,
-      cam: params.cam || { theta: 0.5, phi: 1.25, r: 26 },
+      /* WHICH WAY THE PAIR FACES IS THE CAMERA'S JOB, not the model's. A spec's
+         `view:` is dropped going in — buildMolecule bakes it into the atom
+         meshes and a pose solved against raw coordinates would desync from
+         every one of them — so the scene is left in the orientation its
+         molecules were BUILT in, and a pyranose is built lying in the xz-plane.
+         Seen from the equator that is a ring edge-on, which is the 3/4 chair
+         every other page shows turned into a disc.
+         Turning the model back is the wrong repair: the landmarks are world
+         points and the water's travel is a local one, so a rotation on the
+         group re-rotates the departure. Look down at it instead. */
+      cam: params.cam || { theta: 0.62, phi: 0.72, r: 26 },
       stage: Object.assign({ ortho: true, rMin: 10, rMax: 70 }, params.stage || {}),
       step: dt => { if (sim) last = sim.step(dt); if (FXi) FXi.step(); },
       afterFrame: () => { if (nb) nb.step(); },
