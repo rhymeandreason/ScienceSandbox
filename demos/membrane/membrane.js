@@ -109,6 +109,15 @@
     timeScale: 1,             // sim seconds per real second; 'speed it up' is one set()
     shells: false,
     lipidMotion: true,
+    /* THE SHEET IS BOWED, and it is the only thing on stage that says which
+       side is which before a label does. A cell's surface is convex outward,
+       so the sheet rises to the middle and falls away at both edges, and the
+       compartment on the outside of that curve is the outside. `curve` is
+       the sagitta in A at |x| = CURVE_SPAN — how far the sheet has dropped
+       by the edge of the frame. 0 is flat. Small on purpose: the arc has to
+       be read as a hint, and a deep one tips the proteins at its edges far
+       enough to look broken. */
+    curve: 9,
     /* THE BUDGET. Ion spacing is quadratic in the crowd, and a page that
        scatters 400 things spends its whole frame keeping them apart. Refused
        at add(), not clamped later, so the count a page reads is the count it
@@ -143,6 +152,23 @@
     P.E = Object.assign({}, DEFAULTS.E, opts.E || {});
     P.proteins = Object.assign({}, DEFAULTS.proteins, opts.proteins || {});
     const HALF = P.half, MEM_REACH = P.reach;
+    /* Where the sagitta is measured — roughly the half-width a lesson frames,
+       so `curve` is a number the reader can see rather than a radius. */
+    const CURVE_SPAN = 150;
+    const BOW = P.curve > 0 ? (CURVE_SPAN * CURVE_SPAN + P.curve * P.curve) / (2 * P.curve) : 0;
+    /* THE PHYSICS STAYS FLAT. Every rule below is written on a straight
+       membrane at y = 0 — sign(y) is the side, |y| < HALF is the core, a
+       pore is at an x — and bending that frame would touch all of it. So
+       the arc is a placement, applied to the object and never to t.y: the
+       sim thinks flat, the stage is curved, and the two agree because the
+       mapping preserves the distance to the midsurface. */
+    const _bend = new THREE.Vector3();
+    function seat(obj, x, y, z) {
+      _bend.set(x, y, z || 0);
+      const th = MEM ? MEM.bend(_bend) : 0;
+      obj.position.copy(_bend);
+      return th;
+    }
     const SPREAD = () => P.spread == null ? MEM_REACH * 0.55 : P.spread;
     const listeners = {};
     const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'Membrane ' + ev);
@@ -301,9 +327,19 @@
          cell is the colour that cell's mitochondrion was. */
       const ctx = CHEM.CONTEXTS[P.context] || CHEM.CONTEXTS.plasma;
       const tint = global.MolLib.PALETTE.organelles[ctx.organelle] || global.MolLib.PALETTE.organelles.plasma;
-      MEM = global.Parts.membrane({ half:HALF, reach:MEM_REACH, head:tint.head, tail:tint.tail,
+      MEM = global.Parts.membrane({ half:HALF, reach:MEM_REACH, head:tint.head, tail:tint.tail, bowR:BOW,
         exclude: holes.length ? (x, z) => holes.reduce((m, h) => Math.min(m, Math.hypot(x - h[0], z) - h[1]), Infinity) : undefined });
       root.add(MEM.group);
+      /* AFTER the sheet, because the arc belongs to it: a protein sits where
+         the lipid it displaced would have, and turns with the surface, or it
+         stands upright in a sloping bilayer with oil showing under one
+         shoulder. */
+      /* position.x is still the flat x every branch above just wrote; seat()
+         replaces it with the point on the arc. */
+      for (const M of [CHANNEL, CLCHAN, NACHAN, AQP, PUMP, COMPLEX, SYNTH, LEAK]) {
+        if (!M.group.visible) continue;
+        M.group.rotation.z = -seat(M.group, M.group.position.x, 0, 0);
+      }
       setCut(cut);
       /* A pore named by kind is re-resolved against the new layout. */
       for (const t of travellers) if (t.conductsKind) t.conducts = poreX(t.conductsKind);
@@ -1142,6 +1178,10 @@
       }
       ROTOR.rotation.y += (ROT.angle - ROTOR.rotation.y) * Math.min(1, dt * 6);
       tickShells(dt);
+      /* LAST, and after everything that moved a traveller: the arc is the
+         final word on where a thing is drawn, so nothing above has to know
+         about it. */
+      if (BOW) for (const t of travellers) seat(t.obj, t.x, t.y, t.z);
       for (let i = travellers.length - 1; i >= 0; i--)
         if (travellers[i].gone) { root.remove(travellers[i].obj); travellers.splice(i, 1); }
       elapsed += dt;
@@ -1294,22 +1334,24 @@
        words are the lesson's own callouts, so a generated page answers in
        the library's voice. */
     const _a = new THREE.Vector3();
+    /* A callout points at a place on the stage, so it rides the arc too. */
+    const at = (x, y) => { _a.set(x, y, 0); if (MEM) MEM.bend(_a); return _a; };
     const firstOf = kind => { const t = travellers.find(t => t.kind === kind && !t.aboard); return t ? t.obj.getWorldPosition(_a) : null; };
     const anchors = {
-      'channel.K':  () => { const x = poreX('K');  return x == null ? null : _a.set(x, T.height * 0.95, 0); },
-      'channel.CL': () => { const x = poreX('CL'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
-      'channel.NA': () => { const x = poreX('NA'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
-      aquaporin:    () => { const x = poreX('water'); return x == null ? null : _a.set(x, T.height * 0.95, 0); },
-      pump:    () => P.proteins.pump ? _a.set(pumpX, T.height * 0.98, 0) : null,
-      complex:  () => P.proteins.complex  ? _a.set(complexX, COMPLEX.height * 0.98, 0) : null,
+      'channel.K':  () => { const x = poreX('K');  return x == null ? null : at(x, T.height * 0.95); },
+      'channel.CL': () => { const x = poreX('CL'); return x == null ? null : at(x, T.height * 0.95); },
+      'channel.NA': () => { const x = poreX('NA'); return x == null ? null : at(x, T.height * 0.95); },
+      aquaporin:    () => { const x = poreX('water'); return x == null ? null : at(x, T.height * 0.95); },
+      pump:    () => P.proteins.pump ? at(pumpX, T.height * 0.98) : null,
+      complex:  () => P.proteins.complex  ? at(complexX, COMPLEX.height * 0.98) : null,
       /* On the rotor, which moves with the context. */
-      synthase: () => synthX == null ? null : _a.set(synthX, -CHEM.pumpDir(P.context) * SYNTH.height * 1.15, 0),
-      leak:     () => P.proteins.leak ? _a.set(P.proteins.leak.x, LEAK.height * 0.98, 0) : null,
+      synthase: () => synthX == null ? null : at(synthX, -CHEM.pumpDir(P.context) * SYNTH.height * 1.15),
+      leak:     () => P.proteins.leak ? at(P.proteins.leak.x, LEAK.height * 0.98) : null,
       H: () => firstOf('H'),
-      heads:   () => _a.set(150, HALF, 0),        // right of the proteins: a shell's panel covers the left
-      tails:   () => _a.set(150, 0, 0),
-      outside: () => _a.set(-SPREAD() * 0.06, farY() * 0.34, 0),
-      inside:  () => _a.set(-SPREAD() * 0.06, -farY() * 0.34, 0),
+      heads:   () => at(150, HALF),        // right of the proteins: a shell's panel covers the left
+      tails:   () => at(150, 0),
+      outside: () => at(-SPREAD() * 0.06, farY() * 0.34),
+      inside:  () => at(-SPREAD() * 0.06, -farY() * 0.34),
       water: () => firstOf('water'), NA: () => firstOf('NA'), K: () => firstOf('K'), CL: () => firstOf('CL'), A: () => firstOf('A'),
     };
     const library = {

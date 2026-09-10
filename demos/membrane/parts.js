@@ -367,6 +367,15 @@
          seat. See the shader below. 0 pins the sheet. */
       drift: 2.4,
       shape: 'slab', depth: 13,
+      /* ARC RADIUS, in A. 0 is a flat sheet. A membrane has no edge and no
+         flat, and a straight bilayer leaves the reader nothing to tell the
+         two compartments apart by: the arc is the affordance — the convex
+         face is outside. The sheet is placed on a circle of this radius
+         centred below the origin, so the midsurface passes through y=0 at
+         x=0 and falls away symmetrically. Big: a radius near the patch
+         width curls the sheet into a bowl and the machine in it lies on
+         its side. See BEND. */
+      bowR: 0,
       head: 0xe0705c, tail: 0xf0c98a, exclude: null,
     }, opts);
 
@@ -450,6 +459,32 @@
       float cx = floor((iPos.x + ${o.reach.toFixed(4)} + ${(o.pitch * 0.5).toFixed(4)}) / ${o.pitch.toFixed(4)});
       float cz = floor((iPos.z + ${zLimit.toFixed(4)} + ${(o.pitch * 0.5).toFixed(4)}) / ${o.pitch.toFixed(4)});
     `;
+    /* ---- BEND: the flat lattice wrapped onto an arc ----
+
+       Both leaflets have to bend as ONE SURFACE or the bilayer changes
+       thickness across the frame, which is the one number this page
+       prints. So the arc is applied to the instance's RADIUS, not to its
+       y: a head at +half and its tails at +half/2 sit at radii R+half and
+       R+half/2 on the same ray, and the separation along that ray is
+       exactly what it was on the flat lattice.
+
+       And the lipid TURNS with the surface. Left upright it would shear
+       against the arc and read as a sheared sheet rather than a curved
+       one, so the vertex's own offset from its seat is rotated by the same
+       angle before it is added back.
+
+       The instances are translation-only, so subtracting iPos at the end
+       cancels the translation three is about to re-apply and the vertex
+       lands where this computed it. */
+    const BEND = !o.bowR ? '' : `
+      float bR = ${o.bowR.toFixed(3)};
+      float th = iPos.x / bR;
+      float rad = bR + iPos.y + transformed.y;
+      float ct = cos(th), st = sin(th);
+      transformed = vec3( st * rad + ct * transformed.x,
+                         -bR + ct * rad - st * transformed.x,
+                          iPos.z + transformed.z) - iPos;
+    `;
     const WAVE = `
       vec3 iPos = instanceMatrix[3].xyz;
       float w = sin(iPos.x * 0.055 + uTime * 0.7) * 0.62
@@ -462,6 +497,7 @@
                       + sin(cx * 0.31 - uTime * 0.23) * 0.38) * uDrift;
       transformed.z += (cos(cx * 0.44 - uTime * 0.28) * 0.62
                       + cos(cz * 0.27 + uTime * 0.19) * 0.38) * uDrift;
+      ${BEND}
     `;
     /* customProgramCacheKey IS NOT OPTIONAL HERE, and leaving it out cost an
        hour. onBeforeCompile does not participate in three's program cache
@@ -588,7 +624,20 @@
 
     return {
       group: g, materials: g.userData.materials, columns: cols.length,
-      half: o.half, shape: o.shape,
+      half: o.half, shape: o.shape, bowR: o.bowR,
+      /* THE ARC, for everything that is not a lipid. A protein in the sheet
+         and an ion crossing it have to ride the same curve or they float
+         off it, and re-deriving the mapping at each call site is how one of
+         them ends up on a slightly different circle. Flat (x,y) in, the
+         same point on the arc out, plus the surface angle there so a caller
+         can turn a protein to match. Identity when bowR is 0. */
+      bend(v) {
+        if (!o.bowR) return 0;
+        const th = v.x / o.bowR, rad = o.bowR + v.y;
+        v.x = Math.sin(th) * rad;
+        v.y = Math.cos(th) * rad - o.bowR;
+        return th;
+      },
       /* WHERE A LIPID ACTUALLY IS, for anything pointing AT one — a leader
          line from an inset, a highlight, a label. Searched out of `cols`
          rather than recomputed from pitch, because the lattice starts at
@@ -602,7 +651,10 @@
           const d = (cx - x) * (cx - x) + (cz - z) * (cz - z);
           if (d < bd) { bd = d; best = [cx, cz]; }
         }
-        return best && new THREE.Vector3(best[0], (side < 0 ? -1 : 1) * o.half, best[1]);
+        if (!best) return null;
+        const v = new THREE.Vector3(best[0], (side < 0 ? -1 : 1) * o.half, best[1]);
+        this.bend(v);
+        return v;
       },
       cut: { plane, normal, enable, at, get on() { return cutOn; } },
       /* The drift is a knob a lesson can turn off — a step teaching the
