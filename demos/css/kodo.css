@@ -900,12 +900,17 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    the state, in ink, and darkening the capsule around it says the same thing
    twice. That also keeps it distinct from `.is-on`, which on a ghost pill means
    "this tab is the one you are on". */
-.pill--check { padding: 8px 16px 8px 12px }
+/* 16 + 16 padding + 2 border = 34, which is what a `.segmented--sm` stands
+   (9.6 padding twice over a 12.8px cap line, plus its own border). The BOX is
+   what sets the 16, not the label: a checkbox is taller than the 14px line
+   `.pill--ghost` sets, so the two have to be stated together or the capsule
+   comes out a pixel short of the switch beside it. */
+.pill--check { padding: 8px 16px 8px 12px; line-height: 16px }
 
 .pill--check input {
   margin: 0;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   accent-color: var(--check-ink, var(--text-strong));
   cursor: inherit;
 }
