@@ -42,7 +42,15 @@
     'lib/tokens-from-palette.js',
     'lib/molecules.js',
     'lib/mol-small.js',
+    // Skel and the domain files a condensation's monomers come from. skel.js
+    // builds them, so it precedes every mol-* that is Skel-derived.
+    'lib/skel.js',
+    'lib/mol-sugars.js',
+    'lib/mol-glycans.js',
+    'lib/mol-aminoacids.js',
+    'lib/mol-lipids.js',
     'lib/scene.js',
+    'lib/fx.js',
     'lib/geo.js',            // before card-stage.js
     'lib/atomkit.js',
     'lib/annotate.js',
@@ -64,6 +72,15 @@
     'tree/tree.js',
     'bloodcell/bloodcell.js',
     'bloodcell/bloodflow.js',
+    // macromolecule/ solves where a monomer sits and what the two become; its
+    // spec.js is the arithmetic every linkage reads, so it is first, and
+    // glycosidic.js needs chain/frame.js.
+    'chain/frame.js',
+    'macromolecule/spec.js',
+    'macromolecule/glycosidic.js',
+    'macromolecule/ester.js',
+    'macromolecule/peptide.js',
+    'condense/condense.js',
     'cell/organelles.js',
     'cell/animalcell.js',
     'cell/plantcell.js',
@@ -115,6 +132,14 @@
                  'sickle/sickle-fibre.js', 'sickle/hbcrowd.js'],
     AnimalCell: ['lib/mol-small.js', 'cell/organelles.js', 'cell/animalcell.js'],
     PlantCell:  ['lib/mol-small.js', 'cell/organelles.js', 'cell/plantcell.js'],
+    /* fx.js is optional to the component and listed anyway: without it the
+       reaction still runs and simply marks no bonds, which reads as a beat
+       missing rather than as a script that was not loaded. */
+    Condense:   ['lib/skel.js', 'lib/mol-sugars.js', 'lib/mol-glycans.js',
+                 'lib/mol-aminoacids.js', 'lib/mol-lipids.js', 'lib/fx.js',
+                 'chain/frame.js', 'macromolecule/spec.js',
+                 'macromolecule/glycosidic.js', 'macromolecule/ester.js',
+                 'macromolecule/peptide.js', 'condense/condense.js'],
     Graph:      ['https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
                  'https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js',
                  'graph/graph.js'],

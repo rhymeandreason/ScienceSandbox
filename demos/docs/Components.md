@@ -192,6 +192,7 @@ molecules · macromolecule · membrane · organelle · cell · tissue · organ �
 | Component | rung | form |
 | --- | --- | --- |
 | WaterSim | molecules | bulk |
+| Condense | molecules | single |
 | Proteinbox | macromolecule | single |
 | Membrane | membrane | bulk |
 | Leaf | tissue | bulk |
@@ -391,6 +392,38 @@ Anchors for `note()`: `upperEpi`, `cuticle`, `palisade`, `spongy`, `bundle`, `lo
 Layers for `show()`: the five tissues by the same names, plus `chloroplasts`, `cuticle`, and the four flows (`co2`, `o2`, `vapour`, `sap`), which a chip turns fully on or off — a step wanting a half-open stream sets `flows` instead.
 
 Good for: leaf anatomy, gas exchange, transpiration, what a vein carries, structure and function of each tissue, and the trade a stoma makes between CO₂ in and water out. Not for: a single cell's interior, light or a day/night cycle, or comparing one kind of leaf with another — the stomata are always on the underside at one density.
+
+## Condense — two molecules joining, and the water that leaves
+
+**Scale**: molecules, single. Real coordinates: `state().bondAngstrom` is a true length, unlike most components here.
+
+
+```js
+const C = Condense.mount(el, {
+  from: ['glucose', 'glucose'],   // two molecule keys; the linkage is worked out from them
+  progress: 0,                     // 0 apart .. 1 bonded and the water gone. THE WHOLE ANIMATION
+  role: null,                      // which of the host's –OH reacts; null takes the first free
+  gap: 3,                          // how far apart they wait, in bond lengths
+  turn: 0.35,                      // how much of the facing is left to do on the way in
+});
+C.set({ progress: 1 });            // runs the reaction; set({progress:0}) runs it backwards
+```
+
+Pairs that work: `['glucose','glucose']` → cellobiose's β-1,4 (cellulose's linkage) · `['alphaGlucose','alphaGlucose']` → maltose's α-1,4 (starch's) · `['glycerol','palmitate']` → an ester, and `role` picks `sn1`/`sn2`/`sn3` for a second and third tail · `['glycine','alanine']` or any two of the twenty amino acids → a peptide bond.
+
+**`progress` is the entire API and it scrubs.** A step that wants the reaction run sets it to 1; a slider bound straight to it lets the student drag through and back. This matters because the beat students miss is between the hydroxyl coming off and the proton arriving, and it lasts about 300 ms at full speed. Glides by default over ~3 s; pass `{snap:true}` for a slider the student is dragging.
+
+**Reach for this when the question is what a condensation IS** — where the water comes from, why a polymer loses one molecule of water per bond, what "dehydration synthesis" names. **Do not reach for it to build a chain**: it does exactly one bond between exactly two molecules. A question about starch coiling, cellulose lying flat, or a polymer's shape is a different lesson and this is the wrong picture for it.
+
+The water is made of BOTH molecules — a whole hydroxyl from one and a single proton from the other — and which side gives which is read from the specs, not from the linkage: a sugar takes the oxygen from the acceptor, an ester and a peptide from the donor. `state().oxygenFrom` and `protonFrom` name them, so a caption prints from there rather than guessing. This is atom bookkeeping and not the mechanism; `state().mechanism` says so if a page wants to.
+
+Glides: `progress`. Snaps and rebuilds: `from`, `role`, `gap`, `turn`.
+
+`state()`: `progress`, `phase` (`apart` · `breaking` · `waiting` · `crossing` · `water` · `closing` · `done`), `linkage` (`glycosidic` · `ester` · `peptide`), `host`, `guest`, `role`, `oxygenFrom`, `protonFrom`, `leaves` (always `H2O`), `bondAngstrom`, `atomsDrawn`. Events: `frame` (state) · `phase` (name, progress).
+
+Anchors for `note()`: `host`, `guest`, `bond`, `water`, `leavingH`. `bond` and `water` return null until they exist, so a callout on either appears only once the reaction has made it. Layers for `show()`: `water`.
+
+Good for: condensation and hydrolysis, where the water in "dehydration synthesis" comes from, the difference between an α- and a β-1,4 linkage, what makes a peptide bond a bond, why a fat is not a polymer (glycerol runs out of hydroxyls). Not for: chains or polymers, anything that is not a condensation — a phosphodiester bond is not one, DNA's backbone releases pyrophosphate — and reaction rates, energy or equilibrium, none of which it models.
 
 ## Tree — a tree, the air around it, and where its mass came from
 

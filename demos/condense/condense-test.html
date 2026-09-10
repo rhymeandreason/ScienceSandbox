@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>condense bench — one bond, one water, four pairs</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+  .bench-group { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .bench-group:first-child { padding-top: 0; border-top: 0; }
+  .bench-hd { font-family: var(--display); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .bench-out { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto;
+    background: var(--ink); color: #eceadf; border-radius: 14px; padding: 14px 16px; margin: 0; }
+  /* A bench is one screen, not a sequence. */
+  .lshell-nav, .lshell-progress { display: none; }
+  .lshell-scroll { padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/skel.js"></script>
+<script src="../lib/mol-sugars.js"></script>
+<script src="../lib/mol-glycans.js"></script>
+<script src="../lib/mol-aminoacids.js"></script>
+<script src="../lib/mol-lipids.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/fx.js"></script>
+<script src="../lib/annotate.js"></script>
+<script src="../chain/frame.js"></script>
+<script src="../macromolecule/spec.js"></script>
+<script src="../macromolecule/glycosidic.js"></script>
+<script src="../macromolecule/ester.js"></script>
+<script src="../macromolecule/peptide.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script src="../condense/condense.js"></script>
+<script>
+/* The bench for condense/condense.js. Every control is a `set()` and every
+   readout a `state()`, on the lesson shell so the component is judged in the
+   chrome a student meets it in.
+
+   THE PAIRS ARE THREE CLASSES ON PURPOSE. A sugar takes the water's oxygen from
+   the acceptor and an ester or a peptide from the donor, so a run that only ever
+   tried disaccharides would agree with a component that had it backwards. */
+const PAIRS = [
+  { from: ['glucose', 'glucose'],           label: 'β-glucose ×2' },
+  { from: ['alphaGlucose', 'alphaGlucose'], label: 'α-glucose ×2' },
+  { from: ['glycerol', 'palmitate'],        label: 'glycerol + palmitate' },
+  { from: ['glycine', 'alanine'],           label: 'glycine + alanine' },
+];
+const D = Condense.DEFAULTS;
+const SNAP = { snap: true };
+const CHIPS = { notes: ['water', 'bond'], layers: ['water'] };
+let pair = 0;
+
+const shell = LessonShell.create({
+  brand: 'Condense · component bench',
+  hint: 'Drag to orbit · drag progress to scrub the reaction',
+  steps: [{
+    eyebrow: 'condense/condense.js',
+    title: 'Two molecules, one bond, one water',
+    body: '<p>One condensation at close range. The whole animation is <strong>progress</strong>: '
+        + 'drag it and the reaction runs, drag it back and it un-runs. Which molecule gives up the '
+        + 'oxygen is read off the specs, never branched on the linkage.</p>',
+    onEnter: bench,
+  }],
+});
+
+const C = Condense.mount(shell.stage, { viewOffset: shell.viewOffset });
+/* The console is part of the bench: `c.set({progress:1})`, `c.state()`, and the
+   only way to drive a frame when a backgrounded tab has stopped the loop. */
+window.c = C;
+
+function bench(ctx) {
+  const ui = ctx.ui;
+  ui.controls(`
+    <div class="bench-group">
+      <div class="bench-hd">the pair</div>
+      <div class="chips" id="pairs"></div>
+      <p class="foot">Three linkage classes. The component picks which from the two molecules' own
+        <code>condense</code> roles, so it cannot be asked for a peptide bond between two sugars.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">the reaction</div>
+      <div class="slider"><div class="slider-head"><span class="label">progress</span><span class="value" data-v="progress"></span></div>
+        <input type="range" id="progress" min="0" max="1" step="0.005" value="${D.progress}"></div>
+      <div class="row">
+        <button class="btn" type="button" id="play">React</button>
+        <button class="btn ghost" type="button" id="back">Un-react</button>
+      </div>
+      <p class="foot">Both buttons are one <code>set({progress})</code>; the slider is the same
+        value snapped. A beat that only plays forwards cannot be looked at.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">staging</div>
+      <div class="slider"><div class="slider-head"><span class="label">gap · bond lengths</span><span class="value" data-v="gap"></span></div>
+        <input type="range" id="gap" min="1.5" max="6" step="0.1" value="${D.gap}"></div>
+      <div class="slider"><div class="slider-head"><span class="label">turn left to do</span><span class="value" data-v="turn"></span></div>
+        <input type="range" id="turn" min="0" max="1" step="0.01" value="${D.turn}"></div>
+      <p class="foot">Both rebuild. The gap is in multiples of the bond about to form, not world
+        units, so one number means the same beside glycine and beside palmitate.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">what the component says</div>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">linkage</span><span class="stat-value" id="rd-link" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">phase</span><span class="stat-value" id="rd-phase" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">oxygen from</span><span class="stat-value" id="rd-ox" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">proton from</span><span class="stat-value" id="rd-h" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">leaves</span><span class="stat-value" id="rd-leaves" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">new bond</span><span class="stat-value" id="rd-len">—</span></div>
+        <div class="stat"><span class="stat-label">atoms drawn</span><span class="stat-value" id="rd-atoms" style="font-size:15px">—</span></div>
+      </div>
+      <p class="foot"><code>leaves</code> is read off the two roles' own leaving atoms. Anything but
+        H2O here is a pair that is not a condensation.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">the chips a step would offer</div>
+      <div id="bench-chips"></div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">paste into condense.js</div>
+      <pre class="bench-out" id="out"></pre>
+      <button class="btn secondary" type="button" id="copy">Copy</button>
+    </div>`);
+
+  const out = ui.q('#out');
+  const snippet = () => {
+    out.textContent =
+      `const DEFAULTS = { from: ${JSON.stringify(PAIRS[pair].from)}, role: null, progress: 0,\n`
+      + `                   gap: ${(+ui.q('#gap').value).toFixed(1)}, `
+      + `turn: ${(+ui.q('#turn').value).toFixed(2)}, water: true };`;
+  };
+
+  const readout = () => {
+    const s = C.state(); if (!s) return;
+    ui.q('#rd-link').textContent = s.linkage;
+    ui.q('#rd-phase').textContent = s.phase;
+    ui.q('#rd-ox').textContent = s.oxygenFrom;
+    ui.q('#rd-h').textContent = s.protonFrom;
+    ui.q('#rd-leaves').textContent = s.leaves;
+    ui.q('#rd-len').textContent = s.bondAngstrom + ' Å';
+    ui.q('#rd-atoms').textContent = s.atomsDrawn.join(' + ');
+    ui.q('[data-v=progress]').textContent = s.progress.toFixed(2);
+  };
+  C.on('frame', readout);
+  C.on('phase', readout);
+
+  // ---- the pair chips: a rebuild, so progress goes back to 0 with them ----
+  const pairsEl = ui.q('#pairs');
+  const drawPairs = () => {
+    pairsEl.innerHTML = '';
+    PAIRS.forEach((pr, i) => {
+      const b = document.createElement('button');
+      b.className = 'chip' + (i === pair ? ' on' : '');
+      b.type = 'button'; b.textContent = pr.label;
+      b.onclick = () => {
+        pair = i; drawPairs();
+        ui.q('#progress').value = 0;
+        C.set({ from: pr.from, progress: 0 }, SNAP);
+        readout(); snippet();
+      };
+      pairsEl.appendChild(b);
+    });
+  };
+  drawPairs();
+
+  /* SNAPPED, because a drag that a three-second glide is chasing feels broken.
+     The buttons are the case that glides, and they are the same call. */
+  ui.range(ui.q('#progress'), v => { C.set({ progress: v }, SNAP); readout(); });
+  ui.q('#play').onclick = () => { C.set({ progress: 1 }); };
+  ui.q('#back').onclick = () => { C.set({ progress: 0 }); };
+  ui.range(ui.q('#gap'), v => {
+    C.set({ gap: v }, SNAP);
+    ui.q('[data-v=gap]').textContent = v.toFixed(1) + '×'; readout(); snippet();
+  });
+  ui.range(ui.q('#turn'), v => {
+    C.set({ turn: v }, SNAP);
+    ui.q('[data-v=turn]').textContent = v === 0 ? 'none' : v.toFixed(2); readout(); snippet();
+  });
+
+  ui.q('[data-v=gap]').textContent = D.gap.toFixed(1) + '×';
+  ui.q('[data-v=turn]').textContent = D.turn.toFixed(2);
+  ui.q('#copy').onclick = () => navigator.clipboard.writeText(out.textContent);
+  // showPanel(component, opts) — two arguments, and it appends to the panel's
+  // own controls, so the bench does not choose where the chips land.
+  ui.showPanel(C, { only: ['notes', 'layers'] });
+  readout(); snippet();
+}
+
+/* The step is entered HERE, after the component exists — `kit/lesson-shell.js`'s
+   own order. `onEnter` runs inside `goTo`, and calling it from `create` would
+   run the bench before `C` was assigned. */
+shell.goTo(0);
+</script>
+</body>
+</html>
