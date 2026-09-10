@@ -275,6 +275,16 @@
   /* ---- what is on the page ---------------------------------------------- */
 
   var SKIP = /^(script|style|noscript|title|option)$/i;
+  /* WHAT THE PAGE PAINTS, said by the shell's own class names rather than
+   * guessed from whether the words happen to be in the file. A readout's
+   * FIRST value is written into the source by whoever built the page, so it
+   * round-trips like any other passage and the round-trip test waves it
+   * through — then the sim overwrites it on the next frame and the edit is
+   * gone, with a misleading number left in the file. These classes are the
+   * shell's contract for a live number, so text inside one is never edited,
+   * only pointed at. CLAUDE.md: a number in user-facing text is read from the
+   * data at render time. */
+  var READOUT = '.stat-value, .value, .legend-pct, .pile-pct, .lshell-count';
   var CONTROL = 'button, a, label, input, select, summary, [role="button"], [role="tab"]';
 
   function texts() {
@@ -312,7 +322,10 @@
     spans = []; order = [];
     var list = texts(), found = [];
     for (var j = 0; j < list.length; j++) {
-      found.push(locate(list[j].nodeValue, keyFor(list[j].parentElement), list[j]));
+      var host = list[j].parentElement;
+      found.push(host && host.closest(READOUT)
+        ? { why: 'absent' }
+        : locate(list[j].nodeValue, keyFor(host), list[j]));
     }
     var holds = [];
     for (var j2 = 0; j2 < list.length; j2++) {
@@ -375,22 +388,14 @@
     return host;
   }
 
-  /* Whether an element holds words of its own, which is what the walker asks
-   * of a text node and what a click has to ask of whatever it landed on. */
-  function owns(el) {
-    for (var n = el.firstChild; n; n = n.nextSibling) {
-      if (n.nodeType === 3 && n.nodeValue.trim()) return n;
-    }
-    return null;
-  }
-
   /* WHICH LAYER DREW IT, as a word the builder turns into a sentence: the copy
    * belongs on the page a student is reading, not in here. `data-note` and the
    * shell's own class names are the library saying whose text this is. */
   function where(el) {
     if (el.closest('[data-note]')) return 'note';
     if (el.closest('.show-panel')) return 'chips';
-    if (el.closest('.lshell-nav, .lshell-count, .lshell-progress, .lshell-topbar')) return 'chrome';
+    if (el.closest(READOUT)) return 'readout';
+    if (el.closest('.lshell-nav, .lshell-progress, .lshell-topbar')) return 'chrome';
     if (el.ownerSVGElement || el.tagName === 'svg') return 'chart';
     return '';
   }
@@ -742,24 +747,6 @@
       return;
     }
     var pick = e.target.closest ? e.target.closest('[data-ssx="s"]') : null;
-    /* A READOUT IS FILLED IN AFTER THE PAINT — the stat that says `--` until
-     * the sim's first frame holds no words when the outlines go on, so it is
-     * never marked and a repaint would not catch it either, since what
-     * changed is a text node and not an element. A click is the cheap moment
-     * to ask again, and it costs nothing when nothing new has appeared. */
-    if (!pick && e.target.nodeType === 1 && owns(e.target)
-        && !e.target.closest('[data-ssx], .ssx-ui')
-        /* Never the block around editable words: the words are the thing, and
-         * a paragraph offered as one reference hides them. */
-        && !e.target.querySelector('[data-ssx="e"]')) {
-      var late = locate(owns(e.target).nodeValue, keyFor(e.target), owns(e.target));
-      /* Only the uneditable case. Text that turns out to round-trip is left
-       * for the next repaint to wrap, rather than half-wired for a caret. */
-      if (late.why) {
-        pick = mark(e.target, late, null);
-        if (pick.getAttribute('data-ssx') !== 's') pick = null;
-      }
-    }
     if (pick && !pick.closest(CONTROL)) { e.preventDefault(); e.stopPropagation(); select(pick, add); }
   }
 
