@@ -267,8 +267,26 @@
          into the shot at a typical elevation and a departure taking it recedes
          instead of leaving. */
       const away = () => {
+        /* THE MATRIX MAY BE A FRAME STALE, which is `acrossScreen`'s reason in
+           reaction.js: `progress` is set from a slider and applied straight
+           away, outside the render loop, and the ortho frustum is re-solved
+           after the build. Projected against yesterday's camera the climb comes
+           out short and pointing the wrong way, and the water sinks a little
+           instead of leaving. */
+        camera.updateMatrixWorld();
         const v = pO.clone().project(camera);
-        return new THREE.Vector3(v.x, 1.35, v.z).unproject(camera).sub(pO);
+        /* ALWAYS OUTWARD, never toward a fixed line. Aiming at NDC 1.35 assumes
+           the point starts below it, and a camera that has not been framed —
+           a box mounted into something zero-sized, a frustum still at its
+           default — puts it above, so the water solemnly sinks INTO the frame
+           instead of leaving it. Take whichever is further out. */
+        /* 1.55, not 1.35: the target is the OXYGEN, and its two hydrogens hang
+           a fifth of a screen below it. reaction.js's EXIT_EDGE makes the same
+           correction for the same reason — a departure needs more room than an
+           arrival, because a centre just past the edge still shows half a
+           sphere on the rim. */
+        return new THREE.Vector3(v.x, Math.max(1.55, v.y + 0.8), v.z)
+          .unproject(camera).sub(pO);
       };
 
       B = { L, role, H, G, hr, gr, gA, gB, start, home, qStart, qPose, hKeep,
@@ -318,17 +336,24 @@
         const off = B.stepOut.clone().multiplyScalar(out);
         // 5 · and after the water is made, it leaves
         if (t > BEAT.CLOSE) off.addScaledVector(B.away(), span(t, BEAT.CLOSE, 1));
+        /* THE GROUP CARRIES THE TRAVEL, so everything inside it is placed in the
+           coordinates it was BUILT in and never compensated for `off`. Taking
+           `off` back off a child cancels the group's own motion exactly: the
+           oxygen and its first hydrogen left with the group while the crossing
+           proton and the second O–H stayed where they were made, and what the
+           reaction ended with was a hydrogen hanging in space on a stub of
+           bond. It rendered perfectly at every single frame. */
         B.water.position.copy(off);
         // 3 · the proton crosses to it
         const cross = span(t, BEAT.CLEAR, BEAT.CROSS);
-        B.wH2.position.lerpVectors(B.pH1, B.pO, cross).sub(off);
+        B.wH2.position.lerpVectors(B.pH1, B.pO, cross);
         B.wH2.visible = true;
         // 4 · and only now is it a water: the second O–H is drawn
         const made = t >= BEAT.FORM;
         B.bond2.visible = made;
         if (made) {
-          B.wH2.position.copy(B.t2).sub(off);
-          Stage.placeBond(B.bond2, B.pO.clone().sub(off), B.t2.clone().sub(off));
+          B.wH2.position.copy(B.t2);
+          Stage.placeBond(B.bond2, B.pO, B.t2);
         }
       }
 
