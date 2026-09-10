@@ -614,94 +614,15 @@ body.editing .device { outline: 2px solid var(--accent); outline-offset: -1px; }
 }
 .ref button:hover { opacity: 1; }
 
-/* ---- the workspace, in ink ------------------------------------------
-   Once an app exists the window goes navy: the bar and the stage take the
-   wordmark's ink, and the app's card and the rail's cards lie on it as
-   paper. The site's other pages are paper with ink on them; the builder in
-   work is the one place that inverts, so the thing being made is the one
-   light surface in the window. The five hues from the front door come in as
-   stamps only: amber for a hint, blue for a version, coral for a failure.
-   Nothing inside a card changes, so the light-on-dark rules stop at the
-   card's edge. */
-body.work {
-  --ws-ink:   var(--brand-ink);
-  --ws-ink-2: var(--brand-ink-2);
-  --ws-paper: var(--brand-paper);
-  --ws-line:  rgba(var(--brand-paper-t), .14);
-  --ws-dim:   rgba(var(--brand-paper-t), .62);
-  background: var(--ws-ink);
-}
-body.work .bar { background: var(--ws-ink); border-bottom-color: var(--ws-line); }
-body.work .bar .mark img { filter: brightness(0) invert(1) sepia(.06); }
-body.work .bar .title { color: var(--ws-dim); }
-body.work .bar .title[contenteditable]:hover { color: var(--ws-paper); background: rgba(var(--brand-paper-t), .08); }
-body.work .bar .title[contenteditable]:focus { color: var(--text-strong); }
-body.work .bar .title[contenteditable]:empty::before { color: var(--ws-dim); }
-body.work .bar .btn--ink { color: var(--ws-paper); border-color: var(--ws-line); background: rgba(var(--brand-paper-t), .06); }
-body.work .bar .btn--ink:hover:not([disabled]) { color: var(--ws-ink); border-color: var(--ws-paper); background: var(--ws-paper); }
-body.work .bar .tools .btn.is-done { color: var(--ws-ink); border-color: var(--hue-blue); background: var(--hue-blue); }
-/* The one filled button on ink takes butter, the hero's ground, with ink
-   type: deep green on navy is two darks. */
-body.work .bar .btn--fill { color: var(--ws-ink); border-color: var(--hue-butter); background: var(--hue-butter); }
-body.work .bar .btn--fill:hover:not([disabled]) { border-color: var(--hue-amber); background: var(--hue-amber); color: var(--ws-ink); }
-body.work .bar .iconbtn { color: var(--ws-dim); }
-body.work .bar .iconbtn:hover, body.work .bar .iconbtn[aria-pressed="true"] { color: var(--ws-paper); }
-body.work .notice { background: var(--ws-ink-2); border-bottom-color: var(--ws-line); color: var(--ws-paper); }
-body.work .notice.bad { color: var(--hue-coral); }
-body.work .split, body.work .preview, body.work .rail {
-  background-color: var(--ws-ink);
-  background-image: radial-gradient(rgba(var(--brand-paper-t), .13) 1px, transparent 1.2px);
-}
-body.work .device { border-color: transparent; box-shadow: 0 30px 60px -30px rgba(0, 0, 0, .7); }
-body.work .device::before { background: linear-gradient(90deg, transparent, var(--hue-green) 30%, var(--hue-butter) 70%, transparent); }
-/* THE RAIL IS INK TOO. Three paper cards on navy read as a light panel left
-   over from another theme, so the rail's cards are ink lifted a step, with
-   paper type. It is done by re-mapping kodo's role tokens inside the rail,
-   so every rule below that names a role follows without a second copy; the
-   handful that typed a surface are overridden after. The accent goes to the
-   front door's bright green, since the deep one vanishes on navy, and the
-   inverse ink is navy so a filled button keeps dark type on a light fill. */
-body.work .rail {
-  --surface-card:  #1c2b4e;
-  --surface-page:  var(--brand-ink);
-  --border-hair:   rgba(var(--brand-paper-t), .13);
-  --border-strong: var(--brand-paper);
-  --text-strong:   var(--brand-paper);
-  --text-body:     rgba(var(--brand-paper-t), .86);
-  --text-dim:      rgba(var(--brand-paper-t), .64);
-  --text-muted:    rgba(var(--brand-paper-t), .46);
-  --text-inverse:  var(--brand-ink);
-  --accent:        var(--hue-green);
-  --spark:         var(--hue-butter);
-  --accent-hot:    var(--hue-coral);
-}
-body.work .rail .card { background: var(--surface-card); border-color: rgba(var(--brand-paper-t), .1); box-shadow: 0 20px 40px -28px rgba(0, 0, 0, .8); }
-body.work .rail .card--quiet { background: rgba(var(--brand-paper-t), .05); border-color: rgba(var(--brand-paper-t), .08); box-shadow: none; }
-body.work .rail .scroll::after { background: linear-gradient(transparent, var(--brand-ink)); }
-/* The request box is the one paper surface in the rail: it is where the
-   student writes, and a dark field asks a question the page has not. */
-body.work .rail textarea { background: var(--brand-paper); color: var(--brand-ink); border-color: transparent; }
-body.work .rail textarea::placeholder { color: var(--brand-mute); }
-body.work .rail textarea:focus-visible { border-color: var(--hue-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hue-green) 30%, transparent); }
-body.work .rail .cta { --cta-fill: var(--hue-green); --cta-hover: var(--hue-butter); color: var(--brand-ink); }
-body.work .rail .cta:hover:not([disabled]) { color: var(--brand-ink); }
-/* Rows and the open turn: paper at an alpha, so a row lifts without a
-   second solid. */
-body.work .history li.open, body.work .history li.current, body.work .outline li.current { background: rgba(var(--brand-paper-t), .07); box-shadow: none; }
-body.work .history li.current .n, body.work .outline li.current .n { background: var(--hue-green); color: var(--brand-ink); }
-body.work .history li.current .what b, body.work .outline li.current .eb { color: var(--hue-green); }
-body.work .tab .count:not(:empty) { color: var(--brand-ink); }
-body.work .roles .btn.is-on { color: var(--brand-ink); }
-body.work .ref { background: rgba(var(--brand-paper-t), .12); }
-/* The hues as stamps. */
-body.work .hints > i { color: var(--hue-amber); }
-body.work .tabs .ver { color: var(--hue-blue); background: color-mix(in srgb, var(--hue-blue) 18%, transparent); }
+/* ---- the workspace's stamps --------------------------------------------
+   The ground and the bar are the site's own paper. Colour is by role and
+   each role has one hue: green for the action and the version or step the
+   app is on, amber for a hint, coral for a failure and the count of unsaved
+   edits. Everything else is ink. */
+body.work .hints { background: color-mix(in srgb, var(--hue-amber) 14%, var(--brand-paper)); border-color: color-mix(in srgb, var(--hue-amber) 35%, transparent); }
+body.work .hints > i { color: color-mix(in srgb, var(--hue-amber) 70%, var(--brand-ink)); }
+body.work .hints .dots button.is-on { background: color-mix(in srgb, var(--hue-amber) 70%, var(--brand-ink)); }
+body.work .tab .count:not(:empty) { background: var(--hue-coral); }
 body.work .history li.bad .what, body.work .history li.bad .what b, body.work .history li.bad .meta { color: var(--hue-coral); }
-body.work .rail .progress .track { background: rgba(var(--brand-paper-t), .14); }
-body.work .rail .progress .track i { background: linear-gradient(90deg, transparent, var(--hue-green) 30%, var(--hue-butter) 70%, transparent); }
-body.work .btn--ink { background: rgba(var(--brand-paper-t), .06); }
-body.work .rail .btn--soft { color: var(--hue-green); border-color: color-mix(in srgb, var(--hue-green) 35%, transparent); background: color-mix(in srgb, var(--hue-green) 12%, transparent); }
-body.work .rail .btn--soft:hover:not([disabled]) { color: var(--brand-ink); background: var(--hue-green); border-color: var(--hue-green); }
-@media (max-width: 860px) {
-  body.work .rail { background-color: var(--ws-ink); }
-}
+body.work .errs { color: var(--hue-coral); }
+body.work .notice.bad { color: var(--hue-coral); }
