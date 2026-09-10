@@ -389,12 +389,23 @@
 
   function find(f) { for (var i = 0; i < pending.length; i++) if (pending[i].find === f) return pending[i]; return null; }
 
+  /* Taking the wrappers off puts back the CHILDREN, never the text. A span
+   * holds the paragraph's `strong` and `em` once `hoist` has moved them
+   * inside it, and standing its textContent in its place threw those away:
+   * the paragraph came back as one flat run, which is not what the file says,
+   * so the next paint could not find it and offered the whole <p> as a thing
+   * to point at instead of words to edit. Only the parents that lost a
+   * wrapper are normalised — the document's other text nodes are the app's. */
   function unpaint() {
+    var touched = [];
     document.querySelectorAll('[data-ssx]').forEach(function (el) {
       if (el.getAttribute('data-ssx') !== 'e') { el.removeAttribute('data-ssx'); el.removeAttribute('data-ssx-sel'); el._ssxAnchor = null; return; }
-      el.replaceWith(document.createTextNode(el.textContent));
+      var par = el.parentNode;
+      while (el.firstChild) par.insertBefore(el.firstChild, el);
+      el.remove();
+      if (touched.indexOf(par) < 0) touched.push(par);
     });
-    document.body.normalize();
+    for (var i = 0; i < touched.length; i++) touched[i].normalize();
     spans = []; order = [];
   }
 
@@ -651,7 +662,11 @@
      * never marked and a repaint would not catch it either, since what
      * changed is a text node and not an element. A click is the cheap moment
      * to ask again, and it costs nothing when nothing new has appeared. */
-    if (!pick && e.target.nodeType === 1 && owns(e.target) && !e.target.closest('[data-ssx], .ssx-ui')) {
+    if (!pick && e.target.nodeType === 1 && owns(e.target)
+        && !e.target.closest('[data-ssx], .ssx-ui')
+        /* Never the block around editable words: the words are the thing, and
+         * a paragraph offered as one reference hides them. */
+        && !e.target.querySelector('[data-ssx="e"]')) {
       var late = locate(owns(e.target).nodeValue, keyFor(e.target));
       /* Only the uneditable case. Text that turns out to round-trip is left
        * for the next repaint to wrap, rather than half-wired for a caret. */
