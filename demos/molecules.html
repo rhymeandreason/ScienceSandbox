@@ -156,6 +156,8 @@
 <script src="lib/mol-nucleic.js"></script>
 <script src="lib/scene.js"></script>
 <script src="lib/molview.js"></script>
+<script src="kit/card-stage.js"></script>
+<script src="kit/molbox.js"></script>
 <script src="lib/mol-shelf.js"></script>
 <script>
 'use strict';
@@ -180,12 +182,27 @@ for (const m of MOLS) {
 $('tally').textContent = `${MOLS.length} molecules`;
 
 /* ---- the molecule modal ---------------------------------------------------
-   One context, made on open and lost on close: a canvas that has lost its
-   context is never granted another, so the canvas is new each time. The frame
-   it opens in is the still's (tools/molecule-stills.html): a `view:` is baked
-   into the meshes, a spec without one takes MolView.flatPose. */
+   kit/molbox.js IS this box: a molecule on a camera solved from its own extent
+   and re-solved on every resize, a working wheel under ortho, and one context
+   made on open and given back on close (a canvas that has lost its context is
+   never granted another, so `destroy` takes the canvas with it). Solving the
+   camera by hand here is what drew every atom as an ellipse.
+
+   The frame it opens on is the still's (tools/molecule-stills.html): a `view:`
+   is baked into the meshes by Molbox, and a spec without one takes
+   MolView.flatPose, which is the one thing the baker does that Molbox does
+   not. */
 const modal = $('modal');
 let live = null;
+
+/* tools/molecule-stills.html's fallback pose, as `view:`'s own [x,y,z] ZYX
+   radians: MolView.flatPose lays the molecule's widest two directions on the
+   screen. A spec that declares `view:` keeps it. */
+const stillView = s => {
+  if (s.view) return undefined;
+  const e = new THREE.Euler().setFromQuaternion(MolView.flatPose(s), 'ZYX');
+  return [e.x, e.y, e.z];
+};
 
 function openModal(m) {
   const s = m.spec;
@@ -218,55 +235,23 @@ function openModal(m) {
   }
 
   const mount = $('m-stage');
-  mount.innerHTML = '';
   mount.style.cssText = `background:url(media/molecules/${m.key}.webp) center/contain no-repeat var(--paper)`;
   modal.hidden = false;
   document.body.style.overflow = 'hidden';
   $('m-close').focus();
 
-  /* The box after layout: a zero-sized mount gets the constructor frustum. */
-  requestAnimationFrame(() => {
-    if (modal.hidden) return;
-    const canvas = document.createElement('canvas');
-    mount.appendChild(canvas);
-    const st = Stage.create(canvas, {
-      ortho: true, cam: { theta: 0, phi: Math.PI / 2, r: 40 }, turn: 'trackball', zoom: false });
-    const g = Stage.buildMolecule(s);
-    if (!s.view) g.quaternion.copy(MolView.flatPose(s));
-    st.root.add(g);
-    /* The half-height is the caller's; `resize` writes the WIDTH from the
-       canvas's own aspect, and is the only thing that may. Setting left/right
-       here from `camera.aspect` reads a property an OrthographicCamera does
-       not have until the first resize, and a stage that arrives at its size
-       late (Safari, on a box unhidden this frame) then keeps that frustum and
-       draws every atom as an ellipse. Re-fit on every resize for the same
-       reason. */
-    const half = Stage.measure(s).radius * 1.06;
-    const fit = () => {
-      st.camera.top = half; st.camera.bottom = -half;
-      st.resize();
-    };
-    fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(mount);
-    let raf = 0;
-    const loop = () => { st.renderer.render(st.scene, st.camera); raf = requestAnimationFrame(loop); };
-    loop();
-    mount.style.backgroundImage = '';
-    live = { st, canvas, stop: () => { cancelAnimationFrame(raf); ro.disconnect(); } };
-  });
+  /* Built after the modal is shown: a zero-sized mount is not fitted at all,
+     and Molbox draws one frame from inside create() so the box is never blank.
+     `view` is the still's opening angle for a spec that declares none, so the
+     modal opens on the picture the card was showing. */
+  live = Molbox.create({ mount, spec: s, view: stillView, stage: { turn: 'trackball' } });
+  mount.style.backgroundImage = '';
 }
 
 function closeModal() {
   if (modal.hidden) return;
-  if (live) {
-    live.stop();
-    live.st.renderer.dispose();
-    live.st.renderer.forceContextLoss();
-    live.canvas.remove();
-    live = null;
-  }
-  $('m-stage').innerHTML = '';
+  if (live) { live.destroy(); live = null; }
+  $('m-stage').style.cssText = '';
   modal.hidden = true;
   document.body.style.overflow = '';
 }
