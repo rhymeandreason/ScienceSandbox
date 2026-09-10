@@ -27,8 +27,11 @@
 <style>
   :root { --page-max: 1180px }
 
+  /* The same track library.html's molecule shelf uses, so a card is the same
+     size on both pages. */
   .grid{display:grid;gap:calc(var(--page-gap) * .7);
-    grid-template-columns:repeat(auto-fill,minmax(210px,1fr))}
+    grid-template-columns:repeat(3,1fr)}
+  @media (min-width:900px){ .grid{grid-template-columns:repeat(5,1fr)} }
 
   .card{background:var(--surface-card);border:1px solid var(--border-hair);border-radius:4px;
     overflow:hidden;display:flex;flex-direction:column;color:inherit;text-decoration:none;
@@ -104,14 +107,16 @@
 <div class="page">
   <nav class="sitenav">
     <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
-    <span class="crumb"><a href="/library">library</a> / molecules</span>
+    <span class="crumb">biology</span>
   </nav>
 
   <header class="pagehead">
     <h1>molecules</h1>
     <p class="meta" id="tally">&mdash;</p>
-    <p class="deck">Every molecule the lessons and generated apps draw, grouped by where it is used. Open one to turn it.</p>
   </header>
+
+  <p class="lede">Every molecule the lessons and generated apps draw, grouped by where it is
+    used. Open one to turn it.</p>
 
   <main>
     <div class="grid" id="mol-grid"></div>
