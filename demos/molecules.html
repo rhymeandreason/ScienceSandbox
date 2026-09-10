@@ -55,9 +55,10 @@
   .fact{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
     padding:3px 8px;border-radius:999px;border:1px solid var(--border-hair);
     background:var(--paper);color:var(--muted)}
-  /* The formula, in the mono the site uses for a molecule's own facts. */
-  .formula{font-family:var(--font-mono,ui-monospace,monospace);font-size:.8rem;
-    color:var(--text-muted);margin:.35rem 0 0}
+  /* The formula in the UI face, not the mono: a mono's subscripts are drawn on
+     the same fixed advance as its capitals, so C27H33N9O15P2 comes out as a
+     line of code rather than as a formula. The mono is for the recipe. */
+  .formula{font-size:.8rem;color:var(--text-muted);margin:.35rem 0 0}
 
   /* One group of molecules: a small caption over its part of the grid. */
   .group{grid-column:1/-1;margin:1.2rem 0 -.2rem;font-size:.7rem;letter-spacing:.16em;
