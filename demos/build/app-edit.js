@@ -146,20 +146,63 @@
              pre: src.slice(pick.start, at), post: pick.q };
   }
 
+  /* The same words in two blocks are told apart by the markup around them, the
+   * way two under different keys are told apart by the key. What the DOM knows
+   * is what comes immediately before this text: a sibling tag that just closed,
+   * or, when it is the first thing in its element, that element's own opening
+   * tag. Either is written in the file right before one of the occurrences and
+   * not the other, so the find widens back through whole tags until it is
+   * unique — `</strong>Water is pushed…` against `<p class="lead">Water is
+   * pushed…`. What the DOM cannot say, it does not guess: a passage preceded
+   * by more text has nothing to distinguish it and stays refused. */
+  function bymarkup(find, node) {
+    var el = node.parentElement, prev = node.previousSibling, want;
+    if (prev && prev.nodeType === 1) {
+      var close = '</' + prev.tagName.toLowerCase() + '>';
+      want = function (b) { return b.slice(-close.length).toLowerCase() === close; };
+    } else if (!prev && el) {
+      want = function (b) {
+        if (b.slice(-1) !== '>') return false;
+        var o = b.lastIndexOf('<');
+        var m = o < 0 ? null : /^<\s*([a-zA-Z][\w-]*)([^>]*)>$/.exec(b.slice(o));
+        if (!m || m[1].toLowerCase() !== el.tagName.toLowerCase()) return false;
+        var cls = /class\s*=\s*\\?(["'])([^"'\\]*)\\?\1/.exec(m[2]);
+        return (cls ? cls[2] : '') === (el.getAttribute('class') || '');
+      };
+    } else return null;
+
+    var hits = [], i = -1;
+    while ((i = src.indexOf(find, i + 1)) >= 0) {
+      if (bounded(i, find.length) && want(src.slice(Math.max(0, i - 240), i))) hits.push(i);
+    }
+    if (hits.length !== 1) return null;
+    var at = hits[0], start = at;
+    for (var t = 0; t < 3; t++) {
+      var o = src.lastIndexOf('<', start - 1);
+      if (o < 0) break;
+      start = o;
+      var wide = src.slice(start, at + find.length);
+      if (src.split(wide).length - 1 === 1) {
+        return { find: wide, at: at, pre: src.slice(start, at), post: '' };
+      }
+    }
+    return null;
+  }
+
   /* The text's one place in the source, or WHY there isn't one. The reason is
    * carried rather than discarded because a passage that cannot be typed over
    * is the case a student needs told: the panel says which of these it hit.
    * Uniqueness is counted over the raw source, unbounded matches included,
    * because the server applies the pair with the same exactly-once rule and
    * cannot see this one. */
-  function locate(text, key) {
+  function locate(text, key, node) {
     for (var k = 0; k < FORMS.length; k++) {
       var find = FORMS[k].enc(text), pre = '', post = '';
       var i = src.indexOf(find);
       if (i < 0) continue;
       var n = src.split(find).length - 1;
       if (n > 1) {
-        var one = key && keyed(find, key);
+        var one = (key && keyed(find, key)) || (node && bymarkup(find, node));
         if (!one) return { why: 'dupe', n: n };
         /* The context comes into the find; the words stay what is measured
          * for markup and for the script, since that is where they sit. */
@@ -222,7 +265,7 @@
     if (shut < 0 || end < 0 || end > i + 4000) return null;
     if (src.lastIndexOf('</p>', i) > open) return null;        // not the same paragraph
     var attrs = src.slice(open + 2, shut);
-    var cls = /class\s*=\s*\\?(["'])([^"']*)\\?\1/.exec(attrs);
+    var cls = /class\s*=\s*\\?(["'])([^"'\\]*)\\?\1/.exec(attrs);
     return { start: open, end: end + 4, attrs: attrs, cls: cls ? cls[2] : '',
              find: src.slice(open, end + 4) };
   }
@@ -269,7 +312,7 @@
     spans = []; order = [];
     var list = texts(), found = [];
     for (var j = 0; j < list.length; j++) {
-      found.push(locate(list[j].nodeValue, keyFor(list[j].parentElement)));
+      found.push(locate(list[j].nodeValue, keyFor(list[j].parentElement), list[j]));
     }
     var holds = [];
     for (var j2 = 0; j2 < list.length; j2++) {
@@ -700,7 +743,7 @@
         /* Never the block around editable words: the words are the thing, and
          * a paragraph offered as one reference hides them. */
         && !e.target.querySelector('[data-ssx="e"]')) {
-      var late = locate(owns(e.target).nodeValue, keyFor(e.target));
+      var late = locate(owns(e.target).nodeValue, keyFor(e.target), owns(e.target));
       /* Only the uneditable case. Text that turns out to round-trip is left
        * for the next repaint to wrap, rather than half-wired for a caret. */
       if (late.why) {
