@@ -228,7 +228,7 @@
     P.n = Math.max(2, Math.min(MAX, Math.round(P.n)));
     P.grow = Math.max(2, Math.min(RUN, Math.round(P.grow)));
     const listeners = {};
-    const emit = (ev, a) => (listeners[ev] || []).forEach(f => f(a));
+    const emit = (ev, a) => CardStage.fire(listeners[ev], [a], 'HbCrowd ' + ev);
     const tw = global.CardStage ? global.CardStage.tweens() : null;
 
     let D = null, S = null, mesh = null;
@@ -958,7 +958,7 @@
     if (!global.SurfLib) throw new Error('hbcrowd.js: load kit/surface.js first');
     let sim = null, nb = null;
     const listeners = {};
-    const emit = (ev, ...a) => (listeners[ev] || []).forEach(f => f(...a));
+    const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'HbCrowd ' + ev);
 
     const box = global.CardStage.create({
       mount: el,

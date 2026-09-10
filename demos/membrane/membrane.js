@@ -145,7 +145,7 @@
     const HALF = P.half, MEM_REACH = P.reach;
     const SPREAD = () => P.spread == null ? MEM_REACH * 0.55 : P.spread;
     const listeners = {};
-    const emit = (ev, ...a) => (listeners[ev] || []).forEach(fn => fn(...a));
+    const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'Membrane ' + ev);
 
     /* ---- sizes ----
        molecules.js builds at MolLib.SCALE (~1.9x angstroms) while parts.js

@@ -115,7 +115,7 @@
     if (!B || !B.profileY) throw new Error('bloodflow.js: load bloodcell/bloodcell.js first');
     const P = Object.assign({}, DEFAULTS, opts);
     const listeners = {};
-    const emit = (ev, a) => (listeners[ev] || []).forEach(f => f(a));
+    const emit = (ev, a) => CardStage.fire(listeners[ev], [a], 'BloodFlow ' + ev);
 
     const grp = new THREE.Group();
     root.add(grp);
@@ -329,7 +329,7 @@
     if (!global.CardStage) throw new Error('bloodflow.js: load kit/card-stage.js first');
     let sim = null, nb = null;
     const listeners = {};
-    const emit = (ev, ...a) => (listeners[ev] || []).forEach(f => f(...a));
+    const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'BloodFlow ' + ev);
 
     const box = global.CardStage.create({
       mount: el,

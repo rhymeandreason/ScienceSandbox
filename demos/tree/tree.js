@@ -329,7 +329,7 @@
     const P = Object.assign({}, DEFAULTS, opts);
     P.flows = Object.assign({}, DEFAULTS.flows, opts.flows || {});
     const listeners = {};
-    const emit = (ev, ...a) => (listeners[ev] || []).forEach(fn => fn(...a));
+    const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'Tree ' + ev);
     if (!global.CardStage) throw new Error('tree.js: load kit/card-stage.js first');
     const tweens = global.CardStage.tweens();
     const V3 = () => new THREE.Vector3();

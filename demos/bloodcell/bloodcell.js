@@ -910,7 +910,7 @@
     if (!global.CardStage) throw new Error('bloodcell.js: load kit/card-stage.js first');
     let cell = null, nb = null;
     const listeners = {};
-    const emit = (ev, ...a) => (listeners[ev] || []).forEach(f => f(...a));
+    const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'BloodCell ' + ev);
 
     const box = global.CardStage.create({
       mount: el,

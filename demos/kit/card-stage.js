@@ -537,5 +537,36 @@
     };
   }
 
-  global.CardStage = { showPanel, create, pool, tweens, EASE };
+  /* ---- firing a component's listeners -------------------------------------
+   *  ONE BAD SUBSCRIBER MUST NOT TAKE THE SCENE DOWN. Every component keeps
+   *  its own `listeners` table and its own `on()`, and the two-line emit they
+   *  all shared called each function straight: a page's `on('frame')` handler
+   *  that threw did it inside the render loop, so the loop stopped and the
+   *  stage went blank. A generated page did exactly that with a typo, and the
+   *  source checks passed — nothing on the page said why it was empty.
+   *
+   *  So: each listener runs in its own try, and one that throws is REPORTED
+   *  ONCE and dropped. Dropped rather than kept, because `frame` fires sixty
+   *  times a second and a throw a frame is a flood, not a diagnosis; the
+   *  readout it was painting stops updating, which is visibly broken and
+   *  honest, while the science beside it keeps running. The error is rethrown
+   *  out of band so `window.onerror` still sees it: that is what carries it to
+   *  the console, and in the builder to the relay and the next model turn.
+   *
+   *  `list` is the component's own array and is mutated in place, so the
+   *  component's `on()` and its unsubscriber keep working untouched. */
+  function fire(list, args, label) {
+    if (!list || !list.length) return;
+    for (const fn of list.slice()) {
+      try { fn(...args); }
+      catch (err) {
+        const i = list.indexOf(fn);
+        if (i >= 0) list.splice(i, 1);
+        console.error(`${label || 'listener'} threw and was dropped; the scene keeps running.`, err);
+        setTimeout(() => { throw err; });
+      }
+    }
+  }
+
+  global.CardStage = { showPanel, create, pool, tweens, EASE, fire };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

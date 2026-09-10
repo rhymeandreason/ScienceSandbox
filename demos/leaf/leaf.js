@@ -223,7 +223,7 @@
     P.layers = Object.assign({}, DEFAULTS.layers, opts.layers || {});
     P.flows = Object.assign({}, DEFAULTS.flows, opts.flows || {});
     const listeners = {};
-    const emit = (ev, ...a) => (listeners[ev] || []).forEach(fn => fn(...a));
+    const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'Leaf ' + ev);
 
     let seed = P.seed >>> 0;
     const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };

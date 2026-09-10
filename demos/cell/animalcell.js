@@ -409,7 +409,7 @@
     for (const n of Object.keys(LIBRARY)) facings[n] = faceUp;
 
     const listeners = {};
-    const emit = (name, ...a) => { for (const fn of listeners[name] || []) fn(...a); };
+    const emit = (name, ...a) => { CardStage.fire(listeners[name], a, 'AnimalCell ' + name); };
     const on = (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); return () => { listeners[name] = (listeners[name] || []).filter(f => f !== fn); }; };
     const state = () => ({
       motion: P.motion, hovered: hovered && hovered.userData.organelle || null,

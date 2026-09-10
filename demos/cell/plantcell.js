@@ -1050,7 +1050,7 @@
        moving. The camera moves when the reader moves it, or on a flight. */
     let sim = null, nb = null, lastHover = null;
     const listeners = {};
-    const emit = (name, v) => { (listeners[name] || []).forEach(f => f(v)); };
+    const emit = (name, v) => { CardStage.fire(listeners[name], [v], 'PlantCell ' + name); };
     const box = global.CardStage.create({
       mount: el,
       cam: orbitOf(home.pos, home.target),

@@ -316,7 +316,7 @@
   function create(THREE, root, camera, opts) {
     const P = Object.assign({}, DEFAULTS, opts);
     const listeners = {};
-    const emit = (ev, a, b) => (listeners[ev] || []).forEach(f => f(a, b));
+    const emit = (ev, a, b) => CardStage.fire(listeners[ev], [a, b], 'SickleFibre ' + ev);
 
     const tint = new THREE.Color();
     const dummy4 = new THREE.Matrix4();

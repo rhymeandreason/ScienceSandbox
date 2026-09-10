@@ -1961,7 +1961,7 @@
     if (!lib) throw new Error('proteinbox.js: mount needs proteins/proteins.js loaded first');
     const P = Object.assign({ base: '../', rep: 'ribbon', orbit: true }, params);
     const listeners = {};
-    const emit = (ev, ...a) => (listeners[ev] || []).forEach(fn => fn(...a));
+    const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'Proteinbox ' + ev);
     const entry = () => {
       const p = lib.PROTEINS.find(x => x.key === P.protein);
       const v = p && (P.variant ? p.variants.find(x => x.id === P.variant) : (p.variants.find(x => x.default) || p.variants[0]));

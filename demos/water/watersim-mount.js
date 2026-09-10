@@ -49,7 +49,7 @@
 
     const P = Object.assign({}, DEFAULTS, params);
     const listeners = { frame:[], dissociate:[], saltchange:[] };
-    const emit = (ev, ...a) => listeners[ev].forEach(fn => fn(...a));
+    const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'WaterSim ' + ev);
     let last = null, sim = null, nb = null;
 
     const box = global.CardStage.create({
