@@ -571,14 +571,14 @@
    * a wall nobody reads. A `say` is the literal prompt, and clicking it puts
    * it in the box: a hint that has to be retyped is a hint half given. */
   const HINTS = [
-    { text: 'If the app reports an error, ask for a fix in those words.', say: 'Fix the error' },
+    { text: 'If the app reports an error, ask for a fix in these words:', say: 'Fix the error' },
     { text: 'Aim the writing at your reader.', say: ["Explain it like I'm 10", 'Make the text less technical'] },
     { text: 'Ask for more than one change at a time. One turn can carry them all.' },
-    { text: 'Say which step you mean.', say: 'On step 3, slow the animation down' },
+    { text: 'Say which step you mean.', say: 'On step 3, make the animation faster' },
     { text: 'Ask for something the reader can play with.', say: 'Add a slider for temperature' },
-    { text: 'Edit text: click a passage in the app and type over it. No model turn, no wait.' },
-    { text: 'Outline lists the steps, and a row jumps the app straight there.' },
-    { text: 'Every change is a version. History has them all, with Restore on the row.' },
+    { text: 'Edit text directly using the tool: click text and type what you want. No model turn, no wait.' },
+    { text: 'You can point out what parts are difficult to understand, or ask a question.' },
+    { text: 'You can always undo. History has them all, with Restore on the row.' },
   ];
   let hintAt = Math.floor(Math.random() * HINTS.length);
   let hintAuto = true;      // until the student steers, and then it is theirs
