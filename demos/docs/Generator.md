@@ -127,6 +127,15 @@ Two shapes of edit come out of that, and the second is why the paragraph, not th
 - **A role, a new paragraph, or a deletion** is a class on the `<p>` or the `<p>` itself, so its pair spans the whole element. The bounds are read off the SOURCE, never off `outerHTML` — the browser normalises quoting and attribute order, and a find that has been through that stops matching the file it came from. Two edits over one stretch cannot both apply, so a paragraph that has taken a role writes itself whole from then on and any pair inside it is dropped.
 - **A role outlives the element it was put on.** The panel is rebuilt from the page's own strings on every step change, so the `<p>` carrying an unsaved role is thrown away; the role is held against the source region instead, which is the one name for it that does not change, and put back on whatever element is standing in that spot.
 
+### The 2026-09-10 rerun
+
+The same three requests after `data-live`, `shell.q`, `CardStage.fire` and the condense component joined the library. Reference at **15,872** cached tokens, up 1,118 from the section condense added and one clause of mine; cost per draft flat, $0.007 to $0.015. All three passed first try, all three driven, no console errors on any of them.
+
+- **The model writes `data-live` itself**, on the first run after `Components.md` mentioned it, and only on real readouts: `.stat-value` placeholders with ids its own code writes to, and a `.value` on a slider. The cell draft marked a readout of its own shape with no `.stat-value` anywhere, which is what the clause is for.
+- **Seeded into the builder and armed**, a page written after the change comes out right end to end: both stat readouts and the counter select-only, the labels beside them editable. Generator → shell → editor, no hand-carried class list.
+- `shell.q` went unused this run — the model reached for `ctx.ui.q` correctly all six times. The alias stays as the net.
+- `lead` on every step again; `callout` and `foot` unused this run, where the last had two callouts. Variance, not a trend, with one draft each way.
+
 ### The 2026-09-09 run
 
 Three drafts (`gemini-3.7-flash`, reference at 14,754 cached tokens), all three passing the source checks first try, at $0.006 to $0.016 and 6 to 12 seconds each. All three were driven step by step.
