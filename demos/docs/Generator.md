@@ -125,6 +125,16 @@ Two shapes of edit come out of that, and the second is why the paragraph, not th
 - **A role, a new paragraph, or a deletion** is a class on the `<p>` or the `<p>` itself, so its pair spans the whole element. The bounds are read off the SOURCE, never off `outerHTML` — the browser normalises quoting and attribute order, and a find that has been through that stops matching the file it came from. Two edits over one stretch cannot both apply, so a paragraph that has taken a role writes itself whole from then on and any pair inside it is dropped.
 - **A role outlives the element it was put on.** The panel is rebuilt from the page's own strings on every step change, so the `<p>` carrying an unsaved role is thrown away; the role is held against the source region instead, which is the one name for it that does not change, and put back on whatever element is standing in that spot.
 
+### The 2026-09-09 run
+
+Three drafts (`gemini-3.7-flash`, reference at 14,754 cached tokens), all three passing the source checks first try, at $0.006 to $0.016 and 6 to 12 seconds each. All three were driven step by step.
+
+- **The role vocabulary landed.** Every draft opened each step with `<p class="lead">`, the salmon one reached for `callout` twice unasked, and none of them wrote a `font-size`, a colour or a font. One `style="margin-top:10px"` on a `.stats` container, which `.controls`' own gap already provides.
+- **One page came back blank and passing.** The salmon draft wrote `shell.q('#net-flow')` in a module-scope `on('frame')` handler, where there is no `ctx` and the shell is the only handle in reach. It threw inside the render loop every frame, so the scene never drew: source checks green, stage empty. Fixed in the library — `shell.q` and `shell.qa` now exist — rather than by a line in the reference about which object the query hangs off.
+- **A selection turn works.** "what is this? explain it", unanswerable alone, with one pill naming the note key `pump` on step 1, came back as one edit — `gill.note('pump', {card: …})` on that step — in 178 output tokens, 2.1 s, $0.0033.
+
+Still open: **a subscriber that throws takes the scene down with it.** The bad `frame` handler above blanked the stage rather than breaking one readout, and on a page outside the builder nothing says why.
+
 ## 8. The backend
 
 `api/build.js` is the model turn: a first draft makes an app row and returns the edit token once; an edit needs the token and writes a version. `api/app.js` reads a stored page for anyone with the id, and restores, remixes, rotates the token and retitles for the token's holder; it takes no HTML from a caller. `api/_apps.js` is the two tables and the limit, its own constants counted in `app_versions`: 60 model turns an hour per visitor, 200 an hour and 600 a day per cohort, failing open like the tutor's. The same key as the tutor gates it.

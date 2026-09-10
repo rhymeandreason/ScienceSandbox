@@ -377,6 +377,14 @@
 
     const shellApi = {
       el, stage: els.stage, panel: els.panel, ui, ctx, steps,
+      /* The panel query, on the shell as well as on `ctx.ui`. A page's own
+         `on('frame')` is wired at module scope, where there is no ctx and the
+         shell is the only handle in reach, and reaching for `shell.q` there is
+         what a generated page did: it threw inside the render loop every frame
+         and the scene never drew, a blank stage with the source checks passing.
+         One name for one thing beats a rule in the reference about which
+         object it hangs off. */
+      q: sel => ui.q(sel), qa: sel => ui.qa(sel),
       goTo, get current() { return current; },
       /* `scene(name, mount)` registers and returns the component;
          `showScene(name | [names])` puts one on stage outside the step order,
