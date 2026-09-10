@@ -1,0 +1,128 @@
+<!doctype html>
+<!-- requests
+1. I want to show my class what a peptide bond actually is when two amino acids join
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Formation of a Peptide Bond</title>
+<style>
+  .phase-tracker { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="Condense"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Dehydration Synthesis',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { state: {} },
+  steps: [
+    {
+      eyebrow: 'Monomers',
+      title: 'Two amino acids ready to link',
+      body: '<p class="lead"><b>Every amino acid has an amino group at one end and a carboxyl group at the other.</b></p><p>Here, glycine faces alanine. Joining them requires removing atoms so carbon and nitrogen can share electrons directly.</p>',
+      nextLabel: 'Start reaction',
+      onEnter(ctx) {
+        C.notes(false);
+        C.set({ progress: 0 });
+        C.notes(['host', 'guest']);
+        ctx.ui.showPanel(C, { only: ['legend'] });
+      },
+      onExit() {
+        C.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Splitting Water',
+      title: 'Where the water comes from',
+      body: '<p class="lead"><b>A peptide bond costs one molecule of water.</b></p><p>A hydroxyl group (-OH) departs from the carboxyl terminus of the donor, while a hydrogen atom departs from the amino group of the receiver.</p>',
+      nextLabel: 'Complete bond',
+      onEnter(ctx) {
+        C.notes(false);
+        C.set({ progress: 0.65 });
+        ctx.ui.controls('<div class="stats"><div class="stat"><span class="stat-label">Phase</span><span class="stat-value phase-tracker" id="phase-name">...</span></div></div>');
+        C.on('frame', s => {
+          const el = ctx.ui.q('#phase-name');
+          if (el) el.textContent = s.phase;
+        });
+      },
+      onExit() {
+        C.notes(false);
+      }
+    },
+    {
+      eyebrow: 'The Dipeptide',
+      title: 'The covalent peptide bond',
+      body: '<p class="lead"><b>The carbonyl carbon links directly to the amino nitrogen.</b></p><p>The newly formed C–N bond forms the dipeptide backbone, leaving one free water molecule behind.</p>',
+      nextLabel: 'Explore',
+      onEnter(ctx) {
+        C.notes(false);
+        C.set({ progress: 1 });
+        C.notes(['bond', 'water']);
+        ctx.ui.showPanel(C, { only: ['legend'] });
+      },
+      onExit() {
+        C.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Scrub & Inspect',
+      title: 'Examine each beat of the synthesis',
+      body: '<p class="lead"><b>Drag the progress slider forward and backward.</b></p><p>Observe the precise moment the hydroxyl and proton dissociate before the carbon-nitrogen bond closes.</p>',
+      nextLabel: 'Restart',
+      onEnter(ctx) {
+        C.notes(false);
+        ctx.ui.controls(`
+          <div class="slider">
+            <div class="slider-head">
+              <span class="label">Reaction progress</span>
+              <span class="value" id="pct-val">100%</span>
+            </div>
+            <input type="range" id="prog-range" min="0" max="1" step="0.01" value="1">
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-label">Phase</span>
+              <span class="stat-value phase-tracker" id="scrub-phase">done</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Leaves</span>
+              <span class="stat-value" id="leaves-val">H2O</span>
+            </div>
+          </div>
+        `);
+        const rangeEl = ctx.ui.q('#prog-range');
+        ctx.ui.range(rangeEl, v => {
+          C.set({ progress: parseFloat(v) }, { snap: true });
+        });
+        C.on('frame', s => {
+          const pctEl = ctx.ui.q('#pct-val');
+          const phEl = ctx.ui.q('#scrub-phase');
+          const lvEl = ctx.ui.q('#leaves-val');
+          if (pctEl) pctEl.textContent = Math.round(s.progress * 100) + '%';
+          if (phEl) phEl.textContent = s.phase;
+          if (lvEl) lvEl.textContent = s.leaves || 'none';
+        });
+        ctx.ui.showPanel(C, { notes: ['bond', 'water'], only: ['notes', 'legend'] });
+      },
+      onExit() {
+        C.notes(false);
+      }
+    }
+  ]
+});
+
+const C = Condense.mount(shell.stage, {
+  from: ['glycine', 'alanine'],
+  progress: 0,
+  viewOffset: shell.viewOffset
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>

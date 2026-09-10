@@ -412,7 +412,16 @@
         ? B.hKeep.clone().lerp(B.gB.userData.atomWorld(B.gr.keep), 0.5) : null,
       water: () => B && B.water.visible
         ? B.pO.clone().add(B.water.position) : null,
-      leavingH: () => B && p.progress < BEAT.CROSS ? B.pH1.clone() : null,
+      /* IT RIDES THE PROTON. Pinned to where the proton STARTED, a callout on
+         the one beat this step is about sits on the molecule the proton has
+         already left, with a leader line to empty space. And it stops once the
+         proton is part of the water, because from there the `water` anchor is
+         the one that names it. */
+      leavingH: () => {
+        if (!B || p.progress >= BEAT.FORM) return null;
+        if (p.progress < BEAT.BREAK) return B.pH1.clone();
+        return B.wH2.getWorldPosition(new THREE.Vector3());
+      },
     };
     const facings = {};
     const library = {
@@ -438,11 +447,21 @@
     const LAYERS = [{ name: 'water', label: 'The water', on: true }];
     const layersOf = () => LAYERS.map(l => Object.assign({}, l, { on: p.water }));
     const show = (name, on) => { if (name === 'water') { p.water = !!on; apply(p.progress); } };
-    const palette = () => ({
-      Oxygen: '#' + PAL.atoms.O.toString(16).padStart(6, '0'),
-      Hydrogen: '#' + PAL.atoms.H.toString(16).padStart(6, '0'),
-      Carbon: '#' + PAL.atoms.C.toString(16).padStart(6, '0'),
-    });
+    /* A LIST OF {name, color}, which is what CardStage.showPanel's legend maps
+       over — an object here throws inside `paint` and takes the whole step's
+       panel with it. Found by a generated page, not by the bench: the bench
+       asked for the chips it knew about and the model asked for `legend`.
+
+       The elements a condensation moves, and only those: the water is an O and
+       two H, the backbone that keeps them is C, and a legend listing every
+       element in a 24-atom sugar is a colour key nobody reads. Off the palette,
+       never typed. */
+    const hex = v => '#' + v.toString(16).padStart(6, '0');
+    const palette = () => [
+      { name: 'Oxygen', color: hex(PAL.atoms.O) },
+      { name: 'Hydrogen', color: hex(PAL.atoms.H) },
+      { name: 'Carbon', color: hex(PAL.atoms.C) },
+    ];
 
     build();
     const api = { step, state, set, on, anchors, facings, library,

@@ -1,0 +1,76 @@
+<!doctype html>
+<!-- requests
+1. Show my students where the water comes from when two glucose molecules join together
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Condensation of Glucose</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="Condense"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Dehydration Synthesis',
+  hint: 'Drag to orbit · Scroll to zoom',
+  steps: [
+    {
+      eyebrow: 'Monomers',
+      title: 'Two separate glucose molecules',
+      body: '<p class="lead"><b>Building a disaccharide begins with two separate sugar monomers.</b></p><p>Each glucose ring carries hydroxyl (-OH) functional groups available to react. To bond the two rings together, a molecule of water must be removed.</p>',
+      nextLabel: 'Start reaction',
+      onEnter(ctx) {
+        C.set({ progress: 0 });
+        C.notes(['host', 'guest']);
+        ctx.ui.showPanel(C, { only: ['legend'] });
+      },
+      onExit() {
+        C.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Dehydration Synthesis',
+      title: 'Where the water comes from',
+      body: '<p class="lead"><b>The departing water molecule is formed from functional groups on both sugars.</b></p><p>One glucose yields an entire hydroxyl group (-OH), while the other donates a single hydrogen atom (-H). Drag the slider to trace their departure.</p>',
+      nextLabel: 'See finished bond',
+      onEnter(ctx) {
+        ctx.ui.controls('<div class="slider"><div class="slider-head"><span class="label">Reaction progress</span><span class="value" id="prog-val">0%</span></div><input type="range" id="prog" min="0" max="1" step="0.01" value="0"></div>');
+        const sync = ctx.ui.range(ctx.ui.q('#prog'), v => {
+          C.set({ progress: parseFloat(v) }, { snap: true });
+          const valEl = ctx.ui.q('#prog-val');
+          if (valEl) valEl.textContent = Math.round(v * 100) + '%';
+        });
+        C.notes(['leavingH']);
+      },
+      onExit() {
+        C.notes(false);
+      }
+    },
+    {
+      eyebrow: 'Product',
+      title: 'A covalent glycosidic bond',
+      body: '<p class="lead"><b>A single oxygen bridge now links the two glucose rings.</b></p><p>The remaining oxygen atom holds the new covalent glycosidic bond, leaving one free H<sub>2</sub>O molecule released into the surroundings.</p>',
+      onEnter(ctx) {
+        C.set({ progress: 1 });
+        C.notes(['bond', 'water']);
+        ctx.ui.showPanel(C, { only: ['legend'] });
+      },
+      onExit() {
+        C.notes(false);
+      }
+    }
+  ]
+});
+
+const C = Condense.mount(shell.stage, {
+  from: ['alphaGlucose', 'alphaGlucose'],
+  viewOffset: shell.viewOffset
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>
