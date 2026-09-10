@@ -81,6 +81,11 @@
   .stagebar{position:absolute;z-index:2;left:0;right:0;bottom:1rem;
     display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;align-items:center}
   .stagebar:empty,.stagebar[hidden]{display:none}
+  /* The checkbox stands on the model's paper, so it carries the card's own
+     surface rather than kodo.css's transparent .btn — over a molecule, a
+     transparent chip is a floating outline. */
+  .stagebar .btn{background:var(--surface-card)}
+  .stagebar .btn[disabled]{opacity:.45}
   .mbody{padding:clamp(1.4rem,3vw,2.2rem);display:flex;flex-direction:column;
     min-height:0;overflow-y:auto}
   @media (max-width:800px){
@@ -140,8 +145,8 @@
           <button type="button" data-mode="3d" aria-pressed="true">3D</button>
           <button type="button" data-mode="2d" aria-pressed="false">2D</button>
         </div>
-        <button type="button" class="pill pill--ghost pill--sm" id="m-hyd"
-                aria-pressed="false" hidden>C&ndash;H hydrogens</button>
+        <label class="btn btn--check" id="m-hyd" hidden>
+          <input type="checkbox" id="m-hyd-in"> C&ndash;H hydrogens</label>
       </div>
     </div>
     <div class="mbody">
@@ -208,7 +213,8 @@ $('tally').textContent = `${MOLS.length} molecules`;
    kit/card-stage.js owns everything around it: one canvas, the loop, and a
    destroy that hands the WebGL context back — a canvas that has lost one is
    never granted another, so the box is new on every open. */
-const modal = $('modal'), modes = $('m-modes'), hyd = $('m-hyd'), bar = $('m-bar');
+const modal = $('modal'), modes = $('m-modes'), bar = $('m-bar');
+const hyd = $('m-hyd'), hydIn = $('m-hyd-in');
 let box = null, view = null;
 
 const HINT = { '3d': 'Drag to turn.',
@@ -219,9 +225,11 @@ function setMode(next) {
   view.setMode(next);
   for (const b of modes.children) b.setAttribute('aria-pressed', String(b.dataset.mode === next));
   /* The flat layout folds every hydrogen into the atom it hangs on, so the
-     button has nothing to say there. Disabled rather than hidden: a control
-     that vanishes reads as one you imagined. */
-  hyd.disabled = next !== '3d';
+     checkbox has nothing to say there. Disabled rather than hidden: a control
+     that vanishes reads as one you imagined. The attribute is on the label too,
+     because that is what carries the dimming. */
+  hydIn.disabled = next !== '3d';
+  hyd.toggleAttribute('disabled', next !== '3d');
   $('m-hint').textContent = HINT[next];
 }
 modes.addEventListener('click', e => {
@@ -235,10 +243,9 @@ modes.addEventListener('click', e => {
 function setHydrogens(on) {
   if (!view) return;
   view.setOptionalH(on);
-  hyd.setAttribute('aria-pressed', String(on));
-  hyd.classList.toggle('is-on', on);
+  hydIn.checked = on;
 }
-hyd.addEventListener('click', () => setHydrogens(hyd.getAttribute('aria-pressed') !== 'true'));
+hydIn.addEventListener('change', () => setHydrogens(hydIn.checked));
 
 function openModal(m) {
   const s = m.spec;
