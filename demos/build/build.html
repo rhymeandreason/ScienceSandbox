@@ -29,8 +29,11 @@
        token's holder, so the attribute is set in paintTitle, not here. -->
   <span class="title" id="title"></span>
   <span class="tools" id="tools" hidden>
-    <a class="btn" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
-    <a class="btn" id="newApp" href="build.html"><i class="ph-bold ph-plus"></i>New app</a>
+    <a class="btn btn--ink" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
+    <!-- The public link, one click: the edit link needs the warning in the
+         dialog, this one does not. -->
+    <button class="btn btn--ink" id="copyView" type="button" title="Copy the public link"><i class="ph-bold ph-link"></i><span>Link</span></button>
+    <a class="btn btn--fill" id="newApp" href="build.html"><i class="ph-bold ph-plus"></i>New app</a>
     <button class="iconbtn" id="railToggle" type="button" title="Hide the panel" aria-pressed="false"><i class="ph-bold ph-sidebar-simple"></i></button>
   </span>
 </header>
@@ -143,9 +146,9 @@
         </div>
         <ol class="whylog" id="whyLog"></ol>
         <div class="row">
-          <button class="btn" id="editCancel" type="button">Cancel</button>
+          <button class="btn btn--ink" id="editCancel" type="button">Cancel</button>
           <span class="spacer"></span>
-          <button class="btn btn--tint" id="editSave" type="button">Save</button>
+          <button class="btn btn--fill" id="editSave" type="button">Save</button>
         </div>
       </div>
     </div>
@@ -155,9 +158,9 @@
     <div class="card card--quiet railfoot" id="railFoot" hidden>
       <p class="hint">Keep your edit link; this browser may forget it.</p>
       <div class="row">
-        <button class="btn" id="settings" type="button"><i class="ph-bold ph-link"></i>Edit link</button>
-        <button class="btn" id="export" type="button"><i class="ph-bold ph-download-simple"></i>Export</button>
-        <button class="btn" id="tips" type="button" hidden><i class="ph-bold ph-lightbulb"></i>Tips</button>
+        <button class="btn btn--soft" id="settings" type="button"><i class="ph-bold ph-key"></i>Edit link</button>
+        <button class="btn btn--ink" id="export" type="button"><i class="ph-bold ph-download-simple"></i>Export</button>
+        <button class="btn btn--ink" id="tips" type="button" hidden><i class="ph-bold ph-lightbulb"></i>Tips</button>
         <span class="spacer"></span>
         <button class="btn" id="snap" type="button" title="Take the shelf thumbnail from the app as it is now"><i class="ph-bold ph-camera"></i></button>
       </div>
@@ -514,8 +517,8 @@
       // Restore sits on the row itself: going back a version is the one thing
       // the list is for, and it should not need the turn opened to reach it.
       // The list's own handler returns before the toggle, so it does not open.
-      li.innerHTML = `<div class="head"><span class="n">${n == null ? '' : 'v' + n}</span><span class="what">${esc(what)}</span>`
-        + (restorable ? `<button class="btn" type="button" data-n="${n}" title="Restore v${n}"><i class="ph-bold ph-arrow-counter-clockwise"></i>Restore</button>` : '')
+      li.innerHTML = `<div class="head"><span class="n">${n == null ? '' : 'v' + n}</span><span class="what">${esc(what).replace(/^(\w+) · /, '<b>$1</b>')}</span>`
+        + (restorable ? `<button class="btn btn--text" type="button" data-n="${n}" title="Restore v${n}"><i class="ph-bold ph-arrow-counter-clockwise"></i>Restore</button>` : '')
         + `</div>`
         + `<div class="body"><div class="q">${esc(request || '')}</div>`
         + (summary ? `<div class="a">${esc(summary)}</div>` : '')
@@ -767,6 +770,14 @@
   });
   $('editLink').addEventListener('focus', e => e.target.select());
   $('export').addEventListener('click', () => app && Apps.exportFile(app.html, app.title));
+  // The label says it landed; a toast over the bar would be more than a copy deserves.
+  $('copyView').addEventListener('click', async () => {
+    if (!app) return;
+    const b = $('copyView'), say = b.querySelector('span');
+    try { await navigator.clipboard.writeText(Apps.link('view', app.id)); } catch { return; }
+    b.classList.add('is-done'); say.textContent = 'Copied';
+    setTimeout(() => { b.classList.remove('is-done'); say.textContent = 'Link'; }, 1600);
+  });
   $('rotate').addEventListener('click', async () => {
     if (!confirm('Revoke the current edit link? It stops working the moment a new one is made.')) return;
     try {

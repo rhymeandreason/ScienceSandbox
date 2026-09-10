@@ -13,6 +13,21 @@ body {
   font-family: var(--font-ui);
 }
 
+/* ---- buttons ----------------------------------------------------------
+   Three weights on kodo's .btn, so the rail is not a field of grey pills.
+   .btn--ink   the plain one: ink text on a hairline, for anything reversible.
+   .btn--soft  the accent's pale fill, for the row's one thing worth keeping.
+   .btn--fill  solid accent, for the one action a card is for.
+   .btn--text  no box at all: a verb on a list row, coloured only on hover. */
+.btn--ink { color: var(--text-body); border-color: var(--border-hair); background: var(--surface-card); }
+.btn--ink:hover:not([disabled]) { color: var(--text-strong); border-color: var(--text-strong); background: var(--surface-card); }
+.btn--soft { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 30%, transparent); background: color-mix(in srgb, var(--accent) 9%, transparent); }
+.btn--soft:hover:not([disabled]) { color: var(--text-inverse); border-color: var(--accent); background: var(--accent); }
+.btn--fill { color: var(--text-inverse); border-color: var(--accent); background: var(--accent); }
+.btn--fill:hover:not([disabled]) { color: var(--text-inverse); border-color: var(--spark); background: var(--spark); }
+.btn--text { border-color: transparent; background: transparent; color: var(--text-dim); padding-inline: 6px; }
+.btn--text:hover:not([disabled]) { color: var(--accent); border-color: transparent; background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
 /* ---- bar -------------------------------------------------------------- */
 .bar {
   /* The app bar's inset, kodo.css's — the same one `.sitenav.floating` takes,
@@ -52,7 +67,8 @@ body.work .bar { border-bottom-color: var(--border-hair); }
 .bar .title[contenteditable]:empty::before { content: 'Name this app'; color: var(--text-muted); font-style: italic; }
 .bar .tools { display: flex; gap: 6px; flex-wrap: wrap; align-self: center; }
 .bar .tools[hidden] { display: none; }
-.bar .tools .btn { padding: 4px 10px; font-size: 12px; }
+.bar .tools .btn { padding: 4px 11px; font-size: 12px; }
+.bar .tools .btn.is-done { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 .notice { padding: 10px 22px; font-size: 13px; background: var(--surface-card); border-bottom: 1px solid var(--border-hair); color: var(--text-dim); flex: none; }
 .notice.bad { color: var(--accent-hot); }
@@ -289,7 +305,7 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 .rail form .row .spacer { flex: 1; }
 
 .rail form .hint { display: none; }
-.rail .hint { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.35; }
+.rail .hint { font-size: 12px; color: var(--text-dim); margin: 0; line-height: 1.35; }
 .rail .progress .phases { font-size: .9rem; margin-top: .5rem; }
 .rail .progress .clock { top: .5rem; }
 .errs { font-size: 12px; color: var(--accent-hot); margin: 0; }
@@ -308,7 +324,7 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 .hints { display: flex; align-items: flex-start; gap: 9px; padding: 9px 10px 9px 12px; }
 .hints[hidden] { display: none; }
 .hints > i { flex: none; color: var(--accent); font-size: 14px; line-height: 18px; }
-.hints .say { flex: 1; min-width: 0; margin: 0; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+.hints .say { flex: 1; min-width: 0; margin: 0; font-size: 12px; line-height: 1.4; color: var(--text-body); }
 /* A prompt, offered as a button: it reads as the words to say, and clicking
    it says them. */
 .hints .try {
@@ -329,40 +345,42 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
    the buttons on their own line under it. */
 .railfoot { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
 .railfoot[hidden] { display: none; }
-.railfoot .hint { flex: none; font-size: 11px; line-height: 1.35; }
+.railfoot .hint { flex: none; font-size: 12px; line-height: 1.35; font-family: var(--font-editorial); font-style: italic; color: var(--text-dim); }
 .railfoot .row { display: flex; align-items: center; gap: 6px; }
 .railfoot .row .spacer { flex: 1; }
-.railfoot .btn { flex: none; padding: 3px 10px; font-size: 11px; line-height: 16px; }
+.railfoot .btn { flex: none; padding: 4px 11px; font-size: 12px; line-height: 16px; }
 
 /* The history. One row per version; open, it is the turn: the request in
-   the editorial face, the reply in the ui face, the cost line as a micro-cap. */
+   full, the model's summary, and the cost. Rows are flush, the open one and
+   the current one lift onto card paper, and the current one carries an
+   accent bar on its left edge so it reads first without a tint. */
 .history[hidden] { display: none; }
-.history { list-style: none; margin: 0; padding: 0 0 14px; display: flex; flex-direction: column; gap: 0; flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; }
+.history { list-style: none; margin: 0; padding: 4px 0 14px; display: flex; flex-direction: column; gap: 2px; flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; }
 .history::-webkit-scrollbar { display: none; }
-.history li { flex: none; }
-.history li { background: transparent; border: 0; border-bottom: 1px solid var(--border-hair); border-radius: 0; font-size: 12px; overflow: hidden; }
-.history li:last-child { border-bottom: 0; }
-.history .head { display: flex; gap: 10px; align-items: center; padding: 6px 2px; cursor: pointer; min-height: 20px; }
+.history li { flex: none; border-radius: var(--radius-md); font-size: 13px; overflow: hidden; }
+.history .head { display: flex; gap: 10px; align-items: center; padding: 8px 10px; cursor: pointer; min-height: 20px; }
 .history .head:hover { background: color-mix(in srgb, var(--text-strong) 5%, transparent); }
-.history .n { color: var(--text-muted); min-width: 2.2em; font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
-.history .what { flex: 1; min-width: 0; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history .n { flex: none; min-width: 2.2em; box-sizing: border-box; color: var(--text-muted); font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+.history .what { flex: 1; min-width: 0; color: var(--text-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The kind of turn is a stamp before the words, in the number's face. */
+.history .what b { font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); margin-right: 8px; }
 /* Restore stands on the row, so the row's own text yields to it rather than
-   the button wrapping or being pushed out of the panel. */
-.history .head .btn {
-  flex: none; padding: 1px 8px; font-size: 11px; line-height: 16px;
-  color: var(--text-muted); border-color: transparent; background: transparent;
-}
-.history .head .btn:hover { color: var(--accent); border-color: var(--border-hair); background: var(--surface-card); }
-.history li.open .head .btn { border-color: var(--border-hair); }
-.history li.open { background: var(--surface-card); border-radius: var(--radius-md); }
-.history li.open .head { padding: 8px 10px; }
-.history li.current .n, .history li.current .what { color: var(--text-strong); }
-.history li.bad .what { color: var(--accent-hot); }
-.history .body { display: none; padding: 2px 10px 10px; }
+   the row growing. It surfaces on hover so a list of five is not five verbs. */
+.history .head .btn { flex: none; margin: -3px 0; opacity: 0; transition: opacity var(--dur-fast), color var(--dur-fast), background var(--dur-fast); }
+.history li:hover .head .btn, .history li.open .head .btn, .history .head .btn:focus-visible { opacity: 1; }
+.history li.open, .history li.current { background: var(--surface-card); box-shadow: 0 1px 0 var(--border-hair); }
+/* The current one is marked on its number: a small green stamp, since a
+   bar down the row's edge fights the card's own corner. */
+.history li.current .n { color: var(--text-inverse); background: var(--accent); border-radius: 999px; padding: 1px 6px; min-width: 0; text-align: center; }
+.history li.current .what b { color: var(--accent); }
+.history li.current .what { color: var(--text-strong); }
+.history li.bad .what, .history li.bad .what b { color: var(--accent-hot); }
+.history .body { display: none; padding: 0 10px 12px 10px; }
 .history li.open .body { display: block; }
-.history .q { color: var(--text-strong); font-family: var(--font-editorial); font-size: 14px; line-height: 1.35; margin-top: 6px; }
-.history .a { color: var(--text-dim); margin-top: 5px; line-height: 1.4; }
-.history .meta { color: var(--text-muted); font-size: var(--cap-sm); letter-spacing: .08em; margin-top: 7px; font-variant-numeric: tabular-nums; }
+.history li.open .head { border-bottom: 1px solid var(--border-hair); margin-bottom: 10px; }
+.history .q { color: var(--text-strong); font-family: var(--font-editorial); font-size: 15px; line-height: 1.35; }
+.history .a { color: var(--text-dim); margin-top: 6px; line-height: 1.45; font-size: 13px; }
+.history .meta { color: var(--text-muted); font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .1em; text-transform: uppercase; margin-top: 10px; font-variant-numeric: tabular-nums; }
 .history li.bad .meta { color: var(--accent-hot); }
 
 /* My apps: its own section below the fold on the fresh page. The thumb is a slot for an image
@@ -508,20 +526,24 @@ body.viewer .preview > iframe { width: 100%; height: 100%; border: 0; display: b
    The outlines and the caret are the frame's own (build/app-edit.js). Here:
    the rail card's two tabs, the palette of roles, the log of what a click
    landed on, and the tags the mode parks by the request box. */
-.tabs { flex: none; display: flex; align-items: center; gap: 14px; margin: 14px 0 8px; }
+.tabs { flex: none; display: flex; align-items: center; gap: 18px; margin: 14px 0 8px; border-bottom: 1px solid var(--border-hair); }
 .tabs .spacer { flex: 1; }
+/* The version is a stamp, not a label: accent ink on a pale accent pill. */
 .tabs .ver {
   font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight);
-  letter-spacing: .12em; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  letter-spacing: .12em; color: var(--accent); font-variant-numeric: tabular-nums;
+  padding: 2px 7px; border-radius: 999px; margin-bottom: 6px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
+.tabs .ver:empty { display: none; }
 .tab {
-  border: 0; padding: 0 0 4px; background: none; cursor: pointer;
+  border: 0; padding: 0 0 7px; margin-bottom: -1px; background: none; cursor: pointer;
   font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight);
-  text-transform: uppercase; letter-spacing: .18em; color: var(--text-muted);
-  border-bottom: 1.5px solid transparent; transition: color var(--dur-base), border-color var(--dur-base);
+  text-transform: uppercase; letter-spacing: .18em; color: var(--text-dim);
+  border-bottom: 2px solid transparent; transition: color var(--dur-base), border-color var(--dur-base);
 }
-.tab:hover { color: var(--text-dim); }
-.tab[aria-selected="true"] { color: var(--text-strong); border-bottom-color: var(--accent); }
+.tab:hover { color: var(--text-strong); }
+.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
 .tab[hidden] { display: none; }
 /* The unsaved count rides on the tab, so the mode's one piece of state is
    legible from the pane the student is not looking at. */
@@ -532,44 +554,48 @@ body.viewer .preview > iframe { width: 100%; height: 100%; border: 0; display: b
 .pane { flex: 1 1 auto; min-height: 0; overflow: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 10px; padding-bottom: 14px; }
 .pane[hidden] { display: none; }
 .pane::-webkit-scrollbar { display: none; }
-.pane .hint { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.4; }
-.pane .row { display: flex; align-items: center; gap: 8px; }
+.pane .hint { font-size: 13px; color: var(--text-dim); margin: 2px 0 4px; line-height: 1.45; font-family: var(--font-editorial); font-style: italic; }
+/* Cancel and Save wait at the foot: with nothing edited yet the pane is a
+   hint and two buttons, and two buttons at the top read as the whole tool. */
+.pane .row { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border-hair); }
 .pane .row .spacer { flex: 1; }
 body.editing .device { outline: 2px solid var(--accent); outline-offset: -1px; }
 
 /* The step list. Built on the history row so the two panes read as one card:
    same hairlines, same number column, same hover. */
-.outline { list-style: none; margin: 0; padding: 0; }
-.outline li { border-bottom: 1px solid var(--border-hair); }
-.outline li:last-child { border-bottom: 0; }
+.outline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.outline li { border-radius: var(--radius-md); overflow: hidden; }
 .outline button {
   width: 100%; display: flex; gap: 10px; align-items: baseline; text-align: left;
-  background: transparent; border: 0; padding: 8px 2px; cursor: pointer; font: inherit; font-size: 12px;
+  background: transparent; border: 0; padding: 9px 10px; cursor: pointer; font: inherit; font-size: 13px;
+  border-radius: var(--radius-md);
 }
 .outline button:hover { background: color-mix(in srgb, var(--text-strong) 5%, transparent); }
-.outline .n { color: var(--text-muted); min-width: 2.2em; font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+.outline .n { color: var(--text-muted); min-width: 2.2em; font-family: var(--font-display); font-size: var(--cap-sm); font-weight: var(--cap-weight); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
 .outline .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.outline .t { color: var(--text-dim); line-height: 1.3; }
-.outline .eb { color: var(--text-muted); font-size: var(--cap-sm); letter-spacing: .08em; text-transform: uppercase; }
+.outline .t { color: var(--text-body); line-height: 1.3; font-weight: var(--weight-semibold); }
+.outline .eb { color: var(--text-muted); font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .1em; text-transform: uppercase; }
 .outline .scene { color: var(--text-muted); font-size: var(--cap-sm); letter-spacing: .06em; flex: none; }
-.outline li.current .n, .outline li.current .t { color: var(--text-strong); }
-.outline li.current { background: var(--surface-card); border-radius: var(--radius-md); }
+.outline li.current .n { color: var(--text-inverse); background: var(--accent); border-radius: 999px; padding: 1px 6px; min-width: 0; text-align: center; }
+.outline li.current .eb { color: var(--accent); }
+.outline li.current .t { color: var(--text-strong); }
+.outline li.current { background: var(--surface-card); box-shadow: 0 1px 0 var(--border-hair); }
 
 .whylog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .whylog li { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-.whylog .say { font-size: 12px; color: var(--text-muted); line-height: 1.35; }
+.whylog .say { font-size: 12px; color: var(--text-dim); line-height: 1.35; }
 
 .roles { display: flex; flex-direction: column; gap: 6px; }
 .roles[hidden], .rrow[hidden] { display: none; }
 .rrow { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
 .rrow .spacer { flex: 1; }
-.roles .btn { padding: 4px 9px; font-size: 12px; }
+.roles .btn { padding: 4px 9px; font-size: 12px; color: var(--text-body); background: var(--surface-card); }
 .roles .btn.is-on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .roles .btn b, .roles .btn i:not([class]) { font-family: var(--font-editorial); font-size: 13px; }
 
 .whylog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .whylog li { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
-.whylog .say { font-size: 12px; color: var(--text-muted); line-height: 1.35; }
+.whylog .say { font-size: 12px; color: var(--text-dim); line-height: 1.35; }
 
 .refs { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; }
 .refs[hidden] { display: none; }
