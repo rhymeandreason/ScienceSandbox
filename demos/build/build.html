@@ -25,6 +25,8 @@
 <header class="bar">
   <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
   <span class="crumb"></span>
+  <!-- The name is the field: click it and type. It is only editable for the
+       token's holder, so the attribute is set in paintTitle, not here. -->
   <span class="title" id="title"></span>
   <span class="tools" id="tools" hidden>
     <a class="btn" id="viewLink" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>
@@ -431,7 +433,7 @@
 
   function paintApp() {
     const editing = !!(app && token);
-    $('title').textContent = app ? (app.title || '(untitled)') : '';
+    paintTitle();
     $('tools').hidden = !app;
     if (app) $('viewLink').href = Apps.link('view', app.id);
     $('railFoot').hidden = !editing;
@@ -442,6 +444,56 @@
     $('request').disabled = !!app && !editing;
     $('ver').textContent = app ? `v${app.n}` : '';
   }
+
+  /* ---- the app's name ----------------------------------------------------
+   * Renaming is not a change to the page: it makes no version and never goes
+   * near the model. `api/app.js` has had the `title` action all along and the
+   * builder had never called it, so the name an app was born with was the one
+   * it kept. Enter or clicking away commits, Escape puts back what was there.
+   * The field is the bar's own title text rather than a dialog, since a name
+   * shown in one place should be changed in that place. */
+  const titleEl = $('title');
+  let titleWas = '';
+
+  function paintTitle() {
+    const may = !!(app && token);
+    if (may) { titleEl.setAttribute('contenteditable', 'true'); titleEl.title = 'Click to rename'; }
+    else { titleEl.removeAttribute('contenteditable'); titleEl.removeAttribute('title'); }
+    // Never over the student's own typing: paintApp runs on every turn.
+    if (document.activeElement === titleEl) return;
+    titleEl.textContent = app ? (app.title || (may ? '' : '(untitled)')) : '';
+  }
+
+  async function saveTitle() {
+    if (!(app && token)) return;
+    const t = titleEl.textContent.replace(/\s+/g, ' ').trim().slice(0, 120);
+    // An app with no name is not what emptying the field asks for.
+    if (!t || t === app.title) { titleEl.textContent = t || titleWas; return; }
+    titleEl.textContent = t;
+    try {
+      const r = await Apps.api('../../api/app', { method: 'POST', token, body: { action: 'title', id: app.id, title: t } });
+      app.title = r.title;
+      titleEl.textContent = r.title;
+      // The shelf reads its names from here, so it follows without a reload.
+      Apps.remember(app.id, token, r.title);
+    } catch (e) {
+      titleEl.textContent = titleWas;
+      notice(e.message || 'the name could not be saved', true);
+    }
+  }
+
+  titleEl.addEventListener('focus', () => { titleWas = titleEl.textContent; });
+  titleEl.addEventListener('blur', saveTitle);
+  titleEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+    if (e.key === 'Escape') { e.preventDefault(); titleEl.textContent = titleWas; titleEl.blur(); }
+  });
+  /* A pasted name arrives as markup, and the field is one line of text. */
+  titleEl.addEventListener('paste', e => {
+    e.preventDefault();
+    const t = (e.clipboardData || window.clipboardData).getData('text').replace(/\s+/g, ' ');
+    document.execCommand('insertText', false, t);
+  });
 
   // One list: every version is a turn. A row opens to the turn's details;
   // a failed request made no version, so it sits at the top with no number.

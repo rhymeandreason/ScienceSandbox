@@ -196,6 +196,8 @@ Dismissing is not a one-way door: **Tips** appears in the rail's foot when the h
 
 **A hint that has to be retyped is half given.** A hint may carry a `say`, the literal prompt, and it is drawn as a button that puts those words in the box — appended to whatever is already there, since asking for two changes in one turn is itself one of the hints.
 
+**The app's name is the bar's title text, and it is the field.** Click it and type; Enter or clicking away commits, Escape puts back what was there. `api/app.js` has had a `title` action all along and the builder had never called it, so the name a first draft was given was the name it kept. A rename is not a change to the page: it makes no version, it never reaches the model, and the local shelf picks the new name up from `Apps.remember` without a reload.
+
 ## 10. The backend
 
 `api/build.js` is the model turn: a first draft makes an app row and returns the edit token once; an edit needs the token and writes a version. `api/app.js` reads a stored page for anyone with the id, and restores, remixes, rotates the token and retitles for the token's holder; it takes no HTML from a caller. `api/_apps.js` is the two tables and the limit, its own constants counted in `app_versions`: 60 model turns an hour per visitor, 200 an hour and 600 a day per cohort, failing open like the tutor's. The same key as the tutor gates it.
