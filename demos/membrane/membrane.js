@@ -116,7 +116,15 @@
        the sagitta in A at |x| = CURVE_SPAN — how far the sheet has dropped
        by the edge of the frame. 0 is flat. Small on purpose: the arc has to
        be read as a hint, and a deep one tips the proteins at its edges far
-       enough to look broken. */
+       enough to look broken.
+
+       ONE DIRECTION IN EVERY CONTEXT, and it is not a coincidence: −y is
+       the ENCLOSED compartment in all three — the cytoplasm, the matrix,
+       the lumen — so the convex face is +y every time. A new context has
+       to put its enclosed side at −y like the rest, or this is wrong and
+       so is `pumpTo`. What the context does flip is the proton direction,
+       not the curve; the thylakoid pumps down, into the sac it wraps.
+       (Cristae reverse the local curvature. This is the flat patch.) */
     curve: 9,
     /* THE BUDGET. Ion spacing is quadratic in the crowd, and a page that
        scatters 400 things spends its whole frame keeping them apart. Refused
