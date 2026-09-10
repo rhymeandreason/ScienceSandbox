@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>condense bench — one bond, one water, four pairs</title>
+<title>condense bench — one bond, one water, seven pairs</title>
 <link rel="stylesheet" href="../css/kodo.css">
 <link rel="stylesheet" href="../css/lesson-shell.css">
 <style>
@@ -50,7 +50,18 @@ const PAIRS = [
   { from: ['glucose', 'glucose'],           label: 'β-glucose ×2' },
   { from: ['alphaGlucose', 'alphaGlucose'], label: 'α-glucose ×2' },
   { from: ['glycerol', 'palmitate'],        label: 'glycerol + palmitate' },
+  /* The same reaction on a tail with one cis double bond — contrast-lab's own
+     pair, and why butter is solid and oil is not. The kink is the difference. */
+  { from: ['glycerol', 'palmitoleate'],     label: 'glycerol + palmitoleate' },
   { from: ['glycine', 'alanine'],           label: 'glycine + alanine' },
+  /* TWO BONDS FROM ONE PAIR, and the only thing separating them is `role`.
+     Glutamate carries a second carboxyl on its side chain, so the same two
+     molecules make an ordinary peptide bond off the backbone or a gamma-linkage
+     off the side chain — which is the bond in glutathione, and the one
+     transglutaminase cross-links with. The component picks the backbone unless
+     told; nothing but `role` decides it. */
+  { from: ['glutamate', 'glycine'],         label: 'glutamate + glycine' },
+  { from: ['glutamate', 'glycine'],         label: '…at the side chain (γ)', role: 'gamma' },
 ];
 const D = Condense.DEFAULTS;
 const SNAP = { snap: true };
@@ -82,7 +93,9 @@ function bench(ctx) {
       <div class="bench-hd">the pair</div>
       <div class="chips" id="pairs"></div>
       <p class="foot">Three linkage classes. The component picks which from the two molecules' own
-        <code>condense</code> roles, so it cannot be asked for a peptide bond between two sugars.</p>
+        <code>condense</code> roles, so it cannot be asked for a peptide bond between two sugars.
+        The last two are the same pair: only <code>role</code> differs, and it moves the bond from
+        glutamate's backbone to its side chain.</p>
     </div>
 
     <div class="bench-group">
@@ -180,7 +193,7 @@ function bench(ctx) {
       b.onclick = () => {
         pair = i; drawPairs();
         ui.q('#progress').value = 0;
-        C.set({ from: pr.from, progress: 0 }, SNAP);
+        C.set({ from: pr.from, role: pr.role || null, progress: 0 }, SNAP);
         readout(); snippet();
       };
       pairsEl.appendChild(b);

@@ -59,8 +59,13 @@ const M = global.MolLib.MOLECULES, S = global.MacroSpec;
    so a peptide is not only checked in the direction the example happens to use. */
 const PAIRS = [
   ['glucose', 'glucose'], ['alphaGlucose', 'alphaGlucose'],
-  ['glycerol', 'palmitate'],
+  ['glycerol', 'palmitate'], ['glycerol', 'palmitoleate'],
   ['glycine', 'alanine'], ['alanine', 'glycine'], ['serine', 'cysteine'],
+  /* A role that is NOT the default, and the one most likely to rot: glutamate's
+     side-chain carboxyl is a third role on a molecule whose other two are the
+     backbone's, so a renumbering of that spec moves the gamma-linkage without
+     moving anything the other pairs would notice. */
+  ['glutamate', 'glycine'], ['glutamate', 'glycine', 'gamma'],
 ];
 /* Which end the water's oxygen comes from, per class. Written here rather than
    counted, for reaction/check-reaction.js's reason: a list that derives itself
@@ -70,11 +75,14 @@ const OXYGEN_SIDE = { glycosidic: 'acceptor', ester: 'guest', peptide: 'host' };
 
 console.log('\n== 1. every documented pair resolves');
 const solved = [];
-for (const [hk, gk] of PAIRS) {
+for (const [hk, gk, want] of PAIRS) {
   let L = null, err = null;
   try { L = Condense.linkageOf(hk, gk, M); } catch (e) { err = e.message; }
   if (!L) { fail(`${hk} + ${gk} — ${err || 'no linkage'}`); continue; }
-  const role = L.slots ? L.slots(un(M[hk], hk))[0] : L.donor;
+  const role = want || (L.slots ? L.slots(un(M[hk], hk))[0] : L.donor);
+  if (want && !S.role(un(M[hk], hk), want)) {
+    fail(`${hk} has no role '${want}' — the bench offers it`); continue;
+  }
   solved.push({ hk, gk, L, role });
   console.log(`  ok    ${hk} + ${gk} → ${L.name} (host role ${role})`);
 }
