@@ -534,13 +534,16 @@
          `view:` is dropped going in — buildMolecule bakes it into the atom
          meshes and a pose solved against raw coordinates would desync from
          every one of them — so the scene is left in the orientation its
-         molecules were BUILT in, and a pyranose is built lying in the xz-plane.
-         Seen from the equator that is a ring edge-on, which is the 3/4 chair
-         every other page shows turned into a disc.
-         Turning the model back is the wrong repair: the landmarks are world
-         points and the water's travel is a local one, so a rotation on the
-         group re-rotates the departure. Look down at it instead. */
-      cam: params.cam || { theta: 0.62, phi: 0.72, r: 26 },
+         molecules were BUILT in. Turning the model back is the wrong repair:
+         the landmarks are world points and the water's travel is a local one,
+         so a rotation on the group re-rotates the departure.
+
+         `phi` IS MEASURED FROM +Y AND THE RING'S NORMAL IS +Y, because
+         `ringPyranose` lays a pyranose in the xz-plane. So face-on to the ring
+         is phi = 0 exactly, and this is 20° off it: enough tilt to read as a
+         solid rather than a hexagon, not enough to foreshorten the ring into a
+         disc. A page that wants another angle passes `cam`. */
+      cam: params.cam || { theta: 0.62, phi: 0.35, r: 26 },
       stage: Object.assign({ ortho: true, rMin: 10, rMax: 70 }, params.stage || {}),
       step: dt => { if (sim) last = sim.step(dt); if (FXi) FXi.step(); },
       afterFrame: () => { if (nb) nb.step(); },

@@ -117,6 +117,7 @@ function bench(ctx) {
         <div class="stat"><span class="stat-label">leaves</span><span class="stat-value" id="rd-leaves" style="font-size:15px">—</span></div>
         <div class="stat"><span class="stat-label">new bond</span><span class="stat-value" id="rd-len">—</span></div>
         <div class="stat"><span class="stat-label">atoms drawn</span><span class="stat-value" id="rd-atoms" style="font-size:15px">—</span></div>
+        <div class="stat"><span class="stat-label">camera</span><span class="stat-value" id="rd-cam" style="font-size:13px">—</span></div>
       </div>
       <p class="foot"><code>leaves</code> is read off the two roles' own leaving atoms. Anything but
         H2O here is a pair that is not a condensation.</p>
@@ -138,7 +139,10 @@ function bench(ctx) {
     out.textContent =
       `const DEFAULTS = { from: ${JSON.stringify(PAIRS[pair].from)}, role: null, progress: 0,\n`
       + `                   gap: ${(+ui.q('#gap').value).toFixed(1)}, `
-      + `turn: ${(+ui.q('#turn').value).toFixed(2)}, water: true };`;
+      + `turn: ${(+ui.q('#turn').value).toFixed(2)}, water: true };\n\n`
+      + `// in mount(), the default camera:\n`
+      + `cam: params.cam || { theta: ${C.box.cam.theta.toFixed(2)}, `
+      + `phi: ${C.box.cam.phi.toFixed(2)}, r: 26 },`;
   };
 
   const readout = () => {
@@ -151,9 +155,19 @@ function bench(ctx) {
     ui.q('#rd-len').textContent = s.bondAngstrom + ' Å';
     ui.q('#rd-atoms').textContent = s.atomsDrawn.join(' + ');
     ui.q('[data-v=progress]').textContent = s.progress.toFixed(2);
+    /* THE CAMERA IS A BENCH READOUT because it is the one thing here that is
+       chosen by eye. Orbit to the angle that reads, then paste the line below
+       into the component's own default. */
+    const cam = C.box.cam;
+    ui.q('#rd-cam').textContent =
+      `\u03b8 ${cam.theta.toFixed(2)}  \u03c6 ${cam.phi.toFixed(2)}`;
+    snippet();
   };
   C.on('frame', readout);
   C.on('phase', readout);
+  // A drag changes the camera and nothing else, so the readout has to follow
+  // the pointer as well as the sim.
+  C.box.canvas.addEventListener('pointermove', () => readout());
 
   // ---- the pair chips: a rebuild, so progress goes back to 0 with them ----
   const pairsEl = ui.q('#pairs');
