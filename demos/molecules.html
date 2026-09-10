@@ -81,11 +81,11 @@
   .stagebar{position:absolute;z-index:2;left:0;right:0;bottom:1rem;
     display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;align-items:center}
   .stagebar:empty,.stagebar[hidden]{display:none}
-  /* The checkbox stands on the model's paper, so it carries the card's own
-     surface rather than kodo.css's transparent .btn — over a molecule, a
-     transparent chip is a floating outline. */
-  .stagebar .btn{background:var(--surface-card)}
-  .stagebar .btn[disabled]{opacity:.45}
+  /* Both instruments stand on the model's paper, so the ghost capsule carries
+     the card's own surface: over a molecule, a transparent chip is a floating
+     outline. */
+  .stagebar .pill--check,
+  .stagebar .pill--check:hover:not([disabled]){background:var(--surface-card)}
   .mbody{padding:clamp(1.4rem,3vw,2.2rem);display:flex;flex-direction:column;
     min-height:0;overflow-y:auto}
   @media (max-width:800px){
@@ -145,7 +145,7 @@
           <button type="button" data-mode="3d" aria-pressed="true">3D</button>
           <button type="button" data-mode="2d" aria-pressed="false">2D</button>
         </div>
-        <label class="btn btn--check" id="m-hyd" hidden>
+        <label class="pill pill--ghost pill--check" id="m-hyd" hidden>
           <input type="checkbox" id="m-hyd-in"> C&ndash;H hydrogens</label>
       </div>
     </div>

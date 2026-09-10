@@ -885,6 +885,36 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
    The line-height is stated because .pill's 1 would leave an odd box. */
 .pill--sm { padding: 10px 20px; font-size: .8rem; line-height: 14px; --pill-rest: 3px }
 
+/* ---------- .pill--check ---------- */
+/* A CHECKBOX SHAPED LIKE THE CONTROL BESIDE IT. `.btn--check` is this switch in
+   a document; this is the same switch standing on the model's paper, so it takes
+   the ghost capsule and sits level with a `.segmented--sm` in the same row —
+   which is where it came from: molecules.html puts a 3D/2D switch and a "C-H
+   hydrogens" box side by side, and a square chip beside a capsule reads as two
+   unrelated controls.
+
+   Always a <label> with a real <input type="checkbox"> inside. The label is not
+   focusable, so the ring is borrowed from the input.
+
+   IT DOES NOT CHANGE WHEN CHECKED, exactly as .btn--check does not: the tick is
+   the state, in ink, and darkening the capsule around it says the same thing
+   twice. That also keeps it distinct from `.is-on`, which on a ghost pill means
+   "this tab is the one you are on". */
+.pill--check { padding: 8px 16px 8px 12px }
+
+.pill--check input {
+  margin: 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--check-ink, var(--text-strong));
+  cursor: inherit;
+}
+
+.pill--check:has(input:focus-visible) {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
 /* The nudge: a ring breathing out of a pill while the scene is still too empty
    to show what the step is about. The button itself does not move, so it stays
    an easy target while it is asking. */

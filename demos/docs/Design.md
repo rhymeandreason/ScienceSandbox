@@ -132,6 +132,11 @@ turning orange under the pointer would be a claim about a different substance.
 The step tabs (`.pill--ghost`) take none of the signage: they carry phrases, and
 a letterspaced capital sentence is decoded rather than scanned.
 
+**A switch is not a door, and it takes the shape of what it lies on**:
+`.btn--check` in a document, `.pill--ghost .pill--check` on a model's paper
+beside a `.segmented--sm`. Both are a `<label>` around a real checkbox, and
+neither changes when checked, because the tick already says so.
+
 ## 3. What a page does not get to set
 
 Paper, gutter, measure, masthead rhythm and the two accents belong to
