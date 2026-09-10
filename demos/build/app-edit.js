@@ -366,11 +366,23 @@
     var span = rec.span, par = span.parentElement;
     if (!rec.hit.markup || !par || !INLINE[par.tagName]) return;
     if (par.querySelectorAll('[data-ssx="e"]').length !== 1) return;
+    /* THE WHITESPACE COMES WITH IT. The tag is rebuilt around everything it
+     * held, the edges `split` put aside included, because the file writes them
+     * inside it: `<strong>the claim. </strong>Rest`. Moving only the words left
+     * that space outside the tag; the paragraph rendered the same and no longer
+     * matched, so after one repaint the bold run was a substring of a longer
+     * one and the next passage had grown a leading space the file does not
+     * have — both of them things to point at rather than words to edit. */
+    var kids = [].slice.call(par.childNodes);
     var tag = document.createElement(INLINE[par.tagName]);
-    while (span.firstChild) tag.appendChild(span.firstChild);
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i] !== span) { tag.appendChild(kids[i]); continue; }
+      while (span.firstChild) tag.appendChild(span.firstChild);
+    }
     span.appendChild(tag);
-    while (par.firstChild) par.parentNode.insertBefore(par.firstChild, par);
+    par.parentNode.insertBefore(span, par);
     par.remove();
+    rec.lead = ''; rec.trail = '';   // they are inside the tag now
     rec.body = serialize(span, rec.hit);
     var p = span.closest('p'), reg = p && !p._ssxRegion && region(rec.hit);
     if (!reg) return;   // restore() already owns this paragraph, state and all
