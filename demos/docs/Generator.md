@@ -188,7 +188,13 @@ The two messages are `app-outline` and `app-outline-go` on the same relay as tex
 
 Not built: renaming a step from the row, which is text mode's `{find, replace}` on the same passages and should reuse it; and reorder, insert and delete, which are structural edits to a JS array literal rather than string swaps — those belong in a model turn, pointed at the step the way an un-editable passage is pointed at today.
 
-## 9. The backend
+## 9. The hints
+
+Under the request box, one tip at a time, dismissed for good on the cross (`ss.build.nohints` in localStorage). The list is `HINTS` in `build.html`, and it holds two kinds: how to ask for a change that lands, and the two panes beside History that a student would otherwise never open. Eight lines under the box is a wall nobody reads, so it is a carousel — nine seconds, paused on hover, and it stops cycling for good the moment a dot is clicked, since the student is steering by then.
+
+**A hint that has to be retyped is half given.** A hint may carry a `say`, the literal prompt, and it is drawn as a button that puts those words in the box — appended to whatever is already there, since asking for two changes in one turn is itself one of the hints.
+
+## 10. The backend
 
 `api/build.js` is the model turn: a first draft makes an app row and returns the edit token once; an edit needs the token and writes a version. `api/app.js` reads a stored page for anyone with the id, and restores, remixes, rotates the token and retitles for the token's holder; it takes no HTML from a caller. `api/_apps.js` is the two tables and the limit, its own constants counted in `app_versions`: 60 model turns an hour per visitor, 200 an hour and 600 a day per cohort, failing open like the tutor's. The same key as the tutor gates it.
 

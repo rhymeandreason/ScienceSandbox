@@ -91,6 +91,14 @@
 
   <aside class="rail">
     <div class="card railform" id="railForm"></div>
+    <!-- One tip at a time, under the box it is about. Dismissable and it stays
+         dismissed: a hint a student has read twice is noise on the third app. -->
+    <div class="card card--quiet hints" id="hints" hidden>
+      <i class="ph-bold ph-lightbulb"></i>
+      <p class="say" id="hintSay"></p>
+      <span class="dots" id="hintDots"></span>
+      <button class="iconbtn" id="hintOff" type="button" title="Hide hints"><i class="ph-bold ph-x"></i></button>
+    </div>
     <!-- One card, two panes. The mode is a tab and not a toolbar button
          because that is what it is: the rail shows the app's past, or the
          tools for changing its words, and never both. -->
@@ -420,6 +428,7 @@
     $('tools').hidden = !app;
     if (app) $('viewLink').href = Apps.link('view', app.id);
     $('railFoot').hidden = !editing;
+    paintHints();
     paintTabs();
     $('send').textContent = app ? (editing ? 'Change It' : 'Remix to edit') : "Let's Go";
     $('request').placeholder = app ? (editing ? 'How should it be better?' : 'Remix this app to ask for changes') : TRIES[tryIndex];
@@ -556,6 +565,69 @@
       setTimeout(() => { box.placeholder = TRIES[tryIndex]; box.classList.remove('swap'); }, 300);
     }, 4200);
   })();
+  /* ---- hints -------------------------------------------------------------
+   * What a student would not guess: the words that get a good change, and the
+   * panes beside History. One at a time, because eight lines under the box is
+   * a wall nobody reads. A `say` is the literal prompt, and clicking it puts
+   * it in the box: a hint that has to be retyped is a hint half given. */
+  const HINTS = [
+    { text: 'If the app reports an error, ask for a fix in those words.', say: 'Fix the error' },
+    { text: 'Aim the writing at your reader.', say: ["Explain it like I'm 10", 'Make the text less technical'] },
+    { text: 'Ask for more than one change at a time. One turn can carry them all.' },
+    { text: 'Say which step you mean.', say: 'On step 3, slow the animation down' },
+    { text: 'Ask for something the reader can play with.', say: 'Add a slider for temperature' },
+    { text: 'Edit text: click a passage in the app and type over it. No model turn, no wait.' },
+    { text: 'Outline lists the steps, and a row jumps the app straight there.' },
+    { text: 'Every change is a version. History has them all, with Restore on the row.' },
+  ];
+  let hintAt = Math.floor(Math.random() * HINTS.length);
+  let hintAuto = true;      // until the student steers, and then it is theirs
+  let hintTimer = null;
+  let hintsOff = false;
+  try { hintsOff = !!localStorage.getItem('ss.build.nohints'); } catch { /* this page load only */ }
+
+  function paintHints() {
+    const on = !hintsOff && !!(app && token);
+    $('hints').hidden = !on;
+    if (!on) { clearInterval(hintTimer); hintTimer = null; return; }
+    const h = HINTS[hintAt];
+    $('hintSay').innerHTML = esc(h.text)
+      + [].concat(h.say || []).map(t => ` <button class="try" type="button">${esc(t)}</button>`).join('');
+    $('hintDots').innerHTML = HINTS.map((_, i) =>
+      `<button type="button"${i === hintAt ? ' class="is-on"' : ''} data-i="${i}" aria-label="Hint ${i + 1}"></button>`).join('');
+    // A timer and not rAF: rAF never fires in a backgrounded tab, and the
+    // carousel would sit on one hint until the tab came forward.
+    if (hintAuto && !hintTimer) {
+      hintTimer = setInterval(() => {
+        if ($('hints').matches(':hover')) return;   // reading it is not idling
+        hintAt = (hintAt + 1) % HINTS.length;
+        paintHints();
+      }, 9000);
+    }
+  }
+  $('hints').addEventListener('click', e => {
+    const t = e.target.closest('button.try');
+    if (t) {
+      // Added to what is already there, since asking for two changes at once
+      // is one of the things these hints are for.
+      const box = $('request');
+      box.value = box.value.trim() ? `${box.value.trim()}\n${t.textContent}` : t.textContent;
+      box.focus();
+      return;
+    }
+    const d = e.target.closest('.dots button[data-i]');
+    if (!d) return;
+    hintAuto = false;
+    clearInterval(hintTimer); hintTimer = null;
+    hintAt = +d.dataset.i;
+    paintHints();
+  });
+  $('hintOff').addEventListener('click', () => {
+    hintsOff = true;
+    try { localStorage.setItem('ss.build.nohints', '1'); } catch { /* this page load only */ }
+    paintHints();
+  });
+
   // Tab on an empty box takes the suggestion the placeholder is showing.
   // A fragment link would resolve against <base> and lose the filename, so the
   // cue scrolls the hero itself.

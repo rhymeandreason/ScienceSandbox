@@ -288,6 +288,28 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
   text-transform: uppercase; letter-spacing: .18em; color: var(--text-muted); margin: 14px 0 8px; display: flex;
 }
 .rail h3 .ver { margin-left: auto; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+/* Hints: one line, under the box it is about. Quiet like the foot, since it
+   is not the thing to act on; the dots are the only affordance that shows. */
+.hints { display: flex; align-items: flex-start; gap: 9px; padding: 9px 10px 9px 12px; }
+.hints[hidden] { display: none; }
+.hints > i { flex: none; color: var(--accent); font-size: 14px; line-height: 18px; }
+.hints .say { flex: 1; min-width: 0; margin: 0; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+/* A prompt, offered as a button: it reads as the words to say, and clicking
+   it says them. */
+.hints .try {
+  font: inherit; font-style: italic; color: var(--accent); background: transparent;
+  border: 0; border-bottom: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  padding: 0; margin: 0 2px; cursor: pointer; text-align: left;
+}
+.hints .try:hover { color: var(--text-strong); border-bottom-color: var(--text-strong); }
+.hints .dots { flex: none; display: flex; gap: 4px; padding-top: 6px; }
+.hints .dots button {
+  width: 5px; height: 5px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+}
+.hints .dots button.is-on { background: var(--accent); }
+.hints .iconbtn { flex: none; width: 20px; height: 20px; font-size: 12px; }
+
 /* The rail's foot: the one thing about the app the student has to keep. */
 .railfoot { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
 .railfoot .hint { font-size: 11px; }
