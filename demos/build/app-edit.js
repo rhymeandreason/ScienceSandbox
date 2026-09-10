@@ -718,17 +718,26 @@
 
   function onClick(e) {
     if (!on) return;
+    /* A PLAIN CLICK SAYS WHAT YOU MEAN NOW. Putting the caret in a passage is
+     * not a reference, so it leaves nothing selected: a part still lit while
+     * the student has moved on to typing somewhere else reads as a selection
+     * that would not come off. Hold the modifier to keep what is picked.
+     * A click the page wants — a Next button, the canvas — is navigation and
+     * not a choice, and it leaves the selection where it is. */
+    var add = e.metaKey || e.ctrlKey;
     var b = e.target.closest ? e.target.closest('.ssx-badge') : null;
     if (b && b._ssxFor) {
       e.preventDefault(); e.stopPropagation();
       var t = b._ssxFor;
-      t.getAttribute('data-ssx') === 'e' ? edit(t) : select(t, e.metaKey || e.ctrlKey);
+      if (t.getAttribute('data-ssx') === 'e') { if (!add) unselect(); edit(t); }
+      else select(t, add);
       return;
     }
     var span = e.target.closest ? e.target.closest('[data-ssx="e"]') : null;
     if (span) {
       if (span.hasAttribute('contenteditable') || span.closest(CONTROL)) return;
       e.preventDefault(); e.stopPropagation();
+      if (!add) unselect();
       edit(span);
       return;
     }
@@ -751,7 +760,7 @@
         if (pick.getAttribute('data-ssx') !== 's') pick = null;
       }
     }
-    if (pick && !pick.closest(CONTROL)) { e.preventDefault(); e.stopPropagation(); select(pick, e.metaKey || e.ctrlKey); }
+    if (pick && !pick.closest(CONTROL)) { e.preventDefault(); e.stopPropagation(); select(pick, add); }
   }
 
   /* ONE BADGE, on whatever is under the pointer, and it is the way in to
