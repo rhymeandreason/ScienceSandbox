@@ -46,9 +46,15 @@
  *                                      distance: one number has to mean the same
  *                                      beside a five-atom glycine and a sixteen-
  *                                      carbon palmitate. REBUILDS.
- *    turn      0.35                    how much of the facing is left to do on
- *                                      the way in, 0 = none. A whole turn walks
- *                                      the guest through the host. REBUILDS.
+ *    turn      1                       how much of the facing is left to do on
+ *                                      the way in. 1 starts the guest in the
+ *                                      orientation it was BUILT in, which is the
+ *                                      host's, so the pair reads as two of the
+ *                                      same molecule; the linkage's own twist
+ *                                      then arrives as they close, which for
+ *                                      beta-1,4 is most of a half turn and is
+ *                                      the difference the lesson is about.
+ *                                      REBUILDS.
  *    water     true                    draw the leaving water at all.
  *
  *  ---- WHY progress AND NOT react() ---------------------------------------
@@ -80,7 +86,7 @@
   'use strict';
 
   const DEFAULTS = { from: ['glucose', 'glucose'], role: null, progress: 0,
-                     gap: 3, turn: 0.35, water: true };
+                     gap: 3, turn: 1, water: true };
 
   /* THE BEATS, as fractions of `progress`. Written here rather than in seconds
      because the caller owns the clock: a tween to progress:1 over 4 s and a
@@ -115,7 +121,6 @@
     if (global.Glycosidic && global.Glycosidic.LINKAGE[hk] && has(g, 'c4'))
       return { name: 'glycosidic', donor: 'c1', acceptor: 'c4',
                pose: (H, G, o) => global.Glycosidic.pose(H, G, o.refs),
-               startQuat: (G, o) => global.Glycosidic.startQuat(G, o.refs),
                /* The linkage geometry is MEASURED off a real disaccharide
                   rather than constructed from angles, so this one needs to see
                   the record. It knows which — LINKAGE is keyed by monomer — it
@@ -200,14 +205,24 @@
       const dir = gB.userData.atomWorld(gr.keep).clone().sub(hKeep).normalize();
       const bondLen = gB.userData.atomWorld(gr.keep).distanceTo(hKeep);
 
-      /* Only `Glycosidic` measures a start orientation; the other two construct
-         their geometry and have none, so theirs is part of the way back from
-         the pose along the shortest rotation and it turns the rest on the way
-         in. Deliberately partial: a molecule swinging through a half turn on
-         its way in passes through the one it is reacting with. */
-      const qStart = L.startQuat
-        ? new THREE.Quaternion(...L.startQuat(G, { refs }))
-        : new THREE.Quaternion().slerp(qPose, 1 - p.turn);
+      /* WHERE THE GUEST STARTS FACING: part of the way back from the pose along
+         the shortest rotation, turning the rest on the way in. Deliberately
+         partial — a molecule swinging through a half turn on its way in passes
+         through the one it is reacting with.
+
+         NOT `Glycosidic.startQuat`, which is a different question wearing a
+         similar name: it turns the FIRST monomer so a growing chain's own plane
+         lies on z=0, for the builder's card. Used on a guest it starts the
+         second ring on a plane derived from a chain nobody is building, and the
+         pair reads as two sugars photographed on different tables.
+
+         At the default `turn` of 1 this is identity, so both molecules start on
+         the plane they were BUILT in and read as two of the same thing. The
+         partial settings exist because a long guest turning about its own origin
+         could in principle sweep through the host; measured across the whole
+         approach on all three classes, the closest either ever comes is the bond
+         it is forming, at any turn. */
+      const qStart = new THREE.Quaternion().slerp(qPose, 1 - p.turn);
       gB.quaternion.copy(qStart); gB.updateMatrixWorld(true);
       /* THE GAP IS SOLVED AFTER THE TURN. A group rotates about its own origin
          and an origin is not the reacting atom — palmitate's is eight angstroms

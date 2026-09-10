@@ -404,7 +404,7 @@ const C = Condense.mount(el, {
   progress: 0,                     // 0 apart .. 1 bonded and the water gone. THE WHOLE ANIMATION
   role: null,                      // which of the host's –OH reacts; null takes the first free
   gap: 3,                          // how far apart they wait, in bond lengths
-  turn: 0.35,                      // how much of the facing is left to do on the way in
+  turn: 1,                         // 1 starts the guest facing the way the host does, and the linkage's twist arrives as they close
 });
 C.set({ progress: 1 });            // runs the reaction; set({progress:0}) runs it backwards
 ```
