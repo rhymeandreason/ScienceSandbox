@@ -35,26 +35,25 @@
 <style>
   :root { --page-max: 1180px }
 
-  .grid{display:grid;gap:var(--page-gap);
-    grid-template-columns:repeat(auto-fill,minmax(290px,1fr))}
-  /* Proteins and molecules are shelves, not the whole list: the column count
-     is FIXED so two rows are two rows, and JS cuts each list to 2 x its
-     columns. An auto-fill track would make the cut land mid-row. */
-  .grid.prots{grid-template-columns:repeat(2,1fr)}
+  /* Every column count is FIXED, not auto-fill: the two shelves are cut to
+     2 x their columns in JS, and an auto-fill track would land the cut
+     mid-row. */
+  .grid{display:grid;gap:calc(var(--page-gap) * .8);
+    grid-template-columns:repeat(2,1fr)}
   .grid.mols{grid-template-columns:repeat(3,1fr);gap:calc(var(--page-gap) * .7)}
   @media (min-width:900px){
-    .grid.prots{grid-template-columns:repeat(4,1fr)}
+    .grid{grid-template-columns:repeat(4,1fr)}
     .grid.mols{grid-template-columns:repeat(5,1fr)}
   }
-  /* A shelf card is smaller than a component's: a shorter stage, tighter body. */
+  /* Small cards throughout: a short stage and a tight body, so a section is
+     read as a shelf rather than a page each. */
+  .stage{height:150px}
   .grid.prots .stage,
   .grid.mols .stage{height:140px}
-  .grid.prots .body,
-  .grid.mols .body{padding:.9rem 1rem 1rem}
-  .grid.prots .name,
-  .grid.mols .name{font-size:1.05rem}
-  .grid.prots .blurb{font-size:.82rem;-webkit-line-clamp:2;margin:.45rem 0 .7rem}
-  .grid.prots .does{font-size:.65rem;margin-top:.4rem}
+  .body{padding:.9rem 1rem 1rem}
+  .name{font-size:1.05rem}
+  .blurb{font-size:.82rem;-webkit-line-clamp:2;margin:.45rem 0 .7rem}
+  .does{font-size:.65rem;margin-top:.4rem}
 
   .card{background:var(--surface-card);border:1px solid var(--border-hair);border-radius:4px;
     overflow:hidden;display:flex;flex-direction:column;color:inherit;text-decoration:none;
@@ -63,22 +62,22 @@
     box-shadow:0 10px 26px rgba(20,22,26,.07)}
   /* A fixed-height stage: a grid whose rows are sized by their picture reflows
      as the stills land, and every card jumps. */
-  .stage{position:relative;height:200px;background:var(--paper);
+  .stage{position:relative;background:var(--paper);
     border-bottom:1px solid var(--border-hair);
     background-size:contain;background-position:center;background-repeat:no-repeat}
   /* A component still is a 3:2 frame drawn to its edges, not a molecule on
      paper, so it covers. */
   .stage.shot{background-size:cover}
   .stage > *{position:absolute;inset:0;display:block;width:100%;height:100%;border:0}
-  .body{padding:1.2rem 1.3rem 1.3rem;display:flex;flex-direction:column;flex:1}
-  .name{font-family:var(--font-display);font-size:1.3rem;font-weight:500;letter-spacing:-0.02em;
+  .body{display:flex;flex-direction:column;flex:1}
+  .name{font-family:var(--font-display);font-weight:500;letter-spacing:-0.02em;
     line-height:1.12;margin:0}
-  .does{display:inline-block;align-self:flex-start;margin:.5rem 0 0;
-    font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;
+  .does{display:inline-block;align-self:flex-start;
+    letter-spacing:.14em;text-transform:uppercase;
     font-weight:600;color:var(--accent)}
   .does.carrier{color:var(--spark)}
-  .blurb{font-size:.9rem;color:var(--muted);line-height:1.5;margin:.55rem 0 .9rem;
-    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+  .blurb{color:var(--muted);line-height:1.5;
+    display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden}
   .facts{display:flex;flex-wrap:wrap;gap:6px;margin:auto 0 0}
   .fact{font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
     padding:3px 8px;border-radius:999px;border:1px solid var(--border-hair);
@@ -86,10 +85,10 @@
   .fact.predicted{background:var(--spark);border-color:var(--spark);color:#faf8f4}
   /* A component's feature chips are lowercase: they are what it can show, not
      a classification. */
-  .feats{list-style:none;display:flex;flex-wrap:wrap;gap:.3rem;margin:.7rem 0 0;padding:0}
-  .feats li{font-size:.72rem;color:var(--text-body);background:var(--paper);
+  .feats{list-style:none;display:flex;flex-wrap:wrap;gap:.28rem;margin:.1rem 0 0;padding:0}
+  .feats li{font-size:.68rem;color:var(--text-body);background:var(--paper);
     border:1px solid var(--border-hair);border-radius:999px;padding:.2rem .55rem}
-  .rung{margin-top:auto;padding-top:.8rem;font-size:.66rem;letter-spacing:.18em;
+  .rung{margin-top:auto;padding-top:.7rem;font-size:.62rem;letter-spacing:.18em;
     text-transform:uppercase;font-weight:600;color:var(--muted)}
   /* The formula, in the mono the site uses for a molecule's own facts. */
   .formula{font-family:var(--font-mono,ui-monospace,monospace);font-size:.8rem;
