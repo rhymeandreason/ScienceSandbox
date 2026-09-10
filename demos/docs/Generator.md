@@ -18,7 +18,7 @@ node tools/gen-app.js --edit <page> "..." <out> --whole      # the old whole-fil
 - **An edit** carries the page in the uncached half and the request in the message, and the model replies `{summary, edits: [{find, replace}]}`. Each find must occur exactly once; the list is applied here. A miss falls back to one whole-file call with the misses quoted, and then stops.
 - **The page carries its history**: a `<!-- requests -->` comment after the doctype, oldest first, rebuilt after every turn. The model is told to leave it alone.
 - **Model**: `gemini-3.7-flash` by default, `--provider anthropic` or `--model` to change. Default thinking on a draft, low on an edit. `maxOutputTokens` 16,000 for a page, 6,000 for edits. Keys from `.env.local` at the repo root.
-- **Output**: one JSON line with the model served, time, input, cached and output tokens, dollars, and for an edit the route (`edits`, or `whole` with the reason). That line is the cost model; keep it.
+- **Output**: one JSON line with the model served, time, input, cached and output tokens, dollars, and for an edit the route (`edits`, or `whole` with the reason). That line is the cost model; keep it. It counts cache reads and output only, never the write or the hourly storage: §5's session note says what that hides.
 
 ## 2. What the reference is
 
@@ -87,6 +87,38 @@ The same turn as find/replace pairs, once the format was built (2026-09-03, refe
 | a fresh draft, "a red blood cell in three solutions, with a sidebar" | draft | 17 | 6,512 | 3,478 | 10.1 s | $0.0135 |
 
 Output fell about twelve to one and the turn from 10 to 15 seconds to 2 to 3. The draft's 17 uncached input tokens are the request; everything else read back from the cache.
+
+### What a session costs (2026-09-10, reference at 16,202 cached tokens)
+
+Per turn, from the tables above plus one fallback measured today:
+
+| turn | ≈ cost |
+| --- | --- |
+| draft | $0.011 |
+| edit that stays on pairs | $0.004 |
+| edit that falls back to the whole file | $0.0138 |
+
+A student making three apps and editing each four times, with a fifth of the
+edits falling back, is **about $0.10**, or $3 for a class of thirty. The spread
+is almost entirely the fallback rate: all-pairs is $0.08, all-fallback is $0.20.
+The edit's output is what makes it cheap — 178 to 205 tokens against a draft's
+2,500 — so an edit's bill is mostly the page riding in uncached, which grows
+with every turn. At the median generated page (7,180 characters, ~3,000 tokens
+at the 2.41 chars/token these pages measure) that is $0.0023, twice what the
+whole reference costs cached. **The reference is not the expensive half of an
+edit and never was.**
+
+**Every figure in this section is a read-only number, and understates.**
+`usageMetadata` reports neither the cache write nor the hourly storage, which
+`_providers/gemini.js` says in its header and the cost line cannot know. A write
+is the whole prefix at input rate — $0.0122 today, larger than any single turn
+above. On the server that is amortised: the map is module state, so it is one
+write per warm instance per hour across every student on it. **Locally it is
+not.** `gen-app.js` is a fresh process per invocation, so every eval run writes
+a cache, reads it once and abandons it for the hour: a ten-run sweep prints
+about $0.10 and actually costs about $0.22. Running a sweep in one process would
+pay one write for all of it, and `system()` is byte-stable and `cacheFor`
+registers its promise synchronously, so nothing else would have to change.
 
 ## 6. What is built, and what an edit still cannot do
 

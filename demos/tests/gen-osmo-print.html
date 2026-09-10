@@ -1,0 +1,123 @@
+<!doctype html>
+<!-- requests
+1. Why does a red blood cell burst in fresh water? Show osmosis across the membrane.
+2. Add a slider that lets me change how salty the outside water is
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Osmosis and Cell Lysis</title>
+<style>
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="BloodCell,Membrane"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Osmosis & Tonicity',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: {},
+  steps: [
+    {
+      eyebrow: 'Isotonic Balance',
+      title: 'A red blood cell in normal plasma',
+      scene: 'cell',
+      body: '<p class="lead">In isotonic plasma, water enters and leaves the cell at equal rates.</p><p>The red blood cell maintains its flexible, biconcave disc shape. Halved open, we can see the dense interior packed with haemoglobin.</p>',
+      nextLabel: 'Zoom into membrane',
+      onEnter(ctx) {
+        BC.set({ tonicity: 0, spill: 0, cut: 1 });
+        ctx.ui.controls('<div class="stats"><div class="stat"><div class="stat-label">Cell volume</div><div class="stat-value" id="vol" data-live></div><div class="stat-sub">µm³</div></div></div>');
+        const unsub = BC.on('frame', s => {
+          const el = ctx.ui.q('#vol');
+          if (el && s.volume) el.textContent = Math.round(s.volume);
+        });
+        ctx.unsub = unsub;
+      },
+      onExit(ctx) {
+        if (ctx.unsub) ctx.unsub();
+      }
+    },
+    {
+      eyebrow: 'Molecular Scale',
+      title: 'Water diffusion across the lipid bilayer',
+      scene: 'membrane',
+      body: '<p class="lead">Osmosis depends on the balance of solute and free water across the membrane.</p><p>Use the slider to change the outside salt concentration. As solute increases outside, free water decreases, reversing the net water flow direction.</p>',
+      nextLabel: 'Observe whole cell',
+      onEnter(ctx) {
+        M.set({
+          proteins: { AQP: { x: 0 } },
+          contents: {
+            inside: { water: 30, K: 24, NA: 6, A: 18 },
+            outside: { water: 78, NA: 0, CL: 0 }
+          }
+        });
+        ctx.ui.controls(
+          '<div class="slider"><div class="slider-head"><span class="label">Outside salinity</span><span class="value" id="salt-val" data-live>0 pairs</span></div><input type="range" id="salinity" min="0" max="26" value="0"></div>' +
+          '<div class="stats"><div class="stat"><div class="stat-label">Net water movement</div><div class="stat-value" id="net-flow" data-live></div></div></div>'
+        );
+        ctx.ui.range(ctx.ui.q('#salinity'), v => {
+          const salt = parseInt(v, 10);
+          const freeWater = 78 - (salt * 2);
+          M.set({
+            contents: {
+              inside: { water: 30, K: 24, NA: 6, A: 18 },
+              outside: { water: freeWater, NA: salt, CL: salt }
+            }
+          });
+          const valEl = ctx.ui.q('#salt-val');
+          if (valEl) valEl.textContent = salt + ' pairs';
+        });
+        const unsub = M.on('frame', s => {
+          const el = ctx.ui.q('#net-flow');
+          if (el && s.net) el.textContent = s.net;
+        });
+        ctx.unsub = unsub;
+      },
+      onExit(ctx) {
+        if (ctx.unsub) ctx.unsub();
+      }
+    },
+    {
+      eyebrow: 'Hypotonic Swelling',
+      title: 'The cell swells toward a sphere',
+      scene: 'cell',
+      body: '<p class="lead">As net water rushes inside, the cell inflates to accommodate the increased volume.</p><p>Because the lipid bilayer surface area is fixed, expanding volume forces the dimples out until the disc becomes a sphere.</p>',
+      nextLabel: 'Exceeding capacity',
+      onEnter(ctx) {
+        BC.set({ tonicity: -1, spill: 0, cut: 1 });
+        ctx.ui.controls('<div class="stats"><div class="stat"><div class="stat-label">Cell volume</div><div class="stat-value" id="vol" data-live></div><div class="stat-sub">µm³</div></div></div>');
+        const unsub = BC.on('frame', s => {
+          const el = ctx.ui.q('#vol');
+          if (el && s.volume) el.textContent = Math.round(s.volume);
+        });
+        ctx.unsub = unsub;
+      },
+      onExit(ctx) {
+        if (ctx.unsub) ctx.unsub();
+      }
+    },
+    {
+      eyebrow: 'Lysis',
+      title: 'Membrane rupture and bursting',
+      scene: 'cell',
+      body: '<p class="lead">Unlike plant cells, an animal cell lacks a rigid cell wall to resist internal turgor pressure.</p><p>A sphere maximizes volume for a given surface area. Once spherical capacity is exceeded, the plasma membrane tears, haemoglobin spills out, and only a pale ghost remains.</p>',
+      nextLabel: 'Reset',
+      onEnter(ctx) {
+        BC.set({ tonicity: -1, spill: 1, cut: 1 });
+        ctx.ui.controls('<div class="stats"><div class="stat"><div class="stat-label">State</div><div class="stat-value">Lysed</div><div class="stat-sub">Membrane burst</div></div></div>');
+      },
+      onExit(ctx) {}
+    }
+  ]
+});
+
+const BC = shell.scene('cell', el => BloodCell.mount(el, { viewOffset: shell.viewOffset, cut: 1 }));
+const M = shell.scene('membrane', el => Membrane.mount(el, { viewOffset: shell.viewOffset }));
+
+shell.goTo(0);
+</script>
+</body>
+</html>
