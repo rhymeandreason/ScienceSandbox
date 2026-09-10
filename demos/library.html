@@ -51,6 +51,11 @@
   .sechead h2{font-size:clamp(1.6rem,2.6vw,2.1rem);font-weight:500;
     letter-spacing:-.035em;text-transform:lowercase;line-height:1}
   .sechead{gap:1.1rem;margin-bottom:1.2rem}
+  /* The way OUT of a section is a cta, not a caption: /proteins and /molecules
+     are whole pages, and the shelf above each is two rows of them. Centred on
+     the head rather than sat on its baseline, which is where a capsule that
+     tall would otherwise hang. */
+  .sechead:has(.cta){align-items:center}
   @media (prefers-reduced-motion:no-preference){ html{scroll-behavior:smooth} }
 
   /* Every column count is FIXED, not auto-fill: the two shelves are cut to
@@ -144,7 +149,7 @@
 
   <main>
     <section id="components">
-      <div class="sechead"><h2>Components</h2><span class="rule"></span><span class="count" id="n-comp"></span></div>
+      <div class="sechead"><h2>Components</h2><span class="rule"></span></div>
       <div class="grid" id="comp-grid">
         <a class="card" href="water/water-test.html"><div class="stage shot" style="background-image:url(media/components/watersim.webp)"></div><div class="body"><h3 class="name">WaterSim</h3><p class="blurb">Liquid water, and what follows from hydrogen bonds.</p><ul class="feats"><li>temperature</li><li>phase change</li><li>ice floating</li><li>salt dissolving</li></ul><div class="rung">molecules · bulk</div></div></a>
         <a class="card" href="membrane/salmon-test.html"><div class="stage shot" style="background-image:url(media/components/membrane.webp)"></div><div class="body"><h3 class="name">Membrane</h3><p class="blurb">A bilayer, its proteins, and what crosses.</p><ul class="feats"><li>diffusion</li><li>osmosis</li><li>selectivity</li><li>pumps and ATP</li><li>resting potential</li><li>chemiosmosis</li></ul><div class="rung">membrane · bulk</div></div></a>
@@ -163,12 +168,12 @@
     </section>
 
     <section id="proteins">
-      <div class="sechead"><h2>Proteins</h2><span class="rule"></span><a class="more" href="/proteins">the gallery &rarr;</a></div>
+      <div class="sechead"><h2>Proteins</h2><span class="rule"></span><a class="cta cta--sm" href="/proteins">The gallery &rarr;</a></div>
       <div class="grid prots" id="prot-grid"></div>
     </section>
 
     <section id="molecules">
-      <div class="sechead"><h2>Molecules</h2><span class="rule"></span><a class="more" href="/molecules">every molecule &rarr;</a></div>
+      <div class="sechead"><h2>Molecules</h2><span class="rule"></span><a class="cta cta--sm" href="/molecules">Every molecule &rarr;</a></div>
       <div class="grid mols" id="mol-grid"></div>
     </section>
   </main>
@@ -212,7 +217,6 @@ try {
   });
 } catch (e) { console.error('library: graph', e); }
 const nComp = document.querySelectorAll('#comp-grid .card').length;
-$('n-comp').textContent = `${nComp} components`;
 
 /* ---- proteins: proteins/index.html's card, linking out ----------------------
    The same two registries and the same order: the two with a lesson first. */
