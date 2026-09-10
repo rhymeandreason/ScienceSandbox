@@ -35,6 +35,15 @@
 <style>
   :root { --page-max: 1180px }
 
+  /* The masthead's counts, in the slot `.meta` had — hence the same auto margin
+     and the same drop to a full row on a narrow window. */
+  .jump{margin:0 0 0 auto;display:flex;flex-wrap:wrap;gap:.5rem}
+  @media (max-width:700px){ .jump{margin:.9rem 0 0;width:100%} }
+  /* Room above a section that has been jumped to, so its head is not welded to
+     the top of the window. */
+  main section{scroll-margin-top:1.5rem}
+  @media (prefers-reduced-motion:no-preference){ html{scroll-behavior:smooth} }
+
   /* Every column count is FIXED, not auto-fill: the two shelves are cut to
      2 x their columns in JS, and an auto-fill track would land the cut
      mid-row. */
@@ -111,7 +120,14 @@
 
   <header class="pagehead">
     <h1>library</h1>
-    <p class="meta" id="tally">&mdash;</p>
+    <!-- The masthead's count is the way in: the same three numbers, each one a
+         door to its section. Labels are written at render from the lists they
+         count. -->
+    <nav class="jump" id="tally" aria-label="Jump to a section">
+      <a class="cta cta--ghost cta--sm" href="#components" data-n="comp"></a>
+      <a class="cta cta--ghost cta--sm" href="#proteins" data-n="prot"></a>
+      <a class="cta cta--ghost cta--sm" href="#molecules" data-n="mol"></a>
+    </nav>
   </header>
 
   <p class="lede">Everything an app here is built from. Components are whole scenes a page
@@ -247,9 +263,32 @@ for (const m of MOLS.slice(0, SHELF.mols)) {
   $('mol-grid').appendChild(el);
 }
 
-/* The masthead's count, read from the three lists it counts. */
-$('tally').textContent =
-  `${nComp} components \u00b7 ${ProteinLib.PROTEINS.length} proteins \u00b7 ${MOLS.length} molecules`;
+/* The masthead's doors, labelled from the three lists they count. */
+const COUNTS = { comp: [nComp, 'components'],
+                 prot: [ProteinLib.PROTEINS.length, 'proteins'],
+                 mol:  [MOLS.length, 'molecules'] };
+for (const a of $('tally').children) {
+  const [n, word] = COUNTS[a.dataset.n];
+  a.textContent = `${n} ${word}`;
+}
+
+/* A BARE FRAGMENT IS NOT A FRAGMENT UNDER `<base href="/demos/">`: the browser
+   resolves `#molecules` against the BASE, not the document, so clicking one of
+   these left the page for /demos/. The href stays written as the fragment,
+   because that is what it means and what a reader sees on hover; the scroll is
+   done here, and the address bar is corrected without a navigation. */
+$('tally').addEventListener('click', e => {
+  const a = e.target.closest('a');
+  if (!a) return;
+  const id = a.getAttribute('href');
+  const target = document.querySelector(id);
+  if (!target) return;
+  e.preventDefault();
+  target.scrollIntoView({ block: 'start' });
+  // Same trap one line down: replaceState resolves against the base too, so the
+  // path is written out rather than left to a bare '#'.
+  history.replaceState(null, '', location.pathname + location.search + id);
+});
 </script>
 </body>
 </html>
