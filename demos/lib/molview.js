@@ -312,8 +312,14 @@ function create(opt){
       if(!m) return;
       m.position.lerpVectors(home[i], target[i], t);
       if(spec.atoms[i].el==='H'){
-        // shrink as it folds in, and stop drawing it once it is inside its parent
-        const k=1-t;
+        /* Shrink as it folds in, and stop drawing it once it is inside its
+           parent. A MESH'S SCALE IS ITS DISPLAY RADIUS — scene.js's atom()
+           builds one unit sphere and scales it — so the fraction multiplies the
+           palette's radius rather than replacing it. Setting 1-t alone drew
+           every hydrogen at radius 1.0, fatter than an oxygen, from the frame
+           the morph came back to 3D (applyMorph runs once at t=0 on the way
+           out) until the molecule was rebuilt. */
+        const k=(1-t)*(MolLib.PALETTE.radii.H||0.55);
         m.scale.setScalar(Math.max(k,0.001));
         if(t>=1) m.visible=false;
         else if(!spec.optH || !spec.optH.includes(i) || showH) m.visible=true;
