@@ -178,7 +178,17 @@ Three drafts (`gemini-3.7-flash`, reference at 14,754 cached tokens), all three 
 
 **A subscriber that throws no longer takes the scene down.** The bad `frame` handler above blanked the stage rather than breaking one readout, which is what made a typo look like a broken component. Every component kept its own two-line `emit` that called each listener straight — twelve copies of it — so the fix went into the one module they are all built on: `CardStage.fire(list, args, label)` runs each listener in its own try, reports a thrower ONCE and drops it, and rethrows out of band so `window.onerror` and the builder's relay still see it. Dropped rather than kept, because `frame` fires sixty times a second and a throw a frame is a flood, not a diagnosis: the readout it was painting stops updating, which is visibly broken and honest, and the science beside it keeps running.
 
-## 8. The backend
+## 8. The outline
+
+The step-through is the template nearly every app takes, and reaching step 8 to iterate on step 8's copy meant clicking Next seven times, on every reload. **The rail's Outline tab is the step list, and a row is a jump.**
+
+**It reads the live shell, not the source.** `LessonShell.current` is the shell the page built and `lessonshell:step` fires on every swap, so the list is the steps the app is actually running: titles, eyebrows and the scene each one shows, in the order the shell holds them. The alternative was parsing the `steps: [...]` array literal out of the file, which is a lexer for a list the page can hand over for free. A one-step page is a sandbox and not a walk, so a list of one is no outline and the tab is not there.
+
+The two messages are `app-outline` and `app-outline-go` on the same relay as text mode's, and `go` calls the app's own `goTo`: navigation stays the shell's, and the rail only asks. The push is unsolicited on every swap as well, so the marked row follows the student walking the lesson with Next, not only the rail driving it. The bench is `build/outline-test.html`, the real `Apps.mount` and `Apps.outline` against a generated page on disk, with no database.
+
+Not built: renaming a step from the row, which is text mode's `{find, replace}` on the same passages and should reuse it; and reorder, insert and delete, which are structural edits to a JS array literal rather than string swaps — those belong in a model turn, pointed at the step the way an un-editable passage is pointed at today.
+
+## 9. The backend
 
 `api/build.js` is the model turn: a first draft makes an app row and returns the edit token once; an edit needs the token and writes a version. `api/app.js` reads a stored page for anyone with the id, and restores, remixes, rotates the token and retitles for the token's holder; it takes no HTML from a caller. `api/_apps.js` is the two tables and the limit, its own constants counted in `app_versions`: 60 model turns an hour per visitor, 200 an hour and 600 a day per cohort, failing open like the tutor's. The same key as the tutor gates it.
 

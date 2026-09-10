@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Outline bench</title>
+<base href="/demos/build/">
+<link rel="stylesheet" href="../css/kodo.css">
+<style>
+  body { margin: 0; display: grid; grid-template-columns: 1fr 340px; height: 100vh; font: 14px/1.5 system-ui; }
+  iframe { width: 100%; height: 100%; border: 0; }
+  aside { border-left: 1px solid #ddd; padding: 12px; overflow: auto; background: #fafafa; }
+  ol { list-style: none; margin: 0; padding: 0; }
+  li button { display: block; width: 100%; text-align: left; font: inherit; font-size: 12px; padding: 6px; background: #fff; border: 1px solid #eee; margin-bottom: 4px; cursor: pointer; }
+  li.current button { border-color: #36c; background: #eef3ff; }
+</style>
+</head>
+<body>
+<!-- The outline pane's mechanism without a database: the real Apps.mount and
+     Apps.outline against a generated page on disk. What build.html draws is a
+     nicer list over these same two messages. -->
+<div><iframe id="f" title="the app"></iframe></div>
+<aside>
+  <h3>Outline bench</h3>
+  <select id="page"></select>
+  <button id="ask">Ask</button>
+  <p id="stat">…</p>
+  <ol id="out"></ol>
+</aside>
+<script src="apps-client.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const PAGES = ['gen-photo-3', 'gen-r01', 'gen-scale-draft', 'gen-rbc-test'];
+  $('page').innerHTML = PAGES.map(p => `<option>${p}</option>`).join('');
+  let steps = null, at = -1;
+
+  async function load() {
+    steps = null; at = -1; paint();
+    const html = await (await fetch(`../tests/${$('page').value}.html`)).text();
+    Apps.mount($('f'), html, m => { $('stat').textContent = 'error: ' + m; }, null, msg => {
+      if (msg.type !== 'app-outline-steps') return;
+      steps = msg.steps; at = msg.current == null ? -1 : msg.current;
+      paint();
+    });
+  }
+  function paint() {
+    $('stat').textContent = steps ? `${steps.length} steps · at ${at + 1}` : 'no step-through';
+    $('out').innerHTML = (steps || []).map((s, i) =>
+      `<li class="${i === at ? 'current' : ''}"><button data-i="${i}">${i + 1}. ${s.title}<br><small>${s.eyebrow} ${s.scene ? '· ' + s.scene : ''}</small></button></li>`).join('');
+  }
+  $('out').addEventListener('click', e => {
+    const b = e.target.closest('button[data-i]');
+    if (b) Apps.outline.go($('f'), +b.dataset.i);
+  });
+  $('ask').addEventListener('click', () => Apps.outline.ask($('f')));
+  $('page').addEventListener('change', load);
+  load();
+})();
+</script>
+</body>
+</html>

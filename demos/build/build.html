@@ -97,11 +97,18 @@
     <div class="card card--quiet scroll" id="railPanel" hidden>
       <div class="tabs" role="tablist">
         <button class="tab" id="tabHistory" type="button" role="tab" aria-selected="true">History</button>
+        <button class="tab" id="tabOutline" type="button" role="tab" aria-selected="false" hidden>Outline</button>
         <button class="tab" id="tabText" type="button" role="tab" aria-selected="false">Edit text<span class="count" id="editSay"></span></button>
         <span class="spacer"></span>
         <span class="ver" id="ver"></span>
       </div>
       <ol class="history" id="history"></ol>
+      <!-- The step list, read off the live shell. A row is a jump: the app in
+           the frame goes to that step, which is the whole point of the pane. -->
+      <div class="pane" id="paneOutline" hidden>
+        <p class="hint">The lesson's steps. Click one to go there.</p>
+        <ol class="outline" id="outline"></ol>
+      </div>
       <div class="pane" id="paneText" hidden>
         <p class="hint">Click a passage to change it. Click anything else to point the AI at it.</p>
         <!-- The roles a passage can take. Shown only with a caret in one, and
@@ -174,6 +181,10 @@
   function show(html) {
     enterWork();
     setTextMode(false);
+    /* The old list is left standing until the new frame pushes its own: a
+     * saved edit remounts the page, and clearing here would take the pane out
+     * from under the student between the save and the first swap. */
+    outlineAt = -1; paintOutline();
     errors = Apps.mount(frame, html, () => paintErrors(), saveThumb, fromEditor);
     paintErrors();
   }
@@ -186,11 +197,13 @@
   let textOn = false;
   let picks = [];
   let banked = 0;
+  let pane = 'history';   // which of the card's three the rail is showing
 
   function setTextMode(on) {
     if (on === textOn) return;
     if (on && !(app && token)) return;
     textOn = !!on;
+    pane = textOn ? 'text' : 'history';
     document.body.classList.toggle('editing', textOn);
     paintTabs();
     banked = 0;
@@ -208,23 +221,58 @@
   }
 
   /* Which pane the card is showing. The history list is the resting state; a
-   * page nobody may edit has no second tab to offer. */
+   * page nobody may edit has no Edit text tab to offer, and one with no
+   * step-through has no outline, so either tab may not be there at all. */
+  const TABS = [['tabHistory', 'history'], ['tabOutline', 'outline'], ['tabText', 'text']];
   function paintTabs() {
-    const may = !!(app && token);
-    $('tabText').hidden = !may;
-    $('tabHistory').setAttribute('aria-selected', String(!textOn));
-    $('tabText').setAttribute('aria-selected', String(textOn));
-    $('history').hidden = textOn;
-    $('paneText').hidden = !textOn;
+    $('tabText').hidden = !(app && token);
+    $('tabOutline').hidden = !outline;
+    if (pane === 'outline' && !outline) pane = 'history';
+    for (const [id, name] of TABS) $(id).setAttribute('aria-selected', String(pane === name));
+    $('history').hidden = pane !== 'history';
+    $('paneOutline').hidden = pane !== 'outline';
+    $('paneText').hidden = pane !== 'text';
   }
-  /* Leaving the mode throws away what is not saved, and the tab is now an
-   * easy thing to hit on the way past, so it asks. */
+  /* Leaving text mode throws away what is not saved, and its tab is now one of
+   * three, an easy thing to hit on the way past, so it asks. */
   const leave = () => {
-    if (banked && !confirm(`Leave without saving ${banked} change${banked === 1 ? '' : 's'}?`)) return;
+    if (banked && !confirm(`Leave without saving ${banked} change${banked === 1 ? '' : 's'}?`)) return false;
     setTextMode(false);
+    return true;
   };
-  $('tabHistory').addEventListener('click', leave);
+  function setPane(name) {
+    if (textOn && !leave()) return;
+    pane = name;
+    paintTabs();
+    if (name === 'outline') Apps.outline.ask(frame);
+  }
+  $('tabHistory').addEventListener('click', () => setPane('history'));
+  $('tabOutline').addEventListener('click', () => setPane('outline'));
   $('tabText').addEventListener('click', () => setTextMode(true));
+
+  /* ---- the outline -------------------------------------------------------
+   * The frame answers with the shell's own steps, and pushes the same message
+   * whenever the student walks the lesson, so the marked row is wherever the
+   * app actually is. `null` means the page has no step-through. */
+  let outline = null;
+  let outlineAt = -1;
+
+  function paintOutline() {
+    const ol = $('outline');
+    if (!outline) { ol.innerHTML = ''; paintTabs(); return; }
+    ol.innerHTML = outline.map((s, i) => `<li${i === outlineAt ? ' class="current"' : ''}>`
+      + `<button type="button" data-i="${i}">`
+      + `<span class="n">${i + 1}</span>`
+      + `<span class="what"><span class="t">${esc(s.title) || '(untitled)'}</span>`
+      + `${s.eyebrow ? `<span class="eb">${esc(s.eyebrow)}</span>` : ''}</span>`
+      + `${s.scene ? `<span class="scene">${esc(s.scene)}</span>` : ''}`
+      + `</button></li>`).join('');
+    paintTabs();
+  }
+  $('outline').addEventListener('click', e => {
+    const b = e.target.closest('button[data-i]');
+    if (b) Apps.outline.go(frame, +b.dataset.i);
+  });
 
   /* What the last few clicks landed on, and for a passage that cannot be
    * typed over, why. The sentence is written here rather than in the frame:
@@ -279,6 +327,13 @@
   }
 
   function fromEditor(msg) {
+    if (msg.type === 'app-outline-steps') {
+      /* One step is a sandbox, not a walk: a list of one is not an outline. */
+      outline = msg.steps && msg.steps.length > 1 ? msg.steps : null;
+      outlineAt = msg.current == null ? -1 : msg.current;
+      paintOutline();
+      return;
+    }
     if (msg.type === 'app-edit-focus') { paintRoles(msg); return; }
     /* The frame owns the selection; this end renders it. A click is the
      * selection, cmd or ctrl adds to it, and the list arrives whole. */

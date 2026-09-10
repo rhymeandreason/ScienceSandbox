@@ -447,6 +447,24 @@ body.viewer .preview > iframe { width: 100%; height: 100%; border: 0; display: b
 .pane .row .spacer { flex: 1; }
 body.editing .device { outline: 2px solid var(--accent); outline-offset: -1px; }
 
+/* The step list. Built on the history row so the two panes read as one card:
+   same hairlines, same number column, same hover. */
+.outline { list-style: none; margin: 0; padding: 0; }
+.outline li { border-bottom: 1px solid var(--border-hair); }
+.outline li:last-child { border-bottom: 0; }
+.outline button {
+  width: 100%; display: flex; gap: 10px; align-items: baseline; text-align: left;
+  background: transparent; border: 0; padding: 8px 2px; cursor: pointer; font: inherit; font-size: 12px;
+}
+.outline button:hover { background: color-mix(in srgb, var(--text-strong) 5%, transparent); }
+.outline .n { color: var(--text-muted); min-width: 2.2em; font-family: var(--font-display); font-size: var(--cap-sm); letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+.outline .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.outline .t { color: var(--text-dim); line-height: 1.3; }
+.outline .eb { color: var(--text-muted); font-size: var(--cap-sm); letter-spacing: .08em; text-transform: uppercase; }
+.outline .scene { color: var(--text-muted); font-size: var(--cap-sm); letter-spacing: .06em; flex: none; }
+.outline li.current .n, .outline li.current .t { color: var(--text-strong); }
+.outline li.current { background: var(--surface-card); border-radius: var(--radius-md); }
+
 .whylog { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .whylog li { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .whylog .say { font-size: 12px; color: var(--text-muted); line-height: 1.35; }

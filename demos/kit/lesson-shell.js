@@ -67,6 +67,15 @@
  *  Chrome is css/lesson-shell.css; `body.lshell-page` is set here. A step's
  *  `body` may be a function of ctx, for copy that depends on what the
  *  student did earlier.
+ *
+ *  THE PAGE IS ASKABLE FROM OUTSIDE, which the builder's outline needs and no
+ *  lesson does: `LessonShell.current` is the live shell, and every swap fires
+ *  `lessonshell:step` on the document with `{ i, n }`. A generated app is read
+ *  through a sandboxed frame whose only handle on it is postMessage, so the
+ *  alternative to a registration here is the builder parsing the `steps: [...]`
+ *  array literal out of the source and being wrong about it. A page must not
+ *  read `current` to find itself: `ctx` and the shell it holds are what a step
+ *  is handed, and two shells on one document leave only the second registered.
  * ========================================================================== */
 (function (global) {
   'use strict';
@@ -367,6 +376,7 @@
       if (scenes.size) apply(step.scene ? [].concat(step.scene) : (shown || []));
       if (opts.onStep) opts.onStep(step, i, ctx);
       if (step.onEnter) step.onEnter(ctx);
+      document.dispatchEvent(new CustomEvent('lessonshell:step', { detail: { i, n: steps.length } }));
     }
     els.next.addEventListener('click', () => goTo(current + 1));
     els.back.addEventListener('click', () => goTo(current - 1));
@@ -422,10 +432,12 @@
         else for (const s of scenes.values()) if (s.c && s.c.destroy) s.c.destroy();
         scenes.clear();
         window.removeEventListener('keydown', onKey); el.remove(); document.body.classList.remove('lshell-page');
+        if (global.LessonShell.current === shellApi) global.LessonShell.current = null;
       },
     };
+    global.LessonShell.current = shellApi;
     return shellApi;
   }
 
-  global.LessonShell = { create };
+  global.LessonShell = { create, current: null };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
