@@ -53,7 +53,10 @@
     font-weight:600;color:var(--accent)}
   /* library.html's card chip, and the same reasoning: a molecule's class is a
      word read off the spec, so it is set as a word. */
-  .facts{display:flex;flex-wrap:wrap;gap:.28rem;margin:auto 0 0}
+  /* `auto` only pushes the chips down where the body has room to spare, and a
+     molecule card's body is name + formula, so on a short card the two ran
+     together. The padding is the floor. */
+  .facts{display:flex;flex-wrap:wrap;gap:.28rem;margin:auto 0 0;padding-top:.75rem}
   .fact{font-size:.68rem;line-height:1.35;color:var(--text-body);
     background:var(--paper);border:1px solid var(--border-hair);
     border-radius:999px;padding:.2rem .55rem}
