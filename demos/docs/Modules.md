@@ -135,6 +135,7 @@ A page loads only the domains it draws. Order is `molecules.js` → `skel.js` �
 | `mol-small.js` · `mol-aminoacids.js` · `mol-pathways.js` · `mol-krebs.js` · `mol-carriers.js` · `mol-sugars.js` · `mol-glycans.js` · `mol-lipids.js` · `mol-nucleic.js` | nothing — each `register()`s its specs into `MolLib.MOLECULES` | MolecularGeometry.md §1.2, §1.5 |
 | `mol-small.js` | water, ammonia, methane, O₂, CO₂, ethanol and carbonic acid from measured lengths — the props to put beside a big molecule. The small-molecule domain | own header |
 | `lib-node.js` | the whole library for Node checkers, via `MolLib.DOMAINS`. No page loads it | own header |
+| `mol-shelf.js` | `MolShelf.list` (one card per molecule, not per spec) · `groupOf` (domain file → the words over a group) · `card(m, el)`. The shelf `library.html` and `molecules.html` both draw, so the two cannot disagree about the order or the count. Card CSS is the page's. After every `mol-*.js` | own header |
 
 ### Structure rendering — deposited coordinates
 
