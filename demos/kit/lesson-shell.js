@@ -147,8 +147,15 @@
 
     const ui = {
       controls(html) { els.controls.innerHTML = html; markLive(els.controls); },
-      q(sel) { return els.controls.querySelector(sel); },
-      qa(sel) { return [...els.controls.querySelectorAll(sel)]; },
+      /* THE WHOLE PANEL, controls first. A step writes markup in two places —
+         `controls(html)` and its own `body` — and a box put in the body was
+         invisible to this, so a mount guarded by `if (el)` skipped in silence
+         and the page came up with the panel it asked for and nothing in it.
+         Controls keep priority, so a step that puts the same id in both still
+         finds the control it built. */
+      q(sel) { return els.controls.querySelector(sel) || els.body.querySelector(sel); },
+      qa(sel) { return [...els.controls.querySelectorAll(sel),
+                        ...els.body.querySelectorAll(sel)]; },
       show(e) { if (!e) return; e.classList.remove('is-hidden'); e.classList.add('rise'); },
       hide(e) { if (e) e.classList.add('is-hidden'); },
       setNext(label, visible = true) { els.next.textContent = label; els.next.classList.toggle('is-hidden', !visible); },

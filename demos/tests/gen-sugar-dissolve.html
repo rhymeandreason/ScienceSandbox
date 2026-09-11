@@ -1,0 +1,103 @@
+<!doctype html>
+<!-- requests
+1. Show students why sugars dissolve in water so easily. Use glucose, and point at the lone pairs that accept hydrogen bonds.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Why Sugars Dissolve</title>
+<style>
+  #diagram-box { width: 100%; min-height: 180px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="Condense,Diagram"></script>
+<script>
+let d = null;
+
+const shell = LessonShell.create({
+  brand: 'Why Sugars Dissolve',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: {},
+  steps: [
+    {
+      eyebrow: 'Polar functional groups',
+      title: 'Glucose is covered in hydroxyl groups',
+      body: '<p class="lead"><strong>Glucose dissolves readily in water because it is rich in polar hydroxyl (&minus;OH) groups.</strong> Unlike nonpolar hydrocarbons, each &minus;OH bond has a strong dipole that readily interacts with surrounding water.</p><div id="diagram-box"></div>',
+      nextLabel: 'Inspect oxygen lone pairs',
+      onEnter(ctx) {
+        C.notes(false);
+        C.note('host', { text: 'Glucose molecule', card: 'Each ring carbon carries an oxygen atom capable of forming hydrogen bonds.' });
+        const box = ctx.ui.q('#diagram-box');
+        if (box) {
+          d = Diagram.mount(box, {
+            molecule: 'glucose',
+            highlight: ['O1', 'O2', 'O3', 'O4', 'O6'],
+            lonePairs: false,
+            caption: 'Hydroxyl oxygens across the glucose ring.'
+          });
+        }
+      },
+      onExit() {
+        if (d) { d.destroy(); d = null; }
+      }
+    },
+    {
+      eyebrow: 'Hydrogen bonding',
+      title: 'Oxygen lone pairs act as H-bond acceptors',
+      body: '<p class="lead"><strong>Each oxygen carries two non-bonding lone pairs of electrons.</strong> These localized negative charges attract the partially positive hydrogen atoms of nearby water molecules.</p><div id="diagram-box"></div>',
+      nextLabel: 'How water hydrates sugar',
+      onEnter(ctx) {
+        C.notes(false);
+        C.note('host', { text: 'H-bond sites', card: 'The exposed oxygens accept hydrogen bonds while hydroxyl hydrogens donate them.' });
+        const box = ctx.ui.q('#diagram-box');
+        if (box) {
+          d = Diagram.mount(box, {
+            molecule: 'glucose',
+            highlight: ['O4'],
+            lonePairs: true,
+            caption: 'Lone pairs (dots) act as hydrogen bond acceptors.'
+          });
+        }
+      },
+      onExit() {
+        if (d) { d.destroy(); d = null; }
+      }
+    },
+    {
+      eyebrow: 'Hydration shell',
+      title: 'Water outcompetes sugar-sugar contacts',
+      body: '<p class="lead"><strong>Water forms a stabilizing hydration sphere around every glucose molecule.</strong> Because water can both donate and accept hydrogen bonds at every hydroxyl site, sugar crystals easily break apart into solution.</p><div id="diagram-box"></div>',
+      nextLabel: 'Finish',
+      onEnter(ctx) {
+        C.notes(false);
+        const box = ctx.ui.q('#diagram-box');
+        if (box) {
+          d = Diagram.mount(box, {
+            molecule: 'glucose',
+            lonePairs: true,
+            caption: 'Extensive lone pairs and polar hydrogens enable multi-point water hydration.'
+          });
+        }
+      },
+      onExit() {
+        if (d) { d.destroy(); d = null; }
+      }
+    }
+  ]
+});
+
+const C = Condense.mount(shell.stage, {
+  viewOffset: shell.viewOffset,
+  from: ['glucose', 'glucose'],
+  progress: 0,
+  gap: 4
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>
