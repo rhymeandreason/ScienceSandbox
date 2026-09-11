@@ -246,7 +246,10 @@ function haworth(m, options) {
   const w = 190 + (rings.length - 1) * RING_STEP;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-18 -4 ${w + 36} 136" `
     + `width="${opts.width}" height="${opts.height}" `
-    + `font-family="'Zilla Slab',Georgia,serif">${body}</svg>`;
+    // One font across every flat diagram — diagram-2d.js owns the string, and
+    // SmilesDrawer is handed the same one so a Haworth ring and a skeleton do
+    // not read as two libraries. Default matches it for a direct caller.
+    + `font-family="${opts.font || 'system-ui,-apple-system,sans-serif'}">${body}</svg>`;
 }
 
 global.Haworth = { haworth, findRings, faces };

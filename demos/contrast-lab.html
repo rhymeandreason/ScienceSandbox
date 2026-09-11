@@ -118,9 +118,11 @@
 <script src="lib/mol-nucleic.js"></script>
 <script src="lib/haworth.js"></script>
 <!-- SmilesDrawer draws the flat structure of everything that is not a sugar
-     (sugars get a Haworth projection from haworth.js instead — see paintFlat).
--->
+     (sugars get a Haworth projection from haworth.js instead — diagram-2d.js
+     picks). Loaded by the page, not by the module: a page that only draws
+     sugars should not pull a CDN library it never calls. -->
 <script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
+<script src="lib/diagram-2d.js"></script>
 <script src="lib/scene.js"></script>
 <script>
 "use strict";
@@ -421,122 +423,21 @@ const nameL=document.getElementById('nameL'), nameR=document.getElementById('nam
 const noteL=document.getElementById('noteL'), noteR=document.getElementById('noteR');
 const flatL=document.getElementById('flatL'), flatR=document.getElementById('flatR');
 
-// Element colours shared by BOTH flat renderers, so a Haworth ring and a
-// SmilesDrawer skeleton read as one visual language rather than two libraries.
-const FLAT_INK='#2b2b2b';
-const FLAT_COLORS={ C:FLAT_INK, O:'#b03a2e', N:'#2b6cb0', S:'#b8860b', H:'#6a6257' };
-// The highlight disc. Grey, so it spotlights without competing with the element
-// colours.
-const FLAT_HL='#cfc7b6';
-
-// The box a SmilesDrawer panel is fitted into. It is a BOX, not a size: the
-// drawing keeps its own aspect inside it, so palmitate's 16-carbon chain gets
-// the width it needs and an amino acid does not float in whitespace.
-const FLAT_MAX_W=430, FLAT_MAX_H=140;
-
-/* SmilesDrawer emits a SQUARE viewBox whatever width and height it was asked
- * for, so a long chain arrives letterboxed into a sliver of the panel. Re-fit
- * the viewBox to what was actually drawn, then size the element to that
- * aspect inside FLAT_MAX_W x FLAT_MAX_H. Measured rather than assumed, since
- * the extent depends on the molecule and on how the layout engine folded it. */
-function fitSvgToContent(svg){
-  let bb; try{ bb=svg.getBBox(); }catch(e){ return; }
-  if(!bb||!bb.width||!bb.height) return;
-  const pad=7, vw=bb.width+pad*2, vh=bb.height+pad*2;
-  svg.setAttribute('viewBox',`${bb.x-pad} ${bb.y-pad} ${vw} ${vh}`);
-  const s=Math.min(FLAT_MAX_W/vw, FLAT_MAX_H/vh);
-  svg.setAttribute('width', Math.round(vw*s));
-  svg.setAttribute('height', Math.round(vh*s));
-}
-
-/* Vertical mirror of a finished SmilesDrawer panel, with the glyphs kept
- * upright. SmilesDrawer chooses its own layout direction, and for palmitoleate
- * it sends the Δ9 kink DOWN while the hand-built coordinates send it UP — two
- * views of one molecule disagreeing about which way the chain bends is exactly
- * the confusion this page exists to remove. The flat drawing is the view that
- * gives: the 3D coordinates are asserted geometry (the cis torsion, the head
- * shared with palmitate) and are not moved to suit a layout engine.
- *
- * Opt-in per spec (`flatFlipY`), never automatic, because a mirror is a
- * REFLECTION — only safe where there is no chirality to invert. It must never
- * reach the enantiomer pair, whose whole lesson is that the mirror image is a
- * different molecule.
- */
-function flipSvgY(svg){
-  const vb=(svg.getAttribute('viewBox')||'').split(/[\s,]+/).map(Number);
-  if(vb.length!==4||!vb[3]) return;
-  const axis=2*vb[1]+vb[3];              // mirror about the viewBox centre line
-  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
-  g.setAttribute('transform',`matrix(1,0,0,-1,0,${axis})`);
-  while(svg.firstChild) g.appendChild(svg.firstChild);
-  svg.appendChild(g);
-  /* Un-mirror each label about its own anchor, so 'HO' does not read upside
-   * down. Counter-flipping the <text> restores the ordinary frame for its
-   * whole subtree, so tspan dy subscripts come back the right way up too. */
-  g.querySelectorAll('text').forEach(t=>{
-    const y=parseFloat(t.getAttribute('y'))||0;
-    t.setAttribute('transform',`matrix(1,0,0,-1,0,${2*y})`);
-  });
-}
-
-// The highlight set, resolved exactly as the 3D view resolves it, then folded
-// so every entry lands on something a flat drawing actually draws: a hydrogen
-// has no glyph of its own there, it is part of its parent's -NH2 / -OH label.
-function flatHighlight(spec){
-  const idx=MolLib.resolveAtoms(spec,(spec.contrast&&spec.contrast.diff)||[]);
-  const adj=spec.atoms.map(()=>[]);
-  spec.bonds.forEach(([i,j])=>{ adj[i].push(j); adj[j].push(i); });
-  return new Set(idx.map(i=>spec.atoms[i].el==='H'
-    ? adj[i].find(j=>spec.atoms[j].el!=='H') : i));
-}
-
 /* ---------- the flat structure under each model ----------
- * A second VIEW of the same spec, never a second source of truth. Sugars get a
- * Haworth projection (haworth.js), because their whole lesson is which face an
- * -OH sits on and a skeletal drawing can only mumble that with a wedge. Every
- * other class gets SmilesDrawer, from the `smiles` string generated off the
- * same spec by tools/spec2smiles.js — with the highlight carried in the string
- * as atom-map class 1, which is what SmilesDrawer keys on.
- */
+ * A second VIEW of the same spec, never a second source of truth. diagram-2d.js
+ * owns both renderers and the choice between them; this page owns only which
+ * atoms the pair's lesson points at. */
 function paintFlat(){
   const ks=membersOf(PAIRS[selected]);
   [flatL,flatR].forEach((el,i)=>{
     const spec=specOf(ks[i]);
-    el.innerHTML='';
-    if(!spec.names) return;
-
-    if(spec.class==='sugar'){
-      if(typeof Haworth==='undefined') return;
-      try{
-        el.innerHTML=Haworth.haworth(spec,{
-          highlight: showDiff?flatHighlight(spec):new Set(),
-          showH: showH,
-          width: spec.glycosidic?344:184, height:112,
-          ink:FLAT_INK, paper:'#f4ecdf',
-          highlightColour: hx(PAIRS[selected].accent),
-          highlightFill: FLAT_HL,
-          colors: FLAT_COLORS,
-        });
-      }catch(e){}
-      return;
-    }
-
-    if(!spec.smiles||typeof SmilesDrawer==='undefined') return;
-    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-    el.appendChild(svg);
-    try{
-      SmilesDrawer.parse(spec.smiles, tree=>{
-        new SmilesDrawer.SvgDrawer({
-          width:FLAT_MAX_W, height:FLAT_MAX_H,
-          bondThickness:1.1, terminalCarbons:false, compactDrawing:false,
-          themes:{ light:Object.assign({}, FLAT_COLORS,
-            { BACKGROUND:'#00000000', BOND:FLAT_INK }) },
-        }).draw(tree, svg, 'light', null, false,
-                showDiff?[[1, FLAT_HL]]:[]);
-        fitSvgToContent(svg);
-        if(spec.flatFlipY) flipSvgY(svg);
-      }, ()=>{ el.innerHTML=''; });
-    }catch(e){ el.innerHTML=''; }
+    Diagram2D.draw(el, spec, {
+      highlight: showDiff
+        ? Diagram2D.highlight(spec,(spec.contrast&&spec.contrast.diff)||[])
+        : new Set(),
+      showH: showH,
+      accent: hx(PAIRS[selected].accent),
+    });
   });
 }
 function placeNames(){

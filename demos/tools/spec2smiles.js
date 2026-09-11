@@ -21,12 +21,15 @@
  *
  *   npm i @rdkit/rdkit && node tools/spec2smiles.js            # print the rows
  *   npm i @rdkit/rdkit && node tools/spec2smiles.js --write    # write them in
+ *   npm i @rdkit/rdkit && node tools/spec2smiles.js --all      # every spec, not
+ *                                                    just the ones drawn flat
  */
 const { MOLECULES } = require('../lib/lib-node.js');
 const specfile = require('./specfile.js');
 // --write edits each spec's own mol-*.js in place instead of printing rows to
 // paste. See tools/specfile.js for why that hand-off was the weak link.
 const WRITE = process.argv.includes('--write');
+const ALL = process.argv.includes('--all');
 
 const pad = (s, w) => String(s).padStart(w);
 
@@ -103,7 +106,9 @@ require('@rdkit/rdkit')().then(RDKit => {
     // some other page draws this molecule flat and needs one too — that is how
     // ATP and NADH get theirs for molecule-viewer.html. Neither is a contrast
     // pair, so there is no `diff` to mark and no `names` to resolve it through.
-    if (!m.contrast && !m.flat) continue;
+    // --all widens that to every spec, which is what molecules.html's Diagram
+    // view wants: a molecule with no `smiles` simply has no diagram to show.
+    if (!ALL && !m.contrast && !m.flat) continue;
     if (m.contrast && !m.names) { console.log(`${key}: no \`names\` yet — skipped`); bad++; continue; }
 
     const probe = molblock(key, m, null);
@@ -112,6 +117,17 @@ require('@rdkit/rdkit')().then(RDKit => {
 
     const mapped = RDKit.get_mol(mb);
     const plain = RDKit.get_mol(probe.mb);
+    /* RDKit hands back null for a molblock it refuses — popc's charged
+       phosphocholine is one. Letting the null through kills the sweep at that
+       molecule, and every spec after it goes unconverted without saying so. A
+       spec RDKit will not take is a FAIL like any other. */
+    if (!mapped || !plain) {
+      bad++;
+      console.log(`FAIL ${key.padEnd(13)} RDKit will not parse this molblock`);
+      if (mapped) mapped.delete();
+      if (plain) plain.delete();
+      continue;
+    }
     const smiles = noPhosphorusStereo(mapped.get_smiles());
 
     // 1. the map must have landed on exactly the intended atoms
