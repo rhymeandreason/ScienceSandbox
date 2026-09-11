@@ -256,7 +256,10 @@ body.busy .hero .row { opacity: .35; transition: opacity .3s; }
   color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 .hero .progress { margin-top: .9rem; }
-.hero .progress .track { border-radius: 2px; }
+/* WHITE, NOT THE CREAM HAIR: the track here lies on butter, and the site's
+   grey rule over that ground reads as dirt. The sweep above it is unchanged. */
+.hero .progress .track { border-radius: 2px; background: rgba(255, 255, 255, .55); }
+.hero .progress .clock { color: color-mix(in srgb, var(--brand-ink) 55%, var(--hue-butter)); }
 
 /* ---- work: preview + rail --------------------------------------------
    The app is a card lying on the stage's dotted paper; the rail is the tool,
