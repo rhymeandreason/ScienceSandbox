@@ -42,13 +42,10 @@
      that is counted from the registry rather than typed. */
   :root { --page-max: 1180px }
 
-  /* library.html's header, and the same reasoning: the heavy rule belongs under
-     the BAR, where it separates the chrome from the page, rather than under the
-     name. NOT by putting kodo's `.pagehead.open` on the masthead, which is what
-     that class is for: `.open` on THIS page is the green lesson pill below, and
-     the two met on one element — the page's name came out set inside a pill.
-     The rule is given up here instead. */
-  .sitenav{padding-bottom:1.25rem;border-bottom:2px solid var(--border-strong)}
+  /* The rule under the bar is the page's only one, so the masthead gives kodo's
+     own up. NOT via `.pagehead.open`, which is what that class is for: `.open`
+     on THIS page is the green lesson pill below, and the two met on one element
+     set the page's name inside a pill. Dropped by hand instead. */
   .pagehead{padding:clamp(2.5rem,5vw,4.5rem) 0 0;border-bottom:0;margin-bottom:0}
   /* Only the margins: the rest of `.lede` is kodo.css's, and this page used to
      restate its size, colour and measure — a fork nobody sees until two shelves

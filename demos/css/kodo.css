@@ -432,6 +432,7 @@ html.bare .chrome-title { display: none !important }
 /* The opt-in. A lesson is a full-bleed #app and must not inherit a document's
    paper rhythm, so this is a class and not `body`. */
 body.kodo {
+  overflow-x: clip;                /* the bar's full-bleed rule is 100vw wide */
   background: var(--surface-page);
   color: var(--text-strong);
   font-family: var(--font-ui);
@@ -453,7 +454,18 @@ body.kodo {
    sits visibly high when it is centred. */
 .sitenav {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: .75rem;
-  padding: var(--page-top) 0 0;
+  padding: var(--page-top) 0 1.25rem;
+  position: relative;
+}
+/* THE LINE UNDER THE BAR IS FULL BLEED, and it is a hair, not the masthead's
+   2px: the bar is chrome that runs the width of the window, so its underline
+   is the window's, not the text column's. Drawn as a pseudo-element because
+   `.sitenav` sits inside `.page`'s gutters; `overflow-x: clip` on the body is
+   what keeps a 100vw child from adding a scrollbar. */
+.sitenav::after {
+  content: ''; position: absolute; bottom: 0; left: 50%;
+  width: 100vw; margin-left: -50vw; height: 1px;
+  background: var(--border-hair);
 }
 .sitenav .spacer { flex: 1 }
 

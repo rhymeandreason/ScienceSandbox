@@ -7,6 +7,7 @@
    the rail slides in from the right, carrying the same form. `busy` overlays
    either while a request is out. */
 html, body { height: 100%; margin: 0; }
+html { scroll-behavior: smooth; }
 body {
   background: var(--surface-page); color: var(--text-body);
   display: flex; flex-direction: column; overflow: hidden;
@@ -35,13 +36,26 @@ body {
   display: flex; align-items: baseline; gap: 14px;
   padding: var(--bar-top) var(--bar-side) var(--bar-bottom);
   flex: none; min-height: 44px; box-sizing: border-box;
-  border-bottom: 1px solid transparent;
-  transition: border-color .5s;
   position: relative; z-index: 3;
 }
-body.work .bar { border-bottom-color: var(--border-hair); }
 .bar .mark { --mark-size: 1.35rem; }
 .bar .crumb { margin-right: auto; }
+/* The four places, in the bar's own row, on the fresh screen only. Same
+   micro-cap as kodo.css's `.sitelinks`, which cannot be loaded here. */
+.bar .links { display: none; flex-wrap: wrap; align-items: baseline; gap: clamp(.9rem,2.4vw,1.7rem); }
+body.fresh .bar .links { display: flex; }
+/* THE INK, THINNED INTO THE GROUND IT SITS ON, not the site's neutral grey:
+   over butter that grey is cold and reads dirty. Mixed rather than blended,
+   because `.bar` is its own stacking context (position + z-index) with no
+   backdrop inside it, so mix-blend-mode multiplies against nothing. */
+.bar .lnk {
+  font-family: var(--font-ui); font-size: .74rem; font-weight: var(--cap-weight);
+  letter-spacing: .18em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--brand-ink) 55%, var(--hue-butter));
+  text-decoration: none;
+}
+.bar .lnk:hover { color: var(--accent); }
+.bar .lnk[aria-current="page"] { color: var(--brand-ink); }
 /* Centred on the bar, not on what is left between the mark and the tools, so
    folding the rail's button away cannot shift it. */
 .bar .title {
@@ -81,6 +95,19 @@ body.work .bar { border-bottom-color: var(--border-hair); }
   background: var(--surface-page);
   transition: opacity .55s ease, transform .55s ease, visibility 0s linear .55s;
 }
+/* ON THE FRESH SCREEN THE DOCUMENT SCROLLS, NOT THE HERO. Absolute and
+   self-scrolling, the hero runs under a bar that never moves, and a bar that
+   never moves reads as fixed chrome — which this one is not: it is the page's
+   own masthead, and it should leave with the first screen. In `work` the hero
+   is an overlay again and the rules above stand. */
+body.fresh { overflow: auto; height: auto; min-height: 100%; }
+body.fresh .hero { position: static; overflow: visible; }
+/* The bar lies ON the butter rather than above it: absolute, so the first
+   screen still starts at the top of the window and still measures exactly one
+   window (the zero rootMargin below depends on that), and so the bar leaves
+   with it when the document scrolls. */
+body.fresh .bar { position: absolute; top: 0; left: 0; right: 0; }
+body.fresh .hero .first { min-height: 100svh; }
 body.work .hero { opacity: 0; transform: scale(.985); visibility: hidden; pointer-events: none; }
 /* The first screen is the one playful surface in the builder: butter ground,
    the site's ink, and the word's own five colours. It is the stage the glyphs

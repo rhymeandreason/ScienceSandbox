@@ -70,6 +70,11 @@
   .onward a { text-decoration: none; border-bottom: 1px solid currentColor;
     padding-bottom: 1px }
 
+  /* The shelf pages' air round the name: same clamps as proteins/index.html,
+     so a reader crossing from the gallery into a protein sees one header. */
+  .pagehead{padding:clamp(2.5rem,5vw,4.5rem) 0 clamp(3rem,5vw,4rem);margin-bottom:0}
+  .pagehead .deck{margin-top:clamp(1.5rem,2.6vw,2.5rem)}
+
   /* ---- the two columns ------------------------------------------------
      The molecule is STICKY and the prose scrolls past it. Below 900px the
      stage pins to the top of the viewport instead of beside the text, which

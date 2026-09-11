@@ -29,10 +29,8 @@
 <style>
   :root { --page-max: 1180px }
 
-  /* library.html's header, and the same reasoning: the heavy rule belongs
-     under the BAR, where it separates the chrome from the page, rather than
-     under the name. `.pagehead.open` in the markup gives kodo's own rule up. */
-  .sitenav{padding-bottom:1.25rem;border-bottom:2px solid var(--border-strong)}
+  /* The rule under the bar is the page's only one: `.pagehead.open` in the
+     markup gives kodo's own up, so the name is not fenced off twice. */
   .pagehead{padding:clamp(2.5rem,5vw,4.5rem) 0 0}
   .lede{margin:clamp(1.5rem,2.6vw,2.5rem) 0 clamp(3rem,5vw,4rem)}
 
