@@ -671,6 +671,10 @@
   /* =====================================================================
      ions — oversize, and the factor is one number for all of them.
      ===================================================================== */
+  /* Read at draw time, not at load: parts.js is also required by the node
+     checkers, where no palette is on the page. */
+  const PAL = () => (global.MolPalette || (global.MolLib && global.MolLib.PALETTE));
+
   const ION = {
     /* Shannon six-coordinate ionic radii, in A. These are the TRUE numbers
        and they are what `exaggeration` multiplies, so relative size — the
@@ -683,7 +687,7 @@
        and in water it is really H₃O⁺. Drawn at 0.30 so it reads as the
        smallest thing on stage and still has a sphere to hang its sign on.
        Not a Shannon number, unlike the four above. */
-    H:  { r: 0.30, color: 0xdd5b4a, label: 'H⁺' },
+    H:  { r: 0.30, get color() { return PAL().respiration.proton; }, label: 'H⁺' },
     /* Not an ion, and deliberately grey: water is the thing that moves
        when nothing is pushing it, and it should never be mistaken for
        cargo the pump is choosing. */
