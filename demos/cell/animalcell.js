@@ -158,9 +158,12 @@
        insides for cell/organelles.js's `mitochondrionDetail` — two membranes,
        cristae as sacs, the chain on them. It is one group throughout, so
        every anchor, every layer and every body in the solver still points at
-       the object it always did; only the children change. What it is NOT is
-       a different component: cell/mitochondrion.js is that, one rung down,
-       and this is the same geometry seen from the cell.
+       the object it always did; only the children change. It is the same
+       FOLD either way — one continuous inner membrane, traced along the same
+       path — with more of them and the sheet swept as a wall, its lumen and
+       a wall rather than as a single ribbon. What it is NOT is a different
+       component: cell/mitochondrion.js is that, one rung down, and this is
+       the same geometry seen from the cell.
 
        A KIT OF ITS OWN, seeded off this cell's. The cell's random stream is
        consumed in call order (see the header), so building detail on demand
@@ -173,7 +176,7 @@
       if (on && !lod.high) {
         const K2 = global.CellOrganelles.kit(THREE, { seed: P.seed + 977 });
         lod.high = K2.mitochondrionDetail({
-          r: 0.55, L: 0.95, cristae: 8, junctions: 2, porins: 45, ribosomes: 18, detail: 0.7,
+          r: 0.55, L: 0.95, cristae: 8, porins: 45, ribosomes: 18, detail: 0.7,
         }).children.slice();
       }
       g.remove(...g.children.slice());

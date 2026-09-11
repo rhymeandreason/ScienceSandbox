@@ -2,27 +2,30 @@
  *  cell/mitochondrion.js — one mitochondrion, cut open, membrane by membrane
  * =============================================================================
  *  The organelle when it is the SUBJECT rather than one of five things in a
- *  cut cell: two membranes resolved, cristae as the flattened sacs they are,
- *  the machinery of the electron transport chain on them, and protons making
- *  the round trip that respiration is paid in.
+ *  cut cell. The SAME PICTURE the cut cell's mitochondrion already draws — an
+ *  outer membrane, and inside it one continuous inner membrane folded back
+ *  and forth — with the resolution that distance was hiding: twice the folds,
+ *  the sheet swept as a wall, its lumen and a wall rather than as a line, the
+ *  electron transport chain on it, and protons making the round trip that
+ *  respiration is paid in.
  *
  *      Mitochondrion.create(THREE, root, camera, opts)   the model
  *      Mitochondrion.mount(el, params)                   one box, one handle
  *
  *  LOAD cell/organelles.js FIRST. All the geometry is there, as
- *  `mitochondrionDetail`, for the reason every organelle's is: the cut cell
- *  swaps the same builder in when the camera flies to one of its five, and a
- *  student must arrive at the same object rather than at a second drawing of
- *  it. What is HERE is behaviour — the protons, the rotors, the picking, and
- *  the words.
+ *  `mitochondrionDetail`, beside the `mitochondrion` it is a finer version
+ *  of and sharing its fold path: the cut cell swaps the same builder in when
+ *  the camera flies to one of its five, and a student must arrive at the
+ *  same object rather than at a second drawing of it. What is HERE is
+ *  behaviour — the protons, the rotors, the picking, and the words.
  *
  *  WHAT THIS COMPONENT IS FOR is one claim, and it is a claim about topology:
  *  there is ONE space outside the inner membrane — the intermembrane space
- *  and the inside of every crista, joined through the crista junctions — and
- *  one space inside it, the matrix. Protons go out of the matrix at the
- *  complexes and come back through ATP synthase. Everything drawn is in
- *  service of that, so the crista lumen is the same colour as the
- *  intermembrane space and a proton pumped at a complex visibly lands in it.
+ *  and the inside of every fold, joined at the crista junctions — and one
+ *  space inside it, the matrix. Protons go out of the matrix at the complexes
+ *  and come back through ATP synthase. Everything drawn is in service of
+ *  that: the sheet is ONE ribbon so nobody can read the folds as separate
+ *  compartments, and its lumen is the intermembrane space's own colour.
  *
  *  IT IS NOT THE PHYSICS, AND REFUSES TO BE. There is no pH here, no
  *  proton-motive force, no fuel and no respiratory control: that is
@@ -42,24 +45,27 @@
  *  THE CONTRACT (docs/AddingAComponent.md, docs/Components.md):
  *
  *      params   flow 0..1 (live, glides) · uncoupler (live) ·
- *               cristae 3..24, open 0.3..1, seed (rebuild)
+ *               cristae (folds; asked for from 4, capped by what fits —
+ *               about ten at this size), open 0.3..1, seed (rebuild)
  *      state()  the ledger, the counts, and the sizes that are real
  *      events   frame · hover · pick · turn (one full rotor revolution)
  *      parts    outer · porin · ims · inner · crista · junction · complex ·
- *               synthase · matrix · dna · ribosome · proton. One list serves
- *               note(), show() and lookAt(); LIBRARY is the teaching text.
+ *               synthase · matrix · dna · ribosome · proton. LIBRARY is the
+ *               teaching text. NOT ALL OF THEM ARE MESHES: `crista` and
+ *               `junction` are places ON the inner membrane, and `ims` and
+ *               `matrix` are spaces between things — they carry an anchor and
+ *               a card, and no show chip, because hiding a fold would mean
+ *               hiding the membrane it is part of.
  *
  *  GLIDES: `flow`. SNAPS: `uncoupler`, and every geometry parameter, which
  *  rebuilds — nothing tweens across a rebuild.
  *
- *  BUDGET, measured on the bench. At the default eleven cristae: 0.05 ms a
- *  step, 0.6 ms a frame, 121k triangles, 92 draw calls. At the cap of
- *  twenty-four: about 2 ms a frame, 186k triangles, 183 draw calls — the
- *  membranes are the one translucent thing here and a scene packed with sacs
- *  is overdraw, so the cap is where to look, not the default. A REBUILD IS
- *  ROUGHLY 0.1 s, which is why `cristae`, `open` and `seed` are rebuild
- *  parameters and must not go on a slider a student drags. The bench does
- *  exactly that, and it is a bench.
+ *  BUDGET, measured on the bench at the default ten folds: 0.06 ms a step,
+ *  1 ms a frame, 126k triangles, 17 draw calls. The inner membrane is three
+ *  swept meshes however many folds it has, which is why the call count
+ *  barely moves with `cristae`. A REBUILD IS 40 TO 60 ms, which is why
+ *  `cristae`, `open` and `seed` are rebuild parameters and must not go on a
+ *  slider a student drags. The bench does exactly that, and it is a bench.
  *
  *  SCALE. Lengths ALONG the organelle are honest: one scene unit is 100 nm,
  *  so the capsule is 1.9 by 0.7 µm and `state()` may be printed. The
@@ -80,16 +86,16 @@
   const R = 3.5;                       // half-width: the capsule is 0.7 µm across
   const UNIT = 1e-7;                   // metres per scene unit
   const NM = u => u * UNIT * 1e9;
-  const TH = 0.038 * R;                // one membrane, drawn
-  const IMS = 0.13 * R;                // the intermembrane space, drawn
-  const LUM = 0.055 * R;               // a crista's lumen, drawn
+  const TH = 0.034 * R;                // one membrane, drawn
+  const IMS = 0.07 * R;                // the intermembrane space, drawn
+  const LUM = 0.057 * R;               // the space inside a fold, drawn
   /* Measured thicknesses, for the exaggeration factors below. A bilayer is
      ~4 nm (OPM); the intermembrane space and a crista lumen are ~20 nm and a
      crista junction ~25 nm across in tomography. */
   const TRUE_NM = { membrane: 4, ims: 20, lumen: 20 };
 
   const DEFAULTS = {
-    cristae: 11,        // rebuild
+    cristae: 10,        // folds, total, alternating sides (rebuild)
     open: 1,            // rebuild: 1 cuts it in half, less closes the near wall over
     seed: 4231,         // rebuild
     flow: 0.6,          // 0..1 how hard the chain is running; glides
@@ -121,10 +127,10 @@
   const LIBRARY = {
     outer:    { text: 'outer membrane', offset: [46, -26], card: 'The outer membrane, and it leaks. Porins hold it open to anything under about 5 kDa, so the space just inside it is chemically almost the cytosol — which is why no gradient can stand across this one.' },
     porin:    { text: 'porins', offset: [46, 24], card: 'Barrels that sit permanently open, studded all over the outer membrane. They are the reason that membrane is a sieve, and the reason the inner one has to do all the work.' },
-    ims:      { text: 'intermembrane space', offset: [-48, -28], card: 'The space between the two membranes — and the inside of every crista, because they are one space, joined through the crista junctions. Protons pumped out of the matrix collect here, and this is the tank chemiosmosis draws on.' },
-    inner:    { text: 'inner membrane', offset: [-48, 26], card: 'Almost nothing crosses this one without a protein, which is what lets a proton gradient stand across it. Every complex of the electron transport chain and every ATP synthase sits in this single folded sheet.' },
-    crista:   { text: 'crista', offset: [44, -22], card: 'A flattened sac of inner membrane pushed into the matrix. Folding is how a mitochondrion fits several times its own surface area of respiring membrane inside itself, and a cell that respires hard grows more of them.' },
-    junction: { text: 'crista junction', offset: [-46, -22], card: 'The narrow neck where a crista opens into the intermembrane space, about 25 nm across and held that way by proteins. Narrow on purpose: it keeps the protons a crista pumps inside that crista, so the force is strongest right where the synthases are.' },
+    ims:      { text: 'intermembrane space', offset: [-48, -28], card: 'The space between the two membranes, and the pale core running down the inside of every fold, because those are one space joined at the crista junctions. Protons pumped out of the matrix collect here, and this is the tank chemiosmosis draws on.' },
+    inner:    { text: 'inner membrane', offset: [-48, 26], card: 'Almost nothing crosses this one without a protein, which is what lets a proton gradient stand across it. Follow it: the sheet running along the wall and every crista folded off it are one surface, and every complex and every ATP synthase sits in it.' },
+    crista:   { text: 'crista', offset: [44, -22], card: 'A fold of the inner membrane, pushed deep into the matrix and doubling back on itself. Folding is how a mitochondrion fits several times its own surface area of respiring membrane inside itself, and a cell that respires hard grows more of them.' },
+    junction: { text: 'crista junction', offset: [-46, -22], card: 'The waist where a fold leaves the wall, about 25 nm across and held open by proteins. Narrow on purpose: it keeps the protons a crista pumps inside that crista, so the force is strongest right where the synthases are.' },
     complex:  { text: 'the electron transport chain', offset: [44, 22], card: 'Complexes I, III and IV pass electrons down the chain and push protons out of the matrix as they go. Complex II — the pale one — feeds electrons in from FADH₂ but pumps nothing, which is exactly why FADH₂ is worth less ATP than NADH.' },
     synthase: { text: 'ATP synthase', offset: [46, -20], card: 'Protons fall back out of the crista lumen through this, and the rotor turns. The head hanging in the matrix makes one ATP per third of a turn, so the gradient is the thing that is actually spent.' },
     matrix:   { text: 'the matrix', offset: [-46, 22], card: 'The enclosed space inside the inner membrane, where pyruvate is oxidised and the Krebs cycle runs. Everything the chain burns is made in here, and every proton the chain pumps is pumped out of here.' },
@@ -317,9 +323,12 @@
       }
     }
 
+    /* NOT EVERY PART IS A MESH. `ims`, `matrix`, `crista` and `junction` are
+       places on or between things that ARE meshes — a fold and the waist
+       where it leaves the wall are both the inner membrane, and hiding them
+       would mean hiding it. They carry an anchor and a card and no chip. */
     function applyShow(name, on) {
       if (name === 'proton') { if (protonMesh) protonMesh.visible = on; return; }
-      if (name === 'ims' || name === 'matrix') return;      // spaces, not meshes
       const g = D.groups[name];
       if (g) g.visible = on;
     }
@@ -348,9 +357,6 @@
 
     function state() {
       const d = D.dims;
-      const xs = D.cristae.map(c => c.x).sort((a, b) => a - b);
-      let gap = 0;
-      for (let i = 1; i < xs.length; i++) gap += (xs[i] - xs[i - 1]) / (xs.length - 1);
       let lumen = 0;
       for (const p of protons) if (p.mode === 'lumen') lumen++;
       return {
@@ -365,8 +371,8 @@
            100 nm. The thicknesses are drawn and SCALE.exag says by how much;
            they are here so a page prints the drawing rather than guessing. */
         lengthNm: NM(2 * (1.7 * R + R)), widthNm: NM(2 * R),
-        cristaSpacingNm: xs.length > 1 ? NM(gap) : null,
-        membraneNm: NM(d.th), imsNm: NM(d.imsGap), lumenNm: NM(d.lumenT),
+        cristaSpacingNm: NM(d.pitch),
+        membraneNm: NM(d.th), imsNm: NM(d.gapIM - d.th * 1.6), lumenNm: NM(d.lumenT),
         hovered, selected, shown: Object.assign({}, shown),
       };
     }
@@ -388,17 +394,19 @@
        it. `ims` and `matrix` are spaces rather than meshes, so each is
        anchored on a sampled point inside itself. */
     const w = v => (v ? model.localToWorld(v.clone()) : null);
-    const mid = () => D.cristae[Math.floor(D.cristae.length / 2)];
+    const pick = (arr, f) => (arr && arr.length ? arr[Math.floor(arr.length * f)] : null);
     const anchors = {
       outer:    () => w(new V3(-1.1 * R, -0.72 * R, 0.34 * R)),
       porin:    () => w(new V3(0.9 * R, -0.80 * R, 0.30 * R)),
       ims:      () => w(D.pockets.ims[3]),
-      inner:    () => w(new V3(0, -(R - TH - IMS) + TH, 0)),
-      crista:   () => { const c = mid(); return c ? w(new V3(c.x, -0.55 * c.R, 0)) : null; },
-      junction: () => { const g = D.groups.junction.children[Math.floor(D.groups.junction.children.length / 2)];
-                        return g ? w(g.position) : null; },
+      /* `inner` points at a wall-hugging run and `crista` at a fold tip, on
+         purpose: they are two places on ONE ribbon, and a reader who turns
+         both chips on at once should see two labels on the same sheet. */
+      inner:    () => w(pick(D.path, 0.02)),
+      crista:   () => w(pick(D.tips, 0.5)),
+      junction: () => w(pick(D.necks, 0.5)),
       complex:  () => { const s = D.sites.complex.find(x => x.kind === 'I'); return s ? w(s.p) : null; },
-      synthase: () => { const s = D.sites.synthase[Math.floor(D.sites.synthase.length / 2)]; return s ? w(s.p) : null; },
+      synthase: () => w(pick(D.sites.synthase, 0.5) && pick(D.sites.synthase, 0.5).p),
       matrix:   () => w(D.pockets.matrix[0]),
       dna:      () => { const m = D.groups.dna.children[0];
                         if (!m) return null;
@@ -424,7 +432,7 @@
       { name: 'protons', color: hex(RESPP.proton) },
       { name: 'mitochondrial DNA', color: hex(ORGP.dna) },
     ];
-    const layersOf = () => ORDER.filter(n => n !== 'ims' && n !== 'matrix')
+    const layersOf = () => ORDER.filter(n => n === 'proton' || D.groups[n])
       .map(n => ({ name: n, label: LIBRARY[n].text, on: shown[n] !== false }));
     const show = (n, on) => { shown[n] = !!on; applyShow(n, !!on); return api; };
     const select = n => { selected = n; highlight(); emit('pick', n); return api; };

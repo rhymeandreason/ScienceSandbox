@@ -610,23 +610,23 @@ Good for: the parts of a plant cell, plant against animal, turgor and wilting, p
 const M = Mitochondrion.mount(el, {
   flow: 0.6,          // 0..1 how hard the chain is running; 0 stops it dead. Glides
   uncoupler: false,   // protons home without a synthase: no ATP, all heat
-  cristae: 11,        // 3..24 (rebuild)
+  cristae: 10,        // folds, total, alternating sides. From 4; more than fit is refused (rebuild)
   open: 1,            // 1 cuts it in half; less closes the near wall over (rebuild)
-  seed: 4231,         // a different arrangement of cristae (rebuild)
+  seed: 4231,         // a different arrangement of folds (rebuild)
 });
 ```
 
-Two membranes with the intermembrane space between them, cristae as the flattened **sacs** they are, complexes I–IV on their faces, ATP synthase in dimer rows along their rims, mtDNA and mitoribosomes in the matrix, and protons making the round trip: out of the matrix at a complex, back in through a synthase.
+An outer membrane, and inside it **one continuous inner membrane folded back and forth** — every crista is a fold of that one sheet, not a plate standing in the matrix. The fold is drawn as a wall, its lumen and a wall, so the cut runs through the sandwich; complexes I–IV sit on the faces, ATP synthase in dimer rows at the fold tips, mtDNA and mitoribosomes in the lobes of matrix between, and protons make the round trip: out of the matrix at a complex, back in through a synthase.
 
-**Reach for this the moment a step says "in the mitochondrion" and means it.** The claim it exists to carry is one a diagram almost always gets wrong: **the inside of a crista is the intermembrane space**, joined to it through the crista junctions, so a proton pumped at a complex lands INSIDE the fold and not in the matrix. Drawn as solid fins — which is what every other picture does, and what AnimalCell does at its own distance — a student concludes the opposite. Complex II is on the cristae, in the paler blue, and no proton ever uses it: that is why FADH₂ is worth less than NADH, and it is true of the picture.
+**Reach for this the moment a step says "in the mitochondrion" and means it.** The claim it exists to carry is one a diagram almost always gets wrong: **the inside of a crista is the intermembrane space**, joined to it at the crista junctions, so a proton pumped at a complex lands INSIDE the fold and not in the matrix. It is one ribbon for exactly that reason — separate plates say separate compartments. Complex II is on the cristae, in the paler blue, and no proton ever uses it: that is why FADH₂ is worth less than NADH, and it is true of the picture.
 
 **It is not the arithmetic and refuses to be.** No pH, no proton-motive force, no fuel, no respiratory control: that is Membrane with `context:'mitochondrion'`, one rung down, where it is checked. Mount both when a step asks how much — the organelle for where, the membrane for how much. The rotor's stoichiometry is the one number they share, and both read it from the same place.
 
 Glides: `flow` (pass `{snap:true}` for a slider under a thumb). Snaps: `uncoupler`, and every geometry parameter, which rebuilds.
 
-`state()`: `flow`, `uncoupler`, counts (`cristae`, `junctions`, `complexes`, `synthases`, `porins`), `protons.lumen / .matrix`, the ledger (`pumped`, `throughSynthase`, `leaked`, `rotorTurns`, `atpMade`), `stoichiometry`, and the sizes (`lengthNm`, `widthNm`, `cristaSpacingNm`, `membraneNm`). **Printable: one of `atpMade` or `protons.lumen`, and `lengthNm`.** The rest drives the page. A drawn proton stands for a great many, so nothing here is a concentration. Events: `frame`, `hover`, `pick`, `turn`.
+`state()`: `flow`, `uncoupler`, counts (`cristae` — how many folds were actually drawn, which is not always how many were asked for — `junctions`, `complexes`, `synthases`, `porins`), `protons.lumen / .matrix`, the ledger (`pumped`, `throughSynthase`, `leaked`, `rotorTurns`, `atpMade`), `stoichiometry`, and the sizes (`lengthNm`, `widthNm`, `cristaSpacingNm`, `membraneNm`). **Printable: one of `atpMade` or `protons.lumen`, and `lengthNm`.** The rest drives the page. A drawn proton stands for a great many, so nothing here is a concentration. Events: `frame`, `hover`, `pick`, `turn`.
 
-One list of parts serves `note()`, `show()` and `lookAt()`: `outer`, `porin`, `ims`, `inner`, `crista`, `junction`, `complex`, `synthase`, `matrix`, `dna`, `ribosome`, `proton`. Every one carries a card. **`crista`, `junction`, `synthase`, `complex`, `proton` and `porin` declare a view**, so a `zoom` chip for one of those travels; a `notes` chip only labels.
+Parts, each with a card: `outer`, `porin`, `ims`, `inner`, `crista`, `junction`, `complex`, `synthase`, `matrix`, `dna`, `ribosome`, `proton`. **Four of them can be pointed at but not hidden** — `crista` and `junction` are places on the inner membrane and `ims` and `matrix` are spaces, so they take a `notes` chip and never appear under `layers`. **`crista`, `junction`, `synthase`, `complex`, `proton` and `porin` declare a view**, so a `zoom` chip for one of those travels; a `notes` chip only labels.
 
 Good for: what a mitochondrion IS, the two membranes and why only one holds a gradient, cristae and surface area, where the electron transport chain sits, why an uncoupler makes heat, mitochondria as ex-bacteria. Not for: the Krebs cycle or glycolysis (a pathway lesson), the numbers on the gradient (Membrane), or a cell with other organelles in it (AnimalCell).
 

@@ -903,18 +903,19 @@
       const r = o.r || 1;
       const L = o.L === undefined ? 1.7 * r : o.L;
       const q = o.detail === undefined ? 1 : o.detail;
-      const th = o.membrane === undefined ? 0.038 * r : o.membrane;   // one membrane, drawn
-      const imsGap = o.ims === undefined ? 0.13 * r : o.ims;          // outer's inner face to inner's outer face
-      const nCr = clamp(Math.round(o.cristae === undefined ? 11 : o.cristae), 3, 24);
+      const th = o.membrane === undefined ? 0.034 * r : o.membrane;   // one membrane, drawn
+      const lumenT = o.lumen === undefined ? 0.057 * r : o.lumen;     // the space inside the fold
+      const ribbonT = 2 * th + lumenT;                                 // the whole fold, across
+      /* `cristae` is the number of FOLDS, alternating sides along the
+         length, not a count per side: ten is ten fingers meshing, five from
+         each wall. The cap is below, and it is geometry rather than taste. */
+      let nFold = clamp(Math.round(o.cristae === undefined ? 10 : o.cristae), 4, 18);
       /* `open` is how much of the near wall is taken away. 1 cuts the
          organelle in half on y = 0; below that the shell carries on past the
-         equator and closes over the cristae, which is the view that says it
-         is a sealed bag. */
+         equator and closes over the folds, which is the view that says it is
+         a sealed bag. */
       const open = clamp(o.open === undefined ? 1 : o.open, 0.3, 1);
       const cutW = PI * (1 + 0.5 * (1 - open));
-      const lumenT = o.lumen === undefined ? 0.055 * r : o.lumen;     // inside a crista
-      const jGap = 0.055 * r;                                          // plate edge to inner membrane
-      const sacHalf = lumenT / 2 + th;                                 // crista half thickness
 
       /* A capsule of radius `rad` and cylinder half-length `len`, param u in
          [0,1] along the profile and w round it. The same grain as
@@ -928,77 +929,29 @@
         const b = 1 + 0.035 * noise.noise3(x * 2.2 / r, Math.cos(w) * 1.4, Math.sin(w) * 1.4 + 4.2);
         return new V3(x, -rho * b * Math.sin(w), rho * b * Math.cos(w));
       };
-      // Radius of a capsule's surface of revolution at x, for placing things inside.
-      const rhoOf = (rad, len, x) => (Math.abs(x) <= len ? rad
-        : Math.sqrt(Math.max(0, rad * rad - (Math.abs(x) - len) * (Math.abs(x) - len))));
+      const outerS = capsuleS(r, L);
 
-      const rIn = r - th - imsGap;              // the inner membrane's outer radius
-      const outerS = capsuleS(r, L), innerS = capsuleS(rIn, L);
-      /* ONE SURFACE FINISH FOR THE WHOLE INNER MEMBRANE. The boundary part,
-         every crista and every junction neck are the same sheet, so they are
-         shaded by the same numbers: same roughness, same clearcoat, same
-         opacity. They were three materials once — an opaque shell, an opaque
-         neck and a crista at 0.82 — and one hex rendered as three colours,
-         which read as three pieces bolted together. The barely-there
-         transparency is what lets the pale lumen and the protons in it ghost
-         through a crista; it is on the shell too so that nothing shows a
-         seam where the fold meets the wall. Raise it to 1 and the sacs go
-         solid; below about 0.85 they go murky and lose their shape. */
+      /* ONE SURFACE FINISH FOR THE WHOLE INNER MEMBRANE — one material
+         object, in fact, shared by both walls of the ribbon. It is one sheet,
+         so nothing about how it is shaded may vary along it. The
+         barely-there transparency is what lets the lumen and the protons in
+         it read through a wall; raise it to 1 and the fold goes solid. */
       const MEM_FINISH = { roughness: 0.42, clearcoat: 0.5, transparent: true, opacity: 0.93 };
-      const shellMat = () => mat(Object.assign({ vertexColors: true }, MEM_FINISH));
       const RESP = global.MolPalette ? global.MolPalette.respiration : global.MolLib.PALETTE.respiration;
 
       const sub = name => { const s = new THREE.Group(); s.userData.part = name; g.add(s); return s; };
       const gOuter = sub('outer'), gPorin = sub('porin'), gInner = sub('inner'),
-            gCrista = sub('crista'), gJunction = sub('junction'), gComplex = sub('complex'),
-            gSynthase = sub('synthase'), gDna = sub('dna'), gRibo = sub('ribosome');
+            gComplex = sub('complex'), gSynthase = sub('synthase'),
+            gDna = sub('dna'), gRibo = sub('ribosome');
 
-      /* ---- the two membranes -------------------------------------------
-         Built by the same shell code and cut on the same plane, so the
-         intermembrane space is a visible gap at the rim rather than a claim.
-         The inner one is cut a little further round: at the same angle the
-         two rims sit on one line and the space between them closes up
-         exactly where a reader is looking for it. */
-      const shellOpts = (S, cut, colors) => ({
-        S, uRange: [0, 1], wRange: () => [0, cut], uSeg: Math.round(96 * q), uPeriodic: false,
-        rimStart: true, thickness: th,
+      /* ---- the outer membrane ------------------------------------------ */
+      const outerMesh = new THREE.Mesh(buildShell(THREE, {
+        S: outerS, uRange: [0, 1], wRange: () => [0, cutW], uSeg: Math.round(96 * q), uPeriodic: false,
+        rimStart: true, thickness: th * 1.6,
         segs: { outer: Math.round(52 * q), rim: Math.max(4, Math.round(6 * q)), inner: Math.round(52 * q) },
-        colors,
-      });
-      const outerMesh = new THREE.Mesh(buildShell(THREE, shellOpts(outerS, cutW, shellOf(ORG.mitochondrion))), shellMat());
+        colors: shellOf(ORG.mitochondrion),
+      }), mat(Object.assign({ vertexColors: true }, MEM_FINISH)));
       gOuter.add(outerMesh);
-      /* THE INNER MEMBRANE IS THE CRISTAE'S COLOUR, not the outer membrane's,
-         because it is the same membrane: a crista is a fold of this sheet and
-         the two are one continuous surface with one enclosed space. Drawn in
-         the envelope's orange the picture says three membranes, and the
-         reader has no way to tell the boundary part from the folded part. */
-      const innerMesh = new THREE.Mesh(buildShell(THREE, shellOpts(innerS, cutW - 0.035 * PI, {
-        outer: col(ORG.mitochondrion.cristaSide), inner: col(ORG.mitochondrion.matrix),
-        rim: col(ORG.mitochondrion.cristaTop),
-      })), shellMat());
-      gInner.add(innerMesh);
-
-      /* WHERE THE INNER MEMBRANE ACTUALLY IS on a given ray, noise and all.
-         `rhoOf` answers for the IDEAL capsule, and the shell is displaced off
-         it by about one membrane's thickness — so anything welded to the wall
-         by the ideal radius either stops short of it or pierces it and hangs
-         out in the intermembrane space, and both read as a part set down
-         beside the membrane rather than continuous with it. The displacement
-         scales rho and so keeps a point on its own ray, which is what makes
-         this a search in u alone. Build time only. */
-      const wallRadius = (x, w) => {
-        /* u from x in closed form: capsuleS puts x on the profile before the
-           noise touches anything, and the noise only scales rho — so the
-           displacement never moves a point off its own ray or along the axis,
-           and there is nothing to search for. */
-        const cp = PI * rIn / 2, tot = PI * rIn + 2 * L;
-        const cl = clamp(x, -L - rIn, L + rIn);
-        const s2 = Math.abs(cl) <= L ? cp + (cl + L)
-          : cl < -L ? (Math.asin(clamp((cl + L) / rIn, -1, 1)) + PI / 2) * rIn
-                    : cp + 2 * L + Math.asin(clamp((cl - L) / rIn, -1, 1)) * rIn;
-        const p = innerS(s2 / tot, w);
-        return Math.hypot(p.y, p.z);
-      };
 
       /* Porins. A ring each, over the outer membrane only: the outer
          membrane is a sieve and the inner one is not, which is the whole
@@ -1006,7 +959,7 @@
       let nPorins = 0;
       {
         const nP = Math.round((o.porins === undefined ? 90 : o.porins) * q);
-        const geo = new THREE.TorusGeometry(0.035 * r, 0.013 * r, 6, 12);
+        const geo = new THREE.TorusGeometry(0.032 * r, 0.012 * r, 6, 12);
         const inst = new THREE.InstancedMesh(geo, mat({ color: ORG.mitochondrion.porin, roughness: 0.5, clearcoat: 0.3 }), nP);
         const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), up = new V3(0, 0, 1), one = new V3(1, 1, 1);
         for (let i = 0; i < nP; i++) {
@@ -1020,170 +973,191 @@
         nPorins = nP;
       }
 
-      /* ---- the cristae --------------------------------------------------
-         One crista is a slice of the cross-section at x: a lamella hugging
-         one side of the wall, round the floor, and reaching back across the
-         matrix. Successive ones lean to opposite sides, so the matrix stays
-         a single connected space with lobes — the squiggle a longitudinal
-         micrograph shows, here as the sheets it is a section through.
+      /* ---- the inner membrane: ONE RIBBON, FOLDED ------------------------
+         The same path mitochondrion() traces, and for the same reason: every
+         crista is a FOLD of one continuous sheet, so the sheet is drawn as
+         one continuous thing — along a wall, diving to the far side and back
+         at each fold, round the end cap, and home along the other wall with
+         the folds offset half a pitch so the two combs mesh. Drawn as
+         separate plates it says separate compartments, which is the
+         misconception the whole organelle is here to kill.
 
-         Built in the plane of the slice and turned into it: the shape is
-         drawn in (sx, sy), extruded along its own z, then rotated so that z
-         is the organelle's long axis. sx = -z_world, sy = y_world. */
-      /* The crista, the neck and the outer face of the boundary membrane are
-         ONE material object, not three matching ones: a colour cannot drift
-         from itself. depthWrite stays on — these are convex plates and the
-         pale lumen inside each is opaque, so nothing sorts behind itself. */
-      const memMat = mat(Object.assign({ color: ORG.mitochondrion.cristaSide,
-        side: THREE.DoubleSide }, MEM_FINISH));
-      const lumenMat = mat({ color: ORG.mitochondrion.lumen, roughness: 0.55, clearcoat: 0.2, side: THREE.DoubleSide });
-      const inPoly = (pts, x, y) => {
-        let c = false;
-        for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-          const xi = pts[i][0], yi = pts[i][1], xj = pts[j][0], yj = pts[j][1];
-          if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c;
+         WHAT THIS LEVEL ADDS over mitochondrion() is resolution, not a
+         different construction: more folds, and the sheet swept as THREE
+         ribbons rather than one — a wall, the lumen, a wall. The cut plane
+         runs through all three, so looking down into the organelle a reader
+         sees the sandwich in section, the way an electron micrograph shows
+         it, and the pale core is the same colour as the intermembrane space
+         because it is the same space.
+
+         EACH FOLD IS A U, NOT A V. Its two walls run parallel and the tip is
+         a round arc, so what sits between two folds is a fat lobe of matrix
+         with a narrow finger of membrane between. A spline through a single
+         tip point pulls the walls into a point and the section reads as a
+         saw. */
+      const gapIM = th * 1.6 + (o.ims === undefined ? 0.07 * r : o.ims);
+      const ri = r - gapIM, Li = L - gapIM * 0.4;
+      /* HOW MANY FOLDS FIT IS ARITHMETIC, not a preference. A fold is a U:
+         its two walls are a whole ribbon thickness each and they must clear
+         each other, and the next fold — which comes off the opposite wall
+         and interleaves — must clear both. So the pitch cannot go below
+         about twice the ribbon, and asking for more folds than that packs
+         membranes through each other. Refused here with one warning rather
+         than clamped somewhere later.
+
+         The cap lands near a real number, which is the point: at the
+         default the pitch is about 115 nm, and cristae in a working
+         mitochondrion sit roughly 100 nm apart. The organelle is full when
+         it looks full. */
+      const maxFold = Math.max(4, Math.floor(2 * Li / (2 * (ribbonT + 0.035 * r))));
+      if (nFold > maxFold) {
+        console.warn(`cell/organelles.js: ${nFold} cristae do not fit a mitochondrion this size; drawing ${maxFold}.`);
+        nFold = maxFold;
+      }
+      const pitch = 2 * Li / nFold;
+      const folds = [], bases = [];
+      const wMin = ribbonT * 0.62, wMax = pitch * 0.5 - ribbonT * 0.62;
+      for (let k = 0; k < nFold; k++)
+        folds.push({
+          x: -Li + pitch * (k + 0.5) + rr(-0.04, 0.04) * pitch,
+          dir: k % 2 ? -1 : 1,
+          w: clamp(pitch * rr(0.28, 0.33), wMin, Math.max(wMin, wMax)),
+          depth: rr(1.08, 1.38),
+        });
+      const comb = (dir, ascending) => {
+        const out = [], mine = folds.filter(f => f.dir === dir);
+        if (!ascending) mine.reverse();
+        for (const f of mine) {
+          const sgn = ascending ? 1 : -1, tip = dir * ri * (1 - f.depth), lip = dir * ri;
+          out.push(new V3(f.x - sgn * f.w * 2.1, 0, lip));
+          out.push(new V3(f.x - sgn * f.w * 1.45, 0, dir * ri * 0.86));   // ease off the wall
+          out.push(new V3(f.x - sgn * f.w, 0, dir * ri * 0.42));
+          out.push(new V3(f.x - sgn * f.w * 0.88, 0, tip * 0.66));
+          out.push(new V3(f.x - sgn * f.w * 0.34, 0, tip));
+          out.push(new V3(f.x + sgn * f.w * 0.34, 0, tip));
+          out.push(new V3(f.x + sgn * f.w * 0.88, 0, tip * 0.66));
+          out.push(new V3(f.x + sgn * f.w, 0, dir * ri * 0.42));
+          out.push(new V3(f.x + sgn * f.w * 1.45, 0, dir * ri * 0.86));
+          out.push(new V3(f.x + sgn * f.w * 2.1, 0, lip));
+          /* WHERE THE FOLD LEAVES THE WALL is the crista junction: in a real
+             organelle a ~25 nm neck held open by MICOS, and the reason the
+             protons a fold pumps stay in that fold rather than washing into
+             the whole intermembrane space. Recorded here and drawn as a
+             pinch in the lumen, which is the only place a section can show
+             it. */
+          bases.push([f.x - sgn * f.w * 1.45, dir * ri * 0.86, f.w]);
+          bases.push([f.x + sgn * f.w * 1.45, dir * ri * 0.86, f.w]);
         }
-        return c;
+        return out;
       };
+      const ctrl = [];
+      ctrl.push(new V3(-Li - ri * 0.5, 0, 0.62 * ri));
+      ctrl.push(...comb(1, true));                          // out along +z
+      ctrl.push(new V3(Li + ri * 0.5, 0, 0.62 * ri), new V3(Li + ri * 0.8, 0, 0), new V3(Li + ri * 0.5, 0, -0.62 * ri));
+      ctrl.push(...comb(-1, false));                        // back along -z
+      ctrl.push(new V3(-Li - ri * 0.5, 0, -0.62 * ri), new V3(-Li - ri * 0.8, 0, 0));
+
+      const curve = new THREE.CatmullRomCurve3(ctrl, true, 'centripetal', 0.5);
+      const pathXZ = curve.getPoints(Math.round(460 * q)).map(p2 => [p2.x, p2.z]);
+
+      // rho of the outer surface at x, so the ribbon can stand on the floor
+      const rhoAt = x => (Math.abs(x) <= L ? r : Math.sqrt(Math.max(0, r * r - (Math.abs(x) - L) * (Math.abs(x) - L))));
+      const BASE = 0.5, pts = [], scales = [], hs = [], pinch = [];
+      for (const [x, z] of pathXZ) {
+        const rho = Math.max(1e-3, rhoAt(x) - gapIM);
+        const zz = clamp(z, -rho * 0.98, rho * 0.98);
+        const floor = -Math.sqrt(Math.max(0.0001, rho * rho - zz * zz));
+        const h = Math.max(0.06, -floor - 0.035 * r);
+        pts.push(new V3(x, floor + h / 2, zz));
+        scales.push([1, h / BASE]);
+        hs.push(h);
+        // the junction's waist, as a dip in the lumen's width
+        let k = 1;
+        for (const [bx, bz, bw] of bases) {
+          const d2 = (x - bx) * (x - bx) + (z - bz) * (z - bz), s2 = (bw * 0.5) * (bw * 0.5);
+          k = Math.min(k, 1 - 0.6 * Math.exp(-d2 / (2 * s2)));
+        }
+        pinch.push(k);
+      }
+
+      const memMat = mat(Object.assign({ vertexColors: true, side: THREE.DoubleSide }, MEM_FINISH));
+      const wallSide = col(ORG.mitochondrion.cristaSide), wallTop = col(ORG.mitochondrion.cristaTop);
+      const lumenCol = col(ORG.mitochondrion.lumen);
+      const shifted = (w, h, rad, cs, ct, dx) =>
+        roundedRectProfile(THREE, w, h, rad, cs, ct).map(p => ({ x: p.x + dx, y: p.y, color: p.color }));
+      const off = lumenT / 2 + th / 2;
+      for (const dx of [-off, off])
+        gInner.add(new THREE.Mesh(sweepProfile(THREE, pts, shifted(th, BASE, th * 0.4, wallSide, wallTop, dx), { scales }), memMat));
+      gInner.add(new THREE.Mesh(
+        sweepProfile(THREE, pts, roundedRectProfile(THREE, lumenT, BASE * 0.99, lumenT * 0.3, lumenCol, lumenCol),
+          { scales: scales.map(([, sy], i) => [pinch[i], sy]) }),
+        mat({ vertexColors: true, roughness: 0.55, clearcoat: 0.2, side: THREE.DoubleSide })));
+
+      /* ---- where the machines go ----------------------------------------
+         Along the ribbon, and which FACE matters: a face looking out at the
+         wall is looking at the intermembrane space, and a complex's matrix
+         arm or a synthase's F1 head hung there would be in the wrong
+         compartment. So a machine on a wall-hugging run takes the inward
+         face, and one on a fold takes either — both faces of a fold look out
+         on matrix.
+
+         ATP SYNTHASE GOES WHERE THE MEMBRANE TURNS. Dimer rows sit on the
+         high-curvature rim of a crista, and the V-angle between the two
+         monomers is what bends it — the shape of a fold is a consequence of
+         where its machines are. Read off the path's own curvature, so a fold
+         the seed happens to make tighter gets its synthases in the right
+         place without anything being told about it. */
       const sites = { complex: [], synthase: [] };
       const pockets = { lumen: [], matrix: [], ims: [] };
-      const cristae = [];
-      const xs = [];
-      for (let k = 0; k < nCr; k++) {
-        const t = (k + 0.5) / nCr;
-        xs.push(-(L + r * 0.55) + t * 2 * (L + r * 0.55) + rr(-0.25, 0.25) * (2 * (L + r * 0.55) / nCr));
+      const n = pts.length;
+      const frames = [];
+      {
+        const UP = new V3(0, 1, 0);
+        for (let i = 0; i < n; i++) {
+          const T = new V3().subVectors(pts[(i + 1) % n], pts[(i - 1 + n) % n]).normalize();
+          const side = new V3().crossVectors(T, UP);
+          if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
+          side.normalize();
+          frames.push([side, new V3().crossVectors(side, T).normalize(), T]);
+        }
       }
-      for (let k = 0; k < nCr; k++) {
-        const xk = xs[k], sgn = k % 2 ? -1 : 1;
-        const Rk = rhoOf(rIn, L, xk) - th - jGap;        // the plate's own radius
-        if (Rk < 0.22 * r) continue;                      // too near a pole to be a crista
-        const f0 = PI * rr(0.04, 0.09), f1 = PI * rr(0.64, 0.74);
-        const depth = rr(1.05, 1.22);
-        const P2 = f => [-sgn * Rk * Math.cos(f), -Rk * Math.sin(f)];
-        const arc = [], nArc = Math.max(8, Math.round(22 * q));
-        for (let i = 0; i <= nArc; i++) arc.push(P2(f0 + (i / nArc) * (f1 - f0)));
-        const A = arc[0], B = arc[arc.length - 1];
-        const M = P2((f0 + f1) / 2);
-        // The free rim's deepest point, kept below the cut plane whatever `depth` asks for.
-        const Rm = [M[0] * (1 - depth), Math.min(M[1] * (1 - depth), -0.10 * Rk)];
-        const Q = [2 * Rm[0] - (A[0] + B[0]) / 2, 2 * Rm[1] - (A[1] + B[1]) / 2];
-        const rim = [], nRim = Math.max(8, Math.round(20 * q));
-        for (let i = 1; i < nRim; i++) {
-          const t = i / nRim, w0 = (1 - t) * (1 - t), w1 = 2 * t * (1 - t), w2 = t * t;
-          rim.push([w0 * B[0] + w1 * Q[0] + w2 * A[0], w0 * B[1] + w1 * Q[1] + w2 * A[1]]);
-        }
-        const outline = arc.concat(rim);
-
-        const cen = outline.reduce((a, p) => [a[0] + p[0] / outline.length, a[1] + p[1] / outline.length], [0, 0]);
-        const shape = new THREE.Shape(outline.map(p => new THREE.Vector2(p[0], p[1])));
-        const plate = (depthZ, colMat, shrink) => {
-          const s = shrink ? new THREE.Shape(outline.map(p => {
-            const d = Math.hypot(p[0] - cen[0], p[1] - cen[1]) || 1;
-            return new THREE.Vector2(p[0] - (p[0] - cen[0]) / d * shrink, p[1] - (p[1] - cen[1]) / d * shrink);
-          })) : shape;
-          const geo = new THREE.ExtrudeGeometry(s, { depth: depthZ, bevelEnabled: false, curveSegments: 1 });
-          geo.translate(0, 0, -depthZ / 2);
-          geo.rotateY(PI / 2);
-          geo.translate(xk, 0, 0);
-          return new THREE.Mesh(geo, colMat);
-        };
-        /* Two leaflets and the lumen between them, inset so it shows as a
-           pale line down every exposed edge: a crista is a bag, and the
-           inside of the bag is the intermembrane space. */
-        const leafA = plate(th, memMat, 0); leafA.position.x = -(lumenT / 2 + th / 2);
-        const leafB = plate(th, memMat, 0); leafB.position.x = +(lumenT / 2 + th / 2);
-        const lumen = plate(lumenT, lumenMat, th * 0.35);
-        // The rim closes the bag, and is the high-curvature edge the synthases sit on.
-        const rimPts = outline.map(p => new V3(xk, p[1], -p[0]));
-        const rimMesh = new THREE.Mesh(
-          new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rimPts, true, 'centripetal', 0.5),
-            Math.max(24, Math.round(outline.length * 1.2)), sacHalf, 6, true), memMat);
-        gCrista.add(leafA, leafB, lumen, rimMesh);
-        cristae.push({ x: xk, R: Rk, outline, sgn });
-
-        /* Junctions: a few narrow necks out to the inner boundary membrane,
-           spaced along the arc that faces it. Everything else about the
-           plate's edge is free in the matrix. */
-        {
-          const nJ = o.junctions === undefined ? 3 : o.junctions;
-          for (let i = 0; i < nJ; i++) {
-            const f = f0 + ((i + 0.5) / nJ) * (f1 - f0);
-            const p = P2(f);
-            const dir = new V3(0, p[1], -p[0]).normalize();
-            /* BURIED AT BOTH ENDS. The neck starts inside the sac and
-               finishes past the far face of the boundary membrane, rather
-               than running from one ideal surface to the other: the shell is
-               noise-displaced by about a membrane's thickness, so a neck cut
-               to the smooth capsule stops in mid-air wherever the wall
-               happens to bulge, and the fold reads as a part set down beside
-               the membrane instead of continuous with it. Overlap is free —
-               both ends are inside something. */
-            const from = new V3(xk, p[1], -p[0]).addScaledVector(dir, -sacHalf * 0.9);
-            // Into the wall's own thickness, stopping just short of its far
-            // face: welded, and never poking out into the space beyond.
-            const to = dir.clone().multiplyScalar(wallRadius(xk, Math.atan2(-dir.y, dir.z)) - th * 0.15);
-            to.x = xk;
-            const len = Math.max(1e-3, from.distanceTo(to));
-            /* Wide where it leaves the crista, wide where it enters the wall,
-               PINCHED IN BETWEEN. That waist is the junction: about 25 nm
-               across, held there by MICOS, and the reason a crista lumen is
-               its own pocket of protons rather than an open bay. */
-            const prof = [];
-            for (let k = 0; k <= 8; k++) {
-              const t = k / 8;
-              prof.push(new THREE.Vector2(sacHalf * (1 - 0.45 * Math.sin(PI * t)), -len / 2 + t * len));
-            }
-            const neck = new THREE.Mesh(new THREE.LatheGeometry(prof, 10), memMat);
-            neck.position.copy(from).lerp(to, 0.5);
-            neck.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir);
-            gJunction.add(neck);
-          }
-        }
-
-        /* Points inside this crista's lumen, for the protons that end up
-           there. Rejection sampling on the outline is the only honest test:
-           a plate this shape has no closed form to sample. */
-        for (let i = 0, tries = 0; i < 9 && tries < 200; tries++) {
-          const px = rr(-Rk, Rk), py = rr(-Rk, 0);
-          if (!inPoly(outline, px, py)) continue;
-          pockets.lumen.push(new V3(xk + rr(-0.3, 0.3) * lumenT, py, -px));
-          i++;
-        }
-
-        /* The machines. Complexes on the flat faces, synthases in dimer rows
-           along the free rim. Both hand their F1 or their matrix arm to the
-           matrix side, which is the side a face looks out on: the lumen is
-           between the two faces, not outside them. */
-        const KINDS = ['I', 'III', 'IV', 'I', 'IV', 'III', 'II', 'IV', 'III', 'I'];
-        for (let i = 0, tries = 0; i < KINDS.length && tries < 400; tries++) {
-          const px = rr(-Rk, Rk), py = rr(-Rk, 0);
-          if (!inPoly(outline, px, py)) continue;
-          // Keep off the rim: a complex there would hang half in the matrix.
-          if (!inPoly(outline, px + (cen[0] - px) * 0.16, py + (cen[1] - py) * 0.16)) continue;
-          /* One complex is in ONE leaflet, and the two leaflets of a crista
-             are two membranes with the lumen between them. Drawn on both
-             faces at once it would be one machine through both, which is
-             the sac read as a solid plate again. */
-          const side = rand() < 0.5 ? -1 : 1;
-          sites.complex.push({
-            p: new V3(xk + side * (lumenT / 2 + th), py, -px),
-            out: new V3(side, 0, 0), kind: KINDS[i], spin: rr(0, 2 * PI),
-            lumen: new V3(xk, py, -px),
-          });
-          i++;
-        }
-        {
-          const nS = Math.max(2, Math.round(rim.length / 7));
-          for (let i = 0; i < nS; i++) {
-            const idx = Math.round(((i + 0.5) / nS) * (rim.length - 1));
-            const p = rim[idx];
-            const outward = new V3(0, p[1] - Rm[1], -(p[0] - Rm[0])).normalize();
-            for (const side of [-1, 1]) {
-              // A dimer: the two monomers splay off the rim, which is what bends it.
-              const axis = outward.clone().addScaledVector(new V3(side, 0, 0), 0.55).normalize();
-              const base = new V3(xk + side * sacHalf * 0.45, p[1], -p[0]).addScaledVector(outward, sacHalf * 0.55);
-              sites.synthase.push({ p: base, out: axis, lumen: new V3(xk, p[1], -p[0]) });
-            }
+      const KINDS = ['I', 'III', 'IV', 'I', 'IV', 'III', 'II', 'IV', 'III', 'I'];
+      {
+        const stepI = Math.max(2, Math.round(5 / q));
+        /* A TIP IS WHERE THE SYNTHASES GO, and which samples are tips is read
+           off the folds themselves rather than off a curvature threshold: a
+           fold's arc is long and gently curved for most of its length, so a
+           threshold puts dimer rows down the whole finger. */
+        const atTip = (x, z) => folds.some(f => {
+          const tz = f.dir * ri * (1 - f.depth), dx = x - f.x, dz = z - tz;
+          return dx * dx + dz * dz < (f.w * 1.05) * (f.w * 1.05);
+        });
+        let kc = 0;
+        for (let i = 0; i < n; i += stepI) {
+          const [side, upv] = frames[i], h = hs[i], P = pts[i];
+          /* A WALL TOO SHORT TO HOLD ONE. The ribbon stands on the floor of
+             a curved bowl, so where it runs close to the wall it is only a
+             sliver high — a machine there straddles its rim instead of
+             sitting in it. */
+          if (h < 0.30 * r) continue;
+          // the wall-hugging runs: only the inward face looks out on matrix
+          const rho = Math.max(1e-3, rhoAt(P.x) - gapIM);
+          const nearWall = Math.abs(P.z) > 0.74 * rho;
+          const inward = nearWall ? -Math.sign(P.z || 1) * Math.sign(side.z || 1) : 0;
+          const yOff = (rr(0.32, 0.68) - 0.5) * h;
+          const mid = P.clone().addScaledVector(upv, yOff);
+          const at = s => mid.clone().addScaledVector(side, s * (off + th / 2));
+          if (!nearWall && atTip(P.x, P.z)) {
+            for (const s of [-1, 1])
+              sites.synthase.push({ p: at(s), out: side.clone().multiplyScalar(s), lumen: mid.clone() });
+          } else {
+            /* BOTH FACES OF A FOLD LOOK OUT ON MATRIX, so both carry
+               machines; a wall-hugging run has only its inward face, since
+               the other looks at the intermembrane space. That asymmetry is
+               most of why a folded membrane is worth having. */
+            for (const s of (inward ? [inward] : [-1, 1]))
+              sites.complex.push({ p: at(s), out: side.clone().multiplyScalar(s), kind: KINDS[kc++ % KINDS.length],
+                spin: rr(0, 2 * PI), lumen: mid.clone() });
           }
         }
       }
@@ -1197,13 +1171,11 @@
          factors are in cell/mitochondrion.js's SCALE. */
       {
         const CX = {
-          I:   { color: RESP.complexI,   arm: [0.115 * r, 0.042 * r, 0.042 * r], out: 0.065 * r, outR: 0.020 * r },
-          II:  { color: RESP.complexII,  arm: null, out: 0.050 * r, outR: 0.024 * r },
+          I:   { color: RESP.complexI,   arm: [0.115 * r, 0.040 * r, 0.040 * r], out: 0.070 * r, outR: 0.020 * r },
+          II:  { color: RESP.complexII,  arm: null, out: 0.052 * r, outR: 0.024 * r },
           III: { color: RESP.complexIII, arm: null, out: 0.034 * r, outR: 0.029 * r, span: true },
-          IV:  { color: RESP.complexIV,  arm: null, out: 0.030 * r, outR: 0.026 * r, span: true },
+          IV:  { color: RESP.complexIV,  arm: null, out: 0.031 * r, outR: 0.026 * r, span: true },
         };
-        const byKind = {};
-        for (const k in CX) byKind[k] = sites.complex.filter(s => s.kind === k);
         const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), one = new V3(1, 1, 1), Y = new V3(0, 1, 0);
         const place = (inst, i, p, dir, extra) => {
           qt.setFromUnitVectors(Y, dir);
@@ -1211,21 +1183,21 @@
           inst.setMatrixAt(i, m4);
         };
         for (const k in CX) {
-          const list = byKind[k], c = CX[k];
+          const list = sites.complex.filter(s => s.kind === k), c = CX[k];
           if (!list.length) continue;
           const material = mat({ color: c.color, roughness: 0.42, clearcoat: 0.35 });
           const body = new THREE.InstancedMesh(
             new THREE.CylinderGeometry(c.outR, c.outR * 0.85, c.out * (c.span ? 2.6 : 1), 10), material, list.length);
-          /* A complex that SPANS sits centred on its leaflet and pokes out
-             both sides; one that does not stands on the matrix face. */
+          /* A complex that SPANS sits centred in the wall and pokes out both
+             sides; one that does not stands on the matrix face. */
           list.forEach((s, i) => place(body, i,
             s.p.clone().addScaledVector(s.out, c.span ? -th / 2 : c.out * 0.5), s.out));
           gComplex.add(body);
           if (c.arm) {
-            /* Complex I's membrane arm lies IN the leaflet, so it turns
-               about the leaflet's own normal — which is s.out — by an angle
-               of its own. A box left unrotated would stand across the
-               membrane instead of lying along it. */
+            /* Complex I's membrane arm lies IN the wall, so it turns about
+               the wall's own normal — which is s.out — by an angle of its
+               own. A box left unrotated would stand across the membrane
+               instead of lying along it. */
             const armMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(c.arm[1], c.arm[2], c.arm[0]), material, list.length);
             const q2 = new THREE.Quaternion();
             list.forEach((s, i) => {
@@ -1241,23 +1213,23 @@
            αβ lobes — three because one ATP is made per third of a turn, and
            a student should be able to count the beats. The head turns; the
            component drives it. */
-        const n = sites.synthase.length;
-        if (n) {
+        const ns = sites.synthase.length;
+        if (ns) {
           const gold = mat({ color: RESP.synthase, roughness: 0.38, clearcoat: 0.45 });
           const stalkMat = mat({ color: RESP.stalk, roughness: 0.45, clearcoat: 0.3 });
-          const fo = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.030 * r, 0.030 * r, 0.045 * r, 10), gold, n);
-          const stalk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.009 * r, 0.009 * r, 0.042 * r, 6), stalkMat, n);
-          const f1 = new THREE.InstancedMesh(new THREE.SphereGeometry(0.023 * r, 10, 8), gold, n * 3);
+          const fo = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.030 * r, 0.030 * r, 0.046 * r, 10), gold, ns);
+          const stalk = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.009 * r, 0.009 * r, 0.044 * r, 6), stalkMat, ns);
+          const f1 = new THREE.InstancedMesh(new THREE.SphereGeometry(0.023 * r, 10, 8), gold, ns * 3);
           const rotors = [];
           sites.synthase.forEach((s, i) => {
             place(fo, i, s.p.clone(), s.out);
-            place(stalk, i, s.p.clone().addScaledVector(s.out, 0.043 * r), s.out);
+            place(stalk, i, s.p.clone().addScaledVector(s.out, 0.044 * r), s.out);
             // A frame on the axis, so the head's three lobes can be spun.
-            const u = new V3(0, 0, 1).cross(s.out);
+            const u = new V3(0, 1, 0).cross(s.out);
             if (u.lengthSq() < 1e-6) u.set(1, 0, 0);
             u.normalize();
             const v = s.out.clone().cross(u).normalize();
-            rotors.push({ i, centre: s.p.clone().addScaledVector(s.out, 0.078 * r), u, v, lobeR: 0.024 * r });
+            rotors.push({ i, centre: s.p.clone().addScaledVector(s.out, 0.079 * r), u, v, lobeR: 0.024 * r });
           });
           gSynthase.add(fo, stalk, f1);
           // At rest, so a build nobody steps (the cut cell's) still has heads.
@@ -1267,53 +1239,91 @@
       }
 
       /* ---- the matrix ----------------------------------------------------
-         Between the cristae, which is where there is room: the organelle's
-         own circular genome and its own ribosomes, both a bacterium's, and
-         both the reason a mitochondrion is read as one that moved in. */
-      const gapXs = [];
-      for (let i = 0; i < xs.length - 1; i++) gapXs.push((xs[i] + xs[i + 1]) / 2);
-      const matrixPt = () => {
-        const x = gapXs.length ? gapXs[Math.floor(rr(0, gapXs.length)) % gapXs.length] + rr(-0.2, 0.2) * r
-                               : rr(-L, L);
-        const R = rhoOf(rIn, L, x) - th;
-        const w = rr(0.1 * PI, 0.9 * PI), rad = R * rr(0.25, 0.85);
-        return new V3(x, -rad * Math.sin(w), rad * Math.cos(w));
+         In the lobes between the folds, which is where there is room: the
+         organelle's own circular genome and its own ribosomes, both a
+         bacterium's, and both the reason a mitochondrion is read as one that
+         moved in. A point is kept only if it clears the ribbon, or a
+         nucleoid grows straight through a membrane. */
+      /* Every sixth sample is enough to reject on: the path never doubles
+         back inside one stride, and testing all of them made placing fifty
+         ribosomes the most expensive thing in the build. */
+      const clearsRibbon = (x, z, m) => {
+        for (let i = 0; i < n; i += 6) {
+          const dx = pts[i].x - x, dz = pts[i].z - z;
+          if (dx * dx + dz * dz < m * m) return false;
+        }
+        return true;
+      };
+      const matrixPt = (margin) => {
+        const m = margin === undefined ? ribbonT * 1.6 : margin;
+        for (let t = 0; t < 60; t++) {
+          const x = rr(-L * 0.94, L * 0.94);
+          const rho = Math.max(1e-3, rhoAt(x) - gapIM);
+          const z = rr(-0.92, 0.92) * rho;
+          if (!clearsRibbon(x, z, m)) continue;
+          const floor = -Math.sqrt(Math.max(0.0001, rho * rho - z * z));
+          return new V3(x, floor * rr(0.25, 0.9), z);
+        }
+        return new V3(rr(-L, L), -0.4 * r, 0);
       };
       {
         const dnaMat = mat({ color: ORG.mitochondrion.dna, roughness: 0.55, clearcoat: 0.1 });
         for (let i = 0; i < (o.dna === undefined ? 2 : o.dna); i++) {
-          const c = matrixPt(), loop = [];
+          const c = matrixPt(ribbonT * 2.4 + 0.13 * r), loop = [];
           for (let k = 0; k <= 24; k++) {
             const A = (k / 24) * 2 * PI, wob = 1 + 0.34 * Math.sin(A * 3 + i) + 0.2 * Math.sin(A * 5 + i * 2);
-            loop.push(new V3(c.x + Math.cos(A) * 0.13 * r * wob, c.y + 0.04 * r * Math.sin(A * 2 + i), c.z + Math.sin(A) * 0.13 * r * wob));
+            loop.push(new V3(c.x + Math.cos(A) * 0.11 * r * wob, c.y + 0.035 * r * Math.sin(A * 2 + i), c.z + Math.sin(A) * 0.11 * r * wob));
           }
-          gDna.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(loop, true), Math.round(44 * q), 0.013 * r, 5, true), dnaMat));
+          gDna.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(loop, true), Math.round(44 * q), 0.012 * r, 5, true), dnaMat));
         }
-        const nR = Math.round((o.ribosomes === undefined ? 40 : o.ribosomes) * q);
-        const ribo = new THREE.InstancedMesh(new THREE.SphereGeometry(0.026 * r, 6, 5),
+        const nR = Math.round((o.ribosomes === undefined ? 44 : o.ribosomes) * q);
+        const ribo = new THREE.InstancedMesh(new THREE.SphereGeometry(0.024 * r, 6, 5),
           mat({ color: ORG.mitochondrion.matrix, roughness: 0.6, clearcoat: 0.1 }), nR);
         const m4 = new THREE.Matrix4();
         for (let i = 0; i < nR; i++) { const p = matrixPt(); m4.makeTranslation(p.x, p.y, p.z); ribo.setMatrixAt(i, m4); }
         gRibo.add(ribo);
       }
-      for (let i = 0; i < 60; i++) pockets.matrix.push(matrixPt());
+
+      /* Points inside each compartment, for the protons that live there. */
+      for (let i = 0; i < 70; i++) pockets.matrix.push(matrixPt());
+      for (let i = 0; i < 70; i++) {
+        const k = Math.floor(rr(0, n)) % n;
+        pockets.lumen.push(pts[k].clone().addScaledVector(frames[k][1], (rr(0.2, 0.8) - 0.5) * hs[k]));
+      }
       for (let i = 0; i < 60; i++) {
-        const u = rr(0.03, 0.97), w = rr(0.08 * PI, cutW - 0.08 * PI);
-        const a = outerS(u, w), n = surfaceNormal(THREE, outerS, new V3(), u, w);
-        pockets.ims.push(a.addScaledVector(n, -(th + imsGap * 0.5)));
+        const u = rr(0.03, 0.97), w = rr(0.10 * PI, cutW - 0.10 * PI);
+        const a = outerS(u, w), nn = surfaceNormal(THREE, outerS, new V3(), u, w);
+        pockets.ims.push(a.addScaledVector(nn, -(th * 1.6 + (gapIM - th * 1.6) * 0.5)));
       }
 
-      g.userData.parts = { shell: outerMesh, inner: innerMesh };
+      /* The two places on the ribbon a caption wants to point at, resolved to
+         real path points rather than to the ideal control points they were
+         drawn from: the tip of a fold, and the waist where that fold leaves
+         the wall. A name that cannot be pointed at is a chip that says
+         nothing. */
+      const nearestOnPath = (x, z) => {
+        let bi = 0, bd = Infinity;
+        for (let i = 0; i < n; i++) {
+          const dx = pts[i].x - x, dz = pts[i].z - z, d = dx * dx + dz * dz;
+          if (d < bd) { bd = d; bi = i; }
+        }
+        return pts[bi].clone();
+      };
+      const tips = folds.map(f => nearestOnPath(f.x, f.dir * ri * (1 - f.depth)));
+      const necks = bases.map(b => nearestOnPath(b[0], b[1]));
+
+      g.userData.parts = { shell: outerMesh };
       g.userData.detail = {
-        groups: { outer: gOuter, porin: gPorin, inner: gInner, crista: gCrista, junction: gJunction,
+        groups: { outer: gOuter, porin: gPorin, inner: gInner,
                   complex: gComplex, synthase: gSynthase, dna: gDna, ribosome: gRibo },
-        sites, pockets, cristae,
-        dims: { r, L, th, imsGap, lumenT, jGap, cutW, porins: nPorins, cristae: cristae.length,
-                junctions: cristae.length * (o.junctions === undefined ? 3 : o.junctions),
+        sites, pockets, path: pts, frames, heights: hs, folds, tips, necks,
+        dims: { r, L, th, lumenT, ribbonT, gapIM, cutW, pitch, porins: nPorins,
+                cristae: nFold, junctions: necks.length,
                 complexes: sites.complex.length, synthases: sites.synthase.length },
       };
       return g;
     }
+
 
     /* ---- parts: anchors, layers and a palette off the registered list ----
        Both cells register every organelle they build under a reader's name,
