@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The membrane: what gets through, and what it costs</title>
+<link rel="stylesheet" href="css/kodo.css">
+<link rel="stylesheet" href="css/lesson-shell.css">
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="lib/palette.js"></script>
+<script src="lib/tokens-from-palette.js"></script>
+<script src="lib/molecules.js"></script>
+<script src="lib/mol-small.js"></script>
+<script src="lib/scene.js"></script>
+<script src="lib/atomkit.js"></script>
+<script src="lib/annotate.js"></script>
+<script src="kit/card-stage.js"></script>
+<script src="kit/lesson-shell.js"></script>
+<script src="membrane/parts.js"></script>
+<script src="membrane/pump.js"></script>
+<script src="membrane/chemiosmosis.js"></script>
+<script src="membrane/membrane.js"></script>
+<script>
+/* =============================================================================
+ *  membrane-lesson.html — membrane-lab rebuilt on the component and the shell
+ * =============================================================================
+ *  The same six-step arc as membrane-lab.html, but every frame order that page
+ *  hand-tuned is a set() here, and every number in the panel is read back from
+ *  state(). Nothing below reaches under the component. Each step breaks one
+ *  wrong idea:
+ *    1 the bilayer        not a wall: oil with wet ends
+ *    2 what gets through  oily things cross; size is second
+ *    3 osmosis            water crosses both ways; only the net changes
+ *    4 a channel          a hole picks which, never which way
+ *    5 the pump           to go the other way, something has to pay
+ *    6 a cell at rest     a leak and a pump, cancelling, and never equilibrium
+ * ========================================================================== */
+'use strict';
+
+const K_X = -36, PUMP_X = 36;          // one loop, close enough to read as one
+
+/* A readout is a frame listener that dies with its step. */
+function live(ctx, fn) {
+  ctx.unsub = M.on('frame', s => fn(s));
+}
+function leave(ctx) {
+  if (ctx.unsub) { ctx.unsub(); ctx.unsub = null; }
+  M.notes(false);
+}
+const stat = (id, label, sub = '') =>
+  `<div class="stat"><span class="stat-label">${label}</span><span class="stat-value" id="${id}"></span>${sub ? `<span class="stat-sub">${sub}</span>` : ''}</div>`;
+const count = (s, kind, side) => (s.counts[kind] ? s.counts[kind][side] : 0);
+const put = (ctx, id, v) => { const e = ctx.q('#' + id); if (e && e.textContent !== String(v)) e.textContent = v; };
+const sw = (id, label, on) =>
+  `<label class="switch"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}><span class="track"></span><span>${label}</span></label>`;
+
+/* A plain sheet: no proteins, no voltage, nothing dressed. Each step starts
+   from this and adds what it is about. */
+function plain() {
+  M.set({ proteins: { K:null, CL:null, NA:null, AQP:null, pump:null, complex:null, synthase:null, leak:null },
+          potential: 'off', pumpAuto: false, pumpOn: true, shells: false, cut: true });
+  M.reset();
+}
+
+const steps = [
+  {
+    id: 'bilayer', eyebrow: 'The bilayer', title: 'A membrane is oil with wet ends.',
+    body: `<p class="lead">Every cell is wrapped in a sheet two molecules thick.</p>
+           <p>Each phospholipid has a charged head that sits happily in water and two hydrocarbon tails that will not. Put them in water and they sort themselves: heads out on both faces, tails hidden in the middle.</p>
+           <p>So the inside of the sheet is oil. Anything that crosses this membrane has to get through that oil. Click a label to read more.</p>`,
+    nextLabel: 'What gets through?',
+    onEnter(ctx) {
+      plain();
+      M.set({ contents: { inside: { water: 32 }, outside: { water: 32 } } });
+      M.notes(['heads', 'tails']);
+      ctx.showPanel(M);
+    },
+    onExit: leave,
+  },
+
+  {
+    id: 'through', eyebrow: 'What gets through', title: 'Oily things cross. Charged things do not.',
+    body: `<p class="lead">Size is not the rule. What matters is whether a molecule can dissolve in oil.</p>
+           <p>Release one of each and watch. O₂ and CO₂ are small and uncharged, so they slip through the tails in both directions. Na⁺ is smaller than either, but it carries a charge and a shell of water it will not let go of, so the oil turns it back.</p>`,
+    nextLabel: 'Now the water',
+    onEnter(ctx) {
+      plain();
+      M.set({ contents: { inside: { water: 18 }, outside: { water: 18 } } });
+      ctx.controls(`
+        <div class="chips">
+          <button class="chip" type="button" data-kind="o2"><i style="--c:var(--atom-O)"></i>Release O₂</button>
+          <button class="chip" type="button" data-kind="co2"><i style="--c:var(--atom-C)"></i>Release CO₂</button>
+          <button class="chip" type="button" data-kind="NA"><i style="--c:var(--atom-Na)"></i>Release Na⁺</button>
+        </div>
+        <div class="stats">
+          ${stat('o2in', 'O₂ inside')}${stat('co2in', 'CO₂ inside')}${stat('nain', 'Na⁺ inside')}
+        </div>
+        <p class="hint-text" id="say">Each press releases one molecule outside the cell.</p>`);
+      const SAY = {
+        o2:  'O₂ dissolves in the tails and comes out the other side. It goes back just as easily: the bilayer is no barrier to it.',
+        co2: 'CO₂ is three atoms and still uncharged, so it crosses like O₂ does. This is how it leaves every cell that makes it.',
+        NA:  'Na⁺ arrives wearing water. Shedding that shell costs more than the oil will pay, so it stays outside, however long you wait.',
+      };
+      ctx.qa('.chip').forEach(b => b.addEventListener('click', () => {
+        const kind = b.dataset.kind;
+        const x = kind === 'o2' ? -60 : kind === 'co2' ? 60 : 0;
+        M.scatter(kind, 1, 1, { x: x + (Math.random() - 0.5) * 30, y: 72, shell: kind === 'NA', born: 0 });
+        if (kind === 'NA') M.note('NA');
+        ctx.q('#say').textContent = SAY[kind];
+      }));
+      live(ctx, s => {
+        put(ctx, 'o2in', count(s, 'o2', 'inside'));
+        put(ctx, 'co2in', count(s, 'co2', 'inside'));
+        put(ctx, 'nain', count(s, 'NA', 'inside'));
+      });
+    },
+    onExit: leave,
+  },
+
+  {
+    id: 'osmosis', eyebrow: 'Osmosis', title: 'Water crosses both ways. The net flow is a headcount.',
+    body: `<p class="lead">Nothing pulls the water. It walks at random, and more of it walks from the side that has more of it.</p>
+           <p>Salt the outside. Every Na⁺ and Cl⁻ sits where a water would have been, so fewer of the molecules out there are free water. Water keeps crossing in both directions, and simply arrives more often on the crowded side, until the two headcounts match.</p>
+           <p>The side with more solute and less free water is <strong>hypertonic</strong>. Slide the salt down and the verdict flips.</p>`,
+    nextLabel: 'Open a channel',
+    onEnter(ctx) {
+      plain();
+      const TOTAL = 78;                       // particles a side, same volume
+      ctx.controls(`
+        <div class="slider">
+          <div class="slider-head"><span class="label">Salt outside</span><span class="value" id="saltv"></span></div>
+          <input type="range" id="salt" min="0" max="26" step="1" value="26">
+        </div>
+        <div class="stats">
+          ${stat('wout', 'Free water outside')}${stat('win', 'Free water inside')}
+          <div class="stat accent"><span class="stat-label">Net water</span><span class="stat-value" id="net"></span><span class="stat-sub" id="netsub"></span></div>
+        </div>`);
+      let first = true;
+      ctx.range(ctx.q('#salt'), n => {
+        ctx.q('#saltv').textContent = n ? `${n} NaCl` : 'none';
+        M.set({ contents: { inside: { water: TOTAL }, outside: { water: TOTAL - 2 * n, NA: n, CL: n } } });
+        if (first) { first = false; M.reset(); }
+      });
+      M.note('outside', { text: 'salt takes up room' });
+      const WORDS = { entering: ['entering', 'more free water outside'], leaving: ['leaving', 'more free water inside'], balanced: ['levelled out', 'two currents cancelling'] };
+      live(ctx, s => {
+        put(ctx, 'wout', count(s, 'water', 'outside'));
+        put(ctx, 'win', count(s, 'water', 'inside'));
+        const w = WORDS[s.net] || WORDS.balanced;
+        put(ctx, 'net', w[0]); put(ctx, 'netsub', w[1]);
+      });
+    },
+    onExit: leave,
+  },
+
+  {
+    id: 'channel', eyebrow: 'A channel', title: 'A channel picks an ion. It never picks a direction.',
+    body: `<p class="lead">A pore is a water-lined hole through the oil, and each kind admits one ion.</p>
+           <p>The K⁺ channel admits by fit: a K⁺ trades its water shell for the pore's own lining. Na⁺ is smaller and still refused, because it holds its water too tightly to make the trade. The Cl⁻ channel admits by charge.</p>
+           <p>Neither chooses a direction. K⁺ is high inside, so it leaks out. Cl⁻ is high outside, so it leaks in. The gradient decides, and no energy is spent. This is <strong>passive transport</strong>.</p>
+           <p class="foot">Turn the voltage on: every K⁺ that leaves makes the inside more negative, until that pull stops the leak.</p>`,
+    nextLabel: 'Now the pump',
+    onEnter(ctx) {
+      plain();
+      M.set({ proteins: { K: { x: K_X }, CL: { x: PUMP_X } }, shells: true,
+              contents: { inside: { water: 30, K: 16 }, outside: { water: 30, CL: 28, NA: 12 } } });
+      M.reset();
+      ctx.controls(`
+        <div class="row">${sw('volt', 'Membrane voltage', false)}${sw('shells', 'Hydration shells', true)}</div>
+        <div class="stats">
+          ${stat('kin', 'K⁺ inside')}${stat('kout', 'K⁺ outside')}
+          ${stat('clin', 'Cl⁻ inside')}${stat('clout', 'Cl⁻ outside')}
+          <div class="stat accent is-hidden" id="mvbox"><span class="stat-label">Inside is at</span><span class="stat-value" id="mv"></span><span class="stat-sub" id="mvsub"></span></div>
+        </div>`);
+      ctx.q('#volt').addEventListener('change', e => {
+        M.set({ potential: e.target.checked ? 'fixed' : 'off' });
+        const box = ctx.q('#mvbox');
+        e.target.checked ? ctx.show(box) : ctx.hide(box);
+      });
+      ctx.q('#shells').addEventListener('change', e => M.set({ shells: e.target.checked }));
+      M.notes(['channel.K', 'channel.CL', 'NA']);
+      live(ctx, s => {
+        put(ctx, 'kin', count(s, 'K', 'inside'));   put(ctx, 'kout', count(s, 'K', 'outside'));
+        put(ctx, 'clin', count(s, 'CL', 'inside')); put(ctx, 'clout', count(s, 'CL', 'outside'));
+        put(ctx, 'mv', `${Math.round(s.mV)} mV`);
+        put(ctx, 'mvsub', `K⁺ stops leaking at ${Math.round(s.equilibrium.K)} mV`);
+      });
+    },
+    onExit: leave,
+  },
+
+  {
+    id: 'pump', eyebrow: 'The pump', title: 'To go uphill, something has to pay.',
+    body: `<p class="lead">This cell has let its gradients run flat. A channel cannot fix that: a hole only ever runs downhill.</p>
+           <p>The Na⁺/K⁺ pump is a carrier, not a pore. It binds its cargo, changes shape, and is never open to both sides at once. One ATP buys one turn: 3 Na⁺ out and 2 K⁺ in, both against their gradients.</p>
+           <p>Spend the ATP and watch the counts move the wrong way. This is <strong>active transport</strong>, and it is the only kind that builds a gradient.</p>`,
+    nextLabel: 'Put both together',
+    onEnter(ctx) {
+      plain();
+      M.set({ proteins: { pump: { x: 0 } }, shells: true,
+              contents: { inside: { water: 28, K: 8, NA: 6, CL: 14 }, outside: { water: 28, K: 8, NA: 6, CL: 14 } } });
+      M.reset();
+      ctx.controls(`
+        <button class="btn secondary" type="button" id="spend">Spend 1 ATP</button>
+        <div class="stats">
+          <div class="stat accent"><span class="stat-label">ATP spent</span><span class="stat-value" id="spent"></span><span class="stat-sub">one per turn</span></div>
+          ${stat('phase', 'The pump is')}
+          ${stat('nain', 'Na⁺ inside')}${stat('kin', 'K⁺ inside')}
+        </div>`);
+      const btn = ctx.q('#spend');
+      btn.addEventListener('click', () => { if (M.spend()) btn.disabled = true; });
+      ctx.unsubTurned = M.on('turned', () => { btn.disabled = false; });
+      M.note('pump');
+      live(ctx, s => {
+        put(ctx, 'spent', s.atpSpent);
+        put(ctx, 'phase', s.pumpRunning ? 'turning' : 'waiting');
+        put(ctx, 'nain', count(s, 'NA', 'inside'));
+        put(ctx, 'kin', count(s, 'K', 'inside'));
+      });
+    },
+    onExit(ctx) { if (ctx.unsubTurned) { ctx.unsubTurned(); ctx.unsubTurned = null; } leave(ctx); },
+  },
+
+  {
+    id: 'rest', eyebrow: 'A cell at rest', title: 'Resting is a leak and a pump, cancelling.',
+    body: `<p class="lead">Here is the real cell: a K⁺ channel and a pump in the same sheet, both running.</p>
+           <p>K⁺ drifts out through the channel for free, and the pump carries it back at one ATP a turn. The counts hold still and the voltage settles, but nothing has settled. A leak and a pump are running flat out and cancelling.</p>
+           <p>The big anions inside never cross, which is why the inside is negative and stays that way. Stop paying the pump and watch what equilibrium actually looks like.</p>`,
+    onEnter(ctx) {
+      plain();
+      M.set({ proteins: { K: { x: K_X }, pump: { x: PUMP_X } }, shells: true, potential: 'nernst', pumpAuto: true, pumpOn: true,
+              contents: { inside: { water: 24, K: 20, NA: 4, A: 24 }, outside: { water: 24, K: 4, NA: 14 } } });
+      M.reset();
+      ctx.controls(`
+        ${sw('pumpOn', 'The pump is paid for', true)}
+        <div class="stats">
+          ${stat('kin', 'K⁺ inside')}${stat('kout', 'K⁺ outside')}
+          <div class="stat accent"><span class="stat-label">Inside is at</span><span class="stat-value" id="mv"></span><span class="stat-sub" id="mvsub"></span></div>
+          ${stat('spent', 'ATP spent', 'and counting')}
+        </div>
+        <button class="btn ghost" type="button" id="again">Start over</button>`);
+      let paid = true;
+      ctx.q('#pumpOn').addEventListener('change', e => { paid = e.target.checked; M.set({ pumpOn: paid }); });
+      M.notes(['channel.K', 'pump', 'A']);
+      live(ctx, s => {
+        put(ctx, 'kin', count(s, 'K', 'inside'));   put(ctx, 'kout', count(s, 'K', 'outside'));
+        put(ctx, 'mv', `${Math.round(s.mV)} mV`);
+        put(ctx, 'mvsub', paid ? `K⁺ alone would settle at ${Math.round(s.equilibrium.K)} mV` : 'no longer paid for');
+        put(ctx, 'spent', s.atpSpent);
+      });
+      ctx.q('#again').addEventListener('click', () => ctx.goTo(0));
+    },
+    onExit: leave,
+  },
+];
+
+const shell = LessonShell.create({
+  brand: 'The Membrane',
+  hint: 'Click a label to read its card',
+  steps,
+  ctx: {},
+});
+const M = Membrane.mount(shell.stage, { viewOffset: shell.viewOffset, sideLabels: true });
+
+shell.goTo((() => {
+  const m = /[?&]step=(\d+)/.exec(location.search);
+  return m ? Math.max(1, Math.min(steps.length, +m[1])) - 1 : 0;
+})());
+</script>
+</body>
+</html>
