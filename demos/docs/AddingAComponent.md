@@ -2,7 +2,7 @@
 
 # Adding a component
 
-A component is a 3D scene a student's app can mount by name and drive by parameters, without writing Three.js. **`kit/app.js`'s `USES` table is the list of what exists** — eleven today: WaterSim, Membrane, Proteinbox, Leaf, Tree, BloodCell, BloodFlow, HbCrowd, AnimalCell, PlantCell, Graph. Read one before starting. `leaf/leaf.js` is the smallest and the closest model for a render; `membrane/membrane.js` for anything with physics; `graph/graph.js` for anything that is not a scene.
+A component is a 3D scene a student's app can mount by name and drive by parameters, without writing Three.js. **`kit/app.js`'s `USES` table is the list of what exists**; a count typed here would be stale by the next one. Read one before starting. `leaf/leaf.js` is the smallest and the closest model for a render; `membrane/membrane.js` for anything with physics; `graph/graph.js` for anything that is not a scene.
 
 **The test of done is not that the bench looks right.** It is that `gemini-3.7-flash`, given only `docs/Components.md` and a one-sentence request, produces a working page that mounts your component. `tools/gen-app.js` runs exactly that. A component the model cannot use from the reference is not finished.
 
@@ -100,6 +100,8 @@ Measure the fixed cost too, with nothing on stage. Membrane's was 3 ms a frame f
    **A dependency outside `demos/` goes in `kit/app.js`, not in the section.** The loader writes the tag, so the page's own source never names it and `validate()` never sees it. A cross-site script is the one thing to weigh before adding: Chrome may refuse a parser-blocking cross-site script written by `document.write` on a slow connection, which is a component that silently does not arrive. `kit/app.js`'s header says which ones are already taken on and why.
 
 6. `docs/Modules.md`: one row in the Components table. `admin.html`: one card for the bench. `node tools/check-docs.js` passes.
+
+   **The two shelves, and the still they show.** `library.html` (at `/library`) and `contribute.html`'s row each carry one typed card per component: name, a one-line blurb, three or four feature chips, and the rung. Components have no registry, so both cards are typed and both are yours to add. The picture is a baked still: add a `SHOTS` entry to `tools/component-stills.html` with the params that make a frame worth keeping, run it on the dev server in Chrome, and commit `media/components/<key>.webp`. A component that draws in HTML rather than a canvas (Graph, Diagram) mounts live on both pages instead and gets a `skip` entry in `SHOTS`.
 
 7. Run `node tools/gen-app.js "<a request a teacher would type that needs your component>" tests/gen-<name>-test.html`, open the page, drive it, and fix the component or the reference until it works first try. **Twice, and read the `retried` flag in the printed JSON**: `retried:true` means the draft failed `validate()` and the second try dropped whatever caused it, so a page missing your component is a block, not a preference. Add the page to `admin.html` under Generated apps with the `UGC` badge. That page is the eval; keep it.
 
