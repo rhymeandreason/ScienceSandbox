@@ -31,6 +31,7 @@
   register({
     water: {
       name:'Water', formula:'H₂O', class:'solvent',
+      smiles:'O',
       // O–H 0.9572 Å, H–O–H 104.474° — the standard spectroscopic geometry.
       // Family A draws this same angle with a 1.55 O–H; here it is 0.9572,
       // which register() turns into 1.819 scene units against radii summing to
@@ -45,6 +46,7 @@
     },
     ammonia: {
       name:'Ammonia', formula:'NH₃', class:'polar',
+      smiles:'N',
       // N–H 1.012 Å, H–N–H 106.67°. Trigonal pyramidal, lone pair up (+y).
       // The polar angle is SOLVED from the real H–N–H rather than assumed
       // tetrahedral — ammonia is measurably flatter than 109.5°, and that
@@ -60,6 +62,7 @@
     },
     methane: {
       name:'Methane', formula:'CH₄', class:'nonpolar',
+      smiles:'C',
       // C–H 1.087 Å, exactly tetrahedral (symmetry requires it).
       atoms:[ {el:'C',pos:[0,0,0]},
               {el:'H',pos:[0.6276,0.6276,0.6276]}, {el:'H',pos:[0.6276,-0.6276,-0.6276]},
@@ -72,6 +75,7 @@
     },
     o2: {
       name:'Oxygen', formula:'O₂', class:'nonpolar',
+      smiles:'O=O',
       // O=O 1.208 Å — the spectroscopic bond length, and a double bond by the
       // usual Lewis count (the real ground state is a triplet with two unpaired
       // electrons, which no drawing in this repo is trying to say).
@@ -92,6 +96,7 @@
     },
     co2: {
       name:'Carbon dioxide', formula:'CO₂', class:'nonpolar',
+      smiles:'O=C=O',
       // C=O 1.160 Å, linear. Symmetric, so the two dipoles cancel and the
       // MOLECULE has no net dipole — but each O still carries δ− and two lone
       // pairs, which is why CO₂ is far more soluble than O₂ or CH₄.
@@ -106,6 +111,7 @@
     },
     carbonic: {
       name:'Carbonic acid', formula:'H₂CO₃', class:'polar',
+      smiles:'O=C(O)O',
       // C=O 1.203 Å, C–O(H) 1.340 Å, O–H 0.961 Å; O=C–O 125.2°, O–C–O 109.6°,
       // C–O–H 106.3°. The syn-syn (C2v) conformer, which is the gas-phase
       // minimum. The three angles at carbon sum to 360.0° — the sp2 centre is
@@ -131,6 +137,7 @@
     },
     ethanol: {
       name:'Ethanol', formula:'C₂H₅OH', class:'polar',
+      smiles:'CCO',
       // C–C 1.512, C–O 1.431, O–H 0.971 Å; C–C–O 107.8°, C–O–H 105.4°.
       // All-atom, unlike the atticked version's united-atom methyls: at true
       // scale the H's fit, and the point of this spec is comparability.

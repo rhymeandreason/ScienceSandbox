@@ -233,6 +233,7 @@
                 {el:'O',pos:r(o1)},   {el:'O',pos:r(o2)},   {el:'O',pos:r(o3)},
                 {el:'H',pos:r(h1)},   {el:'H',pos:r(h2)},   {el:'H',pos:r(h3)} ],
         names:['C1','C2','C3','O1','O2','O3','HO1','HO2','HO3'],
+        smiles:'OCC(O)CO',
         bonds:[ [0,1],[1,2],[0,3],[1,4],[2,5],[3,6],[4,7],[5,8] ],
         // Nonpolar filler is what `optH` is for, and these are the opposite of
         // that: hiding one would hide half of what leaves as water.
@@ -315,6 +316,7 @@
     //   and only the torsion differs.
     popc: {
       name:'Phospholipid (POPC)', formula:'C₄₂H₈₂NO₈P', charge:0, class:'lipid',
+      smiles:'',
       units:'angstrom',
       // Chosen by dragging in molecule-viewer.html and pasting that page's
       // copy output — the only way an angle gets into this repo, because

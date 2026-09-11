@@ -92,6 +92,7 @@
       s.link(0, s.put('O', vmul(vnorm(V(d[0],d[1],d[2])), GL.PO))); });
     s.grow(1,'H',GL.OH,'sp3',0);
     CARRIERS.pi=s.spec({ name:'Inorganic phosphate', short:'Pᵢ', formula:'HPO₄²⁻', charge:-2, class:'ion',
+      smiles:'O[PH](O)(O)O',
       gly:{ carbons:0, phosphates:1, free:true } });
     // — ATP, the carrier the priming steps spend and the payoff steps recharge.
     //   NOT built by Skel: adenine + ribose + a triphosphate chain is 31 heavy
@@ -556,6 +557,7 @@
     s.grow(S, 'H', GL.SH, 'sp3', 0);
     CARRIERS.coa = s.spec({
       name:'Coenzyme A', short:'CoA-SH', formula:FORMULA.coa, charge:-4,
+      smiles:'CC(C)(COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)(O)O)[C@@H](O)C(=O)NCCC(=O)NCCS',
       class:'carrier',
       view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, phosphates:3, p3, pa, pb } });
@@ -600,6 +602,7 @@
     const { s, S, c, p3, pa, pb } = thioester(2);    // C(=O) + the methyl
     CARRIERS.acetylcoa = s.spec({
       name:'Acetyl-CoA', short:'Acetyl-CoA', formula:FORMULA.acetylcoa, charge:-4,
+      smiles:'CC(=O)SCCNC(=O)CCNC(=O)[C@H](O)C(C)(C)COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)(O)O',
       class:'carrier',
       view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, thio:[S, c[0]], carbons:2,
@@ -614,6 +617,7 @@
     carboxylate(s, c[3], 0);
     CARRIERS.succinylcoa = s.spec({
       name:'Succinyl-CoA', short:'Succinyl-CoA', formula:FORMULA.succinylcoa, charge:-5,
+      smiles:'CC(C)(COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)(O)O)[C@@H](O)C(=O)NCCC(=O)NCCSC(=O)CCC(=O)O',
       class:'carrier',
       view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, thio:[S, c[0]], carbons:4,
@@ -816,6 +820,7 @@
       // point is the two hydrogens sitting on its face.
       view:VIEW.flatRing,
       name:'FADH₂', short:'FADH₂', formula:'C₂₇H₃₅N₉O₁₅P₂²⁻', charge:-2,
+      smiles:'Cc1cc2c(cc1C)N(C[C@H](O)[C@H](O)[C@H](O)COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n3cnc4c(N)ncnc43)[C@H](O)[C@@H]1O)c1[nH]c(=O)[nH]c(=O)c1N2',
       class:'carrier',
       // Six rings: the flavin's three, adenine's fused pair, and the ribose.
       // `linear` is scoped to the flavin's own atoms — see below.
@@ -860,6 +865,7 @@
       // oxidation moved the molecule rather than two hydrogens.
       view:VIEW.flatRing,
       name:'FAD', short:'FAD', formula:'C₂₇H₃₃N₉O₁₅P₂²⁻', charge:-2,
+      smiles:'Cc1cc2c(cc1C)N(C[C@H](O)[C@H](O)[C@H](O)COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n3cnc4c(N)ncnc43)[C@H](O)[C@@H]1O)c1[nH]c(=O)[nH]c(=O)c1N2',
       class:'carrier',
       topology:{ rings:[5,5,6,6,6,6], fused:true, linear:f.ring.map(i => m[i]) },
       // remapped through the drop, so these still name the flavin's own atoms
@@ -1189,6 +1195,7 @@
   register({
     amp: {
       name:'Adenosine monophosphate', formula:'C₁₀H₁₂N₅O₇P²⁻', charge:-2, class:'nucleotide', mono:'nucleic acid',
+      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)O)[C@@H](O)[C@H]1O',
       // SETTLED 2026-07-30, and the comment above was right: the record supplies
       // the dianion. CID 15938965 is adenosine 5'-monophosphate(2-), and it
       // regenerates this spec EXACTLY (0.0000 delta, bonds identical). There was

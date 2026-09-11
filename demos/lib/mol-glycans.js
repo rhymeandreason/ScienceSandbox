@@ -271,6 +271,7 @@
     const gb=disaccharide(false, LINK.beta, {donor:true, acceptor:true});
     GLYCANS.galactobiose=gb.s.spec({ name:'Galactobiose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
       names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H61A','H62A','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H61B','H62B'],
+      smiles:'OC[C@H]1O[C@@H](O[C@@H]2[C@H](O)[C@@H](O)[C@H](O)O[C@@H]2CO)[C@H](O)[C@@H](O)[C@H]1O',
       // C4 axial on BOTH rings: the donor's free hydroxyl and the acceptor's
       // bridge. Everything else equatorial, exactly as in cellobiose — which is
       // the claim that this differs from that pair by one position.
@@ -302,6 +303,7 @@
     const lac=disaccharide(false, LINK.beta, { donor:true, acceptor:false });
     GLYCANS.lactose=lac.s.spec({ name:'Lactose', formula:'C₁₂H₂₂O₁₁', class:'sugar',
       names:['O5A','C1A','C2A','C3A','C4A','C5A','O1A','O2A','HO2A','O3A','HO3A','O4A','HO4A','C6A','O6A','HO6A','H1A','H2A','H3A','H4A','H5A','H61A','H62A','O5B','C1B','C2B','C3B','C4B','C5B','H4B','O1B','HO1B','O2B','HO2B','O3B','HO3B','C6B','O6B','HO6B','H1B','H2B','H3B','H5B','H61B','H62B'],
+      smiles:'OC[C@H]1O[C@@H](O[C@H]2[C@H](O)[C@@H](O)[C@H](O)O[C@@H]2CO)[C@H](O)[C@@H](O)[C@H]1O',
       // Axial at the GALACTOSE's C4 only. The glucose half is ordinary
       // all-equatorial glucose, which is the difference from galactobiose and
       // the whole point of having both.

@@ -16,6 +16,16 @@
  *     `contrast.diff`, so RDKit emits `[N:1]` and SmilesDrawer's
  *     highlight_atoms can key on class 1. Nothing is pasted into the string.
  *
+ * THE STRING IS NEUTRAL, AND THE SPEC OFTEN IS NOT. The molblock carries heavy
+ * atoms and bonds; it carries no charge, so RDKit fills every open valence with
+ * an implicit H and a carboxylate comes back as a carboxylic ACID. 27 specs are
+ * charged, and their drawn diagram therefore shows pyruvate where the formula
+ * beside it says pyruvate(1-). Writing `M  CHG` would fix it, but only once
+ * something says WHICH oxygen is deprotonated — the spec records a total charge
+ * and not the atom carrying it, and guessing that across 27 molecules is a
+ * chemistry decision, not a transcription. Until then this is a known gap in
+ * every page that draws from `smiles`.
+ *
  * RDKit is a DEV dependency and never ships: this runs at a terminal, the
  * output is committed, and the page loads only SmilesDrawer.
  *

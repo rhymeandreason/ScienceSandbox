@@ -106,6 +106,7 @@
     carboxylate(g, 3);              // C4
     KREBS.oaa = g.spec({
       name:'Oxaloacetate', short:'OAA', formula:'C₄H₂O₅²⁻', charge:-2, class:'acid',
+      smiles:'O=C(O)CC(=O)C(=O)O',
       krebs:{ carbons:4, cN:[0,1,2,3], carboxyls:2, keto:1, terminal:false } });
   }
   {
@@ -136,6 +137,7 @@
     const [c6] = carboxylBranch(g, 2, 0);   // C3's own carboxylate — the third arm
     KREBS.citrate = g.spec({
       name:'Citrate', short:'Citrate', formula:'C₆H₅O₇³⁻', charge:-3, class:'acid',
+      smiles:'O=C(O)CC(O)(CC(=O)O)C(=O)O',
       view:[0.3512, 0.3032, 0.0648],
       krebs:{ carbons:6, cN:[0,1,2,3,4], carboxyls:3, oh, c6,
               // the two arms aconitase chooses between, named so a lesson can
@@ -171,6 +173,7 @@
     const [ccC] = carboxylBranch(g, cc, 0);    // Cc's carboxylate
     KREBS.isocitrate = g.spec({
       name:'Isocitrate', short:'Isocitrate', formula:'C₆H₅O₇³⁻', charge:-3, class:'acid',
+      smiles:'O=C(O)C[C@H](C(=O)O)[C@@H](O)C(=O)O',
       view:[3.0696, -0.4767, -3.1283],
       chiral:[ { at:ca, priority:[oh, caC, cb, caH], hand:'R' },
                { at:cb, priority:[cbC, ca, cc, cbH], hand:'S' } ],
@@ -198,6 +201,7 @@
     carboxylate(g, 4);              // C5
     KREBS.akg = g.spec({
       name:'α-Ketoglutarate', short:'α-KG', formula:'C₅H₄O₅²⁻', charge:-2, class:'acid',
+      smiles:'O=C(O)CCC(=O)C(=O)O',
       krebs:{ carbons:5, cN:[0,1,2,3,4], carboxyls:2, keto:1,
               // the carboxylate lost as the second CO₂
               decarb:0,
@@ -231,6 +235,7 @@
     const face = (hs, sign) => hs[0] && g.at(hs[0]).z * sign > 0 ? hs[0] : hs[1];
     KREBS.succinate = g.spec({
       name:'Succinate', short:'Succinate', formula:'C₄H₄O₄²⁻', charge:-2, class:'acid',
+      smiles:'O=C(O)CCC(=O)O',
       krebs:{ carbons:4, cN:[0,1,2,3], carboxyls:2, symmetric:true,
               // C2 and C3 — the pair the C=C forms between — and the two
               // hydrogens that leave them.
@@ -284,6 +289,7 @@
     s.grow(c3, 'H', GL.CH, 'sp2', 0);
     KREBS.fumarate = s.spec({
       name:'Fumarate', short:'Fumarate', formula:'C₄H₂O₄²⁻', charge:-2, class:'acid',
+      smiles:'O=C(O)/C=C/C(=O)O',
       // C1–C2=C3–C4: the dihedral about the double bond. ~180° = trans = E.
       cis:{ atoms:[c1, c2, c3, c4], value:false },
       krebs:{ carbons:4, cN:[c1, c2, c3, c4], carboxyls:2, ene:[c2, c3],
@@ -315,6 +321,7 @@
     carboxylate(g, 3);                         // C4 carboxylate (C3 stays a bare CH₂)
     KREBS.malate = g.spec({
       name:'Malate', short:'Malate', formula:'C₄H₄O₅²⁻', charge:-2, class:'acid',
+      smiles:'O=C(O)C[C@H](O)C(=O)O',
       chiral:[ { at:1, priority:[oh, 0, 2, c2H], hand:'S' } ],
       krebs:{ carbons:4, cN:[0,1,2,3], carboxyls:2, oh,
               // the hydride malate dehydrogenase hands NAD⁺, off the same C2

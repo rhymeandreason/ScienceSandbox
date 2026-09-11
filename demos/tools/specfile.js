@@ -85,9 +85,11 @@ function block(src, key) {
     const n = end.exec(src);
     return { from, to: n ? n.index : src.length };
   }
-  // form 2 — `key: {` as a property of register()'s object literal. The key's
-  // indent is the delimiter: siblings share it, nested objects are deeper.
-  const prop = new RegExp(`^([ \\t]*)${key}\\s*:\\s*\\{`, 'm');
+  // form 2 — `key: {` as a property of register()'s object literal, or the
+  // same key opening an IIFE that RETURNS the spec (`key: (() => {`, which is
+  // how mol-lipids.js writes glycerol). Either way the key's indent is the
+  // delimiter: siblings share it, nested objects are deeper.
+  const prop = new RegExp(`^([ \\t]*)${key}\\s*:\\s*(?:\\(.*=>\\s*)?\\{`, 'm');
   m = prop.exec(src);
   if (!m) return null;
   const from = m.index + m[0].length, indent = m[1];

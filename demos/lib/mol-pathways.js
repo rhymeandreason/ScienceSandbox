@@ -122,6 +122,7 @@
     // and scene.js's contract is that an H on N/O/S is never in it.
     const openH=g.grow(0,'H',GL.OH,'sp3',0);
     GLYCOLYSIS.g6p=g.spec({ name:'Glucose-6-phosphate', short:'G6P', formula:'C₆H₁₁O₉P²⁻', charge:-2, class:'sugar',
+      smiles:'O[C@@H]1[C@@H](O)[C@H](O)O[C@H](CO[PH](O)(O)O)[C@H]1O',
       // the same two claims glucose carries, because it is the same ring
       stereo:'all-equatorial',
       topology:{ rings:[6] },
@@ -171,6 +172,7 @@
     for(let k=2;k<=4;k++) g.hydroxyl(k, k===4 ? 1 : k%2);
     const p6=g.phosphate(5,0);                             // C6 –O–PO₃, carried over
     GLYCOLYSIS.f6p=g.spec({ name:'Fructose-6-phosphate', short:'F6P', formula:'C₆H₁₁O₉P²⁻', charge:-2, class:'sugar',
+      smiles:'O=C(CO)[C@@H](O)[C@H](O)[C@H](O)CO[PH](O)(O)O',
       gly:{ carbons:6, cN:[0,1,2,3,4,5], p1:null, p3:p6, phosphates:1,
             c1:0,                     // where PFK-1's phosphate lands next
             dCentre:[4,3,5],          // C5 (–O, C4, C6) — must match glucose's C5
@@ -185,6 +187,7 @@
     for(let k=2;k<=4;k++) g.hydroxyl(k, k===4 ? 1 : k%2);  // C3…C5 –OH; C5, see f6p
     const p6=g.phosphate(5,0);                             // C6 –O–PO₃
     GLYCOLYSIS.f16bp=g.spec({ name:'Fructose-1,6-bisphosphate', short:'F1,6-BP', formula:'C₆H₁₀O₁₂P₂⁴⁻', charge:-4, class:'sugar',
+      smiles:'O=C(CO[PH](O)(O)O)[C@@H](O)[C@H](O)[C@H](O)CO[PH](O)(O)O',
       gly:{ carbons:6, cN:[0,1,2,3,4,5], p1, p3:p6, phosphates:2,
             cleave:[2,3],           // aldolase cuts C3–C4 → DHAP (C1-3) + G3P (C4-6)
             dCentre:[4,3,5],        // C5 — survives the cut as G3P's C2
@@ -225,6 +228,7 @@
     g.grow(0,'H',GL.CH,'sp3',0);                           // the one that stays
     g.rotate(Math.PI,0,0);                                 // phosphate to the top
     GLYCOLYSIS.dhap=g.spec({ name:'Dihydroxyacetone phosphate', short:'DHAP', formula:'C₃H₅O₆P²⁻', charge:-2, class:'sugar',
+      smiles:'O=C(CO)CO[PH](O)(O)O',
       // `turnX` is a claim about DRAWING, not chemistry, and it is the one the
       // step 5 animation rests on: this molecule turned 180° about X lands on
       // g3p's frame. It has to, because DHAP is drawn phosphate-UP (it is
@@ -253,6 +257,7 @@
     const h2=g.grow(1,'H',GL.CH,'sp3',0);
     const p=g.phosphate(2,0);
     GLYCOLYSIS.g3p=g.spec({ name:'Glyceraldehyde-3-phosphate', short:'G3P', formula:'C₃H₅O₆P²⁻', charge:-2, class:'sugar',
+      smiles:'O=C[C@H](O)CO[PH](O)(O)O',
       gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, aldehydeH:h, c2H:h2, dCentre:[1,0,2] } });
   }
   {
@@ -270,6 +275,7 @@
     const h2=g.grow(1,'H',GL.CH,'sp3',0);
     const p3=g.phosphate(2,0);
     GLYCOLYSIS.bpg13=g.spec({ name:'1,3-bisphosphoglycerate', short:'1,3-BPG', formula:'C₃H₄O₁₀P₂⁴⁻', charge:-4, class:'sugar',
+      smiles:'O=C(O[PH](O)(O)O)[C@H](O)CO[PH](O)(O)O',
       gly:{ carbons:3, cN:[0,1,2], p1, p3, phosphates:2, hot:p1, c2H:h2, dCentre:[1,0,2] } });
   }
   {
@@ -308,6 +314,7 @@
     // which is exactly why steps 8 and 9 exist: the cell has to MOVE that
     // phosphate to C2 and then dehydrate the molecule to make it transferable.
     GLYCOLYSIS.pga3=g.spec({ name:'3-phosphoglycerate', short:'3-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
+      smiles:'O=C(O)[C@H](O)CO[PH](O)(O)O',
       gly:{ carbons:3, cN:[0,1,2], p3:p, phosphates:1, c2H:h2, dCentre:[1,0,2],
             oh2H, oh3H, latentH:[oh3H] } });
   }
@@ -332,6 +339,7 @@
     // invisible one is a water half conjured.
     const lh=g.grow(1,'H',GL.CH,'sp3',0);
     GLYCOLYSIS.pga2=g.spec({ name:'2-phosphoglycerate', short:'2-PG', formula:'C₃H₄O₇P³⁻', charge:-3, class:'sugar',
+      smiles:'O=C(O)[C@@H](CO)O[PH](O)(O)O',
       gly:{ carbons:3, cN:[0,1,2], p2:p, phosphates:1, oh3:oh, loseH:lh, dCentre:[1,0,2] } });
   }
   {
@@ -357,6 +365,7 @@
     const p=g.grow(o,'P',GL.OP,'sp3',0);
     for(let k=0;k<3;k++) g.grow(p,'O',GL.PO,'sp3',0);
     GLYCOLYSIS.pep=g.spec({ name:'Phosphoenolpyruvate', short:'PEP', formula:'C₃H₂O₆P³⁻', charge:-3, class:'sugar',
+      smiles:'C=C(O[PH](O)(O)O)C(=O)O',
       gly:{ carbons:3, cN:[0,1,c3], p2:p, phosphates:1, hot:p, enol:[1,c3] } });
   }
   {
@@ -366,6 +375,7 @@
     g.carbonyl(0,0); g.grow(0,'O',GL.CdO,'sp2',0);         // C1 carboxylate
     const ket=g.carbonyl(1,0);                             // C2 ketone
     GLYCOLYSIS.pyruvate=g.spec({ name:'Pyruvate', short:'Pyruvate', formula:'C₃H₃O₃⁻', charge:-1, class:'sugar',
+      smiles:'CC(=O)C(=O)O',
       gly:{ carbons:3, cN:[0,1,2], phosphates:0, terminal:true,
         // THE BOND A REDUCTION ATTACKS, for the branch after this one: C2=O is
         // what takes the hydride and becomes an alcohol. Captured from the
@@ -407,6 +417,7 @@
     const nh=g.grow(1,'H',GL.CH,'sp3',0);            // … and the hydride that made it
     GLYCOLYSIS.lactate=g.spec({ name:'Lactate', short:'Lactate',
       formula:'C₃H₅O₃⁻', charge:-1, class:'sugar',
+      smiles:'C[C@H](O)C(=O)O',
       // REDUCING A KETONE MAKES A STEREOCENTRE, and which one is not a detail
       // the build gets to decide: C2's four slots come out of freeTet in an
       // order set by the cross-product sign, so taking slot 0 twice would give
@@ -430,6 +441,7 @@
     const fh=g.grow(0,'H',GL.CH,'sp2',0);
     GLYCOLYSIS.acetaldehyde=g.spec({ name:'Acetaldehyde', short:'Acetaldehyde',
       formula:'C₂H₄O', charge:0, class:'sugar',
+      smiles:'CC=O',
       // same name pyruvate's carbonyl carries, and the same reason
       // `oxC` is pyruvate's name for the carbon whose oxidation state the next
       // step changes, and it is the right name in both directions: there a
@@ -459,6 +471,7 @@
     // somewhere else. Two specs, one name each, the way `atp`/`atpSkel` split.
     GLYCOLYSIS.ethanolSkel=g.spec({ name:'Ethanol', short:'Ethanol',
       formula:'C₂H₆O', charge:0, class:'sugar',
+      smiles:'CCO',
       gly:{ carbons:2, cN:[0,1], phosphates:0, terminal:true, formylH:fh } });
   }
   register(GLYCOLYSIS, SELFNAME);

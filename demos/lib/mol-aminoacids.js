@@ -202,6 +202,7 @@
               {el:'H',pos:[0.019,-1.931,-1.017]},
               {el:'H',pos:[1.062,-1.677,1.613]} ],
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','OG','HB1','HB2','HG'],
+      smiles:'N[C@@H](CO)C(=O)O',
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[10,13] ],
       optH:[4,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
@@ -232,6 +233,7 @@
               {el:'H',pos:[-0.073,-1.924,-1.022]},
               {el:'H',pos:[2.316,-1.87,-0.073]} ],
       names:['N','H','H2','CA','HA','C','O','OXT','HXT','CB','SG','HB1','HB2','HG'],
+      smiles:'N[C@@H](CS)C(=O)O',
       bonds:[ [0,1],[0,2],[0,3],[3,4],[3,5],[3,9],[5,6,2],[5,7],[7,8],[9,10],[9,11],[9,12],[10,13] ],
       optH:[4,11,12],   // nonpolar C–H, hidden by the lab’s H toggle
       chirality:'L',   // asserted by check-molecules.js — life is homochiral
