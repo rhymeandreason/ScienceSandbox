@@ -367,6 +367,19 @@ for (const [key, mol] of Object.entries(MOLECULES)) {
     } else if (!bad.length) {
       console.log(`   formula OK: ${mol.formula} matches the spec's atoms, charge ${stated}`);
     }
+
+    /* WHERE the charge sits, not just how much. `charge` is a total, and a
+       total cannot write a molblock or draw a carboxylate — a spec that knows
+       it is 2- but not which oxygens lost their protons comes back from RDKit
+       as the neutral acid. The builders stamp `q` as they place the atom, so
+       the sum standing apart from `charge` means a group was built by hand and
+       nobody said what it carries. */
+    const q = mol.atoms.reduce((t, a) => t + (a.q || 0), 0);
+    if (q !== (mol.charge || 0)) {
+      formulaFails++;
+      console.log(`   CHARGE FAIL: per-atom \`q\` sums to ${q}, but \`charge:\` `
+        + `is ${mol.charge || 0} — say which atoms carry it`);
+    }
   }
   // ---- the generated SMILES ------------------------------------------
   // `smiles` is produced by tools/spec2smiles.js and committed, so it can drift

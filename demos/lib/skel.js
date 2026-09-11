@@ -81,6 +81,13 @@
   // successive calls on the same atom automatically take the next free slot.
   function Skel(){ this.atoms=[]; this.bonds=[]; }
   Skel.prototype.put=function(el,p){ this.atoms.push({el,pos:[p.x,p.y,p.z]}); return this.atoms.length-1; };
+  /* FORMAL CHARGE on one atom. The spec carries a molecule-wide `charge`, which
+     says how many and not where — enough for a formula, not enough to write a
+     molblock or to draw a carboxylate as anything but an acid. The builders
+     below stamp it as they go, because the group that places the oxygen is the
+     only thing that knows which one lost its proton. check-molecules.js adds
+     them up and holds the total to `charge`. */
+  Skel.prototype.charge=function(i,q){ this.atoms[i].q=q; return i; };
   Skel.prototype.at =function(i){ const p=this.atoms[i].pos; return V(p[0],p[1],p[2]); };
   Skel.prototype.link=function(i,j,order){ this.bonds.push(order?[i,j,order]:[i,j]); return this; };
   Skel.prototype.nbrs=function(i){ const A=this.at(i);
@@ -259,10 +266,17 @@
   // –O–PO₃²⁻ : a bridging ester O, then a tetrahedral P with three more O's.
   // Returns the P index — the page uses it as the effect anchor, because the P
   // is what visibly arrives from ATP and later leaves for ADP.
+  // ONE OF THE THREE IS A DOUBLE BOND, the same drawing decision carboxylate()
+  // makes and for the same reason. It is also what makes the group chemically
+  // readable: a phosphorus wearing four SINGLE bonds and no charge is a
+  // phosphorane, and RDKit read it as exactly that — every phosphate in the
+  // library came back from tools/spec2smiles.js as `[PH](O)(O)O`, with an H on
+  // the P to fill the valence.
   Skel.prototype.phosphate=function(i,slot){
     const o=this.grow(i,'O',GL.CO,'sp3',slot);
     const p=this.grow(o,'P',GL.OP,'sp3',0);
-    for(let k=0;k<3;k++) this.grow(p,'O',GL.PO,'sp3',0);
+    this.grow(p,'O',GL.PO,'sp3',0,2);                       // P=O
+    for(let k=0;k<2;k++) this.charge(this.grow(p,'O',GL.PO,'sp3',0), -1);
     return p;
   };
   Skel.prototype.rotate=function(rx,ry,rz){
@@ -539,6 +553,7 @@
       const x = this.grow(p, 'O', GL.PO, 'sp3', 0);
       oxy.push(x);
       if(opts.acid) this.grow(x, 'H', GL.OH, 'sp3', 0);
+      else this.charge(x, -1);
     }
     return { p, bridge, oxy };
   };
@@ -557,7 +572,7 @@
    */
   const carboxylate = (s, i, slot) => {
     const o1 = s.grow(i, 'O', GL.CdO, 'sp2', slot || 0, 2);   // C=O
-    const o2 = s.grow(i, 'O', GL.CdO, 'sp2', 0);              // C–O⁻
+    const o2 = s.charge(s.grow(i, 'O', GL.CdO, 'sp2', 0), -1);   // C–O⁻
     return [o1, o2];
   };
   // …and the same thing on a carbon that is not yet in the skeleton: grow the

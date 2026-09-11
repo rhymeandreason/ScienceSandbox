@@ -16,15 +16,12 @@
  *     `contrast.diff`, so RDKit emits `[N:1]` and SmilesDrawer's
  *     highlight_atoms can key on class 1. Nothing is pasted into the string.
  *
- * THE STRING IS NEUTRAL, AND THE SPEC OFTEN IS NOT. The molblock carries heavy
- * atoms and bonds; it carries no charge, so RDKit fills every open valence with
- * an implicit H and a carboxylate comes back as a carboxylic ACID. 27 specs are
- * charged, and their drawn diagram therefore shows pyruvate where the formula
- * beside it says pyruvate(1-). Writing `M  CHG` would fix it, but only once
- * something says WHICH oxygen is deprotonated — the spec records a total charge
- * and not the atom carrying it, and guessing that across 27 molecules is a
- * chemistry decision, not a transcription. Until then this is a known gap in
- * every page that draws from `smiles`.
+ * THE CHARGE IS THE SPEC'S, not this tool's guess. Each atom carries its own
+ * formal charge in `q` — stamped by the builder that placed it, since the group
+ * that deprotonates an oxygen is the only thing that knows which one — and it
+ * is written into the molblock as `M  CHG`. Without that the open valence takes
+ * an implicit H and a carboxylate draws as the acid. check-molecules.js holds
+ * the sum of `q` to the spec's `charge`.
  *
  * RDKit is a DEV dependency and never ships: this runs at a terminal, the
  * output is committed, and the page loads only SmilesDrawer.
@@ -98,6 +95,17 @@ function molblock(name, m, mapped) {
        + `${pad(mapped && mapped.has(n) ? 1 : 0, 3)}  0  0\n`;
   });
   for (const b of bonds) s += `${pad(b[0] + 1, 3)}${pad(b[1] + 1, 3)}${pad(b[2], 3)}  0\n`;
+  /* FORMAL CHARGE, from the `q` the builders stamp on the atom. Without it
+     RDKit fills the open valence with an implicit H and every carboxylate comes
+     back as the acid — a diagram saying pyruvic acid under a formula saying
+     pyruvate. V2000 allows 8 per line and the charges here are all -1, so one
+     line holds every molecule in the library twice over. */
+  const charged = keep.map((i, n) => [n, m.atoms[i].q || 0]).filter(c => c[1]);
+  for (let k = 0; k < charged.length; k += 8) {
+    const run = charged.slice(k, k + 8);
+    s += `M  CHG${pad(run.length, 3)}`
+       + run.map(([n, q]) => `${pad(n + 1, 4)}${pad(q, 4)}`).join('') + '\n';
+  }
   return { mb: s + 'M  END\n', map, heavy: keep.length };
 }
 

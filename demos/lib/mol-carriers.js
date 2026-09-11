@@ -91,8 +91,12 @@
     [[1,1,1],[1,-1,-1],[-1,1,-1],[-1,-1,1]].forEach(d=>{
       s.link(0, s.put('O', vmul(vnorm(V(d[0],d[1],d[2])), GL.PO))); });
     s.grow(1,'H',GL.OH,'sp3',0);
+    // HPO₄²⁻ written out: O1 keeps the proton, O2 is the P=O, and the last two
+    // carry the charge. Four single bonds on a neutral P would be a phosphorane
+    // — the same trap Skel.phosphate() records.
+    s.order(0,2,2); s.charge(3,-1); s.charge(4,-1);
     CARRIERS.pi=s.spec({ name:'Inorganic phosphate', short:'Pᵢ', formula:'HPO₄²⁻', charge:-2, class:'ion',
-      smiles:'O[PH](O)(O)O',
+      smiles:'O=P([O-])([O-])O',
       gly:{ carbons:0, phosphates:1, free:true } });
     // — ATP, the carrier the priming steps spend and the payoff steps recharge.
     //   NOT built by Skel: adenine + ribose + a triphosphate chain is 31 heavy
@@ -135,7 +139,7 @@
       // charges, so this reads as the neutral acid while `formula` above says
       // what the spec actually is. The flat drawing shows connectivity, and the
       // page says the charge in words rather than letting the picture claim it.
-      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OP(=O)(O)O[P:1](=[O:1])([OH:1])[OH:1])[C@@H](O)[C@H]1O',
+      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)([O-])OP(=O)([O-])O[P:1](=[O:1])([O-:1])[O-:1])[C@@H](O)[C@H]1O',
       flat:true,
       // THE 2D LAYOUT the page slides these atoms onto. Heavy atoms only,
       // in spec order, real angstroms — baked by tools/bake-flat2d.js, which
@@ -159,13 +163,13 @@
               {el:'O',pos:[-3.831,2.91,1.972]},
               {el:'O',pos:[-3.406,-0.055,-0.358]},
               {el:'O',pos:[-1.563,-1.728,-0.448]},
-              {el:'O',pos:[-2.757,-1.091,-2.621]},
+              {el:'O',pos:[-2.757,-1.091,-2.621],q:-1},
               {el:'O',pos:[-3.971,-2.51,-0.768]},
               {el:'O',pos:[0.713,-2.361,0.283]},
-              {el:'O',pos:[0.355,-1.595,-2.132]},
+              {el:'O',pos:[0.355,-1.595,-2.132],q:-1},
               {el:'O',pos:[-0.561,-3.921,-1.296]},
-              {el:'O',pos:[2.565,-2.485,1.966]},
-              {el:'O',pos:[2.176,-4.387,0.296]},
+              {el:'O',pos:[2.565,-2.485,1.966],q:-1},
+              {el:'O',pos:[2.176,-4.387,0.296],q:-1},
               {el:'O',pos:[3.076,-2.132,-0.52]},
               {el:'N',pos:[0.297,1.59,0.292]},
               {el:'N',pos:[0.774,1.777,-1.88]},
@@ -557,7 +561,7 @@
     s.grow(S, 'H', GL.SH, 'sp3', 0);
     CARRIERS.coa = s.spec({
       name:'Coenzyme A', short:'CoA-SH', formula:FORMULA.coa, charge:-4,
-      smiles:'CC(C)(COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)(O)O)[C@@H](O)C(=O)NCCC(=O)NCCS',
+      smiles:'CC(C)(COP(=O)([O-])OP(=O)([O-])OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)([O-])[O-])[C@@H](O)C(=O)NCCC(=O)NCCS',
       class:'carrier',
       view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, phosphates:3, p3, pa, pb } });
@@ -602,7 +606,7 @@
     const { s, S, c, p3, pa, pb } = thioester(2);    // C(=O) + the methyl
     CARRIERS.acetylcoa = s.spec({
       name:'Acetyl-CoA', short:'Acetyl-CoA', formula:FORMULA.acetylcoa, charge:-4,
-      smiles:'CC(=O)SCCNC(=O)CCNC(=O)[C@H](O)C(C)(C)COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)(O)O',
+      smiles:'CC(=O)SCCNC(=O)CCNC(=O)[C@H](O)C(C)(C)COP(=O)([O-])OP(=O)([O-])OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)([O-])[O-]',
       class:'carrier',
       view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, thio:[S, c[0]], carbons:2,
@@ -617,7 +621,7 @@
     carboxylate(s, c[3], 0);
     CARRIERS.succinylcoa = s.spec({
       name:'Succinyl-CoA', short:'Succinyl-CoA', formula:FORMULA.succinylcoa, charge:-5,
-      smiles:'CC(C)(COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)(O)O)[C@@H](O)C(=O)NCCC(=O)NCCSC(=O)CCC(=O)O',
+      smiles:'CC(C)(COP(=O)([O-])OP(=O)([O-])OC[C@H]1O[C@@H](n2cnc3c(N)ncnc32)[C@H](O)[C@@H]1OP(=O)([O-])[O-])[C@@H](O)C(=O)NCCC(=O)NCCSC(=O)CCC(=O)[O-]',
       class:'carrier',
       view:COA_VIEW,
       krebs:{ carrier:true, thiol:S, hot:c[0], acyl:c, thio:[S, c[0]], carbons:4,
@@ -820,7 +824,7 @@
       // point is the two hydrogens sitting on its face.
       view:VIEW.flatRing,
       name:'FADH₂', short:'FADH₂', formula:'C₂₇H₃₅N₉O₁₅P₂²⁻', charge:-2,
-      smiles:'Cc1cc2c(cc1C)N(C[C@H](O)[C@H](O)[C@H](O)COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n3cnc4c(N)ncnc43)[C@H](O)[C@@H]1O)c1[nH]c(=O)[nH]c(=O)c1N2',
+      smiles:'Cc1cc2c(cc1C)N(C[C@H](O)[C@H](O)[C@H](O)COP(=O)([O-])OP(=O)([O-])OC[C@H]1O[C@@H](n3cnc4c(N)ncnc43)[C@H](O)[C@@H]1O)c1[nH]c(=O)[nH]c(=O)c1N2',
       class:'carrier',
       // Six rings: the flavin's three, adenine's fused pair, and the ribose.
       // `linear` is scoped to the flavin's own atoms — see below.
@@ -865,7 +869,7 @@
       // oxidation moved the molecule rather than two hydrogens.
       view:VIEW.flatRing,
       name:'FAD', short:'FAD', formula:'C₂₇H₃₃N₉O₁₅P₂²⁻', charge:-2,
-      smiles:'Cc1cc2c(cc1C)N(C[C@H](O)[C@H](O)[C@H](O)COP(=O)(O)OP(=O)(O)OC[C@H]1O[C@@H](n3cnc4c(N)ncnc43)[C@H](O)[C@@H]1O)c1[nH]c(=O)[nH]c(=O)c1N2',
+      smiles:'Cc1cc2c(cc1C)N(C[C@H](O)[C@H](O)[C@H](O)COP(=O)([O-])OP(=O)([O-])OC[C@H]1O[C@@H](n3cnc4c(N)ncnc43)[C@H](O)[C@@H]1O)c1[nH]c(=O)[nH]c(=O)c1N2',
       class:'carrier',
       topology:{ rings:[5,5,6,6,6,6], fused:true, linear:f.ring.map(i => m[i]) },
       // remapped through the drop, so these still name the flavin's own atoms
@@ -950,7 +954,7 @@
       // Generated by tools/spec2smiles.js from these coordinates, and the reason
       // this spec can be trusted at all: check-handedness.js matches it against
       // the same PubChem record `atp` matches.
-      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)OP(=O)(O)O[P:1](=[O:1])([OH:1])[OH:1])[C@@H](O)[C@H]1O',
+      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)([O-])OP(=O)([O-])O[P:1](=[O:1])([O-:1])[O-:1])[C@@H](O)[C@H]1O',
       flat:true,
       // 31 heavy atoms, spec order, real ångströms — tools/bake-flat2d.js.
       // Worth switching derivation while in 2D. The layouts are NOT identical
@@ -1195,7 +1199,7 @@
   register({
     amp: {
       name:'Adenosine monophosphate', formula:'C₁₀H₁₂N₅O₇P²⁻', charge:-2, class:'nucleotide', mono:'nucleic acid',
-      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)(O)O)[C@@H](O)[C@H]1O',
+      smiles:'Nc1ncnc2c1ncn2[C@@H]1O[C@H](COP(=O)([O-])[O-])[C@@H](O)[C@H]1O',
       // SETTLED 2026-07-30, and the comment above was right: the record supplies
       // the dianion. CID 15938965 is adenosine 5'-monophosphate(2-), and it
       // regenerates this spec EXACTLY (0.0000 delta, bonds identical). There was
@@ -1217,8 +1221,8 @@
               {el:'O',pos:[-0.702,2.833,1.42]},
               {el:'O',pos:[-2.613,1.339,2.646]},
               {el:'O',pos:[-2.892,-2.005,-0.722]},
-              {el:'O',pos:[-3.154,-4.116,-2.036]},
-              {el:'O',pos:[-2.463,-1.946,-3.202]},
+              {el:'O',pos:[-3.154,-4.116,-2.036],q:-1},
+              {el:'O',pos:[-2.463,-1.946,-3.202],q:-1},
               {el:'O',pos:[-4.847,-2.214,-2.296]},
               {el:'N',pos:[0.967,0.322,0.403]},
               {el:'N',pos:[2.33,-0.269,-1.262]},
