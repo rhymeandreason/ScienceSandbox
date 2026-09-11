@@ -68,8 +68,7 @@ const steps = [
   {
     id: 'bilayer', eyebrow: 'The bilayer', title: 'A membrane is oil with wet ends.',
     body: `<p class="lead">Every cell is wrapped in a sheet two molecules thick.</p>
-           <p>Each phospholipid has a charged head that sits happily in water and two hydrocarbon tails that will not. Put them in water and they sort themselves: heads out on both faces, tails hidden in the middle.</p>
-           <p>So the inside of the sheet is oil. Anything that crosses this membrane has to get through that oil. Click a label to read more.</p>`,
+           <p>Each lipid has a head that likes water and two tails that do not. The heads face out on both sides, the tails hide in the middle. Anything that crosses has to get through that oil.</p>`,
     nextLabel: 'What gets through?',
     onEnter(ctx) {
       plain();
@@ -82,8 +81,8 @@ const steps = [
 
   {
     id: 'through', eyebrow: 'What gets through', title: 'Oily things cross. Charged things do not.',
-    body: `<p class="lead">Size is not the rule. What matters is whether a molecule can dissolve in oil.</p>
-           <p>Release one of each and watch. O₂ and CO₂ are small and uncharged, so they slip through the tails in both directions. Na⁺ is smaller than either, but it carries a charge and a shell of water it will not let go of, so the oil turns it back.</p>`,
+    body: `<p class="lead">Size is not the rule. Dissolving in oil is.</p>
+           <p>Release one of each. O₂ and CO₂ are uncharged and slip through both ways. Na⁺ is smaller, but it carries a charge and a shell of water, and the oil turns it back.</p>`,
     nextLabel: 'Now the water',
     onEnter(ctx) {
       plain();
@@ -121,9 +120,8 @@ const steps = [
 
   {
     id: 'osmosis', eyebrow: 'Osmosis', title: 'Water crosses both ways. The net flow is a headcount.',
-    body: `<p class="lead">Nothing pulls the water. It walks at random, and more of it walks from the side that has more of it.</p>
-           <p>Salt the outside. Every Na⁺ and Cl⁻ sits where a water would have been, so fewer of the molecules out there are free water. Water keeps crossing in both directions, and simply arrives more often on the crowded side, until the two headcounts match.</p>
-           <p>The side with more solute and less free water is <strong>hypertonic</strong>. Slide the salt down and the verdict flips.</p>`,
+    body: `<p class="lead">Nothing pulls the water. More of it walks from the side that has more of it.</p>
+           <p>Every Na⁺ and Cl⁻ outside sits where a water would have been, so fewer molecules out there are free water. Water arrives more often on that side until the headcounts match. Slide the salt down and the verdict flips.</p>`,
     nextLabel: 'Open a channel',
     onEnter(ctx) {
       plain();
@@ -157,9 +155,8 @@ const steps = [
 
   {
     id: 'channel', eyebrow: 'A channel', title: 'A channel picks an ion. It never picks a direction.',
-    body: `<p class="lead">A pore is a water-lined hole through the oil, and each kind admits one ion.</p>
-           <p>The K⁺ channel admits by fit: a K⁺ trades its water shell for the pore's own lining. Na⁺ is smaller and still refused, because it holds its water too tightly to make the trade. The Cl⁻ channel admits by charge.</p>
-           <p>Neither chooses a direction. K⁺ is high inside, so it leaks out. Cl⁻ is high outside, so it leaks in. The gradient decides, and no energy is spent. This is <strong>passive transport</strong>.</p>
+    body: `<p class="lead">A channel is a water-lined hole, and each kind admits one ion.</p>
+           <p>K⁺ fits its pore. Na⁺ is smaller and still refused, because it will not let go of its water. Neither channel picks a direction: K⁺ is high inside so it leaks out, Cl⁻ is high outside so it leaks in. No energy is spent. This is <strong>passive transport</strong>.</p>
            <p class="foot">Turn the voltage on: every K⁺ that leaves makes the inside more negative, until that pull stops the leak.</p>`,
     nextLabel: 'Now the pump',
     onEnter(ctx) {
@@ -192,9 +189,8 @@ const steps = [
 
   {
     id: 'pump', eyebrow: 'The pump', title: 'To go uphill, something has to pay.',
-    body: `<p class="lead">This cell has let its gradients run flat. A channel cannot fix that: a hole only ever runs downhill.</p>
-           <p>The Na⁺/K⁺ pump is a carrier, not a pore. It binds its cargo, changes shape, and is never open to both sides at once. One ATP buys one turn: 3 Na⁺ out and 2 K⁺ in, both against their gradients.</p>
-           <p>Spend the ATP and watch the counts move the wrong way. This is <strong>active transport</strong>, and it is the only kind that builds a gradient.</p>`,
+    body: `<p class="lead">This cell has let its gradients run flat. A hole only ever runs downhill.</p>
+           <p>The pump is a carrier, never open to both sides at once. One ATP buys one turn: 3 Na⁺ out, 2 K⁺ in, both uphill. This is <strong>active transport</strong>, the only kind that builds a gradient.</p>`,
     nextLabel: 'Put both together',
     onEnter(ctx) {
       plain();
@@ -224,9 +220,8 @@ const steps = [
 
   {
     id: 'rest', eyebrow: 'A cell at rest', title: 'Resting is a leak and a pump, cancelling.',
-    body: `<p class="lead">Here is the real cell: a K⁺ channel and a pump in the same sheet, both running.</p>
-           <p>K⁺ drifts out through the channel for free, and the pump carries it back at one ATP a turn. The counts hold still and the voltage settles, but nothing has settled. A leak and a pump are running flat out and cancelling.</p>
-           <p>The big anions inside never cross, which is why the inside is negative and stays that way. Stop paying the pump and watch what equilibrium actually looks like.</p>`,
+    body: `<p class="lead">The real cell: a K⁺ channel and a pump in one sheet, both running.</p>
+           <p>K⁺ leaks out for free and the pump carries it back at one ATP a turn. The counts hold still, but nothing has settled. Stop paying and watch what equilibrium actually looks like.</p>`,
     onEnter(ctx) {
       plain();
       M.set({ proteins: { K: { x: K_X }, pump: { x: PUMP_X } }, potential: 'nernst', pumpAuto: true, pumpOn: true,
