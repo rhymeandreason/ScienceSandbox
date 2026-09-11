@@ -50,6 +50,24 @@
     if(role) m.userData.role=role;
     return m;
   }
+  // A double bond is two thinner sticks offset either side of the bond axis.
+  // The offset and the ratio are here because placeBond() has to reproduce them
+  // exactly: a re-placed pair drawn at a different gap is a different bond.
+  const DOUBLE_OFF=0.15, DOUBLE_RAD=0.75;
+  /* WHICH WAY the pair splays: perpendicular to the bond, in the plane the bond
+     shares with a neighbouring atom `k` — so the two sticks read as two from the
+     angle the rest of the group is drawn at. Null when a,b,k are collinear, and
+     the caller picks an arbitrary perpendicular instead.
+     One function, used at build AND on every frame of a conformational change:
+     the plane a double bond is drawn in has to be the same one it is animated
+     in, or the pair walks out of it as the molecule moves. */
+  function doublePerp(a,b,k){
+    const dir=new THREE.Vector3().subVectors(b,a).normalize();
+    const other=new THREE.Vector3().subVectors(k,a).normalize();
+    const norm=new THREE.Vector3().crossVectors(dir,other);
+    if(norm.lengthSq()<0.001) return null;
+    return new THREE.Vector3().crossVectors(norm,dir).normalize();
+  }
   // one covalent stick (or pair for double bond) between two points.
   function bond(a,b,color,rad=0.14,order=1,perpHint=null){
     const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
@@ -69,8 +87,8 @@
         perp=new THREE.Vector3().crossVectors(normDir,helper);
       }
       perp.normalize();
-      const offset=0.15;
-      const r2=rad*0.75;
+      const offset=DOUBLE_OFF;
+      const r2=rad*DOUBLE_RAD;
       [-offset, offset].forEach(off=>{
         const shift=perp.clone().multiplyScalar(off);
         const aOff=a.clone().add(shift);
@@ -136,24 +154,21 @@
       const i=bSpec[0], j=bSpec[1], order=bSpec[2]||1;
       const posI=new THREE.Vector3().fromArray(spec.atoms[i].pos);
       const posJ=new THREE.Vector3().fromArray(spec.atoms[j].pos);
-      let perpHint=null;
+      let perpHint=null, perpRef=null;
       if(order===2){
         const kBond=(spec.bonds||[]).find(b=>(b[0]===i||b[1]===i||b[0]===j||b[1]===j) && !(b[0]===i&&b[1]===j) && !(b[0]===j&&b[1]===i));
         if(kBond){
           const kIdx=[kBond[0],kBond[1]].find(idx=>idx!==i && idx!==j);
           if(kIdx!=null){
-            const posK=new THREE.Vector3().fromArray(spec.atoms[kIdx].pos);
-            const bondVec=new THREE.Vector3().subVectors(posJ,posI).normalize();
-            const otherVec=new THREE.Vector3().subVectors(posK,posI).normalize();
-            const planeNorm=new THREE.Vector3().crossVectors(bondVec,otherVec);
-            if(planeNorm.lengthSq()>0.001){
-              perpHint=new THREE.Vector3().crossVectors(planeNorm,bondVec).normalize();
-            }
+            perpHint=doublePerp(posI, posJ, new THREE.Vector3().fromArray(spec.atoms[kIdx].pos));
+            if(perpHint) perpRef=kIdx;
           }
         }
       }
       const m=bond(posI, posJ, bondCol, 0.14, order, perpHint);
-      m.userData.pair=[i,j]; return m;
+      // `perpRef` is the atom the pair's plane was taken from, kept so placeBond()
+      // can recompute that plane from where the three atoms are NOW.
+      m.userData.pair=[i,j]; m.userData.perpRef=perpRef; return m;
     });
     bondMeshes.forEach(m=>g.add(m));
     atomMeshes.forEach(m=>g.add(m));
@@ -223,12 +238,15 @@
   // change animated frame by frame, rather than a swap between two specs) needs
   // its bonds re-placed and re-stretched rather than rebuilt — rebuilding per
   // frame would churn geometries and materials at 60Hz.
-  // Single sticks only: a double bond is a Group whose two children carry a
-  // perpendicular offset chosen from a neighbour, and that plane is not
-  // recoverable from the two endpoints alone. Callers animating a molecule with
-  // double bonds must rebuild those.
-  function placeBond(mesh,a,b){
-    if(mesh.isGroup) return false;
+  // A DOUBLE BOND NEEDS ITS PLANE PASSED IN. Its two sticks are offset either
+  // side of the axis, and that direction is not recoverable from the endpoints
+  // alone — so `perp` (doublePerp() against the neighbour `userData.perpRef`
+  // names, at the positions of this frame) is required, and without it the pair
+  // is left where it was. An unmoved double bond is the floating stick a
+  // conformational change leaves behind when a caller forgets.
+  // The group's own transform must be the identity: see flattenBonds().
+  function placeBond(mesh,a,b,perp){
+    if(mesh.isGroup) return placeDouble(mesh,a,b,perp);
     const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
     if(!len) return false;
     const base=mesh.geometry.parameters && mesh.geometry.parameters.height;
@@ -236,6 +254,43 @@
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().normalize());
     if(base) mesh.scale.y=len/base;
     return true;
+  }
+  const _Y=new THREE.Vector3(0,1,0);
+  function placeDouble(g,a,b,perp){
+    if(!perp || perp.lengthSq()<1e-6) return false;
+    const dir=new THREE.Vector3().subVectors(b,a), len=dir.length();
+    if(!len) return false;
+    const nd=dir.clone().normalize();
+    // Orthogonalise: doublePerp's answer is already square to the axis, but a
+    // caller reusing a stale one is not, and a tilted pair reads as a bent bond.
+    const p=perp.clone().addScaledVector(nd,-perp.dot(nd));
+    if(p.lengthSq()<1e-6) return false;
+    p.normalize();
+    g.children.forEach((c,side)=>{
+      const base=c.geometry.parameters && c.geometry.parameters.height;
+      c.position.copy(a).addScaledVector(nd,len/2)
+                        .addScaledVector(p,(side?1:-1)*DOUBLE_OFF);
+      c.quaternion.setFromUnitVectors(_Y,nd);
+      if(base) c.scale.y=len/base;
+    });
+    return true;
+  }
+  /* THE GROUP HAS ITS OWN TRANSFORM, and placing its children at molecule-space
+     coordinates ignores it. buildMolecule centres a molecule (and applies
+     `spec.view`) by shifting every direct child, so each double-bond group
+     carries that offset while its two sticks keep the coordinates they were
+     built at. Flatten the transform into the children ONCE before animating,
+     and from then on the pair lives in the same frame as the atom meshes;
+     without it every double bond sits off by exactly the centring offset.
+     Idempotent, so a caller may flatten on every plan. */
+  function flattenBonds(g){
+    g.userData.bondMeshes.forEach(bm=>{
+      if(!bm.isGroup) return;
+      bm.children.forEach(c=>{ c.position.applyQuaternion(bm.quaternion).add(bm.position);
+                               c.quaternion.premultiply(bm.quaternion); });
+      bm.position.set(0,0,0); bm.quaternion.identity();
+    });
+    return g;
   }
 
   // remove atoms (and any bond touching them) from a built molecule — the leaving
@@ -596,6 +651,7 @@
 
   global.Stage={ create, setToon, atomMat, bondMat, glowMat, atom, bond,
     bondSplit, STICK_RATIO,
-    buildMolecule, removeAtoms, setOptionalH, placeBond, measure, frame, centerOf,
+    buildMolecule, removeAtoms, setOptionalH, placeBond, doublePerp, flattenBonds,
+    measure, frame, centerOf,
     Rsphere, get toon(){return toon;} };
 })(this);

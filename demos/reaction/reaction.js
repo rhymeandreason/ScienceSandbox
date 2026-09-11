@@ -1484,6 +1484,10 @@ function create(host) {
     const beyond = (from, thru) =>
       MolGraph.component(spec, thru, [[from, thru], br]).filter(i => i !== from);
     const base = u.atomMeshes.map(m => m ? m.position.clone() : null);
+    // The double bonds' groups carry buildMolecule's centring offset while
+    // their sticks keep build coordinates; unfurlApply addresses those sticks in
+    // the molecule's frame, so the transform is flattened first.
+    Stage.flattenBonds(l.g);
     const turns = [];
     for (let i = 0; i < cN.length - 2; i++) {
       const prev = i > 0 ? cN[i - 1] : (mol.anomeric && mol.anomeric.o);
@@ -1548,7 +1552,14 @@ function create(host) {
     pos.forEach((p, i) => { const m = u.atomMeshes[i]; if (m && p) m.position.copy(p); });
     u.bondMeshes.forEach(bm => {
       const [i, j] = bm.userData.pair;
-      if (pos[i] && pos[j]) Stage.placeBond(bm, pos[i], pos[j]);
+      if (!pos[i] || !pos[j]) return;
+      // A DOUBLE BOND IS TWO STICKS IN A PLANE, and the plane turns with the
+      // conformation — so it is recomputed each frame from the neighbour
+      // scene.js drew it against. Skipping it leaves the pair parked where the
+      // ring was: G6P's P=O, floating beside the chain it belongs to.
+      const k = bm.userData.perpRef;
+      Stage.placeBond(bm, pos[i], pos[j],
+        k != null && pos[k] ? Stage.doublePerp(pos[i], pos[j], pos[k]) : null);
     });
   }
 
