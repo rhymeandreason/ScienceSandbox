@@ -322,7 +322,9 @@ const m = Membrane.mount(el, {
   potential: 'nernst',
   sideLabels: true,           // both halves named on the stage; false only if you have your own
   showATP: true,              // an ATP leaves the F1 head per third-turn; false for the gradient alone
-  atpExit: null,              // 'left' | 'right': it leaves that way, toward the box that spends it
+  atpExit: null,              // 'left' | 'right': it drifts off that way, with nowhere to be sent
+  atpTo: null,                // a function returning a world point to walk to; beats atpExit
+  bounds: null,               // {up,down}: how far the compartments run, for a stack of membranes
 });
 ```
 
@@ -332,13 +334,26 @@ Every third of a turn a labelled ATP is released from the synthase head into the
 
 The translocase's swap is **electrogenic** — ATP⁴⁻ out for ADP³⁻ in, driven by the membrane voltage, about a quarter of the whole proton budget — which the library card says and the sim does not model. Say it; do not try to read it off `state()`.
 
-**`'atpOut'` is the event a page wants, not `'atp'`.** `'atp'` fires when the molecule is made, in the matrix; `'atpOut'` fires when it has cleared the last door on stage and is in the cytosol. A handoff wired to `'atp'` claims the ATP is available where it was made. `state().outerMembrane` says whether the lid is on, and `state().sides.beyond` is what to call the space above it.
+**Three events, and they are three different moments.** `'atp'` fires when the molecule is made, in the matrix; `'atpOut'` when it has cleared the last door on stage and is in the cytosol; `'atpDelivered'` when it reaches the `atpTo` point. A handoff wired to `'atp'` claims the ATP is available where it was made, and one wired to `'atpOut'` claims it is available the moment it leaves rather than where it arrives. `state().outerMembrane` says whether the lid is on, and `state().sides.beyond` is what to call the space above it.
 
-**WHAT SPENDS IT IS A SECOND BOX.** The Na⁺/K⁺ pump runs on ATP and is one of the biggest consumers in a cell, but it is in the PLASMA membrane and the synthase is in the inner mitochondrial one. Drawing an ATP from the synthase to a pump on the same sheet says those are one membrane, which is true only of a bacterium. So mount two: a `mitochondrion` box with `atpExit` pointing at its neighbour, and a `plasma` box with `pumpAuto:false`, and wire one to the other.
+**WHAT SPENDS IT IS ANOTHER MEMBRANE, IN THE SAME SCENE.** The Na⁺/K⁺ pump runs on ATP and is one of the biggest consumers in a cell, but it is in the PLASMA membrane. Do not put a pump and a synthase in one sheet — that is a bacterium. Stack them instead: `Membrane.create(THREE, root, camera, opts)` takes any Object3D, so two sims can live in one `CardStage` as two groups at different y, each still believing its own membrane is at y = 0.
+
+Top to bottom the stack is: outside the cell · **plasma membrane** · cytosol · **outer membrane** · intermembrane space · **inner membrane** · matrix. It needs no sign changes — the plasma membrane pumps Na⁺ to +y (out of the cell, up) and the mitochondrion pumps protons to +y (into the intermembrane space, up), so both already point the same way.
 
 ```js
-made.on('atpOut', () => spender.spend());   // one ATP out of the mitochondrion, one pump turn bought
+const cell = Membrane.create(THREE, gCell, box.camera, { context:'plasma', pumpAuto:false,
+  bounds:{ up:78, down:CYTOSOL - 8 } });          // its cytosol stops above the outer membrane
+const mito = Membrane.create(THREE, gMito, box.camera, { context:'mitochondrion',
+  outerMembrane:true, bounds:{ down:95 },
+  atpTo: () => worldPositionOf(cell, 'pump') });  // the token walks the whole way
+mito.on('atpDelivered', () => cell.spend());      // it ARRIVED, not it was made
 ```
+
+`bounds:{up,down}` is how far each sim's compartments run from its own membrane, so one sim's solution stops where the next sim's membrane begins instead of the two interleaving. `atpTo` is a function returning a WORLD point; the token is converted into the sim's own frame at release and walks there, and `'atpDelivered'` fires on arrival. `atpExit` is the fallback for a page with nowhere to send it.
+
+**Three things a page building this stack owns.** `create()` makes no side labels and no notebook — that is `mount()`'s work — so the page draws the band names itself (four of them here, and two sims each drawing a pair would say "the cytosol" twice) and builds its own `Notebook.create({box, anchors, library})` per sim. And a sim's anchors answer in ITS frame: lift them through the group with `localToWorld` before handing them to a notebook or to `atpTo`, or every callout is off by the offset. `membrane/atp-handoff-test.html` is the worked example.
+
+**Say that the heights are compressed.** A real intermembrane space is about 20 nm and a real mitochondrion sits microns below the cell surface, so a cytosol drawn comparable to the intermembrane space is perhaps a hundred times too thin. Everything else is to scale with itself.
 
 `spend()` returns false if a turn is already running or there is no Na⁺ to carry, which is the honest answer: ATP arriving faster than the pump can turn does not make it turn faster.
 

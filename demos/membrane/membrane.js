@@ -113,6 +113,18 @@
        this picture, and a plasma membrane has none. */
     outerMembrane: false,
     atpExit: null,            // 'left' | 'right': it leaves that way, toward the box that spends it
+    /* WHERE THE ATP IS GOING, as a function returning a WORLD point — the
+       pump in another sim sharing this scene. Takes precedence over atpExit,
+       and the token fades on arrival rather than at the edge; 'atpDelivered'
+       fires when it lands, which is the moment something may spend it. */
+    atpTo: null,
+    /* HOW FAR THE TWO COMPARTMENTS RUN from this membrane, in world units:
+       {up, down}, either omitted for "as far as the frame". A scene stacking
+       several membranes gives each sim its own slice, so one sim's solution
+       stops where the next sim's membrane begins instead of the two
+       interleaving in the same space. The outer membrane is a cap of its own
+       and the tighter of the two wins. */
+    bounds: null,
     pumpAuto: false,
     pumpOn: true,
     turnSeconds: 11,
@@ -195,6 +207,7 @@
        the machine the ATP came from. Translated rather than re-bowed: the true
        outer arc has a bigger radius than the inner one, and at the sagitta a
        lesson actually draws the difference is under a lipid's width. */
+    const _out = new THREE.Vector3();
     function buildOuter(tint) {
       if (OUTER) { root.remove(OUTER.group); OUTER = null; }
       PORIN.group.visible = outerOn();
@@ -205,13 +218,23 @@
          the inner membrane's machines to PORE_GAP, so the rightmost one is
          already near the edge of frame and a porin past it falls off. */
       porinX = (antX != null ? antX : synthX != null ? synthX : 0) - 38;
+      /* CONCENTRIC WITH THE INNER SHEET, not parallel to it: a bigger radius
+         by exactly the gap, so the two circles share a centre and the
+         intermembrane space is the same width all the way out. Translating a
+         copy of the inner arc instead would have the space widen toward the
+         edges, which on a bowed membrane is where the eye goes. */
       OUTER = global.Parts.membrane({ half:HALF * 0.62, reach:MEM_REACH, head:tint.head, tail:tint.tail,
-        bowR:BOW, exclude:(x, z) => Math.hypot(x - porinX, z) - POR_HOLE });
+        bowR:BOW ? BOW + OUTER_GAP : 0,
+        exclude:(x, z) => Math.hypot(x - porinX, z) - POR_HOLE });
       OUTER.group.position.y = outerY();
       root.add(OUTER.group);
-      PORIN.group.position.x = porinX;
-      PORIN.group.rotation.z = -seat(PORIN.group, porinX, 0, 0);
-      PORIN.group.position.y += outerY();
+      /* The porin rides the OUTER sheet's arc. seat() is the inner one's, and
+         on a bowed pair that leaves the barrel hanging off its own membrane by
+         the difference between two circles. */
+      _out.set(porinX, 0, 0);
+      const th = OUTER.bend(_out);
+      PORIN.group.position.set(_out.x, _out.y + outerY(), 0);
+      PORIN.group.rotation.z = -th;
       PORIN.setGates(1, 1);
       OUTER.cut.enable(cut);
     }
@@ -338,7 +361,11 @@
     /* THE CEILING ON THE COMPARTMENT BELOW IT. Without this the protons the
        complex just pumped out drift straight through the outer sheet and the
        lid is a decoration. */
-    const bandTop = () => outerOn() ? OUTER_GAP - 8 : P.extent;
+    const bandTop = () => Math.min(outerOn() ? OUTER_GAP - 8 : Infinity,
+                                   P.bounds && P.bounds.up != null ? P.bounds.up : Infinity,
+                                   P.extent);
+    const bandBottom = () => Math.min(P.bounds && P.bounds.down != null ? P.bounds.down : Infinity,
+                                      P.extent);
     root.add(PORIN.group);
     ALL.push(PORIN);   // declared below ALL, and setCut has to open it like any other
     let MEM = null, T = PUMP, PORES = [], pumpX = 0, complexX = 0, synthX = null, cut = false;
@@ -428,13 +455,35 @@
         legs.push({ x:porinX, y: d * (OUTER_GAP - HALF * 0.62 - 7) });
         legs.push({ x:porinX, y: d * (OUTER_GAP + HALF * 0.62 + 9), out:true });
       }
-      const away = P.atpExit === 'left' ? -1 : P.atpExit === 'right' ? 1 : 0;
       const last = legs.length ? legs[legs.length - 1] : null;
+      /* SOMEWHERE TO GO beats a direction to drift in. atpTo answers in WORLD
+         coordinates because what it points at belongs to another sim; the
+         route is in this one's flat frame, so it is converted here, once, at
+         release. Nothing on this stage moves afterwards. */
+      if (P.atpTo) {
+        const w = P.atpTo();
+        if (w) {
+          _atp.copy(w); root.worldToLocal(_atp);
+          /* AND UNBENT, because a leg is flat: every waypoint here is in the
+             sim's own straight frame and seat() puts it on the arc at draw
+             time. A world point arrives already on the arc — or on nothing,
+             being another membrane's — so bending it a second time would walk
+             the ATP to a place that is not where it was sent. */
+          if (BOW) {
+            const th = Math.atan2(_atp.x, _atp.y + BOW), rad = Math.hypot(_atp.x, _atp.y + BOW);
+            _atp.set(th * BOW, rad - BOW, 0);
+          }
+          legs.push({ x:_atp.x, y:_atp.y, fade:true, land:true, out:!legs.some(l => l.out) });
+          return legs;
+        }
+      }
+      const away = P.atpExit === 'left' ? -1 : P.atpExit === 'right' ? 1 : 0;
       legs.push({ x:(last ? last.x : (synthX || 0)) + (away || 1) * 90,
                   y:(last ? last.y : -d * (HALF + 26)) + (last ? d * 22 : -d * 14),
                   fade:true, out:!legs.some(l => l.out) });
       return legs;
     }
+    const _atp = new THREE.Vector3();
     function releaseATP() {
       if (!P.showATP || !SYNTH.group.visible || atpChips.length >= ATP_MAX) return;
       const d = CHEM.pumpDir(P.context);
@@ -466,10 +515,18 @@
         const move = ATP_SPEED * dt;
         if (dist <= move) {
           c.x = leg.x; c.y = leg.y;
-          if (leg.swap && antX != null) releaseADP(antX);
-          if (leg.out && !c.left) { c.left = true; emit('atpOut', ROT.atp); }
-          if (leg.fade) c.dying = true;
-          if (c.leg < c.legs.length - 1) c.leg++;
+          /* ARRIVING IS AN EVENT, BEING THERE IS NOT. The last leg has nowhere
+             to advance to, so this branch runs again every frame while the
+             token fades: without the flag one ATP delivered itself a dozen
+             times and the pump was handed a dozen reasons to turn. */
+          if (!c.done) {
+            c.done = true;
+            if (leg.swap && antX != null) releaseADP(antX);
+            if (leg.out && !c.left) { c.left = true; emit('atpOut', ROT.atp); }
+            if (leg.land) emit('atpDelivered', ROT.atp);
+            if (leg.fade) c.dying = true;
+          }
+          if (c.leg < c.legs.length - 1) { c.leg++; c.done = false; }
         } else { c.x += dx / dist * move; c.y += dy / dist * move; }
         seat(o, c.x, c.y, 0);
         /* A ROW READ EDGE-ON IS ONE DOT. The token stays in the screen plane
@@ -776,7 +833,7 @@
     }
     /* The lid counts: a compartment with an outer membrane over it is only as
        tall as that sheet, or things are scattered into the cytosol at birth. */
-    const farY = (side) => (side > 0 && outerOn() ? bandTop() : P.extent) * 0.94;
+    const farY = (side) => (side > 0 ? bandTop() : bandBottom()) * 0.94;
     const inCompartment = side => side * rnd(HALF + 4, farY(side));
     /* Ions default to ion speed, water to walking; blocked unless the bilayer
        lets it through (a gas, or water). An ion with a channel of its kind on
@@ -1212,10 +1269,7 @@
       if (t.walk) lateral(t, dt);
       t.y += t.vy * dt * (inCore && !t.blocked ? t.coreSpeed || 1 : 1);
       if (t.bounded) {
-        /* The lid is on the +y side only: outerOn() is a mitochondrion, and a
-           mitochondrion always pumps up the screen. */
-        const far = P.extent;
-        const lo = t.yband ? t.yband[0] : -far, hi = t.yband ? t.yband[1] : bandTop();
+        const lo = t.yband ? t.yband[0] : -bandBottom(), hi = t.yband ? t.yband[1] : bandTop();
         if (t.y > hi) { t.y = hi; t.vy = -Math.abs(t.vy); }
         if (t.y < lo) { t.y = lo; t.vy =  Math.abs(t.vy); }
         t.obj.position.y = t.y; tumble(t, dt);

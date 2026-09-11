@@ -3,35 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>atp-handoff-test — the mitochondrion makes it, the cell surface spends it</title>
+<title>atp-handoff-test — three membranes, one ATP</title>
 <link rel="stylesheet" href="../css/bench.css">
 <link rel="stylesheet" href="../css/annotate.css">
 <style>
   html,body { height:100%; margin:0; }
-  /* THE LEFT BOX IS WIDER BECAUSE IT HOLDS MORE: four machines against one
-     and a half. Both cameras keep the same r, so the two bilayers are drawn
-     at the same scale and the extra width is extra membrane, not a zoom. */
-  #wrap { display:grid; grid-template-columns:1.42fr 42px 1fr 330px; height:100vh; }
+  #wrap { display:grid; grid-template-columns:1fr 340px; height:100vh; }
   .stage { min-width:0; }   /* the paper and the dot grid are bench.css's */
-  /* THE SEAM IS A PLACE, and naming it is the whole reason the two boxes can
-     sit side by side: the gap between them is the cytosol, the mitochondrion
-     is sitting in it, and the ATP chip crosses it. Unnamed, two bilayers an
-     inch apart at the same height read as one bilayer. */
-  #gap { position:relative; border-left:1px solid var(--ink-3, rgba(0,0,0,.28));
-         border-right:1px solid var(--ink-3, rgba(0,0,0,.28));
-         background:var(--surface-page); }
-  /* LOW IN THE STRIP, not centred: the cytosol is the space BELOW both
-     membranes. Above the plasma membrane is outside the cell, and above the
-     inner mitochondrial one is the intermembrane space, which is only
-     continuous with the cytosol through an outer membrane this page does not
-     draw. So the word sits where the claim is true and says nothing higher. */
-  #gap b { position:absolute; left:50%; top:74%; transform:translate(-50%,-50%) rotate(180deg);
-           writing-mode:vertical-rl; font-weight:600; font-size:13px; letter-spacing:.04em;
-           white-space:nowrap; opacity:.75; }
   #panel { overflow-y:auto; padding:18px; border-left:1px solid rgba(0,0,0,.12); }
-  .cap { position:absolute; left:14px; top:12px; z-index:3; font-size:13px;
-         font-weight:600; pointer-events:none; }
-  .cap span { display:block; font-weight:400; opacity:.72; max-width:26ch; margin-top:2px; }
   .grp { margin-bottom:18px; }
   .hd { font-weight:600; margin-bottom:6px; }
   label { display:block; margin:7px 0; font-size:14px; }
@@ -40,44 +19,39 @@
   table.rd { font-size:13px; border-collapse:collapse; width:100%; }
   table.rd td { padding:2px 0; }
   table.rd td:last-child { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
-  /* The chip carries the token's own dress across the gap: three phosphate
-     beads and the word, the same pill membrane.js releases from the F1 head.
-     A flat chip and not a mesh, because between two boxes there is no scene
-     to be in. */
-  .fly { position:fixed; z-index:5; display:flex; align-items:center; gap:5px;
-         padding:4px 10px 4px 7px; border-radius:999px; pointer-events:none;
-         background:#fff; color:var(--ink, #2b2723); font-size:12px; font-weight:600;
-         border:2px solid var(--ink, #2b2723);
-         transform:translate(-50%,-50%);
-         transition:left .85s cubic-bezier(.4,0,.5,1), top .85s cubic-bezier(.4,0,.5,1),
-                    opacity .3s ease-in .55s; }
-  .fly i { width:7px; height:7px; border-radius:50%; background:var(--atom-p, #e07b1f); }
-  @media (prefers-reduced-motion:reduce){ .fly { transition:opacity .3s } }
-  @media (max-width:1100px){ #wrap{ grid-template-columns:1fr; grid-template-rows:1fr 42px 1fr auto; }
-    #gap { border:0; border-top:1px solid var(--ink-3, rgba(0,0,0,.28));
-           border-bottom:1px solid var(--ink-3, rgba(0,0,0,.28)); }
-    #gap b { writing-mode:horizontal-tb; top:50%; transform:translate(-50%,-50%); } }
+  /* THE BANDS ARE NAMED DOWN THE RIGHT AND THE SHEETS DOWN THE LEFT, so a
+     compartment's name never sits next to a membrane's and get read as one
+     label. Both are placed by projecting their own world y, not by percent:
+     the stack is three membranes deep and a typed percentage would be a
+     fourth place the geometry is written down. */
+  .band, .sheet { position:absolute; z-index:3; pointer-events:none;
+    font-family:var(--font-display, inherit); font-size:var(--cap-sm, 11px);
+    font-weight:var(--cap-weight, 600); letter-spacing:var(--cap-track, .12em);
+    text-transform:uppercase; white-space:nowrap;
+    text-shadow:0 1px 10px rgba(255,255,255,.85);
+    transform:translateY(-50%); }
+  .band  { right:18px; opacity:.55; }
+  .sheet { left:18px;  opacity:.8; }
 </style>
 </head>
 <body>
 <div id="wrap">
-  <div class="stage" id="left">
-    <div class="cap">mitochondrion — inner membrane
-      <span>The complex burns NADH to throw protons out; they come back through the synthase and it turns. The ATP is made in the matrix and leaves by two doors: a translocase, then a porin. A crista is this patch folded, so the space above it is the space inside a fold.</span></div>
-  </div>
-  <div id="gap"><b>the cytosol</b></div>
-  <div class="stage" id="right">
-    <div class="cap">the cell surface — plasma membrane
-      <span>The Na⁺/K⁺ pump. It cannot turn without an ATP, so it waits for one. The cytosol under it is the strip on the left.</span></div>
-  </div>
+  <div class="stage" id="stage"></div>
   <div id="panel">
-    <h1 style="font-size:17px">where the ATP goes</h1>
+    <h1 style="font-size:17px">three membranes, one ATP</h1>
     <p class="note">
-      Two membranes, because they are two membranes. The synthase is in the
-      inner mitochondrial one and the pump is in the plasma one, and the strip
-      between them is the cytosol: the mitochondrion is sitting in it, the
-      pump's lower face is on it, and the ATP is what crosses it. One ATP made,
-      one turn of the pump bought: 3 Na⁺ out and 2 K⁺ in, both uphill.
+      The whole trip in one frame. A proton gradient across the inner
+      membrane turns the synthase; the ATP is made in the matrix and crosses
+      two more membranes to reach a pump at the cell surface. Everything in
+      between is drawn, so nothing about where it goes has to be taken on
+      trust.
+    </p>
+    <p class="note">
+      <b>The heights are compressed.</b> A real intermembrane space is about
+      20 nm and a real mitochondrion sits microns below the cell surface, so
+      the cytosol here is perhaps a hundred times too thin. Everything else —
+      which side is which, which way each machine carries — is to scale with
+      itself.
     </p>
 
     <div class="grp">
@@ -99,7 +73,7 @@
     </div>
 
     <div class="grp">
-      <button type="button" id="reset">reset both</button>
+      <button type="button" id="reset">reset</button>
       <button type="button" id="notes">label everything</button>
     </div>
   </div>
@@ -120,114 +94,164 @@
 <script src="../membrane/membrane.js"></script>
 
 <script>
-/* Two live boxes, two WebGL contexts. That is the cost of the claim: one
-   sheet carrying both a synthase and a Na+/K+ pump would be a bacterium. */
-const MITO = { inside: { water: 26, H: 20 }, outside: { water: 26, H: 20 } };
-const CELL = { inside: { water: 22, NA: 12, K: 14, A: 6 }, outside: { water: 22, NA: 16, K: 4, CL: 10 } };
+const $ = id => document.getElementById(id);
+const el = $('stage');
 
-const made = Membrane.mount(document.getElementById('left'), {
-  context: 'mitochondrion',
-  fuel: 'NADH', fuelRate: 1,
-  proteins: { complex: { x: -72 }, synthase: { x: 0 }, translocase: { x: 72 } },
-  contents: MITO,
-  outerMembrane: true,           // the ATP has two doors to get out of, and both are drawn
-  potential: 'nernst',
-  atpExit: 'right',              // out the side the cell surface is on
-  cam: { theta: 0, phi: Math.PI / 2 - 0.10, r: 330 },
-  /* THE INNER MEMBRANE SITS LOW IN THIS BOX. It is the only one here with a
-     second membrane over it, and centred there is no intermembrane space to
-     look at — just a gap the lid immediately closes. The right box is not
-     offset: its membrane is centred, which also stops the two reading as one
-     sheet across the seam. */
-  viewOffset: (w, h) => ({ x: 0, y: -h * 0.10 }),
+/* ---- the stack ----
+   ONE SCENE, TWO SIMS, and the y of each membrane is the only thing that says
+   how they are arranged. Each sim is built into a group of its own and goes on
+   believing its membrane is at y = 0 — the physics is written that way, and
+   nothing about stacking them should reach into it. `bounds` is what keeps
+   them out of each other: the cytosol belongs to the plasma sim and stops
+   above the outer membrane, and the intermembrane space belongs to the
+   mitochondrial one and stops below it.
+
+   Top to bottom: outside the cell · PLASMA MEMBRANE · cytosol · OUTER
+   MEMBRANE · intermembrane space · INNER MEMBRANE · matrix. */
+const INNER_Y = -85;              // the inner membrane, and the mito sim's origin
+const IMS = 82;                   // membrane.js's own OUTER_GAP; the outer sheet sits here
+const OUTER_Y = INNER_Y + IMS;    // -3
+const PLASMA_Y = 105;             // the cell surface, and the plasma sim's origin
+const CYTOSOL = PLASMA_Y - OUTER_Y;
+
+/* CardStage draws ONE FRAME AT CREATE — the header says so, and a paused box
+   must never be blank — so afterFrame runs before anything below this line
+   exists. Declared up here and checked, rather than reached for in a closure
+   that is called first. */
+let nbM = null, nbC = null, rigged = false;
+
+const box = CardStage.create({
+  mount: el,
+  cam: { theta: 0, phi: Math.PI / 2 - 0.09, r: 412 },
+  stage: { orbit: false, rMin: 120, rMax: 700 },
+  step: dt => { mito.step(dt); cell.step(dt); },
+  afterFrame: () => { if (!rigged) return; nbM.step(); nbC.step(); placeLabels(); },
 });
+box.renderer.localClippingEnabled = true;
 
-const spender = Membrane.mount(document.getElementById('right'), {
+const gMito = new THREE.Group(); gMito.position.y = INNER_Y; box.root.add(gMito);
+const gCell = new THREE.Group(); gCell.position.y = PLASMA_Y; box.root.add(gCell);
+
+const MITO = { inside: { water: 20, H: 16 }, outside: { water: 20, H: 16 } };
+const CELL = { inside: { water: 18, NA: 9, K: 12, A: 5 },
+               outside: { water: 16, NA: 14, K: 4, CL: 8 } };
+
+/* The plasma membrane, built first so the mitochondrion can aim its ATP at
+   the pump standing in it. */
+const cell = Membrane.create(THREE, gCell, box.camera, {
   context: 'plasma',
   proteins: { pump: { x: -36 }, K: { x: 36 } },
   contents: CELL,
   potential: 'nernst',
-  pumpAuto: false,               // it waits: nothing turns without an ATP
-  cam: { theta: 0, phi: Math.PI / 2 - 0.10, r: 330 },
-});
-made.start(); spender.start();
-
-const $ = id => document.getElementById(id);
-
-/* ---- the handoff ----
-   The component's own token leaves the F1 head and goes off the right edge;
-   this picks it up as a DOM chip and lands it on the pump. Two boxes have no
-   scene in common, so the thing that crosses between them cannot be a mesh. */
-const _v = new THREE.Vector3();
-function screenAt(m, name) {
-  const at = m.sim.anchors[name] && m.sim.anchors[name]();
-  if (!at) return null;
-  _v.copy(at).project(m.box.camera);
-  const r = m.box.canvas.getBoundingClientRect();
-  return { x: r.left + (_v.x * .5 + .5) * r.width, y: r.top + (-_v.y * .5 + .5) * r.height };
-}
-function flyATP(done) {
-  const from = screenAt(made, 'porin') || screenAt(made, 'synthase'), to = screenAt(spender, 'pump');
-  if (!from || !to) { done(); return; }
-  const chip = document.createElement('div');
-  chip.className = 'fly';
-  chip.innerHTML = '<i></i><i></i><i></i>ATP';
-  chip.style.left = from.x + 'px'; chip.style.top = from.y + 'px';
-  document.body.appendChild(chip);
-  requestAnimationFrame(() => {
-    chip.style.left = to.x + 'px'; chip.style.top = to.y + 'px';
-    chip.style.opacity = '0';
-  });
-  /* transitionend with a timer behind it: a backgrounded tab runs neither the
-     transition nor rAF, and the pump still has to get its ATP. */
-  let fired = false;
-  const go = () => { if (fired) return; fired = true; chip.remove(); done(); };
-  chip.addEventListener('transitionend', go);
-  setTimeout(go, 1400);
-}
-
-/* ONE ATP MADE, ONE TURN BOUGHT — and spend() refusing is the honest answer,
-   not a dropped event: ATP arriving faster than the pump can turn does not
-   make it turn faster, it queues nowhere and the cell just has more ATP. */
-let bought = 0, wasted = 0;
-/* 'atpOut', not 'atp': the ATP is MADE in the matrix and is not the cytosol's
-   until it is through the translocase and the porin. The event fires when the
-   token clears the outer membrane, and the DOM chip picks it up there. */
-made.on('atpOut', () => {
-  if (spender.state().pumpRunning) { wasted++; return; }
-  flyATP(() => { if (spender.spend()) bought++; else wasted++; });
+  pumpAuto: false,                 // it waits: nothing turns without an ATP
+  extent: 240,
+  bounds: { up: 78, down: CYTOSOL - 8 },
 });
 
-/* ---- the panel: every number off state() ---- */
+const _w = new THREE.Vector3();
+const worldOf = (sim, group, name) => () => {
+  const p = sim.anchors[name] && sim.anchors[name]();
+  return p ? group.localToWorld(_w.copy(p)) : null;
+};
+
+const mito = Membrane.create(THREE, gMito, box.camera, {
+  context: 'mitochondrion',
+  fuel: 'NADH', fuelRate: 1,
+  proteins: { complex: { x: -72 }, synthase: { x: 0 }, translocase: { x: 72 } },
+  contents: MITO,
+  potential: 'nernst',
+  outerMembrane: true,
+  extent: 240,
+  bounds: { down: 95 },            // the matrix; the outer sheet caps the other side
+  /* THE ATP HAS SOMEWHERE TO GO, and it is a place in the other sim. The
+     token walks the whole way — matrix, translocase, intermembrane space,
+     porin, cytosol, pump — and 'atpDelivered' is it arriving. */
+  atpTo: worldOf(cell, gCell, 'pump'),
+  /* BOWED, because a mitochondrion is a closed sac and two straight lines are
+     two infinite planes. The component curves the outer sheet concentrically
+     with this one, so the pair read as the top of one rounded body. The cell
+     surface stays flat: it is curved too, at a radius a thousand times this
+     one, and drawing that curvature would be drawing a smaller cell. */
+  curve: 12,
+});
+
+/* ---- one ATP delivered, one turn of the pump bought ---- */
+let bought = 0, spare = 0;
+mito.on('atpDelivered', () => { if (cell.spend()) bought++; else spare++; });
+
+/* ---- the names on the stack ----
+   Placed from their own world y every frame, so a change to INNER_Y or to the
+   component's OUTER_GAP moves the words with the sheet. */
+const LABELS = [
+  { cls:'sheet', y: () => PLASMA_Y, text: 'plasma membrane' },
+  { cls:'sheet', y: () => OUTER_Y,  text: 'outer membrane' },
+  { cls:'sheet', y: () => INNER_Y,  text: 'inner membrane' },
+  { cls:'band', y: () => PLASMA_Y + 46, text: () => cell.state().sides.outside },
+  { cls:'band', y: () => (PLASMA_Y + OUTER_Y) / 2, text: () => cell.state().sides.inside },
+  { cls:'band', y: () => (OUTER_Y + INNER_Y) / 2, text: () => mito.state().sides.outside },
+  { cls:'band', y: () => INNER_Y - 52, text: () => mito.state().sides.inside },
+];
+if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+for (const L of LABELS) { L.el = document.createElement('div'); L.el.className = L.cls; el.appendChild(L.el); }
+const _l = new THREE.Vector3();
+function placeLabels() {
+  const h = box.canvas.clientHeight;
+  for (const L of LABELS) {
+    _l.set(0, L.y(), 0).project(box.camera);
+    L.el.style.top = ((-_l.y * .5 + .5) * h) + 'px';
+    const t = typeof L.text === 'function' ? L.text() : L.text;
+    if (L.el.textContent !== t) L.el.textContent = t;
+  }
+}
+
+/* ---- callouts ----
+   create() builds no notebook (mount() does), so the page makes one per sim,
+   and every anchor is lifted into world space first: a sim's anchors answer in
+   its own frame, where its membrane is at y = 0. */
+const lift = (sim, group) => {
+  const out = {};
+  for (const k of Object.keys(sim.anchors)) out[k] = worldOf(sim, group, k);
+  return out;
+};
+nbM = Notebook.create({ box, anchors: lift(mito, gMito), library: mito.library });
+nbC = Notebook.create({ box, anchors: lift(cell, gCell), library: cell.library });
+rigged = true;
+
+/* THE BANDS ARE ALREADY NAMED down the right edge, so a callout pointing at
+   one is the same word twice with a leader line between them. Skipped per sim
+   rather than by name: 'inside' is the matrix in one and the cytosol in the
+   other, and 'the cytosol' would otherwise arrive from both. The
+   intermembrane space keeps its callout — its card is the one that says why
+   the protons collect there. */
+const SKIP = new Map([[() => nbC, ['outside', 'inside']], [() => nbM, ['inside', 'cytosol']]]);
+let labelled = false;
+$('notes').onclick = () => {
+  labelled = !labelled;
+  $('notes').textContent = labelled ? 'clear labels' : 'label everything';
+  for (const [get, skip] of SKIP) {
+    const nb = get();
+    nb.clear();
+    if (labelled) nb.notes(nb.list().filter(a => a.present && !skip.includes(a.name)).map(a => a.name));
+  }
+};
+
+/* ---- panel ---- */
 const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
 const layout = leak => leak
   ? { complex: { x: -108 }, synthase: { x: -36 }, leak: { x: 36 }, translocase: { x: 108 } }
   : { complex: { x: -72 }, synthase: { x: 0 }, translocase: { x: 72 } };
 
-$('fuelon').onchange = () => made.set({ fuel: $('fuelon').checked ? 'NADH' : null });
-$('rate').oninput = () => made.set({ fuelRate: $('rate').value / 100 });
-$('leak').onchange = () => made.set({ proteins: layout($('leak').checked) });
+$('fuelon').onchange = () => mito.set({ fuel: $('fuelon').checked ? 'NADH' : null });
+$('rate').oninput = () => mito.set({ fuelRate: $('rate').value / 100 });
+$('leak').onchange = () => mito.set({ proteins: layout($('leak').checked) });
 $('reset').onclick = () => {
-  bought = wasted = 0;
-  made.reset(); made.set({ contents: MITO });
-  spender.reset(); spender.set({ contents: CELL });
-};
-/* EVERY ANCHOR THE BOX SAYS IS ON STAGE, not a list typed here. anchors()
-   reports `present`, so a layout without a leak or without the outer membrane
-   labels what it actually has and a list in this page cannot go stale against
-   one in the component. */
-let labelled = false;
-$('notes').onclick = () => {
-  labelled = !labelled;
-  $('notes').textContent = labelled ? 'clear labels' : 'label everything';
-  for (const m of [made, spender]) {
-    m.clearNotes();
-    if (labelled) m.notes(m.anchors().filter(a => a.present).map(a => a.name));
-  }
+  bought = spare = 0;
+  mito.reset(); mito.set({ contents: MITO });
+  cell.reset(); cell.set({ contents: CELL });
 };
 
-made.on('frame', s => {
-  const c = spender.state();
+mito.on('frame', s => {
+  const c = cell.state();
   $('rv').textContent = Math.round(s.fuelRate * 100) + '%';
   $('rd').innerHTML =
     row('proton-motive force', s.pmf.toFixed(0) + ' mV') +
@@ -237,13 +261,15 @@ made.on('frame', s => {
     row('K⁺ carried in', c.atpSpent * 2) +
     row('cell membrane voltage', c.mV.toFixed(0) + ' mV');
   $('leakcap').textContent = $('leak').checked
-    ? `${s.protonsLeaked} protons have come down the hole instead of the synthase. That fuel burned and made heat, and the pump on the right has nothing to spend.`
+    ? `${s.protonsLeaked} protons have come down the hole instead of the synthase. That fuel burned and made heat, and the pump above has nothing to spend.`
     : '';
   $('verdict').textContent =
     s.pmf <= 2 ? 'No gradient, so no ATP, so the pump is standing still. The gradient is the cell’s battery and this is what it is for.'
     : s.atpMade === 0 ? 'The gradient is building. Nothing has been spent yet.'
-    : `${s.atpMade} ATP made, ${bought} of them spent on a turn of the pump. The other ${Math.max(0, s.atpMade - bought)} arrived while it was mid-turn: an ATP the cell still has.`;
+    : `${s.atpMade} ATP made, ${bought} of them spent on a turn of the pump. The other ${Math.max(0, s.atpMade - bought)} arrived while it was mid-turn: ATP the cell still has.`;
 });
+
+box.start();
 </script>
 </body>
 </html>
