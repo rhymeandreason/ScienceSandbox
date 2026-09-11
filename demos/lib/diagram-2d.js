@@ -139,19 +139,22 @@ const LEWIS_GAP = 13;     // px of clear space around a label
 const LEWIS_PAIR_R = 15;  // px from centre to a lone pair
 const LEWIS_DOT = 1.9;    // px, one electron
 
-/* The central atom, and its neighbours in spec order, or null when the molecule
- * is not a star. A two-atom molecule has no centre to find and either atom
- * serves, so it is answered directly. */
-function star(spec) {
+/* The molecule as a TREE, rooted at its busiest atom, or null if it is not one.
+ * A Lewis structure here is laid out by walking outward from a root, so a ring
+ * has no layout at all — and a ring drawn as a tree would come apart. A
+ * connected acyclic graph has exactly n-1 bonds, which is the whole test. */
+function tree(spec) {
   const n = spec.atoms.length;
-  if (n < 2) return null;
-  const deg = spec.atoms.map(() => 0);
-  spec.bonds.forEach(([i, j]) => { deg[i]++; deg[j]++; });
-  if (n === 2) return { c: 0, ring: [1] };
-  const c = deg.indexOf(Math.max(...deg));
-  if (deg[c] !== n - 1) return null;
-  if (deg.some((d, i) => i !== c && d !== 1)) return null;
-  return { c, ring: spec.atoms.map((a, i) => i).filter(i => i !== c) };
+  if (n < 2 || spec.bonds.length !== n - 1) return null;
+  const adj = spec.atoms.map(() => []);
+  spec.bonds.forEach(([i, j]) => { adj[i].push(j); adj[j].push(i); });
+  const root = adj.reduce((best, a, i) => a.length > adj[best].length ? i : best, 0);
+  // Breadth-first, so a parent is always placed before its children.
+  const parent = new Map([[root, null]]), order = [root];
+  for (let k = 0; k < order.length; k++)
+    for (const j of adj[order[k]])
+      if (!parent.has(j)) { parent.set(j, order[k]); order.push(j); }
+  return order.length === n ? { root, order, parent, adj } : null;
 }
 
 function bondOrders(spec) {
@@ -198,8 +201,15 @@ function domains(n, anchor, index) {
  * upward. With no pair to place the first slot is straight up, so methane's
  * four bonds land on the compass points rather than on the diagonals. */
 function slots(nBonds, nPairs) {
-  // With no pair to anchor, slot 0 itself goes up.
-  const a = domains(nBonds + nPairs || 1, Math.PI / 2, nPairs ? (nPairs - 1) / 2 : 0);
+  /* Slot 0 goes up, so a bent molecule comes out bent and a lone pair sits
+     above the atom that carries it. A molecule with nothing to bend — a
+     diatomic, or a linear centre like CO₂ — lies along the page instead, the
+     way it is written. Standing one upright is not wrong, it just wastes a
+     panel that is wider than it is tall. */
+  const flat = nBonds === 1 || (nPairs === 0 && nBonds === 2);
+  // NEGATIVE is up: these angles are written into SVG, whose y grows downward.
+  const up = flat ? 0 : -Math.PI / 2;
+  const a = domains(nBonds + nPairs || 1, up, nPairs ? (nPairs - 1) / 2 : 0);
   return { pairs: a.slice(0, nPairs), bonds: a.slice(nPairs) };
 }
 
@@ -255,34 +265,51 @@ function canLewis(spec) {
 }
 
 function drawLewis(el, spec, o) {
-  const st = star(spec);
-  if (!st) return false;
+  const t = tree(spec);
+  if (!t) return false;
   const orders = bondOrders(spec);
-  const ink = INK, colors = COLORS;
+  const ink = INK;
   const order = (i, j) => {
     const b = spec.bonds.find(b => (b[0] === i && b[1] === j) || (b[0] === j && b[1] === i));
     return b ? (b[2] || 1) : 1;
   };
 
-  const cPairs = lonePairs(spec, st.c, orders);
-  const S = slots(st.ring.length, cPairs);
-  const pos = new Map([[st.c, [0, 0]]]);
-  st.ring.forEach((i, k) => {
-    const a = S.bonds[k];
-    pos.set(i, [Math.cos(a) * LEWIS_BOND, Math.sin(a) * LEWIS_BOND]);
-  });
+  /* Place every atom by walking out from the root. Each atom divides its own
+     circle by its electron domains — the one rule — and differs only in what
+     anchors slot 0: the root anchors its lone pairs upward, and everything
+     else anchors the bond it already has, the one running back to its parent.
+     Children take the slots after that bond, then the lone pairs take the rest,
+     so a substituent never lands on top of the chain it hangs off. */
+  const pos = new Map([[t.root, [0, 0]]]);
+  const pairDirs = new Map();
+  for (const i of t.order) {
+    const [x, y] = pos.get(i);
+    const p = t.parent.get(i);
+    const kids = t.adj[i].filter(j => j !== p);
+    const np = lonePairs(spec, i, orders);
+    let bonds, pairs;
+    if (p === null) {
+      const S = slots(kids.length, np);
+      bonds = S.bonds; pairs = S.pairs;
+    } else {
+      const back = Math.atan2(pos.get(p)[1] - y, pos.get(p)[0] - x);
+      const a = domains(1 + kids.length + np, back, 0);
+      bonds = a.slice(1, 1 + kids.length); pairs = a.slice(1 + kids.length);
+    }
+    kids.forEach((j, k) => pos.set(j,
+      [x + Math.cos(bonds[k]) * LEWIS_BOND, y + Math.sin(bonds[k]) * LEWIS_BOND]));
+    pairDirs.set(i, pairs);
+  }
 
   const body = [];
-  for (const i of st.ring) {
-    const [x, y] = pos.get(i);
-    body.push(sticks(0, 0, x, y, order(st.c, i), ink));
+  for (const [i, p] of t.parent) {
+    if (p === null) continue;
+    const [x, y] = pos.get(i), [px, py] = pos.get(p);
+    body.push(sticks(px, py, x, y, order(p, i), ink));
   }
-  // the central atom's pairs, then each terminal atom's
-  for (const a of S.pairs) body.push(pairDots(0, 0, a, ink));
-  for (const i of st.ring) {
+  for (const [i, dirs] of pairDirs) {
     const [x, y] = pos.get(i);
-    const toward = Math.atan2(-y, -x);          // back down its own bond
-    for (const a of fan(toward, lonePairs(spec, i, orders))) body.push(pairDots(x, y, a, ink));
+    for (const a of dirs) body.push(pairDots(x, y, a, ink));
   }
   // labels last, over a knockout disc so a bond does not run through them
   const paper = o.paper || paperOf(el);
@@ -290,19 +317,24 @@ function drawLewis(el, spec, o) {
     const a = spec.atoms[i];
     body.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${LEWIS_GAP - 2}" fill="${paper}"/>`);
     body.push(`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" `
-      + `dominant-baseline="central" font-size="15" fill="${colors[a.el] || ink}">${a.el}</text>`);
+      + `dominant-baseline="central" font-size="15" fill="${COLORS[a.el] || ink}">${a.el}</text>`);
     if (a.q) body.push(`<text x="${(x + 11).toFixed(1)}" y="${(y - 9).toFixed(1)}" `
       + `text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="${ink}">`
       + `${Math.abs(a.q) > 1 ? Math.abs(a.q) : ''}${a.q > 0 ? '+' : '−'}</text>`);
   }
 
-  // The viewBox is measured off the furthest thing drawn, lone pairs included,
-  // so a molecule is never clipped by a box sized for its atoms alone.
-  const reach = LEWIS_BOND + LEWIS_PAIR_R + 8;
-  const box = o.maxW && o.maxH ? Math.min(o.maxW, o.maxH) : 170;
+  /* The box is measured off what was actually drawn, lone pairs included — a
+     viewBox sized from the atoms alone clips the dots, and one sized from a
+     single bond length cannot hold a chain. */
+  const xs = [...pos.values()].map(v => v[0]), ys = [...pos.values()].map(v => v[1]);
+  const pad = LEWIS_PAIR_R + 8;
+  const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+  const w = Math.max(...xs) + pad - x0, h = Math.max(...ys) + pad - y0;
+  const sc = Math.min((o.maxW || MAX_W) / w, (o.maxH || 170) / h, 1.4);
   el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" `
-    + `viewBox="${-reach} ${-reach} ${reach * 2} ${reach * 2}" `
-    + `width="${box}" height="${box}" font-family="${FONT}">${body.join('')}</svg>`;
+    + `viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" `
+    + `width="${Math.round(w * sc)}" height="${Math.round(h * sc)}" `
+    + `font-family="${FONT}">${body.join('')}</svg>`;
   return true;
 }
 
@@ -314,11 +346,12 @@ function drawLewis(el, spec, o) {
 function mode(spec) {
   if (!spec) return null;
   if (spec.class === 'sugar' && spec.names) return 'haworth';
-  // One heavy atom means no skeleton at all, and two or three means a bare
-  // stick with the electrons left out — CO₂'s lesson is the four lone pairs a
-  // skeletal drawing does not draw. A star this small is a Lewis structure.
+  // One heavy atom means no skeleton at all, and a handful means a bare stick
+  // with the electrons left out — CO₂'s lesson is the four lone pairs a
+  // skeletal drawing does not draw, and ethanol's is the two that accept a
+  // hydrogen bond. A tree this small is a Lewis structure.
   const heavy = spec.atoms.filter(a => a.el !== 'H').length;
-  if (heavy <= 3 && star(spec) && canLewis(spec)) return 'lewis';
+  if (heavy <= 4 && tree(spec) && canLewis(spec)) return 'lewis';
   return spec.smiles ? 'skeletal' : null;
 }
 
