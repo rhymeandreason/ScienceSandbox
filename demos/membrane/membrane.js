@@ -547,6 +547,63 @@
       atpChips.length = 0;
     }
 
+    /* ---- the pump's cytoplasmic headpiece ----
+       A P-TYPE ATPase IS MOSTLY NOT IN THE MEMBRANE. Ten transmembrane
+       helices carry the ions, and hanging off them on the cytoplasmic side is
+       a headpiece about as tall again, in three domains that a Bio 101 reader
+       can be told apart and told the job of:
+
+         N  nucleotide-binding — the ATP lands HERE, and it is the lobe that
+            reaches furthest out into the cytosol
+         P  phosphorylation — the aspartate that takes the phosphate, at the
+            foot of the head where it meets the membrane
+         A  actuator — takes the phosphate off again, on the other flank
+
+       Drawn because the ATP had nowhere to dock: a token arriving at a bare
+       barrel reads as landing on the membrane rather than on the protein, and
+       the fact that it can only arrive from INSIDE the cell had nothing to be
+       true of. N sits proud and off-axis on purpose — that asymmetry is what
+       makes the head read as a headpiece and not a second barrel.
+
+       The three lobes and their sizes are a schematic, not a structure. What
+       is honest here is the arrangement, the proportion to the membrane part,
+       and which lobe the nucleotide goes to. */
+    /* CLEAR OF THE BARREL, which reaches PUMP.height — a lobe inside that is a
+       lobe nobody sees — and SMALLER THAN F1, which is a fact and not a
+       composition choice. The synthase's head is about 10 nm across and this
+       one about 7, so drawn side by side on one stage the pump's has to be
+       the lesser of the two: a reader comparing them is comparing the real
+       proteins, and the first version had this one the bigger. Measure it
+       against buildRotor's lobes, not against the barrel under it. */
+    const HEAD_N = { x: 6.2,  y: 39.0, r: 4.8 };
+    const HEAD_P = { x: 0.4,  y: 34.0, r: 4.2 };
+    const HEAD_A = { x: -6.0, y: 36.5, r: 3.5 };
+    function buildPumpHead() {
+      const g = new THREE.Group();
+      const mat = () => global.Parts.flat(0x4f9e78);
+      /* The stalk is the helices continuing out of the bilayer, so it starts
+         inside it rather than at its face. */
+      const stalk = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.2, 22, 12), mat());
+      stalk.userData.baseY = HALF + 9; g.add(stalk);
+      for (const [key, L] of [['N', HEAD_N], ['P', HEAD_P], ['A', HEAD_A]]) {
+        const lobe = new THREE.Mesh(new THREE.SphereGeometry(L.r, 18, 13), mat());
+        lobe.scale.set(1, 0.92, 0.92);
+        lobe.position.x = L.x;
+        lobe.userData.baseY = L.y;
+        lobe.userData.domain = key;
+        g.add(lobe);
+      }
+      return g;
+    }
+    const PUMPHEAD = buildPumpHead();
+    PUMP.group.add(PUMPHEAD);
+    /* The head hangs on the CYTOSOLIC side, which is the side the pump's ATP
+       and its Na⁺ both come from. Same rule as F1 and the same reason it is
+       done by sign: a negative scale would turn the lighting inside out. */
+    function orientHead(d) {
+      for (const child of PUMPHEAD.children) child.position.y = -d * child.userData.baseY;
+    }
+
     /* F1 HANGS WHERE THE ATP IS MADE, which is the side the protons come out
        on: the matrix in a mitochondrion, the stroma in a chloroplast. Drawn
        below the membrane in both until the thylakoid flipped, and then it was
@@ -613,6 +670,7 @@
            what it carries is not a traveller at all. */
         holes.push([antX, ANT_HOLE]); PORES.push({ x:antX, R:ANT_R, lumen:7.0, kind:null }); }
       orientRotor(CHEM.pumpDir(P.context));
+      orientHead(CHEM.pumpDir(P.context));
       T = pr.pump ? PUMP : pr.K ? CHANNEL : pr.CL ? CLCHAN : pr.NA ? NACHAN : pr.AQP ? AQP
         : pr.complex ? COMPLEX : pr.synthase ? SYNTH : pr.leak ? LEAK : PUMP;
       if (MEM) root.remove(MEM.group);
@@ -1680,6 +1738,18 @@
       'channel.NA': () => { const x = poreX('NA'); return x == null ? null : at(x, T.height * 0.95); },
       aquaporin:    () => { const x = poreX('water'); return x == null ? null : at(x, T.height * 0.95); },
       pump:    () => P.proteins.pump ? at(pumpX, T.height * 0.98) : null,
+      /* WHERE AN ATP BINDS THE PUMP, which is not the same place as "the
+         pump". The nucleotide site is on the cytoplasmic headpiece: an ATP
+         reaches this protein from INSIDE the cell, the same side the Na⁺ it
+         carries starts on, and that is why the ATP a cell makes is ATP this
+         pump can spend. Aim a delivery here and not at `pump`, which is the
+         top of the barrel — the face on the outside of the cell, which an
+         ATP would have to cross the membrane to reach. No headpiece is drawn,
+         so the site is the barrel's cytosolic flank. */
+      'pump.atp': () => P.proteins.pump
+        ? at(pumpX + HEAD_N.x, -CHEM.pumpDir(P.context) * HEAD_N.y) : null,
+      'pump.head': () => P.proteins.pump
+        ? at(pumpX + HEAD_P.x, -CHEM.pumpDir(P.context) * HEAD_P.y) : null,
       complex:  () => P.proteins.complex  ? at(complexX, COMPLEX.height * 0.98) : null,
       translocase: () => antX == null ? null : at(antX, ANT.height * 0.98),
       porin:    () => !outerOn() ? null : at(porinX, outerY() + CHEM.pumpDir(P.context) * HALF * 0.9),
@@ -1708,9 +1778,13 @@
         card: 'Sodium is high outside, so it leaks in whenever a door is open. This is the door, and every ion through it is one the pump has to throw back out.' },
       aquaporin: { text: 'aquaporin', offset: [40, -30],
         card: 'A pore for water and nothing charged, in single file. Water still crosses the lipid on its own, slowly; this is why some cells move it fast.' },
+      'pump.atp': { text: 'where the ATP binds', offset: [-44, 30],
+        card: 'The N domain, the lobe reaching furthest into the cytosol. An ATP reaches this pump from inside the cell — the same side the Na⁺ it carries starts on — and the pump phosphorylates itself from it before it turns, on the P domain at the foot of the head. That is why the ATP a cell makes is ATP this pump can spend.' },
       /* A CALLOUT NAMES; THE CARD ARGUES. This one said "a carrier, not a
          pore", which is the argument, and left the reader looking at a green
          barrel with no name — while the legend beside it said Na⁺/K⁺ pump. */
+      'pump.head': { text: 'the cytoplasmic head', offset: [-46, 26],
+        card: 'Most of this protein is not in the membrane. Ten helices carry the ions across; the head hanging into the cytosol is three domains — one binds the ATP, one takes the phosphate, one takes it off again — and that cycle of getting phosphorylated and unphosphorylated IS the shape change that moves the cargo.' },
       pump: { text: 'Na⁺/K⁺ pump', offset: [42, -30],
         card: 'A carrier, not a pore: it binds its cargo and changes shape, so it is never open to both sides at once. One ATP buys one turn — 3 Na⁺ out and 2 K⁺ in, both uphill — and that standing cost is most of what a resting cell spends.' },
       heads: { text: 'hydrophilic heads', offset: [34, -30],

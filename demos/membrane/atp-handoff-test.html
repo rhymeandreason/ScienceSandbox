@@ -166,7 +166,10 @@ const mito = Membrane.create(THREE, gMito, box.camera, {
   /* THE ATP HAS SOMEWHERE TO GO, and it is a place in the other sim. The
      token walks the whole way — matrix, translocase, intermembrane space,
      porin, cytosol, pump — and 'atpDelivered' is it arriving. */
-  atpTo: worldOf(cell, gCell, 'pump'),
+  /* 'pump.atp', not 'pump': the nucleotide site is on the cytosolic face, so
+     the ATP arrives at the pump's underside from the cytosol it crossed.
+     Aimed at 'pump' it flew through the bilayer to the outside of the cell. */
+  atpTo: worldOf(cell, gCell, 'pump.atp'),
   /* BOWED, because a mitochondrion is a closed sac and two straight lines are
      two infinite planes. The component curves the outer sheet concentrically
      with this one, so the pair read as the top of one rounded body. The cell
