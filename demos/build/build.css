@@ -427,15 +427,13 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 /* The header sits on a hairline, so the grid below reads as its own field. */
 .mine ul {
   margin: 1.4rem 0 0; padding: 1.8rem 0 0; list-style: none; border-top: 1px solid var(--border-hair);
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 1.5rem; row-gap: 2.4rem;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 1.2rem; row-gap: 1.2rem;
 }
 .mine a { display: block; text-decoration: none; color: var(--text-dim); }
 .mine .thumb {
-  display: block; aspect-ratio: 16 / 10; border-radius: 10px; border: 1px solid var(--border-hair);
+  display: block; aspect-ratio: 16 / 10; border-radius: 8px; border: 1px solid var(--border-hair);
   background: var(--surface-stage) center / cover no-repeat;
   background-image: radial-gradient(var(--surface-rule) 1px, transparent 1.2px); background-size: 12px 12px;
-  box-shadow: 0 10px 20px -16px color-mix(in srgb, var(--brand-ink) 50%, transparent);
-  transition: transform var(--dur-base), border-color var(--dur-base);
 }
 /* A live card: the app rendered at laptop size and scaled to the slot, inert.
    The slot's own size decides the scale, so the frame is laid out at a fixed
@@ -498,10 +496,23 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 }
 .mine .s-nav i { display: block; width: 62px; height: 30px; border-radius: 999px; border: 1px solid var(--border-hair); }
 .mine .s-nav i.primary { background: var(--accent); border-color: var(--accent); }
-.mine li { min-width: 0; }
+/* Each app is one card: the thumb is its picture, the title and the action row
+   its body. The lift and the hairline belong to the card, not to the picture
+   inside it. */
+.mine li {
+  min-width: 0; display: flex; flex-direction: column;
+  padding: .75rem .75rem .7rem; box-sizing: border-box;
+  background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 14px;
+  box-shadow: 0 10px 20px -18px color-mix(in srgb, var(--brand-ink) 50%, transparent);
+  transition: transform var(--dur-base), border-color var(--dur-base), box-shadow var(--dur-base);
+}
+.mine li:hover {
+  transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 18px 34px -22px color-mix(in srgb, var(--brand-ink) 60%, transparent);
+}
 /* Title and date share one block so the date hangs off the title's baseline
    rather than floating a second gap below the thumb. */
-.mine .meta { display: block; margin-top: .7rem; }
+.mine .meta { display: block; margin-top: .65rem; }
 .mine .name {
   display: block; font-family: var(--font-editorial); font-size: 1.05rem; line-height: 1.25;
   letter-spacing: -.005em; color: var(--text-strong);
@@ -517,7 +528,7 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 /* The row under a card. View and Edit are named because they are what the card
    is for; the link and the bin are icons, and the bin is the only thing here
    that cannot be undone, so it only colours on hover. */
-.mine .acts { display: flex; align-items: center; gap: .4rem; margin-top: .6rem; }
+.mine .acts { display: flex; align-items: center; gap: .4rem; margin-top: auto; padding-top: .7rem; }
 .mine .acts .spacer { flex: 1; }
 .mine .acts .btn { padding: 3px 10px; font-size: .78rem; }
 .mine .acts .iconbtn { width: 28px; height: 28px; font-size: 15px; color: var(--text-muted); }
@@ -528,8 +539,7 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 dialog.confirm .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 dialog.confirm .bad { color: var(--accent-hot); }
 
-.mine a:hover .thumb { transform: translateY(-2px); border-color: var(--accent); }
-.mine a:hover .name { color: var(--accent); }
+.mine li:hover .name { color: var(--accent); }
 
 @media (max-width: 860px) {
   .split { flex-direction: column; }
@@ -537,7 +547,7 @@ dialog.confirm .bad { color: var(--accent-hot); }
   body.work.norail .rail { transform: translateY(100%); max-height: 0; width: auto; }
   .preview { padding: 10px; }
   .hero form .row { flex-wrap: wrap; }
-  .mine ul { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 2rem; }
+  .mine ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 540px) {
   .mine ul { grid-template-columns: 1fr; }
