@@ -220,6 +220,31 @@
     return pts;
   }
 
+  /* A MEMBRANE IN SECTION — ONE CONVENTION for every bilayer swept in this
+     file, and the same one buildShell paints on a cut shell's lip: a single
+     sheet `w` across, whose cut top carries two head bands over a paler tail
+     core. Drawn as separate leaflets with something between them a reader
+     counts three layers and asks what the middle one is; a bilayer is one
+     membrane and has to read as one object with an edge.
+     `side` is the underside, which is never the cut face. */
+  function bilayerProfile(THREE, w, h, head, tail, side, o = {}) {
+    const topSeg = o.topSeg || 12, cs = o.cornerSeg || 3;
+    const rad = Math.min(w * 0.42, h * 0.2), pts = [];
+    const band = t => { const m = Math.min(t, 1 - t); return head.clone().lerp(tail, clamp((m - 0.13) / 0.15, 0, 1)); };
+    const corner = (cx, cy, a0, c) => {
+      for (let i = 0; i <= cs; i++) { const a = a0 + (i / cs) * (PI / 2); pts.push({ x: cx + Math.cos(a) * rad, y: cy + Math.sin(a) * rad, color: c }); }
+    };
+    corner(w / 2 - rad, h / 2 - rad, 0, band(0));
+    for (let i = 1; i < topSeg; i++) {
+      const t = i / topSeg;
+      pts.push({ x: w / 2 - rad - t * (w - 2 * rad), y: h / 2, color: band(t) });
+    }
+    corner(-w / 2 + rad, h / 2 - rad, PI / 2, band(1));
+    corner(-w / 2 + rad, -h / 2 + rad, PI, side);
+    corner(w / 2 - rad, -h / 2 + rad, 3 * PI / 2, side);
+    return pts;
+  }
+
   // Sweep a closed profile along a polyline; x is side, y is up (kept against `up`).
   function sweepProfile(THREE, points, profile, opts = {}) {
     const up = opts.up || new THREE.Vector3(0, 1, 0), scales = opts.scales || null;
@@ -849,11 +874,19 @@
        come back through ATP synthase. Everything built here exists to make
        that readable:
 
-       · CRISTAE ARE FLATTENED SACS, not plates. Each is two leaflets with a
-         lumen between them, and the lumen is drawn in the same colour as
-         the intermembrane space because it IS the intermembrane space.
-         Drawn as solid fins — which is what a plate reads as — a student
-         concludes the protons go into the matrix, and the lesson is lost.
+       · A CRISTA IS A FOLD WITH A SLOT IN IT, not a plate. The sheet dives
+         in and comes back out, and the gap between the two arms is the
+         crista lumen — open, continuous with the intermembrane space
+         through the junction, and the place the protons land. Drawn as a
+         solid fin a student concludes the protons go into the matrix, and
+         the lesson is lost.
+
+       · ONE MEMBRANE IS ONE SHEET. It is swept at one membrane's thickness,
+         the same the outer membrane is drawn at, and its cut edge carries
+         the head/tail bands buildShell paints on a cut shell's lip. A
+         wall-lumen-wall ribbon draws each arm as its own sandwich, and the
+         section then has three pale layers a reader has to tell apart from
+         the fold's own slot.
 
        · A CRISTA HANGS OFF NARROW JUNCTIONS and is otherwise free in the
          matrix. Real junctions are ~25 nm necks held by MICOS, which is
@@ -903,9 +936,13 @@
       const r = o.r || 1;
       const L = o.L === undefined ? 1.7 * r : o.L;
       const q = o.detail === undefined ? 1 : o.detail;
-      const th = o.membrane === undefined ? 0.034 * r : o.membrane;   // one membrane, drawn
-      const lumenT = o.lumen === undefined ? 0.057 * r : o.lumen;     // the space inside the fold
-      const ribbonT = 2 * th + lumenT;                                 // the whole fold, across
+      /* ONE THICKNESS FOR A MEMBRANE, inner and outer alike: a bilayer is
+         one sheet, and two membranes drawn at different weights read as two
+         different kinds of thing. */
+      const th = o.membrane === undefined ? 0.045 * r : o.membrane;   // one membrane, drawn
+      const lumenT = o.lumen === undefined ? 0.057 * r : o.lumen;     // the slot inside a fold
+      const armGap = (lumenT + th) / 2;                                // half the pitch of a fold's two arms
+      const ribbonT = 2 * th + lumenT;                                 // a whole fold, across
       /* `cristae` is the number of FOLDS, alternating sides along the
          length, not a count per side: ten is ten fingers meshing, five from
          each wall. The cap is below, and it is geometry rather than taste. */
@@ -947,7 +984,7 @@
       /* ---- the outer membrane ------------------------------------------ */
       const outerMesh = new THREE.Mesh(buildShell(THREE, {
         S: outerS, uRange: [0, 1], wRange: () => [0, cutW], uSeg: Math.round(96 * q), uPeriodic: false,
-        rimStart: true, thickness: th * 1.6,
+        rimStart: true, thickness: th,
         segs: { outer: Math.round(52 * q), rim: Math.max(4, Math.round(6 * q)), inner: Math.round(52 * q) },
         colors: shellOf(ORG.mitochondrion),
       }), mat(Object.assign({ vertexColors: true }, MEM_FINISH)));
@@ -986,45 +1023,49 @@
          misconception the whole organelle is here to kill.
 
          WHAT THIS LEVEL ADDS over mitochondrion() is resolution, not a
-         different construction: more folds, and the sheet swept as THREE
-         ribbons rather than one — a wall, the lumen, a wall. The cut plane
-         runs through all three, so looking down into the organelle a reader
-         sees the sandwich in section, the way an electron micrograph shows
-         it, and the pale core is the same colour as the intermembrane space
-         because it is the same space.
+         different construction: more folds, a sheet with a thickness and a
+         painted edge instead of a line, and folds whose two arms stand a
+         lumen apart and pinch at the junction. The cut plane runs through
+         the sheet, so looking down into the organelle a reader sees a
+         membrane in section with its slot beside it, the way an electron
+         micrograph shows it.
 
-         EACH FOLD IS A U, NOT A V. Its two walls run parallel and the tip is
-         a round arc, so what sits between two folds is a fat lobe of matrix
-         with a narrow finger of membrane between. A spline through a single
-         tip point pulls the walls into a point and the section reads as a
-         saw. */
-      const gapIM = th * 1.6 + (o.ims === undefined ? 0.07 * r : o.ims);
+         EACH FOLD IS A U, NOT A V. Its two arms run parallel a crista
+         lumen apart and the tip is a round arc, so what sits between two
+         folds is a fat lobe of matrix with a narrow finger between. A
+         spline through a single tip point pulls the arms into a point, the
+         lumen closes, and the section reads as a saw. */
+      const gapIM = th + (o.ims === undefined ? 0.07 * r : o.ims);
       const ri = r - gapIM, Li = L - gapIM * 0.4;
       /* HOW MANY FOLDS FIT IS ARITHMETIC, not a preference. A fold is a U:
          its two walls are a whole ribbon thickness each and they must clear
          each other, and the next fold — which comes off the opposite wall
          and interleaves — must clear both. So the pitch cannot go below
-         about twice the ribbon, and asking for more folds than that packs
-         membranes through each other. Refused here with one warning rather
-         than clamped somewhere later.
+         a fold's own footprint plus a lobe of matrix, and asking for more
+         folds than that packs membranes through each other. Refused here
+         with one warning rather than clamped somewhere later.
 
          The cap lands near a real number, which is the point: at the
          default the pitch is about 115 nm, and cristae in a working
          mitochondrion sit roughly 100 nm apart. The organelle is full when
          it looks full. */
-      const maxFold = Math.max(4, Math.floor(2 * Li / (2 * (ribbonT + 0.035 * r))));
+      const maxFold = Math.max(4, Math.floor(2 * Li / (ribbonT + 0.09 * r)));
       if (nFold > maxFold) {
         console.warn(`cell/organelles.js: ${nFold} cristae do not fit a mitochondrion this size; drawing ${maxFold}.`);
         nFold = maxFold;
       }
       const pitch = 2 * Li / nFold;
+      /* A FOLD'S HALF-WIDTH IS NOT FREE: the two arms of the U are one
+         membrane each and the slot between them is the crista lumen, so the
+         arm offset is fixed by the thickness the sheet is drawn at and the
+         lumen it is meant to enclose. Varying it would vary the lumen, which
+         is a compartment and not a shape. */
       const folds = [], bases = [];
-      const wMin = ribbonT * 0.62, wMax = pitch * 0.5 - ribbonT * 0.62;
       for (let k = 0; k < nFold; k++)
         folds.push({
           x: -Li + pitch * (k + 0.5) + rr(-0.04, 0.04) * pitch,
           dir: k % 2 ? -1 : 1,
-          w: clamp(pitch * rr(0.28, 0.33), wMin, Math.max(wMin, wMax)),
+          w: armGap,
           depth: rr(1.08, 1.38),
         });
       const comb = (dir, ascending) => {
@@ -1032,24 +1073,28 @@
         if (!ascending) mine.reverse();
         for (const f of mine) {
           const sgn = ascending ? 1 : -1, tip = dir * ri * (1 - f.depth), lip = dir * ri;
-          out.push(new V3(f.x - sgn * f.w * 2.1, 0, lip));
-          out.push(new V3(f.x - sgn * f.w * 1.45, 0, dir * ri * 0.86));   // ease off the wall
-          out.push(new V3(f.x - sgn * f.w, 0, dir * ri * 0.42));
-          out.push(new V3(f.x - sgn * f.w * 0.88, 0, tip * 0.66));
-          out.push(new V3(f.x - sgn * f.w * 0.34, 0, tip));
-          out.push(new V3(f.x + sgn * f.w * 0.34, 0, tip));
-          out.push(new V3(f.x + sgn * f.w * 0.88, 0, tip * 0.66));
-          out.push(new V3(f.x + sgn * f.w, 0, dir * ri * 0.42));
-          out.push(new V3(f.x + sgn * f.w * 1.45, 0, dir * ri * 0.86));
-          out.push(new V3(f.x + sgn * f.w * 2.1, 0, lip));
+          /* THE ARMS PINCH WHERE THE FOLD LEAVES THE WALL and stand parallel
+             below it, so the slot between them is a crista lumen with a
+             neck rather than an open bay. 0.62 of the arm offset at the
+             junction against 1.0 below is the ~25 nm neck, in section. */
+          out.push(new V3(f.x - sgn * f.w * 2.0, 0, lip));
+          out.push(new V3(f.x - sgn * f.w * 0.62, 0, dir * ri * 0.88));    // the junction
+          out.push(new V3(f.x - sgn * f.w, 0, dir * ri * 0.52));
+          out.push(new V3(f.x - sgn * f.w, 0, tip * 0.60));
+          out.push(new V3(f.x - sgn * f.w * 0.70, 0, tip));
+          out.push(new V3(f.x + sgn * f.w * 0.70, 0, tip));
+          out.push(new V3(f.x + sgn * f.w, 0, tip * 0.60));
+          out.push(new V3(f.x + sgn * f.w, 0, dir * ri * 0.52));
+          out.push(new V3(f.x + sgn * f.w * 0.62, 0, dir * ri * 0.88));
+          out.push(new V3(f.x + sgn * f.w * 2.0, 0, lip));
           /* WHERE THE FOLD LEAVES THE WALL is the crista junction: in a real
              organelle a ~25 nm neck held open by MICOS, and the reason the
              protons a fold pumps stay in that fold rather than washing into
              the whole intermembrane space. Recorded here and drawn as a
              pinch in the lumen, which is the only place a section can show
              it. */
-          bases.push([f.x - sgn * f.w * 1.45, dir * ri * 0.86, f.w]);
-          bases.push([f.x + sgn * f.w * 1.45, dir * ri * 0.86, f.w]);
+          bases.push([f.x - sgn * f.w * 0.62, dir * ri * 0.88, f.w]);
+          bases.push([f.x + sgn * f.w * 0.62, dir * ri * 0.88, f.w]);
         }
         return out;
       };
@@ -1061,11 +1106,11 @@
       ctrl.push(new V3(-Li - ri * 0.5, 0, -0.62 * ri), new V3(-Li - ri * 0.8, 0, 0));
 
       const curve = new THREE.CatmullRomCurve3(ctrl, true, 'centripetal', 0.5);
-      const pathXZ = curve.getPoints(Math.round(460 * q)).map(p2 => [p2.x, p2.z]);
+      const pathXZ = curve.getPoints(Math.round(760 * q)).map(p2 => [p2.x, p2.z]);
 
       // rho of the outer surface at x, so the ribbon can stand on the floor
       const rhoAt = x => (Math.abs(x) <= L ? r : Math.sqrt(Math.max(0, r * r - (Math.abs(x) - L) * (Math.abs(x) - L))));
-      const BASE = 0.5, pts = [], scales = [], hs = [], pinch = [];
+      const BASE = 0.5, pts = [], scales = [], hs = [];
       for (const [x, z] of pathXZ) {
         const rho = Math.max(1e-3, rhoAt(x) - gapIM);
         const zz = clamp(z, -rho * 0.98, rho * 0.98);
@@ -1074,27 +1119,22 @@
         pts.push(new V3(x, floor + h / 2, zz));
         scales.push([1, h / BASE]);
         hs.push(h);
-        // the junction's waist, as a dip in the lumen's width
-        let k = 1;
-        for (const [bx, bz, bw] of bases) {
-          const d2 = (x - bx) * (x - bx) + (z - bz) * (z - bz), s2 = (bw * 0.5) * (bw * 0.5);
-          k = Math.min(k, 1 - 0.6 * Math.exp(-d2 / (2 * s2)));
-        }
-        pinch.push(k);
       }
 
+      /* ONE SHEET, ONE SWEEP. The inner membrane is a single ribbon of one
+         membrane's thickness, cut on the same plane as the shell and painted
+         with the same three bands the plasma membrane's lip carries. The
+         crista lumen is not drawn: it is the SLOT between a fold's two arms,
+         open at the junction onto the intermembrane space, because that is
+         what it is. Swept as wall-lumen-wall instead, the sheet's own lumen
+         and the fold's slot are two different pale gaps a reader has to tell
+         apart, and the section reads as three layers of something. */
       const memMat = mat(Object.assign({ vertexColors: true, side: THREE.DoubleSide }, MEM_FINISH));
-      const wallSide = col(ORG.mitochondrion.cristaSide), wallTop = col(ORG.mitochondrion.cristaTop);
-      const lumenCol = col(ORG.mitochondrion.lumen);
-      const shifted = (w, h, rad, cs, ct, dx) =>
-        roundedRectProfile(THREE, w, h, rad, cs, ct).map(p => ({ x: p.x + dx, y: p.y, color: p.color }));
-      const off = lumenT / 2 + th / 2;
-      for (const dx of [-off, off])
-        gInner.add(new THREE.Mesh(sweepProfile(THREE, pts, shifted(th, BASE, th * 0.4, wallSide, wallTop, dx), { scales }), memMat));
       gInner.add(new THREE.Mesh(
-        sweepProfile(THREE, pts, roundedRectProfile(THREE, lumenT, BASE * 0.99, lumenT * 0.3, lumenCol, lumenCol),
-          { scales: scales.map(([, sy], i) => [pinch[i], sy]) }),
-        mat({ vertexColors: true, roughness: 0.55, clearcoat: 0.2, side: THREE.DoubleSide })));
+        sweepProfile(THREE, pts,
+          bilayerProfile(THREE, th, BASE, col(ORG.mitochondrion.head), col(ORG.mitochondrion.tail), col(ORG.mitochondrion.cristaSide)),
+          { scales }),
+        memMat));
 
       /* ---- where the machines go ----------------------------------------
          Along the ribbon, and which FACE matters: a face looking out at the
@@ -1133,7 +1173,7 @@
            threshold puts dimer rows down the whole finger. */
         const atTip = (x, z) => folds.some(f => {
           const tz = f.dir * ri * (1 - f.depth), dx = x - f.x, dz = z - tz;
-          return dx * dx + dz * dz < (f.w * 1.05) * (f.w * 1.05);
+          return dx * dx + dz * dz < (f.w * 3.0) * (f.w * 3.0);
         });
         let kc = 0;
         for (let i = 0; i < n; i += stepI) {
@@ -1149,10 +1189,12 @@
           const inward = nearWall ? -Math.sign(P.z || 1) * Math.sign(side.z || 1) : 0;
           const yOff = (rr(0.32, 0.68) - 0.5) * h;
           const mid = P.clone().addScaledVector(upv, yOff);
-          const at = s => mid.clone().addScaledVector(side, s * (off + th / 2));
+          /* A machine sits ON a face of the sheet, and the sheet is now one
+             membrane thick, so the face is half a membrane out. */
+          const at = s => mid.clone().addScaledVector(side, s * (th / 2));
           if (!nearWall && atTip(P.x, P.z)) {
             for (const s of [-1, 1])
-              sites.synthase.push({ p: at(s), out: side.clone().multiplyScalar(s), lumen: mid.clone() });
+              sites.synthase.push({ p: at(s), out: side.clone().multiplyScalar(s), lumen: at(-s).addScaledVector(side, -s * armGap * 0.8) });
           } else {
             /* BOTH FACES OF A FOLD LOOK OUT ON MATRIX, so both carry
                machines; a wall-hugging run has only its inward face, since
@@ -1160,7 +1202,7 @@
                most of why a folded membrane is worth having. */
             for (const s of (inward ? [inward] : [-1, 1]))
               sites.complex.push({ p: at(s), out: side.clone().multiplyScalar(s), kind: KINDS[kc++ % KINDS.length],
-                spin: rr(0, 2 * PI), lumen: mid.clone() });
+                spin: rr(0, 2 * PI), lumen: at(-s).addScaledVector(side, -s * armGap * 0.8) });
           }
         }
       }
@@ -1289,14 +1331,21 @@
 
       /* Points inside each compartment, for the protons that live there. */
       for (let i = 0; i < 70; i++) pockets.matrix.push(matrixPt());
+      /* THE LUMEN IS THE SLOT BETWEEN A FOLD'S TWO ARMS — nothing is drawn
+         there, so a point in it is found from the fold rather than from the
+         sheet: down the fold's own midline, between the junction and the
+         tip. A point taken on the path would be inside the membrane. */
       for (let i = 0; i < 70; i++) {
-        const k = Math.floor(rr(0, n)) % n;
-        pockets.lumen.push(pts[k].clone().addScaledVector(frames[k][1], (rr(0.2, 0.8) - 0.5) * hs[k]));
+        const f = folds[Math.floor(rr(0, folds.length)) % folds.length];
+        const t = rr(0.1, 0.95), tz = f.dir * ri * (1 - f.depth), z = f.dir * ri * 0.9 + (tz - f.dir * ri * 0.9) * t;
+        const rho = Math.max(1e-3, rhoAt(f.x) - gapIM), zz = clamp(z, -rho * 0.98, rho * 0.98);
+        const floor = -Math.sqrt(Math.max(0.0001, rho * rho - zz * zz)), h = Math.max(0.06, -floor - 0.035 * r);
+        pockets.lumen.push(new V3(f.x, floor + h * rr(0.25, 0.85), zz));
       }
       for (let i = 0; i < 60; i++) {
         const u = rr(0.03, 0.97), w = rr(0.10 * PI, cutW - 0.10 * PI);
         const a = outerS(u, w), nn = surfaceNormal(THREE, outerS, new V3(), u, w);
-        pockets.ims.push(a.addScaledVector(nn, -(th * 1.6 + (gapIM - th * 1.6) * 0.5)));
+        pockets.ims.push(a.addScaledVector(nn, -(th + (gapIM - th) * 0.5)));
       }
 
       /* The two places on the ribbon a caption wants to point at, resolved to
@@ -1365,6 +1414,6 @@
   }
 
   global.CellOrganelles = {
-    kit, seededRandom, makeNoise, surfaceNormal, buildShell, roundedRectProfile, sweepProfile, displace,
+    kit, seededRandom, makeNoise, surfaceNormal, buildShell, roundedRectProfile, bilayerProfile, sweepProfile, displace,
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

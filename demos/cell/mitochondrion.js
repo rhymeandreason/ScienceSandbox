@@ -5,7 +5,7 @@
  *  cut cell. The SAME PICTURE the cut cell's mitochondrion already draws — an
  *  outer membrane, and inside it one continuous inner membrane folded back
  *  and forth — with the resolution that distance was hiding: twice the folds,
- *  the sheet swept as a wall, its lumen and a wall rather than as a line, the
+ *  the sheet swept as a membrane with an edge rather than as a line, the
  *  electron transport chain on it, and protons making the round trip that
  *  respiration is paid in.
  *
@@ -24,8 +24,10 @@
  *  and the inside of every fold, joined at the crista junctions — and one
  *  space inside it, the matrix. Protons go out of the matrix at the complexes
  *  and come back through ATP synthase. Everything drawn is in service of
- *  that: the sheet is ONE ribbon so nobody can read the folds as separate
- *  compartments, and its lumen is the intermembrane space's own colour.
+ *  that: the sheet is ONE ribbon of ONE membrane's thickness so nobody can
+ *  read the folds as separate compartments, and a crista lumen is drawn as
+ *  what it is — the open slot between a fold's two arms, necked at the
+ *  junction and continuous with the intermembrane space.
  *
  *  THE MACHINES ARE MEMBRANE'S COLOURS, not this component's. The chain's
  *  blue, the synthase's gold, the porin's grey and the proton all come from
@@ -67,8 +69,8 @@
  *  rebuilds — nothing tweens across a rebuild.
  *
  *  BUDGET, measured on the bench at the default ten folds: 0.06 ms a step,
- *  1 ms a frame, 126k triangles, 17 draw calls. The inner membrane is three
- *  swept meshes however many folds it has, which is why the call count
+ *  1 ms a frame, 126k triangles, 17 draw calls. The inner membrane is one
+ *  swept mesh however many folds it has, which is why the call count
  *  barely moves with `cristae`. A REBUILD IS 40 TO 60 ms, which is why
  *  `cristae`, `open` and `seed` are rebuild parameters and must not go on a
  *  slider a student drags. The bench does exactly that, and it is a bench.
@@ -92,9 +94,9 @@
   const R = 3.5;                       // half-width: the capsule is 0.7 µm across
   const UNIT = 1e-7;                   // metres per scene unit
   const NM = u => u * UNIT * 1e9;
-  const TH = 0.034 * R;                // one membrane, drawn
+  const TH = 0.045 * R;                // one membrane, drawn — outer and inner alike
   const IMS = 0.07 * R;                // the intermembrane space, drawn
-  const LUM = 0.057 * R;               // the space inside a fold, drawn
+  const LUM = 0.085 * R;               // the slot inside a fold, drawn
   /* Measured thicknesses, for the exaggeration factors below. A bilayer is
      ~4 nm (OPM); the intermembrane space and a crista lumen are ~20 nm and a
      crista junction ~25 nm across in tomography. */
@@ -370,7 +372,7 @@
            they are here so a page prints the drawing rather than guessing. */
         lengthNm: NM(2 * (1.7 * R + R)), widthNm: NM(2 * R),
         cristaSpacingNm: NM(d.pitch),
-        membraneNm: NM(d.th), imsNm: NM(d.gapIM - d.th * 1.6), lumenNm: NM(d.lumenT),
+        membraneNm: NM(d.th), imsNm: NM(d.gapIM - d.th), lumenNm: NM(d.lumenT),
         hovered, selected, shown: Object.assign({}, shown),
       };
     }
