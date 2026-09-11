@@ -108,13 +108,202 @@ function highlight(spec, refs) {
     ? adj[i].find(j => spec.atoms[j].el !== 'H') : i));
 }
 
-/* Which projection this spec's lesson needs, or null when neither can be drawn.
+/* ---- Lewis structures -----------------------------------------------------
+ * The projection for a molecule too small to have a skeleton. Skeletal notation
+ * draws BONDS and infers the atoms at their vertices, so a molecule with one
+ * heavy atom draws as nothing at all: methane is a single unlabelled vertex,
+ * water a lone O floating beside a formula that already said H₂O. These are
+ * also the molecules where a Lewis structure carries the whole lesson — water's
+ * two lone pairs and the bend they force is what makes it a solvent.
+ *
+ * THE LAYOUT IS TOPOLOGICAL, and deliberately not the spec's own coordinates.
+ * Haworth projects real geometry because a sugar's lesson IS which face an -OH
+ * sits on; a Lewis structure is a bookkeeping diagram for electrons, drawn on
+ * the page's own axes since Lewis. Projecting a tetrahedron would draw methane
+ * as a squashed Y and claim an angle the drawing does not mean. What IS read
+ * from the spec is everything the diagram asserts: which atoms, which bonds,
+ * their orders, and the formal charge each atom carries.
+ *
+ * Only a STAR fits this layout — one central atom, everything else terminal on
+ * it. Anything larger has a skeleton and belongs in the skeletal drawing, so
+ * `star()` returning null is what keeps the two from competing.
+ */
+
+// Valence electrons, for the main-group elements a spec can hold. A lone pair
+// count is V - formal charge - bonds, halved, which is the same arithmetic as
+// the formal-charge rule read the other way round.
+const VALENCE = { H:1, B:3, C:4, N:5, O:6, F:7, Si:4, P:5, S:6, Cl:7, Br:7, I:7 };
+
+const LEWIS_BOND = 46;    // px, centre to centre
+const LEWIS_GAP = 13;     // px of clear space around a label
+const LEWIS_PAIR_R = 15;  // px from centre to a lone pair
+const LEWIS_DOT = 1.9;    // px, one electron
+
+/* The central atom, and its neighbours in spec order, or null when the molecule
+ * is not a star. A two-atom molecule has no centre to find and either atom
+ * serves, so it is answered directly. */
+function star(spec) {
+  const n = spec.atoms.length;
+  if (n < 2) return null;
+  const deg = spec.atoms.map(() => 0);
+  spec.bonds.forEach(([i, j]) => { deg[i]++; deg[j]++; });
+  if (n === 2) return { c: 0, ring: [1] };
+  const c = deg.indexOf(Math.max(...deg));
+  if (deg[c] !== n - 1) return null;
+  if (deg.some((d, i) => i !== c && d !== 1)) return null;
+  return { c, ring: spec.atoms.map((a, i) => i).filter(i => i !== c) };
+}
+
+function bondOrders(spec) {
+  const t = spec.atoms.map(() => 0);
+  spec.bonds.forEach(b => { const o = b[2] || 1; t[b[0]] += o; t[b[1]] += o; });
+  return t;
+}
+
+/* Lone pairs on one atom. An element the table does not know gets none rather
+ * than a guess — a wrong pair count is a chemical claim, a missing one is a
+ * visibly incomplete drawing. */
+function lonePairs(spec, i, orders) {
+  const V = VALENCE[spec.atoms[i].el];
+  if (V === undefined) return 0;
+  const free = V - (spec.atoms[i].q || 0) - orders[i];
+  return free > 0 ? Math.floor(free / 2) : 0;
+}
+
+/* Where the central atom's bonds and lone pairs go. Everything around it takes
+ * one slot of an evenly divided circle — its steric number, which is the count
+ * VSEPR itself works from. The lone pairs take the TOP slots and the bonds
+ * hang below, which is how water comes out bent with its pairs above rather
+ * than as a straight H-O-H. */
+function slots(nBonds, nPairs) {
+  const sn = nBonds + nPairs || 1;
+  const step = 2 * Math.PI / sn;
+  // With no pair to place, start straight up: methane's four bonds then land on
+  // the compass points rather than on the diagonals.
+  const start = nPairs ? Math.PI / 2 - step * (nPairs - 1) / 2 : Math.PI / 2;
+  const a = [];
+  for (let k = 0; k < sn; k++) a.push(start + k * step);
+  return { pairs: a.slice(0, nPairs), bonds: a.slice(nPairs) };
+}
+
+/* Directions for the lone pairs on a TERMINAL atom: fanned out around the
+ * continuation of its one bond, so they point away from the molecule. */
+function fan(away, n) {
+  if (n <= 0) return [];
+  const spread = n === 1 ? 0 : Math.min(2.0, 0.7 * (n - 1)) ;
+  const out = [];
+  for (let k = 0; k < n; k++) out.push(away - spread / 2 + (n === 1 ? 0 : spread * k / (n - 1)));
+  return out;
+}
+
+// Two dots straddling `dir`, drawn perpendicular to it.
+function pairDots(x, y, dir, ink) {
+  const px = -Math.sin(dir) * 3.4, py = Math.cos(dir) * 3.4;
+  const cx = x + Math.cos(dir) * LEWIS_PAIR_R, cy = y + Math.sin(dir) * LEWIS_PAIR_R;
+  return `<circle cx="${(cx + px).toFixed(1)}" cy="${(cy + py).toFixed(1)}" r="${LEWIS_DOT}" fill="${ink}"/>`
+       + `<circle cx="${(cx - px).toFixed(1)}" cy="${(cy - py).toFixed(1)}" r="${LEWIS_DOT}" fill="${ink}"/>`;
+}
+
+/* A bond drawn as `order` parallel lines, both ends pulled back clear of the
+ * labels they run between. */
+function sticks(ax, ay, bx, by, order, ink) {
+  const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len, px = -uy, py = ux;
+  const x0 = ax + ux * LEWIS_GAP, y0 = ay + uy * LEWIS_GAP;
+  const x1 = bx - ux * LEWIS_GAP, y1 = by - uy * LEWIS_GAP;
+  const out = [];
+  for (let k = 0; k < order; k++) {
+    const off = (k - (order - 1) / 2) * 3.4;
+    out.push(`<line x1="${(x0 + px * off).toFixed(1)}" y1="${(y0 + py * off).toFixed(1)}" `
+           + `x2="${(x1 + px * off).toFixed(1)}" y2="${(y1 + py * off).toFixed(1)}" `
+           + `stroke="${ink}" stroke-width="1.4" stroke-linecap="round"/>`);
+  }
+  return out.join('');
+}
+
+/* Whether a Lewis structure can be drawn HONESTLY. Every atom must have a known
+ * valence and an EVEN number of non-bonding electrons — because an odd count
+ * means the drawing would have to show an unpaired electron, and in this
+ * library that is never a radical, it is a UNITED ATOM. Acetaldehyde's methyl
+ * is one carbon sphere standing for CH₃ (MolecularGeometry.md §1.3b); drawn as
+ * Lewis it would come out as a carbon wearing one bond and a lone pair, which
+ * is a chemical claim the spec never made. It draws as a skeleton instead,
+ * where a bare vertex is exactly what the notation means. */
+function canLewis(spec) {
+  const orders = bondOrders(spec);
+  return spec.atoms.every((a, i) => {
+    const V = VALENCE[a.el];
+    if (V === undefined) return false;
+    const free = V - (a.q || 0) - orders[i];
+    return free >= 0 && free % 2 === 0;
+  });
+}
+
+function drawLewis(el, spec, o) {
+  const st = star(spec);
+  if (!st) return false;
+  const orders = bondOrders(spec);
+  const ink = INK, colors = COLORS;
+  const order = (i, j) => {
+    const b = spec.bonds.find(b => (b[0] === i && b[1] === j) || (b[0] === j && b[1] === i));
+    return b ? (b[2] || 1) : 1;
+  };
+
+  const cPairs = lonePairs(spec, st.c, orders);
+  const S = slots(st.ring.length, cPairs);
+  const pos = new Map([[st.c, [0, 0]]]);
+  st.ring.forEach((i, k) => {
+    const a = S.bonds[k];
+    pos.set(i, [Math.cos(a) * LEWIS_BOND, Math.sin(a) * LEWIS_BOND]);
+  });
+
+  const body = [];
+  for (const i of st.ring) {
+    const [x, y] = pos.get(i);
+    body.push(sticks(0, 0, x, y, order(st.c, i), ink));
+  }
+  // the central atom's pairs, then each terminal atom's
+  for (const a of S.pairs) body.push(pairDots(0, 0, a, ink));
+  for (const i of st.ring) {
+    const [x, y] = pos.get(i);
+    const away = Math.atan2(y, x);
+    for (const a of fan(away, lonePairs(spec, i, orders))) body.push(pairDots(x, y, a, ink));
+  }
+  // labels last, over a knockout disc so a bond does not run through them
+  const paper = o.paper || paperOf(el);
+  for (const [i, [x, y]] of pos) {
+    const a = spec.atoms[i];
+    body.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${LEWIS_GAP - 2}" fill="${paper}"/>`);
+    body.push(`<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" `
+      + `dominant-baseline="central" font-size="15" fill="${colors[a.el] || ink}">${a.el}</text>`);
+    if (a.q) body.push(`<text x="${(x + 11).toFixed(1)}" y="${(y - 9).toFixed(1)}" `
+      + `text-anchor="middle" dominant-baseline="central" font-size="10.5" fill="${ink}">`
+      + `${Math.abs(a.q) > 1 ? Math.abs(a.q) : ''}${a.q > 0 ? '+' : '−'}</text>`);
+  }
+
+  // The viewBox is measured off the furthest thing drawn, lone pairs included,
+  // so a molecule is never clipped by a box sized for its atoms alone.
+  const reach = LEWIS_BOND + LEWIS_PAIR_R + 8;
+  const box = o.maxW && o.maxH ? Math.min(o.maxW, o.maxH) : 170;
+  el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" `
+    + `viewBox="${-reach} ${-reach} ${reach * 2} ${reach * 2}" `
+    + `width="${box}" height="${box}" font-family="${FONT}">${body.join('')}</svg>`;
+  return true;
+}
+
+/* Which projection this spec's lesson needs, or null when none can be drawn.
  * A sugar's is Haworth, which derives everything from the committed ring
- * numbering and so cannot run without `names`; the rest take the skeletal
- * drawing, which needs only the baked `smiles`. */
+ * numbering and so cannot run without `names`; a molecule with no skeleton to
+ * draw takes a Lewis structure; the rest take the skeletal drawing, which needs
+ * only the baked `smiles`. */
 function mode(spec) {
   if (!spec) return null;
   if (spec.class === 'sugar' && spec.names) return 'haworth';
+  // One heavy atom means no skeleton at all, and two or three means a bare
+  // stick with the electrons left out — CO₂'s lesson is the four lone pairs a
+  // skeletal drawing does not draw. A star this small is a Lewis structure.
+  const heavy = spec.atoms.filter(a => a.el !== 'H').length;
+  if (heavy <= 3 && star(spec) && canLewis(spec)) return 'lewis';
   return spec.smiles ? 'skeletal' : null;
 }
 
@@ -173,9 +362,11 @@ function draw(el, spec, opts) {
   el.innerHTML = '';
   const m = mode(spec);
   if (!m) return false;
-  return m === 'haworth' ? drawHaworth(el, spec, o) : drawSkeletal(el, spec, o);
+  if (m === 'haworth') return drawHaworth(el, spec, o);
+  if (m === 'lewis') return drawLewis(el, spec, o);
+  return drawSkeletal(el, spec, o);
 }
 
-global.Diagram2D = { draw, highlight, mode, INK, COLORS, HL, PAPER, FONT, MAX_W, MAX_H };
+global.Diagram2D = { draw, highlight, mode, lonePairs, INK, COLORS, HL, PAPER, FONT, MAX_W, MAX_H };
 
 })(typeof self !== 'undefined' ? self : this);

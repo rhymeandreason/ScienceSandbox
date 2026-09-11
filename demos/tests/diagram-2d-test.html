@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>diagram-2d bench</title>
+<link rel="stylesheet" href="../css/bench.css">
+<style>
+  body{padding:24px 28px}
+  h1{font-family:var(--font-shout);font-weight:var(--weight-regular);font-size:26px;margin:0 0 4px}
+  p.intro{margin:0 0 20px;color:var(--text-muted);font-size:14px}
+  h2{font-family:var(--font-slab);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;
+     color:var(--muted);margin:26px 0 10px;border-bottom:1px solid var(--hair);padding-bottom:6px}
+  .grid{display:flex;flex-wrap:wrap;gap:14px}
+  .cell{background:var(--paper);border:1px solid var(--hair);border-radius:6px;padding:10px;
+        display:flex;flex-direction:column;align-items:center;gap:6px}
+  .cell b{font-size:12px;font-weight:600}
+  .cell span{font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<h1>diagram-2d</h1>
+<p class="intro">Every spec in the library, drawn by whichever projection
+  <code>Diagram2D.mode()</code> picks. The counts under a Lewis structure are read
+  back off the drawing, so a wrong pair count shows here rather than on a lesson.</p>
+<div id="out"></div>
+
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/skel.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/mol-aminoacids.js"></script>
+<script src="../lib/mol-pathways.js"></script>
+<script src="../lib/mol-krebs.js"></script>
+<script src="../lib/mol-carriers.js"></script>
+<script src="../lib/mol-sugars.js"></script>
+<script src="../lib/mol-glycans.js"></script>
+<script src="../lib/mol-lipids.js"></script>
+<script src="../lib/mol-nucleic.js"></script>
+<script src="../lib/haworth.js"></script>
+<script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
+<script src="../lib/diagram-2d.js"></script>
+<script>
+"use strict";
+const out = document.getElementById('out');
+const by = { lewis:[], haworth:[], skeletal:[], none:[] };
+for (const [key, spec] of Object.entries(MolLib.MOLECULES))
+  by[Diagram2D.mode(spec) || 'none'].push([key, spec]);
+
+for (const kind of ['lewis','haworth','skeletal','none']) {
+  if (!by[kind].length) continue;
+  const h = document.createElement('h2');
+  h.textContent = `${kind} — ${by[kind].length}`;
+  out.appendChild(h);
+  const g = document.createElement('div'); g.className = 'grid'; out.appendChild(g);
+  for (const [key, spec] of by[kind]) {
+    const c = document.createElement('div'); c.className = 'cell';
+    const panel = document.createElement('div');
+    c.appendChild(panel);
+    const b = document.createElement('b'); b.textContent = key; c.appendChild(b);
+    g.appendChild(c);
+    if (kind === 'none') { panel.textContent = '—'; continue; }
+    Diagram2D.draw(panel, spec, { showH:true, maxW:300, maxH:170 });
+    // Counted off the finished SVG, not off the spec: the point is whether the
+    // DRAWING has them.
+    if (kind === 'lewis') {
+      const s = document.createElement('span');
+      const pairs = panel.querySelectorAll('circle[r="1.9"]').length / 2;
+      s.textContent = `${spec.formula} · ${pairs} lone pairs`;
+      c.appendChild(s);
+    }
+  }
+}
+</script>
+</body>
+</html>
