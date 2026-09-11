@@ -883,7 +883,9 @@
 
        · ONE MEMBRANE IS ONE SHEET. It is swept at one membrane's thickness,
          the same the outer membrane is drawn at, and its cut edge carries
-         the head/tail bands buildShell paints on a cut shell's lip. A
+         the two bands buildShell paints on a cut shell's lip — in the inner
+         membrane's own pale pinks, the ones the cut cell already paints its
+         cristae with, so the two levels of detail are one object. A
          wall-lumen-wall ribbon draws each arm as its own sandwich, and the
          section then has three pale layers a reader has to tell apart from
          the fold's own slot.
@@ -1132,7 +1134,7 @@
       const memMat = mat(Object.assign({ vertexColors: true, side: THREE.DoubleSide }, MEM_FINISH));
       gInner.add(new THREE.Mesh(
         sweepProfile(THREE, pts,
-          bilayerProfile(THREE, th, BASE, col(ORG.mitochondrion.head), col(ORG.mitochondrion.tail), col(ORG.mitochondrion.cristaSide)),
+          bilayerProfile(THREE, th, BASE, col(ORG.mitochondrion.cristaSide), col(ORG.mitochondrion.cristaTop), col(ORG.mitochondrion.cristaSide)),
           { scales }),
         memMat));
 

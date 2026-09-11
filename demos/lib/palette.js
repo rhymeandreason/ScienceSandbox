@@ -210,11 +210,16 @@
          between. An organelle drawn as ribbons instead carries `side` and
          `top` — the ER and the mitochondrion's cristae. */
       plasma:        { outer:0xee8e84, inner:0xa8132a, rim:0xf4b0a6, head:0xe0705c, tail:0xf0c98a },
-      /* `cristaTop` is the LIT EDGE of a crista, lighter than `cristaSide`
-         but not white: a mitochondrion lying on a cut plane is seen straight
-         down its opening, where the cristae are most of what shows, and a
-         white top there leaves a white bar in a thin orange ring instead of
-         an organelle. */
+      /* `cristaSide` and `cristaTop` ARE THE INNER MEMBRANE, at both levels
+         of detail: the face of the sheet and the lighter band at its cut
+         edge. The cut organelle paints the two on a swept line; the detailed
+         one paints them as the head and tail bands of a bilayer in section.
+         They are PALE against the outer membrane on purpose — the inner
+         membrane is most of what a reader sees looking down into the
+         opening, and the outer one is the ring around it, so the dark
+         orange belongs on the outside. `cristaTop` is lighter than
+         `cristaSide` but not white: white there leaves a bar in a thin
+         orange ring instead of an organelle. */
       mitochondrion: { outer:0xe0552f, inner:0xe2775b, rim:0xf4b8a4, head:0xd9612f, tail:0xeeba7e,
                        cristaSide:0xf2a3ae, cristaTop:0xfbcdc7,
                        /* `matrix` is the fluid the cristae fold into, paler
