@@ -51,15 +51,15 @@
   .sechead h2{font-size:clamp(1.6rem,2.6vw,2.1rem);font-weight:500;
     letter-spacing:-.035em;text-transform:lowercase;line-height:1}
   .sechead{gap:1.1rem;margin-bottom:1.2rem}
-  /* The way OUT of a section, in the front door's own device: a coloured
-     micro-cap with a rule under it (index.html's `.gallery .more`). Not a
-     button — the accent capsule is the page's ONE action, and a page with
-     three of them has none — and not kodo's muted `.more` either, which
-     beside a title-sized head reads as a caption. */
+  /* The way OUT of a section, in the front door's own device (index.html's
+     `.gallery .more`): an accent micro-cap. Not a button — the accent capsule
+     is the page's ONE action, and a page with three of them has none — and not
+     kodo's muted `.more` either, which beside a title-sized head reads as a
+     caption. No rule under it: the head's own hairline runs into it. */
   .sechead .more{font-size:.74rem;font-weight:var(--cap-weight);
     letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
-    padding-bottom:.4rem;border-bottom:1px solid var(--accent);white-space:nowrap}
-  .sechead .more:hover{color:var(--spark);border-color:var(--spark)}
+    white-space:nowrap}
+  .sechead .more:hover{color:var(--spark)}
   @media (prefers-reduced-motion:no-preference){ html{scroll-behavior:smooth} }
 
   /* Every column count is FIXED, not auto-fill: the two shelves are cut to
