@@ -106,7 +106,7 @@ const steps = [
       ctx.qa('.chip').forEach(b => b.addEventListener('click', () => {
         const kind = b.dataset.kind;
         const x = kind === 'o2' ? -60 : kind === 'co2' ? 60 : 0;
-        M.scatter(kind, 1, 1, { x: x + (Math.random() - 0.5) * 30, y: 72, shell: kind === 'NA', born: 0 });
+        M.scatter(kind, 1, 1, { x: x + (Math.random() - 0.5) * 30, y: 72, born: 0 });
         if (kind === 'NA') M.note('NA');
         ctx.q('#say').textContent = SAY[kind];
       }));
@@ -164,11 +164,11 @@ const steps = [
     nextLabel: 'Now the pump',
     onEnter(ctx) {
       plain();
-      M.set({ proteins: { K: { x: K_X }, CL: { x: PUMP_X } }, shells: true,
+      M.set({ proteins: { K: { x: K_X }, CL: { x: PUMP_X } },
               contents: { inside: { water: 30, K: 16 }, outside: { water: 30, CL: 28, NA: 12 } } });
       M.reset();
       ctx.controls(`
-        <div class="row">${sw('volt', 'Membrane voltage', false)}${sw('shells', 'Hydration shells', true)}</div>
+        ${sw('volt', 'Membrane voltage', false)}
         <div class="stats">
           ${stat('kin', 'K⁺ inside')}${stat('kout', 'K⁺ outside')}
           ${stat('clin', 'Cl⁻ inside')}${stat('clout', 'Cl⁻ outside')}
@@ -179,7 +179,6 @@ const steps = [
         const box = ctx.q('#mvbox');
         e.target.checked ? ctx.show(box) : ctx.hide(box);
       });
-      ctx.q('#shells').addEventListener('change', e => M.set({ shells: e.target.checked }));
       M.notes(['channel.K', 'channel.CL', 'NA']);
       live(ctx, s => {
         put(ctx, 'kin', count(s, 'K', 'inside'));   put(ctx, 'kout', count(s, 'K', 'outside'));
@@ -199,7 +198,7 @@ const steps = [
     nextLabel: 'Put both together',
     onEnter(ctx) {
       plain();
-      M.set({ proteins: { pump: { x: 0 } }, shells: true,
+      M.set({ proteins: { pump: { x: 0 } },
               contents: { inside: { water: 28, K: 8, NA: 6, CL: 14 }, outside: { water: 28, K: 8, NA: 6, CL: 14 } } });
       M.reset();
       ctx.controls(`
@@ -230,7 +229,7 @@ const steps = [
            <p>The big anions inside never cross, which is why the inside is negative and stays that way. Stop paying the pump and watch what equilibrium actually looks like.</p>`,
     onEnter(ctx) {
       plain();
-      M.set({ proteins: { K: { x: K_X }, pump: { x: PUMP_X } }, shells: true, potential: 'nernst', pumpAuto: true, pumpOn: true,
+      M.set({ proteins: { K: { x: K_X }, pump: { x: PUMP_X } }, potential: 'nernst', pumpAuto: true, pumpOn: true,
               contents: { inside: { water: 24, K: 20, NA: 4, A: 24 }, outside: { water: 24, K: 4, NA: 14 } } });
       M.reset();
       ctx.controls(`
