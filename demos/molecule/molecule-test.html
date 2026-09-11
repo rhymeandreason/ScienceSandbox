@@ -149,7 +149,10 @@ function bench(ctx) {
       atoms.appendChild(b);
     }
     if (!atoms.children.length) atoms.innerHTML = '<p class="foot">This spec has no atom names yet (tools/name-atoms.js writes them).</p>';
-    CardStage.showPanel(ui.q('#bench-chips'), M, { layers: ['hydrogens'] });
+    /* showPanel appends; chips() runs on every pick, so the slot is emptied
+       first or the legend stacks once per molecule. */
+    const slot = ui.q('#bench-chips'); slot.innerHTML = '';
+    CardStage.showPanel(slot, M, { layers: ['hydrogens'] });
   }
 
   ui.q('#modes').onclick = e => { const b = e.target.closest('button'); if (b) { M.set({ mode: b.dataset.mode }); readout(); } };
