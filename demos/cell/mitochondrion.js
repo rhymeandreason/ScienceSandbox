@@ -94,7 +94,7 @@
   const R = 3.5;                       // half-width: the capsule is 0.7 µm across
   const UNIT = 1e-7;                   // metres per scene unit
   const NM = u => u * UNIT * 1e9;
-  const TH = 0.034 * R;                // one membrane, drawn — outer and inner alike
+  const TH = 0.044 * R;                // one membrane, drawn — outer and inner alike
   const IMS = 0.07 * R;                // the intermembrane space, drawn
   const LUM = 0.057 * R;               // the space a fold encloses, drawn
   /* Measured thicknesses, for the exaggeration factors below. A bilayer is

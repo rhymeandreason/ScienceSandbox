@@ -951,7 +951,8 @@
          different kinds of thing. */
       const th = o.membrane === undefined ? 0.034 * r : o.membrane;   // one membrane, drawn
       const lumenT = o.lumen === undefined ? 0.057 * r : o.lumen;     // the space a fold encloses
-      const ribbonT = 2 * th + lumenT;                                 // a whole fold, across
+      const ribbonT = 2 * th + lumenT;                                 // a clearance: the sheet plus the space it folds around
+      const WMAX = 0.33;                                               // a fold's half-width, as a fraction of the pitch
       /* `cristae` is the number of FOLDS, alternating sides along the
          length, not a count per side: ten is ten fingers meshing, five from
          each wall. The cap is below, and it is geometry rather than taste. */
@@ -1046,19 +1047,23 @@
          lumen closes, and the section reads as a saw. */
       const gapIM = th + (o.ims === undefined ? 0.07 * r : o.ims);
       const ri = r - gapIM, Li = L - gapIM * 0.4;
-      /* HOW MANY FOLDS FIT IS ARITHMETIC, not a preference. A fold is a U:
-         its two walls are a whole ribbon thickness each and they must clear
-         each other, and the next fold — which comes off the opposite wall
-         and interleaves — must clear both. So the pitch cannot go below
-         a fold's own footprint plus a lobe of matrix, and asking for more
-         folds than that packs membranes through each other. Refused here
-         with one warning rather than clamped somewhere later.
+      /* HOW MANY FOLDS FIT IS ARITHMETIC, not a preference. A fold is a U
+         2·w + th across, the next one comes off the opposite wall and
+         interleaves, and w is WMAX of the pitch — so the pitch has to hold
+         a fold plus a lobe of matrix beside it, and everything but th
+         scales with the pitch itself. Asking for more folds than that packs
+         membranes through each other; refused here with one warning rather
+         than clamped somewhere later.
+
+         THE CAP MUST NOT MOVE WHEN THE SHEET IS DRAWN THICKER. Written
+         against the old wall-lumen-wall ribbon it did, and thickening the
+         membrane by a hair silently dropped a crista.
 
          The cap lands near a real number, which is the point: at the
          default the pitch is about 115 nm, and cristae in a working
          mitochondrion sit roughly 100 nm apart. The organelle is full when
          it looks full. */
-      const maxFold = Math.max(4, Math.floor(2 * Li / (2 * (ribbonT + 0.035 * r))));
+      const maxFold = Math.max(4, Math.floor(2 * Li * (1 - 2 * WMAX) / (th + 0.035 * r)));
       if (nFold > maxFold) {
         console.warn(`cell/organelles.js: ${nFold} cristae do not fit a mitochondrion this size; drawing ${maxFold}.`);
         nFold = maxFold;
@@ -1070,7 +1075,7 @@
         folds.push({
           x: -Li + pitch * (k + 0.5) + rr(-0.04, 0.04) * pitch,
           dir: k % 2 ? -1 : 1,
-          w: clamp(pitch * rr(0.28, 0.33), wMin, Math.max(wMin, wMax)),
+          w: clamp(pitch * rr(WMAX - 0.05, WMAX), wMin, Math.max(wMin, wMax)),
           depth: rr(1.08, 1.38),
         });
       const comb = (dir, ascending) => {
