@@ -226,11 +226,18 @@
      core. Drawn as separate leaflets with something between them a reader
      counts three layers and asks what the middle one is; a bilayer is one
      membrane and has to read as one object with an edge.
-     `side` is the underside, which is never the cut face. */
+     `side` is the underside, which is never the cut face.
+
+     THE CORE TAKES MOST OF THE WIDTH, which is where this parts company
+     with buildShell's numbers on purpose: a swept sheet is a few pixels
+     across where a cut shell's lip is tens, so head bands at the lip's
+     proportions leave the core as a hairline and the edge reads as one
+     pale stroke rather than as a membrane with two faces. */
   function bilayerProfile(THREE, w, h, head, tail, side, o = {}) {
     const topSeg = o.topSeg || 12, cs = o.cornerSeg || 3;
+    const headBand = o.head === undefined ? 0.05 : o.head, feather = o.feather === undefined ? 0.08 : o.feather;
     const rad = Math.min(w * 0.42, h * 0.2), pts = [];
-    const band = t => { const m = Math.min(t, 1 - t); return head.clone().lerp(tail, clamp((m - 0.13) / 0.15, 0, 1)); };
+    const band = t => { const m = Math.min(t, 1 - t); return head.clone().lerp(tail, clamp((m - headBand) / feather, 0, 1)); };
     const corner = (cx, cy, a0, c) => {
       for (let i = 0; i <= cs; i++) { const a = a0 + (i / cs) * (PI / 2); pts.push({ x: cx + Math.cos(a) * rad, y: cy + Math.sin(a) * rad, color: c }); }
     };
