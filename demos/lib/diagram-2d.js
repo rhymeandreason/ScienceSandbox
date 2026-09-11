@@ -170,35 +170,44 @@ function lonePairs(spec, i, orders) {
   return free > 0 ? Math.floor(free / 2) : 0;
 }
 
-/* Where the central atom's bonds and lone pairs go. Everything around it takes
- * one slot of an evenly divided circle — its steric number, which is the count
- * VSEPR itself works from. The lone pairs take the TOP slots and the bonds
- * hang below, which is how water comes out bent with its pairs above rather
- * than as a straight H-O-H. */
+/* THE ONE PLACEMENT RULE, for every atom in the drawing. An atom's electron
+ * domains — its bonds and its lone pairs, a double bond counting once — divide
+ * the circle evenly, one slot each. That is the count VSEPR itself works from,
+ * and dividing a circle evenly is the whole reason a Lewis structure comes out
+ * symmetric: it is a property of the construction, not one to be checked
+ * afterwards.
+ *
+ * `anchor` is the direction slot `index` points, which is all that differs
+ * between the two callers. A central atom anchors its LONE PAIRS upward, so
+ * water comes out bent with its pairs above rather than as a straight H-O-H. A
+ * terminal atom has no such freedom: its one bond already points at the centre,
+ * so that bond is the anchor and the pairs take the slots after it.
+ *
+ * Two rules is what drew O₂ lopsided. The central atom divided its circle while
+ * terminal atoms fanned their pairs around the continuation of the bond, which
+ * bunched both to one side; nothing made the two agree, so they did not.
+ */
+function domains(n, anchor, index) {
+  const step = 2 * Math.PI / n;
+  const out = [];
+  for (let k = 0; k < n; k++) out.push(anchor + (k - index) * step);
+  return out;
+}
+
+/* The central atom: pairs first, then bonds, with the pair block centred
+ * upward. With no pair to place the first slot is straight up, so methane's
+ * four bonds land on the compass points rather than on the diagonals. */
 function slots(nBonds, nPairs) {
-  const sn = nBonds + nPairs || 1;
-  const step = 2 * Math.PI / sn;
-  // With no pair to place, start straight up: methane's four bonds then land on
-  // the compass points rather than on the diagonals.
-  const start = nPairs ? Math.PI / 2 - step * (nPairs - 1) / 2 : Math.PI / 2;
-  const a = [];
-  for (let k = 0; k < sn; k++) a.push(start + k * step);
+  // With no pair to anchor, slot 0 itself goes up.
+  const a = domains(nBonds + nPairs || 1, Math.PI / 2, nPairs ? (nPairs - 1) / 2 : 0);
   return { pairs: a.slice(0, nPairs), bonds: a.slice(nPairs) };
 }
 
-/* Directions for the lone pairs on a TERMINAL atom, by the same rule `slots`
- * uses for the central one: its bond and its pairs divide the circle evenly,
- * one slot each. The bond takes the first, the pairs take the rest.
- *
- * Fanning them around the continuation of the bond instead — which is what this
- * did first — bunches them to one side and draws O₂ with its four electrons
- * lopsided. A terminal oxygen's two pairs sit 120° off the bond, the same
- * angle the atom's three electron domains would take anywhere else. */
+/* A terminal atom: slot 0 is the bond it already has, pointing back at the
+ * centre, and its pairs take the rest. An oxygen's two therefore sit 120° off
+ * its bond, the same angle three domains take anywhere else. */
 function fan(toward, n) {
-  const step = 2 * Math.PI / (n + 1);
-  const out = [];
-  for (let k = 1; k <= n; k++) out.push(toward + step * k);
-  return out;
+  return domains(n + 1, toward, 0).slice(1);
 }
 
 // Two dots straddling `dir`, drawn perpendicular to it.
