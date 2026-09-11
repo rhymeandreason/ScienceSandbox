@@ -100,7 +100,7 @@
 
     <div class="grp">
       <button type="button" id="reset">reset both</button>
-      <button type="button" id="notes">label it</button>
+      <button type="button" id="notes">label everything</button>
     </div>
   </div>
 </div>
@@ -212,10 +212,18 @@ $('reset').onclick = () => {
   made.reset(); made.set({ contents: MITO });
   spender.reset(); spender.set({ contents: CELL });
 };
+/* EVERY ANCHOR THE BOX SAYS IS ON STAGE, not a list typed here. anchors()
+   reports `present`, so a layout without a leak or without the outer membrane
+   labels what it actually has and a list in this page cannot go stale against
+   one in the component. */
+let labelled = false;
 $('notes').onclick = () => {
-  made.clearNotes(); spender.clearNotes();
-  made.notes(['synthase', 'complex', 'translocase', 'porin']);
-  spender.notes(['pump']);
+  labelled = !labelled;
+  $('notes').textContent = labelled ? 'clear labels' : 'label everything';
+  for (const m of [made, spender]) {
+    m.clearNotes();
+    if (labelled) m.notes(m.anchors().filter(a => a.present).map(a => a.name));
+  }
 };
 
 made.on('frame', s => {
