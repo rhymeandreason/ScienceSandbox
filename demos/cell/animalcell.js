@@ -56,7 +56,11 @@
 
   /* ---- the model ----------------------------------------------------- */
 
-  const DEFAULTS = { seed: 1234, tilt: 0.32, motion: 1 };
+  /* `detail` is which mitochondrion is drawn with its membranes resolved:
+     'auto' raises the one a click flies to and drops it again on the way
+     home, 'high' raises all five (five detailed organelles is a real cost),
+     'low' never raises any. */
+  const DEFAULTS = { seed: 1234, tilt: 0.32, motion: 1, detail: 'auto' };
 
   function create(THREE, root, camera, opts = {}) {
     const P = Object.assign({}, DEFAULTS, opts);
@@ -126,6 +130,7 @@
     const nucPos = nucleus.position.clone();
 
     /* mitochondria: the kit's, five of them, laid out on the floor of the bowl */
+    const mitos = [];
     for (const t of [
       { x: -3.0, z: 4.6, ry: 0.35, rx: 0.25 }, { x: 2.4, z: 5.2, ry: -0.6, rx: 0.3 }, { x: 6.2, z: 2.4, ry: 1.25, rx: 0.2 },
       { x: -6.3, z: -3.6, ry: 0.95, rx: 0.15 }, { x: 6.8, z: -3.2, ry: -1.1, rx: 0.1 },
@@ -138,8 +143,48 @@
       m.position.set(t.x, Math.max(floorY(t.x, t.z) + 0.8, -4.2 + rr(-0.6, 0.6)), t.z);
       m.rotation.set(t.rx, t.ry, 0);
       cell.add(m);
+      mitos.push(m);
       occupied.push({ p: m.position.clone(), r: 1.6 });
     }
+
+    /* ---- a mitochondrion, closer up -------------------------------------
+       A mitochondrion in a cut cell is drawn as a shell and a folded ribbon,
+       which is all that reads at the size five of them stand beside a
+       nucleus. Flown to, it is most of the screen, and at that distance the
+       ribbon is a lie a reader can now see: they can count the folds and
+       they cannot tell an intermembrane space from a matrix.
+
+       So the SAME organelle, in the same place, at the same size, swaps its
+       insides for cell/organelles.js's `mitochondrionDetail` — two membranes,
+       cristae as sacs, the chain on them. It is one group throughout, so
+       every anchor, every layer and every body in the solver still points at
+       the object it always did; only the children change. What it is NOT is
+       a different component: cell/mitochondrion.js is that, one rung down,
+       and this is the same geometry seen from the cell.
+
+       A KIT OF ITS OWN, seeded off this cell's. The cell's random stream is
+       consumed in call order (see the header), so building detail on demand
+       out of the same kit would reshuffle nothing now and everything on the
+       next rebuild. */
+    function mitoDetail(g, on) {
+      if (!g || g.userData.organelle !== 'mitochondrion') return;
+      if (!!g.userData.detailed === !!on) return;
+      const lod = g.userData.lod || (g.userData.lod = { low: g.children.slice(), high: null });
+      if (on && !lod.high) {
+        const K2 = global.CellOrganelles.kit(THREE, { seed: P.seed + 977 });
+        lod.high = K2.mitochondrionDetail({
+          r: 0.55, L: 0.95, cristae: 8, junctions: 2, porins: 45, ribosomes: 18, detail: 0.7,
+        }).children.slice();
+      }
+      g.remove(...g.children.slice());
+      for (const c of (on ? lod.high : lod.low)) g.add(c);
+      g.userData.detailed = !!on;
+    }
+    const setDetail = mode => {
+      P.detail = mode;
+      // 'auto' is the mount's job: it raises the one the camera flew to.
+      if (mode !== 'auto') for (const m of mitos) mitoDetail(m, mode === 'high');
+    };
 
     /* Golgi: the kit's. One perinuclear ribbon, which is the animal
        arrangement; a plant cell scatters many of the same stack. */
@@ -412,7 +457,9 @@
     const emit = (name, ...a) => { CardStage.fire(listeners[name], a, 'AnimalCell ' + name); };
     const on = (name, fn) => { (listeners[name] = listeners[name] || []).push(fn); return () => { listeners[name] = (listeners[name] || []).filter(f => f !== fn); }; };
     const state = () => ({
-      motion: P.motion, hovered: hovered && hovered.userData.organelle || null,
+      motion: P.motion, detail: P.detail,
+      detailed: mitos.filter(m => m.userData.detailed).length,
+      hovered: hovered && hovered.userData.organelle || null,
       counts: Object.fromEntries(parts.order().map(n => [n, parts.of(n).length])),
       shown: parts.layers(),
     });
@@ -421,11 +468,13 @@
        the wander straight through and a page that wants a still cell sets 0. */
     function set(next = {}) {
       if (next.motion != null) P.motion = clamp(next.motion, 0, 3);
+      if (next.detail != null) setDetail(next.detail);
       return api;
     }
 
     const api = { group: cell, organelles, step, pick, hover, bounds, set, state, on, emit,
       anchors, facings, library: LIBRARY, palette, layers: parts.layers,
+      mitochondria: mitos, mitoDetail,
       show: (n, v) => { parts.show(n, v); return api; },
       get hovered() { return hovered; } };
     return api;
@@ -506,7 +555,12 @@
       c.target.lerpVectors(fly.t0, fly.t1, k);
       if (fly.t >= 1) fly.active = false;
     }
-    const goHome = () => flyTo(home.pos, home.target);
+    const goHome = () => {
+      // Back to five organelles in a cell, which is the drawing that reads at
+      // this distance. The detailed build is cached, so a second visit is free.
+      if (sim && sim.state().detail === 'auto') for (const m of sim.mitochondria) sim.mitoDetail(m, false);
+      flyTo(home.pos, home.target);
+    };
     /* HOW CLOSE, for the parts whose mesh is not one object. A bounding
        sphere is the right size for a nucleus and useless for the ribosome
        sheet or the membrane bowl: both wrap the whole cell, so 2.6 radii
@@ -515,6 +569,11 @@
     const ZOOM_R = { membrane: 2.2, ribosome: 1.2 };
     function focusOn(org, name) {
       const n = name || (org && org.userData.organelle);
+      /* THE FLIGHT IS WHAT RAISES THE DETAIL. A mitochondrion is the only
+         organelle here whose insides are a different drawing close up, and
+         'auto' means the reader never asks for it: they click one, they
+         arrive, and it has membranes. */
+      if (sim.state().detail === 'auto' && n === 'mitochondrion') sim.mitoDetail(org, true);
       const at = ZOOM_R[n] && sim.anchors[n] && sim.anchors[n]();
       const centre = at ? at.clone() : sim.bounds(org).center;
       const radius = ZOOM_R[n] || sim.bounds(org).radius;
@@ -571,5 +630,9 @@
      How big a cell really is belongs on the library card as prose. Ribosomes
      cannot be drawn beside a nucleus at their own size; that factor is the
      declared exaggeration. */
-  global.AnimalCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: { ribosome: 30, mitochondrion: 2 }, down: {} };
+  global.AnimalCell.SCALE = { rung: 'cell', form: 'single', unit: null, exag: { ribosome: 30, mitochondrion: 2 },
+    /* Where a zoom hands off. `detail:'auto'` already resolves a
+       mitochondrion's membranes in place; the component one rung down is
+       where it becomes the subject. */
+    down: { mitochondrion: 'Mitochondrion' } };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

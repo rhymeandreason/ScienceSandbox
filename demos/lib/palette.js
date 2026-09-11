@@ -222,7 +222,15 @@
                           micrograph. `dna` is the organelle's own circular
                           genome — the plainest evidence it was once a free
                           bacterium, so it is drawn, not just asserted. */
-                       matrix:0xf7c9ad, dna:0x8f2f3c },
+                       matrix:0xf7c9ad, dna:0x8f2f3c,
+                       /* `lumen` is ONE colour for ONE compartment: the
+                          intermembrane space and the inside of every crista
+                          are the same space, joined through the crista
+                          junctions, and the protons a complex pumps land in
+                          all of it. Drawn as two colours it would say two
+                          compartments, which is the misconception the
+                          detailed organelle exists to kill. */
+                       lumen:0xfae3d2, porin:0xc07b57 },
       /* ---- plant only: PLASTIDS ----
          A chloroplast and an amyloplast are one organelle in two states —
          a tuber's amyloplast greens on a windowsill — but they are drawn
@@ -320,9 +328,36 @@
     // Mg²⁺ pulls two charges' worth on the same shell count, so the ion is
     // tighter than Na⁺ despite magnesium sitting one place to the right. The
     // builder's MgCl₂ tab is where a student can see it next to NaCl.
+    /* ---- the respiratory machinery ----
+       The complexes and the synthase are drawn twice: once in the inner
+       membrane of cell/organelles.js's detailed mitochondrion, and once as
+       a machine in membrane/membrane.js's bilayer. A student zooms from one
+       to the other, so the gold thing making ATP has to be the same gold
+       both times. membrane.js typed these inline first; they are here now
+       and both read them.
+
+       THE FOUR COMPLEXES ARE ONE FAMILY OF BLUES, because they are one
+       chain and telling them apart is the label's job, not the colour's.
+       Complex II is the paler one on purpose: it is the member that does
+       NOT pump, and the eye should be able to find it. */
+    respiration: {
+      complexI:0x3f5296, complexII:0x8b93c0, complexIII:0x4d5fa6, complexIV:0x5a72b5,
+      synthase:0xd9a13b, stalk:0xb8862c,
+      leak:0x8e939b,          // an uncoupler's hole: grey, because it is a hole
+      /* A PROTON IS A HYDROGEN, so it is atoms.H and not a colour of its own.
+         Set below the literal, because an object cannot read itself while it
+         is being built. It was a red once, which made the one thing crossing
+         the membrane look like an element the lesson had not introduced; a
+         student who sees the same pale steel on a water's hydrogens in
+         glycolysis reads the gradient as the same atom, moved. */
+      proton:null,
+    },
+
     radii: { O:0.95, H:0.55, C:0.85, N:0.90, S:1.05, Na:0.70, Cl:1.24, K:0.85, P:1.00,
              Mg:0.60 },
   };
+
+  PALETTE.respiration.proton = PALETTE.atoms.H;
 
   global.MolPalette = PALETTE;
   if(typeof module==='object' && module.exports) module.exports = { PALETTE };

@@ -1,0 +1,545 @@
+/* =============================================================================
+ *  cell/mitochondrion.js — one mitochondrion, cut open, membrane by membrane
+ * =============================================================================
+ *  The organelle when it is the SUBJECT rather than one of five things in a
+ *  cut cell: two membranes resolved, cristae as the flattened sacs they are,
+ *  the machinery of the electron transport chain on them, and protons making
+ *  the round trip that respiration is paid in.
+ *
+ *      Mitochondrion.create(THREE, root, camera, opts)   the model
+ *      Mitochondrion.mount(el, params)                   one box, one handle
+ *
+ *  LOAD cell/organelles.js FIRST. All the geometry is there, as
+ *  `mitochondrionDetail`, for the reason every organelle's is: the cut cell
+ *  swaps the same builder in when the camera flies to one of its five, and a
+ *  student must arrive at the same object rather than at a second drawing of
+ *  it. What is HERE is behaviour — the protons, the rotors, the picking, and
+ *  the words.
+ *
+ *  WHAT THIS COMPONENT IS FOR is one claim, and it is a claim about topology:
+ *  there is ONE space outside the inner membrane — the intermembrane space
+ *  and the inside of every crista, joined through the crista junctions — and
+ *  one space inside it, the matrix. Protons go out of the matrix at the
+ *  complexes and come back through ATP synthase. Everything drawn is in
+ *  service of that, so the crista lumen is the same colour as the
+ *  intermembrane space and a proton pumped at a complex visibly lands in it.
+ *
+ *  IT IS NOT THE PHYSICS, AND REFUSES TO BE. There is no pH here, no
+ *  proton-motive force, no fuel and no respiratory control: that is
+ *  membrane/membrane.js with `context:'mitochondrion'`, one rung down, where
+ *  the arithmetic is checked. What this owns is the ARCHITECTURE the
+ *  arithmetic happens in, and the two are meant to be mounted together —
+ *  the organelle for where, the membrane for how much. The one number they
+ *  share is the rotor's stoichiometry, and it is read from
+ *  membrane/chemiosmosis.js rather than typed, so the two boxes cannot
+ *  disagree about how many protons an ATP costs.
+ *
+ *  THE PROTONS ARE COUNTED, NOT SIMULATED. Each drawn proton is one route
+ *  through one machine, and `state()` reports the routes that completed.
+ *  A drawn proton stands for a great many real ones; nothing here is a
+ *  concentration and no page may print one off it.
+ *
+ *  THE CONTRACT (docs/AddingAComponent.md, docs/Components.md):
+ *
+ *      params   flow 0..1 (live, glides) · uncoupler (live) ·
+ *               cristae 3..24, open 0.3..1, seed (rebuild)
+ *      state()  the ledger, the counts, and the sizes that are real
+ *      events   frame · hover · pick · turn (one full rotor revolution)
+ *      parts    outer · porin · ims · inner · crista · junction · complex ·
+ *               synthase · matrix · dna · ribosome · proton. One list serves
+ *               note(), show() and lookAt(); LIBRARY is the teaching text.
+ *
+ *  GLIDES: `flow`. SNAPS: `uncoupler`, and every geometry parameter, which
+ *  rebuilds — nothing tweens across a rebuild.
+ *
+ *  BUDGET, measured on the bench at the default eleven cristae and at the
+ *  cap of twenty-four: 0.06 ms a step and 0.5 ms a frame, 116k triangles and
+ *  92 draw calls at the cap. A REBUILD IS 50 ms, which is why `cristae`,
+ *  `open` and `seed` are rebuild parameters and must not be put on a slider a
+ *  student drags — the bench does exactly that, and it is a bench.
+ *
+ *  SCALE. Lengths ALONG the organelle are honest: one scene unit is 100 nm,
+ *  so the capsule is 1.9 by 0.7 µm and `state()` may be printed. The
+ *  membranes and the machines are not, and SCALE.exag says by how much. A
+ *  4 nm bilayer beside a 700 nm organelle is a fifth of a pixel.
+ * ========================================================================== */
+(function (global) {
+  'use strict';
+
+  const PI = Math.PI;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  /* ONE SCENE UNIT IS 100 NM, and R is the organelle's half-width. Everything
+     the builder draws is a multiple of R, so these four numbers are the whole
+     of what this component claims about size — and the three membrane
+     thicknesses are passed IN rather than left to the builder, because they
+     are what SCALE.exag is measured against. */
+  const R = 3.5;                       // half-width: the capsule is 0.7 µm across
+  const UNIT = 1e-7;                   // metres per scene unit
+  const NM = u => u * UNIT * 1e9;
+  const TH = 0.038 * R;                // one membrane, drawn
+  const IMS = 0.13 * R;                // the intermembrane space, drawn
+  const LUM = 0.055 * R;               // a crista's lumen, drawn
+  /* Measured thicknesses, for the exaggeration factors below. A bilayer is
+     ~4 nm (OPM); the intermembrane space and a crista lumen are ~20 nm and a
+     crista junction ~25 nm across in tomography. */
+  const TRUE_NM = { membrane: 4, ims: 20, lumen: 20 };
+
+  const DEFAULTS = {
+    cristae: 11,        // rebuild
+    open: 1,            // rebuild: 1 cuts it in half, less closes the near wall over
+    seed: 4231,         // rebuild
+    flow: 0.6,          // 0..1 how hard the chain is running; glides
+    uncoupler: false,   // protons home without a synthase, and no ATP is made
+    protons: 72,        // how many are drawn; a budget, not a concentration
+    detail: 1,          // tessellation
+  };
+
+  /* Poses for the parts the home view cannot show close enough to name.
+     Only these fly; every other chip labels where the part already is, which
+     is the rule in AddingAComponent.md and the reason a note chip is not a
+     ride. */
+  const VIEWS = {
+    crista:   { theta: 0.55, phi: 1.00, r: 15 },
+    junction: { theta: 1.10, phi: 1.12, r: 12 },
+    synthase: { theta: 0.30, phi: 1.22, r: 11 },
+    complex:  { theta: -0.45, phi: 1.08, r: 12 },
+    proton:   { theta: 0.40, phi: 0.98, r: 13 },
+    porin:    { theta: 2.10, phi: 1.45, r: 20 },
+  };
+
+  const ORDER = ['outer', 'porin', 'ims', 'inner', 'crista', 'junction',
+                 'complex', 'synthase', 'matrix', 'dna', 'ribosome', 'proton'];
+
+  /* The component's own teaching text: a label and two sentences per part, in
+     a tutor's voice, so a generated page answers "what is that?" with a
+     callout on the thing instead of a paragraph of its own invention. Real
+     sizes belong here as prose about the real organelle. */
+  const LIBRARY = {
+    outer:    { text: 'outer membrane', offset: [46, -26], card: 'The outer membrane, and it leaks. Porins hold it open to anything under about 5 kDa, so the space just inside it is chemically almost the cytosol — which is why no gradient can stand across this one.' },
+    porin:    { text: 'porins', offset: [46, 24], card: 'Barrels that sit permanently open, studded all over the outer membrane. They are the reason that membrane is a sieve, and the reason the inner one has to do all the work.' },
+    ims:      { text: 'intermembrane space', offset: [-48, -28], card: 'The space between the two membranes — and the inside of every crista, because they are one space, joined through the crista junctions. Protons pumped out of the matrix collect here, and this is the tank chemiosmosis draws on.' },
+    inner:    { text: 'inner membrane', offset: [-48, 26], card: 'Almost nothing crosses this one without a protein, which is what lets a proton gradient stand across it. Every complex of the electron transport chain and every ATP synthase sits in this single folded sheet.' },
+    crista:   { text: 'crista', offset: [44, -22], card: 'A flattened sac of inner membrane pushed into the matrix. Folding is how a mitochondrion fits several times its own surface area of respiring membrane inside itself, and a cell that respires hard grows more of them.' },
+    junction: { text: 'crista junction', offset: [-46, -22], card: 'The narrow neck where a crista opens into the intermembrane space, about 25 nm across and held that way by proteins. Narrow on purpose: it keeps the protons a crista pumps inside that crista, so the force is strongest right where the synthases are.' },
+    complex:  { text: 'the electron transport chain', offset: [44, 22], card: 'Complexes I, III and IV pass electrons down the chain and push protons out of the matrix as they go. Complex II — the pale one — feeds electrons in from FADH₂ but pumps nothing, which is exactly why FADH₂ is worth less ATP than NADH.' },
+    synthase: { text: 'ATP synthase', offset: [46, -20], card: 'Protons fall back out of the crista lumen through this, and the rotor turns. The head hanging in the matrix makes one ATP per third of a turn, so the gradient is the thing that is actually spent.' },
+    matrix:   { text: 'the matrix', offset: [-46, 22], card: 'The enclosed space inside the inner membrane, where pyruvate is oxidised and the Krebs cycle runs. Everything the chain burns is made in here, and every proton the chain pumps is pumped out of here.' },
+    dna:      { text: 'mitochondrial DNA', offset: [-44, -20], card: 'A small circle of the organelle’s own DNA, bacterial in shape and inherited only from your mother. It is the plainest evidence that this organelle was once a free-living cell.' },
+    ribosome: { text: 'mitochondrial ribosomes', offset: [46, 26], card: 'Ribosomes of the bacterial kind, not this cell’s. They build a handful of the chain’s own subunits here, inside the organelle, from the genome beside them.' },
+    proton:   { text: 'protons', offset: [-46, 24], card: 'Complexes push them out of the matrix and ATP synthase lets them back in. The whole payoff of respiration is in that round trip, which is why an uncoupler — a hole that skips the synthase — burns fuel and makes only heat.' },
+  };
+
+  /* ---- the model ----------------------------------------------------- */
+
+  function create(THREE, root, camera, opts = {}) {
+    if (!global.CellOrganelles) throw new Error('cell/mitochondrion.js: load cell/organelles.js first');
+    const P = Object.assign({}, DEFAULTS, opts);
+    if (!global.CardStage) throw new Error('cell/mitochondrion.js: load kit/card-stage.js first');
+    const V3 = THREE.Vector3;
+    const CHEM = global.Chemiosmosis;
+    /* The rotor's stoichiometry is membrane/chemiosmosis.js's, so this box and
+       a Membrane mounted beside it cannot disagree about what an ATP costs.
+       Absent (a page that loaded neither), the mammalian c8 ring's own 8 H⁺
+       per 3 ATP, and the fallback is the thing that is wrong if they drift. */
+    const PPT = CHEM ? CHEM.PROTONS_PER_TURN : 9;
+    const APT = CHEM ? CHEM.ATP_PER_TURN : 3;
+
+    const listeners = {};
+    const on = (ev, fn) => { (listeners[ev] || (listeners[ev] = [])).push(fn);
+      return () => { listeners[ev] = listeners[ev].filter(f => f !== fn); }; };
+    const emit = (ev, ...args) => global.CardStage.fire(listeners[ev], args, ev);
+
+    const model = new THREE.Group();
+    root.add(model);
+    const tw = global.CardStage.tweens();
+
+    let K = null, group = null, D = null, protonMesh = null, protons = [], rand = null;
+    let hovered = null, selected = null;
+    const shown = {}, MATS = {};
+    let pumped = 0, through = 0, leaked = 0, rotorAngle = 0, turnsSeen = 0;
+
+    const rr = (a, b) => a + (b - a) * rand();
+    const pickOne = arr => arr[Math.min(arr.length - 1, Math.floor(rand() * arr.length))];
+
+    function build() {
+      if (group) { model.remove(group); dispose(group); }
+      K = global.CellOrganelles.kit(THREE, { seed: P.seed });
+      rand = K.rand;
+      group = K.mitochondrionDetail({
+        r: R, L: 1.7 * R, membrane: TH, ims: IMS, lumen: LUM,
+        cristae: P.cristae, open: P.open, detail: P.detail,
+      });
+      model.add(group);
+      D = group.userData.detail;
+      for (const k in MATS) delete MATS[k];
+
+      /* Every part's materials, collected once: hover brightens a part by its
+         own emissive rather than by swapping a material, so a shared one (the
+         cristae all draw from a single membrane material, on purpose) lights
+         up everywhere the part is. */
+      for (const name in D.groups) {
+        MATS[name] = [];
+        D.groups[name].traverse(o => { if (o.material && !MATS[name].includes(o.material)) MATS[name].push(o.material); });
+        D.groups[name].userData.part = name;
+      }
+
+      /* The protons. An InstancedMesh because there are dozens and they are
+         the one thing on stage that moves every frame. */
+      const RESP = (global.MolPalette || global.MolLib.PALETTE).respiration;
+      /* Matte, and barely lit from inside. A sphere this small under a
+         studio key is mostly highlight, and a highlit bead reads as white
+         rather than as the pale steel every other H⁺ in the library is. */
+      const pm = K.mat({ color: RESP.proton, roughness: 0.8, clearcoat: 0.1,
+                         emissive: RESP.proton, emissiveIntensity: 0.14 });
+      protonMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.026 * R, 8, 6), pm, P.protons);
+      protonMesh.userData.part = 'proton';
+      group.add(protonMesh);
+      MATS.proton = [pm];
+
+      protons = [];
+      for (let i = 0; i < P.protons; i++) {
+        /* Start with most of them already outside: a mitochondrion at rest is
+           not a mitochondrion with a flat gradient, and starting them evenly
+           would say the gradient is something the page builds from zero. */
+        const inLumen = rand() < 0.62;
+        protons.push({
+          mode: inLumen ? 'lumen' : 'matrix',
+          pos: (inLumen ? pickOne(D.pockets.lumen) : pickOne(D.pockets.matrix)).clone(),
+          path: null, t: 0, dur: 0, wait: rr(0, 2.5), done: null,
+        });
+      }
+      pumped = through = leaked = 0; rotorAngle = 0; turnsSeen = 0;
+      for (const n in shown) if (shown[n] === false) applyShow(n, false);
+      writeProtons();
+    }
+
+    function dispose(g) {
+      g.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
+      });
+    }
+
+    /* ---- the round trip -------------------------------------------------
+       A proton's whole life is: sit somewhere, pick a machine, travel to it,
+       go through, sit on the other side. The route is what carries the claim
+       — out of the matrix only at a complex, back in only at a synthase —
+       so it is a path with waypoints rather than a force, and the ledger is
+       the routes that finished rather than a number the module asserts.
+
+       COMPLEX II IS NOT A DOOR. It is on the crista and it is in the legend,
+       and a proton never uses it: that is the whole reason FADH₂ yields less
+       than NADH, and it has to be true of the picture, not just of a caption. */
+    const PUMPS = () => D.sites.complex.filter(s => s.kind !== 'II');
+
+    function route(p) {
+      const speed = 0.35 + 2.4 * P.flow;
+      if (p.mode === 'matrix') {
+        const s = pickOne(PUMPS());
+        p.path = [p.pos.clone(),
+                  s.p.clone().addScaledVector(s.out, 0.16 * R),
+                  s.p.clone().addScaledVector(s.out, 0.02 * R),
+                  s.lumen.clone()];
+        p.dur = (1.5 + rr(0, 1.1)) / speed;
+        p.done = () => { p.mode = 'lumen'; pumped++; };
+      } else if (P.uncoupler && rand() < 0.8) {
+        /* An uncoupler is a hole, not a machine: straight back across the
+           inner membrane, no rotor, no ATP, and the fuel all comes out as
+           heat. Drawn as the short cut it is. */
+        p.path = [p.pos.clone(), pickOne(D.pockets.matrix).clone()];
+        p.dur = (0.9 + rr(0, 0.6)) / speed;
+        p.done = () => { p.mode = 'matrix'; leaked++; };
+      } else {
+        const s = pickOne(D.sites.synthase);
+        p.path = [p.pos.clone(), s.lumen.clone(),
+                  s.p.clone().addScaledVector(s.out, 0.02 * R),
+                  s.p.clone().addScaledVector(s.out, 0.30 * R),
+                  pickOne(D.pockets.matrix).clone()];
+        p.dur = (1.6 + rr(0, 1.2)) / speed;
+        p.done = () => { p.mode = 'matrix'; through++; };
+      }
+      p.t = 0;
+    }
+
+    function stepProtons(dt) {
+      for (const p of protons) {
+        if (p.path) {
+          p.t += dt;
+          const u = clamp(p.t / p.dur, 0, 1);
+          const n = p.path.length - 1, f = u * n, i = Math.min(n - 1, Math.floor(f));
+          p.pos.copy(p.path[i]).lerp(p.path[i + 1], f - i);
+          if (u >= 1) { p.path = null; p.done(); p.wait = 0.2 + rand() * 1.4; }
+        } else {
+          // A jitter, not a walk: it must not drift out of its compartment.
+          p.pos.x += (rand() - 0.5) * 0.06 * R * dt * 8;
+          p.pos.y += (rand() - 0.5) * 0.06 * R * dt * 8;
+          p.pos.z += (rand() - 0.5) * 0.06 * R * dt * 8;
+          p.wait -= dt * (0.35 + 2 * P.flow);
+          if (p.wait <= 0 && P.flow > 0.005) route(p);
+        }
+      }
+      writeProtons();
+    }
+
+    const _m4 = new THREE.Matrix4();
+    function writeProtons() {
+      if (!protonMesh) return;
+      protons.forEach((p, i) => { _m4.makeTranslation(p.pos.x, p.pos.y, p.pos.z); protonMesh.setMatrixAt(i, _m4); });
+      protonMesh.instanceMatrix.needsUpdate = true;
+    }
+
+    /* ---- picking ------------------------------------------------------- */
+    const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(-2, -2);
+    function partAt() {
+      if (ndc.x < -1.5) return null;
+      ray.setFromCamera(ndc, camera);
+      const hits = ray.intersectObject(group, true);
+      for (const h of hits) {
+        let o = h.object;
+        while (o && !o.userData.part) o = o.parent;
+        if (o && o.visible && shown[o.userData.part] !== false) return o.userData.part;
+      }
+      return null;
+    }
+    function highlight() {
+      for (const n in MATS) {
+        const lit = n === selected ? 0.45 : n === hovered ? 0.22 : 0;
+        for (const m of MATS[n]) {
+          if (!m.emissive) continue;
+          if (n === 'proton') { m.emissiveIntensity = 0.14 + lit; continue; }
+          m.emissive.copy(m.color);
+          m.emissiveIntensity = lit;
+        }
+      }
+    }
+
+    function applyShow(name, on) {
+      if (name === 'proton') { if (protonMesh) protonMesh.visible = on; return; }
+      if (name === 'ims' || name === 'matrix') return;      // spaces, not meshes
+      const g = D.groups[name];
+      if (g) g.visible = on;
+    }
+
+    /* ---- step ----------------------------------------------------------- */
+    let last = null;
+    function step(dt) {
+      tw.update(dt);
+      stepProtons(dt);
+      /* The rotor turns because protons went through it, not because time
+         passed: PPT protons is one revolution, so the beat a student counts
+         is the ledger. Chased rather than snapped, or a proton arriving would
+         jump the head a twelfth of a turn. */
+      const want = (through / PPT) * 2 * PI;
+      rotorAngle += (want - rotorAngle) * Math.min(1, dt * 4);
+      if (group.userData.rotors)
+        K.spinRotors(group.userData.rotors.mesh, group.userData.rotors.list, rotorAngle);
+      const turns = Math.floor(through / PPT);
+      if (turns > turnsSeen) { turnsSeen = turns; emit('turn', turns); }
+      const h = partAt();
+      if (h !== hovered) { hovered = h; highlight(); emit('hover', h); }
+      last = state();
+      emit('frame', last, dt);
+      return last;
+    }
+
+    function state() {
+      const d = D.dims;
+      const xs = D.cristae.map(c => c.x).sort((a, b) => a - b);
+      let gap = 0;
+      for (let i = 1; i < xs.length; i++) gap += (xs[i] - xs[i - 1]) / (xs.length - 1);
+      let lumen = 0;
+      for (const p of protons) if (p.mode === 'lumen') lumen++;
+      return {
+        flow: P.flow, uncoupler: !!P.uncoupler,
+        cristae: d.cristae, junctions: d.junctions, complexes: d.complexes,
+        synthases: d.synthases, porins: d.porins,
+        protons: { lumen, matrix: protons.length - lumen, total: protons.length },
+        pumped, throughSynthase: through, leaked,
+        rotorTurns: through / PPT, atpMade: Math.floor((through / PPT) * APT),
+        stoichiometry: { protonsPerTurn: PPT, atpPerTurn: APT, protonsPerATP: PPT / APT },
+        /* Real, because the capsule is drawn to a unit: 1 scene unit is
+           100 nm. The thicknesses are drawn and SCALE.exag says by how much;
+           they are here so a page prints the drawing rather than guessing. */
+        lengthNm: NM(2 * (1.7 * R + R)), widthNm: NM(2 * R),
+        cristaSpacingNm: xs.length > 1 ? NM(gap) : null,
+        membraneNm: NM(d.th), imsNm: NM(d.imsGap), lumenNm: NM(d.lumenT),
+        hovered, selected, shown: Object.assign({}, shown),
+      };
+    }
+
+    function set(next = {}, o = {}) {
+      let rebuild = false;
+      for (const k of ['cristae', 'open', 'seed', 'protons', 'detail'])
+        if (next[k] !== undefined && next[k] !== P[k]) { P[k] = next[k]; rebuild = true; }
+      if (next.uncoupler !== undefined) P.uncoupler = !!next.uncoupler;
+      if (next.flow !== undefined) {
+        const to = clamp(next.flow, 0, 1);
+        tw.to(P.flow, to, o.snap ? 0 : 0.7, v => { P.flow = v; }, { key: 'flow' });
+      }
+      if (rebuild) build();
+      return api;
+    }
+
+    /* Anchors are functions, not points: the model turns and they turn with
+       it. `ims` and `matrix` are spaces rather than meshes, so each is
+       anchored on a sampled point inside itself. */
+    const w = v => (v ? model.localToWorld(v.clone()) : null);
+    const mid = () => D.cristae[Math.floor(D.cristae.length / 2)];
+    const anchors = {
+      outer:    () => w(new V3(-1.1 * R, -0.72 * R, 0.34 * R)),
+      porin:    () => w(new V3(0.9 * R, -0.80 * R, 0.30 * R)),
+      ims:      () => w(D.pockets.ims[3]),
+      inner:    () => w(new V3(0, -(R - TH - IMS) + TH, 0)),
+      crista:   () => { const c = mid(); return c ? w(new V3(c.x, -0.55 * c.R, 0)) : null; },
+      junction: () => { const g = D.groups.junction.children[Math.floor(D.groups.junction.children.length / 2)];
+                        return g ? w(g.position) : null; },
+      complex:  () => { const s = D.sites.complex.find(x => x.kind === 'I'); return s ? w(s.p) : null; },
+      synthase: () => { const s = D.sites.synthase[Math.floor(D.sites.synthase.length / 2)]; return s ? w(s.p) : null; },
+      matrix:   () => w(D.pockets.matrix[0]),
+      dna:      () => { const m = D.groups.dna.children[0];
+                        if (!m) return null;
+                        if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+                        return w(m.geometry.boundingSphere.center); },
+      ribosome: () => w(D.pockets.matrix[7]),
+      proton:   () => { const p = protons.find(x => x.mode === 'lumen'); return p ? w(p.pos) : null; },
+    };
+    /* Only the parts on the OUTSIDE can turn away from the reader; everything
+       else is in the cut, which the default camera is aimed into. */
+    const faceOut = a => () => { const p = anchors[a](); return p ? p.clone().sub(model.getWorldPosition(new V3())).normalize() : null; };
+    const facings = { outer: faceOut('outer'), porin: faceOut('porin') };
+
+    const hex = v => '#' + (typeof v === 'number' ? v : parseInt(String(v).replace('#', ''), 16)).toString(16).padStart(6, '0');
+    const ORGP = (global.MolPalette || global.MolLib.PALETTE).organelles.mitochondrion;
+    const RESPP = (global.MolPalette || global.MolLib.PALETTE).respiration;
+    const palette = () => [
+      { name: 'membranes', color: hex(ORGP.outer) },
+      { name: 'intermembrane space and crista lumen', color: hex(ORGP.lumen) },
+      { name: 'complexes I, III, IV', color: hex(RESPP.complexIII) },
+      { name: 'complex II (pumps nothing)', color: hex(RESPP.complexII) },
+      { name: 'ATP synthase', color: hex(RESPP.synthase) },
+      { name: 'protons', color: hex(RESPP.proton) },
+      { name: 'mitochondrial DNA', color: hex(ORGP.dna) },
+    ];
+    const layersOf = () => ORDER.filter(n => n !== 'ims' && n !== 'matrix')
+      .map(n => ({ name: n, label: LIBRARY[n].text, on: shown[n] !== false }));
+    const show = (n, on) => { shown[n] = !!on; applyShow(n, !!on); return api; };
+    const select = n => { selected = n; highlight(); emit('pick', n); return api; };
+
+    const api = {
+      step, state, set, on, anchors, facings, library: LIBRARY, layersOf, show, palette, select,
+      point: (x, y) => { ndc.set(x, y); },
+      pick: () => partAt(),
+      model, params: () => P, ORDER,
+      get selected() { return selected; },
+    };
+    build();
+    return api;
+  }
+
+  /* ---- the box -------------------------------------------------------- */
+
+  function mount(el, params = {}) {
+    if (!global.CardStage) throw new Error('cell/mitochondrion.js: load kit/card-stage.js first');
+    let mito = null, last = null, nb = null;
+    const box = global.CardStage.create({
+      mount: el,
+      /* Above and to the side, looking down into the cut: the cristae, the
+         machines and the protons are all inside it, and a view from the
+         equator shows an orange capsule. */
+      cam: params.cam || { theta: 0.62, phi: 0.92, r: 26 },
+      stage: Object.assign({ phiMax: 2.6, rMin: 6, rMax: 70 }, params.stage || {}),
+      step: dt => { if (mito) last = mito.step(dt); },
+      afterFrame: () => { if (nb) nb.step(); },
+      viewOffset: params.viewOffset,
+    });
+    /* Stage's studio lights ride the camera, so orbiting reads as turning the
+       organelle under a fixed lamp. Kept, warmed off the blue fill (which
+       reads as cold grey on an orange subject), and given one low camera
+       light so the inside of the bowl is modelled rather than a dark well —
+       the whole subject is in there. No shadow maps: between cristae packed
+       this closely a cast shadow lands as soot. */
+    box.renderer.toneMapping = THREE.NoToneMapping;
+    box.scene.traverse(o => {
+      if (o.isAmbientLight) o.intensity = 0.46;
+      else if (o.isDirectionalLight) { o.color.set(o.intensity > 0.6 ? 0xfff4e8 : 0xf0e4dc); o.intensity *= 0.85; }
+    });
+    /* TWO EXTRA LIGHTS, BOTH ON THE CAMERA, and the ambient nearly doubled.
+       Almost every surface worth seeing here is a crista face, and a crista
+       face is edge-on to the view: with one key light they all fall to
+       ambient and the inside of the organelle reads as a dark well. These
+       two rake it from either side, which is what models a plate. */
+    for (const [x, y, z, i] of [[-4, 4, 3, 0.30], [4, -2, 3, 0.24]]) {
+      const l = new THREE.DirectionalLight(0xffffff, i);
+      l.position.set(x, y, z);
+      box.camera.add(l, l.target);
+    }
+
+    mito = create(THREE, box.root, box.camera, params);
+
+    const cv = box.canvas;
+    const onMove = e => { const b = cv.getBoundingClientRect();
+      mito.point(((e.clientX - b.left) / b.width) * 2 - 1, -((e.clientY - b.top) / b.height) * 2 + 1); };
+    const onLeave = () => mito.point(-2, -2);
+    /* A drag is not a click: an orbit that ends over the background fires
+       `click` like any other, and would throw the selection away. */
+    let downAt = null;
+    const onDown = e => { downAt = [e.clientX, e.clientY]; };
+    const onClick = e => {
+      const moved = downAt && Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+      downAt = null;
+      if (moved > 4) return;
+      const hit = mito.pick();
+      // Emptiness clears; clicking the part you already have keeps it.
+      mito.select(hit || null);
+    };
+    cv.addEventListener('pointermove', onMove);
+    cv.addEventListener('pointerleave', onLeave);
+    cv.addEventListener('pointerdown', onDown);
+    cv.addEventListener('click', onClick);
+    mito.on('hover', n => { cv.style.cursor = n ? 'pointer' : ''; });
+    box.pump();
+    nb = global.Notebook ? global.Notebook.create({ box, anchors: mito.anchors, facings: mito.facings, library: mito.library }) : null;
+
+    return {
+      sim: mito, box,
+      views: () => VIEWS,
+      lookAt(name, dur) { if (VIEWS[name]) box.flyTo(VIEWS[name], dur); else box.flyTo({ theta: 0.62, phi: 0.92, r: 26 }, dur); return this; },
+      home(dur) { box.flyTo({ theta: 0.62, phi: 0.92, r: 26 }, dur); return this; },
+      note: (n, o) => nb && nb.note(n, o), notes: n => nb && nb.notes(n), clearNotes: () => nb && nb.clear(),
+      anchors: () => nb ? nb.list() : [],
+      layers: mito.layersOf, show: (n, on) => { mito.show(n, on); if (!box.running) box.draw(); return this; }, palette: mito.palette,
+      set(next, opts) { mito.set(next, opts); if (!box.running) box.draw(); return this; },
+      state: () => last || mito.state(),
+      on: mito.on,
+      start: box.start, stop: box.stop, pump: box.pump,
+      destroy() {
+        cv.removeEventListener('pointermove', onMove);
+        cv.removeEventListener('pointerleave', onLeave);
+        cv.removeEventListener('pointerdown', onDown);
+        cv.removeEventListener('click', onClick);
+        box.destroy();
+      },
+    };
+  }
+
+  global.Mitochondrion = { create, mount, DEFAULTS, VIEWS, ORDER, LIBRARY, R, UNIT };
+  /* Scale (kit/scale.js). MEASURED ALONG, DRAWN ACROSS: one scene unit is
+     100 nm, so the capsule's 1.9 by 0.7 µm is real and a page may print it.
+     Everything thin is exaggerated, because at true thickness a bilayer beside
+     this organelle is a fifth of a pixel — the three membrane factors are
+     computed from the numbers the builder was handed, so they cannot drift
+     from what is drawn. The machines are icons and their factors are typed.
+     `down` is where a zoom hands off: the physics of the gradient is
+     Membrane's, one rung down, with context:'mitochondrion'. */
+  global.Mitochondrion.SCALE = {
+    rung: 'organelle', form: 'single', unit: UNIT, sceneUnits: [],
+    exag: {
+      membrane: +(NM(TH) / TRUE_NM.membrane).toFixed(1),
+      ims: +(NM(IMS) / TRUE_NM.ims).toFixed(1),
+      lumen: +(NM(LUM) / TRUE_NM.lumen).toFixed(1),
+      junction: 1.4, complex: 3.5, synthase: 2.8, porin: 8, ribosome: 2, dna: 4,
+    },
+    down: { inner: 'Membrane', crista: 'Membrane', synthase: 'Membrane', complex: 'Membrane' },
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);

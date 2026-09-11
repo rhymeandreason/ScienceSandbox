@@ -95,6 +95,7 @@
     'cell/organelles.js',
     'cell/animalcell.js',
     'cell/plantcell.js',
+    'cell/mitochondrion.js',
     'sickle/sickle-fibre.js',
     'sickle/hbcrowd.js',
     'graph/graph.js',
@@ -144,6 +145,10 @@
     HbCrowd:    ['kit/ribbon.js', 'kit/tube.js', 'kit/surface.js',
                  'sickle/sickle-fibre.js', 'sickle/hbcrowd.js'],
     AnimalCell: ['lib/mol-small.js', 'cell/organelles.js', 'cell/animalcell.js'],
+    /* chemiosmosis.js is arithmetic with no THREE and no DOM, and the
+       organelle loads it for one thing: the rotor's stoichiometry, so this
+       box and a Membrane beside it cannot disagree about what an ATP costs. */
+    Mitochondrion: ['membrane/chemiosmosis.js', 'cell/organelles.js', 'cell/mitochondrion.js'],
     PlantCell:  ['lib/mol-small.js', 'cell/organelles.js', 'cell/plantcell.js'],
     /* fx.js is optional to the component and listed anyway: without it the
        reaction still runs and simply marks no bonds, which reads as a beat

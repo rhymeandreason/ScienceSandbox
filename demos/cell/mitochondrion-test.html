@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mitochondrion bench — the membranes, and what crosses them</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+  .bench-group { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .bench-group:first-child { padding-top: 0; border-top: 0; }
+  .bench-hd { font-family: var(--display); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .bench-out { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto;
+    background: var(--ink); color: #eceadf; border-radius: 14px; padding: 14px 16px; margin: 0; }
+  .lshell-panel .show-panel .show-chip { font-family: var(--display); font-weight: 500; }
+  /* A bench is one screen, not a sequence. */
+  .lshell-nav, .lshell-progress { display: none; }
+  .lshell-scroll { padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/annotate.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script src="../membrane/chemiosmosis.js"></script>
+<script src="../cell/organelles.js"></script>
+<script src="../cell/mitochondrion.js"></script>
+<script>
+/* The bench for cell/mitochondrion.js: every parameter live on the organelle,
+   every readout off state(). On the lesson shell, so the component is judged
+   in the chrome a student meets it in. */
+
+const D = Mitochondrion.DEFAULTS;
+const CHIPS = { notes: ['inner', 'crista', 'junction', 'synthase', 'proton'],
+                zoom:  ['crista', 'junction', 'synthase'],
+                layers: ['porin', 'crista', 'complex', 'synthase', 'proton', 'dna'] };
+
+const shell = LessonShell.create({
+  brand: 'Mitochondrion · component bench',
+  hint: 'Drag to orbit · Click a part to select it',
+  steps: [{
+    eyebrow: 'cell/mitochondrion.js',
+    title: 'One mitochondrion, cut open',
+    body: '<p>Two membranes, cristae as the flattened sacs they are, and protons making the round trip. Everything below is a <strong>set()</strong> and every number a <strong>state()</strong>.</p>',
+    onEnter: bench,
+  }],
+});
+
+const M = Mitochondrion.mount(shell.stage, { viewOffset: shell.viewOffset });
+let allNotes = false;
+M.on('pick', n => { if (!allNotes) M.notes(n ? [n] : false); });
+/* The console is part of the bench: `mito.set({...})`, `mito.lookAt('synthase')`,
+   `mito.state()`, and `mito.pump(1/60)` when a backgrounded tab has stopped rAF. */
+window.mito = M;
+
+function bench(ctx) {
+  const ui = ctx.ui;
+  ui.controls(`
+    <div class="bench-group">
+      <div class="bench-hd">the chain</div>
+      <div class="slider"><div class="slider-head"><span class="label">flow</span><span class="value" data-v="flow"></span></div>
+        <input type="range" id="flow" min="0" max="1" step="0.01" value="${D.flow}"></div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="unc"><span class="track"></span>uncoupler</label>
+      </div>
+      <p class="foot">An uncoupler is a hole, not a machine: protons come home without touching a synthase, the rotor stops, and the fuel all leaves as heat.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">the organelle</div>
+      <div class="slider"><div class="slider-head"><span class="label">cristae</span><span class="value" data-v="cristae"></span></div>
+        <input type="range" id="cristae" min="3" max="24" step="1" value="${D.cristae}"></div>
+      <div class="slider"><div class="slider-head"><span class="label">open</span><span class="value" data-v="open"></span></div>
+        <input type="range" id="open" min="0.3" max="1" step="0.01" value="${D.open}"></div>
+      <button class="btn ghost" type="button" id="regen">new seed</button>
+      <p class="foot">Both rebuild. Nothing tweens across a rebuild.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">what the component says</div>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">length</span><span class="stat-value" id="rd-len">—</span></div>
+        <div class="stat"><span class="stat-label">cristae</span><span class="stat-value" id="rd-cr">—</span></div>
+        <div class="stat"><span class="stat-label">junctions</span><span class="stat-value" id="rd-j">—</span></div>
+        <div class="stat"><span class="stat-label">complexes</span><span class="stat-value" id="rd-cx">—</span></div>
+        <div class="stat"><span class="stat-label">synthases</span><span class="stat-value" id="rd-sy">—</span></div>
+        <div class="stat"><span class="stat-label">H⁺ outside</span><span class="stat-value" id="rd-out">—</span></div>
+        <div class="stat"><span class="stat-label">rotor turns</span><span class="stat-value" id="rd-turn">—</span></div>
+        <div class="stat"><span class="stat-label">ATP</span><span class="stat-value" id="rd-atp">—</span></div>
+        <div class="stat"><span class="stat-label">leaked</span><span class="stat-value" id="rd-leak">—</span></div>
+        <div class="stat"><span class="stat-label">selected</span><span class="stat-value" id="rd-sel" style="font-size:15px">—</span></div>
+      </div>
+      <p class="foot" id="rd-stoich"></p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">the chips a step would offer</div>
+      <div id="bench-chips"></div>
+      <button class="btn ghost" type="button" id="all-notes" aria-pressed="false">Show every annotation</button>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">paste into mitochondrion.js</div>
+      <pre class="bench-out" id="out"></pre>
+      <button class="btn secondary" type="button" id="copy">Copy</button>
+    </div>`);
+
+  const out = ui.q('#out');
+  const snippet = () => {
+    out.textContent =
+      `const DEFAULTS = {\n` +
+      `  cristae: ${ui.q('#cristae').value}, open: ${(+ui.q('#open').value).toFixed(2)}, seed: ${M.sim.params().seed},\n` +
+      `  flow: ${(+ui.q('#flow').value).toFixed(2)}, uncoupler: ${ui.q('#unc').checked},\n` +
+      `  protons: ${D.protons}, detail: ${D.detail},\n};\n\n` +
+      `ctx.ui.showPanel(c, ${JSON.stringify(CHIPS)});`;
+  };
+  ui.q('#copy').onclick = () => navigator.clipboard.writeText(out.textContent);
+
+  /* Every slider snaps: a drag a 0.7s glide is chasing feels broken. */
+  ui.range(ui.q('#flow'), v => {
+    M.set({ flow: v }, { snap: true });
+    ui.q('[data-v=flow]').textContent = v === 0 ? 'stopped' : v.toFixed(2);
+    snippet();
+  });
+  ui.range(ui.q('#cristae'), v => { M.set({ cristae: Math.round(v) }); ui.q('[data-v=cristae]').textContent = Math.round(v); snippet(); });
+  ui.range(ui.q('#open'), v => { M.set({ open: v }); ui.q('[data-v=open]').textContent = v.toFixed(2); snippet(); });
+  ui.q('#unc').onchange = e => { M.set({ uncoupler: e.target.checked }); snippet(); };
+  ui.q('#regen').onclick = () => { M.set({ seed: (Math.random() * 1e9) >>> 0 }); snippet(); };
+
+  CardStage.showPanel(ui.q('#bench-chips'), M, CHIPS);
+
+  /* Every anchor at once, which no lesson should do: the bench is where you
+     find out what the component can label before a step picks two. */
+  const all = ui.q('#all-notes');
+  all.onclick = () => {
+    const on = all.getAttribute('aria-pressed') !== 'true';
+    allNotes = on;
+    all.setAttribute('aria-pressed', String(on));
+    all.textContent = on ? 'Hide annotations' : 'Show every annotation';
+    M.notes(on ? M.anchors().map(a => a.name) : false);
+  };
+
+  const NAMES = Mitochondrion.LIBRARY;
+  M.on('frame', s => {
+    ui.q('#rd-len').textContent = (s.lengthNm / 1000).toFixed(2) + ' µm';
+    ui.q('#rd-cr').textContent = s.cristae;
+    ui.q('#rd-j').textContent = s.junctions;
+    ui.q('#rd-cx').textContent = s.complexes;
+    ui.q('#rd-sy').textContent = s.synthases;
+    ui.q('#rd-out').textContent = s.protons.lumen + ' / ' + s.protons.total;
+    ui.q('#rd-turn').textContent = s.rotorTurns.toFixed(1);
+    ui.q('#rd-atp').textContent = s.atpMade;
+    ui.q('#rd-leak').textContent = s.leaked;
+    ui.q('#rd-sel').textContent = s.selected ? NAMES[s.selected].text : '—';
+    ui.q('#rd-stoich').textContent =
+      `${s.stoichiometry.protonsPerTurn} H⁺ a turn, ${s.stoichiometry.atpPerTurn} ATP a turn — ` +
+      `${s.stoichiometry.protonsPerATP.toFixed(1)} H⁺ per ATP, read from membrane/chemiosmosis.js. ` +
+      `Crista spacing ${s.cristaSpacingNm ? Math.round(s.cristaSpacingNm) + ' nm' : '—'}; ` +
+      `membranes drawn at ${Math.round(s.membraneNm)} nm against a real 4.`;
+  });
+  snippet();
+}
+
+shell.goTo(0);
+</script>
+</body>
+</html>

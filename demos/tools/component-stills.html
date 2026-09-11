@@ -117,6 +117,9 @@ const SHOTS = [
   { key: 'animalcell', use: 'AnimalCell', warm: 3,
     mount: el => AnimalCell.mount(el, {}) },
 
+  { key: 'mitochondrion', use: 'Mitochondrion', warm: 3,
+    mount: el => Mitochondrion.mount(el, { cam: { theta: 0.6, phi: 0.95, r: 17 } }) },
+
   { key: 'plantcell', use: 'PlantCell', warm: 3,
     mount: el => PlantCell.mount(el, {}) },
 

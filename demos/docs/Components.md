@@ -183,9 +183,11 @@ Every component declares a **rung** (how big) and a **form** (how many) in its o
 molecules · macromolecule · membrane · organelle · cell · tissue · organ · organism · population
 ```
 
-**A page composing normally cannot get this wrong**: each `mount()` gets its own box and its own camera, so components at different rungs simply live in different boxes. Nothing at the `organelle` or `population` rung yet; Graph and Diagram sit on no rung, because a chart and a notation are not in the world.
+**A page composing normally cannot get this wrong**: each `mount()` gets its own box and its own camera, so components at different rungs simply live in different boxes. Nothing at the `population` rung yet; Graph and Diagram sit on no rung, because a chart and a notation are not in the world.
 
 **At the cell rung, AnimalCell and PlantCell are the defaults.** They are what a reader pictures when they hear "a cell", and between them they carry a nucleus, organelles, a wall and a vacuole. BloodCell is a specialist with none of that, so it comes out when the subject really is blood, or as a second example after a general cell has made the point.
+
+**Respiration is three rungs and the middle one is Mitochondrion.** Where the reactions happen is a pathway lesson's business; WHERE IN THE CELL is AnimalCell; the architecture the gradient stands in is Mitochondrion; the gradient's own arithmetic is Membrane with `context:'mitochondrion'`. A step asking how chemiosmosis works wants the last two together — the organelle for where the protons go, the membrane for how much it buys.
 
 **Two rungs are often the lesson, not a choice between them.** *Why does osmosis matter* is two boxes or two steps: Membrane for the mechanism (water crossing, counted) and BloodCell or PlantCell for the consequence (a cell bursting, a leaf wilting). Neither half answers it alone — the mechanism without a consequence is a headcount nobody asked for, and the consequence without the mechanism is a shape changing for no stated reason. The same holds for a pump and the cell it keeps alive, or a chloroplast and the tree it feeds. **When a question asks why something MATTERS, reach for the pair.**
 
@@ -318,8 +320,20 @@ const m = Membrane.mount(el, {
   contents: { inside:{ water:30, H:22 }, outside:{ water:30, H:22 } },   // 'H' is a proton
   potential: 'nernst',
   sideLabels: true,           // both halves named on the stage; false only if you have your own
+  showATP: true,              // an ATP leaves the F1 head per third-turn; false for the gradient alone
+  atpExit: null,              // 'left' | 'right': it leaves that way, toward the box that spends it
 });
 ```
+
+Every third of a turn a labelled ATP is released from the synthase head into the compartment it is made in and drifts off. It is the `atpMade` count, drawn: a step about where the energy went wants it, and a step about the gradient itself can set `showATP:false`.
+
+**WHAT SPENDS IT IS A SECOND BOX.** The Na⁺/K⁺ pump runs on ATP and is one of the biggest consumers in a cell, but it is in the PLASMA membrane and the synthase is in the inner mitochondrial one. Drawing an ATP from the synthase to a pump on the same sheet says those are one membrane, which is true only of a bacterium. So mount two: a `mitochondrion` box with `atpExit` pointing at its neighbour, and a `plasma` box with `pumpAuto:false`, and wire one to the other.
+
+```js
+made.on('atp', () => spender.spend());   // one ATP made, one pump turn bought
+```
+
+`spend()` returns false if a turn is already running or there is no Na⁺ to carry, which is the honest answer: ATP arriving faster than the pump can turn does not make it turn faster.
 
 `complex` burns fuel to carry protons **inside → outside only**, on a six-phase cycle it visibly turns through. `synthase` is a turbine, not a pump: protons come back down through it and the rotor turns, and it cannot run uphill, so with the gradient gone it stops. `leak` is an uncoupler's hole — protons home without making ATP, and the fuel all comes out as heat. The complexes slow as the force they pump against rises and stall near `state().pmfStall`: respiratory control.
 
@@ -538,16 +552,17 @@ Good for: vaso-occlusion, why a stiff cell is a problem and a flexible one is no
 const C = AnimalCell.mount(el, {
   motion: 1,        // 0..3 the jiggle and the vesicle runs; 0 stops the cell dead
   seed: 1234,       // a different seed is a different arrangement (rebuild)
+  detail: 'auto',   // 'auto' resolves the mitochondrion a click flies to; 'low' never; 'high' all five, and costs it
 });
 ```
 
 A bowl of cytoplasm cut on a wavy line, with a nucleus, five mitochondria, a Golgi ribbon, rough ER wrapped round the nucleus, a centrosome, vesicles and 1500 ribosomes. Everything jiggles in place and the vesicles run in and out along the line to the centrosome, which is what an animal cell's organelles actually do.
 
-**This is the default animal cell.** Reach for it when the step asks WHAT IS IN A CELL, what an animal cell has that a plant cell does not, or whenever a lesson needs one cell to point at and the subject is not some particular cell's speciality. PlantCell is the same default on the plant side. Hover brightens an organelle, a click flies to it, a double-click comes home, so "find the Golgi" is a thing the student does rather than reads. A step about one organelle's own machinery is not this component: a mitochondrion's cristae doing chemiosmosis is Membrane, and it is a different rung, so it is a different box.
+**This is the default animal cell.** Reach for it when the step asks WHAT IS IN A CELL, what an animal cell has that a plant cell does not, or whenever a lesson needs one cell to point at and the subject is not some particular cell's speciality. PlantCell is the same default on the plant side. Hover brightens an organelle, a click flies to it, a double-click comes home, so "find the Golgi" is a thing the student does rather than reads. **Fly to a mitochondrion and it resolves**: the same organelle, in the same place, swaps its folded ribbon for two membranes and cristae as sacs, and drops back on the way home. A step about one organelle's own machinery is still not this component — that is Mitochondrion, a rung down, and a different box.
 
 Snaps: everything. `motion` is the only live param; geometry rebuilds, and nothing glides across a rebuild.
 
-`state()`: `motion`, `hovered`, `counts` (how many of each are drawn), `shown`. Events: `frame`, `hover`, `pick`.
+`state()`: `motion`, `detail`, `detailed` (how many mitochondria are resolved), `hovered`, `counts` (how many of each are drawn), `shown`. Events: `frame`, `hover`, `pick`.
 
 One list of parts serves `note()`, `lookAt()` and `show()`: `membrane`, `nucleus`, `er`, `golgi`, `mitochondrion`, `centrosome`, `vesicle`, `ribosome`. Every one carries a card, so `showPanel` gives a working panel with no copy of your own. **No part declares a view**, so a `notes` chip labels and never moves the camera; put the two or three worth travelling to in `zoom` instead.
 
@@ -579,6 +594,34 @@ Glides: `t` (pass `now: true` to snap). Snaps: `tissue`, `stream`.
 One list of parts serves `note()`, `lookAt()` and `show()`: `wall`, `membrane`, `plasmodesma`, `nucleus`, `vacuole`, `chloroplast`, `amyloplast`, `mitochondrion`, `golgi`, `er`, `ribosome`, `vesicle`. No part declares a view, so a `notes` chip never moves the camera; `zoom` is the row for that, and a plasmodesma is too small to see from the home view without it. **What exists depends on the tissue** — an anchor for a part this tissue did not build returns nothing and its chip does not appear, so a step may name `chloroplast` safely and it simply will not show on a root cell.
 
 Good for: the parts of a plant cell, plant against animal, turgor and wilting, plasmolysis, where starch is stored, why a plant needs a wall. Not for: photosynthesis itself (that is Leaf, a rung up, or a pathway lesson), anything inside a chloroplast, or a number in micrometres.
+
+## Mitochondrion — one organelle, cut open, membrane by membrane
+
+**Scale**: organelle, single. **Measured along, drawn across**: one scene unit is 100 nm, so `state().lengthNm` and `.widthNm` are real and printable. Membranes and machines are exaggerated — `Mitochondrion.SCALE.exag` has the factors, and a page prints those rather than typing one.
+
+```js
+const M = Mitochondrion.mount(el, {
+  flow: 0.6,          // 0..1 how hard the chain is running; 0 stops it dead. Glides
+  uncoupler: false,   // protons home without a synthase: no ATP, all heat
+  cristae: 11,        // 3..24 (rebuild)
+  open: 1,            // 1 cuts it in half; less closes the near wall over (rebuild)
+  seed: 4231,         // a different arrangement of cristae (rebuild)
+});
+```
+
+Two membranes with the intermembrane space between them, cristae as the flattened **sacs** they are, complexes I–IV on their faces, ATP synthase in dimer rows along their rims, mtDNA and mitoribosomes in the matrix, and protons making the round trip: out of the matrix at a complex, back in through a synthase.
+
+**Reach for this the moment a step says "in the mitochondrion" and means it.** The claim it exists to carry is one a diagram almost always gets wrong: **the inside of a crista is the intermembrane space**, joined to it through the crista junctions, so a proton pumped at a complex lands INSIDE the fold and not in the matrix. Drawn as solid fins — which is what every other picture does, and what AnimalCell does at its own distance — a student concludes the opposite. Complex II is on the cristae, in the paler blue, and no proton ever uses it: that is why FADH₂ is worth less than NADH, and it is true of the picture.
+
+**It is not the arithmetic and refuses to be.** No pH, no proton-motive force, no fuel, no respiratory control: that is Membrane with `context:'mitochondrion'`, one rung down, where it is checked. Mount both when a step asks how much — the organelle for where, the membrane for how much. The rotor's stoichiometry is the one number they share, and both read it from the same place.
+
+Glides: `flow` (pass `{snap:true}` for a slider under a thumb). Snaps: `uncoupler`, and every geometry parameter, which rebuilds.
+
+`state()`: `flow`, `uncoupler`, counts (`cristae`, `junctions`, `complexes`, `synthases`, `porins`), `protons.lumen / .matrix`, the ledger (`pumped`, `throughSynthase`, `leaked`, `rotorTurns`, `atpMade`), `stoichiometry`, and the sizes (`lengthNm`, `widthNm`, `cristaSpacingNm`, `membraneNm`). **Printable: one of `atpMade` or `protons.lumen`, and `lengthNm`.** The rest drives the page. A drawn proton stands for a great many, so nothing here is a concentration. Events: `frame`, `hover`, `pick`, `turn`.
+
+One list of parts serves `note()`, `show()` and `lookAt()`: `outer`, `porin`, `ims`, `inner`, `crista`, `junction`, `complex`, `synthase`, `matrix`, `dna`, `ribosome`, `proton`. Every one carries a card. **`crista`, `junction`, `synthase`, `complex`, `proton` and `porin` declare a view**, so a `zoom` chip for one of those travels; a `notes` chip only labels.
+
+Good for: what a mitochondrion IS, the two membranes and why only one holds a gradient, cristae and surface area, where the electron transport chain sits, why an uncoupler makes heat, mitochondria as ex-bacteria. Not for: the Krebs cycle or glycolysis (a pathway lesson), the numbers on the gradient (Membrane), or a cell with other organelles in it (AnimalCell).
 
 ## The sandbox shell
 
