@@ -192,25 +192,17 @@ function molblock(key, m) {
 
 // TWO DIFFERENCES THAT ARE NOT STEREOCHEMISTRY, normalised on both sides so a
 // real mirror is what stands out:
-//  · the house phosphate is four SINGLE P–O bonds (mol-pathways.js
-//    simplification 2 — the charge is delocalised and doubling one would be a
-//    lie), so RDKit completes P's valence with a hydride. Write it back as the
-//    ordinary acid.
 //  · PubChem answers some of these as the anion and some as the free acid.
 //    Charge is not handedness.
-//  · and the phosphorus STEREOCENTRES that normalisation then invents. A
-//    bridging phosphate in the house style has four single P–O bonds and two
-//    equivalent non-bridging oxygens; rewriting one of them as `=O` above makes
-//    the four substituents formally distinct, so RDKit reads a configuration
-//    off the 3D coordinates and tags `[P@@]`. PubChem's records carry no such
-//    tag, and neither does the chemistry: the two oxygens are equivalent by
-//    delocalisation (and both are O⁻ in the anion these specs actually draw).
-//    Left in, it reports every geometry-derived diphosphate as a mismatch —
-//    coenzyme A and its two thioesters — and buries a real difference under
-//    three fake ones. Phosphate stereochemistry is not a claim this library
-//    makes anywhere.
+//  · and the phosphorus STEREOCENTRE the house geometry invents. A bridging
+//    phosphate has one P=O and two non-bridging oxygens that are equivalent by
+//    delocalisation, which makes P's four substituents formally distinct — so
+//    RDKit reads a configuration off the 3D coordinates and tags `[P@@]`.
+//    PubChem's records carry no such tag, and neither does the chemistry. Left
+//    in, it reports every geometry-derived diphosphate as a mismatch (coenzyme
+//    A and its two thioesters) and buries a real difference under fake ones.
+//    Phosphate stereochemistry is not a claim this library makes anywhere.
 const normalise = s => s
-  .replace(/\[PH\]/g, 'P(=O)').replace(/P\(=O\)\(O\)\(O\)O/g, 'P(=O)(O)O')
   .replace(/\[O-\]/g, 'O')
   .replace(/\[P@@?H?\]/g, 'P');
 
