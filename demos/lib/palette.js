@@ -230,7 +230,7 @@
                           all of it. Drawn as two colours it would say two
                           compartments, which is the misconception the
                           detailed organelle exists to kill. */
-                       lumen:0xfae3d2, porin:0xc07b57 },
+                       lumen:0xfae3d2 },
       /* ---- plant only: PLASTIDS ----
          A chloroplast and an amyloplast are one organelle in two states —
          a tuber's amyloplast greens on a windowsill — but they are drawn
@@ -341,7 +341,14 @@
        Complex II is the paler one on purpose: it is the member that does
        NOT pump, and the eye should be able to find it. */
     respiration: {
-      complexI:0x3f5296, complexII:0x8b93c0, complexIII:0x4d5fa6, complexIV:0x5a72b5,
+      /* ONE BLUE FOR THE CHAIN. membrane/membrane.js draws a single generic
+         complex and cell/organelles.js draws complexes I, III and IV
+         separately; they are the same machines at two levels of detail, so
+         they are one colour and the label does the telling apart. Complex II
+         is the exception, and the only one: it is the member that does NOT
+         pump, which is why FADH2 is worth less ATP than NADH, and a reader
+         should be able to find it without reading. */
+      complex:0x4d5fa6, complexII:0x8b93c0,
       synthase:0xd9a13b, stalk:0xb8862c,
       leak:0x8e939b,          // an uncoupler's hole: grey, because it is a hole
       /* THE TWO DOORS THE ATP LEAVES BY, and neither is part of the chain, so

@@ -27,6 +27,12 @@
  *  that: the sheet is ONE ribbon so nobody can read the folds as separate
  *  compartments, and its lumen is the intermembrane space's own colour.
  *
+ *  THE MACHINES ARE MEMBRANE'S COLOURS, not this component's. The chain's
+ *  blue, the synthase's gold, the porin's grey and the proton all come from
+ *  palette.js's `respiration`, which membrane/membrane.js reads too — a
+ *  student meets the same gold thing making ATP in both boxes, one rung
+ *  apart, and neither file may type one.
+ *
  *  IT IS NOT THE PHYSICS, AND REFUSES TO BE. There is no pH here, no
  *  proton-motive force, no fuel and no respiratory control: that is
  *  membrane/membrane.js with `context:'mitochondrion'`, one rung down, where
@@ -418,9 +424,10 @@
     const palette = () => [
       { name: 'membranes', color: hex(ORGP.outer) },
       { name: 'intermembrane space and crista lumen', color: hex(ORGP.lumen) },
-      { name: 'complexes I, III, IV', color: hex(RESPP.complexIII) },
+      { name: 'the electron transport chain', color: hex(RESPP.complex) },
       { name: 'complex II (pumps nothing)', color: hex(RESPP.complexII) },
       { name: 'ATP synthase', color: hex(RESPP.synthase) },
+      { name: 'porins', color: hex(RESPP.porin) },
       { name: 'protons', color: hex(RESPP.proton) },
       { name: 'mitochondrial DNA', color: hex(ORGP.dna) },
     ];

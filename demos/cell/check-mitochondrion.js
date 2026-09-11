@@ -67,8 +67,20 @@ const LADDER = load('kit/scale.js').ScaleLadder;
     "cell/organelles.js no longer places a complex II: the member that does NOT pump is the reason FADH2 is worth less, and it has to be on the crista to be pointed at.");
   ok(/filter\(s\s*=>\s*s\.kind\s*!==\s*'II'\)/.test(mito),
     "cell/mitochondrion.js no longer excludes complex II from the pumping sites. A proton leaving the matrix through complex II is the picture contradicting the card.");
-  ok(/complexII/.test(String(fs.readFileSync(path.join(here, '..', 'lib/palette.js'), 'utf8'))),
-    'palette.js has no complexII colour, so the one complex that does not pump cannot be told from the three that do.');
+  const PAL = ctx.MolPalette.respiration;
+  ok(PAL.complexII !== PAL.complex,
+    'complex II is the same colour as the rest of the chain, so the one member that does not pump cannot be found without reading a label.');
+  /* THE MACHINES ARE ONE SET OF COLOURS ACROSS TWO RUNGS. A student zooms
+     from the organelle into the membrane; the gold thing making ATP has to
+     be the same gold. Neither file may type one. */
+  for (const [file, what] of [['cell/organelles.js', 'the organelle'], ['membrane/membrane.js', 'the bilayer']]) {
+    const t = src(file);
+    for (const key of ['complex', 'synthase', 'porin']) {
+      const hexOf = PAL[key].toString(16);
+      ok(!new RegExp('0x' + hexOf, 'i').test(t),
+        `${file} types 0x${hexOf} for the ${key} instead of reading palette.js's respiration.${key}. ${what} and the other rung would drift.`);
+    }
+  }
 }
 
 /* 3. the sizes */

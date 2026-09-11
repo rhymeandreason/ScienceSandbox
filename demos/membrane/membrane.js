@@ -269,14 +269,14 @@
        drawn below it, on the inside face, where F1 hangs. */
     const CPX_R = 16.0, CPX_LOBE = 0.14, CPX_HOLE = CPX_R * (1 + CPX_LOBE) + 0.5;
     const RESP = global.MolLib.PALETTE.respiration;
-    const COMPLEX = global.Parts.transporter({ half:HALF, site:6.2, mouth:8.0, radius:CPX_R, lobes:3, lobeDepth:CPX_LOBE, color:0x4d5fa6 });
+    const COMPLEX = global.Parts.transporter({ half:HALF, site:6.2, mouth:8.0, radius:CPX_R, lobes:3, lobeDepth:CPX_LOBE, color:RESP.complex });
     const SYN_R = 13.2, SYN_LOBE = 0.09, SYN_HOLE = SYN_R * (1 + SYN_LOBE) + 0.5;
-    const SYNTH   = global.Parts.transporter({ half:HALF, site:6.0, mouth:8.2, radius:SYN_R, lobes:8, lobeDepth:SYN_LOBE, color:0xd9a13b });
+    const SYNTH   = global.Parts.transporter({ half:HALF, site:6.0, mouth:8.2, radius:SYN_R, lobes:8, lobeDepth:SYN_LOBE, color:RESP.synthase });
     /* An UNCOUPLER's hole: dinitrophenol, or thermogenin in brown fat.
        Protons come back without touching the synthase, so the gradient
        collapses and no ATP is made. Grey: it is a hole, not a machine. */
     const LEAK_R = 11.0, LEAK_LOBE = 0.06, LEAK_HOLE = LEAK_R * (1 + LEAK_LOBE) + 0.5;
-    const LEAK    = global.Parts.transporter({ half:HALF, site:6.0, mouth:7.6, radius:LEAK_R, lobes:0, color:0x8e939b });
+    const LEAK    = global.Parts.transporter({ half:HALF, site:6.0, mouth:7.6, radius:LEAK_R, lobes:0, color:RESP.leak });
     /* THE ADP/ATP TRANSLOCASE, and it is the answer to "how does the ATP get
        out". The F1 head hangs in the matrix, so the ATP is MADE in the matrix,
        and a charged nucleotide does not cross a bilayer. This carries it: one
@@ -349,10 +349,10 @@
        the module driven by a count rather than by a clock. */
     function buildRotor(h) {
       const g = new THREE.Group();
-      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 9, 12), global.Parts.flat(0xb8862c));
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 9, 12), global.Parts.flat(RESP.stalk));
       shaft.userData.baseY = h + 4.5; g.add(shaft);
       for (let i = 0; i < 3; i++) {
-        const lobe = new THREE.Mesh(new THREE.SphereGeometry(6.2, 18, 12), global.Parts.flat(0xd9a13b));
+        const lobe = new THREE.Mesh(new THREE.SphereGeometry(6.2, 18, 12), global.Parts.flat(RESP.synthase));
         lobe.scale.set(1, 1.25, 1);
         const th = (i / 3) * Math.PI * 2;
         lobe.position.set(Math.cos(th) * 7.4, 0, Math.sin(th) * 7.4);
@@ -1593,6 +1593,30 @@
        words are the lesson's own callouts, so a generated page answers in
        the library's voice. */
     const _a = new THREE.Vector3();
+    /* The x furthest from every machine on stage, the porin included: where a
+       label can point at the solution itself rather than at something standing
+       in it. Stepped rather than solved, because the answer only has to be a
+       good gap and the list is never long. */
+    function clearX() {
+      const xs = PORES.map(p => p.x);
+      if (outerOn() && porinX != null) xs.push(porinX);
+      if (!xs.length) return -SPREAD() * 0.06;
+      xs.sort((a, b) => a - b);
+      if (xs.length === 1) return xs[0] - 58;
+      /* BETWEEN two machines, never outside them all. The widest gap is
+         always the open membrane past the last one, and that is off the side
+         of the frame: this module knows where its proteins are and not where
+         the camera stops, so the honest answer is the one bounded by things
+         that are certainly on screen. Ties go to the gap nearest the middle,
+         which is where a reader is already looking. */
+      let best = null, bd = -1;
+      for (let i = 1; i < xs.length; i++) {
+        const mid = (xs[i - 1] + xs[i]) / 2, d = (xs[i] - xs[i - 1]) / 2;
+        if (d > bd + 1e-6 || (Math.abs(d - bd) < 1e-6 && Math.abs(mid) < Math.abs(best))) { bd = d; best = mid; }
+      }
+      return best;
+    }
+
     /* A callout points at a place on the stage, so it rides the arc too. */
     const at = (x, y) => { _a.set(x, y, 0); if (MEM) MEM.bend(_a); return _a; };
     const firstOf = kind => { const t = travellers.find(t => t.kind === kind && !t.aboard); return t ? t.obj.getWorldPosition(_a) : null; };
@@ -1605,15 +1629,20 @@
       complex:  () => P.proteins.complex  ? at(complexX, COMPLEX.height * 0.98) : null,
       translocase: () => antX == null ? null : at(antX, ANT.height * 0.98),
       porin:    () => !outerOn() ? null : at(porinX, outerY() + CHEM.pumpDir(P.context) * HALF * 0.9),
-      cytosol:  () => !outerOn() ? null : at(-SPREAD() * 0.06, outerY() + CHEM.pumpDir(P.context) * 34),
+      cytosol:  () => !outerOn() ? null : at(clearX(), outerY() + CHEM.pumpDir(P.context) * 34),
       /* On the rotor, which moves with the context. */
       synthase: () => synthX == null ? null : at(synthX, -CHEM.pumpDir(P.context) * SYNTH.height * 1.15),
       leak:     () => P.proteins.leak ? at(P.proteins.leak.x, LEAK.height * 0.98) : null,
       H: () => firstOf('H'),
       heads:   () => at(150, HALF),        // right of the proteins: a shell's panel covers the left
       tails:   () => at(150, 0),
-      outside: () => at(-SPREAD() * 0.06, farY(1) * 0.34),
-      inside:  () => at(-SPREAD() * 0.06, -farY(-1) * 0.34),
+      /* A COMPARTMENT'S CALLOUT MUST NOT LAND ON A MACHINE. It used to sit at
+         a fixed x near the middle, which is exactly where a page puts its
+         proteins: with a synthase at 0 the "intermembrane space" label pointed
+         at the synthase. Mid-band vertically, and horizontally in the widest
+         gap the layout leaves. */
+      outside: () => at(clearX(), outerOn() ? (HALF + bandTop()) / 2 : farY(1) * 0.34),
+      inside:  () => at(clearX(), -farY(-1) * 0.34),
       water: () => firstOf('water'), NA: () => firstOf('NA'), K: () => firstOf('K'), CL: () => firstOf('CL'), A: () => firstOf('A'),
     };
     const library = {
@@ -1625,8 +1654,11 @@
         card: 'Sodium is high outside, so it leaks in whenever a door is open. This is the door, and every ion through it is one the pump has to throw back out.' },
       aquaporin: { text: 'aquaporin', offset: [40, -30],
         card: 'A pore for water and nothing charged, in single file. Water still crosses the lipid on its own, slowly; this is why some cells move it fast.' },
-      pump: { text: 'a carrier, not a pore', offset: [42, -30],
-        card: 'It binds its cargo and changes shape, so it is never open to both sides at once. One ATP buys one turn: 3 Na⁺ out and 2 K⁺ in, both uphill.' },
+      /* A CALLOUT NAMES; THE CARD ARGUES. This one said "a carrier, not a
+         pore", which is the argument, and left the reader looking at a green
+         barrel with no name — while the legend beside it said Na⁺/K⁺ pump. */
+      pump: { text: 'Na⁺/K⁺ pump', offset: [42, -30],
+        card: 'A carrier, not a pore: it binds its cargo and changes shape, so it is never open to both sides at once. One ATP buys one turn — 3 Na⁺ out and 2 K⁺ in, both uphill — and that standing cost is most of what a resting cell spends.' },
       heads: { text: 'hydrophilic heads', offset: [34, -30],
         card: 'The head carries charge and sits happily in water, so it turns outward on both faces. That is why a bilayer assembles itself and then holds together.' },
       tails: { text: 'hydrophobic tails', offset: [34, 26],
@@ -1642,14 +1674,19 @@
       CL: { text: 'Cl⁻', card: 'High outside, so it runs inward through its own channel, undressing only partly to fit.' },
       A:  { text: 'anion that cannot leave', offset: [34, 26],
         card: 'Protein side chains, phosphates and nucleic acids. They are why the inside is negative, and why it holds so much K⁺ without being positive.' },
-      complex: { text: 'pumps H⁺, burns fuel', offset: [-44, -30],
+      /* Named, not described — the pump's lesson. The name is the CONTEXT's,
+         though: the machine that pumps here is a different protein in a
+         mitochondrion and in a chloroplast, so applyContext() rewrites both
+         the name and the card, and this literal is the generic that stands
+         when a page has set neither. */
+      complex: { text: 'a proton-pumping complex', offset: [-44, -30],
         card: 'It carries protons one way only, and it pays with the fuel rather than with ATP. Turn the fuel off and it stops, which is the whole reason the gradient is a store and not a fixture.' },
       synthase: { text: 'ATP synthase', offset: [42, 30],
         card: 'A turbine, not a pump. Protons come back down the gradient through it and the rotor turns; every third of a turn makes one ATP. It cannot run uphill, so with no gradient it simply stops.' },
       leak: { text: 'an uncoupler', offset: [42, -30],
         card: 'A hole for protons. They come home without passing the synthase, so the gradient collapses and no ATP is made. The fuel still burns, and all of it comes out as heat.' },
-      translocase: { text: 'the way ATP gets out', offset: [-44, 30],
-        card: 'The ADP/ATP translocase. ATP is made in the matrix and a charged nucleotide cannot cross a bilayer, so this carries it: one ATP out for one ADP in, a strict swap. It trades a −4 for a −3, so the membrane voltage drives it — the gradient pays once to make the ATP and again to get it out, about a quarter of the whole proton budget.' },
+      translocase: { text: 'ADP/ATP translocase', offset: [-44, 30],
+        card: 'ATP is made in the matrix and a charged nucleotide cannot cross a bilayer, so this carries it: one ATP out for one ADP in, a strict swap. It trades a −4 for a −3, so the membrane voltage drives it — the gradient pays once to make the ATP and again to get it out, about a quarter of the whole proton budget.' },
       porin: { text: 'porin', offset: [42, -30],
         card: 'A hole in the outer membrane, wide and unselective. Anything this small passes, which is why the space between the two membranes is nearly the same solution as the cytosol, and why the ATP is home once it is through.' },
       cytosol: { text: 'the cytosol', offset: [-38, -26],
@@ -1665,8 +1702,12 @@
       if (P.context === 'mitochondrion') {
         library.outside.card = 'The intermembrane space. Every proton the complexes throw out lands here, so this side goes acidic and positive: that is where the energy from NADH now sits. This space and a chloroplast\'s thylakoid lumen are the same place by descent, both of them the OUTSIDE of the bacterium each organelle came from. That is why a photosynthesis diagram looks flipped against this one.';
         library.inside.card  = 'The matrix. The Krebs cycle runs here and hands its NADH to the complexes in this membrane. Protons leave from this side and come back through the synthase.';
+        library.complex.text = 'electron transport chain';
+        library.complex.card = 'Three complexes drawn as one. NADH hands them electrons, they pass them down to oxygen, and each drop pays for protons thrown out. It spends FUEL rather than ATP: turn the fuel off and it stops, which is the whole reason the gradient is a store and not a fixture.';
       } else if (P.context === 'thylakoid') {
         library.outside.card = 'The stroma, around the outside of the thylakoid disc. ATP is made here, and it is what the Calvin cycle spends to fix carbon. Protons leave from this side and come back through the synthase.';
+        library.complex.text = 'the light-driven chain';
+        library.complex.card = 'Photosystem II splits water and starts the electrons moving, cytochrome b6f is the one that pumps, and photosystem I lifts them again for NADPH. Drawn as one machine. Light is the fuel, so the dimmer is a rate knob and darkness stops it.';
         library.inside.card  = 'The lumen, the space enclosed by the disc. Light drives protons in here, so this is the acidic side: the energy from the photons is now a gradient across this membrane. It is the same space as a mitochondrion\'s intermembrane space, both of them the OUTSIDE of the bacterium each organelle came from. A thylakoid ended up with that space sealed inside it, which is why the two diagrams are mirrored for a real reason rather than by convention.';
       }
     }

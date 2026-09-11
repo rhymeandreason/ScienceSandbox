@@ -955,12 +955,15 @@
 
       /* Porins. A ring each, over the outer membrane only: the outer
          membrane is a sieve and the inner one is not, which is the whole
-         reason a gradient can stand across the inner one. */
+         reason a gradient can stand across the inner one. The same grey
+         membrane/membrane.js gives its own porin and its uncoupler's hole,
+         because all three are the same statement — an opening that does not
+         choose — and a student meets the two pictures one after the other. */
       let nPorins = 0;
       {
         const nP = Math.round((o.porins === undefined ? 90 : o.porins) * q);
         const geo = new THREE.TorusGeometry(0.032 * r, 0.012 * r, 6, 12);
-        const inst = new THREE.InstancedMesh(geo, mat({ color: ORG.mitochondrion.porin, roughness: 0.5, clearcoat: 0.3 }), nP);
+        const inst = new THREE.InstancedMesh(geo, mat({ color: RESP.porin, roughness: 0.5, clearcoat: 0.3 }), nP);
         const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), up = new V3(0, 0, 1), one = new V3(1, 1, 1);
         for (let i = 0; i < nP; i++) {
           const u = rr(0.02, 0.98), w = rr(0.06 * PI, cutW - 0.06 * PI);
@@ -1171,10 +1174,10 @@
          factors are in cell/mitochondrion.js's SCALE. */
       {
         const CX = {
-          I:   { color: RESP.complexI,   arm: [0.115 * r, 0.040 * r, 0.040 * r], out: 0.070 * r, outR: 0.020 * r },
-          II:  { color: RESP.complexII,  arm: null, out: 0.052 * r, outR: 0.024 * r },
-          III: { color: RESP.complexIII, arm: null, out: 0.034 * r, outR: 0.029 * r, span: true },
-          IV:  { color: RESP.complexIV,  arm: null, out: 0.031 * r, outR: 0.026 * r, span: true },
+          I:   { color: RESP.complex,   arm: [0.115 * r, 0.040 * r, 0.040 * r], out: 0.070 * r, outR: 0.020 * r },
+          II:  { color: RESP.complexII, arm: null, out: 0.052 * r, outR: 0.024 * r },
+          III: { color: RESP.complex,   arm: null, out: 0.034 * r, outR: 0.029 * r, span: true },
+          IV:  { color: RESP.complex,   arm: null, out: 0.031 * r, outR: 0.026 * r, span: true },
         };
         const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), one = new V3(1, 1, 1), Y = new V3(0, 1, 0);
         const place = (inst, i, p, dir, extra) => {
