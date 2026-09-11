@@ -64,23 +64,25 @@
     background: rgba(var(--paper-t),.92); backdrop-filter: blur(10px);
     border-bottom: 1px solid rgba(var(--ink-t),.12);
   }
-  .sitenav .wrap { display: flex; align-items: center; gap: .75rem; padding: .9rem 0; }
+  .sitenav .wrap { display: flex; align-items: baseline; gap: .75rem; padding: .9rem 0; }
   /* One element, one size — 1.35rem, the size it is on every page that is not
      the front door. The image is inline on its own baseline so the crumb sits
      on the wordmark's, the way it does under kodo.css. */
   .sitenav .mark { --mark-size: 1.35rem; line-height: 0; text-decoration: none; }
   .sitenav .mark img { display: inline-block; vertical-align: baseline; height: var(--mark-size); width: auto; }
-  /* The mark and the crumb are their OWN baseline row inside a bar that is
-     otherwise centred, because the bar carries a button and a button has no
-     business on a text baseline. Without this the crumb sits 6px high. */
   .sitenav .here { display: inline-flex; align-items: baseline; gap: .75rem; }
   /* Where you are. No divider rule: the system separates it by space. */
   .sitenav .crumb { font: 600 .74rem var(--ui); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); }
   .sitenav .sp { flex: 1; }
-  .sitenav a.lnk { font: 500 13px var(--sans); text-decoration: none; color: var(--ink-2); }
+  /* The links are kodo.css's `.sitelinks`, in this page's own ink: same
+     micro-cap face, size, tracking and case, so a reader crossing from a
+     document-shell page sees one bar. */
+  .sitenav .links { display: flex; flex-wrap: wrap; align-items: baseline; gap: clamp(.9rem,2.4vw,1.7rem); }
+  .sitenav a.lnk { font: 600 .74rem var(--ui); letter-spacing: .18em; text-transform: uppercase;
+    text-decoration: none; color: var(--mute); }
   .sitenav a.lnk:hover { color: var(--coral); }
   /* Where you are is the one entry that is not a way out. */
-  .sitenav a.lnk[aria-current="page"] { color: var(--ink); font-weight: 600; }
+  .sitenav a.lnk[aria-current="page"] { color: var(--ink); }
 
   .cta {
     font: 500 14px var(--sans); letter-spacing: .06em; padding: .8rem 1.4rem; border-radius: 999px;
@@ -271,11 +273,12 @@
          row on every document-shell page, and cannot write it here because the
          bar is this page's own (fixed, blurred, its own palette). The words and
          the order are that list's — a fifth place added there is added here. -->
-    <a class="lnk" href="/#field">Lessons</a>
-    <a class="lnk" href="/library">Library</a>
-    <a class="lnk here-now" href="/contribute" aria-current="page">Contribute</a>
-    <a class="lnk" href="/build">Build</a>
-    <a class="cta sm ghost" href="https://github.com/rhymeandreason/ScienceSandbox" target="_blank" rel="noopener">GitHub</a>
+    <nav class="links" aria-label="Site">
+      <a class="lnk" href="/#field">Lessons</a>
+      <a class="lnk" href="/library">Library</a>
+      <a class="lnk here-now" href="/contribute" aria-current="page">Contribute</a>
+      <a class="lnk" href="/build">Build</a>
+    </nav>
   </div>
 </nav>
 

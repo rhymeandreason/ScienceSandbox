@@ -47,13 +47,11 @@
      on a shelf page with nothing to read, and it should feel like it. */
   .pagehead{padding:clamp(2.5rem,5vw,4.5rem) 0 0}
 
-  /* The masthead's counts, in the slot `.meta` had — hence the same auto margin
-     and the same drop to a full row on a narrow window. */
-  .jump{margin:0 0 0 auto;display:flex;flex-wrap:wrap;gap:.5rem}
-  @media (max-width:700px){ .jump{margin:.9rem 0 0;width:100%} }
+  /* The counts read as a row under the deck, left-aligned with it. */
+  .jump{margin:0 0 clamp(3rem,5vw,4rem);display:flex;flex-wrap:wrap;gap:.5rem}
   /* The deck sits well clear of the name: with no rule between them, space is
      the only thing saying they are two things. */
-  .lede{margin:clamp(1.5rem,2.6vw,2.5rem) 0 clamp(3rem,5vw,4rem)}
+  .lede{margin:clamp(1.5rem,2.6vw,2.5rem) 0 1.25rem}
   /* Room above a section that has been jumped to, so its head is not welded to
      the top of the window. */
   main section{scroll-margin-top:1.5rem}
@@ -153,18 +151,19 @@
 
   <header class="pagehead open">
     <h1>library</h1>
-    <!-- The masthead's count is the way in: the same three numbers, each one a
-         door to its section. Labels are written at render from the lists they
-         count. -->
+  </header>
+
+  <p class="lede">Everything an app here is built from: components are whole scenes a page
+    mounts by name, proteins and molecules the structures they draw.</p>
+
+  <!-- The counts are the way in: the same three numbers, each one a door to its
+       section. Labels are written at render from the lists they count. They sit
+       under the deck, on the page's left edge with the name and the text. -->
     <nav class="jump" id="tally" aria-label="Jump to a section">
       <a class="cta cta--ghost cta--sm" href="#components" data-n="comp"></a>
       <a class="cta cta--ghost cta--sm" href="#proteins" data-n="prot"></a>
       <a class="cta cta--ghost cta--sm" href="#molecules" data-n="mol"></a>
     </nav>
-  </header>
-
-  <p class="lede">Everything an app here is built from: components are whole scenes a page
-    mounts by name, proteins and molecules the structures they draw.</p>
 
   <main>
     <section id="components">
