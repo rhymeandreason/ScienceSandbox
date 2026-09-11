@@ -27,6 +27,9 @@ body {
 .btn--fill { color: var(--text-inverse); border-color: var(--accent); background: var(--accent); }
 .btn--fill:hover:not([disabled]) { color: var(--text-inverse); border-color: var(--spark); background: var(--spark); }
 .btn--text { border-color: transparent; background: transparent; color: var(--text-dim); padding-inline: 6px; }
+/* The one destructive verb on the page. */
+.btn--hot { color: var(--text-inverse); border-color: var(--accent-hot); background: var(--accent-hot); }
+.btn--hot:hover:not([disabled]) { filter: brightness(1.08); }
 .btn--text:hover:not([disabled]) { color: var(--accent); border-color: transparent; background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
 /* ---- bar -------------------------------------------------------------- */
@@ -511,6 +514,20 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
   display: block; margin-top: .2rem; font-family: system-ui, sans-serif; font-size: .78rem;
   font-weight: 400; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--text-muted);
 }
+/* The row under a card. View and Edit are named because they are what the card
+   is for; the link and the bin are icons, and the bin is the only thing here
+   that cannot be undone, so it only colours on hover. */
+.mine .acts { display: flex; align-items: center; gap: .4rem; margin-top: .6rem; }
+.mine .acts .spacer { flex: 1; }
+.mine .acts .btn { padding: 3px 10px; font-size: .78rem; }
+.mine .acts .iconbtn { width: 28px; height: 28px; font-size: 15px; color: var(--text-muted); }
+.mine .acts .iconbtn:hover { color: var(--accent); }
+.mine .acts .iconbtn.is-done { color: var(--accent); }
+.mine .acts .iconbtn[data-act="del"]:hover { color: var(--accent-hot); }
+
+dialog.confirm .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+dialog.confirm .bad { color: var(--accent-hot); }
+
 .mine a:hover .thumb { transform: translateY(-2px); border-color: var(--accent); }
 .mine a:hover .name { color: var(--accent); }
 

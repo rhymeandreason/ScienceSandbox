@@ -8,6 +8,7 @@
  *       restore {n}                   → a new version copying an old one
  *       remix   {visitorId}           → a new app whose parent is this one, with its own token
  *       rotate                        → a fresh token; the old link stops working
+ *       remove                        → the app and every version of it, gone
  *       title   {title}
  *       thumb   {thumb, meta}          → the scene as a JPEG data URL and the words on
  *                                       the card in front of it, for the shelf; token required
@@ -109,6 +110,11 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id, n: v.n, html: old.html });
     }
 
+    if (action === 'remove') {
+      await apps.remove(id);
+      return res.status(200).json({ id, removed: true });
+    }
+
     if (action === 'rotate') {
       return res.status(200).json({ id, token: await apps.rotate(id) });
     }
@@ -181,7 +187,7 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ id, thumb: !!t });
     }
 
-    return res.status(400).json({ error: 'action must be restore, remix, rotate, title, thumb or text' });
+    return res.status(400).json({ error: 'action must be restore, remix, rotate, remove, title, thumb or text' });
   } catch (err) {
     console.error('[app] ' + ((err && err.message) || err));
     return res.status(500).json({ error: 'the app store failed' });

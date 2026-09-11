@@ -48,6 +48,16 @@
   </span>
 </header>
 
+<dialog class="beta confirm" id="delModal">
+  <h2>Delete this app?</h2>
+  <p>“<span id="delName"></span>” and all its versions go for good, and any link you have shared stops working.</p>
+  <p class="small bad" id="delErr" hidden></p>
+  <div class="row">
+    <button class="btn" id="delCancel" type="button">Cancel</button>
+    <button class="btn btn--hot" id="delGo" type="button"><i class="ph-bold ph-trash"></i>Delete</button>
+  </div>
+</dialog>
+
 <dialog class="beta settings" id="settingsModal">
   <h2>Edit link</h2>
   <p>Anyone holding this link can change the app. Keep it in your email or a bookmark; this browser may forget it.</p>
@@ -772,6 +782,8 @@
   }
 
   function paintSettings() { $('editLink').value = Apps.link('edit', app.id, token); $('previewLink').href = Apps.link('preview', app.id); $('copied').hidden = true; }
+  $('delCancel').addEventListener('click', () => $('delModal').close());
+  $('delGo').addEventListener('click', doDelete);
   $('settings').addEventListener('click', () => { paintSettings(); $('settingsModal').showModal(); });
   $('copyEdit').addEventListener('click', async () => {
     const link = $('editLink').value;
@@ -818,6 +830,38 @@
   // beside it. Same 960x600 layout, same scale, so the two halves of the shelf
   // read as one set. With neither, paper.
   const LIVE = 6;
+
+  // The icon says it landed: the link goes to a check for a moment and back.
+  async function copyLink(btn, id) {
+    try { await navigator.clipboard.writeText(Apps.link('view', id)); } catch { return; }
+    btn.classList.add('is-done');
+    btn.innerHTML = '<i class="ph-bold ph-check"></i>';
+    setTimeout(() => { btn.classList.remove('is-done'); btn.innerHTML = '<i class="ph-bold ph-link"></i>'; }, 1600);
+  }
+
+  // Deleting takes the app off the server, so the link anyone holds stops
+  // working. Said plainly in the dialog, and the app is named in it.
+  let pendingDelete = null;
+  function askDelete(m) {
+    pendingDelete = m;
+    $('delName').textContent = m.title || 'untitled';
+    $('delErr').hidden = true;
+    $('delModal').showModal();
+  }
+  async function doDelete() {
+    const m = pendingDelete; if (!m) return;
+    try {
+      await Apps.api('../../api/app', { method: 'POST', token: m.token, body: { action: 'remove', id: m.id } });
+    } catch (err) {
+      // A row already gone is a delete that got what it wanted.
+      if (err.status !== 404) { $('delErr').textContent = err.message; $('delErr').hidden = false; return; }
+    }
+    Apps.forget(m.id);
+    pendingDelete = null;
+    $('delModal').close();
+    paintMine();
+  }
+
   async function paintMine() {
     const list = Apps.mine().filter(m => !app || m.id !== app.id).slice(0, 12);
     const box = $('mine');
@@ -846,13 +890,33 @@
              + `</span>` : '')
         + `</span>`;
     };
-    const card = (m, i) => `<li><a href="${location.pathname}?id=${esc(m.id)}"><span class="thumb">`
+    // The card opens the editor; the row under it names the three things that
+    // are not that. Delete needs the edit token, so it is only offered on an app
+    // this browser can still edit.
+    const card = (m, i) => `<li data-id="${esc(m.id)}"><a class="open" href="${esc(Apps.link('edit', m.id))}"><span class="thumb">`
       + (i < LIVE ? `<iframe class="live" data-id="${esc(m.id)}" title="" tabindex="-1" aria-hidden="true"></iframe>` : still(m))
       + `</span><span class="meta"><span class="name">${esc(m.title || 'untitled')}</span>`
       + `<time class="when" datetime="${new Date(m.edited || m.at || Date.now()).toISOString()}">${esc(ago(m.edited || m.at))}</time>`
-      + `</span></a></li>`;
+      + `</span></a>`
+      + `<span class="acts">`
+      + `<a class="btn btn--soft" href="${esc(Apps.link('view', m.id))}" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>View</a>`
+      + `<a class="btn btn--soft" href="${esc(Apps.link('edit', m.id))}"><i class="ph-bold ph-pencil-simple"></i>Edit</a>`
+      + `<span class="spacer"></span>`
+      + `<button class="iconbtn" data-act="copy" type="button" title="Copy the public link" aria-label="Copy the public link"><i class="ph-bold ph-link"></i></button>`
+      + (m.token ? `<button class="iconbtn" data-act="del" type="button" title="Delete this app" aria-label="Delete this app"><i class="ph-bold ph-trash"></i></button>` : '')
+      + `</span></li>`;
     const paint = () => { box.innerHTML = `<h2>Continue building</h2><ul>${list.map(card).join('')}</ul>`; };
     paint();
+    if (!box._acts) {
+      box._acts = true;
+      box.addEventListener('click', e => {
+        const b = e.target.closest('button[data-act]'); if (!b) return;
+        const id = b.closest('li').dataset.id;
+        const m = Apps.mine().find(x => x.id === id) || { id };
+        if (b.dataset.act === 'copy') return copyLink(b, id);
+        askDelete(m);
+      });
+    }
     try {
       const r = await Apps.api(`../../api/app?ids=${list.map(m => m.id).join(',')}`);
       const by = Object.fromEntries((r.apps || []).map(a => [a.id, a]));

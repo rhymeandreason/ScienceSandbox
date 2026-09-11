@@ -188,6 +188,15 @@ async function rotate(id) {
   return token;
 }
 
+/* Gone means gone. `app_versions` cascades and any child remix has its
+ * parent_id nulled, so a delete takes the page and its history and leaves the
+ * copies other people made standing. The usage rows go with it: a deleted app
+ * stops counting toward the spend the admin page totals. */
+async function remove(id) {
+  const db = log.sql();
+  await db`DELETE FROM apps WHERE id = ${id}`;
+}
+
 async function setTitle(id, title) {
   const db = log.sql();
   await db`UPDATE apps SET title = ${String(title || '').slice(0, 120) || null} WHERE id = ${id}`;
@@ -305,4 +314,4 @@ async function usage() {
 module.exports = { LIMITS, enabled, exceeded, validId, setThumb, setCard, sourcesNeedingCards,
                    thumbsWithoutSceneFlag, markScene, shelf,
                    create, addVersion, read, versions, version, requests,
-                   mayEdit, rotate, setTitle, recent, usage };
+                   mayEdit, rotate, setTitle, remove, recent, usage };
