@@ -186,13 +186,18 @@ function slots(nBonds, nPairs) {
   return { pairs: a.slice(0, nPairs), bonds: a.slice(nPairs) };
 }
 
-/* Directions for the lone pairs on a TERMINAL atom: fanned out around the
- * continuation of its one bond, so they point away from the molecule. */
-function fan(away, n) {
-  if (n <= 0) return [];
-  const spread = n === 1 ? 0 : Math.min(2.0, 0.7 * (n - 1)) ;
+/* Directions for the lone pairs on a TERMINAL atom, by the same rule `slots`
+ * uses for the central one: its bond and its pairs divide the circle evenly,
+ * one slot each. The bond takes the first, the pairs take the rest.
+ *
+ * Fanning them around the continuation of the bond instead — which is what this
+ * did first — bunches them to one side and draws O₂ with its four electrons
+ * lopsided. A terminal oxygen's two pairs sit 120° off the bond, the same
+ * angle the atom's three electron domains would take anywhere else. */
+function fan(toward, n) {
+  const step = 2 * Math.PI / (n + 1);
   const out = [];
-  for (let k = 0; k < n; k++) out.push(away - spread / 2 + (n === 1 ? 0 : spread * k / (n - 1)));
+  for (let k = 1; k <= n; k++) out.push(toward + step * k);
   return out;
 }
 
@@ -266,8 +271,8 @@ function drawLewis(el, spec, o) {
   for (const a of S.pairs) body.push(pairDots(0, 0, a, ink));
   for (const i of st.ring) {
     const [x, y] = pos.get(i);
-    const away = Math.atan2(y, x);
-    for (const a of fan(away, lonePairs(spec, i, orders))) body.push(pairDots(x, y, a, ink));
+    const toward = Math.atan2(-y, -x);          // back down its own bond
+    for (const a of fan(toward, lonePairs(spec, i, orders))) body.push(pairDots(x, y, a, ink));
   }
   // labels last, over a knockout disc so a bond does not run through them
   const paper = o.paper || paperOf(el);
