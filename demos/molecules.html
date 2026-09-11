@@ -29,6 +29,13 @@
 <style>
   :root { --page-max: 1180px }
 
+  /* library.html's header, and the same reasoning: the heavy rule belongs
+     under the BAR, where it separates the chrome from the page, rather than
+     under the name. `.pagehead.open` in the markup gives kodo's own rule up. */
+  .sitenav{padding-bottom:1.25rem;border-bottom:2px solid var(--border-strong)}
+  .pagehead{padding:clamp(2.5rem,5vw,4.5rem) 0 0}
+  .lede{margin:clamp(1.5rem,2.6vw,2.5rem) 0 clamp(3rem,5vw,4rem)}
+
   /* The same track library.html's molecule shelf uses, so a card is the same
      size on both pages. */
   .grid{display:grid;gap:calc(var(--page-gap) * .7);
@@ -143,7 +150,7 @@
     <span class="crumb">biology</span>
   </nav>
 
-  <header class="pagehead">
+  <header class="pagehead open">
     <h1>molecules</h1>
     <p class="meta" id="tally">&mdash;</p>
   </header>

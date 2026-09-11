@@ -36,10 +36,24 @@
 <style>
   :root { --page-max: 1180px }
 
+  /* THE HEAVY RULE GOES UNDER THE BAR, not under the page's name. kodo.css
+     draws it under `.pagehead`, where it means "this page's name stops here";
+     on a shelf the chrome is the bar and its four links, and the line the
+     reader needs is the one between that and the page. `.pagehead.open` in the
+     markup is how the masthead gives the rule up. */
+  .sitenav{padding-bottom:1.25rem;border-bottom:2px solid var(--border-strong)}
+  /* Air on both sides of the name. Measured at 1440: 72 under the rule, 40 to
+     the deck, 88 down to the first section head — the header is the one place
+     on a shelf page with nothing to read, and it should feel like it. */
+  .pagehead{padding:clamp(2.5rem,5vw,4.5rem) 0 0}
+
   /* The masthead's counts, in the slot `.meta` had — hence the same auto margin
      and the same drop to a full row on a narrow window. */
   .jump{margin:0 0 0 auto;display:flex;flex-wrap:wrap;gap:.5rem}
   @media (max-width:700px){ .jump{margin:.9rem 0 0;width:100%} }
+  /* The deck sits well clear of the name: with no rule between them, space is
+     the only thing saying they are two things. */
+  .lede{margin:clamp(1.5rem,2.6vw,2.5rem) 0 clamp(3rem,5vw,4rem)}
   /* Room above a section that has been jumped to, so its head is not welded to
      the top of the window. */
   main section{scroll-margin-top:1.5rem}
@@ -137,7 +151,7 @@
     <span class="crumb">biology</span>
   </nav>
 
-  <header class="pagehead">
+  <header class="pagehead open">
     <h1>library</h1>
     <!-- The masthead's count is the way in: the same three numbers, each one a
          door to its section. Labels are written at render from the lists they
@@ -149,8 +163,8 @@
     </nav>
   </header>
 
-  <p class="lede">Everything an app here is built from. Components are whole scenes a page
-    mounts by name; proteins and molecules are the structures they draw.</p>
+  <p class="lede">Everything an app here is built from: components are whole scenes a page
+    mounts by name, proteins and molecules the structures they draw.</p>
 
   <main>
     <section id="components">
