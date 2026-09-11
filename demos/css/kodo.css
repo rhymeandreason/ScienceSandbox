@@ -490,6 +490,30 @@ body.kodo {
 }
 a.crumb:hover { color: var(--accent) }
 
+/* ---- the four places, on the right of the bar ----------------------------
+   INJECTED BY lib/site.js, not typed into a page: a link added to one bar is a
+   link the other nine do not have. The same micro-cap the crumb is set in,
+   because the bar is one row of signage and a second size in it reads as two
+   bars stacked. Where you are is the one entry that is not a way out, so it
+   takes the ink the others take on hover and stays there. */
+.sitelinks {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: clamp(.9rem, 2.4vw, 1.7rem);
+}
+.sitelinks a {
+  font-family: var(--font-ui);
+  font-size: .74rem;
+  font-weight: var(--cap-weight);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color var(--dur-fast);
+}
+.sitelinks a:hover,
+.sitelinks a[aria-current="page"] { color: var(--text-strong) }
+.sitelinks a:hover { color: var(--accent) }
+
 /* ---- the masthead --------------------------------------------------------
    The 2px rule under it is the one heavy line in the system, and it means "the
    page's own name stops here". A reading page, where the deck runs straight

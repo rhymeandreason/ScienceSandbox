@@ -101,6 +101,14 @@ an `<a>` when it is a level up. Same size either way, so the bar keeps its shape
 It is the way back: a page that also prints its own "← all proteins" link is
 saying it twice.
 
+**The four links on the right of the bar are written by `lib/site.js`, not by
+the page** — Lessons, Library, Contribute, Build, with `aria-current="page"` on
+the one you are in. A page types no part of that row: a link typed into one bar
+is a link the other nine do not have, and which pages carry the nav then depends
+on when each was last edited. `contribute.html` is the one exception, because
+its bar is its own (fixed, blurred, its own palette) and says so in a comment.
+Only `body.kodo` gets the row, for the same reason only it gets the foot.
+
 `.pagehead` carries the page's own name and closes with the 2px rule, which is
 the one heavy line in the system and means "this page's name stops here".
 
