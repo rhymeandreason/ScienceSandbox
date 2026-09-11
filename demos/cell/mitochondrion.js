@@ -165,7 +165,7 @@
 
     let K = null, group = null, D = null, protonMesh = null, protons = [], rand = null;
     let hovered = null, selected = null;
-    const shown = {}, MATS = {};
+    const shown = {};
     let pumped = 0, through = 0, leaked = 0, rotorAngle = 0, turnsSeen = 0;
 
     const rr = (a, b) => a + (b - a) * rand();
@@ -181,17 +181,8 @@
       });
       model.add(group);
       D = group.userData.detail;
-      for (const k in MATS) delete MATS[k];
 
-      /* Every part's materials, collected once: hover brightens a part by its
-         own emissive rather than by swapping a material, so a shared one (the
-         cristae all draw from a single membrane material, on purpose) lights
-         up everywhere the part is. */
-      for (const name in D.groups) {
-        MATS[name] = [];
-        D.groups[name].traverse(o => { if (o.material && !MATS[name].includes(o.material)) MATS[name].push(o.material); });
-        D.groups[name].userData.part = name;
-      }
+      for (const name in D.groups) D.groups[name].userData.part = name;
 
       /* The protons. An InstancedMesh because there are dozens and they are
          the one thing on stage that moves every frame. */
@@ -204,7 +195,6 @@
       protonMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.026 * R, 8, 6), pm, P.protons);
       protonMesh.userData.part = 'proton';
       group.add(protonMesh);
-      MATS.proton = [pm];
 
       protons = [];
       for (let i = 0; i < P.protons; i++) {
@@ -311,17 +301,19 @@
       }
       return null;
     }
-    function highlight() {
-      for (const n in MATS) {
-        const lit = n === selected ? 0.45 : n === hovered ? 0.22 : 0;
-        for (const m of MATS[n]) {
-          if (!m.emissive) continue;
-          if (n === 'proton') { m.emissiveIntensity = 0.14 + lit; continue; }
-          m.emissive.copy(m.color);
-          m.emissiveIntensity = lit;
-        }
-      }
-    }
+    /* NOTHING LIGHTENS UNDER THE POINTER, and nothing lightens when it is
+       picked. The cut cell brightens a whole organelle on hover because an
+       organelle there is one small object against a crowd of others; a part
+       here is most of the screen, and raising its emissive washes a membrane
+       out rather than picking it out — worse on the inner membrane, which is
+       vertex-coloured, so lifting emissive off `material.color` lifts it off
+       white. Hover and pick are reported instead: the cursor turns, `hover`
+       and `pick` fire, and a page answers with a note on the thing, which is
+       the callout the component carries words for.
+
+       If a part ever does need marking on the model itself, mark it with
+       geometry — a ring, an arrow, a note leader — not by turning the part
+       into a lamp. */
 
     /* NOT EVERY PART IS A MESH. `ims`, `matrix`, `crista` and `junction` are
        places on or between things that ARE meshes — a fold and the waist
@@ -349,7 +341,7 @@
       const turns = Math.floor(through / PPT);
       if (turns > turnsSeen) { turnsSeen = turns; emit('turn', turns); }
       const h = partAt();
-      if (h !== hovered) { hovered = h; highlight(); emit('hover', h); }
+      if (h !== hovered) { hovered = h; emit('hover', h); }
       last = state();
       emit('frame', last, dt);
       return last;
@@ -435,7 +427,7 @@
     const layersOf = () => ORDER.filter(n => n === 'proton' || D.groups[n])
       .map(n => ({ name: n, label: LIBRARY[n].text, on: shown[n] !== false }));
     const show = (n, on) => { shown[n] = !!on; applyShow(n, !!on); return api; };
-    const select = n => { selected = n; highlight(); emit('pick', n); return api; };
+    const select = n => { selected = n; emit('pick', n); return api; };
 
     const api = {
       step, state, set, on, anchors, facings, library: LIBRARY, layersOf, show, palette, select,
