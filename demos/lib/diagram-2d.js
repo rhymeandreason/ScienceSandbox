@@ -211,9 +211,10 @@ function fan(toward, n) {
 }
 
 // Two dots straddling `dir`, drawn perpendicular to it.
-function pairDots(x, y, dir, ink) {
+function pairDots(x, y, dir, ink, r) {
+  const R = r || LEWIS_PAIR_R;
   const px = -Math.sin(dir) * 3.4, py = Math.cos(dir) * 3.4;
-  const cx = x + Math.cos(dir) * LEWIS_PAIR_R, cy = y + Math.sin(dir) * LEWIS_PAIR_R;
+  const cx = x + Math.cos(dir) * R, cy = y + Math.sin(dir) * R;
   return `<circle cx="${(cx + px).toFixed(1)}" cy="${(cy + py).toFixed(1)}" r="${LEWIS_DOT}" fill="${ink}"/>`
        + `<circle cx="${(cx - px).toFixed(1)}" cy="${(cy - py).toFixed(1)}" r="${LEWIS_DOT}" fill="${ink}"/>`;
 }
@@ -321,6 +322,20 @@ function mode(spec) {
   return spec.smiles ? 'skeletal' : null;
 }
 
+/* Lone pairs for a renderer that owns positions but not chemistry — haworth.js
+ * today. It says where an atom is and which way its bond runs; this answers how
+ * many pairs it carries and where they go, using the SAME slot rule the Lewis
+ * structures use. One rule, so a Haworth ring and a Lewis structure cannot
+ * disagree about an oxygen. */
+function pairsFor(spec) {
+  const orders = bondOrders(spec);
+  return {
+    count: i => lonePairs(spec, i, orders),
+    draw: (x, y, toward, n, r) =>
+      fan(toward, n).map(a => pairDots(x, y, a, INK, r)).join(''),
+  };
+}
+
 function drawHaworth(el, spec, o) {
   if (typeof global.Haworth === 'undefined') return false;
   try {
@@ -333,6 +348,7 @@ function drawHaworth(el, spec, o) {
       ink: INK, paper: o.paper || paperOf(el), font: FONT,
       highlightColour: o.accent, highlightFill: HL,
       colors: COLORS,
+      pairs: o.lonePairs ? pairsFor(spec) : null,
     });
   } catch (e) { return false; }
   return true;

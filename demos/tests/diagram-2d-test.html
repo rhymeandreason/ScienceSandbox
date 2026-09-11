@@ -23,6 +23,7 @@
 <p class="intro">Every spec in the library, drawn by whichever projection
   <code>Diagram2D.mode()</code> picks. The counts under a Lewis structure are read
   back off the drawing, so a wrong pair count shows here rather than on a lesson.</p>
+<p><label><input type="checkbox" id="pairs"> lone pairs (Haworth only)</label></p>
 <div id="out"></div>
 
 <script src="../lib/palette.js"></script>
@@ -44,6 +45,10 @@
 <script>
 "use strict";
 const out = document.getElementById('out');
+const pairsIn = document.getElementById('pairs');
+pairsIn.addEventListener('change', render);
+function render() {
+out.innerHTML = '';
 const by = { lewis:[], haworth:[], skeletal:[], none:[] };
 for (const [key, spec] of Object.entries(MolLib.MOLECULES))
   by[Diagram2D.mode(spec) || 'none'].push([key, spec]);
@@ -61,17 +66,20 @@ for (const kind of ['lewis','haworth','skeletal','none']) {
     const b = document.createElement('b'); b.textContent = key; c.appendChild(b);
     g.appendChild(c);
     if (kind === 'none') { panel.textContent = '—'; continue; }
-    Diagram2D.draw(panel, spec, { showH:true, maxW:300, maxH:170 });
+    Diagram2D.draw(panel, spec, { showH:true, maxW:300, maxH:170,
+                                  lonePairs: pairsIn.checked });
     // Counted off the finished SVG, not off the spec: the point is whether the
     // DRAWING has them.
-    if (kind === 'lewis') {
+    if (kind === 'lewis' || (kind === 'haworth' && pairsIn.checked)) {
       const s = document.createElement('span');
-      const pairs = panel.querySelectorAll('circle[r="1.9"]').length / 2;
-      s.textContent = `${spec.formula} · ${pairs} lone pairs`;
+      const n = panel.querySelectorAll('circle[r="1.9"]').length / 2;
+      s.textContent = `${spec.formula} · ${n} lone pairs`;
       c.appendChild(s);
     }
   }
 }
+}
+render();
 </script>
 </body>
 </html>

@@ -176,6 +176,18 @@ function drawRing(m, info, opts, xOff, skip) {
   S.push(`<circle cx="${po.x}" cy="${po.y}" r="8.5" fill="${opts.paper}"/>`);
   S.push(`<text x="${po.x}" y="${po.y}" text-anchor="middle" dominant-baseline="central" `
     + `font-size="13.5" fill="${col('O')}">O</text>`);
+  /* LONE PAIRS, when the caller asks for them. This file knows WHERE each atom
+     sits and which way its bond runs; it does not decide how many electrons an
+     atom has or how they divide the circle — `opts.pairs` carries both in, so
+     the placement rule lives in one place and a Haworth ring cannot drift from
+     a Lewis structure drawn beside it. The ring O's point away from the ring,
+     which is the direction the ring centre is not. */
+  if (opts.pairs) {
+    const cx = pts.reduce((t, q) => t + q.x, 0) / pts.length + xOff;
+    const cy = pts.reduce((t, q) => t + q.y, 0) / pts.length;
+    S.push(opts.pairs.draw(po.x, po.y, Math.atan2(cy - po.y, cx - po.x),
+                           opts.pairs.count(O), 13));
+  }
 
   for (const [j, f] of F) {
     if (skip && skip.has(j)) continue;                        // the glycosidic O
@@ -192,6 +204,13 @@ function drawRing(m, info, opts, xOff, skip) {
       + `fill="${opts.highlightFill}"/>`);
     S.push(`<text x="${p.x}" y="${ly}" text-anchor="middle" font-size="12.5" `
       + `fill="${col(m.atoms[j].el)}">${label}</text>`);
+    // An -OH's pairs hang off the far end of its own bond. CH₂OH's oxygen is
+    // inside a group label with no position of its own, so it is left alone
+    // rather than given a guessed one.
+    if (opts.pairs && label === 'OH') {
+      const n = opts.pairs.count(j);
+      S.push(opts.pairs.draw(p.x, ly - 4, Math.atan2(p.y - ly, 0), n, 14));
+    }
   }
   return { svg: S.join(''), pos };
 }
