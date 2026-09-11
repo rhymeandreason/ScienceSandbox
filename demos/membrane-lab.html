@@ -693,7 +693,7 @@ function chargedIon(kind) {
      at k. At whole-membrane zoom a badge sized to the sphere is a few pixels
      of sign, and the sign is all that separates K⁺ from Na⁺ from Cl⁻. */
   const b = kit.charge(kind === 'CL' ? '−' : '+',
-                       '#' + Parts.ION[kind].color.toString(16).padStart(6, '0'), el, k * 2);
+                       Parts.ionBadge(kind), el, k * 2);
   b.userData.base.multiplyScalar(k);
   b.userData.lift *= k;
   b.position.copy(b.userData.base);

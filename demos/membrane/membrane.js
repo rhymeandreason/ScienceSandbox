@@ -42,7 +42,9 @@
  *  and changes nothing else: the code keeps +y outside and −y inside in every
  *  context. `complex` pumps protons out and pays with `fuel` ('NADH' |
  *  'FADH2' | 'light') at `fuelRate`, never with ATP; `synthase` lets them back
- *  down and turns a rotor, three protons a third-turn and one ATP with it;
+ *  down and turns a rotor, three protons a third-turn and one ATP with it,
+ *  and that ATP is drawn leaving the F1 head unless `showATP:false`, out the
+ *  side `atpExit` names if a second box is going to spend it;
  *  `leak` is an uncoupler's hole, protons home without ATP. The gradient's
  *  arithmetic — pH, the proton-motive force, the rotor's stoichiometry, and
  *  the rule that neither door runs uphill — is membrane/chemiosmosis.js, kept
@@ -81,7 +83,7 @@
     exag: 5.0,                // one exaggeration for everything that crosses (see below)
     extent: 90,               // half-height of each compartment, in world units
     spread: null,             // ±x scatter; default reach * 0.55
-    proteins: { K:null, CL:null, NA:null, AQP:null, pump:null, complex:null, synthase:null, leak:null },
+    proteins: { K:null, CL:null, NA:null, AQP:null, pump:null, complex:null, synthase:null, leak:null, translocase:null },
     /* CONTEXT renames the two sides and repaints the lipid. Nothing else:
        the code keeps +y outside and −y inside in every context, so the
        thylakoid pumping into its lumen and the mitochondrion pumping out of
@@ -103,6 +105,14 @@
     potential: 'off',
     E: { K:-90, CL:-75, NA:60 },   // mV, the Nernst potentials of the gradients drawn
     mvPerIon: -2.5,           // stage timing, not a measurement (see netPush)
+    showATP: true,            // the synthase releases a drawn ATP per third-turn
+    /* THE OUTER MEMBRANE IS A BACKDROP, not a second sim: a sheet with porins
+       in it, drawn above the inner one so the intermembrane space is a space
+       with a lid. Nothing crosses it but the ATP. Mitochondrion only — a
+       thylakoid's second membrane is the chloroplast envelope, which is not
+       this picture, and a plasma membrane has none. */
+    outerMembrane: false,
+    atpExit: null,            // 'left' | 'right': it leaves that way, toward the box that spends it
     pumpAuto: false,
     pumpOn: true,
     turnSeconds: 11,
@@ -181,6 +191,27 @@
     const listeners = {};
     const emit = (ev, ...a) => CardStage.fire(listeners[ev], a, 'Membrane ' + ev);
 
+    /* The second sheet, rebuilt with the layout because its porin sits over
+       the machine the ATP came from. Translated rather than re-bowed: the true
+       outer arc has a bigger radius than the inner one, and at the sagitta a
+       lesson actually draws the difference is under a lipid's width. */
+    function buildOuter(tint) {
+      if (OUTER) { root.remove(OUTER.group); OUTER = null; }
+      PORIN.group.visible = outerOn();
+      if (!outerOn()) { porinX = null; return; }
+      /* OVER THE DOOR IT FEEDS, offset so the ATP's two crossings do not
+         stack into one vertical line the reader takes for a single pore. */
+      porinX = (antX != null ? antX : synthX != null ? synthX : 0) + 34;
+      OUTER = global.Parts.membrane({ half:HALF * 0.62, reach:MEM_REACH, head:tint.head, tail:tint.tail,
+        bowR:BOW, exclude:(x, z) => Math.hypot(x - porinX, z) - POR_HOLE });
+      OUTER.group.position.y = outerY();
+      root.add(OUTER.group);
+      PORIN.group.position.x = porinX;
+      PORIN.group.rotation.z = -seat(PORIN.group, porinX, 0, 0);
+      PORIN.group.position.y += outerY();
+      PORIN.setGates(1, 1);
+    }
+
     /* ---- sizes ----
        molecules.js builds at MolLib.SCALE (~1.9x angstroms) while parts.js
        works raw; dividing puts them in one frame. Then everything crossing is
@@ -233,6 +264,7 @@
        SYNTHASE: the c-ring is why it has that many lobes, and the rotor is
        drawn below it, on the inside face, where F1 hangs. */
     const CPX_R = 16.0, CPX_LOBE = 0.14, CPX_HOLE = CPX_R * (1 + CPX_LOBE) + 0.5;
+    const RESP = global.MolLib.PALETTE.respiration;
     const COMPLEX = global.Parts.transporter({ half:HALF, site:6.2, mouth:8.0, radius:CPX_R, lobes:3, lobeDepth:CPX_LOBE, color:0x4d5fa6 });
     const SYN_R = 13.2, SYN_LOBE = 0.09, SYN_HOLE = SYN_R * (1 + SYN_LOBE) + 0.5;
     const SYNTH   = global.Parts.transporter({ half:HALF, site:6.0, mouth:8.2, radius:SYN_R, lobes:8, lobeDepth:SYN_LOBE, color:0xd9a13b });
@@ -241,11 +273,63 @@
        collapses and no ATP is made. Grey: it is a hole, not a machine. */
     const LEAK_R = 11.0, LEAK_LOBE = 0.06, LEAK_HOLE = LEAK_R * (1 + LEAK_LOBE) + 0.5;
     const LEAK    = global.Parts.transporter({ half:HALF, site:6.0, mouth:7.6, radius:LEAK_R, lobes:0, color:0x8e939b });
+    /* THE ADP/ATP TRANSLOCASE, and it is the answer to "how does the ATP get
+       out". The F1 head hangs in the matrix, so the ATP is MADE in the matrix,
+       and a charged nucleotide does not cross a bilayer. This carries it: one
+       ATP out for one ADP in, a strict swap, which is why the matrix never
+       runs out of substrate and why the count of ATP leaving is the count of
+       ADP arriving. Drawn as a monomer — no lobes — because it is one, and
+       because it must not read as a small member of the respiratory chain.
+
+       NOT DRAWN: that the swap is ELECTROGENIC. It trades ATP⁴⁻ out for ADP³⁻
+       in, so one negative charge leaves per turn and the membrane voltage
+       drives it. The gradient pays twice, once to make the ATP and again to
+       export it, and that costs about a quarter of the whole proton budget.
+       The page says it; the sim does not model it, because a charge count
+       here would move mV on a stage where mvPerIon is already a timing knob
+       rather than a measurement. */
+    const ANT_R = 10.0, ANT_LOBE = 0.08, ANT_HOLE = ANT_R * (1 + ANT_LOBE) + 0.5;
+    const ANT = global.Parts.transporter({ half:HALF, site:5.4, mouth:7.0, radius:ANT_R,
+                                           lobes:0, color:RESP.translocase });
     const ROTOR = buildRotor(SYNTH.height);
     SYNTH.group.add(ROTOR);
-    const ALL = [CHANNEL, CLCHAN, NACHAN, AQP, PUMP, COMPLEX, SYNTH, LEAK];
+    const ALL = [CHANNEL, CLCHAN, NACHAN, AQP, PUMP, COMPLEX, SYNTH, LEAK, ANT];
     root.add(CHANNEL.group, CLCHAN.group, NACHAN.group, AQP.group, PUMP.group,
-             COMPLEX.group, SYNTH.group, LEAK.group);
+             COMPLEX.group, SYNTH.group, LEAK.group, ANT.group);
+
+    /* ---- the outer membrane, and the porin in it ----
+       A SECOND SHEET AND NO SECOND PHYSICS. The intermembrane space needs a
+       lid or it is just "above the membrane", and the ATP needs somewhere to
+       arrive that is not already the cytosol. The porin (VDAC) is the reason
+       the two are nearly the same solution: it passes anything small, so the
+       space between the membranes is continuous with the cytosol and the ATP
+       is home once it is through. Drawn as a wide barrel, in the leak's grey,
+       because it is a hole and does not choose.
+
+       OUTER_GAP is drawn, not measured: a real intermembrane space is much
+       narrower than this against the protein it holds. It is this wide because
+       the protons pumped into it have to be visible sitting there. */
+    const OUTER_GAP = 56;
+    /* SLIMMER AND SHORTER THAN A CARRIER, and both on purpose. transporter's
+       default `over` is 14, which is most of the height of a machine that
+       spans the thick inner membrane; on a sheet this thin it made the porin
+       a silo standing two membranes proud of its own. And a hole does not
+       need a body: the width here is the pore plus a wall, where a carrier's
+       width is a mechanism wrapped around a site. */
+    const POR_R = 6.6, POR_HOLE = 8.4;
+    const PORIN = global.Parts.transporter({ half:HALF * 0.62, over:4.0, wall:2.2,
+                                             site:4.9, mouth:5.4, radius:POR_R,
+                                             lobes:0, color:RESP.porin });
+    let OUTER = null, porinX = null, antX = null;
+    const outerOn = () => !!P.outerMembrane && P.context === 'mitochondrion';
+    /* Signed like everything else: the outer membrane is on the side the
+       protons are pumped to, which is the side the ATP leaves by. */
+    const outerY = () => CHEM.pumpDir(P.context) * OUTER_GAP;
+    /* THE CEILING ON THE COMPARTMENT BELOW IT. Without this the protons the
+       complex just pumped out drift straight through the outer sheet and the
+       lid is a decoration. */
+    const bandTop = () => outerOn() ? OUTER_GAP - 8 : P.extent;
+    root.add(PORIN.group);
     let MEM = null, T = PUMP, PORES = [], pumpX = 0, complexX = 0, synthX = null, cut = false;
 
     /* The F1 head: a ring of three αβ pairs on a shaft. Three, because one
@@ -266,6 +350,135 @@
       }
       return g;
     }
+    /* ---- the ATP that comes out, and the way out ----
+       The count was the only evidence: the rotor turned, a readout ticked,
+       and nothing on stage said the gradient had bought anything. So one
+       molecule leaves the head per third-turn, on the SAME pass() that
+       increments the count, and a student can watch the beats instead of
+       reading them.
+
+       IT IS MADE IN THE MATRIX, which is where the F1 head hangs, and that is
+       the whole reason this is a route and not a drift. A charged nucleotide
+       cannot cross a bilayer, so the ATP goes matrix → translocase → inter-
+       membrane space → porin → cytosol, and takes an ADP the other way
+       through the translocase on the way. With neither door on stage it
+       simply wanders off, which is a page not teaching export.
+
+       DRAWN AS ITS PHOSPHATES, and nothing else. Real ATP at this stage's
+       scale is thirty-one atoms about the size of a proton, which is a smudge,
+       and an adenosine body drawn big enough to see turns the token into a
+       lollipop whose biggest feature is the part the lesson never mentions.
+       Beads in the palette's phosphorus orange — the colour glycolysis already
+       taught as "something ATP paid for" — read as three at any size, and
+       three against two is what tells ATP from the ADP passing it.
+
+       THE THIRD BOND IS A CONDENSATION: ADP + Pi loses a water, the same
+       reaction as a peptide or a glycosidic bond, so it is drawn in the same
+       `condense` slate they are. It is also the one thing here that moves —
+       the bead arrives oversize and snaps onto the chain — because the
+       gradient spent on that bond is the whole lesson of the synthase. */
+    const ATP_MAX = 8, ATP_SNAP = 0.35, ATP_SPEED = 52, ATP_FADE = 0.8;
+    const atpChips = [];
+    const R_BEAD = 2.2, BEAD_GAP = 5.0;
+    function buildNucleotide(n) {
+      const g = new THREE.Group();
+      const PAL = global.MolLib.PALETTE;
+      const x = i => (i - (n - 1) / 2) * BEAD_GAP;
+      const beads = [];
+      for (let i = 0; i < n; i++) {
+        const b = new THREE.Mesh(new THREE.SphereGeometry(R_BEAD, 16, 12), global.Parts.flat(PAL.atoms.P));
+        b.position.x = x(i); g.add(b); beads.push(b);
+      }
+      for (let i = 0; i < n - 1; i++) {
+        const link = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, BEAD_GAP, 8),
+          global.Parts.flat(i === n - 2 && n === 3 ? PAL.bonds.condense : PAL.bonds.covalent));
+        link.rotation.z = Math.PI / 2; link.position.x = x(i) + BEAD_GAP / 2;
+        g.add(link);
+      }
+      /* Named in the badge's own dress — ink on a white pill — so the word
+         belongs to the same page as the + on every proton that paid for it. */
+      const tag = kit.pill(n === 3 ? 'ATP' : 'ADP', 6.4);
+      tag.position.set(0, R_BEAD + 5.2, 0);
+      g.add(tag);
+      g.userData = { newest: beads[n - 1], tag };
+      return g;
+    }
+    /* The waypoints, in the sim's flat frame; seat() bends them onto the arc
+       at draw time the way it does for a traveller. `out` is the leg after
+       which the molecule has left the mitochondrion — the page's cue. */
+    function atpRoute() {
+      const d = CHEM.pumpDir(P.context);
+      const legs = [];
+      if (antX != null) {
+        legs.push({ x:antX, y:-d * (HALF + 15) });          // across the matrix to the door
+        legs.push({ x:antX, y: d * (HALF + 15), swap:true });  // through it, ADP the other way
+      }
+      if (outerOn()) {
+        legs.push({ x:porinX, y: d * (OUTER_GAP - HALF * 0.62 - 7) });
+        legs.push({ x:porinX, y: d * (OUTER_GAP + HALF * 0.62 + 9), out:true });
+      }
+      const away = P.atpExit === 'left' ? -1 : P.atpExit === 'right' ? 1 : 0;
+      const last = legs.length ? legs[legs.length - 1] : null;
+      legs.push({ x:(last ? last.x : (synthX || 0)) + (away || 1) * 90,
+                  y:(last ? last.y : -d * (HALF + 26)) + (last ? d * 22 : -d * 14),
+                  fade:true, out:!legs.some(l => l.out) });
+      return legs;
+    }
+    function releaseATP() {
+      if (!P.showATP || !SYNTH.group.visible || atpChips.length >= ATP_MAX) return;
+      const d = CHEM.pumpDir(P.context);
+      const g = buildNucleotide(3);
+      root.add(g);
+      atpChips.push({ obj:g, t:0, phase:Math.random() * 6.28, fade:1,
+                      x:(synthX || 0), y:-d * (SYNTH.height + 20), legs:atpRoute(), leg:0 });
+    }
+    /* The ADP that comes back the other way. Not a second molecule the sim
+       tracks — it is the SAME event seen from the other side, so it is born
+       where the ATP is leaving and walks the two legs in reverse. */
+    function releaseADP(atX) {
+      const d = CHEM.pumpDir(P.context);
+      const g = buildNucleotide(2);
+      root.add(g);
+      atpChips.push({ obj:g, t:0, phase:Math.random() * 6.28, fade:1,
+                      x:atX, y:d * (HALF + 15),
+                      legs:[{ x:atX, y:-d * (HALF + 15) },
+                            { x:atX - 44, y:-d * (HALF + 34), fade:true }], leg:0 });
+    }
+    function tickATP(dt) {
+      for (let i = atpChips.length - 1; i >= 0; i--) {
+        const c = atpChips[i];
+        c.t += dt;
+        const o = c.obj, leg = c.legs[c.leg];
+        /* WALKED, not integrated: the route is the claim, and a velocity that
+           merely points at a door arrives beside it half the time. */
+        const dx = leg.x - c.x, dy = leg.y - c.y, dist = Math.hypot(dx, dy);
+        const move = ATP_SPEED * dt;
+        if (dist <= move) {
+          c.x = leg.x; c.y = leg.y;
+          if (leg.swap && antX != null) releaseADP(antX);
+          if (leg.out && !c.left) { c.left = true; emit('atpOut', ROT.atp); }
+          if (leg.fade) c.dying = true;
+          if (c.leg < c.legs.length - 1) c.leg++;
+        } else { c.x += dx / dist * move; c.y += dy / dist * move; }
+        seat(o, c.x, c.y, 0);
+        /* A ROW READ EDGE-ON IS ONE DOT. The token stays in the screen plane
+           and only leans, so the beads never collapse into each other. */
+        o.rotation.z = Math.sin(c.t * 1.1 + c.phase) * 0.16;
+        /* The new phosphate lands: oversize for a beat, then onto the chain. */
+        const k = Math.min(1, c.t / ATP_SNAP);
+        o.userData.newest.scale.setScalar(1 + 1.4 * (1 - k) * (1 - k));
+        if (c.dying) {
+          c.fade -= dt / ATP_FADE;
+          o.traverse(m => { if (m.material) { m.material.transparent = true; m.material.opacity = Math.max(0, c.fade); } });
+          if (c.fade <= 0) { kit.forget(o.userData.tag); root.remove(o); atpChips.splice(i, 1); }
+        }
+      }
+    }
+    function clearATP() {
+      for (const c of atpChips) { kit.forget(c.obj.userData.tag); root.remove(c.obj); }
+      atpChips.length = 0;
+    }
+
     /* F1 HANGS WHERE THE ATP IS MADE, which is the side the protons come out
        on: the matrix in a mitochondrion, the stroma in a chloroplast. Drawn
        below the membrane in both until the thylakoid flipped, and then it was
@@ -282,7 +495,7 @@
        about where the crowd was. */
     const PORE_GAP = 72;
     const LEAK_PREFERENCE = 3;      // protons per one that still takes the synthase
-    const PROTEIN_KEYS = { K:null, CL:null, NA:null, AQP:null, pump:null, complex:null, synthase:null, leak:null };
+    const PROTEIN_KEYS = { K:null, CL:null, NA:null, AQP:null, pump:null, complex:null, synthase:null, leak:null, translocase:null };
     function spaced(pr) {
       const on = Object.keys(pr).filter(k => pr[k]).map(k => ({ k, x: pr[k].x || 0 })).sort((a, b) => a.x - b.x);
       for (let i = 1; i < on.length; i++) if (on[i].x - on[i - 1].x < PORE_GAP) on[i].x = on[i - 1].x + PORE_GAP;
@@ -325,6 +538,12 @@
       LEAK.group.visible = !!pr.leak;
       if (pr.leak) { LEAK.group.position.x = pr.leak.x; LEAK.setGates(1, 1);
         holes.push([pr.leak.x, LEAK_HOLE]); PORES.push({ x:pr.leak.x, R:LEAK_R, lumen:7.6, kind:'H', door:'leak' }); }
+      ANT.group.visible = !!pr.translocase;
+      antX = pr.translocase ? pr.translocase.x : null;
+      if (pr.translocase) { ANT.group.position.x = antX; ANT.setGates(1, 1);
+        /* A carrier with no kind, like the pump: nothing queues in it, and
+           what it carries is not a traveller at all. */
+        holes.push([antX, ANT_HOLE]); PORES.push({ x:antX, R:ANT_R, lumen:7.0, kind:null }); }
       orientRotor(CHEM.pumpDir(P.context));
       T = pr.pump ? PUMP : pr.K ? CHANNEL : pr.CL ? CLCHAN : pr.NA ? NACHAN : pr.AQP ? AQP
         : pr.complex ? COMPLEX : pr.synthase ? SYNTH : pr.leak ? LEAK : PUMP;
@@ -344,10 +563,11 @@
          shoulder. */
       /* position.x is still the flat x every branch above just wrote; seat()
          replaces it with the point on the arc. */
-      for (const M of [CHANNEL, CLCHAN, NACHAN, AQP, PUMP, COMPLEX, SYNTH, LEAK]) {
+      for (const M of [CHANNEL, CLCHAN, NACHAN, AQP, PUMP, COMPLEX, SYNTH, LEAK, ANT]) {
         if (!M.group.visible) continue;
         M.group.rotation.z = -seat(M.group, M.group.position.x, 0, 0);
       }
+      buildOuter(tint);
       setCut(cut);
       /* A pore named by kind is re-resolved against the new layout. */
       for (const t of travellers) if (t.conductsKind) t.conducts = poreX(t.conductsKind);
@@ -387,7 +607,7 @@
       /* The badge is drawn at TWICE the matched size: at whole-membrane zoom
          the sign is all that separates K⁺ from Na⁺ from Cl⁻. */
       const b = kit.charge(kind === 'CL' ? '−' : '+',
-        '#' + global.Parts.ION[kind].color.toString(16).padStart(6, '0'), el, k * 2);
+        global.Parts.ionBadge(kind), el, k * 2);
       b.userData.base.multiplyScalar(k); b.userData.lift *= k;
       b.position.copy(b.userData.base);
       g.add(b); g.userData.badge = b;
@@ -542,8 +762,10 @@
       applyVis();
       return t;
     }
-    const farY = () => P.extent * 0.94;
-    const inCompartment = side => side * rnd(HALF + 4, farY());
+    /* The lid counts: a compartment with an outer membrane over it is only as
+       tall as that sheet, or things are scattered into the cytosol at birth. */
+    const farY = (side) => (side > 0 && outerOn() ? bandTop() : P.extent) * 0.94;
+    const inCompartment = side => side * rnd(HALF + 4, farY(side));
     /* Ions default to ion speed, water to walking; blocked unless the bilayer
        lets it through (a gas, or water). An ion with a channel of its kind on
        stage uses it. The anions sit deep in the cytosol, heavy and slow,
@@ -554,7 +776,7 @@
       const out = [];
       for (let i = 0; i < n; i++) {
         const s = side === 0 ? (i % 2 ? 1 : -1) : side;
-        const far = farY();
+        const far = farY(s);
         const def = {
           x: opts.clear === false ? rnd(-SPREAD(), SPREAD()) : rndClear(SPREAD() * (opts.span || 1)),
           z: rnd(-11, 11), y: inCompartment(s),
@@ -796,7 +1018,7 @@
              come out of the same pass(), so the picture cannot get ahead of
              the number. A proton down the uncoupler's hole turns nothing. */
           if (t.kind === 'H' && Math.sign(t.y) === -pumpDir()) {   // only one that came home counts
-            if (synthX != null && t.lane === synthX) { protonsThroughSynthase++; if (ROT.pass(1)) emit('atp', ROT.atp); }
+            if (synthX != null && t.lane === synthX) { protonsThroughSynthase++; if (ROT.pass(1)) { releaseATP(); emit('atp', ROT.atp); } }
             else protonsLeaked++;
           }
           if (q) mV = clampMV(P.mvPerIon * chargeOut);
@@ -978,8 +1200,10 @@
       if (t.walk) lateral(t, dt);
       t.y += t.vy * dt * (inCore && !t.blocked ? t.coreSpeed || 1 : 1);
       if (t.bounded) {
+        /* The lid is on the +y side only: outerOn() is a mitochondrion, and a
+           mitochondrion always pumps up the screen. */
         const far = P.extent;
-        const lo = t.yband ? t.yband[0] : -far, hi = t.yband ? t.yband[1] : far;
+        const lo = t.yband ? t.yband[0] : -far, hi = t.yband ? t.yband[1] : bandTop();
         if (t.y > hi) { t.y = hi; t.vy = -Math.abs(t.vy); }
         if (t.y < lo) { t.y = lo; t.vy =  Math.abs(t.vy); }
         t.obj.position.y = t.y; tumble(t, dt);
@@ -1185,6 +1409,7 @@
         }
       }
       ROTOR.rotation.y += (ROT.angle - ROTOR.rotation.y) * Math.min(1, dt * 6);
+      tickATP(dt);
       tickShells(dt);
       /* LAST, and after everything that moved a traveller: the arc is the
          final word on where a thing is drawn, so nothing above has to know
@@ -1225,7 +1450,12 @@
         /* `pumpedInto` saves a page working out which half that is from the
            direction — the one thing about a context a caption most wants and
            most easily gets backwards. */
-        sides: { inside: CHEM.sideName(P.context, 'inside'), outside: CHEM.sideName(P.context, 'outside'),
+        outerMembrane: outerOn(),
+        /* The third space, when there is one: above the outer membrane is
+           neither half of this sim, and a caption that calls it "outside"
+           has put the cytosol outside the cell. */
+        sides: { beyond: outerOn() ? 'the cytosol' : null,
+                 inside: CHEM.sideName(P.context, 'inside'), outside: CHEM.sideName(P.context, 'outside'),
                  pumpedInto: CHEM.sideName(P.context, pumpDir() > 0 ? 'outside' : 'inside') },
         pH: proton.pH, dpH: proton.dpH, pmf: proton.pmf,
         atpMade: ROT.atp, rotorTurns: ROT.protons / CHEM.PROTONS_PER_TURN,
@@ -1242,6 +1472,7 @@
     function reset() {
       mV = 0; chargeOut = 0; crossed.K = crossed.CL = crossed.NA = crossed.water = crossed.H = 0;
       ROT.reset(); complexTurns = 0; protonsLeaked = 0; protonsThroughSynthase = 0;
+      clearATP();
       for (const t of cpxCargo) t.aboard = false;
       cpxCargo.length = 0; cpxT = 0; cpxPhase = ''; cpxState = null;
       crossings = { up:0, down:0 }; netRecent = 0;
@@ -1253,6 +1484,9 @@
       if (next.context != null && next.context !== P.context) {
         if (!CHEM.CONTEXTS[next.context]) console.warn('membrane.js: no context named ' + next.context + '; have ' + Object.keys(CHEM.CONTEXTS).join(', '));
         else { P.context = next.context; applyContext(); layout(P.proteins); }   // the lipid colour is baked into the sheet
+      }
+      if (next.outerMembrane != null && next.outerMembrane !== P.outerMembrane) {
+        P.outerMembrane = !!next.outerMembrane; layout(P.proteins);   // the lid is built with the layout
       }
       if (next.proteins) layout(next.proteins);
       if (next.shells != null) setShells(next.shells);
@@ -1282,6 +1516,7 @@
       shells:   { label: 'hydration shells', get: () => P.shells,   set: v => setShells(v) },
       cut:      { label: 'proteins cut open',get: () => cut,        set: v => setCut(v) },
       membrane: { label: 'the bilayer',      get: () => MEM.group.visible, set: v => { MEM.group.visible = v; } },
+      outer:    { label: 'the outer membrane', get: () => outerOn(), set: v => set({ outerMembrane: !!v }) },
     };
     const layers = () => Object.keys(LAYERS).map(k => ({ name: k, label: LAYERS[k].label, on: !!LAYERS[k].get() }));
     function show(name, on = true) {
@@ -1316,13 +1551,17 @@
       complex:  { name: 'the complex that pumps H⁺', color: '#4d5fa6' },
       synthase: { name: 'ATP synthase', color: '#d9a13b' },
       leak:     { name: 'uncoupler (a hole for H⁺)', color: '#8e939b' },
+      translocase: { name: 'ADP/ATP translocase', color: hex(RESP.translocase) },
     };
     /* WHAT A MACHINE CARRIES is knowable from the layout alone, and that
        matters because card-stage builds its legend at mount, before a page
        has called set({contents}). Without this a bench that populates on its
        first step drew a legend of proteins and nothing to put through them. */
     const PROTEIN_CARRIES = { K:['K'], CL:['CL'], NA:['NA'], AQP:['water'],
-                              pump:['NA','K'], complex:['H'], synthase:['H'], leak:['H'] };
+                              pump:['NA','K'], complex:['H'], synthase:['H'], leak:['H'],
+                              /* It carries no traveller: what goes through it is the ATP,
+                                 which is not one. */
+                              translocase:[] };
     function palette() {
       const out = [], seen = new Set();
       const take = kind => {
@@ -1352,14 +1591,17 @@
       aquaporin:    () => { const x = poreX('water'); return x == null ? null : at(x, T.height * 0.95); },
       pump:    () => P.proteins.pump ? at(pumpX, T.height * 0.98) : null,
       complex:  () => P.proteins.complex  ? at(complexX, COMPLEX.height * 0.98) : null,
+      translocase: () => antX == null ? null : at(antX, ANT.height * 0.98),
+      porin:    () => !outerOn() ? null : at(porinX, outerY() + CHEM.pumpDir(P.context) * HALF * 0.9),
+      cytosol:  () => !outerOn() ? null : at(-SPREAD() * 0.06, outerY() + CHEM.pumpDir(P.context) * 34),
       /* On the rotor, which moves with the context. */
       synthase: () => synthX == null ? null : at(synthX, -CHEM.pumpDir(P.context) * SYNTH.height * 1.15),
       leak:     () => P.proteins.leak ? at(P.proteins.leak.x, LEAK.height * 0.98) : null,
       H: () => firstOf('H'),
       heads:   () => at(150, HALF),        // right of the proteins: a shell's panel covers the left
       tails:   () => at(150, 0),
-      outside: () => at(-SPREAD() * 0.06, farY() * 0.34),
-      inside:  () => at(-SPREAD() * 0.06, -farY() * 0.34),
+      outside: () => at(-SPREAD() * 0.06, farY(1) * 0.34),
+      inside:  () => at(-SPREAD() * 0.06, -farY(-1) * 0.34),
       water: () => firstOf('water'), NA: () => firstOf('NA'), K: () => firstOf('K'), CL: () => firstOf('CL'), A: () => firstOf('A'),
     };
     const library = {
@@ -1379,8 +1621,8 @@
         card: 'The tails are hydrocarbon and will not mix with water, so they hide in the middle. Everything crossing this membrane has to get through that oil.' },
       outside: { text: 'outside the cell', offset: [-38, -26],
         card: 'Every solute particle sits where a water would have been, so fewer of the molecules here are water. More solute, less free water.' },
-      inside:  { text: 'inside the cell', offset: [-38, 26],
-        card: 'The cytosol: mostly water, potassium, and the big anions that never leave. What is dissolved here is what the pump spends ATP to keep.' },
+      inside:  { text: 'the cytosol', offset: [-38, 26],
+        card: 'Mostly water, potassium, and the big anions that never leave. What is dissolved here is what the pump spends ATP to keep.' },
       water: { text: 'water', card: 'Small and uncharged enough to slip through the oil, slowly, in both directions. The net flow is a headcount, not a pull.' },
       NA: { text: 'Na⁺, with its water', offset: [34, -26],
         card: 'Smaller than K⁺, and it still cannot use the K⁺ filter: it holds its water too tightly to trade the shell for the pore.' },
@@ -1394,10 +1636,16 @@
         card: 'A turbine, not a pump. Protons come back down the gradient through it and the rotor turns; every third of a turn makes one ATP. It cannot run uphill, so with no gradient it simply stops.' },
       leak: { text: 'an uncoupler', offset: [42, -30],
         card: 'A hole for protons. They come home without passing the synthase, so the gradient collapses and no ATP is made. The fuel still burns, and all of it comes out as heat.' },
+      translocase: { text: 'the way ATP gets out', offset: [-44, 30],
+        card: 'The ADP/ATP translocase. ATP is made in the matrix and a charged nucleotide cannot cross a bilayer, so this carries it: one ATP out for one ADP in, a strict swap. It trades a −4 for a −3, so the membrane voltage drives it — the gradient pays once to make the ATP and again to get it out, about a quarter of the whole proton budget.' },
+      porin: { text: 'porin', offset: [42, -30],
+        card: 'A hole in the outer membrane, wide and unselective. Anything this small passes, which is why the space between the two membranes is nearly the same solution as the cytosol, and why the ATP is home once it is through.' },
+      cytosol: { text: 'the cytosol', offset: [-38, -26],
+        card: 'Outside the mitochondrion altogether. This is where the ATP is spent: on pumps at the cell surface, on the enzymes that build things, on everything the cell does that costs.' },
       H:  { text: 'H⁺', card: 'A bare proton. It cannot cross the oil on its own, so every one of them goes through a protein, and which protein decides whether the energy becomes ATP.' },
     };
     /* The two compartments are named by the CONTEXT, so a card cannot say
-       "inside the cell" about a matrix. Rewritten in place: the notebook
+       "the cytosol" about a matrix. Rewritten in place: the notebook
        holds this object. */
     function applyContext() {
       const inside = CHEM.sideName(P.context, 'inside'), outside = CHEM.sideName(P.context, 'outside');
@@ -1451,19 +1699,27 @@
   text-transform:uppercase; opacity:.6; white-space:nowrap;
   text-shadow:0 1px 10px rgba(255,255,255,.85); }
 .mem-side.out { top:24%; }
-.mem-side.in  { bottom:24%; }`;
+.mem-side.in  { bottom:24%; }
+/* Above the outer membrane, when there is one. Higher than the outside
+   label, because what it names is a third space, not the top of this one. */
+.mem-side.beyond { top:7%; }`;
       document.head.appendChild(st);
     }
     if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
     const mk = cls => { const d = document.createElement('div'); d.className = 'mem-side ' + cls; el.appendChild(d); return d; };
-    const out = mk('out'), inn = mk('in');
+    const out = mk('out'), inn = mk('in'), bey = mk('beyond');
     const paint = () => {
       const s = sim.state();
       if (out.textContent !== s.sides.outside) out.textContent = s.sides.outside;
       if (inn.textContent !== s.sides.inside) inn.textContent = s.sides.inside;
+      /* The outer membrane moves the top label DOWN: with a lid on, "inter-
+         membrane space" names the band under it, not the top of the frame. */
+      bey.textContent = s.sides.beyond || '';
+      bey.style.display = s.sides.beyond ? '' : 'none';
+      out.style.top = s.sides.beyond ? '37%' : '';
     };
     paint();
-    return { paint, destroy() { out.remove(); inn.remove(); } };
+    return { paint, destroy() { out.remove(); inn.remove(); bey.remove(); } };
   }
 
   /* ---- one box ----

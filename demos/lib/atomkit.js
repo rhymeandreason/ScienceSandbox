@@ -234,6 +234,63 @@
       return s;
     }
 
+    /* A WORD in the same dress a charge badge wears: ink on a white pill with
+     * an ink outline. A charge badge is a circle because a sign is one glyph;
+     * a name needs a track, so this is the same fill, the same ring and the
+     * same weight stretched to fit. The ink is the page's, not the object's —
+     * a caller passing a colour here would be naming the thing twice, once in
+     * the object's own colour and once in a word that has to be READ.
+     *
+     * Always an overlay (`depthTest:false`), unlike a letter: a name hidden
+     * behind the thing it names is a name nobody reads, and these sit on
+     * objects small enough to occlude a word with one sphere.
+     *
+     * `scale` is the pill's HEIGHT in world units; the width follows the text. */
+    function pill(text, scale){
+      const PAD=26, H=96, size=54;
+      const probe=document.createElement('canvas').getContext('2d');
+      const FONT='bold '+size+'px "Proxima Soft", "Proxima Nova", Nunito, '+
+                 '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+      const c=document.createElement('canvas');
+      let W=0;
+      function draw(){
+        probe.font=FONT;
+        W=Math.ceil(probe.measureText(text).width)+PAD*2;
+        if(c.width!==W){ c.width=W; c.height=H; }
+        const x=c.getContext('2d');
+        x.clearRect(0,0,W,H);
+        const r=H/2-3, y0=3, y1=H-3;
+        x.beginPath();
+        x.moveTo(r+3,y0); x.lineTo(W-r-3,y0);
+        x.arc(W-r-3,H/2,r,-Math.PI/2,Math.PI/2);
+        x.lineTo(r+3,y1);
+        x.arc(r+3,H/2,r,Math.PI/2,-Math.PI/2);
+        x.closePath();
+        x.fillStyle='rgba(255,255,255,0.94)'; x.fill();
+        x.lineWidth=6; x.strokeStyle=INK; x.stroke();
+        x.fillStyle=INK; x.font=FONT;
+        x.textAlign='center'; x.textBaseline='middle';
+        x.fillText(text, W/2, H/2+2);
+      }
+      draw();
+      const tex=new THREE.CanvasTexture(c);
+      // the same bake hazard as label(): a canvas keeps whatever font had
+      // arrived when it was drawn, and the pill's WIDTH is measured from it
+      if(document.fonts&&document.fonts.ready)
+        document.fonts.ready.then(()=>{ const w0=c.width; draw();
+          if(c.width!==w0) s.scale.set((scale||1)*c.width/H,(scale||1),1);
+          tex.needsUpdate=true; });
+      const s=new THREE.Sprite(new THREE.SpriteMaterial({
+        map:tex, transparent:true, depthTest:false, depthWrite:false }));
+      s.renderOrder=32;                       // above the letters and the badges
+      s.scale.set((scale||1)*W/H, (scale||1), 1);
+      s.userData.base=new THREE.Vector3();
+      s.userData.lift=0;
+      s.setDim=function(){ return s; };       // an overlay in both views, by design
+      billboards.push(s);
+      return s;
+    }
+
     /* ---- cel shading, for the 2D view ---------------------------------
      * The two moves the other pages use (water-lab's Debug ▸ Render): swap the
      * lit Standard material for Toon so the sphere reads as flat bands instead
@@ -353,7 +410,7 @@
     }
     function clear(){ billboards.length=0; depthOf.length=0; }
 
-    return { dot, cloud, label, labelInk, charge, place, cel, setDim, faceCamera, forget, clear,
+    return { dot, cloud, label, labelInk, charge, pill, place, cel, setDim, faceCamera, forget, clear,
              DOT_GAP, INK, INK_HEX };
   }
 

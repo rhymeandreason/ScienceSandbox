@@ -11,7 +11,7 @@
  *  the BOTTOM of the screen) and `outside` (+y, the top), and a CONTEXT says
  *  what those two halves are called AND which way the pumping runs:
  *
- *      plasma          top = outside the cell,     bottom = inside the cell
+ *      plasma          top = outside the cell,     bottom = the cytosol
  *      mitochondrion   top = intermembrane space,  bottom = the matrix
  *      thylakoid       top = the stroma,           bottom = the lumen
  *
@@ -59,7 +59,13 @@
      is looked up in palette.js by whoever is drawing, which is also what
      stops the membrane and the cut cell from drifting apart. */
   const CONTEXTS = {
-    plasma:        { top: 'outside the cell',    bottom: 'inside the cell', pumpTo: 'top',    organelle: 'plasma' },
+    /* THE CYTOSOL, not "inside the cell". Every other context here names its
+       compartment — the matrix, the lumen, the stroma — and the plasma
+       membrane's was the one that described a direction instead. A lesson
+       putting a mitochondrion beside a cell surface has to say that the space
+       under one is the space around the other, and it cannot say that with a
+       word that only means "not out there". */
+    plasma:        { top: 'outside the cell',    bottom: 'the cytosol',     pumpTo: 'top',    organelle: 'plasma' },
     mitochondrion: { top: 'intermembrane space', bottom: 'the matrix',      pumpTo: 'top',    organelle: 'mitochondrion' },
     thylakoid:     { top: 'the stroma',          bottom: 'the lumen',       pumpTo: 'bottom', organelle: 'chloroplast' },
   };

@@ -344,6 +344,15 @@
       complexI:0x3f5296, complexII:0x8b93c0, complexIII:0x4d5fa6, complexIV:0x5a72b5,
       synthase:0xd9a13b, stalk:0xb8862c,
       leak:0x8e939b,          // an uncoupler's hole: grey, because it is a hole
+      /* THE TWO DOORS THE ATP LEAVES BY, and neither is part of the chain, so
+         neither is in the family of blues. The translocase is a carrier in the
+         INNER membrane, the porin a hole in the OUTER one, and a reader has to
+         tell "a machine that swaps one thing for another" from "an opening
+         that lets anything small through". Plum for the machine, and the
+         porin takes the leak's own grey: it is the same statement, a hole
+         that does not choose. */
+      translocase:0x9a5f8c,
+      porin:0x8e939b,
       /* A PROTON IS A HYDROGEN, so it is atoms.H and not a colour of its own.
          Set below the literal, because an object cannot read itself while it
          is being built. It was a red once, which made the one thing crossing

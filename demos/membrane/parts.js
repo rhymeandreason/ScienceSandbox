@@ -675,6 +675,11 @@
      checkers, where no palette is on the page. */
   const PAL = () => (global.MolPalette || (global.MolLib && global.MolLib.PALETTE));
 
+  /* A hex int, scaled toward black. */
+  const darken = (c, f) => (Math.round(((c >> 16) & 255) * f) << 16)
+                         | (Math.round(((c >> 8) & 255) * f) << 8)
+                         |  Math.round((c & 255) * f);
+
   const ION = {
     /* Shannon six-coordinate ionic radii, in A. These are the TRUE numbers
        and they are what `exaggeration` multiplies, so relative size — the
@@ -687,7 +692,13 @@
        and in water it is really H₃O⁺. Drawn at 0.30 so it reads as the
        smallest thing on stage and still has a sphere to hang its sign on.
        Not a Shannon number, unlike the four above. */
-    H:  { r: 0.30, get color() { return PAL().respiration.proton; }, label: 'H⁺' },
+    H:  { r: 0.30, get color() { return PAL().respiration.proton; },
+          /* The SPHERE is hydrogen's pale steel and the SIGN is not. A charge
+             badge is two thin strokes a few pixels wide at whole-membrane
+             zoom, and the palette's steel disappears at that size. Darkened
+             from the same colour rather than typed, so the two can never be
+             two different greys. */
+          get badge() { return darken(this.color, 0.45); }, label: 'H⁺' },
     /* Not an ion, and deliberately grey: water is the thing that moves
        when nothing is pushing it, and it should never be mistaken for
        cargo the pump is choosing. */
@@ -710,6 +721,16 @@
     return m;
   }
 
-  global.Parts = { transporter, membrane, ion, ION, flat };
+  /* '#rrggbb' for the charge badge of an ion: the sphere's colour unless the
+     spec says the sign needs its own. Every caller drawing a badge goes
+     through here, so a sphere and its sign stay one decision. */
+  function ionBadge(name) {
+    const spec = ION[name];
+    if (!spec) throw new Error(`parts.ionBadge: no such species ${name}`);
+    const c = spec.badge != null ? spec.badge : spec.color;
+    return '#' + c.toString(16).padStart(6, '0');
+  }
+
+  global.Parts = { transporter, membrane, ion, ION, ionBadge, flat };
   if (typeof module !== 'undefined' && module.exports) module.exports = global.Parts;
 })(typeof window !== 'undefined' ? window : globalThis);
