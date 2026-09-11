@@ -25,9 +25,9 @@
  *  space inside it, the matrix. Protons go out of the matrix at the complexes
  *  and come back through ATP synthase. Everything drawn is in service of
  *  that: the sheet is ONE ribbon of ONE membrane's thickness so nobody can
- *  read the folds as separate compartments, and a crista lumen is drawn as
- *  what it is — the open slot between a fold's two arms, necked at the
- *  junction and continuous with the intermembrane space.
+ *  read the folds as separate compartments, and a crista lumen is not drawn
+ *  at all — it is the space a fold encloses, continuous with the
+ *  intermembrane space through the junction.
  *
  *  THE MACHINES ARE MEMBRANE'S COLOURS, not this component's. The chain's
  *  blue, the synthase's gold, the porin's grey and the proton all come from
@@ -94,9 +94,9 @@
   const R = 3.5;                       // half-width: the capsule is 0.7 µm across
   const UNIT = 1e-7;                   // metres per scene unit
   const NM = u => u * UNIT * 1e9;
-  const TH = 0.045 * R;                // one membrane, drawn — outer and inner alike
+  const TH = 0.034 * R;                // one membrane, drawn — outer and inner alike
   const IMS = 0.07 * R;                // the intermembrane space, drawn
-  const LUM = 0.085 * R;               // the slot inside a fold, drawn
+  const LUM = 0.057 * R;               // the space a fold encloses, drawn
   /* Measured thicknesses, for the exaggeration factors below. A bilayer is
      ~4 nm (OPM); the intermembrane space and a crista lumen are ~20 nm and a
      crista junction ~25 nm across in tomography. */

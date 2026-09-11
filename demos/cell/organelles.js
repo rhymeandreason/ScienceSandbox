@@ -881,28 +881,29 @@
        come back through ATP synthase. Everything built here exists to make
        that readable:
 
-       · A CRISTA IS A FOLD WITH A SLOT IN IT, not a plate. The sheet dives
-         in and comes back out, and the gap between the two arms is the
-         crista lumen — open, continuous with the intermembrane space
-         through the junction, and the place the protons land. Drawn as a
-         solid fin a student concludes the protons go into the matrix, and
-         the lesson is lost.
+       · A CRISTA IS A FOLD, not a plate. The sheet dives in and comes back
+         out, and what the fold encloses is the crista lumen — continuous
+         with the intermembrane space through the junction, and the place
+         the protons land. Drawn as a solid fin a student concludes the
+         protons go into the matrix, and the lesson is lost.
 
        · ONE MEMBRANE IS ONE SHEET. It is swept at one membrane's thickness,
          the same the outer membrane is drawn at, and its cut edge carries
          the two bands buildShell paints on a cut shell's lip — in the inner
          membrane's own pale pinks, the ones the cut cell already paints its
-         cristae with, so the two levels of detail are one object. A
-         wall-lumen-wall ribbon draws each arm as its own sandwich, and the
-         section then has three pale layers a reader has to tell apart from
-         the fold's own slot.
+         cristae with, so the two levels of detail are one object. Swept as
+         wall-lumen-wall instead, each arm is its own sandwich and the
+         section grows three pale layers a reader has to tell apart from
+         what the fold itself encloses.
 
        · A CRISTA HANGS OFF NARROW JUNCTIONS and is otherwise free in the
          matrix. Real junctions are ~25 nm necks held by MICOS, which is
          what makes a crista lumen its own proton pocket rather than an open
-         bay. So the plate stops short of the inner boundary membrane and a
-         few tubes bridge the gap; a crista welded along its whole edge
-         would say the opposite.
+         bay. THE SHAPE DOES NOT SAY THIS and should not be made to: drawing
+         the neck at a believable width pinches the fold into a wasp waist
+         and the cristae go blocky and regular. `bases` records where the
+         junctions are so a callout can point at one, and the card says what
+         they do.
 
        · THE OUTER MEMBRANE LEAKS AND THE INNER ONE DOES NOT. The porins
          drawn over the outer membrane are the reason the gradient lives
@@ -948,9 +949,8 @@
       /* ONE THICKNESS FOR A MEMBRANE, inner and outer alike: a bilayer is
          one sheet, and two membranes drawn at different weights read as two
          different kinds of thing. */
-      const th = o.membrane === undefined ? 0.045 * r : o.membrane;   // one membrane, drawn
-      const lumenT = o.lumen === undefined ? 0.057 * r : o.lumen;     // the slot inside a fold
-      const armGap = (lumenT + th) / 2;                                // half the pitch of a fold's two arms
+      const th = o.membrane === undefined ? 0.034 * r : o.membrane;   // one membrane, drawn
+      const lumenT = o.lumen === undefined ? 0.057 * r : o.lumen;     // the space a fold encloses
       const ribbonT = 2 * th + lumenT;                                 // a whole fold, across
       /* `cristae` is the number of FOLDS, alternating sides along the
          length, not a count per side: ten is ten fingers meshing, five from
@@ -1058,71 +1058,44 @@
          default the pitch is about 115 nm, and cristae in a working
          mitochondrion sit roughly 100 nm apart. The organelle is full when
          it looks full. */
-      const maxFold = Math.max(4, Math.floor(2 * Li / (ribbonT + 0.09 * r)));
+      const maxFold = Math.max(4, Math.floor(2 * Li / (2 * (ribbonT + 0.035 * r))));
       if (nFold > maxFold) {
         console.warn(`cell/organelles.js: ${nFold} cristae do not fit a mitochondrion this size; drawing ${maxFold}.`);
         nFold = maxFold;
       }
       const pitch = 2 * Li / nFold;
-      /* A FOLD'S HALF-WIDTH IS NOT FREE: the two arms of the U are one
-         membrane each and the slot between them is the crista lumen, so the
-         arm offset is fixed by the thickness the sheet is drawn at and the
-         lumen it is meant to enclose. Varying it would vary the lumen, which
-         is a compartment and not a shape. */
       const folds = [], bases = [];
+      const wMin = ribbonT * 0.62, wMax = pitch * 0.5 - ribbonT * 0.62;
       for (let k = 0; k < nFold; k++)
         folds.push({
           x: -Li + pitch * (k + 0.5) + rr(-0.04, 0.04) * pitch,
           dir: k % 2 ? -1 : 1,
-          w: armGap,
+          w: clamp(pitch * rr(0.28, 0.33), wMin, Math.max(wMin, wMax)),
           depth: rr(1.08, 1.38),
         });
-      /* How far the arms close at the junction, as a fraction of their
-         offset below it.
-
-         JUDGE THIS IN A BROWSER, AND NOWHERE ELSE. The arithmetic lies: at
-         0.62 the control points still leave a neck 12 nm across, and the
-         spline through them closes it anyway, welding the two arms and
-         sealing the crista lumen into a compartment nothing could have
-         pumped into. It renders beautifully. The narrowest clearance
-         anywhere on the swept path is the only honest measure, and at 0.82
-         it is about 16 nm against a 30 nm lumen.
-
-         AND THE FLARE BESIDE IT SETS HOW PINCHED THE NECK LOOKS. The arms
-         splay to LIP times their offset where they meet the wall, so a wide
-         lip beside a tight neck reads as a wasp waist however open the neck
-         measures. The two numbers are judged together. */
-      const JUNCTION = 0.94;
       const comb = (dir, ascending) => {
         const out = [], mine = folds.filter(f => f.dir === dir);
         if (!ascending) mine.reverse();
         for (const f of mine) {
           const sgn = ascending ? 1 : -1, tip = dir * ri * (1 - f.depth), lip = dir * ri;
-          /* THE ARMS PINCH WHERE THE FOLD LEAVES THE WALL and stand parallel
-             below it, so the slot between them is a crista lumen with a
-             neck rather than an open bay. 0.82 of the arm offset at the
-             junction against 1.0 below is the ~25 nm neck, in section.
-             IT MUST NOT CLOSE: a neck is narrow and OPEN, and pinched shut
-             the crista lumen reads as a sealed compartment of its own,
-             leaving the protons in it nowhere to have come from. */
-          out.push(new V3(f.x - sgn * f.w * 1.5, 0, lip));
-          out.push(new V3(f.x - sgn * f.w * JUNCTION, 0, dir * ri * 0.88));    // the junction
-          out.push(new V3(f.x - sgn * f.w, 0, dir * ri * 0.52));
-          out.push(new V3(f.x - sgn * f.w, 0, tip * 0.60));
-          out.push(new V3(f.x - sgn * f.w * 0.70, 0, tip));
-          out.push(new V3(f.x + sgn * f.w * 0.70, 0, tip));
-          out.push(new V3(f.x + sgn * f.w, 0, tip * 0.60));
-          out.push(new V3(f.x + sgn * f.w, 0, dir * ri * 0.52));
-          out.push(new V3(f.x + sgn * f.w * JUNCTION, 0, dir * ri * 0.88));
-          out.push(new V3(f.x + sgn * f.w * 1.5, 0, lip));
+          out.push(new V3(f.x - sgn * f.w * 2.1, 0, lip));
+          out.push(new V3(f.x - sgn * f.w * 1.45, 0, dir * ri * 0.86));   // ease off the wall
+          out.push(new V3(f.x - sgn * f.w, 0, dir * ri * 0.42));
+          out.push(new V3(f.x - sgn * f.w * 0.88, 0, tip * 0.66));
+          out.push(new V3(f.x - sgn * f.w * 0.34, 0, tip));
+          out.push(new V3(f.x + sgn * f.w * 0.34, 0, tip));
+          out.push(new V3(f.x + sgn * f.w * 0.88, 0, tip * 0.66));
+          out.push(new V3(f.x + sgn * f.w, 0, dir * ri * 0.42));
+          out.push(new V3(f.x + sgn * f.w * 1.45, 0, dir * ri * 0.86));
+          out.push(new V3(f.x + sgn * f.w * 2.1, 0, lip));
           /* WHERE THE FOLD LEAVES THE WALL is the crista junction: in a real
              organelle a ~25 nm neck held open by MICOS, and the reason the
              protons a fold pumps stay in that fold rather than washing into
              the whole intermembrane space. Recorded here and drawn as a
              pinch in the lumen, which is the only place a section can show
              it. */
-          bases.push([f.x - sgn * f.w * JUNCTION, dir * ri * 0.88, f.w]);
-          bases.push([f.x + sgn * f.w * JUNCTION, dir * ri * 0.88, f.w]);
+          bases.push([f.x - sgn * f.w * 1.45, dir * ri * 0.86, f.w]);
+          bases.push([f.x + sgn * f.w * 1.45, dir * ri * 0.86, f.w]);
         }
         return out;
       };
@@ -1134,7 +1107,7 @@
       ctrl.push(new V3(-Li - ri * 0.5, 0, -0.62 * ri), new V3(-Li - ri * 0.8, 0, 0));
 
       const curve = new THREE.CatmullRomCurve3(ctrl, true, 'centripetal', 0.5);
-      const pathXZ = curve.getPoints(Math.round(760 * q)).map(p2 => [p2.x, p2.z]);
+      const pathXZ = curve.getPoints(Math.round(460 * q)).map(p2 => [p2.x, p2.z]);
 
       // rho of the outer surface at x, so the ribbon can stand on the floor
       const rhoAt = x => (Math.abs(x) <= L ? r : Math.sqrt(Math.max(0, r * r - (Math.abs(x) - L) * (Math.abs(x) - L))));
@@ -1151,12 +1124,10 @@
 
       /* ONE SHEET, ONE SWEEP. The inner membrane is a single ribbon of one
          membrane's thickness, cut on the same plane as the shell and painted
-         with the same three bands the plasma membrane's lip carries. The
-         crista lumen is not drawn: it is the SLOT between a fold's two arms,
-         open at the junction onto the intermembrane space, because that is
-         what it is. Swept as wall-lumen-wall instead, the sheet's own lumen
-         and the fold's slot are two different pale gaps a reader has to tell
-         apart, and the section reads as three layers of something. */
+         with the same bands the plasma membrane's lip carries. The crista
+         lumen is not drawn at all: it is the space the fold encloses, open
+         at the junction onto the intermembrane space, because that is what
+         it is. */
       const memMat = mat(Object.assign({ vertexColors: true, side: THREE.DoubleSide }, MEM_FINISH));
       gInner.add(new THREE.Mesh(
         sweepProfile(THREE, pts,
@@ -1165,12 +1136,13 @@
         memMat));
 
       /* ---- where the machines go ----------------------------------------
-         Along the ribbon, and which FACE matters: a face looking out at the
-         wall is looking at the intermembrane space, and a complex's matrix
-         arm or a synthase's F1 head hung there would be in the wrong
-         compartment. So a machine on a wall-hugging run takes the inward
-         face, and one on a fold takes either — both faces of a fold look out
-         on matrix.
+         Along the ribbon, and which FACE matters: a complex's peripheral arm
+         and a synthase's F1 head belong in the MATRIX, and on the other face
+         of the same sheet they are in the intermembrane space doing
+         chemistry with nothing. Which face that is cannot be guessed from
+         being near a wall — the outside of a fold's arc looks out on matrix
+         and the inside looks into the crista lumen — so it is settled by
+         asking which side of the closed path a point falls on.
 
          ATP SYNTHASE GOES WHERE THE MEMBRANE TURNS. Dimer rows sit on the
          high-curvature rim of a crista, and the V-angle between the two
@@ -1192,6 +1164,27 @@
           frames.push([side, new V3().crossVectors(side, T).normalize(), T]);
         }
       }
+      /* WHICH FACE OF THE SHEET LOOKS OUT ON MATRIX. The path is one closed
+         loop that hugs the wall and dives inward at every fold, so the
+         region it encloses IS the matrix and everything outside it — the
+         intermembrane space and the inside of every fold — is the other
+         compartment. A point-in-polygon test settles it per sample, which is
+         the only thing that gets a fold right: the OUTSIDE of a U's arc
+         faces matrix and the inside faces the slot, and no rule about being
+         near a wall can tell those apart.
+
+         IT IS THE WHOLE LESSON, not a detail. A complex's peripheral arm
+         oxidises NADH in the matrix and a synthase's F1 head makes ATP
+         there; drawn on the other face they are in the intermembrane space,
+         doing chemistry with nothing. */
+      const inMatrix = (x, z) => {
+        let inside = false;
+        for (let i = 0, j = n - 1; i < n; j = i++) {
+          const zi = pts[i].z, zj = pts[j].z;
+          if ((zi > z) !== (zj > z) && x < (pts[j].x - pts[i].x) * (z - zi) / (zj - zi) + pts[i].x) inside = !inside;
+        }
+        return inside;
+      };
       const KINDS = ['I', 'III', 'IV', 'I', 'IV', 'III', 'II', 'IV', 'III', 'I'];
       {
         const stepI = Math.max(2, Math.round(5 / q));
@@ -1201,7 +1194,7 @@
            threshold puts dimer rows down the whole finger. */
         const atTip = (x, z) => folds.some(f => {
           const tz = f.dir * ri * (1 - f.depth), dx = x - f.x, dz = z - tz;
-          return dx * dx + dz * dz < (f.w * 3.0) * (f.w * 3.0);
+          return dx * dx + dz * dz < (f.w * 1.05) * (f.w * 1.05);
         });
         let kc = 0;
         for (let i = 0; i < n; i += stepI) {
@@ -1211,27 +1204,18 @@
              sliver high — a machine there straddles its rim instead of
              sitting in it. */
           if (h < 0.30 * r) continue;
-          // the wall-hugging runs: only the inward face looks out on matrix
-          const rho = Math.max(1e-3, rhoAt(P.x) - gapIM);
-          const nearWall = Math.abs(P.z) > 0.74 * rho;
-          const inward = nearWall ? -Math.sign(P.z || 1) * Math.sign(side.z || 1) : 0;
           const yOff = (rr(0.32, 0.68) - 0.5) * h;
           const mid = P.clone().addScaledVector(upv, yOff);
-          /* A machine sits ON a face of the sheet, and the sheet is now one
-             membrane thick, so the face is half a membrane out. */
+          /* A machine sits ON a face of the sheet, half a membrane out, and
+             it is the matrix face every time. What is across from it is the
+             space it pumps into. */
           const at = s => mid.clone().addScaledVector(side, s * (th / 2));
-          if (!nearWall && atTip(P.x, P.z)) {
-            for (const s of [-1, 1])
-              sites.synthase.push({ p: at(s), out: side.clone().multiplyScalar(s), lumen: at(-s).addScaledVector(side, -s * armGap * 0.8) });
-          } else {
-            /* BOTH FACES OF A FOLD LOOK OUT ON MATRIX, so both carry
-               machines; a wall-hugging run has only its inward face, since
-               the other looks at the intermembrane space. That asymmetry is
-               most of why a folded membrane is worth having. */
-            for (const s of (inward ? [inward] : [-1, 1]))
-              sites.complex.push({ p: at(s), out: side.clone().multiplyScalar(s), kind: KINDS[kc++ % KINDS.length],
-                spin: rr(0, 2 * PI), lumen: at(-s).addScaledVector(side, -s * armGap * 0.8) });
-          }
+          const probe = P.clone().addScaledVector(side, th);
+          const s = inMatrix(probe.x, probe.z) ? 1 : -1;
+          const out = side.clone().multiplyScalar(s);
+          const lumen = mid.clone().addScaledVector(side, -s * (th / 2 + 0.045 * r));
+          if (atTip(P.x, P.z)) sites.synthase.push({ p: at(s), out, lumen });
+          else sites.complex.push({ p: at(s), out, kind: KINDS[kc++ % KINDS.length], spin: rr(0, 2 * PI), lumen });
         }
       }
 
