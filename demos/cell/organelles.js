@@ -1077,6 +1077,17 @@
           w: armGap,
           depth: rr(1.08, 1.38),
         });
+      /* How far the arms close at the junction, as a fraction of their
+         offset below it.
+
+         JUDGE THIS IN A BROWSER, AND NOWHERE ELSE. The arithmetic lies: at
+         0.62 the control points still leave a neck 12 nm across, and the
+         spline through them closes it anyway, welding the two arms and
+         sealing the crista lumen into a compartment nothing could have
+         pumped into. It renders beautifully. The narrowest clearance
+         anywhere on the swept path is the only honest measure, and at 0.82
+         it is about 16 nm against a 30 nm lumen. */
+      const JUNCTION = 0.82;
       const comb = (dir, ascending) => {
         const out = [], mine = folds.filter(f => f.dir === dir);
         if (!ascending) mine.reverse();
@@ -1084,17 +1095,20 @@
           const sgn = ascending ? 1 : -1, tip = dir * ri * (1 - f.depth), lip = dir * ri;
           /* THE ARMS PINCH WHERE THE FOLD LEAVES THE WALL and stand parallel
              below it, so the slot between them is a crista lumen with a
-             neck rather than an open bay. 0.62 of the arm offset at the
-             junction against 1.0 below is the ~25 nm neck, in section. */
+             neck rather than an open bay. 0.82 of the arm offset at the
+             junction against 1.0 below is the ~25 nm neck, in section.
+             IT MUST NOT CLOSE: a neck is narrow and OPEN, and pinched shut
+             the crista lumen reads as a sealed compartment of its own,
+             leaving the protons in it nowhere to have come from. */
           out.push(new V3(f.x - sgn * f.w * 2.0, 0, lip));
-          out.push(new V3(f.x - sgn * f.w * 0.62, 0, dir * ri * 0.88));    // the junction
+          out.push(new V3(f.x - sgn * f.w * JUNCTION, 0, dir * ri * 0.88));    // the junction
           out.push(new V3(f.x - sgn * f.w, 0, dir * ri * 0.52));
           out.push(new V3(f.x - sgn * f.w, 0, tip * 0.60));
           out.push(new V3(f.x - sgn * f.w * 0.70, 0, tip));
           out.push(new V3(f.x + sgn * f.w * 0.70, 0, tip));
           out.push(new V3(f.x + sgn * f.w, 0, tip * 0.60));
           out.push(new V3(f.x + sgn * f.w, 0, dir * ri * 0.52));
-          out.push(new V3(f.x + sgn * f.w * 0.62, 0, dir * ri * 0.88));
+          out.push(new V3(f.x + sgn * f.w * JUNCTION, 0, dir * ri * 0.88));
           out.push(new V3(f.x + sgn * f.w * 2.0, 0, lip));
           /* WHERE THE FOLD LEAVES THE WALL is the crista junction: in a real
              organelle a ~25 nm neck held open by MICOS, and the reason the
@@ -1102,8 +1116,8 @@
              the whole intermembrane space. Recorded here and drawn as a
              pinch in the lumen, which is the only place a section can show
              it. */
-          bases.push([f.x - sgn * f.w * 0.62, dir * ri * 0.88, f.w]);
-          bases.push([f.x + sgn * f.w * 0.62, dir * ri * 0.88, f.w]);
+          bases.push([f.x - sgn * f.w * JUNCTION, dir * ri * 0.88, f.w]);
+          bases.push([f.x + sgn * f.w * JUNCTION, dir * ri * 0.88, f.w]);
         }
         return out;
       };
