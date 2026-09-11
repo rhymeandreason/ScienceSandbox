@@ -114,9 +114,21 @@
   .hint{font-size:.78rem;color:var(--muted);margin:0 0 1rem}
   /* Pushed to the foot of the column, so the reader meets the molecule's name
      and measurements before its drawing. */
-  .dwrap{margin-top:auto;padding-top:1rem;border-top:1px solid var(--border-hair);
-    display:flex;flex-direction:column;align-items:center;gap:.6rem}
+  .dwrap{margin-top:auto;padding-top:1rem;border-top:1px solid var(--border-hair)}
   .dwrap[hidden]{display:none}
+  /* The strip the pill stands in. The column is nearly full at this height, so
+     the diagram gives up the room rather than the column growing a scrollbar
+     that would slide content under a pinned control. */
+  .mbody.haspairs .dwrap{padding-bottom:2.1rem}
+  #m-pairs{position:absolute;z-index:2;bottom:1rem;right:clamp(1.4rem,3vw,2.2rem)}
+  #m-pairs[hidden]{display:none}
+  /* One column: the sheet itself scrolls, so a pinned corner would float over
+     whatever happened to be under it. It goes back in the flow. Must sit after
+     the rule it overrides — same specificity, so source order decides. */
+  @media (max-width:800px){
+    #m-pairs{position:static;display:block;width:max-content;margin:0 auto 1.4rem}
+    .mbody.haspairs .dwrap{padding-bottom:0}
+  }
   .mdiagram svg{display:block;margin:0 auto;max-width:100%;height:auto}
   .x{position:absolute;top:.6rem;right:.7rem;z-index:2;width:32px;height:32px;border-radius:999px;
     cursor:pointer;border:1px solid var(--border-hair);background:var(--surface-card);
@@ -160,7 +172,7 @@
           <input type="checkbox" id="m-hyd-in"> C&ndash;H hydrogens</label>
       </div>
     </div>
-    <div class="mbody">
+    <div class="mbody" id="m-body-col">
       <p class="does" id="m-does"></p>
       <h2 class="name" id="m-name"></h2>
       <p class="formula" id="m-formula"></p>
@@ -173,10 +185,14 @@
            and the toggle must survive that. -->
       <div class="dwrap" id="m-dwrap" hidden>
         <div class="mdiagram" id="m-diagram"></div>
-        <label class="pill pill--ghost pill--check" id="m-pairs" hidden>
-          <input type="checkbox" id="m-pairs-in"> lone pairs</label>
       </div>
     </div>
+    <!-- Pinned to the SHEET, not to the body column: the body scrolls, and an
+         instrument that scrolls with the thing it acts on is not an instrument.
+         It shares the stagebar's `bottom`, so the two columns' controls sit on
+         one line. -->
+    <label class="pill pill--ghost pill--check" id="m-pairs" hidden>
+      <input type="checkbox" id="m-pairs-in"> lone pairs</label>
   </div>
 </div>
 
@@ -242,7 +258,7 @@ const hyd = $('m-hyd'), hydIn = $('m-hyd-in');
 let box = null, view = null, current = null;
 
 const diagramEl = $('m-diagram'), dwrap = $('m-dwrap');
-const pairs = $('m-pairs'), pairsIn = $('m-pairs-in');
+const pairs = $('m-pairs'), pairsIn = $('m-pairs-in'), bodyCol = $('m-body-col');
 /* WHERE THE SHAPE CAME FROM. Every spec names its own source in `src:{path}`
    and check-molecules.js fails one that does not, so this is read rather than
    written — a molecule that changes path changes the line by itself.
@@ -272,14 +288,16 @@ function paintDiagram() {
   const sp = current.spec;
   // Only a Haworth draws them today, so the toggle appears with the projection
   // that can act on it rather than sitting dead under the others.
-  pairs.hidden = Diagram2D.mode(sp) !== 'haworth';
+  const canPair = Diagram2D.mode(sp) === 'haworth';
   const drawn = Diagram2D.draw(diagramEl, sp, {
     showH: hydIn.checked,
-    lonePairs: !pairs.hidden && pairsIn.checked,
-    width: sp.glycosidic ? 420 : 250, height: 150,
+    lonePairs: canPair && pairsIn.checked,
+    width: sp.glycosidic ? 420 : 250, height: canPair ? 126 : 150,
     maxW: 330, maxH: 170,
   });
   dwrap.hidden = !drawn;
+  pairs.hidden = !(drawn && canPair);
+  bodyCol.classList.toggle('haspairs', !pairs.hidden);
 }
 pairsIn.addEventListener('change', () => { if (current) paintDiagram(); });
 
@@ -385,7 +403,8 @@ function openModal(m) {
 function closeModal() {
   if (modal.hidden) return;
   if (box) { box.destroy(); box = null; view = null; }
-  dwrap.hidden = true; diagramEl.innerHTML = ''; pairsIn.checked = false; current = null;
+  dwrap.hidden = true; diagramEl.innerHTML = ''; pairs.hidden = true;
+  pairsIn.checked = false; bodyCol.classList.remove('haspairs'); current = null;
   $('m-stage').style.background = '';
   modal.hidden = true;
   document.body.style.overflow = '';
