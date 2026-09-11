@@ -536,6 +536,7 @@ body.work.norail .rail { transform: translateX(100%); width: 0; padding: 0; over
 .mine .acts .iconbtn.is-done { color: var(--accent); }
 .mine .acts .iconbtn[data-act="del"]:hover { color: var(--accent-hot); }
 
+dialog.confirm:focus { outline: none; }
 dialog.confirm .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 dialog.confirm .bad { color: var(--accent-hot); }
 

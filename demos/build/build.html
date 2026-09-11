@@ -48,7 +48,10 @@
   </span>
 </header>
 
-<dialog class="beta confirm" id="delModal">
+<!-- tabindex so the dialog itself takes the opening focus: otherwise the
+     browser rings Cancel, and Enter is then a keystroke away from nothing
+     happening while the ring reads as a recommendation. -->
+<dialog class="beta confirm" id="delModal" tabindex="-1">
   <h2>Delete this app?</h2>
   <p>“<span id="delName"></span>” and all its versions go for good, and any link you have shared stops working.</p>
   <p class="small bad" id="delErr" hidden></p>
@@ -847,6 +850,7 @@
     $('delName').textContent = m.title || 'untitled';
     $('delErr').hidden = true;
     $('delModal').showModal();
+    $('delModal').focus();
   }
   async function doDelete() {
     const m = pendingDelete; if (!m) return;
