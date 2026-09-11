@@ -201,7 +201,10 @@
       if (!outerOn()) { porinX = null; return; }
       /* OVER THE DOOR IT FEEDS, offset so the ATP's two crossings do not
          stack into one vertical line the reader takes for a single pore. */
-      porinX = (antX != null ? antX : synthX != null ? synthX : 0) + 34;
+      /* INBOARD of the door it feeds, not outboard: the layout below spreads
+         the inner membrane's machines to PORE_GAP, so the rightmost one is
+         already near the edge of frame and a porin past it falls off. */
+      porinX = (antX != null ? antX : synthX != null ? synthX : 0) - 38;
       OUTER = global.Parts.membrane({ half:HALF * 0.62, reach:MEM_REACH, head:tint.head, tail:tint.tail,
         bowR:BOW, exclude:(x, z) => Math.hypot(x - porinX, z) - POR_HOLE });
       OUTER.group.position.y = outerY();

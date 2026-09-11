@@ -128,7 +128,7 @@ const CELL = { inside: { water: 22, NA: 12, K: 14, A: 6 }, outside: { water: 22,
 const made = Membrane.mount(document.getElementById('left'), {
   context: 'mitochondrion',
   fuel: 'NADH', fuelRate: 1,
-  proteins: { complex: { x: -96 }, synthase: { x: -42 }, translocase: { x: 16 } },
+  proteins: { complex: { x: -72 }, synthase: { x: 0 }, translocase: { x: 72 } },
   contents: MITO,
   outerMembrane: true,           // the ATP has two doors to get out of, and both are drawn
   potential: 'nernst',
@@ -138,7 +138,7 @@ const made = Membrane.mount(document.getElementById('left'), {
 
 const spender = Membrane.mount(document.getElementById('right'), {
   context: 'plasma',
-  proteins: { pump: { x: -25 }, K: { x: 60 } },
+  proteins: { pump: { x: -36 }, K: { x: 36 } },
   contents: CELL,
   potential: 'nernst',
   pumpAuto: false,               // it waits: nothing turns without an ATP
@@ -195,8 +195,8 @@ made.on('atpOut', () => {
 /* ---- the panel: every number off state() ---- */
 const row = (k, v) => `<tr><td>${k}</td><td>${v}</td></tr>`;
 const layout = leak => leak
-  ? { complex: { x: -108 }, synthase: { x: -56 }, leak: { x: -12 }, translocase: { x: 34 } }
-  : { complex: { x: -96 }, synthase: { x: -42 }, translocase: { x: 16 } };
+  ? { complex: { x: -108 }, synthase: { x: -36 }, leak: { x: 36 }, translocase: { x: 108 } }
+  : { complex: { x: -72 }, synthase: { x: 0 }, translocase: { x: 72 } };
 
 $('fuelon').onchange = () => made.set({ fuel: $('fuelon').checked ? 'NADH' : null });
 $('rate').oninput = () => made.set({ fuelRate: $('rate').value / 100 });
