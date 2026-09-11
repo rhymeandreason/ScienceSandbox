@@ -1,0 +1,118 @@
+<!doctype html>
+<!-- requests
+1. Compare glucose and galactose side by side in 3D and show the one hydroxyl that differs
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Glucose vs Galactose: C4 Epimers</title>
+<style>
+  #diag-box {
+    margin-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="Molecule,Diagram"></script>
+<script>
+const shell = LessonShell.create({
+  brand: 'Biomolecules & Stereochemistry',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { diag: null },
+  steps: [
+    {
+      eyebrow: 'D-Glucose',
+      title: 'The equatorial reference',
+      body: '<p class="lead"><strong>Glucose and galactose are C4 epimers</strong>, differing in three-dimensional configuration at exactly one stereocenter.</p><p>In D-glucose, the hydroxyl group on carbon 4 sits in an <em>equatorial</em> orientation, extending outward along the plane of the pyranose ring.</p>',
+      nextLabel: 'Inspect Galactose',
+      onEnter(ctx) {
+        M.set({ molecule: 'glucose', highlight: ['O4', 'C4'] });
+        M.note('O4', { text: 'C4 –OH (Equatorial)' });
+        ctx.ui.controls('<div id="diag-box"></div>');
+        ctx.diag = Diagram.mount(ctx.ui.q('#diag-box'), {
+          molecule: 'glucose',
+          highlight: ['O4'],
+          caption: 'Haworth projection of D-glucose'
+        });
+      },
+      onExit(ctx) {
+        M.notes(false);
+        if (ctx.diag) {
+          ctx.diag.destroy();
+          ctx.diag = null;
+        }
+      }
+    },
+    {
+      eyebrow: 'D-Galactose',
+      title: 'The axial inversion',
+      body: '<p class="lead"><strong>Galactose inverts carbon 4 into an axial orientation.</strong></p><p>Carbons 1, 2, 3, and 5 remain completely identical to glucose. The C4 hydroxyl now projects upward perpendicular to the ring plane, allowing metabolic enzymes to distinguish the two hexoses.</p>',
+      nextLabel: 'Compare Directly',
+      onEnter(ctx) {
+        M.set({ molecule: 'galactose', highlight: ['O4', 'C4'] });
+        M.note('O4', { text: 'C4 –OH (Axial)' });
+        ctx.ui.controls('<div id="diag-box"></div>');
+        ctx.diag = Diagram.mount(ctx.ui.q('#diag-box'), {
+          molecule: 'galactose',
+          highlight: ['O4'],
+          caption: 'Haworth projection of D-galactose'
+        });
+      },
+      onExit(ctx) {
+        M.notes(false);
+        if (ctx.diag) {
+          ctx.diag.destroy();
+          ctx.diag = null;
+        }
+      }
+    },
+    {
+      eyebrow: 'Direct Comparison',
+      title: 'Switch between epimers',
+      body: '<p class="lead"><strong>Toggle between both sugars to inspect the structural flip.</strong></p><p>Watch the spatial shift at C4 while the remaining ring geometry and functional groups stay in place.</p>',
+      onEnter(ctx) {
+        ctx.ui.controls('<div class="choices"><button class="choice active" id="btn-glc">Glucose</button><button class="choice" id="btn-gal">Galactose</button></div><div id="diag-box"></div>');
+
+        function setSugar(key) {
+          const isGlc = key === 'glucose';
+          ctx.ui.q('#btn-glc').classList.toggle('active', isGlc);
+          ctx.ui.q('#btn-gal').classList.toggle('active', !isGlc);
+          M.set({ molecule: key, highlight: ['O4', 'C4'] });
+          M.note('O4', { text: isGlc ? 'C4 –OH (Equatorial)' : 'C4 –OH (Axial)' });
+          if (ctx.diag) ctx.diag.destroy();
+          ctx.diag = Diagram.mount(ctx.ui.q('#diag-box'), {
+            molecule: key,
+            highlight: ['O4'],
+            caption: isGlc ? 'Haworth projection of D-glucose' : 'Haworth projection of D-galactose'
+          });
+        }
+
+        ctx.ui.q('#btn-glc').onclick = () => setSugar('glucose');
+        ctx.ui.q('#btn-gal').onclick = () => setSugar('galactose');
+        setSugar('glucose');
+      },
+      onExit(ctx) {
+        M.notes(false);
+        if (ctx.diag) {
+          ctx.diag.destroy();
+          ctx.diag = null;
+        }
+      }
+    }
+  ]
+});
+
+const M = Molecule.mount(shell.stage, {
+  viewOffset: shell.viewOffset,
+  molecule: 'glucose',
+  showH: true,
+  highlight: ['O4', 'C4']
+});
+
+shell.goTo(0);
+</script>
+</body>
+</html>

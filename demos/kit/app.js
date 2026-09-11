@@ -59,6 +59,7 @@
     'lib/haworth.js',
     'lib/diagram-2d.js',
     'lib/scene.js',
+    'lib/molview.js',        // after scene.js; the three views of one molecule
     'lib/fx.js',
     'lib/geo.js',            // before card-stage.js
     'lib/atomkit.js',
@@ -98,6 +99,7 @@
     'sickle/hbcrowd.js',
     'graph/graph.js',
     'diagram/diagram.js',
+    'molecule/molecule.js',  // after lib/molview.js, card-stage.js and every mol-*
     'kit/lesson-shell.js',   // the base every template is built on
     'kit/sandbox-shell.js',  // last: a template reads what the shell defined
   ];
@@ -165,6 +167,12 @@
                  'lib/mol-nucleic.js', 'lib/haworth.js',
                  'https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js',
                  'lib/diagram-2d.js', 'diagram/diagram.js'],
+    /* Diagram's 3D twin, and the same rule: every domain file, because the
+       molecule arrives by name. */
+    Molecule:   ['lib/skel.js', 'lib/mol-small.js', 'lib/mol-aminoacids.js',
+                 'lib/mol-pathways.js', 'lib/mol-krebs.js', 'lib/mol-carriers.js',
+                 'lib/mol-sugars.js', 'lib/mol-glycans.js', 'lib/mol-lipids.js',
+                 'lib/mol-nucleic.js', 'lib/molview.js', 'molecule/molecule.js'],
   };
 
   const CSS = { Proteinbox: ['kit/proteinbox.css'], Graph: ['graph/graph.css'],

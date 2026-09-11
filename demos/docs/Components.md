@@ -183,7 +183,7 @@ Every component declares a **rung** (how big) and a **form** (how many) in its o
 molecules · macromolecule · membrane · organelle · cell · tissue · organ · organism · population
 ```
 
-**A page composing normally cannot get this wrong**: each `mount()` gets its own box and its own camera, so components at different rungs simply live in different boxes. Nothing at the `organelle` or `population` rung yet; Graph sits on no rung, because a chart is not in the world.
+**A page composing normally cannot get this wrong**: each `mount()` gets its own box and its own camera, so components at different rungs simply live in different boxes. Nothing at the `organelle` or `population` rung yet; Graph and Diagram sit on no rung, because a chart and a notation are not in the world.
 
 **At the cell rung, AnimalCell and PlantCell are the defaults.** They are what a reader pictures when they hear "a cell", and between them they carry a nucleus, organelles, a wall and a vacuole. BloodCell is a specialist with none of that, so it comes out when the subject really is blood, or as a second example after a general cell has made the point.
 
@@ -688,6 +688,36 @@ discipline: mark the one atom the step is about.
 **It has no note(), show() or lookAt().** There is no depth to reveal and no
 camera to move, which is the same reason Graph has none. To point at something,
 mark it.
+
+## Molecule — one molecule, in 3D
+
+**Scale**: molecules, single. A scene unit is a real length, and `state().span` is real ångströms; the spheres are stylised, so nothing prints a radius off the picture.
+
+Diagram's 3D twin, from the same spec. It goes on the stage, one per box.
+
+```js
+const M = Molecule.mount(el, {
+  molecule: 'glucose',   // a key in MolLib.MOLECULES, or a spec. Changing it rebuilds; nothing tweens
+  mode: '3d',            // '2d' lays the SAME spheres onto the diagram's layout, animated. Not a drawing
+  spin: false,           // the turntable, 3D only. Off: a posed molecule should open on its pose
+  showH: false,          // true shows the C-H hydrogens; the H on N, O and S is always there
+  highlight: ['O4'],     // atom names from the spec; the rest greys out in place, the marked atoms glow
+});
+M.set({ highlight: ['C1'] });   // re-marks in place; set({ molecule: 'atp' }) is a rebuild
+M.set({ mode: '2d' });          // the student watches it lie down; set({ mode: '3d' }) stands it back up
+```
+
+**Print `state().source` under the model, once, on the step that introduces it.** It is one sentence saying whether the coordinates are a deposited measurement or a construction, and a student is entitled to it. Never write your own. In 2D print instead that the layout is the diagram's, not the molecule's: `mode` says which is up.
+
+**A step about WHAT a molecule looks like gets Molecule; a step about what it HAS gets Diagram; a step about a molecule doing something gets the component that does it.** A chair, an anomer, a tail folding back on itself, two sugars that differ in one hydroxyl's direction: those are shapes and only a model shows them. Which atoms, which bonds, where the charge sits: that is bookkeeping and the flat drawing reads faster. A molecule reacting, dissolving or crossing is Condense, WaterSim or Membrane, never this with a caption saying it happened.
+
+**Put a Molecule and a Diagram of the same key side by side** when a step has to connect the drawing a textbook shows to the thing itself. They cannot disagree, and the student sees why a Haworth's "up" is a real direction. **`mode: '2d'` is the step between them**: the model lies down onto the diagram's layout in front of the student, which is the one way to show that the flat drawing and the shape are the same molecule rather than telling them.
+
+`state()`: `key`, `name`, `formula`, `class`, `charge`, `atoms`, `heavy`, `hydrogens`, `span` (Å, real, null for one heavy atom), `rings`, `mode`, `canFlat` (false: the spec has no flat layout and `mode: '2d'` stays 3D), `spin`, `showH`, `highlight`, `source`. Events: `frame` (state, dt) · `render` (state) after a rebuild.
+
+Anchors for `note()`: every atom by the spec's own name (`C1`, `O5`, `HO4`), plus `center`; a note follows its atom down into the 2D layout. Names are the ones `highlight` takes, so a step marks an atom and notes it with one string. Layers for `show()`: `hydrogens` (the C-H ones). No views: nothing on one molecule is out of frame, and `lookAt()` moves nothing.
+
+Good for: the shape of one molecule, a functional group pointed at, comparing two molecules in two boxes (glucose beside galactose, palmitate beside palmitoleate), the model beside its diagram. Not for: a reaction, a liquid, a protein (Proteinbox), a chain of monomers (Condense joins two), or anything at a scale where a molecule is a dot.
 
 ## Copy
 

@@ -323,6 +323,7 @@
      * construction rather than by remembering (AddingAPage.md's rule). */
     const box = global.CardStage.create({
       mount, canvasClass: 'molbox-canvas',
+      viewOffset: opts.viewOffset,          // the lesson shell's, passed through by a component
       /* rMin/rMax are world half-heights, because ortho is the default and
        * that is what cam.r means here. 0.3 is closer than any spec needs and
        * 400 clears the largest; both only bound the wheel, since `fit` writes

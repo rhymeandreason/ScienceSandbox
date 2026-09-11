@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>molecule bench — one molecule in 3D, every param live</title>
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="../css/lesson-shell.css">
+<style>
+  .bench-group { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .bench-group:first-child { padding-top: 0; border-top: 0; }
+  .bench-hd { font-family: var(--display); font-weight: 500; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+  .bench-out {
+    font-family: var(--font-mono); font-size: 12px; line-height: 1.5; white-space: pre; overflow-x: auto;
+    background: var(--ink); color: #eceadf; border-radius: 14px; padding: 14px 16px; margin: 0;
+  }
+  select.pick { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--ink); }
+  /* A bench is one screen, not a sequence: no Back/Next, no progress dot. */
+  .lshell-nav, .lshell-progress { display: none; }
+  .lshell-scroll { padding-bottom: 32px; }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../lib/palette.js"></script>
+<script src="../lib/tokens-from-palette.js"></script>
+<script src="../lib/molecules.js"></script>
+<script src="../lib/skel.js"></script>
+<script src="../lib/mol-small.js"></script>
+<script src="../lib/mol-aminoacids.js"></script>
+<script src="../lib/mol-pathways.js"></script>
+<script src="../lib/mol-krebs.js"></script>
+<script src="../lib/mol-carriers.js"></script>
+<script src="../lib/mol-sugars.js"></script>
+<script src="../lib/mol-glycans.js"></script>
+<script src="../lib/mol-lipids.js"></script>
+<script src="../lib/mol-nucleic.js"></script>
+<script src="../lib/scene.js"></script>
+<script src="../lib/molview.js"></script>
+<script src="../lib/annotate.js"></script>
+<script src="../kit/card-stage.js"></script>
+<script src="../kit/lesson-shell.js"></script>
+<script src="../molecule/molecule.js"></script>
+<script>
+/* The bench for molecule/molecule.js: every molecule in MolLib by key, every
+   parameter a set(), every readout a state(), on the lesson shell so the
+   component is judged in the chrome a student meets it in. */
+
+const shell = LessonShell.create({
+  brand: 'Molecule · component bench',
+  hint: 'Drag to turn',
+  steps: [{
+    eyebrow: 'molecule/molecule.js',
+    title: 'One molecule, in 3D',
+    body: '<p>Any spec MolLib holds, by name, on a camera solved from its own extent. Everything below is a <strong>set()</strong> and every number a <strong>state()</strong>.</p>',
+    onEnter: bench,
+  }],
+});
+
+const M = Molecule.mount(shell.stage, { molecule: 'glucose', viewOffset: shell.viewOffset });
+/* The console is part of the bench: `mol.set({molecule:'atp'})`, `mol.note('O4')`,
+   `mol.state()`, and `mol.pump()` when a backgrounded tab has stopped the loop. */
+window.mol = M;
+
+function bench(ctx) {
+  const ui = ctx.ui;
+  const keys = Object.keys(MolLib.MOLECULES).filter(k => MolLib.MOLECULES[k].atoms);
+  ui.controls(`
+    <div class="bench-group">
+      <div class="bench-hd">the molecule</div>
+      <select class="pick" id="pick">${keys.map(k => `<option value="${k}"${k === 'glucose' ? ' selected' : ''}>${k}</option>`).join('')}</select>
+      <div class="segmented segmented--sm" id="modes" role="group" aria-label="View">
+        <button type="button" data-mode="3d" aria-pressed="true">3D</button>
+        <button type="button" data-mode="2d" aria-pressed="false">2D</button>
+      </div>
+      <div class="row">
+        <label class="switch"><input type="checkbox" id="spin"><span class="track"></span>turn slowly</label>
+        <label class="switch"><input type="checkbox" id="showH"><span class="track"></span>C–H hydrogens</label>
+      </div>
+      <p class="foot" id="source"></p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">point at an atom</div>
+      <div class="chips" id="atoms"></div>
+      <p class="foot">Each chip is one of the spec's own atom names: a highlight dims everything else, and the note rides the atom as it turns.</p>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">what the module says</div>
+      <div class="stats">
+        <div class="stat"><span class="stat-label">formula</span><span class="stat-value" id="rd-formula">—</span></div>
+        <div class="stat"><span class="stat-label">atoms</span><span class="stat-value" id="rd-atoms">—</span></div>
+        <div class="stat"><span class="stat-label">widest span</span><span class="stat-value" id="rd-span">—</span></div>
+        <div class="stat"><span class="stat-label">rings</span><span class="stat-value" id="rd-rings">—</span></div>
+      </div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">the chips a step would offer</div>
+      <div id="bench-chips"></div>
+    </div>
+
+    <div class="bench-group">
+      <div class="bench-hd">how to ask for this</div>
+      <pre class="bench-out" id="out"></pre>
+    </div>`);
+
+  const out = ui.q('#out');
+  const atoms = ui.q('#atoms');
+  let picked = null;
+
+  function readout() {
+    const s = M.state();
+    if (!s) return;
+    ui.q('#rd-formula').textContent = s.formula;
+    ui.q('#rd-atoms').textContent = `${s.atoms} (${s.heavy} heavy)`;
+    ui.q('#rd-span').textContent = s.span == null ? '—' : s.span.toFixed(1) + ' Å';
+    ui.q('#rd-rings').textContent = s.rings || '—';
+    /* Read off state(), the way a generated page prints it: which view is up,
+       and where the coordinates came from. */
+    ui.q('#source').textContent = s.mode === '2d'
+      ? '2D projection drawn from the diagram.' : s.source;
+    for (const b of ui.q('#modes').children) {
+      b.setAttribute('aria-pressed', String(b.dataset.mode === s.mode));
+      b.disabled = b.dataset.mode === '2d' && !s.canFlat;
+    }
+    ui.q('#showH').disabled = s.mode !== '3d';
+    out.textContent = `Molecule.mount(el, {\n  molecule: '${s.key}', mode: '${s.mode}',\n  spin: ${s.spin}, showH: ${s.showH},\n`
+      + `  highlight: ${JSON.stringify(s.highlight)},\n});`;
+  }
+
+  /* The chips are read off the component's anchors, so a spec that gains a
+     `names` array gains its chips without touching this file. */
+  function chips() {
+    atoms.innerHTML = '';
+    picked = null;
+    for (const a of M.anchors()) {
+      if (a.name === 'center') continue;
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = a.name;
+      b.onclick = () => {
+        picked = picked === a.name ? null : a.name;
+        M.set({ highlight: picked ? [picked] : null });
+        M.notes(picked ? [picked] : false);
+        for (const c of atoms.children) c.classList.toggle('is-on', c.textContent === picked);
+        readout();
+      };
+      atoms.appendChild(b);
+    }
+    if (!atoms.children.length) atoms.innerHTML = '<p class="foot">This spec has no atom names yet (tools/name-atoms.js writes them).</p>';
+    CardStage.showPanel(ui.q('#bench-chips'), M, { layers: ['hydrogens'] });
+  }
+
+  ui.q('#modes').onclick = e => { const b = e.target.closest('button'); if (b) { M.set({ mode: b.dataset.mode }); readout(); } };
+  ui.q('#pick').onchange = e => { M.set({ molecule: e.target.value, highlight: null }); M.clearNotes(); chips(); readout(); };
+  ui.q('#spin').onchange = e => { M.set({ spin: e.target.checked }); readout(); };
+  ui.q('#showH').onchange = e => { M.set({ showH: e.target.checked }); readout(); };
+
+  chips();
+  readout();
+}
+
+shell.goTo(0);
+</script>
+</body>
+</html>

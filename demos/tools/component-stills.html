@@ -129,6 +129,9 @@ const SHOTS = [
   { key: 'tree', use: 'Tree', warm: 2,
     mount: el => Tree.mount(el, {}) },
 
+  { key: 'molecule', use: 'Molecule', warm: 0,
+    mount: el => Molecule.mount(el, { molecule: 'glucose' }) },
+
   /* Mid-reaction, mounted there rather than set: `progress` glides over ~3 s,
      and a mount parameter lands the frame the card is for, the water leaving. */
   { key: 'condense', use: 'Condense', warm: 1,
@@ -137,6 +140,7 @@ const SHOTS = [
   /* Graph is HTML, not a scene: it has no canvas to read, so its card keeps
      drawing itself. Listed here only so the shelf's keys are all in one place. */
   { key: 'graph', use: 'Graph', skip: 'draws in HTML, no canvas to bake' },
+  { key: 'diagram', use: 'Diagram', skip: 'draws in HTML, no canvas to bake' },
 ];
 
 const mountEl = document.getElementById('mount');

@@ -298,6 +298,7 @@
   <div class="gallery" id="gallery">
     <article><div class="stage" style="--stage-bg:#EAF3FF"><img src="demos/media/components/watersim.webp" alt="WaterSim, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>WaterSim</h4><p>Liquid water, and what follows from hydrogen bonds.</p><ul class="feats"><li>temperature</li><li>phase change</li><li>ice floating</li><li>salt dissolving</li></ul><div class="rung">molecules · bulk</div></div></article>
     <article><div class="stage" style="--stage-bg:#FFF7E3"><img src="demos/media/components/membrane.webp" alt="Membrane, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>Membrane</h4><p>A bilayer, its proteins, and what crosses.</p><ul class="feats"><li>diffusion</li><li>osmosis</li><li>selectivity</li><li>pumps and ATP</li><li>resting potential</li><li>chemiosmosis</li></ul><div class="rung">membrane · bulk</div></div></article>
+    <article><div class="stage" style="--stage-bg:#FFFDF5"><img src="demos/media/components/molecule.webp" alt="Molecule, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>Molecule</h4><p>One molecule in 3D, any in the library by name.</p><ul class="feats"><li>an atom lit up</li><li>hydrogens on or off</li><li>beside its diagram</li></ul><div class="rung">molecules · single</div></div></article>
     <article><div class="stage" style="--stage-bg:#FFF0EC"><img src="demos/media/components/proteinbox.webp" alt="Proteinbox, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>Proteinbox</h4><p>A protein in the library converted from PDB. Renders ribbon and surfaces.</p><ul class="feats"><li>primary to quaternary</li><li>ribbon · surface · fold</li><li>two side by side</li></ul><div class="rung">macromolecule · single</div></div></article>
     <article><div class="stage" style="--stage-bg:#F5EEFF"><img src="demos/media/components/hbcrowd.webp" alt="HbCrowd, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>HbCrowd</h4><p>A crowd of haemoglobins, and the moment HbS starts a fibre.</p><ul class="feats"><li>HbA against HbS</li><li>a fibre starting</li></ul><div class="rung">macromolecule · bulk</div></div></article>
     <article><div class="stage" style="--stage-bg:#FFEFEF"><img src="demos/media/components/bloodcell.webp" alt="BloodCell, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>BloodCell</h4><p>One red blood cell, cut open.</p><ul class="feats"><li>tonicity</li><li>lysis and crenation</li><li>sickling</li><li>cut open</li></ul><div class="rung">cell · single</div></div></article>
@@ -306,6 +307,7 @@
     <article><div class="stage" style="--stage-bg:#EAF7EC"><img src="demos/media/components/leaf.webp" alt="Leaf, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>Leaf</h4><p>A leaf in cross-section, tissue by tissue.</p><ul class="feats"><li>tissue by tissue</li><li>gas exchange</li><li>transpiration</li><li>stomata opening</li></ul><div class="rung">tissue · bulk</div></div></article>
     <article><div class="stage" style="--stage-bg:#FFF0EC"><img src="demos/media/components/bloodflow.webp" alt="BloodFlow, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>BloodFlow</h4><p>A vessel of red cells, narrowing.</p><ul class="feats"><li>vaso-occlusion</li><li>a narrowing vessel</li><li>stiff against flexible</li></ul><div class="rung">organ · bulk</div></div></article>
     <article><div class="stage" style="--stage-bg:#F1F7EA"><img src="demos/media/components/tree.webp" alt="Tree, drawn by the component itself" loading="lazy" width="536" height="358"></div><div class="text"><h4>Tree</h4><p>A tree, the air around it, and where its mass came from.</p><ul class="feats"><li>where the mass came from</li><li>Van Helmont's willow</li><li>day and night</li></ul><div class="rung">organism · single</div></div></article>
+    <article><div class="stage" data-mount="diagram" style="--stage-bg:#FFFDF5"></div><div class="text"><h4>Diagram</h4><p>One molecule, drawn flat, in the notation its chemistry wants.</p><ul class="feats"><li>Haworth · Lewis · skeletal</li><li>lone pairs</li><li>an atom lit up</li></ul><div class="rung">no scale</div></div></article>
     <article><div class="stage" data-mount="graph" style="--stage-bg:#FFFDF5"></div><div class="text"><h4>Graph</h4><p>A chart of measurements, or of a running sim.</p><ul class="feats"><li>scatter · line · bar</li><li>histogram · box</li><li>a fit and its r²</li></ul><div class="rung">no scale</div></div></article>
   </div>
 </section>
@@ -472,14 +474,26 @@ node tools/check-pages.js      <span class="cm"># every page still loads what it
   </div>
 </footer>
 
-<!-- Ten of the eleven cards are baked stills (tools/component-stills.html):
-     eleven live WebGL contexts on a page a reader is only scrolling past is a
-     stalled laptop for a picture nothing moves under their eye. Graph is the
-     exception because it is HTML, not a canvas, and costs a chart. -->
+<!-- All but two cards are baked stills (tools/component-stills.html): a row
+     of live WebGL contexts on a page a reader is only scrolling past is a
+     stalled laptop for a picture nothing moves under their eye. Graph and
+     Diagram are the exceptions because they are HTML, not a canvas. -->
 <link rel="stylesheet" href="demos/graph/graph.css">
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js"></script>
 <script src="demos/graph/graph.js"></script>
+<!-- Diagram is the other HTML card. One sugar, so one domain file: the
+     component takes any key in MolLib, but this shelf asks for glucose. -->
+<link rel="stylesheet" href="demos/diagram/diagram.css">
+<script src="demos/lib/palette.js"></script>
+<script src="demos/lib/tokens-from-palette.js"></script>
+<script src="demos/lib/molecules.js"></script>
+<script src="demos/lib/skel.js"></script>
+<script src="demos/lib/mol-sugars.js"></script>
+<script src="demos/lib/haworth.js"></script>
+<script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
+<script src="demos/lib/diagram-2d.js"></script>
+<script src="demos/diagram/diagram.js"></script>
 
 <script>
 /* Copy buttons. The <pre> is the source of truth, so the block cannot drift
@@ -522,7 +536,7 @@ document.querySelectorAll('.taskbtn').forEach(btn =>
     document.getElementById('start').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
 
-/* The one card that is not a still. It is mounted when the row reaches it,
+/* The two cards that are not stills. Each is mounted when the row reaches it,
    like the stills' images, so a reader who never scrolls the shelf pays for
    no chart. */
 (() => {
@@ -530,6 +544,10 @@ document.querySelectorAll('.taskbtn').forEach(btn =>
     if (el.dataset.lit) return;
     el.dataset.lit = '1';
     try {
+      if (el.dataset.mount === 'diagram') {
+        Diagram.mount(el, { molecule: 'glucose', lonePairs: true, height: el.clientHeight });
+        return;
+      }
       /* height is Graph's only length: left to itself it draws at least
          240px, which is taller than the stage. */
       Graph.mount(el, {
@@ -539,7 +557,7 @@ document.querySelectorAll('.taskbtn').forEach(btn =>
         x: { field: 'light', label: 'Light', unit: 'umol/m2/s' },
         y: { field: 'rate', label: 'O2 released', unit: 'bubbles/min' },
       });
-    } catch (e) { console.error('gallery: graph', e); }
+    } catch (e) { console.error('gallery: ' + el.dataset.mount, e); }
   };
   /* A rect check on scroll, not IntersectionObserver: an observer delivers
      nothing while the tab is hidden, so a card that scrolled past in a

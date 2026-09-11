@@ -31,6 +31,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="css/kodo.css">
 <link rel="stylesheet" href="graph/graph.css">
+<link rel="stylesheet" href="diagram/diagram.css">
 
 <style>
   :root { --page-max: 1180px }
@@ -157,6 +158,7 @@
       <div class="grid" id="comp-grid">
         <a class="card" href="water/water-test.html"><div class="stage shot" style="background-image:url(media/components/watersim.webp)"></div><div class="body"><h3 class="name">WaterSim</h3><p class="blurb">Liquid water, and what follows from hydrogen bonds.</p><ul class="feats"><li>temperature</li><li>phase change</li><li>ice floating</li><li>salt dissolving</li></ul><div class="rung">molecules · bulk</div></div></a>
         <a class="card" href="membrane/salmon-test.html"><div class="stage shot" style="background-image:url(media/components/membrane.webp)"></div><div class="body"><h3 class="name">Membrane</h3><p class="blurb">A bilayer, its proteins, and what crosses.</p><ul class="feats"><li>diffusion</li><li>osmosis</li><li>selectivity</li><li>pumps and ATP</li><li>resting potential</li><li>chemiosmosis</li></ul><div class="rung">membrane · bulk</div></div></a>
+        <a class="card" href="molecule/molecule-test.html"><div class="stage shot" style="background-image:url(media/components/molecule.webp)"></div><div class="body"><h3 class="name">Molecule</h3><p class="blurb">One molecule in 3D, any in the library by name.</p><ul class="feats"><li>an atom lit up</li><li>hydrogens on or off</li><li>beside its diagram</li></ul><div class="rung">molecules · single</div></div></a>
         <a class="card" href="condense/condense-test.html"><div class="stage shot" style="background-image:url(media/components/condense.webp)"></div><div class="body"><h3 class="name">Condense</h3><p class="blurb">Two molecules joining, and the water that leaves.</p><ul class="feats"><li>glycosidic · ester · peptide</li><li>α against β</li><li>hydrolysis, run backwards</li></ul><div class="rung">molecules · single</div></div></a>
         <a class="card" href="kit/proteinbox-mount-test.html"><div class="stage shot" style="background-image:url(media/components/proteinbox.webp)"></div><div class="body"><h3 class="name">Proteinbox</h3><p class="blurb">Any protein in the library, from deposited coordinates.</p><ul class="feats"><li>primary to quaternary</li><li>ribbon · surface · fold</li><li>two side by side</li></ul><div class="rung">macromolecule · single</div></div></a>
         <a class="card" href="sickle/hbcrowd-test.html"><div class="stage shot" style="background-image:url(media/components/hbcrowd.webp)"></div><div class="body"><h3 class="name">HbCrowd</h3><p class="blurb">A crowd of haemoglobins, and the moment HbS starts a fibre.</p><ul class="feats"><li>HbA against HbS</li><li>a fibre starting</li></ul><div class="rung">macromolecule · bulk</div></div></a>
@@ -166,7 +168,8 @@
         <a class="card" href="leaf/leaf-test.html"><div class="stage shot" style="background-image:url(media/components/leaf.webp)"></div><div class="body"><h3 class="name">Leaf</h3><p class="blurb">A leaf in cross-section, tissue by tissue.</p><ul class="feats"><li>gas exchange</li><li>transpiration</li><li>stomata opening</li></ul><div class="rung">tissue · bulk</div></div></a>
         <a class="card" href="bloodcell/bloodflow-test.html"><div class="stage shot" style="background-image:url(media/components/bloodflow.webp)"></div><div class="body"><h3 class="name">BloodFlow</h3><p class="blurb">A vessel of red cells, narrowing.</p><ul class="feats"><li>vaso-occlusion</li><li>stiff against flexible</li></ul><div class="rung">organ · bulk</div></div></a>
         <a class="card" href="tree/tree-lab.html"><div class="stage shot" style="background-image:url(media/components/tree.webp)"></div><div class="body"><h3 class="name">Tree</h3><p class="blurb">A tree, the air around it, and where its mass came from.</p><ul class="feats"><li>Van Helmont's willow</li><li>day and night</li></ul><div class="rung">organism · single</div></div></a>
-        <!-- Graph is HTML, not a canvas, so it draws itself rather than a still. -->
+        <!-- Graph and Diagram are HTML, not a canvas, so they draw themselves rather than a still. -->
+        <a class="card" href="diagram/diagram-test.html"><div class="stage" id="diagram-stage"></div><div class="body"><h3 class="name">Diagram</h3><p class="blurb">One molecule, drawn flat, in the notation its chemistry wants.</p><ul class="feats"><li>Haworth · Lewis · skeletal</li><li>lone pairs</li><li>an atom lit up</li></ul><div class="rung">no rung · a notation is not in the world</div></div></a>
         <a class="card" href="graph/graph-test.html"><div class="stage" id="graph-stage"></div><div class="body"><h3 class="name">Graph</h3><p class="blurb">A chart of measurements, or a live trace off a running sim.</p><ul class="feats"><li>scatter · line · bar</li><li>fit and error bars</li><li>live trace</li></ul><div class="rung">no rung · a chart is not in the world</div></div></a>
       </div>
     </section>
@@ -205,11 +208,19 @@
 <script src="proteins/proteins.js"></script>
 <script src="proteins/nucleic-acids.js"></script>
 <script src="graph/graph.js"></script>
+<script src="lib/haworth.js"></script>
+<script src="https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js"></script>
+<script src="lib/diagram-2d.js"></script>
+<script src="diagram/diagram.js"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
 
-/* ---- components: the one live card ---------------------------------------- */
+/* ---- components: the two live cards, the ones drawn in HTML ---------------- */
+try {
+  const el = $('diagram-stage');
+  Diagram.mount(el, { molecule: 'glucose', lonePairs: true, height: el.clientHeight });
+} catch (e) { console.error('library: diagram', e); }
 try {
   const el = $('graph-stage');
   Graph.mount(el, {

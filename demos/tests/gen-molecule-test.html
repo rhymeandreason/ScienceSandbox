@@ -1,0 +1,83 @@
+<!doctype html>
+<!-- requests
+1. Show me what a glucose molecule looks like in 3D and point out the carbon that decides alpha from beta
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Glucose in 3D: The Anomeric Carbon</title>
+</head>
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../kit/app.js" data-shell="steps" data-use="Molecule,Diagram"></script>
+<script>
+let diag = null;
+
+const shell = LessonShell.create({
+  brand: 'Molecular Structure',
+  hint: 'Drag to orbit · Scroll to zoom',
+  ctx: { state: {} },
+  steps: [
+    {
+      eyebrow: 'Structure',
+      title: 'Glucose in three dimensions',
+      body: '<p class="lead"><b>Glucose adopts a stable six-membered ring in aqueous solution.</b></p><p>Rather than a flat hexagon, the carbon ring puckers into a three-dimensional chair conformation to minimize steric strain between bonded groups.</p>',
+      onEnter(ctx) {
+        if (diag) { diag.destroy(); diag = null; }
+        M.set({ molecule: 'glucose', highlight: [] });
+        M.notes(false);
+      },
+      onExit(ctx) {}
+    },
+    {
+      eyebrow: 'The Anomeric Carbon',
+      title: 'Carbon-1 decides the anomer',
+      body: '<p class="lead"><b>Carbon-1 is the anomeric carbon.</b></p><p>When straight-chain glucose cyclizes, the carbonyl oxygen at C1 becomes a new hydroxyl (-OH) group. Because ring closure can occur from either face, C1 becomes an asymmetric center.</p><div id="diag-slot"></div>',
+      onEnter(ctx) {
+        M.set({ molecule: 'glucose', highlight: ['C1'] });
+        M.notes(false);
+        M.note('C1', { text: 'C1: Anomeric Carbon' });
+        const slot = ctx.ui.q('#diag-slot');
+        if (slot) {
+          diag = Diagram.mount(slot, {
+            molecule: 'glucose',
+            highlight: ['C1'],
+            caption: 'Flat Haworth projection marking C1.'
+          });
+        }
+      },
+      onExit(ctx) {
+        if (diag) { diag.destroy(); diag = null; }
+      }
+    },
+    {
+      eyebrow: 'Alpha vs Beta',
+      title: 'Hydroxyl orientation at C1',
+      body: '<p class="lead"><b>The direction of the -OH group on C1 defines &alpha; and &beta; glucose.</b></p><p>In &beta;-D-glucose, the C1 hydroxyl points in the equatorial plane (drawn "up" in the Haworth projection, cis to the -CH2OH group). In &alpha;-D-glucose, the C1 hydroxyl points downward in an axial position (trans to -CH2OH).</p><div id="diag-slot"></div>',
+      onEnter(ctx) {
+        M.set({ molecule: 'alphaGlucose', highlight: ['C1', 'O1'] });
+        M.notes(false);
+        M.note('C1', { text: '&alpha;-D-Glucose (C1 -OH axial / down)' });
+        const slot = ctx.ui.q('#diag-slot');
+        if (slot) {
+          diag = Diagram.mount(slot, {
+            molecule: 'alphaGlucose',
+            highlight: ['C1'],
+            caption: '&alpha;-D-glucose with C1 highlighted.'
+          });
+        }
+      },
+      onExit(ctx) {
+        if (diag) { diag.destroy(); diag = null; }
+      }
+    }
+  ]
+});
+
+const M = Molecule.mount(shell.stage, { viewOffset: shell.viewOffset, molecule: 'glucose' });
+shell.goTo(0);
+</script>
+</body>
+</html>
