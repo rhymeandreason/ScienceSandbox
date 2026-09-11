@@ -52,11 +52,14 @@
  *  GLIDES: `flow`. SNAPS: `uncoupler`, and every geometry parameter, which
  *  rebuilds — nothing tweens across a rebuild.
  *
- *  BUDGET, measured on the bench at the default eleven cristae and at the
- *  cap of twenty-four: 0.06 ms a step and 0.5 ms a frame, 116k triangles and
- *  92 draw calls at the cap. A REBUILD IS 50 ms, which is why `cristae`,
- *  `open` and `seed` are rebuild parameters and must not be put on a slider a
- *  student drags — the bench does exactly that, and it is a bench.
+ *  BUDGET, measured on the bench. At the default eleven cristae: 0.05 ms a
+ *  step, 0.6 ms a frame, 121k triangles, 92 draw calls. At the cap of
+ *  twenty-four: about 2 ms a frame, 186k triangles, 183 draw calls — the
+ *  membranes are the one translucent thing here and a scene packed with sacs
+ *  is overdraw, so the cap is where to look, not the default. A REBUILD IS
+ *  ROUGHLY 0.1 s, which is why `cristae`, `open` and `seed` are rebuild
+ *  parameters and must not go on a slider a student drags. The bench does
+ *  exactly that, and it is a bench.
  *
  *  SCALE. Lengths ALONG the organelle are honest: one scene unit is 100 nm,
  *  so the capsule is 1.9 by 0.7 µm and `state()` may be printed. The

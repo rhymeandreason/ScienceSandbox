@@ -913,7 +913,7 @@
       const open = clamp(o.open === undefined ? 1 : o.open, 0.3, 1);
       const cutW = PI * (1 + 0.5 * (1 - open));
       const lumenT = o.lumen === undefined ? 0.055 * r : o.lumen;     // inside a crista
-      const jGap = 0.085 * r;                                          // plate edge to inner membrane
+      const jGap = 0.055 * r;                                          // plate edge to inner membrane
       const sacHalf = lumenT / 2 + th;                                 // crista half thickness
 
       /* A capsule of radius `rad` and cylinder half-length `len`, param u in
@@ -934,7 +934,18 @@
 
       const rIn = r - th - imsGap;              // the inner membrane's outer radius
       const outerS = capsuleS(r, L), innerS = capsuleS(rIn, L);
-      const shellMat = () => mat({ vertexColors: true, roughness: 0.42, clearcoat: 0.5 });
+      /* ONE SURFACE FINISH FOR THE WHOLE INNER MEMBRANE. The boundary part,
+         every crista and every junction neck are the same sheet, so they are
+         shaded by the same numbers: same roughness, same clearcoat, same
+         opacity. They were three materials once — an opaque shell, an opaque
+         neck and a crista at 0.82 — and one hex rendered as three colours,
+         which read as three pieces bolted together. The barely-there
+         transparency is what lets the pale lumen and the protons in it ghost
+         through a crista; it is on the shell too so that nothing shows a
+         seam where the fold meets the wall. Raise it to 1 and the sacs go
+         solid; below about 0.85 they go murky and lose their shape. */
+      const MEM_FINISH = { roughness: 0.42, clearcoat: 0.5, transparent: true, opacity: 0.93 };
+      const shellMat = () => mat(Object.assign({ vertexColors: true }, MEM_FINISH));
       const RESP = global.MolPalette ? global.MolPalette.respiration : global.MolLib.PALETTE.respiration;
 
       const sub = name => { const s = new THREE.Group(); s.userData.part = name; g.add(s); return s; };
@@ -967,6 +978,28 @@
       })), shellMat());
       gInner.add(innerMesh);
 
+      /* WHERE THE INNER MEMBRANE ACTUALLY IS on a given ray, noise and all.
+         `rhoOf` answers for the IDEAL capsule, and the shell is displaced off
+         it by about one membrane's thickness — so anything welded to the wall
+         by the ideal radius either stops short of it or pierces it and hangs
+         out in the intermembrane space, and both read as a part set down
+         beside the membrane rather than continuous with it. The displacement
+         scales rho and so keeps a point on its own ray, which is what makes
+         this a search in u alone. Build time only. */
+      const wallRadius = (x, w) => {
+        /* u from x in closed form: capsuleS puts x on the profile before the
+           noise touches anything, and the noise only scales rho — so the
+           displacement never moves a point off its own ray or along the axis,
+           and there is nothing to search for. */
+        const cp = PI * rIn / 2, tot = PI * rIn + 2 * L;
+        const cl = clamp(x, -L - rIn, L + rIn);
+        const s2 = Math.abs(cl) <= L ? cp + (cl + L)
+          : cl < -L ? (Math.asin(clamp((cl + L) / rIn, -1, 1)) + PI / 2) * rIn
+                    : cp + 2 * L + Math.asin(clamp((cl - L) / rIn, -1, 1)) * rIn;
+        const p = innerS(s2 / tot, w);
+        return Math.hypot(p.y, p.z);
+      };
+
       /* Porins. A ring each, over the outer membrane only: the outer
          membrane is a sieve and the inner one is not, which is the whole
          reason a gradient can stand across the inner one. */
@@ -997,14 +1030,12 @@
          Built in the plane of the slice and turned into it: the shape is
          drawn in (sx, sy), extruded along its own z, then rotated so that z
          is the organelle's long axis. sx = -z_world, sy = y_world. */
-      /* THE CRISTA MEMBRANE IS SLIGHTLY SEE-THROUGH, and it is the only
-         transparency here. A crista is a bag and the whole point of the
-         detail is that the protons go INSIDE it; opaque, the sac reads as a
-         solid fin and a reader concludes they go into the matrix. depthWrite
-         stays on — these are convex plates, and the pale lumen inside each
-         one is opaque, so nothing sorts behind itself. */
-      const memMat = mat({ color: ORG.mitochondrion.cristaSide, roughness: 0.46, clearcoat: 0.35,
-        side: THREE.DoubleSide, transparent: true, opacity: 0.82 });
+      /* The crista, the neck and the outer face of the boundary membrane are
+         ONE material object, not three matching ones: a colour cannot drift
+         from itself. depthWrite stays on — these are convex plates and the
+         pale lumen inside each is opaque, so nothing sorts behind itself. */
+      const memMat = mat(Object.assign({ color: ORG.mitochondrion.cristaSide,
+        side: THREE.DoubleSide }, MEM_FINISH));
       const lumenMat = mat({ color: ORG.mitochondrion.lumen, roughness: 0.55, clearcoat: 0.2, side: THREE.DoubleSide });
       const inPoly = (pts, x, y) => {
         let c = false;
@@ -1014,7 +1045,6 @@
         }
         return c;
       };
-      const jMat = mat({ color: ORG.mitochondrion.cristaSide, roughness: 0.46, clearcoat: 0.35 });
       const sites = { complex: [], synthase: [] };
       const pockets = { lumen: [], matrix: [], ims: [] };
       const cristae = [];
@@ -1079,14 +1109,34 @@
           for (let i = 0; i < nJ; i++) {
             const f = f0 + ((i + 0.5) / nJ) * (f1 - f0);
             const p = P2(f);
-            const from = new V3(xk, p[1], -p[0]);
             const dir = new V3(0, p[1], -p[0]).normalize();
-            const to = from.clone().addScaledVector(dir, jGap + th);
-            const len = from.distanceTo(to);
-            const tube = new THREE.Mesh(new THREE.CylinderGeometry(sacHalf * 0.5, sacHalf * 0.62, len, 10), jMat);
-            tube.position.copy(from).lerp(to, 0.5);
-            tube.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir);
-            gJunction.add(tube);
+            /* BURIED AT BOTH ENDS. The neck starts inside the sac and
+               finishes past the far face of the boundary membrane, rather
+               than running from one ideal surface to the other: the shell is
+               noise-displaced by about a membrane's thickness, so a neck cut
+               to the smooth capsule stops in mid-air wherever the wall
+               happens to bulge, and the fold reads as a part set down beside
+               the membrane instead of continuous with it. Overlap is free —
+               both ends are inside something. */
+            const from = new V3(xk, p[1], -p[0]).addScaledVector(dir, -sacHalf * 0.9);
+            // Into the wall's own thickness, stopping just short of its far
+            // face: welded, and never poking out into the space beyond.
+            const to = dir.clone().multiplyScalar(wallRadius(xk, Math.atan2(-dir.y, dir.z)) - th * 0.15);
+            to.x = xk;
+            const len = Math.max(1e-3, from.distanceTo(to));
+            /* Wide where it leaves the crista, wide where it enters the wall,
+               PINCHED IN BETWEEN. That waist is the junction: about 25 nm
+               across, held there by MICOS, and the reason a crista lumen is
+               its own pocket of protons rather than an open bay. */
+            const prof = [];
+            for (let k = 0; k <= 8; k++) {
+              const t = k / 8;
+              prof.push(new THREE.Vector2(sacHalf * (1 - 0.45 * Math.sin(PI * t)), -len / 2 + t * len));
+            }
+            const neck = new THREE.Mesh(new THREE.LatheGeometry(prof, 10), memMat);
+            neck.position.copy(from).lerp(to, 0.5);
+            neck.quaternion.setFromUnitVectors(new V3(0, 1, 0), dir);
+            gJunction.add(neck);
           }
         }
 
