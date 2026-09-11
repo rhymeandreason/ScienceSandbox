@@ -235,8 +235,26 @@ const hyd = $('m-hyd'), hydIn = $('m-hyd-in');
 let box = null, view = null, current = null;
 
 const diagramEl = $('m-diagram');
-const HINT = { '3d': 'Drag to turn.',
-               '2d': '2D projection drawn from the diagram.' };
+/* WHERE THE SHAPE CAME FROM. Every spec names its own source in `src:{path}`
+   and check-molecules.js fails one that does not, so this is read rather than
+   written — a molecule that changes path changes the line by itself.
+   MolecularGeometry.md §1 is the argument for choosing between them; this says
+   only which was chosen, because a student looking at a model is entitled to
+   know whether they are looking at a measurement or at a construction. */
+const SOURCE = {
+  hand:    () => 'Placed by hand from measured angles.',
+  skel:    () => 'Built from VSEPR angles, not from a deposited record.',
+  pubchem: src => `From a deposited 3D record, PubChem CID ${src.cid}.`,
+  built:   src => `Idealised geometry, written in as coordinates: ${src.method}.`,
+  mirror:  src => `The mirror image of ${src.of}, reflected at load.`,
+};
+function sourceLine(spec) {
+  const src = spec.src || {};
+  const say = SOURCE[src.path];
+  return say ? say(src) : '';
+}
+
+const HINT = { '2d': '2D projection drawn from the diagram.' };
 
 /* Sized for the BODY column, which is narrower than the stage, so the boxes are
    the page's rather than the module's defaults. A disaccharide is two rings
@@ -262,7 +280,7 @@ function setMode(next) {
   hyd.toggleAttribute('disabled', next !== '3d');
   view.setMode(next);
   for (const b of modes.children) b.setAttribute('aria-pressed', String(b.dataset.mode === next));
-  $('m-hint').textContent = HINT[next];
+  $('m-hint').textContent = next === '3d' ? sourceLine(current.spec) : HINT[next];
 }
 modes.addEventListener('click', e => {
   const b = e.target.closest('button');
