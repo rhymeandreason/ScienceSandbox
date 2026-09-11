@@ -1228,7 +1228,12 @@
          factors are in cell/mitochondrion.js's SCALE. */
       {
         const CX = {
-          I:   { color: RESP.complex,   arm: [0.115 * r, 0.040 * r, 0.040 * r], out: 0.070 * r, outR: 0.020 * r },
+          /* Complex I's membrane arm is its HYDROPHOBIC domain: it lies in
+             the bilayer and does not come out the far side. So its
+             cross-section is measured against `th` and not against r —
+             sized against the organelle it pokes through a sheet one
+             membrane thick and reads as a slab laid over the back face. */
+          I:   { color: RESP.complex,   arm: [0.115 * r, th * 0.9, th * 0.9], out: 0.070 * r, outR: 0.020 * r },
           II:  { color: RESP.complexII, arm: null, out: 0.052 * r, outR: 0.024 * r },
           III: { color: RESP.complex,   arm: null, out: 0.034 * r, outR: 0.029 * r, span: true },
           IV:  { color: RESP.complex,   arm: null, out: 0.031 * r, outR: 0.026 * r, span: true },
