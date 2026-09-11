@@ -42,6 +42,19 @@
      that is counted from the registry rather than typed. */
   :root { --page-max: 1180px }
 
+  /* library.html's header, and the same reasoning: the heavy rule belongs under
+     the BAR, where it separates the chrome from the page, rather than under the
+     name. NOT by putting kodo's `.pagehead.open` on the masthead, which is what
+     that class is for: `.open` on THIS page is the green lesson pill below, and
+     the two met on one element — the page's name came out set inside a pill.
+     The rule is given up here instead. */
+  .sitenav{padding-bottom:1.25rem;border-bottom:2px solid var(--border-strong)}
+  .pagehead{padding:clamp(2.5rem,5vw,4.5rem) 0 0;border-bottom:0;margin-bottom:0}
+  /* Only the margins: the rest of `.lede` is kodo.css's, and this page used to
+     restate its size, colour and measure — a fork nobody sees until two shelves
+     are open side by side. */
+  .lede{margin:clamp(1.5rem,2.6vw,2.5rem) 0 clamp(3rem,5vw,4rem)}
+
   /* ---- the grid ------------------------------------------------------- */
 
   /* 290px, not 330: three columns is the layout this page is composed for,
@@ -191,9 +204,6 @@
     color:var(--muted);font-size:1.1rem;line-height:1}
   .x:hover{color:var(--ink);border-color:var(--accent)}
 
-  /* One line, under the rule: what a reader is looking at a shelf OF. */
-  .lede{font-size:1rem;color:var(--muted);max-width:60ch;line-height:1.6;
-    margin:0 0 clamp(1.75rem,4vw,2.5rem)}
 </style>
 </head>
 <body class="kodo">
@@ -212,7 +222,7 @@
   </header>
 
   <p class="lede">Proteins are what your genes are for. All of these
-    proteins were measured in a lab with x-rays. Their shape is the job the do.</p>
+    proteins were measured in a lab with x-rays. Their shape is the job they do.</p>
 
   <main class="grid" id="grid"></main>
 </div>
