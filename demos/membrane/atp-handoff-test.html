@@ -63,7 +63,7 @@
 <div id="wrap">
   <div class="stage" id="left">
     <div class="cap">mitochondrion — inner membrane
-      <span>The complex burns NADH to throw protons out; they come back through the synthase and it turns. The ATP is made in the matrix and leaves by two doors: a translocase, then a porin.</span></div>
+      <span>The complex burns NADH to throw protons out; they come back through the synthase and it turns. The ATP is made in the matrix and leaves by two doors: a translocase, then a porin. A crista is this patch folded, so the space above it is the space inside a fold.</span></div>
   </div>
   <div id="gap"><b>the cytosol</b></div>
   <div class="stage" id="right">
@@ -134,6 +134,12 @@ const made = Membrane.mount(document.getElementById('left'), {
   potential: 'nernst',
   atpExit: 'right',              // out the side the cell surface is on
   cam: { theta: 0, phi: Math.PI / 2 - 0.10, r: 330 },
+  /* THE INNER MEMBRANE SITS LOW IN THIS BOX. It is the only one here with a
+     second membrane over it, and centred there is no intermembrane space to
+     look at — just a gap the lid immediately closes. The right box is not
+     offset: its membrane is centred, which also stops the two reading as one
+     sheet across the seam. */
+  viewOffset: (w, h) => ({ x: 0, y: -h * 0.10 }),
 });
 
 const spender = Membrane.mount(document.getElementById('right'), {

@@ -213,6 +213,7 @@
       PORIN.group.rotation.z = -seat(PORIN.group, porinX, 0, 0);
       PORIN.group.position.y += outerY();
       PORIN.setGates(1, 1);
+      OUTER.cut.enable(cut);
     }
 
     /* ---- sizes ----
@@ -296,6 +297,9 @@
                                            lobes:0, color:RESP.translocase });
     const ROTOR = buildRotor(SYNTH.height);
     SYNTH.group.add(ROTOR);
+    /* Every machine on stage, and PORIN is one even though it stands in the
+       other sheet: this list is what setCut opens, and a barrel left off it is
+       the one solid object in a cutaway. */
     const ALL = [CHANNEL, CLCHAN, NACHAN, AQP, PUMP, COMPLEX, SYNTH, LEAK, ANT];
     root.add(CHANNEL.group, CLCHAN.group, NACHAN.group, AQP.group, PUMP.group,
              COMPLEX.group, SYNTH.group, LEAK.group, ANT.group);
@@ -311,8 +315,11 @@
 
        OUTER_GAP is drawn, not measured: a real intermembrane space is much
        narrower than this against the protein it holds. It is this wide because
-       the protons pumped into it have to be visible sitting there. */
-    const OUTER_GAP = 56;
+       the protons pumped into it have to be visible SITTING there — a band the
+       eye reads as a compartment, not as a gap between two lines. Tuned at
+       whole-membrane zoom against the F1 head, which is the tallest thing the
+       space has to clear. */
+    const OUTER_GAP = 82;
     /* SLIMMER AND SHORTER THAN A CARRIER, and both on purpose. transporter's
        default `over` is 14, which is most of the height of a machine that
        spans the thick inner membrane; on a sheet this thin it made the porin
@@ -333,6 +340,7 @@
        lid is a decoration. */
     const bandTop = () => outerOn() ? OUTER_GAP - 8 : P.extent;
     root.add(PORIN.group);
+    ALL.push(PORIN);   // declared below ALL, and setCut has to open it like any other
     let MEM = null, T = PUMP, PORES = [], pumpX = 0, complexX = 0, synthX = null, cut = false;
 
     /* The F1 head: a ring of three αβ pairs on a shaft. Three, because one
@@ -595,6 +603,7 @@
     function setCut(on) {
       cut = on;
       MEM.cut.enable(on && PORES.length > 0);
+      if (OUTER) OUTER.cut.enable(on);   // the lid is cut too, or the porin opens into a wall
       for (const Q of ALL) {
         Q.mesh.material.clippingPlanes = on ? [MEM.cut.plane] : [];
         Q.mesh.material.side = on ? THREE.DoubleSide : THREE.FrontSide;
@@ -1745,7 +1754,15 @@
     const extentOf = () => {
       const cam = box.camera;
       const halfH = Math.tan(THREE.MathUtils.degToRad(cam.fov) / 2) * box.cam.r;
-      return halfH + 26;
+      /* A VIEW OFFSET SLIDES THE FRAME OFF THE SCENE'S CENTRE, so the
+         compartment has to grow by what it slid or its far edge walks into
+         shot: a page that drops the membrane to make room above it gets an
+         empty band and a visible floor below. */
+      const fn = params.viewOffset || el.viewOffset;
+      const off = fn ? fn(box.canvas.clientWidth, box.canvas.clientHeight) : null;
+      const slide = off && off.y && box.canvas.clientHeight
+        ? Math.abs(off.y) / box.canvas.clientHeight * 2 * halfH : 0;
+      return halfH + slide + 26;
     };
     let last = null;
     sim = create(THREE, box.root, box.camera, Object.assign({ extent: extentOf() }, params));

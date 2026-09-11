@@ -290,7 +290,7 @@ Three habits worth copying. A verdict goes in words, not digits: `net` and the e
 | `mV`, `equilibrium.K`, `equilibrium.CL` | membrane potential and each ion's equilibrium potential |
 | `crossed.K`, `crossed.CL`, `crossed.NA`, `crossed.water` | net transits through each channel, signed outward |
 | `atpSpent`, `pumpT` | the pump's ledger, and where it is in its cycle |
-| `context`, `sides.inside / .outside` | what to call the two compartments here; name them from these rather than "inside the cell" |
+| `context`, `sides.inside / .outside` | what to call the two compartments here; name them from these rather than typing your own |
 | `pH.inside / .outside`, `dpH`, `pmf` | the proton gradient: pH per side, the difference, and the proton-motive force in mV (positive means protons want to come back in) |
 | `atpMade`, `rotorTurns`, `protonsThroughSynthase`, `protonsLeaked`, `complexTurns` | the proton circuit's ledger, counted rather than declared |
 | `stoichiometry.protonsPerTurn / .atpPerTurn / .protonsPerATP` | what the rotor is actually keeping to; do not type a ratio |
@@ -316,7 +316,8 @@ const m = Membrane.mount(el, {
   context: 'mitochondrion',   // or 'thylakoid': renames the two sides, tints the lipid
   fuel: 'light',              // 'NADH' | 'FADH2' | 'light' | null (nothing driving it)
   fuelRate: 1,                // 0..1: a light dimmer, or an oxygen switch
-  proteins: { complex:{ x:-80 }, synthase:{ x:40 }, leak:null },
+  proteins: { complex:{ x:-80 }, synthase:{ x:40 }, translocase:{ x:120 }, leak:null },
+  outerMembrane: true,        // a second sheet with a porin in it, mitochondrion only
   contents: { inside:{ water:30, H:22 }, outside:{ water:30, H:22 } },   // 'H' is a proton
   potential: 'nernst',
   sideLabels: true,           // both halves named on the stage; false only if you have your own
@@ -327,10 +328,16 @@ const m = Membrane.mount(el, {
 
 Every third of a turn a labelled ATP is released from the synthase head into the compartment it is made in and drifts off. It is the `atpMade` count, drawn: a step about where the energy went wants it, and a step about the gradient itself can set `showATP:false`.
 
+**THE ATP IS MADE IN THE MATRIX AND HAS TO GET OUT.** The F1 head hangs on the inside, and a charged nucleotide does not cross a bilayer. Two doors, and the component draws both: `proteins.translocase` is the ADP/ATP translocase in the inner membrane — one ATP out for one ADP in, a strict swap, and you watch the ADP go the other way — and `outerMembrane:true` adds the outer sheet with a porin in it, which passes anything small and is why the intermembrane space is nearly the same solution as the cytosol. With both on, the token walks matrix → translocase → intermembrane space → porin → cytosol; with neither, it wanders off, which is a page not teaching export. The lid is real to the sim in one respect: protons pumped out stay under it.
+
+The translocase's swap is **electrogenic** — ATP⁴⁻ out for ADP³⁻ in, driven by the membrane voltage, about a quarter of the whole proton budget — which the library card says and the sim does not model. Say it; do not try to read it off `state()`.
+
+**`'atpOut'` is the event a page wants, not `'atp'`.** `'atp'` fires when the molecule is made, in the matrix; `'atpOut'` fires when it has cleared the last door on stage and is in the cytosol. A handoff wired to `'atp'` claims the ATP is available where it was made. `state().outerMembrane` says whether the lid is on, and `state().sides.beyond` is what to call the space above it.
+
 **WHAT SPENDS IT IS A SECOND BOX.** The Na⁺/K⁺ pump runs on ATP and is one of the biggest consumers in a cell, but it is in the PLASMA membrane and the synthase is in the inner mitochondrial one. Drawing an ATP from the synthase to a pump on the same sheet says those are one membrane, which is true only of a bacterium. So mount two: a `mitochondrion` box with `atpExit` pointing at its neighbour, and a `plasma` box with `pumpAuto:false`, and wire one to the other.
 
 ```js
-made.on('atp', () => spender.spend());   // one ATP made, one pump turn bought
+made.on('atpOut', () => spender.spend());   // one ATP out of the mitochondrion, one pump turn bought
 ```
 
 `spend()` returns false if a turn is already running or there is no Na⁺ to carry, which is the honest answer: ATP arriving faster than the pump can turn does not make it turn faster.

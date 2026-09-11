@@ -699,8 +699,11 @@ html.bare .chrome-title { display: none !important }
 /* The drag surface. Text on it is chrome, and a drag that selects a caption
    instead of orbiting the model is the worst kind of bug, so nothing here is
    selectable. */
-#stage {
-  grid-column: 1;
+/* `.stage` is the same surface without the column: a bench with TWO live
+   boxes side by side lays them out itself, and restating the paper in the
+   page would be a second copy of the dot grid to keep in step. */
+#stage { grid-column: 1; }
+#stage, .stage {
   position: relative;
   overflow: hidden;
   user-select: none;
