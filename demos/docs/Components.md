@@ -646,6 +646,49 @@ and a number the page prints about a graph is read from it. Two quantities on
 one x share one axis, normalized to percent of maximum: there is no second
 y-axis.
 
+## Diagram — one molecule, drawn flat
+
+**Scale**: none. A structural diagram is a notation, not a thing in the world, so
+it sits on no rung and can share a page with any component.
+
+A diagram goes in the panel, beside the model — not on the stage. Mount it in
+`onEnter` from `ctx.ui.q()`, destroy it in `onExit`.
+
+**Never pick the notation.** Name the molecule and say what the drawing is for;
+which notation suits it is chemistry, and the component decides: a Haworth
+projection for a sugar, a Lewis structure for a molecule too small to have a
+skeleton, the skeletal drawing for everything else.
+
+```js
+Diagram.mount(el, {
+  molecule: 'glucose',   // a key in MolLib.MOLECULES, or a spec
+  highlight: ['O4'],     // atom names to light up; a hydrogen marks its heavy atom
+  lonePairs: true,       // the non-bonding electrons
+  showH: false,          // the C-H hydrogens (Haworth only)
+  caption: 'one sentence about what the drawing shows',
+});
+```
+
+`state()` is `{key, name, formula, charge, projection, atoms, heavy, lonePairs}`,
+and a number the page prints about a molecule is read from it — `projection`
+says which notation it landed on.
+
+**A diagram is a SECOND VIEW of a molecule, never a second source.** It is drawn
+from the same spec the 3D model is built from, so put one beside a model rather
+than in place of it: the model is the shape, the diagram is the bookkeeping.
+Two steps showing the same molecule keep the same diagram and change what is
+marked on it.
+
+**`lonePairs` is a claim, so turn it on only where the step makes it.** Hydrogen
+bonding, an oxygen accepting one, a nucleophile about to attack — those steps
+want the electrons. Every other step they are decoration, and a Haworth with
+twelve pairs on it is a drawing nobody can read. `highlight` is the same
+discipline: mark the one atom the step is about.
+
+**It has no note(), show() or lookAt().** There is no depth to reveal and no
+camera to move, which is the same reason Graph has none. To point at something,
+mark it.
+
 ## Copy
 
 A tutor for a college Bio 101 student. Concise, no repetition, one claim per paragraph, in bold, that the picture is showing right now. Prefer a question the student can answer by touching a control. No em dashes.

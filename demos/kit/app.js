@@ -38,6 +38,7 @@
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
     'https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
     'https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js',
+    'https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js',
     'lib/palette.js',
     'lib/tokens-from-palette.js',
     'lib/molecules.js',
@@ -45,11 +46,18 @@
     // Skel and the domain files a condensation's monomers come from. skel.js
     // builds them, so it precedes every mol-* that is Skel-derived.
     'lib/skel.js',
+    'lib/mol-pathways.js',
+    'lib/mol-krebs.js',
+    'lib/mol-carriers.js',
     'lib/mol-sugars.js',
     'lib/mol-glycans.js',
     'lib/mol-aminoacids.js',
     'lib/mol-lipids.js',
     'lib/mol-nucleic.js',
+    // haworth.js reads a sugar spec, so every mol-* precedes it; diagram-2d.js
+    // drives it and SmilesDrawer, so it follows both.
+    'lib/haworth.js',
+    'lib/diagram-2d.js',
     'lib/scene.js',
     'lib/fx.js',
     'lib/geo.js',            // before card-stage.js
@@ -89,6 +97,7 @@
     'sickle/sickle-fibre.js',
     'sickle/hbcrowd.js',
     'graph/graph.js',
+    'diagram/diagram.js',
     'kit/lesson-shell.js',   // the base every template is built on
     'kit/sandbox-shell.js',  // last: a template reads what the shell defined
   ];
@@ -146,9 +155,20 @@
     Graph:      ['https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js',
                  'https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.16/dist/plot.umd.min.js',
                  'graph/graph.js'],
+    /* Every domain file in MolLib.DOMAINS, because the component takes a
+       molecule BY NAME and cannot know which one a page will ask for. Listing
+       a subset is not a smaller download, it is a page that draws nothing for
+       `pyruvate` and says why to nobody. */
+    Diagram:    ['lib/skel.js', 'lib/mol-small.js', 'lib/mol-aminoacids.js',
+                 'lib/mol-pathways.js', 'lib/mol-krebs.js', 'lib/mol-carriers.js',
+                 'lib/mol-sugars.js', 'lib/mol-glycans.js', 'lib/mol-lipids.js',
+                 'lib/mol-nucleic.js', 'lib/haworth.js',
+                 'https://unpkg.com/smiles-drawer@2.4.1/dist/smiles-drawer.min.js',
+                 'lib/diagram-2d.js', 'diagram/diagram.js'],
   };
 
-  const CSS = { Proteinbox: ['kit/proteinbox.css'], Graph: ['graph/graph.css'] };
+  const CSS = { Proteinbox: ['kit/proteinbox.css'], Graph: ['graph/graph.css'],
+                Diagram: ['diagram/diagram.css'] };
 
   /* The list a page's data-use resolves to, or an Error naming what is wrong
      with it. Exported so the builder can answer the same question offline. */
