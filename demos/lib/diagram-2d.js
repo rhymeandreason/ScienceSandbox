@@ -36,11 +36,15 @@ const HL = '#cfc7b6';
  * the colour actually behind the panel, not a lookalike: read `--paper` off the
  * element and keep the literal only for a caller with no stylesheet. */
 const PAPER = '#f4ecdf';
-function paperOf(el) {
+function paperOf(el) { return tokenOf(el, '--paper', PAPER); }
+/* The highlight's own colour, for a caller that marked an atom without saying
+   what to mark it in. */
+function accentOf(el) { return tokenOf(el, '--accent', INK); }
+function tokenOf(el, name, fallback) {
   try {
-    const v = getComputedStyle(el).getPropertyValue('--paper').trim();
-    return v || PAPER;
-  } catch (e) { return PAPER; }
+    const v = getComputedStyle(el).getPropertyValue(name).trim();
+    return v || fallback;
+  } catch (e) { return fallback; }
 }
 // ONE font for every flat diagram, both renderers. system-ui so a formula's
 // digits and an element symbol come from the same face the page's chrome uses,
@@ -379,7 +383,7 @@ function drawHaworth(el, spec, o) {
       width: o.width || (spec.glycosidic ? 344 : 184),
       height: o.height || 112,
       ink: INK, paper: o.paper || paperOf(el), font: FONT,
-      highlightColour: o.accent, highlightFill: HL,
+      highlightColour: o.accent || accentOf(el), highlightFill: HL,
       colors: COLORS,
       pairs: o.lonePairs ? pairsFor(spec) : null,
     });

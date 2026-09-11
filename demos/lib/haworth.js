@@ -193,8 +193,12 @@ function drawRing(m, info, opts, xOff, skip) {
     if (skip && skip.has(j)) continue;                        // the glycosidic O
     if (m.atoms[j].el === 'H' && !opts.showH && !hi.has(j)) continue;
     const p = pos.get(f.on), dy = f.up ? -23 : 23, on = hi.has(j);
+    /* `stroke="undefined"` is not a colour, it is a DELETED BOND: the browser
+       drops the whole line and the substituent floats unattached, which reads
+       as a drawing decision rather than as a missing option. Falling back to
+       the ink keeps the bond and loses only the emphasis. */
     S.push(`<line x1="${p.x}" y1="${p.y}" x2="${p.x}" y2="${p.y + dy}" `
-      + `stroke="${on ? opts.highlightColour : opts.ink}" `
+      + `stroke="${on ? (opts.highlightColour || opts.ink) : opts.ink}" `
       + `stroke-width="${on ? 2.8 : 1.4}" stroke-linecap="round"/>`);
     const label = f.name.startsWith('O') ? 'OH'
                 : f.name.startsWith('C') ? 'CH₂OH'
