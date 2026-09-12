@@ -20,12 +20,12 @@
      hand of cards (no outline, overlapping) so the strip reads as objects you
      could pick up rather than UI. Inactive cards stay visible, never hidden —
      the comparison across cards is the content. */
-  #goals{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:12;
+  #goals{position:absolute;top:var(--hdr);left:50%;transform:translateX(-50%);z-index:12;
     display:flex;gap:0;align-items:stretch;padding:10px 6px 12px}
   /* The reaction row, tucked under the build row and centred on it. Same cards,
      smaller: a second row of full-size cards would read as nine more lessons
      rather than as what the first row leads to. */
-  #bonus{position:absolute;top:132px;left:50%;transform:translateX(-50%);z-index:12;
+  #bonus{position:absolute;top:calc(var(--hdr) + 116px);left:50%;transform:translateX(-50%);z-index:12;
     display:flex;gap:0;align-items:stretch;padding:6px 6px 14px}
   #bonus .goal{min-width:150px;max-width:200px;padding:8px 12px 10px}
   #bonus .gname{font-size:16px}
@@ -101,7 +101,7 @@
      glance at, not a thing that happened, so it should not compete with the
      molecule or move. Kept to keywords on purpose — the page teaches by what it
      draws, and this is only what a student would be asked to name. */
-  #notes{position:absolute;left:26px;top:210px;z-index:11;width:206px;
+  #notes{position:absolute;left:26px;top:calc(var(--hdr) + 194px);z-index:11;width:206px;
     display:none;opacity:0;transition:opacity .25s ease}
   #notes.show{display:block;opacity:1}
   #notes .ntitle{font-family:var(--font-display);font-size:var(--cap-lg);
@@ -144,7 +144,7 @@
      bare rail text. Sits lower than #notes (which tucks under the tab strip
      fine as bare text) since an opaque bordered card overlapping the strip
      would read as broken layout. */
-  #sticky{position:absolute;right:26px;top:266px;z-index:11;width:224px;height:224px;
+  #sticky{position:absolute;right:26px;top:calc(var(--hdr) + 250px);z-index:11;width:224px;height:224px;
     background:linear-gradient(165deg,#fff6a8,#ffe985 92%);
     border:none;border-radius:0;box-sizing:border-box;overflow:visible;
     padding:20px;transform:rotate(1.6deg) translateY(6px);
@@ -157,7 +157,7 @@
      note explaining it must not be sitting on top of it. Opt-in per note
      (`place:'low'`), because it is a fact about that one molecule's path, not
      about stickies. */
-  #sticky.low{top:490px}
+  #sticky.low{top:calc(var(--hdr) + 474px)}
   /* sticker rides the top-left corner, half off the paper — reads as stuck on */
   #sticky .simg{position:absolute;left:-19px;top:-50px;width:80px;;
     transform:rotate(-13deg);pointer-events:none;
@@ -212,30 +212,33 @@
   #dock{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);z-index:12;
     display:flex;align-items:center;gap:22px}
   #dock .dsep{display:none}
-  #dock button.act{font-family:var(--font-sans);font-weight:600;font-size:13px;
-    padding:8px 14px;border:1px solid var(--ink);border-radius:var(--radius-md);
-    background:#fff;color:var(--ink);cursor:pointer;
-    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
-  #dock button.act:hover{background:var(--ink);color:var(--paper)}
-  /* view switch: electrons-vs-sticks now follows the view rather than its own toggle */
-  #dims{display:flex;gap:0;border:1px solid var(--ink);border-radius:var(--radius-md);overflow:hidden;
-    box-shadow:0 5px 16px -8px rgba(0,0,0,.4)}
-  #dims .mode{font-family:var(--font-sans);font-weight:600;font-size:13px;
-    padding:8px 14px;border:0;background:#fff;color:var(--muted);cursor:pointer;
-    display:inline-flex;align-items:center;gap:6px}
-  #dims .mode + .mode{border-left:1px solid var(--ink)}
-  #dims .mode.on{background:var(--ink);color:var(--paper)}
-  /* faded, not removed, until finished — removing it would slide Reset sideways every completion/reset */
-  #dims{opacity:0;pointer-events:none;transition:opacity .3s ease}
+  /* Level with the .segmented--sm beside it: .pill--sm alone stands 2px taller. */
+  #clearmol{padding-top:9px;padding-bottom:9px}
+  /* view switch: electrons-vs-sticks follows the view rather than its own toggle */
+  /* Hidden, the switch collapses to nothing and takes the dock's gap with it,
+     so Reset alone is centred; armed, it opens and the pair is centred. Width
+     animates with the fade, so Reset glides aside rather than jumping. */
+  #dims{max-width:0;margin-right:-22px;border-width:0}
+  #dims.armed{max-width:160px;margin-right:0;border-width:1px}
+  #dims{opacity:0;pointer-events:none;transition:opacity .3s ease,max-width .3s ease,margin-right .3s ease}
   #dims.armed{opacity:1;pointer-events:auto}
 
   /* the PNG button and the dock both want the bottom strip — move it up */
   /* The shape is kodo.css's `.btn`, on the markup; this is the corner. It sits
      bottom-RIGHT here because the dock owns the bottom-left. */
   #savepng{position:absolute;bottom:22px;right:26px;left:auto;z-index:5}
+  /* Room for the floating header above the goal cards. Framed, the header is
+     hidden, so the cards return to the top. */
+  :root{--hdr:72px}
+  html.bare{--hdr:16px}
+  .sitenav.floating{z-index:13}
 </style>
 </head>
 <body>
+<nav class="sitenav floating chrome-title">
+  <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
+  <span class="crumb">Bonding</span>
+</nav>
 <div id="app">
   <div id="stage">
     <canvas id="gl"></canvas>
@@ -298,12 +301,12 @@
     <button class="btn" id="savepng"><i class="ph-bold ph-download-simple"></i> PNG</button>
 
     <div id="dock">
-      <div id="dims" role="group" aria-label="View angle">
-        <button class="mode" data-dim="3d">3D</button>
-        <button class="mode on" data-dim="2d">2D</button>
+      <div id="dims" class="segmented segmented--sm" role="group" aria-label="View angle">
+        <button class="mode" data-dim="3d" aria-pressed="false">3D</button>
+        <button class="mode is-on" data-dim="2d" aria-pressed="true">2D</button>
       </div>
       <div class="dsep"></div>
-      <button class="act" id="clearmol">Reset</button>
+      <button class="pill pill--ghost pill--sm" id="clearmol">Reset</button>
     </div>
   </div>
 </div>
@@ -985,7 +988,7 @@ function arm(on){
 function viewState(toFlat){
   flat=toFlat;
   document.querySelectorAll('#dims .mode').forEach(o=>
-    o.classList.toggle('on', (o.dataset.dim==='2d')===flat));
+    { const on=(o.dataset.dim==='2d')===flat; o.classList.toggle('is-on',on); o.setAttribute('aria-pressed',on); });
   if(flat){ userSpun=true; }        // no idle turntable behind a locked view
   // three-quarter camera, close enough to the flat one to read as a continuation before it turns
   else { cam.theta=0.3; cam.phi=1.4; applyCam(); userSpun=false; }

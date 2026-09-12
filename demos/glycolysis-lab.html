@@ -63,8 +63,8 @@
   /* the verdicts are pressable; the rail itself is not (see drawEnzMeta) */
   #enzmeta{pointer-events:auto}
 
-  /* THE PATHWAY MAP'S DOOR, ON THE RAIL'S LINE. Mirrors #pagetitle: absolute
-     on the other edge, centred on the row, so the ten numbers stay centred on
+  /* THE PATHWAY MAP'S DOOR, ON THE RAIL'S LINE. Absolute
+     on the right edge, centred on the row, so the ten numbers stay centred on
      the page whatever the button says. A PILL — it opens a panel rather than
      changing the stage, and the round end says so beside the round numbers. */
   #allsteps{position:absolute;right:22px;top:50%;transform:translateY(-50%);
@@ -122,18 +122,34 @@
      level with the counts under the molecules beside it. */
   #tally #ledger{position:static;margin:0 auto;height:100%;width:auto;
     aspect-ratio:1;max-width:100%;overflow:hidden;padding:18px 20px}
+  /* The rail bar is z 7 and paints its own paper; the header rides over it. */
+  .sitenav.floating{z-index:8}
+  /* Drops the rail and the button onto the wordmark's optical centre, which
+     sits low in its box: the letters have ascenders and no descenders. */
+  #railbar{padding-top:16px}
+  #allsteps{top:calc(50% + 2px)}
+  /* The stage runs up behind the rail, and the rail is see-through, so the
+     scene is never clipped at a line below the header. */
+  @media (min-width:921px){
+    #stage{grid-row:1 / -1}
+    #railbar{grid-row:1;background:none;pointer-events:none}
+    #railbar>*{pointer-events:auto}
+  }
 </style>
 </head>
 <!-- The class has to land before the first paint, or a framed lesson
      flashes its own title on the way into someone else's frame. -->
 <script src="lib/embed.js"></script>
 <body>
+<nav class="sitenav floating chrome-title">
+  <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
+  <span class="crumb">Glycolysis</span>
+</nav>
 <div id="app-sidebar">
   <!-- THE PATHWAY RAIL, top, spanning both columns: read left-to-right it costs
        the stage no width, which is what the molecules needed. Title absolutely
        positioned so it costs the rail no width and leaves it centred. -->
   <div id="railbar">
-    <h1 id="pagetitle" class="chrome-title">Glycolysis</h1>
     <div id="rail"></div>
     <!-- THE PATHWAY MAP'S DOOR, opposite the title: it is the ten numbers
          written out, so it belongs on their line. Absolutely positioned for
@@ -1147,8 +1163,7 @@ const rxmsgEl=document.getElementById('rxmsg');
 // at. Still DERIVED, so rewinding works without remembering which toast fired.
 // The intro gets the band too, and the finished pathway keeps step 10's, which
 // is where the net tally is said.
-const INTRO_MSG=`<b>Glucose</b> — six carbons, drawn as the ring it mostly adopts in water. `
-  +`Glycolysis runs in the <b>cytosol</b> and needs <b>no oxygen</b>; nearly everything alive has it.`;
+const INTRO_MSG=`Glycolysis runs in the <b>cytosol</b> and needs <b>no oxygen</b>; nearly everything alive has it.`;
 const captionAt=i=>intro ? INTRO_MSG
   : i<nSteps ? STEPS[i].msg          // the step about to run — or, while
   : STEPS[nSteps-1].msg;             // reviewing, the one just run (see focusStep)

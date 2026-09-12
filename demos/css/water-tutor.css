@@ -64,7 +64,7 @@
   left: 0;
   right: 0;
   z-index: 6;
-  padding: 18px 26px 34px;
+  padding: 18px 12px 34px 26px;
   pointer-events: none;
   /* The scrim membrane-lab's #chrome uses, turned the other way up: the paper's
      own colour, solid where the type is and fading out below it, so there is no
@@ -83,6 +83,10 @@
    the sheet would otherwise cover them; the block sits above the sheet's top
    edge, so sliding it would only break the one thing on the page that is
    reliably centred. */
+
+/* #titleblock's scrim is z 6 and would wash out the floating wordmark. */
+.sitenav.floating { z-index: 8 }
+
 
 /* kodo.css pins #brand to the stage corner; here it is the block's first row,
    the lesson's name and the step numbers side by side. */
@@ -117,7 +121,9 @@ opacity: .75;
 /* ---- the tabs ----
    Named steps as ghost pills, the way membrane-lab names its six. The look is
    kodo.css's .pill--ghost; the row's own spacing is all that is left here. */
-#steps { margin-bottom: 0; gap: 8px; flex-wrap: wrap }
+#steps { margin-bottom: 0; gap: 6px; flex-wrap: wrap }
+/* Tighter than kodo's ghost pill, so all five hold one row beside the header. */
+#steps > * { padding-left: 12px; padding-right: 12px }
 
 /* ---- the launcher, at the foot of the rail ----
    The tutor is where you go when the lesson has said its piece, so it waits at

@@ -23,6 +23,10 @@
      flashes its own title on the way into someone else's frame. -->
 <script src="lib/embed.js"></script>
 <body>
+<nav class="sitenav floating chrome-title">
+  <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
+  <span class="crumb">Water</span>
+</nav>
 <div id="app-sidebar">
   <div id="stage">
     <canvas id="gl"></canvas>
@@ -32,7 +36,6 @@
          its own ground rather than relying on empty paper behind it. -->
     <div id="titleblock">
       <div id="brand">
-        <h1 class="chrome-title">Structure of Water</h1>
         <div id="steps"></div>
       </div>
       <p id="stepclaim"></p>
@@ -98,6 +101,12 @@
 // destructured into the same names the rest of this file already uses. This page
 // keeps its OWN builder below (outlines, hydration userData, Debug recolour/toon)
 // — only the bootstrap is shared. See SCIENCE.md §10.
+// The nav is fixed full-width, so its last child's right edge is what the pills
+// must clear. Hidden when framed, which measures 0 and clears nothing.
+{ const nav=document.querySelector('.sitenav.floating'), brand=document.getElementById('brand');
+  const clear=()=>{ const r=nav.lastElementChild.getBoundingClientRect().right;
+    brand.style.setProperty('--nav-clear', Math.max(0, r - brand.getBoundingClientRect().left + 16)+'px'); };
+  new ResizeObserver(clear).observe(nav); document.fonts.ready.then(clear); }
 const canvas = document.getElementById('gl');
 const {scene,camera,renderer,root,cam,applyCam,resize}=Stage.create(canvas,{
   cam:{theta:0.5, phi:1.15, r:9}, onZoom:r=>{ S.targetR=r; } });   // manual zoom sticks

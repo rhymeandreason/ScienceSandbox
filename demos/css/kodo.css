@@ -653,6 +653,7 @@ body.kodo main > section { margin-bottom: clamp(3rem, 6vw, 4.5rem) }
   gap: 1rem;
   pointer-events: none;
 }
+.sitenav.floating::after { content: none }
 .sitenav.floating > * { pointer-events: auto }
 .sitenav.floating .spacer { pointer-events: none }
 

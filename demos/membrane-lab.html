@@ -103,18 +103,7 @@
      on the anchor. */
   .annot-dot { display:none; }
 
-  /* THE LESSON'S NAME, left-aligned against the tabs: centred over the
-     caption it reads as a heading for a sentence that changes every step.
-     Centred on #bar, never on a guessed offset — the tab row is not flush
-     with the bottom of the chrome. Out of flow, so it cannot push the tabs
-     around or grow kit/fit.js's reserve. */
   #bar { position:relative; }
-  #pagetitle { position:absolute; left:18px; top:50%;
-               transform:translateY(-50%); margin:0; line-height:1;
-               font-family:var(--font-display); font-size:var(--cap-lg);
-               font-weight:var(--cap-weight); text-transform:uppercase;
-               letter-spacing:var(--cap-track); color:var(--text-muted);
-               white-space:nowrap; }
   #steps { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
 
 
@@ -203,8 +192,6 @@
     .otally b { font-size:34px; }
     /* Narrower means more wrapping, so the reserve grows with it. */
     #cap { font-size:15px; min-height:5.6em; }
-    /* Beside a wrapped two-row tab strip it lands on top of the tabs. */
-    #pagetitle { display:none; }
     #steps button { padding:6px 10px; font-size:12px; }
   }
 
@@ -215,7 +202,8 @@
    camera whenever this box changes. Taller than wide because the molecule is
    (31 Å by 6). The frame itself is kodo.css's `.inset`. */
 #lipidBox {
-  top: 18px;
+  /* Below the header and the tab row, which both sit over the stage. */
+  top: 96px;
   right: 18px;
   /* WIDE ENOUGH FOR THE CALLOUT, not just for the molecule. POPC is ~6 Å
      across and would sit happily in half this, but the label is thrown clear
@@ -230,12 +218,17 @@
      rule drawn across the scene rather than as a pointer. */
   height: 286px;
 }
+.sitenav.floating { z-index: 8 }
 </style>
 </head>
 <!-- The class has to land before the first paint, or a framed lesson
      flashes its own title on the way into someone else's frame. -->
 <script src="lib/embed.js"></script>
 <body>
+<nav class="sitenav floating chrome-title">
+  <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
+  <span class="crumb">Cell Membrane</span>
+</nav>
 <div id="page">
   <div id="stage">
     <canvas id="c"></canvas>
@@ -346,7 +339,6 @@
        version, where the claim came first because it sat nearer the scene. -->
   <div id="chrome">
     <div id="bar">
-      <h1 id="pagetitle" class="chrome-title">Cell Membrane</h1>
       <nav id="steps" aria-label="lesson steps"></nav>
     </div>
     <p id="cap"></p>
