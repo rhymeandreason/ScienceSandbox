@@ -354,7 +354,8 @@
          gets to 580px tall, which is taller than the reading it carries and
          pushes the caption off the screen the marks are on. */
       const h = P.height || Math.min(400, Math.max(240, Math.round(w * 0.58)));
-      const fig = Plot.plot({
+      const yTicks = P.y.ticks != null ? P.y.ticks : Math.max(3, Math.round(h / 52));
+      const opts = (yPad) => ({
         marks,
         width: w, height: h,
         /* A sidebar trace is 290px wide and 130 tall, and the full-size chrome
@@ -362,7 +363,7 @@
            shrink with the box rather than staying at the figure's size. The
            labels stay either way, because a compact axis with no unit is where
            a reader starts guessing. */
-        marginLeft: compact ? 44 : 60,
+        marginLeft: (compact ? 44 : 60) + yPad,
         marginBottom: compact ? 34 : 48,
         marginTop: compact ? 8 : 16,
         marginRight: compact ? 12 : 20,
@@ -384,15 +385,31 @@
           /* nice ROUNDS A DOMAIN OUTWARD, so a component that declared 72 free
              waters got an axis reading 80 and a trace that never reaches the
              top. Round only what we chose ourselves. */
-          label: axisLabel(P.y), labelAnchor: 'center', labelOffset: compact ? 36 : 48, labelArrow: 'none',
+          label: axisLabel(P.y), labelAnchor: 'center', labelOffset: (compact ? 36 : 48) + yPad, labelArrow: 'none',
           grid: true, nice: !P.y.domain, domain: P.y.domain, type: P.y.log ? 'log' : undefined,
           zero: P.y.zero != null ? P.y.zero : (P.kind === 'bar' || P.kind === 'histogram'),
-          ticks: P.y.ticks != null ? P.y.ticks : Math.max(3, Math.round(h / 52)),
+          ticks: yTicks,
           tickFormat: P.y.tickFormat,
         },
         color: cf ? { legend: P.legend, range: SERIES, label: deslug(cf) } : undefined,
         caption: P.caption || undefined,
       });
+      /* The base margin fits a three-digit tick. Wider ticks ("3,500") push
+         into the rotated axis name, so measure the domain's ticks as Plot will
+         print them and widen both by the excess, at 11px type (~6.5px/char). */
+      let fig = Plot.plot(opts(0));
+      const ys = fig.scale('y');
+      if (ys && ys.domain && typeof ys.domain[0] === 'number') {
+        const [a, b] = ys.domain;
+        const tv = Array.isArray(yTicks) ? yTicks
+          : ys.type === 'log' ? [a, b] : d3.ticks(Math.min(a, b), Math.max(a, b), yTicks);
+        const fmt = typeof P.y.tickFormat === 'function' ? P.y.tickFormat
+          : typeof P.y.tickFormat === 'string' ? d3.format(P.y.tickFormat)
+          : (v) => v.toLocaleString('en-US');
+        const chars = Math.max(0, ...tv.map(v => String(fmt(v)).length));
+        const yPad = Math.max(0, Math.round((chars - 3) * 6.5));
+        if (yPad) fig = Plot.plot(opts(yPad));
+      }
 
       wrap.textContent = '';
       if (P.title) {
