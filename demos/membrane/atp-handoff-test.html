@@ -56,7 +56,12 @@
 
     <div class="grp">
       <div class="hd">fuel</div>
-      <label><input id="fuelon" type="checkbox" checked> NADH is coming in</label>
+      <label><input id="fuelon" type="checkbox" checked> the Krebs cycle is handing NADH to the chain</label>
+      <p class="note">
+        NADH is made in the matrix and hands its electrons to the chain there.
+        It never crosses the membrane. Uncheck it and the chain has nothing to
+        spend, so the pumping stops and the gradient runs down.
+      </p>
       <label>how hard it pumps <output id="rv"></output>
         <input id="rate" type="range" min="0" max="100" value="100"></label>
       <label><input id="leak" type="checkbox"> an uncoupler is in the inner membrane</label>
@@ -73,6 +78,7 @@
     </div>
 
     <div class="grp">
+      <button type="button" id="feed">send an NADH</button>
       <button type="button" id="reset">reset</button>
       <button type="button" id="notes">label everything</button>
     </div>
@@ -247,6 +253,10 @@ const layout = leak => leak
 $('fuelon').onchange = () => mito.set({ fuel: $('fuelon').checked ? 'NADH' : null });
 $('rate').oninput = () => mito.set({ fuelRate: $('rate').value / 100 });
 $('leak').onchange = () => mito.set({ proteins: layout($('leak').checked) });
+/* ONE NADH, ONE TURN — and it works with the supply switched off, which is
+   the interesting way to press it: uncheck the Krebs cycle, send a single
+   carrier, and watch the complex turn exactly once and stop. */
+$('feed').onclick = () => mito.feed();
 $('reset').onclick = () => {
   bought = spare = 0;
   mito.reset(); mito.set({ contents: MITO });

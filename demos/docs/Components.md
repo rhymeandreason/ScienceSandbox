@@ -322,6 +322,7 @@ const m = Membrane.mount(el, {
   potential: 'nernst',
   sideLabels: true,           // both halves named on the stage; false only if you have your own
   showATP: true,              // an ATP leaves the F1 head per third-turn; false for the gradient alone
+  showFuel: true,             // a carrier docks at the complex and leaves spent
   atpExit: null,              // 'left' | 'right': it drifts off that way, with nowhere to be sent
   atpTo: null,                // a function returning a world point to walk to; beats atpExit
   bounds: null,               // {up,down}: how far the compartments run, for a stack of membranes
@@ -329,6 +330,10 @@ const m = Membrane.mount(el, {
 ```
 
 Every third of a turn a labelled ATP is released from the synthase head into the compartment it is made in and drifts off. It is the `atpMade` count, drawn: a step about where the energy went wants it, and a step about the gradient itself can set `showATP:false`.
+
+**`m.feed()` is one carrier, one turn** — the complex's answer to the pump's `spend()`. `fuel` is the continuous supply; `feed()` is a single NADH arriving, and it drives exactly one cycle **whether or not the supply is on**. That is the demonstration worth building a button for: switch the supply off, send one, and the complex turns once and stops. `feed('FADH2')` names the fuel; with none named it uses the supply's, or NADH in a mitochondrion. Cutting the supply mid-run lets a machine that is already loaded finish its cycle, and never starts another.
+
+**THE FUEL ARRIVES AND LEAVES, AND IT NEVER CROSSES.** With `showFuel` a carrier comes up out of the matrix as the complex opens to load, docks on its matrix face, and goes back down — NADH in, NAD⁺ out, same body and same colour with only the name changed. Two claims a caption keeps losing: NADH hands its electrons over **in the matrix** and never goes through the membrane, and it is **not consumed** — the NAD⁺ returning is what lets the Krebs cycle turn again. Timed off the complex's own cycle, on the beat already captioned "the fuel is spent", so the picture and the caption cannot disagree. A thylakoid draws nothing: light has no spent form, which `Chemiosmosis.SPENT` says and `check-chemiosmosis.js` asserts.
 
 **THE ATP IS MADE IN THE MATRIX AND HAS TO GET OUT.** The F1 head hangs on the inside, and a charged nucleotide does not cross a bilayer. Two doors, and the component draws both: `proteins.translocase` is the ADP/ATP translocase in the inner membrane — one ATP out for one ADP in, a strict swap, and you watch the ADP go the other way — and `outerMembrane:true` adds the outer sheet with a porin in it, which passes anything small and is why the intermembrane space is nearly the same solution as the cytosol. With both on, the token walks matrix → translocase → intermembrane space → porin → cytosol; with neither, it wanders off, which is a page not teaching export. The lid is real to the sim in one respect: protons pumped out stay under it.
 
@@ -625,8 +630,6 @@ Good for: the parts of a plant cell, plant against animal, turgor and wilting, p
 const M = Mitochondrion.mount(el, {
   flow: 0.6,          // 0..1 how hard the chain is running; 0 stops it dead. Glides
   uncoupler: false,   // protons home without a synthase: no ATP, all heat
-  cristae: 10,        // folds, total, alternating sides. From 4; more than fit is refused (rebuild)
-  open: 1,            // 1 cuts it in half; less closes the near wall over (rebuild)
   seed: 4231,         // a different arrangement of folds (rebuild)
 });
 ```
@@ -639,7 +642,7 @@ An outer membrane, and inside it **one continuous inner membrane folded back and
 
 Glides: `flow` (pass `{snap:true}` for a slider under a thumb). Snaps: `uncoupler`, and every geometry parameter, which rebuilds.
 
-`state()`: `flow`, `uncoupler`, counts (`cristae` — how many folds were actually drawn, which is not always how many were asked for — `junctions`, `complexes`, `synthases`, `porins`), `protons.lumen / .matrix`, the ledger (`pumped`, `throughSynthase`, `leaked`, `rotorTurns`, `atpMade`), `stoichiometry`, and the sizes (`lengthNm`, `widthNm`, `cristaSpacingNm`, `membraneNm`). **Printable: one of `atpMade` or `protons.lumen`, and `lengthNm`.** The rest drives the page. A drawn proton stands for a great many, so nothing here is a concentration. Events: `frame`, `hover`, `pick`, `turn`.
+`state()`: `flow`, `uncoupler`, counts (`cristae`, `junctions`, `complexes`, `synthases`, `porins`), `protons.lumen / .matrix`, the ledger (`pumped`, `throughSynthase`, `leaked`, `rotorTurns`, `atpMade`), `stoichiometry`, and the sizes (`lengthNm`, `widthNm`, `cristaSpacingNm`, `membraneNm`). **Printable: one of `atpMade` or `protons.lumen`, and `lengthNm`.** The rest drives the page. A drawn proton stands for a great many, so nothing here is a concentration. Events: `frame`, `hover`, `pick`, `turn`.
 
 Parts, each with a card: `outer`, `porin`, `ims`, `inner`, `crista`, `junction`, `complex`, `synthase`, `matrix`, `dna`, `ribosome`, `proton`. **Four of them can be pointed at but not hidden** — `crista` and `junction` are places on the inner membrane and `ims` and `matrix` are spaces, so they take a `notes` chip and never appear under `layers`. **`crista`, `junction`, `synthase`, `complex`, `proton` and `porin` declare a view**, so a `zoom` chip for one of those travels; a `notes` chip only labels.
 

@@ -142,6 +142,17 @@ console.log('\n== 5. context: the names, and which way the pumping runs');
   }
   const names = Object.values(C.CONTEXTS).flatMap(c => [c.top, c.bottom]);
   is(new Set(names).size === names.length, `${Object.keys(C.CONTEXTS).length} contexts, every half named, no name reused`);
+
+  /* EVERY FUEL SAYS WHAT IT BECOMES, because a page draws the spent form as a
+     label on the carrier that arrived. A fuel added to FUELS and forgotten
+     here renders a token that never changes its name — the token would still
+     arrive and leave, and the one thing it exists to show, that the carrier
+     comes back reusable, would silently be missing. */
+  for (const f of Object.keys(C.FUELS))
+    if (!(f in C.SPENT)) fail(`fuel ${f} has no spent form in SPENT`);
+  is(C.SPENT.NADH === 'NAD⁺' && C.SPENT.FADH2 === 'FAD',
+     'a carrier is not consumed: NADH hands over and leaves as NAD⁺, FADH₂ as FAD');
+  is(C.SPENT.light === null, 'light has no spent form, so a thylakoid draws no carrier arriving');
 }
 
 console.log(bad ? `\n${bad} FAILED` : '\nall good');

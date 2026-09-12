@@ -106,6 +106,7 @@
     E: { K:-90, CL:-75, NA:60 },   // mV, the Nernst potentials of the gradients drawn
     mvPerIon: -2.5,           // stage timing, not a measurement (see netPush)
     showATP: true,            // the synthase releases a drawn ATP per third-turn
+    showFuel: true,           // a carrier arrives at the complex and leaves spent
     /* THE OUTER MEMBRANE IS A BACKDROP, not a second sim: a sheet with porins
        in it, drawn above the inner one so the intermembrane space is a space
        with a lid. Nothing crosses it but the ATP. Mitochondrion only — a
@@ -545,6 +546,122 @@
     function clearATP() {
       for (const c of atpChips) { kit.forget(c.obj.userData.tag); root.remove(c.obj); }
       atpChips.length = 0;
+    }
+
+    /* ---- the fuel, arriving and leaving ----
+       THE POINT IS THAT IT STAYS ON ONE SIDE. NADH is made by the Krebs cycle
+       in the matrix and hands its electrons to the chain in the matrix; it
+       never crosses this membrane, and a reader told that in prose goes on
+       picturing it going through. Drawn, the claim is unavoidable: the carrier
+       comes up out of the matrix, docks on the complex's matrix face, and goes
+       back down the way it came.
+
+       AND IT IS NOT CONSUMED. It docks as NADH and leaves as NAD⁺ — the same
+       molecule, so the same shape and the same colour, with only the name
+       changed. That NAD⁺ going back is what lets the Krebs cycle turn again,
+       which is the same fact as the ADP returning through the translocase.
+
+       A DINUCLEOTIDE IS TWO NUCLEOTIDES, so it is drawn as two lobes on a
+       bond — and deliberately not as ATP's row of three, because the two
+       tokens on this stage must not read as the same kind of thing.
+
+       Timed off the complex's own cycle: it arrives as the machine opens to
+       load, and the swap happens on `occlude`, the beat whose caption is
+       already "electrons from the fuel pass through". */
+    const FUEL_SPEED = 34, FUEL_FADE = 0.9;
+    let fuelChip = null;
+    function buildCarrier(name) {
+      const g = new THREE.Group();
+      const c = global.MolLib.PALETTE.respiration.carrier;
+      for (const [x, r] of [[-3.1, 3.6], [3.1, 3.0]]) {
+        const lobe = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), global.Parts.flat(c));
+        lobe.position.x = x; g.add(lobe);
+      }
+      const link = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 6.2, 8),
+        global.Parts.flat(global.MolLib.PALETTE.bonds.covalent));
+      link.rotation.z = Math.PI / 2; g.add(link);
+      const tag = kit.pill(name, 6.4);
+      tag.position.set(0, 8.0, 0);
+      g.add(tag);
+      g.userData.tag = tag;
+      return g;
+    }
+    const fuelDock = () => {
+      const d = pumpDir();
+      return { x: complexX - 15, y: -d * (COMPLEX.height + 13) };
+    };
+    function fuelArrive() {
+      if (!P.showFuel || !COMPLEX.group.visible || fuelChip) return;
+      /* WHICHEVER FUEL IS ACTUALLY DRIVING IT — a one-shot from feed() counts,
+         and is the only one when the continuous supply is off. */
+      const f = pulseFuel || P.fuel;
+      if (!CHEM.SPENT[f]) return;           // light: nothing arrives, and nothing should be drawn
+      const d = pumpDir(), to = fuelDock();
+      const g = buildCarrier(f === 'FADH2' ? 'FADH₂' : f);
+      root.add(g);
+      /* SHALLOW. The matrix is the band under the membrane and on a stage that
+         also has to hold an outer membrane and a cell surface it is not a deep
+         one — a carrier launched far enough down to make a journey of it makes
+         the journey off the bottom of the frame. It comes up from just below
+         the machine it feeds. */
+      fuelChip = { obj:g, fuel:f, x: complexX - 34, y: -d * (COMPLEX.height + 30), to, fade:1, spent:false };
+      seat(g, fuelChip.x, fuelChip.y, 0);
+    }
+    /* The electrons have gone. Rename in place — same body, same colour — and
+       send it back into the matrix it came from. */
+    function fuelSpend() {
+      if (!fuelChip || fuelChip.spent) return;
+      const c = fuelChip, d = pumpDir();
+      kit.forget(c.obj.userData.tag);
+      c.obj.remove(c.obj.userData.tag);
+      const tag = kit.pill(CHEM.SPENT[c.fuel] || 'spent', 6.4);
+      tag.position.set(0, 8.0, 0);
+      c.obj.add(tag); c.obj.userData.tag = tag;
+      c.spent = true;
+      c.to = { x: complexX - 40, y: -d * (COMPLEX.height + 34) };
+    }
+    function tickFuel(dt) {
+      const c = fuelChip;
+      if (!c) return;
+      const dx = c.to.x - c.x, dy = c.to.y - c.y, dist = Math.hypot(dx, dy);
+      const move = FUEL_SPEED * dt;
+      if (dist > move) { c.x += dx / dist * move; c.y += dy / dist * move; }
+      else { c.x = c.to.x; c.y = c.to.y; }
+      seat(c.obj, c.x, c.y, 0);
+      if (c.spent && dist <= move) {
+        c.fade -= dt / FUEL_FADE;
+        c.obj.traverse(m => { if (m.material) { m.material.transparent = true; m.material.opacity = Math.max(0, c.fade); } });
+        if (c.fade <= 0) clearFuel();
+      }
+    }
+    /* ONE CARRIER, ONE TURN — the complex's answer to the pump's spend(), and
+       independent of the supply switch for the same reason. `fuel` is the
+       continuous supply, the Krebs cycle handing NADH over as fast as the
+       chain can take it; this is a SINGLE one arriving, and a single one is
+       exactly enough to drive one cycle. So it works with the supply off,
+       which is what makes it a demonstration rather than a fast-forward: turn
+       the supply off, send one, and watch the machine turn once and stop.
+
+       It winds the complex back to the start of its loading beat and lets the
+       cycle do the rest, rather than running the token on a timer of its own:
+       a trigger with its own timing is a second answer to "when is the fuel
+       spent", and the two would drift. */
+    let pulseFuel = null;
+    function feed(fuel) {
+      if (!P.proteins.complex) return false;
+      const f = fuel || P.fuel || (P.context === 'thylakoid' ? 'light' : 'NADH');
+      if (!CHEM.FUELS[f]) { console.warn('membrane.js: no fuel named ' + f + '; have ' + Object.keys(CHEM.FUELS).join(', ')); return false; }
+      pulseFuel = f;
+      clearFuel();
+      cpxT = CHEM.Complex.startOf('load-H');
+      cpxPhase = '';        // so the cycle's own transition fires on the next step
+      return true;
+    }
+    function clearFuel() {
+      if (!fuelChip) return;
+      kit.forget(fuelChip.obj.userData.tag);
+      root.remove(fuelChip.obj);
+      fuelChip = null;
     }
 
     /* ---- the pump's cytoplasmic headpiece ----
@@ -1455,18 +1572,50 @@
     }
     function runComplex(dt) {
       if (!P.proteins.complex) return null;
-      const fuelled = CHEM.complexRate(P.fuel, P.fuelRate, pmfNow());
+      const supply = CHEM.complexRate(P.fuel, P.fuelRate, pmfNow());
+      /* A one-shot burns at its own full rate: what is being dimmed by
+         `fuelRate` is how fast they ARRIVE, and one that has already arrived
+         is not arriving slowly. Back-pressure from the pmf still applies —
+         a single NADH cannot push protons uphill any better than a stream. */
+      const fuelled = supply > 0 ? supply : pulseFuel ? CHEM.complexRate(pulseFuel, 1, pmfNow()) : 0;
       const rate = fuelled > 0 ? fuelled : cpxCargo.length ? CPX_COAST : 0;
-      if (rate > 0) cpxT = (cpxT + dt * rate / Math.max(0.1, P.complexSeconds)) % 1;
+      if (rate > 0) {
+        const was = cpxT;
+        cpxT = (cpxT + dt * rate / Math.max(0.1, P.complexSeconds)) % 1;
+        /* SPENT AFTER ONE CYCLE. feed() starts the clock at load-H, which is
+           0, so the wrap back past it is the turn ending. */
+        if (pulseFuel && cpxT < was) pulseFuel = null;
+      }
       let st = CHEM.Complex.at(cpxT);
       /* NOTHING TO CARRY: hold at the moment of binding rather than turning
          an empty machine. The matrix runs low on protons at a high pmf, and
          a complex miming a turn with nothing in it is a lie the student can
          see. */
+      /* AND NOTHING TO PAY WITH IS THE SAME ANSWER. An empty complex used to
+         pick up protons whatever was driving it, and CPX_COAST — there so a
+         LOADED machine finishes rather than stranding its cargo — then carried
+         it through a whole free cycle. So cutting the fuel bought one more
+         turn of pumping, and a single feed() bought two. It loads only while
+         something is paying; unfuelled and empty, it waits at the loading beat,
+         which is what an unfuelled complex does. */
+      /* READ LIVE, not from `fuelled`: that was measured before the step
+         advanced the cycle, and the step is exactly when a one-shot runs out.
+         Using the stale value, the wrap back to load-H still looked fuelled,
+         the complex loaded once more, and CPX_COAST carried it through a
+         second free cycle — one feed(), two turns. */
+      const driving = () => supply > 0 || !!pulseFuel;
       if (st.phase === 'load-H' && !cpxCargo.length) {
-        if (!recruitProtons(CHEM.Complex.PROTONS_PER_CYCLE)) { cpxT = CHEM.Complex.startOf('load-H'); st = CHEM.Complex.at(cpxT); }
+        if (!driving() || !recruitProtons(CHEM.Complex.PROTONS_PER_CYCLE)) {
+          cpxT = CHEM.Complex.startOf('load-H'); st = CHEM.Complex.at(cpxT);
+        }
       }
       if (st.phase !== cpxPhase) {
+        /* The carrier comes in as the machine opens to load and is spent on
+           the beat this table already calls "the fuel is spent". Nothing here
+           decides when that is: the cycle does, so the picture and the
+           caption cannot disagree. */
+        if (st.phase === 'load-H') fuelArrive();
+        if (st.phase === 'occlude') fuelSpend();
         /* The proton is set down at the START of the empty half, so the two
            beats that follow are visibly carrying nothing. */
         if (st.phase === 'shut-out') {
@@ -1534,6 +1683,7 @@
       }
       ROTOR.rotation.y += (ROT.angle - ROTOR.rotation.y) * Math.min(1, dt * 6);
       tickATP(dt);
+      tickFuel(dt);
       tickShells(dt);
       /* LAST, and after everything that moved a traveller: the arc is the
          final word on where a thing is drawn, so nothing above has to know
@@ -1596,7 +1746,7 @@
     function reset() {
       mV = 0; chargeOut = 0; crossed.K = crossed.CL = crossed.NA = crossed.water = crossed.H = 0;
       ROT.reset(); complexTurns = 0; protonsLeaked = 0; protonsThroughSynthase = 0;
-      clearATP();
+      clearATP(); clearFuel(); pulseFuel = null;
       for (const t of cpxCargo) t.aboard = false;
       cpxCargo.length = 0; cpxT = 0; cpxPhase = ''; cpxState = null;
       crossings = { up:0, down:0 }; netRecent = 0;
@@ -1845,7 +1995,7 @@
     setShells(P.shells);
     if (P.contents) setContents(P.contents);
 
-    return { step, state, reset, set, on, spend, anchors, library, layers, show, palette,
+    return { step, state, reset, set, on, spend, feed, anchors, library, layers, show, palette,
       add, scatter, remove, clear, travellers,
       params: () => P, pores: () => PORES.slice(),
       get height() { return T.height; },
@@ -1950,7 +2100,7 @@
       /* The handle carries them so graph.js can resolve a signal by name off
          the thing it is following, without knowing it is a membrane. */
       signals: () => SIGNALS,
-      on: sim.on, spend: sim.spend,
+      on: sim.on, spend: sim.spend, feed: sim.feed,
       add: sim.add, scatter: sim.scatter, clear: sim.clear, reset: sim.reset,
       start: box.start, stop: box.stop, pump: box.pump,
       destroy() { if (sides) sides.destroy(); box.destroy(); },

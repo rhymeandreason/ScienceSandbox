@@ -364,6 +364,12 @@
          porin takes the leak's own grey: it is the same statement, a hole
          that does not choose. */
       translocase:0x9a5f8c,
+      /* THE FUEL CARRIER, and one colour for both of its states: NADH and
+         NAD⁺ are the same molecule holding different cargo, and giving the
+         spent one its own colour would draw two substances where there is
+         one. Cool and dark, clear of the chain's blues, the synthase's gold
+         and the aquaporin's teal. */
+      carrier:0x2f7d8c,
       porin:0x8e939b,
       /* A PROTON IS A HYDROGEN, so it is atoms.H and not a colour of its own.
          Set below the literal, because an object cannot read itself while it

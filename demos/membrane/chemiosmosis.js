@@ -141,6 +141,12 @@
      an oxygen switch or a light dimmer — and it scales the turn rate, never
      the stoichiometry. */
   const FUELS = { NADH: 1, light: 1, FADH2: 0.6 };
+  /* WHAT THE FUEL BECOMES once the chain has taken its electrons. A carrier
+     is not consumed: it hands over and goes back for more, and the returning
+     NAD⁺ is what lets the Krebs cycle keep turning. Light has no spent form —
+     nothing arrives and nothing leaves — so a page drawing the fuel draws
+     nothing in a thylakoid, which is correct rather than missing. */
+  const SPENT = { NADH: 'NAD⁺', FADH2: 'FAD', light: null };
   function complexRate(fuel, fuelRate, pmf) {
     if (!fuel || !FUELS[fuel]) return 0;
     const back = pmf == null ? 1 : Math.max(0, 1 - pmf / PMF_STALL);
@@ -272,7 +278,7 @@
   const Complex = { at: complexAt, selfTest: complexSelfTest, PHASES: CPX_PHASES, startOf: cpxStartOf, PROTONS_PER_CYCLE: CPX_PROTONS };
 
   const API = { PROTONS_PER_TURN, ATP_PER_TURN, PROTONS_PER_ATP, PROTONS_PER_PH, PH_REF, MV_PER_PH, PMF_STALL, DPSI_FLOOR,
-                CONTEXTS, sideName, pumpDir, protonState, synthaseDirection, rotor, FUELS, complexRate, Complex };
+                CONTEXTS, sideName, pumpDir, protonState, synthaseDirection, rotor, FUELS, SPENT, complexRate, Complex };
   global.Chemiosmosis = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
