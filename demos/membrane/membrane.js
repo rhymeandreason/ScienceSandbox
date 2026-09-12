@@ -1150,8 +1150,21 @@
       out.water = Math.max(0, P.particlesPerSide - solute);
       return out;
     }
+    /* A PUMPING MEMBRANE WITH NO PROTONS IS A FROZEN ONE. The complex waits at
+       its loading beat for two, the carrier already drawn beside it, and
+       nothing on the page says why. Generated apps mounted it that way, so an
+       organelle with a complex gets a gradient's worth by default. Any `H`
+       key, 0 included, is the page choosing. */
+    const DEFAULT_PROTONS = 22, DEFAULT_WATER = 30;
+    function withProtons(c) {
+      if (P.context === 'plasma' || !CHEM.CONTEXTS[P.context] || !P.proteins.complex) return c;
+      if (c && ((c.inside && 'H' in c.inside) || (c.outside && 'H' in c.outside))) return c;
+      const side = s => Object.assign({ water: DEFAULT_WATER }, (c && c[s]) || {}, { H: DEFAULT_PROTONS });
+      return { inside: side('inside'), outside: side('outside') };
+    }
     function setContents(c) {
       if (P.units === 'mM' && c) c = { inside: toCounts(c.inside), outside: toCounts(c.outside) };
+      c = withProtons(c);
       P.contents = c;
       /* Where pH is measured FROM. Protons are conserved, so this stays the
          zero of the scale however far the gradient runs. */
@@ -1633,7 +1646,7 @@
        ATP, it spends FUEL, so its rate is the page's slider and it stops
        when the fuel does. And it never comes back with a proton, or there is
        no gradient to build. */
-    let cpxT = 0, cpxPhase = '';
+    let cpxT = 0, cpxPhase = '', cpxStarved = false, warnedStarved = false;
     const cpxCargo = [];              // the protons riding, one per cargo seat
     const cpxGates = { top: NaN, bottom: NaN };
     /* A turn already begun finishes. The energy for it was spent at the
@@ -1702,7 +1715,14 @@
       if (st.phase === 'load-H' && !cpxCargo.length) {
         if (!driving() || !recruitProtons(CHEM.Complex.PROTONS_PER_CYCLE)) {
           cpxT = CHEM.Complex.startOf('load-H'); st = CHEM.Complex.at(cpxT);
-        }
+          /* Busy protons are a pause; NO protons on the loading side is a page
+             that forgot them, and it gets said once. */
+          cpxStarved = driving() && !travellers.some(t => t.kind === 'H' && Math.sign(t.y) === -pumpDir());
+          if (cpxStarved && !warnedStarved) {
+            warnedStarved = true;
+            console.warn('membrane.js: the complex is fuelled but ' + CHEM.sideName(P.context, pumpDir() > 0 ? 'inside' : 'outside') + ' has no protons to load. Give contents an H count on that side.');
+          }
+        } else cpxStarved = false;
       }
       if (st.phase !== cpxPhase) {
         /* The carrier comes in as the machine opens to load and is spent on
@@ -1833,7 +1853,7 @@
         fuel: P.fuel, oxygen: P.oxygen !== false, fuelRate: CHEM.complexRate(P.fuel, P.fuelRate, proton.pmf, P.oxygen), pmfStall: CHEM.PMF_STALL,
         complexPhase: cpxState ? cpxState.phase : null, complexLabel: cpxState ? cpxState.label : null,
         complexCaption: cpxState ? cpxState.caption : null, complexT: cpxT,
-        complexStoichiometry: CHEM.Complex.PROTONS_PER_CYCLE,
+        complexStoichiometry: CHEM.Complex.PROTONS_PER_CYCLE, complexStarved: cpxStarved,
         stoichiometry: { protonsPerTurn: CHEM.PROTONS_PER_TURN, atpPerTurn: CHEM.ATP_PER_TURN, protonsPerATP: CHEM.PROTONS_PER_ATP },
         crossings:Object.assign({}, crossings), netRecent, net, netPush:netPush(),
         atpSpent, pumpRunning:running, pumpPhase:phase, pumpT,
@@ -2092,7 +2112,7 @@
     applyContext();
     layout(P.proteins);
     setShells(P.shells);
-    if (P.contents) setContents(P.contents);
+    if (withProtons(P.contents)) setContents(P.contents);
 
     return { step, state, reset, set, on, spend, feed, anchors, library, layers, show, palette,
       add, scatter, remove, clear, travellers,
