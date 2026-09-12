@@ -61,6 +61,10 @@
       <p class="empty" id="noClass" hidden>Make your first class above, then add students to it.</p>
 
       <div id="classView" hidden>
+        <div class="line printline">
+          <button class="btn" type="button" id="print"><i class="ph-bold ph-printer"></i>Print code cards</button>
+          <span class="sub">Students go to <b id="buildUrl"></b> and type their code.</span>
+        </div>
         <div class="sechead">
           <h2 id="className" title="Click to rename"></h2><span class="rule"></span>
           <span class="count" id="classCount"></span>
@@ -88,10 +92,6 @@
               <p class="err" id="seatErr" hidden></p>
             </form>
 
-            <div class="line printline">
-              <button class="btn" type="button" id="print"><i class="ph-bold ph-printer"></i>Print code cards</button>
-              <span class="sub">Students go to <b id="buildUrl"></b> and type their code.</span>
-            </div>
           </section>
 
           <section class="feed">
@@ -100,12 +100,6 @@
             <p class="empty" id="noFeed" hidden>Nothing yet. Prompts show up here as students build.</p>
           </section>
         </div>
-
-        <section class="student" id="student" hidden>
-          <div class="sechead"><h2 id="studentName"></h2><span class="rule"></span>
-            <button class="textbtn" id="closeStudent" type="button">Close</button></div>
-          <ul class="appgrid" id="studentApps"></ul>
-        </section>
       </div>
 
       <section class="mine">
@@ -119,6 +113,16 @@
     </section>
   </main>
 </div>
+
+<!-- One student's apps. The app viewer opens over it, so closing that comes back here. -->
+<dialog class="studentbox" id="student">
+  <header>
+    <div><span class="cap" id="studentClass"></span><h2 id="studentName"></h2></div>
+    <span class="spacer"></span>
+    <button class="iconbtn" id="closeStudent" type="button" aria-label="Close"><i class="ph-bold ph-x"></i></button>
+  </header>
+  <ul class="appgrid" id="studentApps"></ul>
+</dialog>
 
 <!-- One app, the way the student made it: every turn on the left, the page it
      produced on the right. -->
@@ -219,9 +223,10 @@
 
   async function openClass(id) {
     classId = id;
-    history.replaceState(null, '', '#class=' + id);
+    // Absolute: a bare '#…' resolves against <base>, which is /demos/build/, not /teach.
+    history.replaceState(null, '', location.pathname + location.search + '#class=' + id);
     paintClasses();
-    $('student').hidden = true;
+    if ($('student').open) $('student').close();
     current = await t('?class=' + encodeURIComponent(id));
     paintClass();
   }
@@ -306,11 +311,13 @@
   async function openStudent(id) {
     const r = await t('?seat=' + encodeURIComponent(id));
     $('studentName').textContent = r.seat.label;
+    $('studentClass').textContent = r.seat.class_name;
     $('studentApps').innerHTML = r.apps.length ? r.apps.map(appCard).join('') : '<li class="empty">No apps yet.</li>';
-    $('student').hidden = false;
-    $('student').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!$('student').open) $('student').showModal();
   }
-  $('closeStudent').addEventListener('click', () => { $('student').hidden = true; });
+  $('closeStudent').addEventListener('click', () => $('student').close());
+  // A click on the backdrop is outside the box: close it.
+  $('student').addEventListener('click', e => { if (e.target === $('student')) $('student').close(); });
 
   function paintMine() {
     const list = data.apps || [];

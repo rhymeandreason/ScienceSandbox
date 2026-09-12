@@ -61,7 +61,7 @@ tr.off code { text-decoration: line-through; color: var(--text-muted); }
 .addseats { margin-top: 1.4rem; }
 .addseats textarea { width: 100%; resize: vertical; }
 .addseats .sub { margin: .4rem 0 .8rem; }
-.printline { margin-top: 1rem; }
+.printline { margin: -1rem 0 2rem; }
 
 /* ---- feed ---- */
 .feed ol { list-style: none; margin: 0; padding: 0; max-height: 44rem; overflow-y: auto; border-top: 1px solid var(--border-hair); }
@@ -78,7 +78,7 @@ tr.off code { text-decoration: line-through; color: var(--text-muted); }
 li.bad .s { color: var(--hue-coral); }
 
 /* ---- app lists ---- */
-.student, .mine { margin-top: 3rem; }
+.mine { margin-top: 3rem; }
 .appgrid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .8rem; }
 .appgrid li > button, .appgrid li > a {
   display: flex; flex-direction: column; gap: .25rem; width: 100%; height: 100%; box-sizing: border-box; text-align: left;
@@ -89,6 +89,17 @@ li.bad .s { color: var(--hue-coral); }
 .appgrid .name { font-weight: 600; color: var(--text-strong); }
 .appgrid .body { font-family: var(--font-editorial); font-size: .88rem; color: var(--text-body); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .signout { margin-top: 3rem; }
+
+/* ---- one student ---- */
+dialog.studentbox {
+  width: min(92vw, 860px); max-height: 80vh; padding: 0; border: 1px solid var(--border-hair); border-radius: 14px;
+  background: var(--surface-page); color: var(--text-body);
+}
+dialog.studentbox::backdrop { background: color-mix(in srgb, var(--brand-ink) 45%, transparent); }
+dialog.studentbox header { display: flex; align-items: center; gap: .6rem; padding: .9rem 1.1rem; border-bottom: 1px solid var(--border-hair); }
+dialog.studentbox header .cap { margin: 0; }
+dialog.studentbox h2 { margin: 0; font-size: 1.25rem; color: var(--text-strong); }
+dialog.studentbox .appgrid { padding: 1.1rem; }
 
 /* ---- viewer ---- */
 dialog.viewer {
