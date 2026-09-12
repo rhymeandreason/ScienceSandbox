@@ -94,6 +94,10 @@
   #transport{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:6;
     display:flex;align-items:flex-end;gap:18px;width:min(640px,82%);
     backdrop-filter:blur(2px)}
+  /* Before the fold starts, one button stands where the transport will be. */
+  #stage.prestart #molname,#stage.prestart #tlabel,#stage.prestart #transport{display:none}
+  #foldbtn{position:absolute;left:50%;bottom:40px;transform:translateX(-50%);z-index:6}
+  #stage:not(.prestart) #foldbtn{display:none}
   #playbtn{width:34px;height:34px;flex:0 0 auto;border-radius:50%;cursor:pointer;
     border:1px solid var(--ink);background:var(--ink);color:var(--paper);
     font-size:14px;display:flex;align-items:center;justify-content:center;
@@ -194,11 +198,12 @@
 <script src="lib/embed.js"></script>
 <body>
 <div id="app">
-  <div id="stage">
+  <div id="stage" class="prestart">
     <canvas id="gl"></canvas>
     <div id="pagetitle" class="chrome-title">Protein Structure</div>
     <div id="saycap" hidden><div class="capname"></div><div class="capbody"></div></div>
 
+    <button id="foldbtn" class="pill">Fold the Protein</button>
     <div id="molname">Hemoglobin</div>
     <span id="tlabel">unfolded</span>
     <div id="transport">
@@ -2446,7 +2451,12 @@ function updateCaption() {
 
 /* ---------- transport ---------- */
 function buildSegments() {
-  const bar = document.getElementById('segbar');
+  document.getElementById('foldbtn').addEventListener('click', () => {
+  document.getElementById('stage').classList.remove('prestart');
+  document.getElementById('playbtn').click();
+});
+
+const bar = document.getElementById('segbar');
   bar.innerHTML = '';
   let from = 0;
   SEGMENTS.forEach(sg => {
@@ -2475,6 +2485,7 @@ function updateTransport() {
 
 function setPlaying(on) {
   playing = on;
+  if (on) document.getElementById('stage').classList.remove('prestart');
   document.getElementById('playbtn').innerHTML =
     on ? '<i class="ph-bold ph-pause"></i>' : '<i class="ph-bold ph-play"></i>';
   if (on) beginIfNeeded();
