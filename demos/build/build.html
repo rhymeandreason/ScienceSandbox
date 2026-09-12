@@ -85,6 +85,13 @@
     <div class="hero-in">
       <h1 class="sr-only">Build</h1>
       <div class="wordmark" id="wordmark"></div>
+      <div class="locked" id="locked" hidden>
+        <i class="ph-bold ph-lock-key"></i>
+        <h2>Invited testers only, for now</h2>
+        <p>The builder opens from your personal access link. Open that link once in this browser and it will remember you.</p>
+        <a class="cta" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Join the waitlist</a>
+        <p class="sub">Lost your link? Ask whoever invited you to resend it.</p>
+      </div>
       <form id="ask">
         <div class="refs" id="refs" hidden></div>
         <textarea id="request" maxlength="600" rows="2" autofocus></textarea>
@@ -971,7 +978,8 @@
       const cfg = await Apps.api('../../api/build');
       if (!cfg.ok) notice('The builder is not configured here: it needs a database and a model key.', true);
     } catch (err) {
-      notice(err.status === 401 ? 'The builder is open to invited testers. Open it from your access link.' : err.message, true);
+      if (err.status === 401) { $('locked').hidden = false; $('ask').hidden = true; }
+      else notice(err.message, true);
       $('send').disabled = true;
     }
     if (Apps.ID) {

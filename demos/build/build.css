@@ -90,6 +90,18 @@ body.fresh .bar .links { display: flex; }
 .notice { padding: 10px 22px; font-size: 13px; background: var(--surface-card); border-bottom: 1px solid var(--border-hair); color: var(--text-dim); flex: none; }
 .notice.bad { color: var(--accent-hot); }
 
+#ask[hidden] { display: none; }
+.locked {
+  margin: 28px auto 0; max-width: 30rem; padding: 28px 32px; text-align: center;
+  background: var(--surface-card); border: 1px solid var(--border-hair); border-radius: 16px;
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--brand-ink) 10%, transparent);
+}
+.locked > i { font-size: 28px; color: var(--accent); display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.locked h2 { margin: 14px 0 8px; font-size: 20px; color: var(--text-strong); }
+.locked p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-body); }
+.locked .cta { display: inline-block; margin-top: 18px; text-decoration: none; }
+.locked p.sub { margin-top: 12px; font-size: 13px; color: var(--text-muted); }
+
 /* ---- hero: the first screen ------------------------------------------ */
 /* The fresh page scrolls: one quiet screen holding the question, then the
    shelf of the reader's own apps below the fold. */
