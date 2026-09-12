@@ -73,12 +73,7 @@ function bench(ctx) {
 
     <div class="bench-group">
       <div class="bench-hd">the organelle</div>
-      <div class="slider"><div class="slider-head"><span class="label">cristae</span><span class="value" data-v="cristae"></span></div>
-        <input type="range" id="cristae" min="4" max="14" step="1" value="${D.cristae}"></div>
-      <div class="slider"><div class="slider-head"><span class="label">open</span><span class="value" data-v="open"></span></div>
-        <input type="range" id="open" min="0.3" max="1" step="0.01" value="${D.open}"></div>
       <button class="btn ghost" type="button" id="regen">new seed</button>
-      <p class="foot">Both rebuild, and nothing tweens across a rebuild. Ask for more folds than fit and the component refuses: the readout says how many it drew.</p>
     </div>
 
     <div class="bench-group">
@@ -114,7 +109,7 @@ function bench(ctx) {
   const snippet = () => {
     out.textContent =
       `const DEFAULTS = {\n` +
-      `  cristae: ${ui.q('#cristae').value}, open: ${(+ui.q('#open').value).toFixed(2)}, seed: ${M.sim.params().seed},\n` +
+      `  seed: ${M.sim.params().seed},\n` +
       `  flow: ${(+ui.q('#flow').value).toFixed(2)}, uncoupler: ${ui.q('#unc').checked},\n` +
       `  protons: ${D.protons}, detail: ${D.detail},\n};\n\n` +
       `ctx.ui.showPanel(c, ${JSON.stringify(CHIPS)});`;
@@ -127,8 +122,6 @@ function bench(ctx) {
     ui.q('[data-v=flow]').textContent = v === 0 ? 'stopped' : v.toFixed(2);
     snippet();
   });
-  ui.range(ui.q('#cristae'), v => { M.set({ cristae: Math.round(v) }); ui.q('[data-v=cristae]').textContent = Math.round(v); snippet(); });
-  ui.range(ui.q('#open'), v => { M.set({ open: v }); ui.q('[data-v=open]').textContent = v.toFixed(2); snippet(); });
   ui.q('#unc').onchange = e => { M.set({ uncoupler: e.target.checked }); snippet(); };
   ui.q('#regen').onclick = () => { M.set({ seed: (Math.random() * 1e9) >>> 0 }); snippet(); };
 

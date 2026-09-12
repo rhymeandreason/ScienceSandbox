@@ -53,8 +53,7 @@
  *  THE CONTRACT (docs/AddingAComponent.md, docs/Components.md):
  *
  *      params   flow 0..1 (live, glides) · uncoupler (live) ·
- *               cristae (folds; asked for from 4, capped by what fits —
- *               about ten at this size), open 0.3..1, seed (rebuild)
+ *               seed (rebuild)
  *      state()  the ledger, the counts, and the sizes that are real
  *      events   frame · hover · pick · turn (one full rotor revolution)
  *      parts    outer · porin · ims · inner · crista · junction · complex ·
@@ -71,9 +70,8 @@
  *  BUDGET, measured on the bench at the default ten folds: 0.06 ms a step,
  *  1 ms a frame, 126k triangles, 17 draw calls. The inner membrane is one
  *  swept mesh however many folds it has, which is why the call count
- *  barely moves with `cristae`. A REBUILD IS 40 TO 60 ms, which is why
- *  `cristae`, `open` and `seed` are rebuild parameters and must not go on a
- *  slider a student drags. The bench does exactly that, and it is a bench.
+ *  barely moves with the fold count. A REBUILD IS 40 TO 60 ms, so `seed` is a
+ *  button, never a slider.
  *
  *  SCALE. Lengths ALONG the organelle are honest: one scene unit is 100 nm,
  *  so the capsule is 1.9 by 0.7 µm and `state()` may be printed. The
@@ -103,8 +101,6 @@
   const TRUE_NM = { membrane: 4, ims: 20, lumen: 20 };
 
   const DEFAULTS = {
-    cristae: 10,        // folds, total, alternating sides (rebuild)
-    open: 1,            // rebuild: 1 cuts it in half, less closes the near wall over
     seed: 4231,         // rebuild
     flow: 0.6,          // 0..1 how hard the chain is running; glides
     uncoupler: false,   // protons home without a synthase, and no ATP is made
@@ -185,7 +181,7 @@
       rand = K.rand;
       group = K.mitochondrionDetail({
         r: R, L: 1.7 * R, membrane: TH, ims: IMS, lumen: LUM,
-        cristae: P.cristae, open: P.open, detail: P.detail,
+        cristae: 10, open: 1, detail: P.detail,
       });
       model.add(group);
       D = group.userData.detail;
@@ -379,7 +375,7 @@
 
     function set(next = {}, o = {}) {
       let rebuild = false;
-      for (const k of ['cristae', 'open', 'seed', 'protons', 'detail'])
+      for (const k of ['seed', 'protons', 'detail'])
         if (next[k] !== undefined && next[k] !== P[k]) { P[k] = next[k]; rebuild = true; }
       if (next.uncoupler !== undefined) P.uncoupler = !!next.uncoupler;
       if (next.flow !== undefined) {
