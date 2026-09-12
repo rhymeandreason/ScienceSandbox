@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teach — Kodolab</title>
+<script defer src="/demos/lib/site.js"></script>
+<!-- Served at /teach by a vercel.json rewrite, so relative paths need this. -->
+<base href="/demos/build/">
+<link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/bold/style.css">
+<link rel="stylesheet" href="../css/kodo.css">
+<link rel="stylesheet" href="teacher.css">
+<!-- =========================================================================
+     THE TEACHER DASHBOARD. Classes, the codes each student builds with, and
+     every prompt a student sent beside the page it produced.
+
+     Admitted by a teacher code (api/_access.js), minted from the terminal by
+     `db.js teacher new`. The code lives in this browser's storage and rides
+     in a header; sign-in replaces it and nothing on this page should care
+     which. Every row is read from api/teacher.js, which scopes each id to the
+     teacher, so this page holds no rule about who may see what.
+     ========================================================================= -->
+</head>
+<body class="kodo">
+<div class="page">
+  <nav class="sitenav">
+    <a class="mark" href="/"><img src="/kodolab-wordmark.svg" alt="kodolab"></a>
+    <span class="crumb">teach</span>
+  </nav>
+
+  <header class="pagehead">
+    <h1>teach</h1>
+    <p class="deck">Give each student a code. See what they build and what they asked for.</p>
+    <p class="meta" id="meta" hidden></p>
+  </header>
+
+  <main>
+    <!-- Signed out -->
+    <section class="signin" id="signin" hidden>
+      <form id="signinForm" class="card">
+        <label for="teacherCode">Teacher code</label>
+        <div class="line">
+          <input id="teacherCode" type="password" autocomplete="off" spellcheck="false">
+          <button class="cta" type="submit">Open</button>
+        </div>
+        <p class="err" id="signinErr" hidden></p>
+        <p class="sub">This browser remembers the code. Don't sign in on a student's machine.</p>
+      </form>
+    </section>
+
+    <!-- Signed in -->
+    <section id="dash" hidden>
+      <div class="classbar">
+        <div class="segmented" id="classTabs" role="tablist"></div>
+        <form class="newclass" id="newClass">
+          <input id="newClassName" placeholder="New class, e.g. Bio period 3" maxlength="80">
+          <button class="btn" type="submit"><i class="ph-bold ph-plus"></i>Add class</button>
+        </form>
+      </div>
+
+      <p class="empty" id="noClass" hidden>Make your first class above, then add students to it.</p>
+
+      <div id="classView" hidden>
+        <div class="sechead">
+          <h2 id="className" title="Click to rename"></h2><span class="rule"></span>
+          <span class="count" id="classCount"></span>
+        </div>
+
+        <div class="cols">
+          <section class="roster">
+            <div class="tablewrap">
+              <table>
+                <thead><tr><th>Student</th><th>Code</th><th class="num">Apps</th><th class="num">Prompts</th><th>Last active</th><th></th></tr></thead>
+                <tbody id="seats"></tbody>
+              </table>
+            </div>
+            <p class="empty" id="noSeats" hidden>No students yet.</p>
+
+            <form class="addseats card" id="addSeats">
+              <label for="seatLabels">Add students, one per line</label>
+              <textarea id="seatLabels" rows="4" placeholder="Seat 1&#10;Seat 2&#10;Jordan K."></textarea>
+              <p class="sub">A first name, nickname or seat number. Whatever you type is what this page shows.</p>
+              <div class="line">
+                <button class="btn" type="button" id="fillSeats">Fill with numbered seats</button>
+                <span class="spacer"></span>
+                <button class="btn btn--tint" type="submit">Add</button>
+              </div>
+              <p class="err" id="seatErr" hidden></p>
+            </form>
+
+            <div class="line printline">
+              <button class="btn" type="button" id="print"><i class="ph-bold ph-printer"></i>Print code cards</button>
+              <span class="sub">Students go to <b id="buildUrl"></b> and type their code.</span>
+            </div>
+          </section>
+
+          <section class="feed">
+            <h3 class="cap">Prompts, newest first</h3>
+            <ol id="feed"></ol>
+            <p class="empty" id="noFeed" hidden>Nothing yet. Prompts show up here as students build.</p>
+          </section>
+        </div>
+
+        <section class="student" id="student" hidden>
+          <div class="sechead"><h2 id="studentName"></h2><span class="rule"></span>
+            <button class="textbtn" id="closeStudent" type="button">Close</button></div>
+          <ul class="appgrid" id="studentApps"></ul>
+        </section>
+      </div>
+
+      <section class="mine">
+        <div class="sechead"><h2>your apps</h2><span class="rule"></span>
+          <a class="more" id="buildLink" href="build.html">Build one</a></div>
+        <ul class="appgrid" id="myApps"></ul>
+        <p class="empty" id="noMine" hidden>Apps you build while signed in here show up in this list.</p>
+      </section>
+
+      <p class="signout"><button class="textbtn" id="signout" type="button">Sign out of this browser</button></p>
+    </section>
+  </main>
+</div>
+
+<!-- One app, the way the student made it: every turn on the left, the page it
+     produced on the right. -->
+<dialog class="viewer" id="viewer">
+  <header>
+    <div><span class="cap" id="vOwner"></span><h2 id="vTitle"></h2></div>
+    <span class="spacer"></span>
+    <a class="btn" id="vOpen" target="_blank" rel="noopener"><i class="ph-bold ph-arrow-square-out"></i>Open</a>
+    <button class="iconbtn" id="vClose" type="button" aria-label="Close"><i class="ph-bold ph-x"></i></button>
+  </header>
+  <div class="vbody">
+    <ol class="turns" id="vTurns"></ol>
+    <div class="vframe"><iframe id="vFrame" title="the app" sandbox="allow-scripts"></iframe></div>
+  </div>
+</dialog>
+
+<div class="printsheet" id="printsheet" aria-hidden="true"></div>
+
+<script src="apps-client.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fileForm = /\.html$/.test(location.pathname);
+  const BUILD = fileForm ? `${location.origin}/demos/build/build.html` : `${location.origin}/build`;
+  const t = (q = '', body) => Apps.api('../../api/teacher' + q, body ? { method: 'POST', body } : {});
+
+  let data = null;         // { teacher, classes, apps }
+  let current = null;      // { class, seats, feed }
+  let classId = null;
+
+  function ago(ts) {
+    if (!ts) return '';
+    const d = new Date(ts), s = (Date.now() - d) / 1000;
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + ' min ago';
+    if (s < 86400 && d.getDate() === new Date().getDate()) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+  const show = (id, text) => { $(id).textContent = text || ''; $(id).hidden = !text; };
+
+  /* ---- signing in ------------------------------------------------------- */
+  $('signinForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const code = $('teacherCode').value.trim();
+    if (!code) return;
+    Apps.codes.setTeacher(code);
+    show('signinErr', '');
+    if (!(await load())) show('signinErr', 'That teacher code is not right.');
+  });
+  $('signout').addEventListener('click', () => {
+    Apps.codes.setTeacher(null);
+    location.hash = '';
+    location.reload();
+  });
+
+  async function load() {
+    if (!Apps.codes.teacher()) { signedOut(); return false; }
+    try { data = await t(); }
+    catch (err) {
+      if (err.status === 401) { Apps.codes.setTeacher(null); signedOut(); return false; }
+      signedOut(); show('signinErr', err.message); return true;
+    }
+    $('signin').hidden = true; $('dash').hidden = false;
+    $('meta').hidden = false; $('meta').textContent = data.teacher.name;
+    $('buildUrl').textContent = BUILD.replace(/^https?:\/\//, '');
+    $('buildLink').href = BUILD;
+    const want = new URLSearchParams(location.hash.slice(1)).get('class');
+    classId = (data.classes.find(c => c.id === want) || data.classes[0] || {}).id || null;
+    paintClasses(); paintMine();
+    if (classId) await openClass(classId);
+    return true;
+  }
+  function signedOut() { $('signin').hidden = false; $('dash').hidden = true; $('meta').hidden = true; $('teacherCode').focus(); }
+
+  /* ---- classes ---------------------------------------------------------- */
+  function paintClasses() {
+    $('classTabs').innerHTML = data.classes.map(c =>
+      `<button type="button" data-id="${esc(c.id)}" aria-pressed="${c.id === classId}">${esc(c.name)}</button>`).join('');
+    $('classTabs').hidden = !data.classes.length;
+    $('noClass').hidden = !!data.classes.length;
+    $('classView').hidden = !classId;
+  }
+  $('classTabs').addEventListener('click', e => {
+    const b = e.target.closest('button[data-id]'); if (!b) return;
+    openClass(b.dataset.id);
+  });
+  $('newClass').addEventListener('submit', async e => {
+    e.preventDefault();
+    const name = $('newClassName').value.trim(); if (!name) return;
+    const r = await t('', { action: 'class', name });
+    $('newClassName').value = '';
+    data.classes.push({ id: r.id, name: r.name, seats: 0 });
+    await openClass(r.id);
+    $('seatLabels').focus();
+  });
+
+  async function openClass(id) {
+    classId = id;
+    history.replaceState(null, '', '#class=' + id);
+    paintClasses();
+    $('student').hidden = true;
+    current = await t('?class=' + encodeURIComponent(id));
+    paintClass();
+  }
+
+  function paintClass() {
+    const c = current;
+    $('className').textContent = c.class.name;
+    const active = c.seats.filter(s => !s.revoked_at).length;
+    $('classCount').textContent = `${active} student${active === 1 ? '' : 's'}`;
+    $('noSeats').hidden = !!c.seats.length;
+    $('seats').innerHTML = c.seats.map(s => `<tr data-id="${esc(s.id)}" class="${s.revoked_at ? 'off' : ''}">
+      <td><button class="textbtn name" data-act="work" type="button">${esc(s.label)}</button></td>
+      <td><code>${esc(s.code)}</code>${s.revoked_at ? ' <span class="tag">off</span>' : ''}</td>
+      <td class="num">${s.apps}</td><td class="num">${s.turns}</td>
+      <td class="dim">${esc(ago(s.last)) || '—'}</td>
+      <td class="acts">
+        <button class="iconbtn" data-act="label" type="button" title="Rename" aria-label="Rename"><i class="ph-bold ph-pencil-simple"></i></button>
+        <button class="iconbtn" data-act="reissue" type="button" title="New code" aria-label="New code"><i class="ph-bold ph-arrows-clockwise"></i></button>
+        <button class="iconbtn" data-act="${s.revoked_at ? 'unrevoke' : 'revoke'}" type="button"
+          title="${s.revoked_at ? 'Turn code back on' : 'Turn code off'}" aria-label="${s.revoked_at ? 'Turn code back on' : 'Turn code off'}">
+          <i class="ph-bold ${s.revoked_at ? 'ph-lock-open' : 'ph-prohibit'}"></i></button>
+      </td></tr>`).join('');
+
+    $('noFeed').hidden = !!c.feed.length;
+    $('feed').innerHTML = c.feed.map(f => `<li class="${f.error ? 'bad' : ''}">
+      <button type="button" data-app="${esc(f.app_id)}" data-n="${f.n}">
+        <span class="who"><b>${esc(f.label)}</b> · ${esc(f.title || 'untitled')} · v${f.n}</span>
+        <span class="when">${esc(ago(f.created_at))}</span>
+        <span class="q">${esc(f.request || '')}</span>
+        ${f.error ? `<span class="s">Failed: ${esc(f.error)}</span>` : f.summary ? `<span class="s">${esc(f.summary)}</span>` : ''}
+      </button></li>`).join('');
+  }
+
+  $('className').addEventListener('click', async () => {
+    const name = prompt('Rename the class', current.class.name);
+    if (!name || !name.trim()) return;
+    await t('', { action: 'rename', class: classId, name });
+    data.classes.find(c => c.id === classId).name = current.class.name = name.trim();
+    paintClasses(); paintClass();
+  });
+
+  $('seats').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const id = b.closest('tr').dataset.id;
+    const seat = current.seats.find(s => s.id === id);
+    const act = b.dataset.act;
+    if (act === 'work') return openStudent(id);
+    if (act === 'label') {
+      const label = prompt('Rename this student', seat.label);
+      if (!label || !label.trim()) return;
+      await t('', { action: 'label', seat: id, label });
+    }
+    if (act === 'reissue' && !confirm(`Give ${seat.label} a new code? The old one stops working. Their apps stay theirs.`)) return;
+    if (act === 'revoke' && !confirm(`Turn off ${seat.label}'s code? They can't build until you turn it back on. Their apps stay.`)) return;
+    if (act !== 'label') await t('', { action: act, seat: id });
+    await openClass(classId);
+  });
+
+  $('fillSeats').addEventListener('click', () => {
+    const n = current.seats.length;
+    $('seatLabels').value = Array.from({ length: 30 }, (_, i) => `Seat ${n + i + 1}`).join('\n');
+  });
+  $('addSeats').addEventListener('submit', async e => {
+    e.preventDefault();
+    const labels = $('seatLabels').value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!labels.length) return;
+    show('seatErr', '');
+    try {
+      await t('', { action: 'seats', class: classId, labels });
+      $('seatLabels').value = '';
+      await openClass(classId);
+    } catch (err) { show('seatErr', err.message); }
+  });
+
+  /* ---- one student ------------------------------------------------------ */
+  const appCard = a => `<li><button type="button" data-app="${esc(a.id)}">
+      <span class="name">${esc(a.title || 'untitled')}</span>
+      <span class="dim">${a.turns != null ? `${a.turns} prompt${a.turns === 1 ? '' : 's'} · ` : ''}${esc(ago(a.edited))}</span>
+      ${a.thumb_meta && a.thumb_meta.body ? `<span class="body">${esc(a.thumb_meta.body)}</span>` : ''}
+    </button></li>`;
+
+  async function openStudent(id) {
+    const r = await t('?seat=' + encodeURIComponent(id));
+    $('studentName').textContent = r.seat.label;
+    $('studentApps').innerHTML = r.apps.length ? r.apps.map(appCard).join('') : '<li class="empty">No apps yet.</li>';
+    $('student').hidden = false;
+    $('student').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  $('closeStudent').addEventListener('click', () => { $('student').hidden = true; });
+
+  function paintMine() {
+    const list = data.apps || [];
+    $('noMine').hidden = !!list.length;
+    $('myApps').innerHTML = list.map(a => `<li><a href="${esc(BUILD + '?id=' + a.id)}">
+      <span class="name">${esc(a.title || 'untitled')}</span><span class="dim">${esc(ago(a.edited))}</span>
+      ${a.thumb_meta && a.thumb_meta.body ? `<span class="body">${esc(a.thumb_meta.body)}</span>` : ''}</a></li>`).join('');
+  }
+
+  /* ---- the viewer ------------------------------------------------------- */
+  let viewing = null;
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button[data-app]'); if (!b) return;
+    openApp(b.dataset.app, b.dataset.n ? Number(b.dataset.n) : null);
+  });
+
+  async function openApp(id, n) {
+    const r = await t('?app=' + encodeURIComponent(id));
+    viewing = r;
+    $('vTitle').textContent = r.app.title || 'untitled';
+    $('vOwner').textContent = r.app.label || (data.teacher && data.teacher.name) || '';
+    $('vOpen').href = Apps.link('view', r.app.id);
+    const shown = r.versions.filter(v => v.request || v.kind !== 'text');
+    $('vTurns').innerHTML = shown.map(v => `<li data-n="${v.n}" class="${v.error ? 'bad' : ''}">
+      <button type="button"><span class="k">v${v.n} · ${esc(label(v.kind))} · ${esc(ago(v.created_at))}</span>
+      ${v.request ? `<span class="q">${esc(v.request)}</span>` : ''}
+      ${v.error ? `<span class="s">Failed: ${esc(v.error)}</span>` : v.summary ? `<span class="s">${esc(v.summary)}</span>` : ''}</button></li>`).join('');
+    if (!$('viewer').open) $('viewer').showModal();
+    await pick(n || (r.versions[r.versions.length - 1] || {}).n);
+  }
+  const label = k => ({ build: 'first draft', edit: 'change', text: 'text edit', restore: 'restore', remix: 'remix', seed: 'seed', save: 'save' }[k] || k);
+
+  async function pick(n) {
+    if (!viewing || !n) return;
+    for (const li of $('vTurns').children) li.classList.toggle('is-on', Number(li.dataset.n) === n);
+    const on = $('vTurns').querySelector('.is-on');
+    if (on) on.scrollIntoView({ block: 'nearest' });
+    const v = await t(`?app=${encodeURIComponent(viewing.app.id)}&n=${n}`);
+    Apps.mount($('vFrame'), v.html);
+  }
+  $('vTurns').addEventListener('click', e => {
+    const li = e.target.closest('li[data-n]'); if (li) pick(Number(li.dataset.n));
+  });
+  $('vClose').addEventListener('click', () => $('viewer').close());
+  // A closed viewer stops its WebGL page rather than running it behind the dashboard.
+  $('viewer').addEventListener('close', () => { $('vFrame').srcdoc = ''; viewing = null; });
+
+  /* ---- printing --------------------------------------------------------- */
+  $('print').addEventListener('click', () => {
+    const seats = current.seats.filter(s => !s.revoked_at);
+    const where = BUILD.replace(/^https?:\/\//, '');
+    $('printsheet').innerHTML = seats.map(s => `<div class="pcard">
+      <span class="pclass">${esc(current.class.name)}</span>
+      <span class="plabel">${esc(s.label)}</span>
+      <span class="pcode">${esc(s.code)}</span>
+      <span class="pwhere">Go to <b>${esc(where)}</b> and type your code.</span></div>`).join('');
+    window.print();
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

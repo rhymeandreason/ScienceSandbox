@@ -684,7 +684,7 @@ function api(url, req, res) {
 
   if (url !== '/api/ask' && url !== '/api/log' && url !== '/api/find' &&
       url !== '/api/extend' && url !== '/api/land' &&
-      url !== '/api/app' && url !== '/api/build')
+      url !== '/api/app' && url !== '/api/build' && url !== '/api/teacher')
     return json(404, { error: 'no such endpoint' });
 
   // Env and handler are both re-read per request, so pasting a key into
@@ -724,7 +724,7 @@ function api(url, req, res) {
      so their body cap is the tutor's times five, and /api/app reads its id
      from the query, which the other three never do. */
   if (url === '/api/find' || url === '/api/extend' || url === '/api/land' ||
-      url === '/api/app' || url === '/api/build') {
+      url === '/api/app' || url === '/api/build' || url === '/api/teacher') {
     const file = 'api' + url.slice(4) + '.js';
     const query = Object.fromEntries(new URL(req.url, 'http://x').searchParams);
     const cap = url === '/api/app' || url === '/api/build' ? 5e5 : 1e5;

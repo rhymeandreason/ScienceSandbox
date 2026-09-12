@@ -13,12 +13,14 @@
  *  failure is on the record next to the cost of a success.
  *
  *  Gated by the same key as the tutor, for the same reason: a forwarded email
- *  must not be able to spend the budget. `_apps.js` counts the builds; the
+ *  must not be able to spend the budget. A class code or a teacher code admits
+ *  on its own (`_access.js`), and the app it makes is owned by that code. `_apps.js` counts the builds; the
  *  thinking is `_builder.js`, which the eval script shares.
  * ========================================================================== */
 'use strict';
 
 const keys    = require('./_keys.js');
+const access  = require('./_access.js');
 const apps    = require('./_apps.js');
 const builder = require('./_builder.js');
 const providers = require('./_providers/index.js');
@@ -29,11 +31,17 @@ const MAX_PICKS  = 8;
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
-  const who = keys.cohort(req);
   const bench = local(req);
+  let who = null;
+  try { who = await access.resolve(req); }
+  catch (err) { console.error('[build] access: ' + ((err && err.message) || err)); }
+  const cohort = access.admitted(who) ? who.cohort : null;
+  const owner  = access.admitted(who) ? who.owner : null;
 
-  if (keys.enabled() && !who) {
-    return res.status(401).json({ error: 'the builder is open to invited testers; ask for an access link' });
+  // A code that was sent and is wrong is refused even where the gate is off:
+  // a student told they are in is a student whose work belongs to nobody.
+  if ((keys.enabled() || who) && !access.admitted(who)) {
+    return res.status(401).json(access.refusal(who));
   }
 
   if (req.method === 'GET') {
@@ -41,7 +49,7 @@ module.exports = async function handler(req, res) {
     try { components = builder.components(); } catch { /* reference missing: reported below */ }
     return res.status(200).json({
       ok: apps.enabled() && !!process.env[providers.pick(null, bench).envKey],
-      gated: keys.enabled(), cohort: who, bench,
+      gated: keys.enabled(), cohort, who: access.describe(who), bench,
       provider: providers.DEFAULT, limits: apps.LIMITS, components,
       maxRequest: builder.MAX_REQUEST,
     });
@@ -61,12 +69,12 @@ module.exports = async function handler(req, res) {
   /* What the student clicked before they typed, from the text mode's pills. */
   const selection = (Array.isArray(body.selection) ? body.selection : []).slice(0, MAX_PICKS);
 
-  const capped = await apps.exceeded({ cohort: who, visitorId: body.visitorId });
+  const capped = await apps.exceeded({ cohort, visitorId: body.visitorId });
   if (capped) return res.status(capped.status).json(capped.body);
 
   try {
     if (body.id) {
-      if (!(await apps.mayEdit(body.id, body.token))) return res.status(403).json({ error: 'this link cannot edit that app' });
+      if (!(await apps.mayEdit(body.id, body.token, owner))) return res.status(403).json({ error: 'this link cannot edit that app' });
       const app = await apps.read(body.id);
       if (!app || !app.version) return res.status(404).json({ error: 'no such app' });
 
@@ -89,7 +97,7 @@ module.exports = async function handler(req, res) {
     const out = await builder.draft({ request, provider, bench });
     const failed = out.problems.length > 0;
     const made = await apps.create({
-      cohort: who, visitorId: body.visitorId, title: out.title, isLocal: bench,
+      cohort, ownerId: owner, visitorId: body.visitorId, title: out.title, isLocal: bench,
       version: {
         kind: 'build', html: out.html, request, summary: out.summary,
         provider: out.provider, model: out.model, usage: out.usage, ms: out.ms,

@@ -100,7 +100,22 @@ body.fresh .bar .links { display: flex; }
 .locked h2 { margin: 14px 0 8px; font-size: 20px; color: var(--text-strong); }
 .locked p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-body); }
 .locked .cta { display: inline-block; margin-top: 18px; text-decoration: none; }
-.locked p.sub { margin-top: 12px; font-size: 13px; color: var(--text-muted); }
+.locked p.sub { margin-top: 18px; font-size: 13px; color: var(--text-muted); }
+.locked p.sub a { color: inherit; }
+.hero .locked .codeform { display: flex; flex-direction: row; gap: 10px; margin-top: 18px; }
+.codeform input {
+  flex: 1; min-width: 0; padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: 999px;
+  background: var(--surface-page); color: var(--text-strong);
+  font-family: var(--font-display); font-size: 18px; letter-spacing: .12em; text-align: center; text-transform: lowercase;
+}
+.codeform input:focus-visible { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent); }
+.codeform .cta { margin: 0; }
+.locked p.codeerr { margin-top: 10px; font-size: 13px; color: var(--hue-coral); }
+/* Who the builder thinks this is, under the box: a shared machine is the case. */
+.hero .who { margin: .9rem 0 0; font-size: .9rem; color: color-mix(in srgb, var(--play-ink) 72%, transparent); }
+.hero .who[hidden], body.work .who { display: none; }
+.hero .who b { color: var(--play-ink); font-weight: 600; }
+.hero .who .textbtn { margin-left: .4em; }
 
 /* ---- hero: the first screen ------------------------------------------ */
 /* The fresh page scrolls: one quiet screen holding the question, then the

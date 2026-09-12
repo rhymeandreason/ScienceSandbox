@@ -33,6 +33,9 @@ const LIMITS = {
   visitorHour: 60,     // one tester iterating hard for an hour is maybe 20
   cohortHour:  200,    // a leaked link runs into this
   cohortDay:   600,
+  /* A class is one room building at once: 30 students at ~10 turns a period. */
+  classHour:   450,
+  classDay:    1500,
 };
 
 const BUDGET_MS = 1500;
@@ -91,8 +94,11 @@ async function exceeded({ cohort, visitorId }) {
   }
   if (!row) return null;
   const refuse = m => ({ status: 429, body: { error: m } });
-  if (cohort && row.cohort_day  >= LIMITS.cohortDay)  return refuse('This link has used its builds for today. They come back tomorrow.');
-  if (cohort && row.cohort_hour >= LIMITS.cohortHour) return refuse('This link has built a lot in the last hour. Try again shortly.');
+  const klass = /^class:/.test(cohort || '');
+  const day = klass ? LIMITS.classDay : LIMITS.cohortDay, hour = klass ? LIMITS.classHour : LIMITS.cohortHour;
+  const who = klass ? 'Your class' : 'This link';
+  if (cohort && row.cohort_day  >= day)  return refuse(`${who} has used its builds for today. They come back tomorrow.`);
+  if (cohort && row.cohort_hour >= hour) return refuse(`${who} has built a lot in the last hour. Try again shortly.`);
   if (visitor && row.visitor_hour >= LIMITS.visitorHour) return refuse('You have built a lot in the last hour. Try again shortly.');
   return null;
 }
@@ -100,11 +106,11 @@ async function exceeded({ cohort, visitorId }) {
 /* ---- rows -------------------------------------------------------------- */
 
 /* A new app with its first version. Returns the token exactly once. */
-async function create({ cohort, visitorId, parentId, title, isLocal, version }) {
+async function create({ cohort, ownerId, visitorId, parentId, title, isLocal, version }) {
   const db = log.sql();
   const id = mintId(), token = mintToken();
-  await db`INSERT INTO apps (id, cohort, visitor_id, parent_id, token_hash, title, is_local)
-           VALUES (${id}, ${cohort || null}, ${uuidOrNull(visitorId)},
+  await db`INSERT INTO apps (id, cohort, owner_id, visitor_id, parent_id, token_hash, title, is_local)
+           VALUES (${id}, ${cohort || null}, ${ownerId || null}, ${uuidOrNull(visitorId)},
                    ${validId(parentId) ? parentId : null}, ${hash(token)},
                    ${title || null}, ${isLocal == null ? null : !!isLocal})`;
   const v = await addVersion(id, version);
@@ -142,7 +148,7 @@ async function addVersion(appId, { kind, html, request, summary, errors, provide
 async function read(id) {
   if (!validId(id)) return null;
   const db = log.sql();
-  const [app] = await db`SELECT id, cohort, parent_id, title, created_at FROM apps WHERE id = ${id}`;
+  const [app] = await db`SELECT id, cohort, owner_id, parent_id, title, created_at FROM apps WHERE id = ${id}`;
   if (!app) return null;
   const [v] = await db`SELECT n, kind, html, request, summary, created_at
                        FROM app_versions WHERE app_id = ${id} ORDER BY n DESC LIMIT 1`;
@@ -173,12 +179,15 @@ async function requests(id) {
   return rows.map(r => r.request);
 }
 
-/* Whether this token may save this app. */
-async function mayEdit(id, token) {
-  if (!validId(id) || !token) return false;
+/* Whether this token, or this owner, may save this app. The owner is a seat or
+ * a teacher from `_access.js`, and is how a class code edits its own work from
+ * a machine that never held the token. */
+async function mayEdit(id, token, owner) {
+  if (!validId(id) || !(token || owner)) return false;
   const db = log.sql();
-  const [row] = await db`SELECT token_hash FROM apps WHERE id = ${id}`;
-  return !!row && sameHash(token, row.token_hash);
+  const [row] = await db`SELECT token_hash, owner_id FROM apps WHERE id = ${id}`;
+  if (!row) return false;
+  return (!!owner && row.owner_id === owner) || (!!token && sameHash(token, row.token_hash));
 }
 
 async function rotate(id) {
@@ -285,6 +294,18 @@ async function shelf(ids) {
             FROM apps a WHERE a.id = ANY(${list})`;
 }
 
+/* An owner's apps, newest edit first: the shelf for a class code, whatever
+   browser it is typed into. Same fields as `shelf`. */
+async function owned(owner, limit = 48) {
+  if (!owner) return [];
+  const db = log.sql();
+  return db`SELECT a.id, a.title, a.thumb, a.thumb_meta,
+                   COALESCE((SELECT max(v.created_at) FROM app_versions v WHERE v.app_id = a.id),
+                            a.created_at) AS edited
+            FROM apps a WHERE a.owner_id = ${owner}
+            ORDER BY edited DESC LIMIT ${limit}`;
+}
+
 /* The list an owner sees: not exposed publicly, used by tools/db.js. */
 async function recent({ limit = 50, cohort = null } = {}) {
   const db = log.sql();
@@ -312,6 +333,6 @@ async function usage() {
 }
 
 module.exports = { LIMITS, enabled, exceeded, validId, setThumb, setCard, sourcesNeedingCards,
-                   thumbsWithoutSceneFlag, markScene, shelf,
+                   thumbsWithoutSceneFlag, markScene, shelf, owned,
                    create, addVersion, read, versions, version, requests,
                    mayEdit, rotate, setTitle, remove, recent, usage };

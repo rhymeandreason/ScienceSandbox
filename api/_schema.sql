@@ -243,3 +243,52 @@ ALTER TABLE app_versions ADD  CONSTRAINT app_versions_kind_check
 CREATE INDEX IF NOT EXISTS app_versions_created_idx ON app_versions (created_at DESC);
 CREATE INDEX IF NOT EXISTS apps_cohort_idx ON apps (cohort, created_at DESC);
 CREATE INDEX IF NOT EXISTS apps_visitor_idx ON apps (visitor_id, created_at DESC);
+
+-- =============================================================================
+--  teachers, classes, seats - a class that builds without accounts
+-- =============================================================================
+--  A TEACHER is one row, admitted today by a long code minted from the
+--  terminal (`db.js teacher`) and stored hashed. `email` is null until sign-in
+--  exists; attaching one to this row is the upgrade, and nothing else moves.
+--
+--  A SEAT is one student's place in a class, and its code is the student's
+--  whole identity: typed once on /build, it owns the apps made under it, so
+--  the work follows the code onto any machine. `label` is whatever the teacher
+--  types, which may be a name. That is the one place a name can enter the
+--  database, it is the teacher's choice, and the dashboard says so.
+--
+--  THE SEAT CODE IS STORED PLAIN, the teacher's hashed. A teacher reprints a
+--  roster, so the code has to be readable back; what it guards is one
+--  student's apps and a share of the class's spend, and a dump that exposed the
+--  code would expose those apps anyway. The teacher code reaches every student
+--  in every class, so it is minted once and never readable.
+CREATE TABLE IF NOT EXISTS teachers (
+  id          text PRIMARY KEY,
+  name        text NOT NULL,
+  email       text UNIQUE,                  -- null until sign-in exists
+  code_hash   text UNIQUE,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS classes (
+  id          text PRIMARY KEY,
+  teacher_id  text NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+  name        text NOT NULL,
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS seats (
+  id          text PRIMARY KEY,
+  class_id    text NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+  label       text NOT NULL,
+  code        text NOT NULL UNIQUE,         -- 'abcd-efgh', lowercase, no 0/o/1/i/l
+  revoked_at  timestamptz,                  -- set: the code admits nobody, the work stays
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS classes_teacher_idx ON classes (teacher_id, created_at);
+CREATE INDEX IF NOT EXISTS seats_class_idx ON seats (class_id, created_at);
+
+-- `apps.owner_id` is 'seat:<id>' or 'teacher:<id>', and `apps.cohort` is
+-- 'class:<id>' for a seat's app, so the rate limit counts a class.
+CREATE INDEX IF NOT EXISTS apps_owner_idx ON apps (owner_id, created_at DESC);

@@ -87,10 +87,14 @@
       <div class="wordmark" id="wordmark"></div>
       <div class="locked" id="locked" hidden>
         <i class="ph-bold ph-lock-key"></i>
-        <h2>Invited testers only, for now</h2>
-        <p>The builder opens from your personal access link. Open that link once in this browser and it will remember you.</p>
-        <a class="cta" href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Join the waitlist</a>
-        <p class="sub">Lost your link? Ask whoever invited you to resend it.</p>
+        <h2>Got a class code?</h2>
+        <p>Your teacher gave you one. Type it here to start building.</p>
+        <form class="codeform" id="codeForm">
+          <input id="classCode" aria-label="Class code" placeholder="abcd-efgh" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="12">
+          <button class="cta" type="submit">Join</button>
+        </form>
+        <p class="codeerr" id="codeErr" hidden></p>
+        <p class="sub">No code? The builder is open to invited testers for now. <a href="https://forms.gle/D2yTAhtpUo5AaTvb7" target="_blank" rel="noopener">Join the waitlist</a>, or open your personal access link once in this browser.</p>
       </div>
       <form id="ask">
         <div class="refs" id="refs" hidden></div>
@@ -107,6 +111,7 @@
           <span class="clock" id="clock"></span>
         </div>
         <p class="errs" id="errs" hidden></p>
+        <p class="who" id="who" hidden></p>
         <div class="row">
           <p class="hint" id="hint">Great questions make great apps. </p>
           <span class="spacer"></span>
@@ -873,8 +878,24 @@
     paintMine();
   }
 
+  // With a class or teacher code the shelf is that code's apps, read from the
+  // server, and nothing from this browser's store: on a shared Chromebook the
+  // store holds whoever sat here last.
+  let shelfList = [];
   async function paintMine() {
-    const list = Apps.mine().filter(m => !app || m.id !== app.id).slice(0, 12);
+    const coded = !!(Apps.codes.seat() || Apps.codes.teacher());
+    let list;
+    if (coded) {
+      try {
+        const r = await Apps.api('../../api/app?mine=1');
+        list = (r.apps || []).map(a => ({ id: a.id, title: a.title, thumb: a.thumb, meta: a.thumb_meta,
+                                          edited: a.edited, token: Apps.tokenFor(a.id), mine: true }));
+      } catch (err) { console.warn('[shelf] ' + err.message); list = []; }
+      list = list.filter(m => !app || m.id !== app.id).slice(0, 12);
+    } else {
+      list = Apps.mine().filter(m => !app || m.id !== app.id).slice(0, 12);
+    }
+    shelfList = list;
     const box = $('mine');
     if (!list.length) { box.hidden = true; return; }
     box.hidden = false; $('down').hidden = false;
@@ -914,7 +935,7 @@
       + `<a class="btn btn--soft" href="${esc(Apps.link('edit', m.id))}"><i class="ph-bold ph-pencil-simple"></i>Edit</a>`
       + `<span class="spacer"></span>`
       + `<button class="iconbtn" data-act="copy" type="button" title="Copy the public link" aria-label="Copy the public link"><i class="ph-bold ph-link"></i></button>`
-      + (m.token ? `<button class="iconbtn" data-act="del" type="button" title="Delete this app" aria-label="Delete this app"><i class="ph-bold ph-trash"></i></button>` : '')
+      + (m.token || m.mine ? `<button class="iconbtn" data-act="del" type="button" title="Delete this app" aria-label="Delete this app"><i class="ph-bold ph-trash"></i></button>` : '')
       + `</span></li>`;
     const paint = () => { box.innerHTML = `<h2>Continue building</h2><ul>${list.map(card).join('')}</ul>`; };
     paint();
@@ -923,12 +944,12 @@
       box.addEventListener('click', e => {
         const b = e.target.closest('button[data-act]'); if (!b) return;
         const id = b.closest('li').dataset.id;
-        const m = Apps.mine().find(x => x.id === id) || { id };
+        const m = shelfList.find(x => x.id === id) || { id };
         if (b.dataset.act === 'copy') return copyLink(b, id);
         askDelete(m);
       });
     }
-    try {
+    if (!coded) try {
       const r = await Apps.api(`../../api/app?ids=${list.map(m => m.id).join(',')}`);
       const by = Object.fromEntries((r.apps || []).map(a => [a.id, a]));
       for (const m of list) { const a = by[m.id]; if (a) { m.thumb = a.thumb; m.meta = a.thumb_meta; m.edited = a.edited; if (a.title) m.title = a.title; } }
@@ -973,12 +994,39 @@
     for (const f of box.querySelectorAll('iframe.live')) io.observe(f);
   }
 
+  /* ---- class codes ---------------------------------------------------- */
+  function codeError(text) { $('codeErr').textContent = text || ''; $('codeErr').hidden = !text; }
+  function paintWho(who) {
+    const el = $('who');
+    if (!who || who.kind === 'key') { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = who.kind === 'seat'
+      ? `Building as <b>${esc(who.label)}</b> · ${esc(who.className)} <button class="textbtn" id="notMe" type="button">Not you?</button>`
+      : `Teacher · <b>${esc(who.name)}</b> <a class="textbtn" href="teacher.html">Dashboard</a>`;
+    const b = $('notMe');
+    if (b) b.addEventListener('click', () => { Apps.codes.setSeat(null); location.href = location.pathname; });
+  }
+  $('codeForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const raw = $('classCode').value.trim();
+    if (!raw) return;
+    codeError('');
+    Apps.codes.setSeat(raw);
+    try { await Apps.api('../../api/build'); location.reload(); }
+    catch (err) { Apps.codes.setSeat(null); codeError(err.status === 401 ? err.message : 'Could not check the code: ' + err.message); }
+  });
+
   (async () => {
     try {
       const cfg = await Apps.api('../../api/build');
       if (!cfg.ok) notice('The builder is not configured here: it needs a database and a model key.', true);
+      paintWho(cfg.who);
     } catch (err) {
-      if (err.status === 401) { $('locked').hidden = false; $('ask').hidden = true; }
+      if (err.status === 401) {
+        // A code that was turned off or mistyped is dropped, so the page asks again.
+        if (err.body && err.body.code) { Apps.codes.setSeat(null); codeError(err.message); }
+        $('locked').hidden = false; $('ask').hidden = true;
+      }
       else notice(err.message, true);
       $('send').disabled = true;
     }
@@ -987,6 +1035,13 @@
       try {
         const r = await Apps.api(`../../api/app?id=${Apps.ID}`);
         app = { id: r.id, title: r.title, n: r.n, html: r.html };
+        // The code owns it but this browser holds no token: a fresh one, which
+        // only retires an old edit link, since every device with the code edits
+        // by owner and not by token.
+        if (!token && r.mine) {
+          try { token = (await Apps.api('../../api/app', { method: 'POST', body: { action: 'rotate', id: r.id } })).token; }
+          catch (e) { console.warn('[claim] ' + e.message); }
+        }
         if (token) Apps.remember(r.id, token, r.title);
         show(r.html);
         if (!token) notice('You are viewing this app. Remix it to make your own copy and ask for changes.');

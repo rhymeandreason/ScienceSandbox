@@ -14,6 +14,10 @@
  *                                       the card in front of it, for the shelf; token required
  *       text    {edits}                → the student's own text edits, applied as a version
  *  GET  /api/app?ids=a,b,c            → title, thumb, thumb_meta and last-edited, for the shelf
+ *  GET  /api/app?mine=1               → the same, for every app the class or teacher code owns
+ *
+ *  An owner (`_access.js`: a seat or a teacher code) may do whatever the token
+ *  may, on the apps it owns. The token still works alone.
  *
  *  Nothing here calls a model, so nothing here is rate limited. Reading is
  *  open: an id is unguessable and a view link is meant to be shared. A REMIX
@@ -42,6 +46,7 @@
 const apps    = require('./_apps.js');
 const builder = require('./_builder.js');
 const keys    = require('./_keys.js');
+const access  = require('./_access.js');
 const { local } = require('./_local.js');
 
 const MAX_TEXT_EDITS = 200;
@@ -55,6 +60,16 @@ module.exports = async function handler(req, res) {
     ? (typeof req.body === 'string' ? safeParse(req.body) : (req.body || {})) : {};
   const id    = String(query.id || body.id || '');
   const token = header(req, 'x-app-token') || body.token || null;
+  let who = null;
+  try { who = await access.resolve(req); }
+  catch (err) { console.error('[app] access: ' + ((err && err.message) || err)); }
+  const owner = access.admitted(who) ? who.owner : null;
+
+  if (req.method === 'GET' && query.mine) {
+    if (!owner) return res.status(401).json(access.refusal(who));
+    try { return res.status(200).json({ apps: await apps.owned(owner) }); }
+    catch (err) { console.error('[app] ' + ((err && err.message) || err)); return res.status(500).json({ error: 'the app store failed' }); }
+  }
 
   if (req.method === 'GET' && query.ids) {
     try { return res.status(200).json({ apps: await apps.shelf(String(query.ids).split(',')) }); }
@@ -68,7 +83,7 @@ module.exports = async function handler(req, res) {
       if (!app || !app.version) return res.status(404).json({ error: 'no such app' });
 
       if (query.versions || query.n) {
-        if (!(await apps.mayEdit(id, token))) return res.status(403).json({ error: 'the history is the editor\'s' });
+        if (!(await apps.mayEdit(id, token, owner))) return res.status(403).json({ error: 'the history is the editor\'s' });
         if (query.n) {
           const v = await apps.version(id, Number(query.n));
           return v ? res.status(200).json(v) : res.status(404).json({ error: 'no such version' });
@@ -79,6 +94,7 @@ module.exports = async function handler(req, res) {
         id, title: app.title, parent: app.parent_id, created_at: app.created_at,
         n: app.version.n, kind: app.version.kind, summary: app.version.summary,
         html: app.version.html,
+        mine: !!owner && app.owner_id === owner,
       });
     }
 
@@ -90,18 +106,19 @@ module.exports = async function handler(req, res) {
     const action = String(body.action || '');
 
     if (action === 'remix') {
-      if (keys.enabled() && !keys.cohort(req)) return res.status(401).json({ error: 'private beta', beta: true });
+      if ((keys.enabled() || who) && !access.admitted(who)) return res.status(401).json({ ...access.refusal(who), beta: true });
       const app = await apps.read(id);
       if (!app || !app.version) return res.status(404).json({ error: 'no such app' });
       const made = await apps.create({
-        cohort: keys.cohort(req), visitorId: body.visitorId, parentId: id, isLocal: local(req),
+        cohort: access.admitted(who) ? who.cohort : null, ownerId: owner,
+        visitorId: body.visitorId, parentId: id, isLocal: local(req),
         title: String(body.title || app.title || '').slice(0, 120),
         version: { kind: 'remix', html: app.version.html, summary: `remixed from ${id}` },
       });
       return res.status(200).json({ id: made.id, token: made.token, n: made.version.n });
     }
 
-    if (!(await apps.mayEdit(id, token))) return res.status(403).json({ error: 'this link cannot edit that app' });
+    if (!(await apps.mayEdit(id, token, owner))) return res.status(403).json({ error: 'this link cannot edit that app' });
 
     if (action === 'restore') {
       const old = await apps.version(id, Number(body.n));

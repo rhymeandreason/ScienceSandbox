@@ -13,6 +13,11 @@
  *    node demos/tools/db.js scenes   mark the stills that are the scene alone,
  *                                    which is what the shelf will draw
  *    node demos/tools/db.js builds   the builder's tokens and dollars per cohort per day
+ *    node demos/tools/db.js teacher new <name>
+ *                                    a teacher and their dashboard code, printed once
+ *    node demos/tools/db.js teacher list
+ *    node demos/tools/db.js teacher reissue <id>
+ *                                    a new code; the old one stops working
  *    node demos/tools/db.js seed <page> [title]
  *                                    store a page as an app; prints the view and edit links.
  *                                    The eval pages under tests/ go in this way.
@@ -153,6 +158,41 @@ const CMDS = {
     if (!rows.length) return console.log('no builds yet');
     for (const r of rows) console.log(`${String(r.day).slice(0, 10)}  ${(r.cohort || '-').padEnd(16)}`
       + `${String(r.turns).padStart(4)} turns  in ${r.input} (cached ${r.cached})  out ${r.output}  $${r.usd}`);
+  },
+
+  /* The pilot's door: a teacher is minted here, not signed up. The code is
+     shown once and stored hashed, so a lost one is reissued, never looked up. */
+  async teacher(sub, ...rest) {
+    const access = require(path.join(ROOT, 'api/_access.js'));
+    const sql = log.sql();
+    const show = (id, name, code) => {
+      console.log(`${id}  ${name}`);
+      console.log(`  code       ${code}`);
+      console.log(`  dashboard  <site>/teach   (local: http://localhost:8817/demos/build/teacher.html)`);
+      console.log('  The code is shown once. Keep it; `teacher reissue` replaces it.');
+    };
+    if (sub === 'new') {
+      const name = rest.join(' ').trim();
+      if (!name) throw new Error('teacher new needs a name: node demos/tools/db.js teacher new "Ms. Rivera"');
+      const id = access.mintId(), code = access.mintTeacherCode();
+      await sql`INSERT INTO teachers (id, name, code_hash) VALUES (${id}, ${name}, ${access.hash(code)})`;
+      return show(id, name, code);
+    }
+    if (sub === 'reissue') {
+      const code = access.mintTeacherCode();
+      const [t] = await sql`UPDATE teachers SET code_hash = ${access.hash(code)} WHERE id = ${rest[0] || ''} RETURNING id, name`;
+      if (!t) throw new Error('no teacher with that id; `teacher list` shows them');
+      return show(t.id, t.name, code);
+    }
+    if (sub === 'list') {
+      const rows = await sql`SELECT t.id, t.name, t.created_at,
+                                    (SELECT count(*) FROM classes c WHERE c.teacher_id = t.id)::int AS classes
+                             FROM teachers t ORDER BY t.created_at`;
+      if (!rows.length) return console.log('no teachers yet');
+      for (const r of rows) console.log(`${r.id}  ${r.name}  ${r.classes} class${r.classes === 1 ? '' : 'es'}`);
+      return;
+    }
+    throw new Error('teacher new <name> | teacher list | teacher reissue <id>');
   },
 
   /* A page from disk becomes an app, so the render route and the builder can

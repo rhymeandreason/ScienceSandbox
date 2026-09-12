@@ -1,8 +1,13 @@
 /* =============================================================================
  *  build/apps-client.js — what the builder and the viewer share
  * =============================================================================
- *  The access key, the visitor id, the edit tokens this browser holds, the
- *  fetch that carries them, and the one way a stored page is put on screen.
+ *  The access key, the class or teacher code, the visitor id, the edit tokens
+ *  this browser holds, the fetch that carries them, and the one way a stored
+ *  page is put on screen.
+ *
+ *  A CLASS CODE IS WHO THE STUDENT IS (`api/_access.js`). It is typed once, or
+ *  arrives as `?c=` and is stripped like `?k=`, and it rides on every request,
+ *  so the apps it made are theirs on any machine that holds it.
  *
  *  A PAGE RUNS IN A SANDBOX, ALWAYS. `mount` writes it into an iframe by
  *  `srcdoc` with `allow-scripts` and nothing else, so it lives on an opaque
@@ -33,6 +38,8 @@ const Apps = (() => {
   const KEY_KEY     = 'ss.tutor.key';       // shared with ask/chat.js: one link admits to both
   const VISITOR_KEY = 'ss.tutor.visitor';
   const STORE_KEY   = 'ss.apps';            // { id: { token, title, at } }
+  const SEAT_KEY    = 'ss.class.code';
+  const TEACHER_KEY = 'ss.teacher.code';
 
   const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
     : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -40,6 +47,7 @@ const Apps = (() => {
 
   const get = k => { try { return localStorage.getItem(k); } catch { return null; } };
   const set = (k, v) => { try { localStorage.setItem(k, v); } catch { /* this page load only */ } };
+  const del = k => { try { localStorage.removeItem(k); } catch {} };
 
   const url = new URL(location.href);
   const params = url.searchParams;
@@ -49,6 +57,16 @@ const Apps = (() => {
   let KEY = params.get('k');
   if (KEY) { set(KEY_KEY, KEY); params.delete('k'); dirty = true; }
   else KEY = get(KEY_KEY);
+
+  let SEAT = params.get('c'), TEACHER = params.get('t');
+  if (SEAT) { set(SEAT_KEY, SEAT); params.delete('c'); dirty = true; } else SEAT = get(SEAT_KEY);
+  if (TEACHER) { set(TEACHER_KEY, TEACHER); params.delete('t'); dirty = true; } else TEACHER = get(TEACHER_KEY);
+  const codes = {
+    seat: () => SEAT,
+    teacher: () => TEACHER,
+    setSeat(c)    { SEAT = c || null;    c ? set(SEAT_KEY, c)    : del(SEAT_KEY); },
+    setTeacher(c) { TEACHER = c || null; c ? set(TEACHER_KEY, c) : del(TEACHER_KEY); },
+  };
 
   /* ---- the edit token for this app, if the link carried one ------------- */
   /* Deployed, `/app/<id>` is a rewrite and the browser never sees the query
@@ -61,8 +79,12 @@ const Apps = (() => {
   const VISITOR = (() => { let v = get(VISITOR_KEY); if (!v) { v = uuid(); set(VISITOR_KEY, v); } return v; })();
 
   function store() { try { return JSON.parse(get(STORE_KEY) || '{}') || {}; } catch { return {}; } }
+  /* With a class code the token is not kept: a Chromebook is shared, and the
+     next student's code must not find the last one's edit rights in storage.
+     The code itself is what edits, from `api/_apps.js`'s `mayEdit`. */
   function remember(id, token, title) {
     const s = store();
+    if (SEAT) token = null;
     s[id] = { ...(s[id] || {}), token, title: title || (s[id] || {}).title || '', at: Date.now() };
     set(STORE_KEY, JSON.stringify(s));
   }
@@ -76,6 +98,8 @@ const Apps = (() => {
   async function api(path, { method = 'GET', body, token } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (KEY) headers['X-Tutor-Key'] = KEY;
+    if (SEAT) headers['X-Seat-Code'] = SEAT;
+    if (TEACHER) headers['X-Teacher-Code'] = TEACHER;
     if (token) headers['X-App-Token'] = token;
     const r = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
     let json = null;
@@ -266,5 +290,5 @@ parent.postMessage({type:'app-thumb',data:data,meta:words()},'*');return true;
     d.showModal();
   }
 
-  return { KEY, VISITOR, ID, api, link, mount, preview, editMode, outline, exportFile, remember, forget, tokenFor, mine, beta };
+  return { KEY, VISITOR, ID, codes, api, link, mount, preview, editMode, outline, exportFile, remember, forget, tokenFor, mine, beta };
 })();

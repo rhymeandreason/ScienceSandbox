@@ -58,6 +58,7 @@
   "rewrites": [
     { "source": "/build",      "destination": "/demos/build/build.html" },
     { "source": "/app/:id",    "destination": "/demos/build/app.html?id=:id" },
+    { "source": "/teach",      "destination": "/demos/build/teacher.html" },
     { "source": "/water",      "destination": "/demos/water-lab.html" },
     { "source": "/molecular-bonds", "destination": "/demos/molecule-builder.html" },
     { "source": "/protein",    "destination": "/demos/hemoglobin-lab.html" },
