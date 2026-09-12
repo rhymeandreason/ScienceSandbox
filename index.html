@@ -214,6 +214,7 @@
   .gate form { display: flex; gap: .6rem; margin-top: .4rem; }
   .gate input { flex: 1; font: 400 15px var(--sans); padding: .7rem 1rem; border-radius: 999px; border: 2px solid rgba(var(--paper-t),.4); background: transparent; color: #fff; }
   .gate input::placeholder { color: rgba(var(--paper-t),.5); }
+  .cta[hidden] { display: none; }
   .gate .cta { background: var(--coral); color: #fff; }
   .gate .small { font: 400 12px var(--sans); color: rgba(var(--paper-t),.6); }
   .gate .small a { color: var(--amber); }
@@ -349,7 +350,7 @@
       <form id="askForm">
         <textarea id="request" maxlength="600" rows="3" placeholder="a red blood cell in three solutions"></textarea>
         <div class="row">
-          <button class="cta" type="submit">Let's go</button>
+          <button class="cta" type="submit" hidden>Let's go</button>
         </div>
       </form>
       <div class="gate" id="gate">
