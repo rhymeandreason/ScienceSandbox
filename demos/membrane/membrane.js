@@ -91,7 +91,8 @@
        names. */
     context: 'plasma',        // 'plasma' | 'mitochondrion' | 'thylakoid'
     fuel: null,               // 'NADH' | 'FADH2' | 'light' | null — null lets the gradient run down
-    fuelRate: 1,              // 0..1, a light dimmer or an oxygen switch
+    fuelRate: 1,              // 0..1, a supply dial or a light dimmer
+    oxygen: true,             // false: the respiratory chain has no final electron acceptor and stops
     complexSeconds: 6.0,      // ONE FULL CYCLE, the empty half included; three real complexes are drawn as one
     mvFloor: null,            // how negative the inside may get; null takes it from the context
     /* WHICH HALF IS WHICH, on the stage, always. membrane-lab pins its two
@@ -651,6 +652,7 @@
       if (!P.proteins.complex) return false;
       const f = fuel || P.fuel || (P.context === 'thylakoid' ? 'light' : 'NADH');
       if (!CHEM.FUELS[f]) { console.warn('membrane.js: no fuel named ' + f + '; have ' + Object.keys(CHEM.FUELS).join(', ')); return false; }
+      if (!CHEM.complexRate(f, 1, 0, P.oxygen)) return false;   // no O₂: the NADH docks and nothing takes its electrons
       pulseFuel = f;
       clearFuel();
       cpxT = CHEM.Complex.startOf('load-H');
@@ -662,6 +664,99 @@
       kit.forget(fuelChip.obj.userData.tag);
       root.remove(fuelChip.obj);
       fuelChip = null;
+    }
+
+    /* ---- oxygen, where the electrons end ----
+       COMPLEX IV AT ITS REAL RATIO: O₂ + 4e⁻ + 4H⁺ → 2H₂O. A carrier brings
+       two electrons, so ONE O₂ WAITS THROUGH TWO CARRIERS. It docks on the
+       matrix face beside the carrier, takes two matrix protons on each
+       carrier's `occlude` beat, and after the second pair leaves as two
+       waters. One water per O₂, or one O₂ per NADH, is wrong by a factor of
+       two in exactly the place a student counts.
+
+       THE PROTONS THAT JOIN IT ARE DRAWN, NOT DEBITED. They are made for the
+       picture and the matrix headcount keeps its own: the drawn pool is the
+       gradient's whole budget, and emptying it here would stall the complex
+       for a reason that is not biology. Protons used up in the matrix do add
+       to the real gradient; this sim leaves that term out.
+
+       Only a fuel whose acceptor is O₂ draws any of this (CHEM.ACCEPTOR), so a
+       thylakoid shows none. */
+    const O2_SPEED = 26, WATER_FADE = 1.2;
+    const E_PER_O2 = 4, E_PER_CARRIER = 2;
+    let o2 = null;
+    const o2Riders = [], waters = [];
+    const o2Dock = () => ({ x: complexX + 16, y: -pumpDir() * (COMPLEX.height + 12) });
+    /* The pill goes on an UNSCALED wrapper: smallMolecule scales its group
+       by K_(), and a tag inside it came out several times the NADH's. */
+    function tagged(mol, name) {
+      const g = new THREE.Group(), tag = kit.pill(name, 6.4);
+      tag.position.set(0, 7.0, 0);
+      g.add(mol, tag); g.userData.tag = tag;
+      return g;
+    }
+    function dropToken(obj) {
+      if (obj.userData.tag) kit.forget(obj.userData.tag);
+      if (obj.userData.badge) kit.forget(obj.userData.badge);
+      root.remove(obj);
+    }
+    const approach = (c, to, dt, speed) => {
+      const dx = to.x - c.x, dy = to.y - c.y, dist = Math.hypot(dx, dy), move = speed * dt;
+      if (dist > move) { c.x += dx / dist * move; c.y += dy / dist * move; }
+      else { c.x = to.x; c.y = to.y; }
+      seat(c.obj, c.x, c.y, 0);
+      return dist <= move;
+    };
+    function o2Arrive() {
+      if (!P.showFuel || o2 || P.oxygen === false || !COMPLEX.group.visible) return;
+      if (CHEM.ACCEPTOR[pulseFuel || P.fuel] !== 'O2') return;
+      const to = o2Dock();
+      o2 = { obj: tagged(smallMolecule('o2'), 'O₂'), x: to.x + 22, y: -pumpDir() * (COMPLEX.height + 34), to, electrons: 0 };
+      root.add(o2.obj); seat(o2.obj, o2.x, o2.y, 0);
+    }
+    function o2Reduce() {
+      if (!o2 || o2.electrons >= E_PER_O2) return;
+      o2.electrons += E_PER_CARRIER;
+      for (let i = 0; i < E_PER_CARRIER; i++) {
+        const r = { obj: chargedIon('H'), x: o2.to.x + (i ? 16 : -8), y: -pumpDir() * (COMPLEX.height + 38),
+                    off: { x: (i ? 1 : -1) * 3.5, y: -pumpDir() * (o2.electrons === E_PER_O2 ? 4 : -1) } };
+        root.add(r.obj); seat(r.obj, r.x, r.y, 0); o2Riders.push(r);
+      }
+    }
+    function toWater() {
+      const at = o2.to;
+      dropToken(o2.obj); o2 = null;
+      for (const r of o2Riders) dropToken(r.obj);
+      o2Riders.length = 0;
+      for (const s of [-1, 1]) {
+        const w = { obj: tagged(smallMolecule('water'), 'H₂O'), x: at.x + s * 5, y: at.y,
+                    to: { x: at.x + s * 18, y: -pumpDir() * (COMPLEX.height + 42) }, fade: 1 };
+        root.add(w.obj); seat(w.obj, w.x, w.y, 0); waters.push(w);
+      }
+    }
+    function tickO2(dt) {
+      /* Cut off before any electrons reached it, the O₂ was never there. One
+         already holding electrons stays bound, as it does in complex IV. */
+      if (o2 && P.oxygen === false && !o2.electrons) { dropToken(o2.obj); o2 = null; }
+      if (o2) {
+        approach(o2, o2.to, dt, O2_SPEED);
+        let aboard = 0;
+        for (const r of o2Riders) if (approach(r, { x: o2.x + r.off.x, y: o2.y + r.off.y }, dt, O2_SPEED * 1.3)) aboard++;
+        if (o2.electrons >= E_PER_O2 && aboard === o2Riders.length) toWater();
+      }
+      for (let i = waters.length - 1; i >= 0; i--) {
+        const w = waters[i];
+        if (!approach(w, w.to, dt, O2_SPEED * 0.7)) continue;
+        w.fade -= dt / WATER_FADE;
+        w.obj.traverse(m => { if (m.material) { m.material.transparent = true; m.material.opacity = Math.max(0, w.fade); } });
+        if (w.fade <= 0) { dropToken(w.obj); waters.splice(i, 1); }
+      }
+    }
+    function clearO2() {
+      if (o2) dropToken(o2.obj);
+      o2 = null;
+      for (const t of o2Riders.concat(waters)) dropToken(t.obj);
+      o2Riders.length = 0; waters.length = 0;
     }
 
     /* ---- the pump's cytoplasmic headpiece ----
@@ -1572,12 +1667,12 @@
     }
     function runComplex(dt) {
       if (!P.proteins.complex) return null;
-      const supply = CHEM.complexRate(P.fuel, P.fuelRate, pmfNow());
+      const supply = CHEM.complexRate(P.fuel, P.fuelRate, pmfNow(), P.oxygen);
       /* A one-shot burns at its own full rate: what is being dimmed by
          `fuelRate` is how fast they ARRIVE, and one that has already arrived
          is not arriving slowly. Back-pressure from the pmf still applies —
          a single NADH cannot push protons uphill any better than a stream. */
-      const fuelled = supply > 0 ? supply : pulseFuel ? CHEM.complexRate(pulseFuel, 1, pmfNow()) : 0;
+      const fuelled = supply > 0 ? supply : pulseFuel ? CHEM.complexRate(pulseFuel, 1, pmfNow(), P.oxygen) : 0;
       const rate = fuelled > 0 ? fuelled : cpxCargo.length ? CPX_COAST : 0;
       if (rate > 0) {
         const was = cpxT;
@@ -1614,8 +1709,8 @@
            the beat this table already calls "the fuel is spent". Nothing here
            decides when that is: the cycle does, so the picture and the
            caption cannot disagree. */
-        if (st.phase === 'load-H') fuelArrive();
-        if (st.phase === 'occlude') fuelSpend();
+        if (st.phase === 'load-H') { fuelArrive(); o2Arrive(); }
+        if (st.phase === 'occlude') { fuelSpend(); o2Reduce(); }
         /* The proton is set down at the START of the empty half, so the two
            beats that follow are visibly carrying nothing. */
         if (st.phase === 'shut-out') {
@@ -1684,6 +1779,7 @@
       ROTOR.rotation.y += (ROT.angle - ROTOR.rotation.y) * Math.min(1, dt * 6);
       tickATP(dt);
       tickFuel(dt);
+      tickO2(dt);
       tickShells(dt);
       /* LAST, and after everything that moved a traveller: the arc is the
          final word on where a thing is drawn, so nothing above has to know
@@ -1734,7 +1830,7 @@
         pH: proton.pH, dpH: proton.dpH, pmf: proton.pmf,
         atpMade: ROT.atp, rotorTurns: ROT.protons / CHEM.PROTONS_PER_TURN,
         protonsThroughSynthase, protonsLeaked, complexTurns,
-        fuel: P.fuel, fuelRate: CHEM.complexRate(P.fuel, P.fuelRate, proton.pmf), pmfStall: CHEM.PMF_STALL,
+        fuel: P.fuel, oxygen: P.oxygen !== false, fuelRate: CHEM.complexRate(P.fuel, P.fuelRate, proton.pmf, P.oxygen), pmfStall: CHEM.PMF_STALL,
         complexPhase: cpxState ? cpxState.phase : null, complexLabel: cpxState ? cpxState.label : null,
         complexCaption: cpxState ? cpxState.caption : null, complexT: cpxT,
         complexStoichiometry: CHEM.Complex.PROTONS_PER_CYCLE,
@@ -1746,7 +1842,7 @@
     function reset() {
       mV = 0; chargeOut = 0; crossed.K = crossed.CL = crossed.NA = crossed.water = crossed.H = 0;
       ROT.reset(); complexTurns = 0; protonsLeaked = 0; protonsThroughSynthase = 0;
-      clearATP(); clearFuel(); pulseFuel = null;
+      clearATP(); clearFuel(); clearO2(); pulseFuel = null;
       for (const t of cpxCargo) t.aboard = false;
       cpxCargo.length = 0; cpxT = 0; cpxPhase = ''; cpxState = null;
       crossings = { up:0, down:0 }; netRecent = 0;
@@ -1907,6 +2003,7 @@
       /* On the rotor, which moves with the context. */
       synthase: () => synthX == null ? null : at(synthX, -CHEM.pumpDir(P.context) * SYNTH.height * 1.15),
       leak:     () => P.proteins.leak ? at(P.proteins.leak.x, LEAK.height * 0.98) : null,
+      oxygen:   () => o2 ? o2.obj.position : null,
       H: () => firstOf('H'),
       heads:   () => at(150, HALF),        // right of the proteins: a shell's panel covers the left
       tails:   () => at(150, 0),
@@ -1961,6 +2058,8 @@
         card: 'It carries protons one way only, and it pays with the fuel rather than with ATP. Turn the fuel off and it stops, which is the whole reason the gradient is a store and not a fixture.' },
       synthase: { text: 'ATP synthase', offset: [42, 30],
         card: 'A turbine, not a pump. Protons come back down the gradient through it and the rotor turns; every third of a turn makes one ATP. It cannot run uphill, so with no gradient it simply stops.' },
+      oxygen: { text: 'oxygen', offset: [42, -34],
+        card: 'The last stop for the electrons. Each O₂ takes four, two from each NADH, and four protons from the matrix, and leaves as two waters. With no oxygen the electrons have nowhere to go and the whole chain stops.' },
       leak: { text: 'an uncoupler', offset: [42, -30],
         card: 'A hole for protons. They come home without passing the synthase, so the gradient collapses and no ATP is made. The fuel still burns, and all of it comes out as heat.' },
       translocase: { text: 'ADP/ATP translocase', offset: [-44, 30],
@@ -1981,7 +2080,7 @@
         library.outside.card = 'The intermembrane space. Every proton the complexes throw out lands here, so this side goes acidic and positive: that is where the energy from NADH now sits. This space and a chloroplast\'s thylakoid lumen are the same place by descent, both of them the OUTSIDE of the bacterium each organelle came from. That is why a photosynthesis diagram looks flipped against this one.';
         library.inside.card  = 'The matrix. The Krebs cycle runs here and hands its NADH to the complexes in this membrane. Protons leave from this side and come back through the synthase.';
         library.complex.text = 'electron transport chain';
-        library.complex.card = 'Three complexes drawn as one. NADH hands them electrons, they pass them down to oxygen, and each drop pays for protons thrown out. It spends FUEL rather than ATP: turn the fuel off and it stops, which is the whole reason the gradient is a store and not a fixture.';
+        library.complex.card = 'Three complexes drawn as one. NADH hands them electrons, they pass them down to oxygen, which becomes water, and each drop pays for protons thrown out. It spends FUEL rather than ATP: turn the fuel off and it stops, which is the whole reason the gradient is a store and not a fixture.';
       } else if (P.context === 'thylakoid') {
         library.outside.card = 'The stroma, around the outside of the thylakoid disc. ATP is made here, and it is what the Calvin cycle spends to fix carbon. Protons leave from this side and come back through the synthase.';
         library.complex.text = 'the light-driven chain';

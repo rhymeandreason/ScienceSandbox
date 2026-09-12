@@ -62,6 +62,8 @@
         It never crosses the membrane. Uncheck it and the chain has nothing to
         spend, so the pumping stops and the gradient runs down.
       </p>
+      <label><input id="o2on" type="checkbox" checked> oxygen supply</label>
+      <p class="note" id="o2cap"></p>
       <label>how hard it pumps <output id="rv"></output>
         <input id="rate" type="range" min="0" max="100" value="100"></label>
       <label><input id="leak" type="checkbox"> an uncoupler is in the inner membrane</label>
@@ -251,6 +253,7 @@ const layout = leak => leak
   : { complex: { x: -72 }, synthase: { x: 0 }, translocase: { x: 72 } };
 
 $('fuelon').onchange = () => mito.set({ fuel: $('fuelon').checked ? 'NADH' : null });
+$('o2on').onchange = () => mito.set({ oxygen: $('o2on').checked });
 $('rate').oninput = () => mito.set({ fuelRate: $('rate').value / 100 });
 $('leak').onchange = () => mito.set({ proteins: layout($('leak').checked) });
 /* ONE NADH, ONE TURN — and it works with the supply switched off, which is
@@ -276,8 +279,13 @@ mito.on('frame', s => {
   $('leakcap').textContent = $('leak').checked
     ? `${s.protonsLeaked} protons have come down the hole instead of the synthase. That fuel burned and made heat, and the pump above has nothing to spend.`
     : '';
+  $('o2cap').textContent = s.oxygen
+    ? 'Oxygen is the last stop for the electrons. It takes them, picks up protons from the matrix, and becomes water.'
+    : 'No oxygen, so the electrons have nowhere to go. The chain jams, the pumping stops even though NADH is waiting, and the NAD⁺ the Krebs cycle needs never comes back.';
   $('verdict').textContent =
-    s.pmf <= 2 ? 'No gradient, so no ATP, so the pump is standing still. The gradient is the cell’s battery and this is what it is for.'
+    !s.oxygen && s.pmf <= 2 ? 'No oxygen, no gradient, no ATP. This is why a cell without air stops in minutes: the fuel is still there and nothing can spend it.'
+    : !s.oxygen ? 'The chain has stopped. The synthase is still spending the gradient that was already built, and when it is gone the ATP stops too.'
+    : s.pmf <= 2 ? 'No gradient, so no ATP, so the pump is standing still. The gradient is the cell’s battery and this is what it is for.'
     : s.atpMade === 0 ? 'The gradient is building. Nothing has been spent yet.'
     : `${s.atpMade} ATP made, ${bought} of them spent on a turn of the pump. The other ${Math.max(0, s.atpMade - bought)} arrived while it was mid-turn: ATP the cell still has.`;
 });

@@ -294,7 +294,7 @@ Three habits worth copying. A verdict goes in words, not digits: `net` and the e
 | `pH.inside / .outside`, `dpH`, `pmf` | the proton gradient: pH per side, the difference, and the proton-motive force in mV (positive means protons want to come back in) |
 | `atpMade`, `rotorTurns`, `protonsThroughSynthase`, `protonsLeaked`, `complexTurns` | the proton circuit's ledger, counted rather than declared |
 | `stoichiometry.protonsPerTurn / .atpPerTurn / .protonsPerATP` | what the rotor is actually keeping to; do not type a ratio |
-| `fuel`, `fuelRate`, `pmfStall` | the fuel, the rate after back-pressure has slowed it, and the pmf at which the complexes stall |
+| `fuel`, `oxygen`, `fuelRate`, `pmfStall` | the fuel, whether O₂ is there to take the electrons, the rate after back-pressure and oxygen have had their say, and the pmf at which the complexes stall |
 | `complexLabel`, `complexT` | the beat of the complex's six-phase cycle, and the words for it |
 
 Events: `frame` (state, dt) · `cross` (traveller, dir) through the bilayer · `conduct` (traveller, dir) through a channel · `turn` (n) a pump turn starting · `turned` (n) one finishing · `pumped` (n) one proton thrown out by the complex · `atp` (n) the synthase completing one.
@@ -315,7 +315,8 @@ Respiration and photosynthesis are that picture with one parameter flipped.
 const m = Membrane.mount(el, {
   context: 'mitochondrion',   // or 'thylakoid': renames the two sides, tints the lipid
   fuel: 'light',              // 'NADH' | 'FADH2' | 'light' | null (nothing driving it)
-  fuelRate: 1,                // 0..1: a light dimmer, or an oxygen switch
+  fuelRate: 1,                // 0..1: a light dimmer, or a supply dial
+  oxygen: true,               // false stops an NADH or FADH2 chain: nothing takes the electrons. No effect on 'light'
   proteins: { complex:{ x:-80 }, synthase:{ x:40 }, translocase:{ x:120 }, leak:null },
   outerMembrane: true,        // a second sheet with a porin in it, mitochondrion only
   contents: { inside:{ water:30, H:22 }, outside:{ water:30, H:22 } },   // 'H' is a proton

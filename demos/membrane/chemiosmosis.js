@@ -138,7 +138,7 @@
 
   /* The complex pumps only while it is fed. `fuel` is 'NADH' (respiration),
      'light' (photosynthesis) or null; `fuelRate` 0..1 is the page's slider —
-     an oxygen switch or a light dimmer — and it scales the turn rate, never
+     a supply dial or a light dimmer — and it scales the turn rate, never
      the stoichiometry. */
   const FUELS = { NADH: 1, light: 1, FADH2: 0.6 };
   /* WHAT THE FUEL BECOMES once the chain has taken its electrons. A carrier
@@ -147,8 +147,15 @@
      nothing arrives and nothing leaves — so a page drawing the fuel draws
      nothing in a thylakoid, which is correct rather than missing. */
   const SPENT = { NADH: 'NAD⁺', FADH2: 'FAD', light: null };
-  function complexRate(fuel, fuelRate, pmf) {
+  /* WHERE THE ELECTRONS END UP. A respiratory chain hands them to O₂, which
+     takes protons from the matrix and becomes water; with no O₂ the last
+     complex cannot unload, every carrier upstream stays full, and the chain
+     stops however much NADH is waiting. A thylakoid's electrons end on
+     NADP⁺, so `oxygen` does not reach it. */
+  const ACCEPTOR = { NADH: 'O2', FADH2: 'O2', light: 'NADP+' };
+  function complexRate(fuel, fuelRate, pmf, oxygen) {
     if (!fuel || !FUELS[fuel]) return 0;
+    if (oxygen === false && ACCEPTOR[fuel] === 'O2') return 0;
     const back = pmf == null ? 1 : Math.max(0, 1 - pmf / PMF_STALL);
     return FUELS[fuel] * Math.max(0, Math.min(1, fuelRate == null ? 1 : fuelRate)) * back;
   }
@@ -278,7 +285,7 @@
   const Complex = { at: complexAt, selfTest: complexSelfTest, PHASES: CPX_PHASES, startOf: cpxStartOf, PROTONS_PER_CYCLE: CPX_PROTONS };
 
   const API = { PROTONS_PER_TURN, ATP_PER_TURN, PROTONS_PER_ATP, PROTONS_PER_PH, PH_REF, MV_PER_PH, PMF_STALL, DPSI_FLOOR,
-                CONTEXTS, sideName, pumpDir, protonState, synthaseDirection, rotor, FUELS, SPENT, complexRate, Complex };
+                CONTEXTS, sideName, pumpDir, protonState, synthaseDirection, rotor, FUELS, SPENT, ACCEPTOR, complexRate, Complex };
   global.Chemiosmosis = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);

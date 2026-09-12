@@ -80,6 +80,13 @@ console.log('\n== 3. fuel off: the gradient runs down and never back up');
   is(C.complexRate('NADH', 1, 0) > C.complexRate('NADH', 1, C.PMF_STALL / 2), 'a rising pmf slows the complex');
   is(C.complexRate('NADH', 1, C.PMF_STALL) === 0, `the complex stalls at ${C.PMF_STALL} mV`);
   is(C.complexRate('NADH', 1, C.PMF_STALL * 2) === 0, 'and never goes negative, which would be the complex running backwards');
+  /* NO OXYGEN STOPS THE CHAIN AT THE FAR END, whatever the fuel supply. A
+     chain that kept pumping with O₂ gone would make ATP in a suffocating cell. */
+  is(C.complexRate('NADH', 1, 0, false) === 0 && C.complexRate('FADH2', 1, 0, false) === 0,
+     'no O₂: NADH and FADH₂ both stall, because the electrons have nowhere to go');
+  is(C.complexRate('NADH', 1, 0, true) === C.complexRate('NADH', 1, 0), 'O₂ present is the default');
+  is(C.complexRate('light', 1, 0, false) > 0, 'a thylakoid ignores oxygen: its electrons end on NADP⁺');
+  for (const f of Object.keys(C.FUELS)) if (!(f in C.ACCEPTOR)) fail(`fuel ${f} has no final electron acceptor`);
   let counts = { inside: 10, outside: 50 }, mV = -60, last = Infinity, rose = 0;
   for (let i = 0; i < 200; i++) {
     const dir = C.synthaseDirection(counts, mV);
