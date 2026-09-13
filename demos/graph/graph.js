@@ -167,6 +167,7 @@
     return String(s).replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')
       .replace(/^./, c => c.toUpperCase());
   }
+  let graphMeasure = null;
   function axisLabel(spec) {
     if (spec.label === null) return null;
     const base = spec.label || deslug(spec.field || '');
@@ -399,11 +400,13 @@
          the widest tick label, and widen margin and label offset together:
          tick, padding, a ~6px gap, the label line and its edge. */
       const base = compact ? 44 : 60;
+      /* Canvas, not getBBox: a graph mounted into a panel that has not laid
+         out yet measures every tick at zero width. */
       let fig = Plot.plot(opts(0));
-      wrap.appendChild(fig);
+      const cx = (graphMeasure || (graphMeasure = document.createElement('canvas').getContext('2d')));
+      cx.font = `11px ${font}`;
       const tw = Math.max(0, ...[...fig.querySelectorAll('[aria-label="y-axis tick label"] text')]
-        .map(t => t.getBBox().width));
-      fig.remove();
+        .map(t => cx.measureText(t.textContent).width));
       const yPad = Math.max(0, Math.ceil(tw) + (compact ? 33 : 38) - base);
       if (yPad) fig = Plot.plot(opts(yPad));
 

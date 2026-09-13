@@ -25,12 +25,28 @@
 <script src="../kit/lesson-shell.js"></script>
 <script src="graph.js"></script>
 <script>
+let panelGraph = null;
 const shell = LessonShell.create({
   brand: 'graph',
   steps: [{
     eyebrow: 'bench',
     title: 'On the shell',
     body: 'Same module, same params. The ink, the rules and the paper are the shell\'s.',
+  }, {
+    eyebrow: 'bench',
+    title: 'In the panel',
+    body: 'Where a generated app puts a graph. Four-digit ticks must clear the axis name.',
+    onEnter(ctx) {
+      ctx.ui.controls('<div class="panel-graph"></div>');
+      panelGraph = Graph.mount(ctx.ui.q('.panel-graph'), {
+        kind: 'line',
+        data: [[5, 50], [10, 190], [20, 680], [30, 1450], [40, 2400], [50, 3500]].map(([age, c]) => ({ age, c })),
+        x: { field: 'age', label: 'Tree age', unit: 'years' },
+        y: { field: 'c', label: 'Carbon absorbed', unit: 'kg' },
+        caption: 'Cumulative atmospheric carbon incorporated into tree biomass over time.',
+      });
+    },
+    onExit() { if (panelGraph) panelGraph.destroy(); panelGraph = null; },
   }],
 });
 
