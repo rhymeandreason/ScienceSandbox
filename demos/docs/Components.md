@@ -383,10 +383,11 @@ const P = Proteinbox.mount(el, {
   variant: undefined,      // a PDB id the registry holds for it; omit for the default
   rep: 'ribbon',           // 'ribbon' | 'surface' | 'fold'; the last two only where state().available says so
   colors: undefined,       // omit: helices, sheets and loops in the library's palette. {byChain:{A:0x..., B:0x...}} to tell chains apart
+  pocket: true,            // the baked non-protein atoms (hemes and their iron, metals, a chromophore), ball-and-stick. false hides them
 });
 ```
 
-These are deposited structures drawn at real ångströms from files this repo baked, so a page can make measured claims about them, and `state()` carries the facts to print: `name`, `does`, `blurb`, `variant`, `species`, `purpose`, `method` (how it was solved), `residues`, `chains`, `rep`, and `available` for surface and fold. Never type a residue count or a method; read them. `set({protein})` fetches and redraws in the same box. Drag turns the molecule.
+These are deposited structures drawn at real ångströms from files this repo baked, so a page can make measured claims about them, and `state()` carries the facts to print: `name`, `does`, `blurb`, `variant`, `species`, `purpose`, `method` (how it was solved), `residues`, `chains`, `rep`, `pocket`, and `available` for surface and fold. Never type a residue count or a method; read them. `set({protein})` fetches and redraws in the same box. Drag turns the molecule.
 
 Proteins: `atp-synthase`, `napump` (the sodium-potassium pump), `prion`, `amylase`, `hexokinase`, `chymotrypsin`, `hemoglobin`, `collagen`, `rnase`, `insulin`, `myoglobin`, `gfp`, `ferritin`, `rubisco`, `lysozyme`, `antibody`. Through the registry nearly all of them are ribbon only; ask `state().available` before offering a surface or fold control, and do not promise one in the copy. Events: `rep` (name) when the representation changes · `load` (state) when a swapped protein has drawn.
 

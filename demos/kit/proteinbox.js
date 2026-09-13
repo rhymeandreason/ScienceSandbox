@@ -1032,7 +1032,7 @@
     else if (opts.trace) {
       fetch(opts.trace)
         .then(r => r.json())
-        .then(t => { if (!box.dead) setData(t); })
+        .then(t => { if (!box.dead) { setData(t); if (opts.onData) opts.onData(t); } })
         /* Loud, not silent. A swallowed catch here is a box that shows its
            placeholder for ever and looks exactly like a module with no stage
            yet — the one failure this file can produce that nobody can see. */
@@ -1967,8 +1967,17 @@
       const v = p && (P.variant ? p.variants.find(x => x.id === P.variant) : (p.variants.find(x => x.default) || p.variants[0]));
       return { p, v };
     };
+    /* The trace's baked pocket (hemes, metals, a chromophore) draws by default:
+       a heme is part of what hemoglobin IS. `pocket:false` hides it. */
+    let pocketGroup = null;
+    const drawPocket = t => {
+      pocketGroup = box.setPocket((t && t.pocket) || null).group;
+      pocketGroup.visible = P.pocket !== false;
+      box.draw();
+    };
     const box = create(Object.assign({ mount: el }, P, {
       onRep: r => { P.rep = r; emit('rep', r); },
+      onData: drawPocket,
     }));
     if (!box) throw new Error('proteinbox.js: mount could not create a box; see the warning above');
     const has = () => { const o = fromRegistry(Object.assign({}, P)); return { surface: !!o.surface, fold: !!o.fold }; };
@@ -1985,7 +1994,7 @@
       return { protein: P.protein, variant: v ? v.id : null, name: p ? p.name : null, does: p ? p.does : null,
         blurb: p ? p.blurb : null, species: v ? v.species : null, purpose: v ? v.purpose : null,
         method: r.method || null, residues: r.residues || null, chains: v ? v.chains : null,
-        rep: box.rep, available: has() };
+        rep: box.rep, pocket: P.pocket !== false, available: has() };
     }
     function set(next) {
       const swap = (next.protein && next.protein !== P.protein) || (next.variant && next.variant !== P.variant);
@@ -1996,6 +2005,7 @@
         fetch(o.trace).then(r => r.json()).then(t => {
           box.drop();
           box.setData(t, { view: o.view, chains: o.chains });
+          drawPocket(t);
           if (next.colors) box.setColors(next.colors);
           applyRep();
           emit('load', state());
@@ -2004,6 +2014,7 @@
       }
       if (next.colors) box.setColors(next.colors);
       if (next.rep) applyRep();
+      if ('pocket' in next && pocketGroup) { pocketGroup.visible = next.pocket !== false; box.draw(); }
       return this;
     }
     if (P.rep !== 'ribbon') applyRep();
