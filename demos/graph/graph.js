@@ -394,22 +394,18 @@
         color: cf ? { legend: P.legend, range: SERIES, label: deslug(cf) } : undefined,
         caption: P.caption || undefined,
       });
-      /* The base margin fits a three-digit tick. Wider ticks ("3,500") push
-         into the rotated axis name, so measure the domain's ticks as Plot will
-         print them and widen both by the excess, at 11px type (~6.5px/char). */
+      /* The base margin fits a short tick. Wider ones ("3,500", and sooner in
+         a compact panel) run into the rotated axis name, so render once, measure
+         the widest tick label, and widen margin and label offset together:
+         tick, padding, a ~6px gap, the label line and its edge. */
+      const base = compact ? 44 : 60;
       let fig = Plot.plot(opts(0));
-      const ys = fig.scale('y');
-      if (ys && ys.domain && typeof ys.domain[0] === 'number') {
-        const [a, b] = ys.domain;
-        const tv = Array.isArray(yTicks) ? yTicks
-          : ys.type === 'log' ? [a, b] : d3.ticks(Math.min(a, b), Math.max(a, b), yTicks);
-        const fmt = typeof P.y.tickFormat === 'function' ? P.y.tickFormat
-          : typeof P.y.tickFormat === 'string' ? d3.format(P.y.tickFormat)
-          : (v) => v.toLocaleString('en-US');
-        const chars = Math.max(0, ...tv.map(v => String(fmt(v)).length));
-        const yPad = Math.max(0, Math.round((chars - 3) * 6.5));
-        if (yPad) fig = Plot.plot(opts(yPad));
-      }
+      wrap.appendChild(fig);
+      const tw = Math.max(0, ...[...fig.querySelectorAll('[aria-label="y-axis tick label"] text')]
+        .map(t => t.getBBox().width));
+      fig.remove();
+      const yPad = Math.max(0, Math.ceil(tw) + (compact ? 33 : 38) - base);
+      if (yPad) fig = Plot.plot(opts(yPad));
 
       wrap.textContent = '';
       if (P.title) {
